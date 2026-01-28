@@ -1,11 +1,16 @@
 <script setup lang="ts"></script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <div style="
+      display: flex;
+      font-size: 24px;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #ADD8E6 0%, #4682B4 100%);
+      text-decoration: underline;">
+    <h1 style="color: #003366;">Welcome to <br> Unified Scheduling Application</h1>
+  </div>
 </template>
 
 <style scoped></style>
