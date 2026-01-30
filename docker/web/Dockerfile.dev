@@ -1,0 +1,29 @@
+ARG NODE_VERSION=22
+ARG VITE_PORT=8080
+ARG WEB_SRC=./web
+
+FROM registry.access.redhat.com/ubi9/nodejs-${NODE_VERSION}
+ARG WEB_SRC
+ARG VITE_PORT
+
+WORKDIR /opt/app-root/src
+
+COPY ${WEB_SRC}/package*.json ./
+
+USER root
+
+# Keep as is as this is for local development
+RUN npm install
+
+COPY ${WEB_SRC} .
+
+COPY ./docker/web/dev-entrypoint.sh /opt/app-root/src/
+
+RUN chmod +x /opt/app-root/src/dev-entrypoint.sh
+
+ENV VITE_PORT=${VITE_PORT}
+
+EXPOSE ${VITE_PORT}
+
+# Run the startup script
+CMD ["/opt/app-root/src/dev-entrypoint.sh"]

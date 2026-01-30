@@ -1,0 +1,60 @@
+version: '3.4'
+services:
+  web:
+    image: '${COMPOSE_PROJECT_NAME}-web'
+    environment:
+      - API_URL=${API_URL}
+      - WEB_BASE_HREF=${WEB_BASE_HREF}
+      - APP_ENVIRONMENT=${APP_ENVIRONMENT}
+      - NODE_ENV=development
+      - NPM_CONFIG_LOGLEVEL=notice
+      - VITE_PORT=8080
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - '8080:8080'
+    volumes:
+      - '${LOCAL_WORKSPACE_FOLDER-..}/web/src:/opt/app-root/src/src'
+      - '${LOCAL_WORKSPACE_FOLDER-..}/web/package.json:/opt/app-root/src/package.json'
+      - '${LOCAL_WORKSPACE_FOLDER-..}/web/vite.config.ts:/opt/app-root/src/vite.config.ts'
+      - '${LOCAL_WORKSPACE_FOLDER-..}/web/tsconfig.json:/opt/app-root/src/tsconfig.json'
+      - '${LOCAL_WORKSPACE_FOLDER-..}/web/index.html:/opt/app-root/src/index.html'
+    depends_on:
+      - api
+
+  api:
+    image: '${COMPOSE_PROJECT_NAME}-api'
+    environment:
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - DatabaseConnectionString=${DatabaseConnectionString}
+      - CORS_DOMAIN=${CORS_DOMAIN}
+    ports:
+      - 5000:5000
+    volumes:
+      - ${LOCAL_WORKSPACE_FOLDER-..}/api/UnifiedScheduling.Api:/opt/app-root/src/api/UnifiedScheduling.Api
+      # - ${LOCAL_WORKSPACE_FOLDER-..}/db/:/opt/app-root/src/db
+      - api-dev-bin:/opt/app-root/src/api/UnifiedScheduling.Api/bin
+      - api-dev-obj:/opt/app-root/src/api/UnifiedScheduling.Api/obj
+    depends_on:
+      - db
+    command: >
+      /bin/bash -c "
+        echo Waiting for the database service to start up ...;
+        sleep 5;
+        dotnet watch run --project /opt/app-root/src/api/UnifiedScheduling.Api/api.csproj --urls='http://+:5000';"
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=${POSTGRESQL_USER}
+      - POSTGRES_PASSWORD=${POSTGRESQL_PASSWORD}
+      - POSTGRES_DB=${POSTGRESQL_DATABASE}
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  api-dev-bin:
+  api-dev-obj:
+  postgres-data:
