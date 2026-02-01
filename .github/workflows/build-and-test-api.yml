@@ -10,7 +10,7 @@ on:
       - main
     paths:
       - 'api/**'
-      - 'db/**'
+      # - 'db/**'
 
   workflow_dispatch:
 
@@ -36,7 +36,7 @@ jobs:
           filters: |
             api:
               - 'api/**'
-              - 'db/**'
+              # - 'db/**'
 
       - name: Get changed files
         if: steps.filter.outputs.api == 'true'
