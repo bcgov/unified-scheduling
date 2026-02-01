@@ -4,13 +4,13 @@ WORKDIR /src
 
 # Copy project files
 COPY api/api.csproj ./api/
-COPY db/db.csproj ./db/
+# COPY db/db.csproj ./db/
 
 # Restore dependencies
 RUN dotnet restore ./api/api.csproj
 # Copy source code
 COPY api ./api
-COPY db/ ./db/
+# COPY db/ ./db/
 
 # Build and publish
 WORKDIR /src/api
