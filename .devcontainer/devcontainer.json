@@ -49,7 +49,7 @@
         "[javascript]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode"
         },
-        "dotnet.defaultSolution": "/workspaces/api/unified-scheduling.sln"
+        "dotnet.defaultSolution": "/workspaces/api/unified.sln"
       }
     }
   },

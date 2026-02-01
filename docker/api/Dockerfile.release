@@ -3,18 +3,17 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy project files
-COPY api/UnifiedScheduling.Api/api.csproj ./api/UnifiedScheduling.Api/
+COPY api/api.csproj ./api/
 COPY db/db.csproj ./db/
 
 # Restore dependencies
-RUN dotnet restore ./api/UnifiedScheduling.Api/api.csproj
-
+RUN dotnet restore ./api/api.csproj
 # Copy source code
-COPY api/UnifiedScheduling.Api ./api/UnifiedScheduling.Api
+COPY api ./api
 COPY db/ ./db/
 
 # Build and publish
-WORKDIR /src/api/UnifiedScheduling.Api
+WORKDIR /src/api
 RUN dotnet publish -c Release -o /app/publish --no-restore
 
 # Runtime stage

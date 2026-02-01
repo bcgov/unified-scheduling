@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace UnifiedScheduling.Api.Controllers;
+namespace api.Controllers;
 
 [ApiController]
 [Route("[controller]")]
