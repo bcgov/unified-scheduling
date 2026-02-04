@@ -1,5 +1,6 @@
 {
   "name": "Unified Scheduling Dev Container",
+  "runArgs": ["--name", "unified-scheduling-devcontainer"],
   "build": {
     "dockerfile": "Dockerfile",
     "context": "."
