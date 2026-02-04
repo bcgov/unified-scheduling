@@ -1,0 +1,123 @@
+name: Build and Test API
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      # - 'db/**'
+
+  workflow_dispatch:
+
+env:
+  WORKING_DIRECTORY: .
+  NUGET_CERT_REVOCATION_MODE: offline
+
+jobs:
+  build-and-test-api:
+    name: Build and Test API
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              # - 'db/**'
+
+      - name: Get changed files
+        if: steps.filter.outputs.api == 'true'
+        id: changed-files
+        uses: jitterbit/get-changed-files@v1
+        continue-on-error: true
+
+      - name: Find csproj files
+        if: steps.filter.outputs.api == 'true'
+        id: find-csproj
+        run: |
+          csproj_files=()
+          if [[ ${{ steps.changed-files.outcome }} == 'success' ]]; then
+            for file in ${{ steps.changed-files.outputs.added_modified }}; do
+              echo "$file was changed"
+              dir="./$file"
+              while [[ $dir != "." && $dir != "/" && $dir != $GITHUB_WORKSPACE ]]; do
+                if find "$dir" -maxdepth 1 -name "*.csproj" -print -quit | grep -q .; then
+                  csproj_files+=("$(find "$dir" -maxdepth 1 -name "*.csproj" -print -quit)")
+                  break
+                fi
+                dir=$(echo ${dir%/*})
+              done
+            done
+          else
+            # if the changed-files step failed, run on the whole sln instead
+            echo "Running checks on whole solution"
+            csproj_files=$(find ./ -type f -name "*.sln" | tr '\n' ' ');
+          fi
+          csproj_files=($(printf "%s\n" "${csproj_files[@]}" | sort -u))
+          echo "Found ${#csproj_files[@]} unique csproj/sln files: ${csproj_files[*]}"
+          echo "csproj_files=${csproj_files[*]}" >> $GITHUB_OUTPUT
+
+      - name: Setup .NET
+        if: steps.filter.outputs.api == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install CSharpier
+        if: steps.filter.outputs.api == 'true'
+        run: |
+          dotnet new tool-manifest --force
+          dotnet tool install csharpier
+
+      - name: Check CSharpier Formatting
+        if: steps.filter.outputs.api == 'true' && steps.find-csproj.outputs.csproj_files != ''
+        run: |
+          for csproj in ${{ steps.find-csproj.outputs.csproj_files }}; do
+            project_dir=$(dirname "$csproj")
+            echo "Checking CSharpier formatting for $project_dir"
+            dotnet csharpier check "$project_dir"
+          done
+
+      - name: Check Dotnet Format (Style)
+        if: steps.filter.outputs.api == 'true' && steps.find-csproj.outputs.csproj_files != ''
+        run: |
+          for csproj in ${{ steps.find-csproj.outputs.csproj_files }}; do
+            echo "Checking style formatting for $csproj"
+            dotnet format style $csproj --verify-no-changes --verbosity diagnostic
+          done
+
+      - name: Check Dotnet Format (Analyzers)
+        if: steps.filter.outputs.api == 'true' && steps.find-csproj.outputs.csproj_files != ''
+        run: |
+          for csproj in ${{ steps.find-csproj.outputs.csproj_files }}; do
+            echo "Checking analyzers for $csproj"
+            dotnet format analyzers $csproj --verify-no-changes --verbosity diagnostic
+          done
+
+      - name: Build API codebase
+        if: steps.filter.outputs.api == 'true'
+        uses: ./.github/workflows/actions/build-api
+        with:
+          working_directory: ${{ env.WORKING_DIRECTORY }}
+          dotnet_version: 10.0
+      
+      - name: Summary
+        run: |
+          if [[ "${{ steps.filter.outputs.api }}" == "false" ]]; then
+            echo "✓ No API changes detected - check passed"
+          else
+            echo "✓ Build and tests completed successfully"
+          fi

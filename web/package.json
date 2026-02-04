@@ -7,14 +7,16 @@
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
+    "test": "vitest",
     "test:unit": "vitest",
     "test:e2e": "playwright test",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "lint": "eslint --ext .ts,.vue --fix src --ignore-pattern \"src/types/**\"",
+    "prettier:check": "prettier --check \"src/**/*.{ts,vue,js,json}\"",
+    "prettier:fix": "prettier --write \"src/**/*.{ts,vue,js,json}\""
   },
   "dependencies": {
     "pinia": "^3.0.4",

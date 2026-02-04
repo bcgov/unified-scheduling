@@ -1,0 +1,44 @@
+name: Build Web
+description: Builds the Web codebase with quality gates
+
+inputs:
+  working_directory:
+    description: The working directory where the code will be built.
+    required: true
+  node_version:
+    description: The node version that will be used.
+    required: true
+
+runs:
+  using: composite
+
+  steps:
+    - name: Use Node.js ${{ inputs.node_version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+
+    - name: Install dependencies
+      run: npm ci
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+
+    - name: Lint check
+      run: npm run lint
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      continue-on-error: false
+
+    - run: npm run prettier:check
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+
+    - name: Build
+      run: npm run build
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+
+    - name: Test
+      run: npm run test
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
