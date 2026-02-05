@@ -13,12 +13,12 @@ interface Config {
   modules: string[]
 }
 
-const config: Config = await fetch('/src/assets/config.json').then(res => res.json())
+const config: Config = await fetch('/src/assets/config.json').then((res) => res.json())
 
 app.provide<Config>('config', config)
 
-config.modules.forEach(module => {
-  console.log(`Module loaded: ${module}`);
+config.modules.forEach((module) => {
+  console.log(`Module loaded: ${module}`)
 
   if (module === 'users') {
     router.addRoute({
@@ -28,9 +28,9 @@ config.modules.forEach(module => {
       meta: {
         title: 'Users',
       },
-    });
+    })
   }
-});
+})
 
 await router.isReady()
 app.mount('#app')

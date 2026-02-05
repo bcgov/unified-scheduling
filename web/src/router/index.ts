@@ -20,7 +20,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: 'Scheduling',
     },
-  }
+  },
 ]
 
 const router = createRouter({

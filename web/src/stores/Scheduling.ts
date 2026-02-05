@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
 interface Event {
-  id?: string;
+  id?: string
   title?: string
 }
 
