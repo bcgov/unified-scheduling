@@ -23,6 +23,13 @@ export default defineConfigWithVueTs(
   vueTsConfigs.recommended,
 
   {
+    name: 'app/custom-rules',
+    rules: {
+      'vue/multi-word-component-names': 'off',
+    },
+  },
+
+  {
     ...pluginPlaywright.configs['flat/recommended'],
     files: ['e2e/**/*.{test,spec}.{js,ts,jsx,tsx}'],
   },

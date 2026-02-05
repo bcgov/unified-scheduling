@@ -19,17 +19,7 @@ app.provide<Config>('config', config)
 
 config.modules.forEach(module => {
   console.log(`Module loaded: ${module}`);
-  if (module === 'training') {
-    router.addRoute({
-      path: '/training',
-      name: 'Training',
-      component: () => import('./modules/training/Training.vue'),
-      meta: {
-        title: 'Training',
-      },
-    });
-  }
-  
+
   if (module === 'users') {
     router.addRoute({
       path: '/users',

@@ -13,6 +13,14 @@ const routes: RouteRecordRaw[] = [
       title: 'Dashboard',
     },
   },
+  {
+    path: '/scheduling',
+    name: 'Scheduling',
+    component: () => import('../modules/scheduling/Scheduling.vue'),
+    meta: {
+      title: 'Scheduling',
+    },
+  }
 ]
 
 const router = createRouter({

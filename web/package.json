@@ -14,7 +14,7 @@
     "type-check": "vue-tsc --build",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "lint": "eslint --ext .ts,.vue --fix src --ignore-pattern \"src/types/**\"",
+    "lint": "run-s lint:*",
     "prettier:check": "prettier --check \"src/**/*.{ts,vue,js,json}\"",
     "prettier:fix": "prettier --write \"src/**/*.{ts,vue,js,json}\""
   },

@@ -17,7 +17,7 @@ const isHome = () => route.name === 'Home'
           <RouterLink to="/dashboard" active-class="active">Dashboard</RouterLink>
         </li>
         <li>
-          <RouterLink to="/training" active-class="active">Training</RouterLink>
+          <RouterLink to="/scheduling" active-class="active">Scheduling</RouterLink>
         </li>
         <li>
           <RouterLink to="/users" active-class="active">Users</RouterLink>
