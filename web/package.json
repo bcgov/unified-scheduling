@@ -16,7 +16,8 @@
     "lint:eslint": "eslint . --fix --cache",
     "lint": "run-s lint:*",
     "prettier:check": "prettier --check \"src/**/*.{ts,vue,js,json}\"",
-    "prettier:fix": "prettier --write \"src/**/*.{ts,vue,js,json}\""
+    "prettier:fix": "prettier --write \"src/**/*.{ts,vue,js,json}\"",
+    "pre:push": "run-s lint prettier:fix build test"
   },
   "dependencies": {
     "pinia": "^3.0.4",

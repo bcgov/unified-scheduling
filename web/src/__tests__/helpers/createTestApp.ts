@@ -1,4 +1,4 @@
-import router from '../../router/index';
+import router from '../../router/index'
 
 /**
  *
@@ -8,9 +8,8 @@ import router from '../../router/index';
 export async function createTestApp() {
   // ... setup router, pinia, render app ...
 
-
   return {
-    router,       // The navigation system
+    router, // The navigation system
     // cleanup       // A function to tidy up after the test
   }
 }
