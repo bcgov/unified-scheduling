@@ -1,4 +1,3 @@
-import { createRouter, createWebHistory } from 'vue-router';
 import router from '../../router/index';
 
 /**
