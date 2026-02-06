@@ -24,7 +24,7 @@ config.modules.forEach((module) => {
     router.addRoute({
       path: '/users',
       name: 'Users',
-      component: () => import('./modules/users/Users.vue'),
+      component: () => import('./modules/users/User.vue'),
       meta: {
         title: 'Users',
       },
