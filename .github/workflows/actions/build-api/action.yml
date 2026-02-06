@@ -26,7 +26,7 @@ runs:
     - name: Build API
       run: dotnet build --configuration Release --no-restore
       shell: bash
-      working-directory: ${{ inputs.working_directory }}/api
+      working-directory: ${{ inputs.working_directory }}
 
     # - name: Build DB
       # run: dotnet build --configuration Release --no-restore
