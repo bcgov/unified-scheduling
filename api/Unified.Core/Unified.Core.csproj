@@ -11,8 +11,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Validation" Version="10.0.2" />
     <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" Version="4.4.0" />
   </ItemGroup>
 </Project>
