@@ -1,3 +1,4 @@
+using Microsoft.FeatureManagement;
 using Unified.Core;
 using Unified.Stats;
 
@@ -7,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddFeatureManagement();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 // builder.Services.AddOpenApi();
@@ -14,7 +16,7 @@ builder.Services.AddControllers();
 // Modules 
 builder.Services.AddCoreModule();
 
-if (builder.Configuration["Modules"]?.Contains("Stats") == true)
+if (builder.Configuration.GetValue<bool>("FeatureManagement:Stats"))
 {
     builder.Services.AddStatsModule();
 }
@@ -34,7 +36,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Modules
-if (builder.Configuration["Modules"]?.Contains("Stats") == true)
+if (await app.Services.GetRequiredService<IFeatureManager>().IsEnabledAsync("Stats"))
 {
     app.MapStatsEndpoints();
 }

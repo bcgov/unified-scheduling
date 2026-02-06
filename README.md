@@ -28,4 +28,3 @@
 - https://github.com/mhagrelius/dotfiles/tree/main/.claude/skills/dotnet-10-csharp-14
 - https://github.com/Aaronontheweb/dotnet-skills/blob/master/skills/project-structure/SKILL.md
 - https://developersvoice.com/blog/dotnet/building_plugin_ready_modular_monolith/
-
