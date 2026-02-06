@@ -1,17 +1,17 @@
-import { ref } from 'vue'
-import { defineStore } from 'pinia'
+import { ref } from 'vue';
+import { defineStore } from 'pinia';
 
 interface Event {
-  id?: string
-  title?: string
+  id?: string;
+  title?: string;
 }
 
 export const useSchedulingStore = defineStore('scheduling', () => {
-  const events = ref<Event[]>([])
+  const events = ref<Event[]>([]);
 
   const addEvents = (newEvents: Event[]) => {
-    events.value.push(...newEvents)
-  }
+    events.value.push(...newEvents);
+  };
 
-  return { events, addEvents }
-})
+  return { events, addEvents };
+});

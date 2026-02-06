@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import Calendar from '@/shared/components/Calendar.vue'
-import { useSchedulingStore } from '@/stores/Scheduling'
-console.log('Scheduling Store:', useSchedulingStore().events)
+import Calendar from '@/shared/components/Calendar.vue';
+import { useSchedulingStore } from '@/stores/Scheduling';
+console.log('Scheduling Store:', useSchedulingStore().events);
 </script>
 
 <template>
