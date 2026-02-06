@@ -1,12 +1,36 @@
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 
-import App from './App.vue'
-import router from './router'
+import App from './App.vue';
+import router from './router';
 
-const app = createApp(App)
+const app = createApp(App);
 
-app.use(createPinia())
-app.use(router)
+app.use(createPinia());
+app.use(router);
 
-app.mount('#app')
+interface Config {
+  modules: string[];
+}
+
+const config: Config = await fetch('/src/assets/config.json').then((res) => res.json());
+
+app.provide<Config>('config', config);
+
+config.modules.forEach((module) => {
+  console.log(`Module loaded: ${module}`);
+
+  if (module === 'users') {
+    router.addRoute({
+      path: '/users',
+      name: 'Users',
+      component: () => import('./modules/users/User.vue'),
+      meta: {
+        title: 'Users',
+      },
+    });
+  }
+});
+
+await router.isReady();
+app.mount('#app');
