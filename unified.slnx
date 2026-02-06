@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="api/Unified.Api/Unified.Api.csproj" />
+  <Project Path="api/Unified.Core/Unified.Core.csproj" />
+  <Project Path="api/Unified.Stats/Unified.Stats.csproj" />
+</Solution>
