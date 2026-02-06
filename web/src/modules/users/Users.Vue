@@ -5,7 +5,7 @@ import { inject } from 'vue';
 const Training = defineAsyncComponent(() => import('../training/Training.vue'))
 
 const config = inject('config') as { modules: string[] };
-
+console.log('Loaded config in Users module:', config);
 </script>
 
 <template>
