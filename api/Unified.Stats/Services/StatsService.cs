@@ -13,4 +13,3 @@ internal class StatsService : IStatsService
         return ModuleName;
     }
 }
-
