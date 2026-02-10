@@ -10,7 +10,6 @@ const accessControl = useAccessControl();
 const modules = shallowRef(Modules);
 
 const isHome = () => route.name === 'Home';
-
 </script>
 
 <template>

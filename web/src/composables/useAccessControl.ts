@@ -5,7 +5,9 @@ import { useConfigStore, type FeatureModuleConfig, type ModuleKey } from '@/stor
 export const useAccessControl = (pinia?: Pinia) => {
   const configStore = useConfigStore(pinia);
 
-  const modules = computed(() => configStore.config?.features?.modules ?? {} as Partial<Record<ModuleKey, FeatureModuleConfig>>);
+  const modules = computed(
+    () => configStore.config?.features?.modules ?? ({} as Partial<Record<ModuleKey, FeatureModuleConfig>>),
+  );
 
   const canAccessModule = (moduleKey: ModuleKey): boolean => {
     return modules.value[moduleKey]?.isEnabled ?? false;

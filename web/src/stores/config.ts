@@ -7,7 +7,7 @@ export const Modules = {
   training: 'training',
 } as const;
 
-export type ModuleKey = typeof Modules[keyof typeof Modules];
+export type ModuleKey = (typeof Modules)[keyof typeof Modules];
 
 export interface FeatureModuleConfig {
   isEnabled?: boolean;

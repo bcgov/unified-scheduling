@@ -4,13 +4,15 @@ export const dashboardRoutes: RouteRecordRaw[] = [
   {
     path: '/dashboard',
     name: 'Dashboard',
-    children: [{
-      path: '',
-      name: 'DashboardHome',
-      component: () => import('./Dashboard.vue'),
-    }],
+    children: [
+      {
+        path: '',
+        name: 'DashboardHome',
+        component: () => import('./Dashboard.vue'),
+      },
+    ],
     meta: {
       title: 'Dashboard',
     },
   },
-]
+];

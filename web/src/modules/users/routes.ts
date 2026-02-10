@@ -17,4 +17,4 @@ export const usersRoutes = [
       module: Modules.users,
     },
   },
-]
+];

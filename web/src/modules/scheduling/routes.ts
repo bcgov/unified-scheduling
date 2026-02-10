@@ -16,5 +16,5 @@ export const schedulingRoutes = [
     meta: {
       module: Modules.scheduling,
     },
-  }
+  },
 ];

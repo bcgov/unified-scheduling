@@ -10,11 +10,10 @@ const baseRoutes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: '/dashboard',
-  }
+  },
 ];
 
 const routes: RouteRecordRaw[] = [...baseRoutes];
-
 
 // Initialize module routes based on access control
 export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {

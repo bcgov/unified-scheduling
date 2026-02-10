@@ -8,7 +8,6 @@ const Training = defineAsyncComponent(() => import('../training/Training.vue'));
 const accessControl = useAccessControl();
 
 const modules = shallowRef(Modules);
-
 </script>
 
 <template>
