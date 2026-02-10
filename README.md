@@ -17,7 +17,7 @@
 
 #### Must Read
 
-- https://github.com/mhagrelius/dotfiles/blob/main/.claude/skills/dotnet-10-csharp-14/infrastructure.md#keyed-services-net-8 (If we need to seperate app specific business logic)
+- https://github.com/mhagrelius/dotfiles/blob/main/.claude/skills/dotnet-10-csharp-14/infrastructure.md
 - https://github.com/Aaronontheweb/dotnet-skills/blob/master/skills/csharp-coding-standards/SKILL.md
 - https://github.com/Aaronontheweb/dotnet-skills/blob/master/skills/efcore-patterns/SKILL.md
 - https://github.com/Aaronontheweb/dotnet-skills/blob/master/skills/microsoft-extensions-dependency-injection/SKILL.md
