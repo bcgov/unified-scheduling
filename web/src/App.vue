@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
+import { Modules } from '@/stores/config';
+import { useAccessControl } from '@/composables/useAccessControl';
+import { shallowRef } from 'vue';
 
 const route = useRoute();
+const accessControl = useAccessControl();
+
+const modules = shallowRef(Modules);
+
 const isHome = () => route.name === 'Home';
+
 </script>
 
 <template>
@@ -16,10 +24,10 @@ const isHome = () => route.name === 'Home';
         <li>
           <RouterLink to="/dashboard" active-class="active">Dashboard</RouterLink>
         </li>
-        <li>
+        <li v-if="accessControl.canAccessModule(modules.scheduling)">
           <RouterLink to="/scheduling" active-class="active">Scheduling</RouterLink>
         </li>
-        <li>
+        <li v-if="accessControl.canAccessModule(modules.users)">
           <RouterLink to="/users" active-class="active">Users</RouterLink>
         </li>
       </ul>

@@ -1,36 +1,24 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 
+import { useConfigStore } from './stores/config';
+import { initializeRouter } from './router';
+
 import App from './App.vue';
-import router from './router';
+
 
 const app = createApp(App);
 
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
+
+const configStore = useConfigStore(pinia);
+await configStore.loadConfig();
+
+// Initialize module routes based on access control
+const router = initializeRouter(pinia);
+
 app.use(router);
-
-interface Config {
-  modules: string[];
-}
-
-const config: Config = await fetch('/src/assets/config.json').then((res) => res.json());
-
-app.provide<Config>('config', config);
-
-config.modules.forEach((module) => {
-  console.log(`Module loaded: ${module}`);
-
-  if (module === 'users') {
-    router.addRoute({
-      path: '/users',
-      name: 'Users',
-      component: () => import('./modules/users/User.vue'),
-      meta: {
-        title: 'Users',
-      },
-    });
-  }
-});
 
 await router.isReady();
 app.mount('#app');

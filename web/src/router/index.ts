@@ -1,36 +1,61 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import type { createPinia } from 'pinia';
+import { Modules, type ModuleKey } from '@/stores/config';
+import { useAccessControl } from '@/composables/useAccessControl';
+import { schedulingRoutes } from '@/modules/scheduling/routes';
+import { usersRoutes } from '@/modules/users/routes';
+import { trainingRoutes } from '@/modules/training/routes';
 
-const routes: RouteRecordRaw[] = [
+const baseRoutes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: '/dashboard',
-  },
-  {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('../modules/dashboard/Dashboard.vue'),
-    meta: {
-      title: 'Dashboard',
-    },
-  },
-  {
-    path: '/scheduling',
-    name: 'Scheduling',
-    component: () => import('../modules/scheduling/Scheduling.vue'),
-    meta: {
-      title: 'Scheduling',
-    },
-  },
+  }
 ];
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
-});
+const routes: RouteRecordRaw[] = [...baseRoutes];
 
-// Update document title on route change
-router.afterEach((to) => {
-  document.title = `${to.meta.title || 'Page'} - Unified Scheduling`;
-});
 
-export default router;
+// Initialize module routes based on access control
+export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
+  const accessControl = useAccessControl(pinia);
+
+  if (accessControl.canAccessModule(Modules.scheduling)) {
+    routes.push(...schedulingRoutes);
+  }
+
+  if (accessControl.canAccessModule(Modules.users)) {
+    routes.push(...usersRoutes);
+  }
+
+  if (accessControl.canAccessModule(Modules.training)) {
+    routes.push(...trainingRoutes);
+  }
+
+  const router = createRouter({
+    history: createWebHistory(import.meta.env.BASE_URL),
+    routes,
+  });
+
+  router.beforeEach((to) => {
+    const moduleKey = to.meta?.module as ModuleKey;
+
+    if (!moduleKey) {
+      return true;
+    }
+
+    if (!accessControl.canAccessModule(moduleKey)) {
+      console.warn(`Access denied to module: ${moduleKey}`);
+      return { path: '/dashboard' };
+    }
+
+    return true;
+  });
+
+  // Update document title on route change
+  router.afterEach((to) => {
+    document.title = `${to.meta.title || 'Page'} - Unified Scheduling`;
+  });
+
+  return router;
+};
