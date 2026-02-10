@@ -1,0 +1,18 @@
+import { createPinia } from 'pinia';
+import { initializeRouter } from '../../router/index';
+
+/**
+ *
+ * @see https://alexop.dev/posts/vue3_testing_pyramid_vitest_browser_mode/
+ *
+ */
+export async function createTestApp() {
+  // ... setup router, pinia, render app ...
+  const pinia = createPinia();
+  const router = initializeRouter(pinia);
+
+  return {
+    router, // The navigation system
+    // cleanup       // A function to tidy up after the test
+  };
+}

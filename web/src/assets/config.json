@@ -1,0 +1,22 @@
+{
+  "features": {
+    "modules": {
+      "users": {
+        "isEnabled": false,
+        "description": "The users module allows administrators to manage users and roles."
+      },
+      "scheduling": {
+        "isEnabled": true,
+        "description": "The scheduling module provides tools for creating and managing schedules, including calendar views, resource allocation, and conflict resolution."
+      },
+      "training": {
+        "isEnabled": true,
+        "description": "The training module allows users to create and manage training sessions, track attendance, and generate reports on training activities."
+      },
+      "stats": {
+        "isEnabled": true,
+        "description": "The stats module provides insights and analytics on scheduling data, including usage patterns, resource allocation, and performance metrics."
+      }
+    }
+  }
+}

@@ -1,12 +1,23 @@
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 
-import App from './App.vue'
-import router from './router'
+import { useConfigStore } from './stores/config';
+import { initializeRouter } from './router';
 
-const app = createApp(App)
+import App from './App.vue';
 
-app.use(createPinia())
-app.use(router)
+const app = createApp(App);
 
-app.mount('#app')
+const pinia = createPinia();
+app.use(pinia);
+
+const configStore = useConfigStore(pinia);
+await configStore.loadConfig();
+
+// Initialize module routes based on access control
+const router = initializeRouter(pinia);
+
+app.use(router);
+
+await router.isReady();
+app.mount('#app');
