@@ -1,6 +1,7 @@
+import type { RouteRecordRaw } from 'vue-router';
 import { Modules } from '@/stores/config';
 
-export const trainingRoutes = [
+export const trainingRoutes: RouteRecordRaw[] = [
   {
     path: '/training',
     children: [

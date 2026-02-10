@@ -6,6 +6,14 @@ import { schedulingRoutes } from '@/modules/scheduling/routes';
 import { usersRoutes } from '@/modules/users/routes';
 import { trainingRoutes } from '@/modules/training/routes';
 
+declare module 'vue-router' {
+  interface RouteMeta {
+    title?: string;
+    // is optional
+    module?: ModuleKey;
+  }
+}
+
 const baseRoutes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -37,7 +45,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   });
 
   router.beforeEach((to) => {
-    const moduleKey = to.meta?.module as ModuleKey;
+    const moduleKey = to.meta?.module;
 
     if (!moduleKey) {
       return true;
