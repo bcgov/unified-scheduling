@@ -6,10 +6,10 @@ namespace Unified.Stats.Services;
 
 internal class StatsService : IStatsService
 {
-    public string ModuleName => "Stats Module Loaded Successfully";
-
+    public string ModuleName => "Stats";
+    
     public string CheckHealth()
     {
-        return ModuleName;
+        return  $"{ModuleName} Loaded Successfully";
     }
 }
