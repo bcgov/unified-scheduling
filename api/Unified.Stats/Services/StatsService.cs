@@ -7,9 +7,9 @@ namespace Unified.Stats.Services;
 internal class StatsService : IStatsService
 {
     public string ModuleName => "Stats";
-    
+
     public string CheckHealth()
     {
-        return  $"{ModuleName} Loaded Successfully";
+        return $"{ModuleName} Loaded Successfully";
     }
 }
