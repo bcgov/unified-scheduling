@@ -15,8 +15,8 @@
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
     "lint": "run-s lint:*",
-    "prettier:check": "prettier --check \"src/**/*.{ts,vue,js,json}\"",
-    "prettier:fix": "prettier --write \"src/**/*.{ts,vue,js,json}\"",
+    "prettier:check": "prettier --check .",
+    "prettier:fix": "prettier --write .",
     "pre:push": "run-s lint prettier:fix build test"
   },
   "dependencies": {

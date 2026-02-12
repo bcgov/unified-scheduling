@@ -1,4 +1,5 @@
-import router from '../../router/index';
+import { createPinia } from 'pinia';
+import { initializeRouter } from '../../router/index';
 
 /**
  *
@@ -7,6 +8,8 @@ import router from '../../router/index';
  */
 export async function createTestApp() {
   // ... setup router, pinia, render app ...
+  const pinia = createPinia();
+  const router = initializeRouter(pinia);
 
   return {
     router, // The navigation system
