@@ -3,13 +3,13 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0
 ENV ASPNETCORE_ENVIRONMENT='Production'
 ENV ASPNETCORE_URLS='http://+:5000'
 ENV CORS_DOMAIN='http://localhost:8080'
-ENV DOTNET_STARTUP_PROJECT='./api/api.csproj'
+ENV DOTNET_STARTUP_PROJECT='./api/Unified.Api/Unified.Api.csproj'
 ENV DOTNET_USE_POLLING_FILE_WATCHER 1
 
 RUN curl -sSL https://aka.ms/getvsdbgsh | /bin/sh /dev/stdin -v latest -l /vsdbg
 
 # Copy project files and restore NuGet packages
 WORKDIR /opt/app-root/src
-COPY ../api/api.csproj ./api/
+COPY ../api/ ./api/
 # COPY ../db/db.csproj ./db/
-RUN dotnet restore ./api/api.csproj
+RUN dotnet restore ./api/Unified.Api/Unified.Api.csproj

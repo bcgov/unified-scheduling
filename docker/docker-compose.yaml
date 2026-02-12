@@ -41,7 +41,7 @@ services:
       /bin/bash -c "
         echo Waiting for the database service to start up ...;
         sleep 5;
-        dotnet watch run --project /opt/app-root/src/api/api.csproj --urls='http://+:5000';"
+        dotnet watch run --project /opt/app-root/src/api/Unified.Api/Unified.Api.csproj --urls='http://+:5000';"
 
   db:
     image: postgres:16
