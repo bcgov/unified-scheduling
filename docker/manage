@@ -139,6 +139,12 @@ configureEnvironment () {
   export POSTGRESQL_PASSWORD=${POSTGRESQL_PASSWORD:-unifiedscheduling123}
   export POSTGRESQL_ADMIN_PASSWORD=${POSTGRESQL_ADMIN_PASSWORD:-admin123}
 
+  export KeycloakAuthority=${KeycloakAuthority}
+  export KeycloakClient=${KeycloakClient}
+  export KeycloakSecret=${KeycloakSecret}
+  export KeycloakAudience=${KeycloakAudience}
+  
+
   # Default API startup parameters
   export API_URL=${API_URL-http://api:5000/api/}
   
