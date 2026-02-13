@@ -34,7 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await fetch(`${baseUrl}/api/Auth/token`, {
         credentials: 'include',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
