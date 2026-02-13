@@ -17,6 +17,7 @@ try {
   await authStore.refreshToken();
 } catch (error) {
   console.warn('No valid token found, redirecting to login');
+  console.error(error);
   authStore.login();
   // The login method will redirect the user, so we can return early here
 }
