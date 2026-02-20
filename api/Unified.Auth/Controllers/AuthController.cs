@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Unified.Auth.Services;
 
 namespace Unified.Auth.Controllers;
 
@@ -18,12 +17,10 @@ namespace Unified.Auth.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;
-    private readonly IAuthService _authService;
 
-    public AuthController(ILogger<AuthController> logger, IAuthService authService)
+    public AuthController(ILogger<AuthController> logger)
     {
         _logger = logger;
-        _authService = authService;
     }
 
     /// <summary>

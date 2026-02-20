@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Unified.Auth.Services;
 
 namespace Unified.Auth;
 
@@ -16,7 +15,6 @@ public static class AuthModule
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddAuthModule(this IServiceCollection services)
     {
-        services.AddScoped<IAuthService, AuthService>();
         return services;
     }
 }
