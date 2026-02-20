@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.FeatureManagement;
+using Scalar.AspNetCore;
 using Unified.Auth;
 using Unified.Core;
 using Unified.Infrastructure;
@@ -14,7 +15,7 @@ builder.Services.AddControllers();
 builder.Services.AddFeatureManagement();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi("v1");
 
 // Modules
 builder.Services.AddCoreModule();
@@ -30,11 +31,20 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/openapi/v1.json", "v1");
-    });
+    app.MapOpenApi("/openapi/{documentName}.json");
+    app.MapScalarApiReference(
+        "/openapi",
+        (options) =>
+        {
+            options
+                .WithTitle("Unified.API")
+                .DisableAgent()
+                .HideClientButton()
+                .HideDeveloperTools()
+                .ShowOperationId();
+        }
+    );
+    app.MapGet("/swagger", () => Results.Redirect("/openapi"));
 }
 
 app.UseHttpsRedirection();
