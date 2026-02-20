@@ -22,7 +22,6 @@ namespace Unified.Infrastructure.Helpers
             string query = ""
         )
         {
-
             // Default: Assume the code is running locally, unless specified.
             forwardedProto = string.IsNullOrEmpty(forwardedProto) ? "http" : forwardedProto;
             forwardedHost = string.IsNullOrEmpty(forwardedHost) ? "localhost" : forwardedHost;

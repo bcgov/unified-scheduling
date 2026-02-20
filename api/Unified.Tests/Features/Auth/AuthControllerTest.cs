@@ -17,17 +17,11 @@ public class AuthControllerTest
         var services = new ServiceCollection();
         services.AddSingleton<IAuthenticationService, TestAuthenticationService>();
 
-        var httpContext = new DefaultHttpContext
-        {
-            RequestServices = services.BuildServiceProvider()
-        };
+        var httpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
         _controller = new AuthController(NullLogger<AuthController>.Instance)
         {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = httpContext
-            }
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
         };
     }
 
@@ -66,11 +60,8 @@ public class AuthControllerTest
         {
             ControllerContext = new ControllerContext
             {
-                HttpContext = new DefaultHttpContext
-                {
-                    RequestServices = services.BuildServiceProvider()
-                }
-            }
+                HttpContext = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() },
+            },
         };
 
         var result = await controller.Token();
@@ -94,7 +85,7 @@ public class AuthControllerTest
             var tokens = new List<AuthenticationToken>
             {
                 new() { Name = "access_token", Value = "test-access-token" },
-                new() { Name = "expires_at", Value = "2099-01-01T00:00:00Z" }
+                new() { Name = "expires_at", Value = "2099-01-01T00:00:00Z" },
             };
 
             var properties = new AuthenticationProperties();
@@ -106,17 +97,21 @@ public class AuthControllerTest
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
 
-        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
-            => Task.CompletedTask;
+        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
 
-        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
-            => Task.CompletedTask;
+        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
 
-        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties)
-            => Task.CompletedTask;
+        public Task SignInAsync(
+            HttpContext context,
+            string? scheme,
+            ClaimsPrincipal principal,
+            AuthenticationProperties? properties
+        ) => Task.CompletedTask;
 
-        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
-            => Task.CompletedTask;
+        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
     }
 
     private sealed class NoTokenAuthenticationService : IAuthenticationService
@@ -130,16 +125,20 @@ public class AuthControllerTest
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
 
-        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
-            => Task.CompletedTask;
+        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
 
-        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
-            => Task.CompletedTask;
+        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
 
-        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties)
-            => Task.CompletedTask;
+        public Task SignInAsync(
+            HttpContext context,
+            string? scheme,
+            ClaimsPrincipal principal,
+            AuthenticationProperties? properties
+        ) => Task.CompletedTask;
 
-        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
-            => Task.CompletedTask;
+        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
     }
 }
