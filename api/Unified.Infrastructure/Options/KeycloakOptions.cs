@@ -37,7 +37,17 @@ public class KeycloakOptions
     /// <summary>
     /// Token refresh threshold (e.g., "00:05:00" for 5 minutes)
     /// </summary>
-    public TimeSpan TokenRefreshThreshold { get; set; } = TimeSpan.FromMinutes(5);
+    public TimeSpan TokenRefreshThreshold { get; set; } = TimeSpan.FromMinutes(3);
+
+    /// <summary>
+    /// Identity provider hint
+    /// </summary>
+    public string? IdpHint { get; set; } = "idir";
+
+    /// Base URL for redirect URIs (e.g., http://localhost:5000) - used in Docker/proxy scenarios
+    /// </summary>
+    /// <summary>
+    public string? RedirectBaseUrl { get; set; } = "/";
 
     /// <summary>
     /// OIDC callback path
@@ -45,7 +55,13 @@ public class KeycloakOptions
     public string CallbackPath { get; set; } = "/api/auth/signin-oidc";
 
     /// <summary>
-    /// Identity provider hint
+    /// Refresh token endpoint (optional, defaults to {Authority}/protocol/openid-connect/token)
     /// </summary>
-    public string? IdpHint { get; set; } = "idir";
+    public string? RefreshTokenEndpoint { get; set; } = "/protocol/openid-connect/token";
+
+    /// <summary>
+    /// Logout endpoint (optional, defaults to {Authority}/protocol/openid-connect/logout)
+    /// </summary>
+    public string? LogoutEndpoint { get; set; } = "/protocol/openid-connect/logout";
+
 }

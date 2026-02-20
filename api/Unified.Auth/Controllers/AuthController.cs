@@ -1,5 +1,12 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+
 using Microsoft.AspNetCore.Authorization;
+
+
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Unified.Auth.Services;
@@ -29,9 +36,9 @@ public class AuthController : ControllerBase
     /// <returns>Authentication token response</returns>
     [Authorize(AuthenticationSchemes = OpenIdConnectDefaults.AuthenticationScheme)]
     [HttpGet("login")]
-    public async Task<ActionResult<object>> Login()
+    public async Task<IActionResult> Login(string redirectUri = "/api")
     {
-        return Ok();
+        return Redirect(redirectUri);
     }
 
     /// <summary>
@@ -39,20 +46,10 @@ public class AuthController : ControllerBase
     /// </summary>
     /// <returns>New authentication token</returns>
     [HttpGet("token")]
-    public async Task<ActionResult<object>> Token()
+    public async Task<IActionResult> Token()
     {
-        return Ok(new { token = "fake-token" });
-    }
-
-    /// <summary>
-    /// Refresh existing authentication token
-    /// </summary>
-    /// <param name="request">Refresh token request</param>
-    /// <returns>New authentication token</returns>
-    [HttpGet("refresh")]
-    [AllowAnonymous]
-    public async Task<ActionResult<object>> Refresh([FromBody] object request)
-    {
-        throw new NotImplementedException();
+        var accessToken = await HttpContext.GetTokenAsync(CookieAuthenticationDefaults.AuthenticationScheme, "access_token");
+        var expiresAt = await HttpContext.GetTokenAsync(CookieAuthenticationDefaults.AuthenticationScheme, "expires_at");
+        return Ok(new { access_token = accessToken, expires_at = expiresAt });
     }
 }

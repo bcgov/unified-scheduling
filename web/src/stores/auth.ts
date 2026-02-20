@@ -29,9 +29,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   const refreshToken = async (): Promise<void> => {
     try {
+      console.log('Refreshing token...', document.cookie.split(';').map(cookie => cookie.trim()));
       // @TODO: get base url
       const baseUrl = '';
-      const response = await fetch(`${baseUrl}/api/Auth/token`, {
+      const response = await fetch(`${baseUrl}/api/auth/token`, {
         credentials: 'include',
         headers: {
           Accept: 'application/json',

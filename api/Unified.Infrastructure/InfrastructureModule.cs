@@ -9,10 +9,12 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Unified.Infrastructure.Helpers;
 using Unified.Infrastructure.Options;
 
 namespace Unified.Infrastructure;
@@ -50,6 +52,7 @@ public static class InfrastructureModule
     {
         var serviceProvider = services.BuildServiceProvider();
         var keycloakOptions = serviceProvider.GetRequiredService<IOptions<KeycloakOptions>>().Value;
+        var env = serviceProvider.GetRequiredService<IHostEnvironment>();
 
         services
             .AddAuthentication(options =>
@@ -60,8 +63,9 @@ public static class InfrastructureModule
             })
             .AddCookie(options =>
             {
+                options.Cookie.Name = "UnifiedAuthCookie";
                 options.Cookie.HttpOnly = true;
-                //Important to be None, otherwise a redirect loop will occur.
+                // Keep strict settings for non-development; allow local HTTP development.
                 options.Cookie.SameSite = SameSiteMode.None;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 //This should prevent resending this cookie on every request.
@@ -75,27 +79,39 @@ public static class InfrastructureModule
                     // the login screen.
                     OnValidatePrincipal = async cookieCtx =>
                     {
-                        var accessTokenExpiration = DateTimeOffset.Parse(
-                            cookieCtx.Properties.GetTokenValue("expires_at") ?? string.Empty
-                        );
-                        var timeRemaining = accessTokenExpiration.Subtract(DateTimeOffset.UtcNow);
+                        var expiresAt = cookieCtx.Properties.GetTokenValue("expires_at");
+                        if (string.IsNullOrWhiteSpace(expiresAt)
+                            || !DateTimeOffset.TryParse(expiresAt, out var accessTokenExpiration))
+                        {
+                            cookieCtx.RejectPrincipal();
+                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                            return;
+                        }
 
+                        var timeRemaining = accessTokenExpiration.Subtract(DateTimeOffset.UtcNow);
                         if (timeRemaining > keycloakOptions.TokenRefreshThreshold)
                             return;
 
                         var refreshToken = cookieCtx.Properties.GetTokenValue("refresh_token");
+                        if (string.IsNullOrWhiteSpace(refreshToken))
+                        {
+                            cookieCtx.RejectPrincipal();
+                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                            return;
+                        }
+
                         var httpClientFactory =
                             cookieCtx.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
                         var httpClient = httpClientFactory.CreateClient("TokenRefresh");
 
-                        var tokenEndpoint = $"{keycloakOptions.Authority}/protocol/openid-connect/token";
+                        var tokenEndpoint = $"{keycloakOptions.Authority}{keycloakOptions.RefreshTokenEndpoint}";
                         var content = new FormUrlEncodedContent(
                             new Dictionary<string, string>
                             {
                                 ["grant_type"] = "refresh_token",
                                 ["client_id"] = keycloakOptions.Client,
                                 ["client_secret"] = keycloakOptions.Secret,
-                                ["refresh_token"] = refreshToken ?? string.Empty,
+                                ["refresh_token"] = refreshToken,
                             }
                         );
 
@@ -130,11 +146,13 @@ public static class InfrastructureModule
                     options.Authority = keycloakOptions.Authority;
                     options.ClientId = keycloakOptions.Client;
                     options.ClientSecret = keycloakOptions.Secret;
-                    options.RequireHttpsMetadata = true;
+                    options.RequireHttpsMetadata = !env.IsDevelopment();
                     options.ResponseType = OpenIdConnectResponseType.Code;
                     options.UsePkce = true;
                     options.SaveTokens = true;
+
                     options.CallbackPath = keycloakOptions.CallbackPath;
+
                     options.Events = new OpenIdConnectEvents
                     {
                         OnTicketReceived = context =>
@@ -165,6 +183,26 @@ public static class InfrastructureModule
                         },
                         OnRedirectToIdentityProvider = context =>
                         {
+                            var forwardedProto = context.HttpContext.Request.Headers["X-Forwarded-Proto"].ToString();
+                            var forwardedHost = context.HttpContext.Request.Headers["X-Forwarded-Host"].ToString();
+                            var forwardedPort = context.HttpContext.Request.Headers["X-Forwarded-Port"].ToString();
+
+                            if (!string.IsNullOrWhiteSpace(forwardedHost))
+                            {
+                                context.ProtocolMessage.RedirectUri = XForwardedForHelper.BuildUrlString(
+                                    forwardedProto,
+                                    forwardedHost,
+                                    forwardedPort,
+                                    keycloakOptions.RedirectBaseUrl ?? "/",
+                                    options.CallbackPath
+                                );
+                            }
+                            else if (!string.IsNullOrEmpty(keycloakOptions.RedirectBaseUrl))
+                            {
+                                context.ProtocolMessage.RedirectUri =
+                                    $"{keycloakOptions.RedirectBaseUrl.TrimEnd('/')}{keycloakOptions.CallbackPath}";
+                            }
+
                             if (!string.IsNullOrEmpty(keycloakOptions.IdpHint))
                                 context.ProtocolMessage.SetParameter("kc_idp_hint", keycloakOptions.IdpHint);
                             return Task.CompletedTask;
@@ -178,7 +216,7 @@ public static class InfrastructureModule
                 {
                     options.Authority = keycloakOptions.Authority;
                     options.Audience = keycloakOptions.Audience;
-                    options.RequireHttpsMetadata = true;
+                    options.RequireHttpsMetadata = !env.IsDevelopment() ;
                     options.SaveToken = true;
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
