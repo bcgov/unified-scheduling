@@ -28,13 +28,17 @@ services:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - DatabaseConnectionString=${DatabaseConnectionString}
       - CORS_DOMAIN=${CORS_DOMAIN}
+      - Keycloak__Authority=${KeycloakAuthority}
+      - Keycloak__Client=${KeycloakClient}
+      - Keycloak__Secret=${KeycloakSecret}
+      - Keycloak__Audience=${KeycloakAudience}
     ports:
       - 5000:5000
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER-..}/api/:/opt/app-root/src/api/
       # - ${LOCAL_WORKSPACE_FOLDER-..}/db/:/opt/app-root/src/db
-      - api-dev-bin:/opt/app-root/src/api/bin
-      - api-dev-obj:/opt/app-root/src/api/obj
+      - api-dev-bin:/opt/app-root/src/api/Unified.Api/bin
+      - api-dev-obj:/opt/app-root/src/api/Unified.Api/obj
     depends_on:
       - db
     command: >
