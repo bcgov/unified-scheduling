@@ -13,10 +13,15 @@ namespace Unified.Infrastructure.Helpers
             _logger = factory.CreateLogger("XForwardedForHelper");
         }
 
-        public static string BuildUrlString(string forwardedProto, string forwardedHost, string forwardedPort, string baseUrl, string remainingPath = "", string query = "")
+        public static string BuildUrlString(
+            string forwardedProto,
+            string forwardedHost,
+            string forwardedPort,
+            string baseUrl,
+            string remainingPath = "",
+            string query = ""
+        )
         {
-            _logger.LogInformation($"XForwardedForHelper - forwardedProto: `{forwardedProto}`, forwardedHost: `{forwardedHost}`, forwardedPort: `{forwardedPort}`, baseUrl: `{baseUrl}`, remainingPath: `{remainingPath}`, query: `{query}`");
-
 
             // Default: Assume the code is running locally, unless specified.
             forwardedProto = string.IsNullOrEmpty(forwardedProto) ? "http" : forwardedProto;
@@ -36,12 +41,15 @@ namespace Unified.Infrastructure.Helpers
                 Scheme = forwardedProto,
                 Host = forwardedHost,
                 Path = sanitizedPath,
-                Query = query
+                Query = query,
             };
 
             // Prevent removing the 8080 on localhost
             var portComponent =
-                string.IsNullOrEmpty(forwardedPort) || forwardedPort == "80" || forwardedPort == "443" || (forwardedPort == "8080" && !isLocalhost)
+                string.IsNullOrEmpty(forwardedPort)
+                || forwardedPort == "80"
+                || forwardedPort == "443"
+                || (forwardedPort == "8080" && !isLocalhost)
                     ? ""
                     : $":{forwardedPort}";
 

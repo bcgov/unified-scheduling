@@ -63,5 +63,4 @@ public class KeycloakOptions
     /// Logout endpoint (optional, defaults to {Authority}/protocol/openid-connect/logout)
     /// </summary>
     public string? LogoutEndpoint { get; set; } = "/protocol/openid-connect/logout";
-
 }

@@ -80,8 +80,10 @@ public static class InfrastructureModule
                     OnValidatePrincipal = async cookieCtx =>
                     {
                         var expiresAt = cookieCtx.Properties.GetTokenValue("expires_at");
-                        if (string.IsNullOrWhiteSpace(expiresAt)
-                            || !DateTimeOffset.TryParse(expiresAt, out var accessTokenExpiration))
+                        if (
+                            string.IsNullOrWhiteSpace(expiresAt)
+                            || !DateTimeOffset.TryParse(expiresAt, out var accessTokenExpiration)
+                        )
                         {
                             cookieCtx.RejectPrincipal();
                             await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -216,7 +218,7 @@ public static class InfrastructureModule
                 {
                     options.Authority = keycloakOptions.Authority;
                     options.Audience = keycloakOptions.Audience;
-                    options.RequireHttpsMetadata = !env.IsDevelopment() ;
+                    options.RequireHttpsMetadata = !env.IsDevelopment();
                     options.SaveToken = true;
                     options.TokenValidationParameters = new TokenValidationParameters
                     {

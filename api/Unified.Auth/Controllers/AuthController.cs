@@ -1,11 +1,8 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
-
-
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -48,8 +45,14 @@ public class AuthController : ControllerBase
     [HttpGet("token")]
     public async Task<IActionResult> Token()
     {
-        var accessToken = await HttpContext.GetTokenAsync(CookieAuthenticationDefaults.AuthenticationScheme, "access_token");
-        var expiresAt = await HttpContext.GetTokenAsync(CookieAuthenticationDefaults.AuthenticationScheme, "expires_at");
+        var accessToken = await HttpContext.GetTokenAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            "access_token"
+        );
+        var expiresAt = await HttpContext.GetTokenAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            "expires_at"
+        );
         return Ok(new { access_token = accessToken, expires_at = expiresAt });
     }
 }
