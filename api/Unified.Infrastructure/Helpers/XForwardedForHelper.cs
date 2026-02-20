@@ -59,7 +59,7 @@ namespace Unified.Infrastructure.Helpers
                 uriBuilder.Port = port;
             }
 
-            _logger.LogInformation($"uriBuilder.Uri.AbsoluteUri `{uriBuilder.Uri.AbsoluteUri}`");
+            // _logger.LogInformation($"uriBuilder.Uri.AbsoluteUri `{uriBuilder.Uri.AbsoluteUri}`");
             return uriBuilder.Uri.AbsoluteUri;
         }
     }
