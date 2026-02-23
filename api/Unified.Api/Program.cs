@@ -36,12 +36,7 @@ if (app.Environment.IsDevelopment())
         "/openapi",
         (options) =>
         {
-            options
-                .WithTitle("Unified.API")
-                .DisableAgent()
-                .HideClientButton()
-                .HideDeveloperTools()
-                .ShowOperationId();
+            options.WithTitle("Unified.API").DisableAgent().HideClientButton().HideDeveloperTools().ShowOperationId();
         }
     );
     app.MapGet("/swagger", () => Results.Redirect("/openapi"));
