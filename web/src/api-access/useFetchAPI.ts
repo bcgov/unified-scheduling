@@ -89,10 +89,14 @@ export const useFetchAPI = <T>(
   const queryString = buildQueryString(params);
   const body = toBodyInit(data, headers);
 
-  return fetchAPI<T>(`${url}${queryString}`, {
-    ...fetchOptions,
-    method,
-    headers,
-    body: body as BodyInit,
-  }, options).json<T>();
+  return fetchAPI<T>(
+    `${url}${queryString}`,
+    {
+      ...fetchOptions,
+      method,
+      headers,
+      body: body as BodyInit,
+    },
+    options,
+  ).json<T>();
 };
