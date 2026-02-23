@@ -17,9 +17,13 @@
     "lint": "run-s lint:*",
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",
-    "pre:push": "run-s lint prettier:fix build test"
+    "format": "npm run prettier:fix",
+    "gen:api": "orval --config ./orval.config.ts",
+    "gen:api:clean": "orval --config ./orval.config.ts --clean",
+    "pre:push": "run-s lint format build test"
   },
   "dependencies": {
+    "@vueuse/core": "^14.2.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.27",
     "vue-router": "^5.0.2"
@@ -42,6 +46,7 @@
     "jiti": "^2.6.1",
     "jsdom": "^27.4.0",
     "npm-run-all2": "^8.0.4",
+    "orval": "^8.4.2",
     "oxlint": "~1.41.0",
     "prettier": "3.8.1",
     "typescript": "~5.9.3",
