@@ -57,7 +57,7 @@ export const requestAuthToken = async (): Promise<RequestAuthTokenResult> => {
       },
     ).json<TokenResponse>();
 
-    await tokenRequest.execute();
+    await tokenRequest.execute(true);
 
     return {
       statusCode: tokenRequest.statusCode.value,
