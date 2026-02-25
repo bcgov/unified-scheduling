@@ -4,8 +4,51 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import { faker } from '@faker-js/faker';
+
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
+
+import type { TokenResponse } from '.././models';
+
+export const getGetApiAuthTokenResponseMock = (
+  overrideResponse: Partial<Extract<TokenResponse, object>> = {},
+): TokenResponse =>
+  faker.helpers.arrayElement([
+    {
+      accessToken: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      expiresAt: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      accessToken: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      expiresAt: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      accessToken: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      expiresAt: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      ...overrideResponse,
+    },
+  ]);
 
 export const getGetApiAuthLoginMockHandler = (
   overrideResponse?: void | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
@@ -25,17 +68,22 @@ export const getGetApiAuthLoginMockHandler = (
 };
 
 export const getGetApiAuthTokenMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+  overrideResponse?:
+    | TokenResponse
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<TokenResponse> | TokenResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/auth/token',
     async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      if (typeof overrideResponse === 'function') {
-        await overrideResponse(info);
-      }
-
-      return new HttpResponse(null, { status: 200 });
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiAuthTokenResponseMock(),
+        { status: 200 },
+      );
     },
     options,
   );

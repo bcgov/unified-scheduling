@@ -16,6 +16,7 @@ export default defineConfig({
         },
       },
       mock: true,
+      tsconfig: './tsconfig.app.json',
     },
     input: {
       target: 'http://localhost:5000/openapi/v1.json',
