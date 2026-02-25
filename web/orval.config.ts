@@ -25,4 +25,32 @@ export default defineConfig({
       afterAllFilesWrite: 'npm run format',
     },
   },
+  unifiedZod: {
+    output: {
+      client: 'zod',
+      mode: 'tags-split',
+      target: './src/api-access/generated',
+      fileExtension: '.zod.ts',
+      override: {
+        zod: {
+          strict: {
+            query: true,
+            param: true,
+            header: true,
+            body: true,
+          },
+          generate: {
+            param: true,
+            body: true,
+            query: true,
+            header: true,
+          },
+        },
+      },
+      tsconfig: './tsconfig.app.json',
+    },
+    input: {
+      target: 'http://localhost:5000/openapi/v1.json',
+    },
+  },
 });

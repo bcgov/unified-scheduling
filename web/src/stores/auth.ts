@@ -1,10 +1,6 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
-
-type AuthTokenState = {
-  accessToken?: string | null;
-  expiresAt?: string | null;
-};
+import type { TokenResponse } from '@/api-access/generated/models';
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(null);
@@ -17,7 +13,7 @@ export const useAuthStore = defineStore('auth', () => {
     return new Date() > new Date(tokenExpiry.value);
   });
 
-  const setToken = (authToken: AuthTokenState) => {
+  const setToken = (authToken: TokenResponse) => {
     if (authToken.accessToken) token.value = authToken.accessToken;
     if (authToken.expiresAt) tokenExpiry.value = authToken.expiresAt;
   };

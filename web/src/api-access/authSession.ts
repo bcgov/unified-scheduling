@@ -1,9 +1,5 @@
 import { useFetch } from '@vueuse/core';
-
-type TokenResponse = {
-  accessToken?: string | null;
-  expiresAt?: string | null;
-};
+import type { TokenResponse } from './generated/models';
 
 type RequestAuthTokenResult = {
   statusCode?: number | null;
@@ -101,9 +97,9 @@ export const initializeAuthSession = async (): Promise<boolean> => {
   try {
     await refreshAuthToken();
   } catch (error) {
-    console.warn('No valid token found, redirecting to login');
     console.error(error);
-    redirectToLogin();
+    // @TODO: Something is wrong on the server side so redirect to unathenticated page and show a login button
+    // Redirecting to login page again here create infinite loop if the service is down or there is some other issue,
     return false;
   }
 
