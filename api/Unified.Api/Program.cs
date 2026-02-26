@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.OpenApi;
 using Microsoft.FeatureManagement;
 using Unified.Auth;
 using Unified.Core;
@@ -13,8 +12,7 @@ builder.Services.AddInfrastructureModule();
 builder.Services.AddControllers();
 builder.Services.AddFeatureManagement();
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddUnifiedOpenApi();
 
 // Modules
 builder.Services.AddCoreModule();
@@ -28,14 +26,7 @@ if (builder.Configuration.GetValue<bool>("FeatureManagement:Stats"))
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/openapi/v1.json", "v1");
-    });
-}
+app.UseUnifiedOpenApi();
 
 app.UseHttpsRedirection();
 
