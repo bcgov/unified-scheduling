@@ -1,6 +1,9 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 
+import 'vuetify/styles'
+import { createVuetify } from 'vuetify';
+
 import { initializeAuthSession } from '@/api-access/authSession';
 import { useConfigStore } from '@/stores/config';
 import { initializeRouter } from '@/router';
@@ -23,8 +26,11 @@ const bootstrap = async () => {
 
   // Initialize module routes based on access control
   const router = initializeRouter(pinia);
-
   app.use(router);
+
+  // vuetify
+  const vuetify = createVuetify();
+  app.use(vuetify);
 
   await router.isReady();
   app.mount('#app');
