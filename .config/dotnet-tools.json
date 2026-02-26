@@ -8,6 +8,12 @@
         "csharpier"
       ],
       "rollForward": false
+    },
+    "mapster.tool": {
+      "version": "8.4.0",
+      "commands": [
+        "dotnet-mapster"
+      ]
     }
   }
 }
