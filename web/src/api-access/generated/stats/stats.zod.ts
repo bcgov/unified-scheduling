@@ -6,7 +6,9 @@
  */
 import * as zod from 'zod';
 
+
 /**
  * Checks the health of the Stats module.
  */
-export const GetStatsHealthResponse = zod.string();
+export const GetStatsHealthResponse = zod.string()
+

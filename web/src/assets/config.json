@@ -2,7 +2,7 @@
   "features": {
     "modules": {
       "users": {
-        "isEnabled": false,
+        "isEnabled": true,
         "description": "The users module allows administrators to manage users and roles."
       },
       "scheduling": {
