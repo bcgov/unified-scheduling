@@ -5,6 +5,7 @@ import { useAccessControl } from '@/composables/useAccessControl';
 import { schedulingRoutes } from '@/modules/scheduling/routes';
 import { usersRoutes } from '@/modules/users/routes';
 import { trainingRoutes } from '@/modules/training/routes';
+import { dashboardRoutes } from '@/modules/dashboard/routes';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -21,7 +22,7 @@ const baseRoutes: RouteRecordRaw[] = [
   },
 ];
 
-const routes: RouteRecordRaw[] = [...baseRoutes];
+const routes: RouteRecordRaw[] = [...baseRoutes, ...dashboardRoutes];
 
 // Initialize module routes based on access control
 export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
