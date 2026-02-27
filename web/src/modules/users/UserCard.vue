@@ -22,8 +22,10 @@ const gotoProfile = () => {
     <v-avatar color="grey" size="40">
       <span class="text-headline-small">{{ initials }}</span>
     </v-avatar>
-    <v-card-title :title="fullName"
-      style="font-size: 1rem; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+    <v-card-title
+      :title="fullName"
+      style="font-size: 1rem; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"
+    >
       {{ fullName }}
     </v-card-title>
   </v-card>

@@ -7,7 +7,7 @@ import { useUsersStore } from '@/stores/Users';
 const usersStore = useUsersStore();
 
 onMounted(async () => {
-  const { data,  execute } = getApiUsers();
+  const { data, execute } = getApiUsers();
   await execute();
   usersStore.entities = data.value || [];
 });
@@ -21,7 +21,15 @@ onMounted(async () => {
   </div>
 
   <div
-    style="display: flex; flex-wrap: wrap; gap: 2rem; justify-content: flex-start; align-items: flex-start; padding: 2rem">
+    style="
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: flex-start;
+      align-items: flex-start;
+      padding: 2rem;
+    "
+  >
     <UserCard v-for="user in usersStore.entities" :key="user.id" :user="user" />
   </div>
 </template>
