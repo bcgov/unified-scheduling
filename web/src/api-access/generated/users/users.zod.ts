@@ -6,20 +6,19 @@
  */
 import * as zod from 'zod';
 
-
 export const GetApiUsersResponseItem = zod.object({
-  "id": zod.uuid(),
-  "idirName": zod.string(),
-  "idirId": zod.uuid().nullable(),
-  "keyCloakId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "email": zod.string(),
-  "homeLocationId": zod.number().nullable(),
-  "lastLogin": zod.iso.datetime({}).nullable()
-})
-export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem)
+  id: zod.uuid(),
+  idirName: zod.string(),
+  idirId: zod.uuid().nullable(),
+  keyCloakId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({}).nullable(),
+});
+export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem);
 
 export const postApiUsersBodyIdirNameMin = 0;
 export const postApiUsersBodyIdirNameMax = 200;
@@ -33,40 +32,38 @@ export const postApiUsersBodyLastNameMax = 150;
 export const postApiUsersBodyEmailMin = 0;
 export const postApiUsersBodyEmailMax = 320;
 
-
-
 export const PostApiUsersBody = zod.strictObject({
-  "idirName": zod.string().min(postApiUsersBodyIdirNameMin).max(postApiUsersBodyIdirNameMax),
-  "idirId": zod.uuid().nullable(),
-  "keyCloakId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string().min(postApiUsersBodyFirstNameMin).max(postApiUsersBodyFirstNameMax),
-  "lastName": zod.string().min(postApiUsersBodyLastNameMin).max(postApiUsersBodyLastNameMax),
-  "email": zod.string().min(postApiUsersBodyEmailMin).max(postApiUsersBodyEmailMax),
-  "homeLocationId": zod.number().nullable(),
-  "lastLogin": zod.iso.datetime({}).nullable()
-})
+  idirName: zod.string().min(postApiUsersBodyIdirNameMin).max(postApiUsersBodyIdirNameMax),
+  idirId: zod.uuid().nullable(),
+  keyCloakId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string().min(postApiUsersBodyFirstNameMin).max(postApiUsersBodyFirstNameMax),
+  lastName: zod.string().min(postApiUsersBodyLastNameMin).max(postApiUsersBodyLastNameMax),
+  email: zod.string().min(postApiUsersBodyEmailMin).max(postApiUsersBodyEmailMax),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({}).nullable(),
+});
 
 export const GetApiUsersIdParams = zod.strictObject({
-  "id": zod.uuid()
-})
+  id: zod.uuid(),
+});
 
 export const GetApiUsersIdResponse = zod.object({
-  "id": zod.uuid(),
-  "idirName": zod.string(),
-  "idirId": zod.uuid().nullable(),
-  "keyCloakId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "email": zod.string(),
-  "homeLocationId": zod.number().nullable(),
-  "lastLogin": zod.iso.datetime({}).nullable()
-})
+  id: zod.uuid(),
+  idirName: zod.string(),
+  idirId: zod.uuid().nullable(),
+  keyCloakId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({}).nullable(),
+});
 
 export const PutApiUsersIdParams = zod.strictObject({
-  "id": zod.uuid()
-})
+  id: zod.uuid(),
+});
 
 export const putApiUsersIdBodyIdirNameMin = 0;
 export const putApiUsersIdBodyIdirNameMax = 200;
@@ -80,34 +77,31 @@ export const putApiUsersIdBodyLastNameMax = 150;
 export const putApiUsersIdBodyEmailMin = 0;
 export const putApiUsersIdBodyEmailMax = 320;
 
-
-
 export const PutApiUsersIdBody = zod.strictObject({
-  "idirName": zod.string().min(putApiUsersIdBodyIdirNameMin).max(putApiUsersIdBodyIdirNameMax),
-  "idirId": zod.uuid().nullable(),
-  "keyCloakId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string().min(putApiUsersIdBodyFirstNameMin).max(putApiUsersIdBodyFirstNameMax),
-  "lastName": zod.string().min(putApiUsersIdBodyLastNameMin).max(putApiUsersIdBodyLastNameMax),
-  "email": zod.string().min(putApiUsersIdBodyEmailMin).max(putApiUsersIdBodyEmailMax),
-  "homeLocationId": zod.number().nullable(),
-  "lastLogin": zod.iso.datetime({}).nullable()
-})
+  idirName: zod.string().min(putApiUsersIdBodyIdirNameMin).max(putApiUsersIdBodyIdirNameMax),
+  idirId: zod.uuid().nullable(),
+  keyCloakId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string().min(putApiUsersIdBodyFirstNameMin).max(putApiUsersIdBodyFirstNameMax),
+  lastName: zod.string().min(putApiUsersIdBodyLastNameMin).max(putApiUsersIdBodyLastNameMax),
+  email: zod.string().min(putApiUsersIdBodyEmailMin).max(putApiUsersIdBodyEmailMax),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({}).nullable(),
+});
 
 export const PutApiUsersIdResponse = zod.object({
-  "id": zod.uuid(),
-  "idirName": zod.string(),
-  "idirId": zod.uuid().nullable(),
-  "keyCloakId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "email": zod.string(),
-  "homeLocationId": zod.number().nullable(),
-  "lastLogin": zod.iso.datetime({}).nullable()
-})
+  id: zod.uuid(),
+  idirName: zod.string(),
+  idirId: zod.uuid().nullable(),
+  keyCloakId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({}).nullable(),
+});
 
 export const DeleteApiUsersIdParams = zod.strictObject({
-  "id": zod.uuid()
-})
-
+  id: zod.uuid(),
+});

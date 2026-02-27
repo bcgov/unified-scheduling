@@ -6,15 +6,13 @@
  */
 import * as zod from 'zod';
 
-
 export const getApiAuthLoginQueryRedirectUriDefault = `/api`;
 
 export const GetApiAuthLoginQueryParams = zod.strictObject({
-  "redirectUri": zod.string().default(getApiAuthLoginQueryRedirectUriDefault)
-})
+  redirectUri: zod.string().default(getApiAuthLoginQueryRedirectUriDefault),
+});
 
 export const GetApiAuthTokenResponse = zod.object({
-  "accessToken": zod.string().nullable(),
-  "expiresAt": zod.string().nullable()
-})
-
+  accessToken: zod.string().nullable(),
+  expiresAt: zod.string().nullable(),
+});
