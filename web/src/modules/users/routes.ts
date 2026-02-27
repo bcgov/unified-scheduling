@@ -13,6 +13,15 @@ export const usersRoutes: RouteRecordRaw[] = [
           title: 'Users',
         },
       },
+      {
+        path: ':userId/profile',
+        name: 'UserProfile',
+        component: () => import('./UserProfile.vue'),
+        meta: {
+          title: 'User Profile',
+        },
+        props: true,
+      },
     ],
     meta: {
       module: Modules.users,

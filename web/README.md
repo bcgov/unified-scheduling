@@ -35,6 +35,12 @@ npm install
 npm run dev
 ```
 
+### Mock API with MSW (development only)
+
+- MSW is enabled automatically in development.
+- Active handlers in [web/src/mocks/handlers.ts](web/src/mocks/handlers.ts) intercept matching API calls.
+- If a real API endpoint is not working in dev, comment out the related handler import/spread in [web/src/mocks/handlers.ts](web/src/mocks/handlers.ts) so the request passes through to the real backend.
+
 ### Type-Check, Compile and Minify for Production
 
 ```sh

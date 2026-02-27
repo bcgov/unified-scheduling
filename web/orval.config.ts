@@ -1,4 +1,5 @@
 import { defineConfig } from 'orval';
+import { faker } from '@faker-js/faker';
 
 export default defineConfig({
   unified: {
@@ -13,6 +14,13 @@ export default defineConfig({
         mutator: {
           path: './src/api-access/useFetchAPI.ts',
           name: 'useFetchAPI',
+        },
+        mock: {
+          properties: {
+            '/firstName/': () => faker.person.firstName(),
+            '/lastName/': () => faker.person.lastName(),
+            '/email/': () => faker.internet.email(),
+          },
         },
       },
       mock: true,
