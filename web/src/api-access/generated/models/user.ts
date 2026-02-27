@@ -16,11 +16,8 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  /**
-   * @nullable
-   * @pattern ^-?(?:0|[1-9]\d*)$
-   */
-  homeLocationId: number | string | null;
+  /** @nullable */
+  homeLocationId: number | null;
   /** @nullable */
   lastLogin: string | null;
 }
