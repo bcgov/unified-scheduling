@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.FeatureManagement;
 using Unified.Auth;
 using Unified.Core;
@@ -5,6 +6,13 @@ using Unified.Infrastructure;
 using Unified.Stats;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
+
 
 builder.Services.AddInfrastructureModule();
 

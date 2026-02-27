@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Unified.Auth.Models;
 
 namespace Unified.Auth.Controllers;
 
@@ -26,8 +26,8 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Login with credentials and get authentication token
     /// </summary>
-    /// <param name="request">Login credentials</param>
-    /// <returns>Authentication token response</returns>
+    /// <param name="redirectUri">The URI to redirect to after successful authentication.</param>
+    /// <returns>A redirect response.</returns>
     [Authorize(AuthenticationSchemes = OpenIdConnectDefaults.AuthenticationScheme)]
     [HttpGet("login")]
     public async Task<IActionResult> Login(string redirectUri = "/api")
@@ -36,11 +36,12 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Get new authentication token
+    /// Get a new authentication token.
     /// </summary>
-    /// <returns>New authentication token</returns>
+    /// <returns>A token response with accessToken and expiresAt.</returns>
     [HttpGet("token")]
-    public async Task<IActionResult> Token()
+    [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TokenResponse>> Token()
     {
         var accessToken = await HttpContext.GetTokenAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
@@ -50,6 +51,6 @@ public class AuthController : ControllerBase
             CookieAuthenticationDefaults.AuthenticationScheme,
             "expires_at"
         );
-        return Ok(new { access_token = accessToken, expires_at = expiresAt });
+        return Ok(new TokenResponse(accessToken, expiresAt));
     }
 }
