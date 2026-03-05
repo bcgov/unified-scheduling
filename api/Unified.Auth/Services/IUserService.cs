@@ -4,17 +4,14 @@ namespace Unified.Auth.Services;
 
 public interface IUserService
 {
-    Task<IReadOnlyCollection<User>> GetAllAsync(CancellationToken cancellationToken = default);
-
-    Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-
-    Task<User> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default);
-
-    Task<User?> UpdateAsync(
-        Guid id,
-        UpdateUserRequest request,
+    Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
+        UserQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
     );
 
-    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default);
+
+    Task<UserResponse?> UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken = default);
 }

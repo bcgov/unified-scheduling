@@ -5,8 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Auth.Controllers;
+using Unified.Auth.Models;
 
-namespace Unified.Tests.Features.Auth;
+namespace Unified.Tests.Features.Auth.Controllers;
 
 public class AuthControllerTest
 {
@@ -37,17 +38,13 @@ public class AuthControllerTest
     [Fact]
     public async Task Token_Should_Return_Ok_With_AccessToken_And_ExpiresAt()
     {
-        var result = await _controller.Token();
+        var actionResult = await _controller.Token();
 
-        var okResult = Assert.IsType<OkObjectResult>(result);
-        var payload = okResult.Value!;
-        var payloadType = payload.GetType();
+        var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
+        var tokenResponse = Assert.IsType<TokenResponse>(okResult.Value);
 
-        var accessToken = payloadType.GetProperty("access_token")?.GetValue(payload)?.ToString();
-        var expiresAt = payloadType.GetProperty("expires_at")?.GetValue(payload)?.ToString();
-
-        Assert.Equal("test-access-token", accessToken);
-        Assert.Equal("2099-01-01T00:00:00Z", expiresAt);
+        Assert.Equal("test-access-token", tokenResponse.AccessToken);
+        Assert.Equal("2099-01-01T00:00:00Z", tokenResponse.ExpiresAt);
     }
 
     [Fact]
@@ -64,18 +61,14 @@ public class AuthControllerTest
             },
         };
 
-        var result = await controller.Token();
+        var actionResult = await controller.Token();
 
-        var okResult = Assert.IsType<OkObjectResult>(result);
-        var payload = okResult.Value!;
-        var payloadType = payload.GetType();
-
-        var accessToken = payloadType.GetProperty("access_token")?.GetValue(payload);
-        var expiresAt = payloadType.GetProperty("expires_at")?.GetValue(payload);
+        var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
+        var tokenResponse = Assert.IsType<TokenResponse>(okResult.Value);
 
         Assert.Equal(StatusCodes.Status200OK, okResult.StatusCode ?? StatusCodes.Status200OK);
-        Assert.Null(accessToken);
-        Assert.Null(expiresAt);
+        Assert.Null(tokenResponse.AccessToken);
+        Assert.Null(tokenResponse.ExpiresAt);
     }
 
     private sealed class TestAuthenticationService : IAuthenticationService

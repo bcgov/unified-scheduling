@@ -17,17 +17,20 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<User>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<User>>> Get(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<UserResponse>>> Get(
+        [FromQuery] UserQueryParams? queryParams,
+        CancellationToken cancellationToken
+    )
     {
-        var users = await _userService.GetAllAsync(cancellationToken);
+        var users = await _userService.GetAllAsync(queryParams, cancellationToken);
         return Ok(users);
     }
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<User>> GetById(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<UserResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var user = await _userService.GetByIdAsync(id, cancellationToken);
         if (user is null)
@@ -39,9 +42,9 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost]
-    [ProducesResponseType(typeof(User), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<User>> Create(
+    public async Task<ActionResult<UserResponse>> Create(
         [FromBody] CreateUserRequest request,
         CancellationToken cancellationToken
     )
@@ -52,10 +55,10 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<User>> Update(
+    public async Task<ActionResult<UserResponse>> Update(
         Guid id,
         [FromBody] UpdateUserRequest request,
         CancellationToken cancellationToken
@@ -68,19 +71,5 @@ public class UsersController : ControllerBase
         }
 
         return Ok(user);
-    }
-
-    [HttpDelete("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
-    {
-        var deleted = await _userService.DeleteAsync(id, cancellationToken);
-        if (!deleted)
-        {
-            return NotFound();
-        }
-
-        return NoContent();
     }
 }

@@ -6,9 +6,6 @@
  */
 import * as zod from 'zod';
 
-export const getApiUsersResponseHomeLocationIdRegExpOne = new RegExp('^-?(?:0|[1-9]\\d*)$');
-export const getApiUsersResponseHomeLocationIdRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
-
 export const GetApiUsersResponseItem = zod.object({
   id: zod.uuid(),
   idirName: zod.string(),
@@ -18,7 +15,7 @@ export const GetApiUsersResponseItem = zod.object({
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
-  homeLocationId: zod.union([zod.stringFormat('int32', getApiUsersResponseHomeLocationIdRegExpTwo)]).nullable(),
+  homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({}).nullable(),
 });
 export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem);
@@ -35,9 +32,6 @@ export const postApiUsersBodyLastNameMax = 150;
 export const postApiUsersBodyEmailMin = 0;
 export const postApiUsersBodyEmailMax = 320;
 
-export const postApiUsersBodyHomeLocationIdRegExpOne = new RegExp('^-?(?:0|[1-9]\\d*)$');
-export const postApiUsersBodyHomeLocationIdRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
-
 export const PostApiUsersBody = zod.strictObject({
   idirName: zod.string().min(postApiUsersBodyIdirNameMin).max(postApiUsersBodyIdirNameMax),
   idirId: zod.uuid().nullable(),
@@ -46,16 +40,13 @@ export const PostApiUsersBody = zod.strictObject({
   firstName: zod.string().min(postApiUsersBodyFirstNameMin).max(postApiUsersBodyFirstNameMax),
   lastName: zod.string().min(postApiUsersBodyLastNameMin).max(postApiUsersBodyLastNameMax),
   email: zod.string().min(postApiUsersBodyEmailMin).max(postApiUsersBodyEmailMax),
-  homeLocationId: zod.union([zod.stringFormat('int32', postApiUsersBodyHomeLocationIdRegExpTwo)]).nullable(),
+  homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({}).nullable(),
 });
 
 export const GetApiUsersIdParams = zod.strictObject({
   id: zod.uuid(),
 });
-
-export const getApiUsersIdResponseHomeLocationIdRegExpOne = new RegExp('^-?(?:0|[1-9]\\d*)$');
-export const getApiUsersIdResponseHomeLocationIdRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
 export const GetApiUsersIdResponse = zod.object({
   id: zod.uuid(),
@@ -66,7 +57,7 @@ export const GetApiUsersIdResponse = zod.object({
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
-  homeLocationId: zod.union([zod.stringFormat('int32', getApiUsersIdResponseHomeLocationIdRegExpTwo)]).nullable(),
+  homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({}).nullable(),
 });
 
@@ -86,9 +77,6 @@ export const putApiUsersIdBodyLastNameMax = 150;
 export const putApiUsersIdBodyEmailMin = 0;
 export const putApiUsersIdBodyEmailMax = 320;
 
-export const putApiUsersIdBodyHomeLocationIdRegExpOne = new RegExp('^-?(?:0|[1-9]\\d*)$');
-export const putApiUsersIdBodyHomeLocationIdRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
-
 export const PutApiUsersIdBody = zod.strictObject({
   idirName: zod.string().min(putApiUsersIdBodyIdirNameMin).max(putApiUsersIdBodyIdirNameMax),
   idirId: zod.uuid().nullable(),
@@ -97,17 +85,9 @@ export const PutApiUsersIdBody = zod.strictObject({
   firstName: zod.string().min(putApiUsersIdBodyFirstNameMin).max(putApiUsersIdBodyFirstNameMax),
   lastName: zod.string().min(putApiUsersIdBodyLastNameMin).max(putApiUsersIdBodyLastNameMax),
   email: zod.string().min(putApiUsersIdBodyEmailMin).max(putApiUsersIdBodyEmailMax),
-  homeLocationId: zod
-    .union([
-      zod.stringFormat('int32', putApiUsersIdBodyHomeLocationIdRegExpOne),
-      zod.stringFormat('int32', putApiUsersIdBodyHomeLocationIdRegExpTwo),
-    ])
-    .nullable(),
+  homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({}).nullable(),
 });
-
-export const putApiUsersIdResponseHomeLocationIdRegExpOne = new RegExp('^-?(?:0|[1-9]\\d*)$');
-export const putApiUsersIdResponseHomeLocationIdRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
 export const PutApiUsersIdResponse = zod.object({
   id: zod.uuid(),
@@ -118,12 +98,7 @@ export const PutApiUsersIdResponse = zod.object({
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
-  homeLocationId: zod
-    .union([
-      zod.stringFormat('int32', putApiUsersIdResponseHomeLocationIdRegExpOne),
-      zod.stringFormat('int32', putApiUsersIdResponseHomeLocationIdRegExpTwo),
-    ])
-    .nullable(),
+  homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({}).nullable(),
 });
 
