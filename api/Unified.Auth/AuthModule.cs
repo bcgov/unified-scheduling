@@ -18,19 +18,22 @@ public static class AuthModule
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddAuthModule(this IServiceCollection services)
     {
-        services.AddDbContext<AuthDbContext>((serviceProvider, options) =>
-        {
-            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-            var connectionString = configuration.GetValue<string>("DatabaseConnectionString");
-
-            if (string.IsNullOrWhiteSpace(connectionString))
+        services.AddDbContext<AuthDbContext>(
+            (serviceProvider, options) =>
             {
-                throw new InvalidOperationException(
-                    "DatabaseConnectionString configuration value is required for auth database.");
-            }
+                var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+                var connectionString = configuration.GetValue<string>("DatabaseConnectionString");
 
-            options.UseNpgsql(connectionString);
-        });
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    throw new InvalidOperationException(
+                        "DatabaseConnectionString configuration value is required for auth database."
+                    );
+                }
+
+                options.UseNpgsql(connectionString);
+            }
+        );
 
         services.AddScoped<IUserService, UserService>();
 

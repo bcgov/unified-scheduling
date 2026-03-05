@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Auth.Controllers;
 
-namespace Unified.Tests.Features.Auth;
+namespace Unified.Tests.Features.Auth.Controllers;
 
 public class AuthControllerTest
 {

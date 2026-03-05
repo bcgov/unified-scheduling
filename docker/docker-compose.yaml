@@ -20,6 +20,7 @@ services:
       - '${LOCAL_WORKSPACE_FOLDER-..}/web/index.html:/opt/app-root/src/index.html'
     depends_on:
       - api
+    restart: unless-stopped
 
   api:
     image: '${COMPOSE_PROJECT_NAME}-api'
@@ -40,12 +41,13 @@ services:
       - api-dev-bin:/opt/app-root/src/api/Unified.Api/bin
       - api-dev-obj:/opt/app-root/src/api/Unified.Api/obj
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     command: >
       /bin/bash -c "
-        echo Waiting for the database service to start up ...;
-        sleep 5;
+        echo Database is ready, starting API ...;
         dotnet watch run --project /opt/app-root/src/api/Unified.Api/Unified.Api.csproj --urls='http://+:5000';"
+    restart: unless-stopped
 
   db:
     image: postgres:16
@@ -57,6 +59,12 @@ services:
       - 5432:5432
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRESQL_USER} -d ${POSTGRESQL_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   api-dev-bin:

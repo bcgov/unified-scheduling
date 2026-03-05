@@ -10,8 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
     // Add services to the container.
     builder.Services.AddUnifiedErrorHandling();
 
-    builder.Services
-        .Configure<RouteOptions>(options => options.LowercaseUrls = true)
+    builder
+        .Services.Configure<RouteOptions>(options => options.LowercaseUrls = true)
         .ConfigureHttpJsonOptions(options =>
         {
             options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
@@ -21,10 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
     builder.Services.AddFeatureManagement();
 
     // Modules
-    builder.Services
-        .AddInfrastructureModule()
-        .AddCoreModule()
-        .AddAuthModule();
+    builder.Services.AddInfrastructureModule().AddCoreModule().AddAuthModule();
 
     builder.Services.AddUnifiedOpenApi();
 
@@ -36,14 +33,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 var app = builder.Build();
 {
+    // Run database migrations
+    await app.MigrateAuthDatabaseAsync();
+
     // Configure the HTTP request pipeline.
     app.UseUnifiedErrorHandling();
     app.UseUnifiedOpenApi();
     app.UseHttpsRedirection();
 
-    app
-        .UseAuthentication()
-        .UseAuthorization();
+    app.UseAuthentication().UseAuthorization();
 
     app.MapControllers();
 

@@ -14,7 +14,7 @@ public class AuthDbContext(DbContextOptions<AuthDbContext> options) : DbContext(
 
         user.HasKey(x => x.Id);
 
-        user.Property(x => x.IdirName).HasMaxLength(200).IsRequired();
+        user.Property(x => x.IdirName).HasMaxLength(200);
         user.Property(x => x.IsEnabled).IsRequired();
         user.Property(x => x.FirstName).HasMaxLength(150).IsRequired();
         user.Property(x => x.LastName).HasMaxLength(150).IsRequired();

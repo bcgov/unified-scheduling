@@ -1,10 +1,9 @@
 namespace Unified.Auth.Models;
 
-public sealed record User(
+public sealed record UserResponse(
     Guid Id,
     string IdirName,
     Guid? IdirId,
-    Guid? KeyCloakId,
     bool IsEnabled,
     string FirstName,
     string LastName,
