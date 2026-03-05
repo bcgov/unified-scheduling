@@ -3,6 +3,7 @@ using Unified.Auth.Data;
 using Unified.Auth.Data.Entities;
 using Unified.Auth.Models;
 using Unified.Auth.Services;
+using Xunit.Sdk;
 
 namespace Unified.Tests.Features.Auth.Services;
 
@@ -83,7 +84,7 @@ public class UserServiceTests : IAsyncLifetime
         };
 
         _dbContext.Users.AddRange(users);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -93,7 +94,7 @@ public class UserServiceTests : IAsyncLifetime
         await SeedTestData();
 
         // Act
-        var result = await _userService.GetAllAsync();
+        var result = await _userService.GetAllAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(4, result.Count);
@@ -114,7 +115,7 @@ public class UserServiceTests : IAsyncLifetime
         var queryParams = new UserQueryParams { FirstName = "John" };
 
         // Act
-        var result = await _userService.GetAllAsync(queryParams);
+        var result = await _userService.GetAllAsync(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -130,7 +131,7 @@ public class UserServiceTests : IAsyncLifetime
         var queryParams = new UserQueryParams { LastName = "Doe" };
 
         // Act
-        var result = await _userService.GetAllAsync(queryParams);
+        var result = await _userService.GetAllAsync(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -146,7 +147,7 @@ public class UserServiceTests : IAsyncLifetime
         var queryParams = new UserQueryParams { FirstName = "John", LastName = "Doe" };
 
         // Act
-        var result = await _userService.GetAllAsync(queryParams);
+        var result = await _userService.GetAllAsync(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -162,7 +163,7 @@ public class UserServiceTests : IAsyncLifetime
         var queryParams = new UserQueryParams { FirstName = "Jo" };
 
         // Act
-        var result = await _userService.GetAllAsync(queryParams);
+        var result = await _userService.GetAllAsync(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(result);
@@ -177,7 +178,7 @@ public class UserServiceTests : IAsyncLifetime
         var queryParams = new UserQueryParams { LastName = "on" }; // Matches "Jones" and "Johnson"
 
         // Act
-        var result = await _userService.GetAllAsync(queryParams);
+        var result = await _userService.GetAllAsync(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -193,7 +194,7 @@ public class UserServiceTests : IAsyncLifetime
         var queryParams = new UserQueryParams { FirstName = "NonExistent" };
 
         // Act
-        var result = await _userService.GetAllAsync(queryParams);
+        var result = await _userService.GetAllAsync(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -207,7 +208,7 @@ public class UserServiceTests : IAsyncLifetime
         var queryParams = new UserQueryParams { FirstName = "", LastName = "" };
 
         // Act
-        var result = await _userService.GetAllAsync(queryParams);
+        var result = await _userService.GetAllAsync(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(4, result.Count);
@@ -218,10 +219,10 @@ public class UserServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedTestData();
-        var existingUser = await _dbContext.Users.FirstAsync();
+        var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _userService.GetByIdAsync(existingUser.Id);
+        var result = await _userService.GetByIdAsync(existingUser.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -237,7 +238,7 @@ public class UserServiceTests : IAsyncLifetime
         await SeedTestData();
 
         // Act
-        var result = await _userService.GetByIdAsync(Guid.NewGuid());
+        var result = await _userService.GetByIdAsync(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -258,7 +259,7 @@ public class UserServiceTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _userService.CreateAsync(request);
+        var result = await _userService.CreateAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEqual(Guid.Empty, result.Id);
@@ -267,7 +268,7 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("User", result.LastName);
         Assert.Equal("test.user@example.com", result.Email);
 
-        var userInDb = await _dbContext.Users.FindAsync(result.Id);
+        var userInDb = await _dbContext.Users.FindAsync([result.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(userInDb);
     }
 
@@ -286,7 +287,7 @@ public class UserServiceTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _userService.CreateAsync(request);
+        var result = await _userService.CreateAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("testuser", result.IdirName);
@@ -300,7 +301,7 @@ public class UserServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedTestData();
-        var existingUser = await _dbContext.Users.FirstAsync();
+        var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
         var request = new UpdateUserRequest(
             IsEnabled: false,
             FirstName: "Updated",
@@ -310,7 +311,7 @@ public class UserServiceTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _userService.UpdateAsync(existingUser.Id, request);
+        var result = await _userService.UpdateAsync(existingUser.Id, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -336,7 +337,7 @@ public class UserServiceTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _userService.UpdateAsync(Guid.NewGuid(), request);
+        var result = await _userService.UpdateAsync(Guid.NewGuid(), request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -347,7 +348,7 @@ public class UserServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedTestData();
-        var existingUser = await _dbContext.Users.FirstAsync();
+        var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
         var request = new UpdateUserRequest(
             IsEnabled: true,
             FirstName: "  Updated  ",
@@ -357,7 +358,7 @@ public class UserServiceTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _userService.UpdateAsync(existingUser.Id, request);
+        var result = await _userService.UpdateAsync(existingUser.Id, request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

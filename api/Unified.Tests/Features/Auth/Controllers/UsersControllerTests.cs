@@ -6,6 +6,7 @@ using Unified.Auth.Data;
 using Unified.Auth.Data.Entities;
 using Unified.Auth.Models;
 using Unified.Auth.Services;
+using Xunit.Sdk;
 
 namespace Unified.Tests.Features.Auth.Controllers;
 
@@ -49,7 +50,7 @@ public class UsersControllerTests : IAsyncLifetime
         };
 
         _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         return user;
     }
 
@@ -96,7 +97,7 @@ public class UsersControllerTests : IAsyncLifetime
         };
 
         _dbContext.Users.AddRange(users);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -106,7 +107,7 @@ public class UsersControllerTests : IAsyncLifetime
         await SeedMultipleUsers();
 
         // Act
-        var result = await _controller.Get(null, CancellationToken.None);
+        var result = await _controller.Get(null, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -122,7 +123,7 @@ public class UsersControllerTests : IAsyncLifetime
         var queryParams = new UserQueryParams { FirstName = "John" };
 
         // Act
-        var result = await _controller.Get(queryParams, CancellationToken.None);
+        var result = await _controller.Get(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -139,7 +140,7 @@ public class UsersControllerTests : IAsyncLifetime
         var queryParams = new UserQueryParams { LastName = "Doe" };
 
         // Act
-        var result = await _controller.Get(queryParams, CancellationToken.None);
+        var result = await _controller.Get(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -156,7 +157,7 @@ public class UsersControllerTests : IAsyncLifetime
         var queryParams = new UserQueryParams { FirstName = "John", LastName = "Doe" };
 
         // Act
-        var result = await _controller.Get(queryParams, CancellationToken.None);
+        var result = await _controller.Get(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -174,7 +175,7 @@ public class UsersControllerTests : IAsyncLifetime
         var queryParams = new UserQueryParams { FirstName = "NonExistent" };
 
         // Act
-        var result = await _controller.Get(queryParams, CancellationToken.None);
+        var result = await _controller.Get(queryParams, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -189,7 +190,7 @@ public class UsersControllerTests : IAsyncLifetime
         var seededUser = await SeedSingleUser();
 
         // Act
-        var result = await _controller.GetById(seededUser.Id, CancellationToken.None);
+        var result = await _controller.GetById(seededUser.Id, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -206,7 +207,7 @@ public class UsersControllerTests : IAsyncLifetime
         await SeedSingleUser();
 
         // Act
-        var result = await _controller.GetById(Guid.NewGuid(), CancellationToken.None);
+        var result = await _controller.GetById(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundResult>(result.Result);
@@ -227,7 +228,7 @@ public class UsersControllerTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _controller.Create(request, CancellationToken.None);
+        var result = await _controller.Create(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedResult>(result.Result);
@@ -253,13 +254,13 @@ public class UsersControllerTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _controller.Create(request, CancellationToken.None);
+        var result = await _controller.Create(request, TestContext.Current.CancellationToken);
 
         // Assert
         var createdResult = Assert.IsType<CreatedResult>(result.Result);
         var user = Assert.IsType<UserResponse>(createdResult.Value);
 
-        var userInDb = await _dbContext.Users.FindAsync(user.Id);
+        var userInDb = await _dbContext.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(userInDb);
         Assert.Equal("New", userInDb.FirstName);
     }
@@ -278,7 +279,7 @@ public class UsersControllerTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _controller.Update(seededUser.Id, request, CancellationToken.None);
+        var result = await _controller.Update(seededUser.Id, request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -305,7 +306,7 @@ public class UsersControllerTests : IAsyncLifetime
         );
 
         // Act
-        var result = await _controller.Update(Guid.NewGuid(), request, CancellationToken.None);
+        var result = await _controller.Update(Guid.NewGuid(), request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundResult>(result.Result);
