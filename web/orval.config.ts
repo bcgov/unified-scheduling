@@ -16,11 +16,11 @@ export default defineConfig({
           name: 'useFetchAPI',
         },
         mock: {
-          // properties: {
-          //   '/firstName/': () => faker.person.firstName(),
-          //   '/lastName/': () => faker.person.lastName(),
-          //   '/email/': () => faker.internet.email(),
-          // },
+          properties: {
+            '/firstName/': () => faker.person.firstName(),
+            '/lastName/': () => faker.person.lastName(),
+            '/email/': () => faker.internet.email(),
+          },
         },
       },
       mock: true,
