@@ -75,7 +75,7 @@ const fetchAPI = createFetch({
   baseUrl: '',
   combination: 'overwrite',
   options: {
-    immediate: false,
+    immediate: true,
     async beforeFetch({ url, options }) {
       const headers = new Headers(options.headers ?? undefined);
       if (!headers.has('Accept')) {
