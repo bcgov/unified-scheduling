@@ -90,10 +90,6 @@ const fetchAPI = createFetch({
         if (authStore.isTokenExpired) {
           await refreshAuthToken();
         }
-
-        if (authStore.token && !headers.has('Authorization')) {
-          headers.set('Authorization', `Bearer ${authStore.token}`);
-        }
       }
 
       return {
@@ -128,8 +124,6 @@ const fetchAPI = createFetch({
       if (!authStore.token) {
         return ctx;
       }
-
-      headers.set('Authorization', `Bearer ${authStore.token}`);
 
       ctx.context.options = {
         ...requestOptions,
