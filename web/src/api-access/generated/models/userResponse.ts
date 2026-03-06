@@ -5,11 +5,17 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface UpdateUserRequest {
+export interface UserResponse {
+  id: string;
+  idirName: string;
+  /** @nullable */
+  idirId: string | null;
   isEnabled: boolean;
   firstName: string;
   lastName: string;
   email: string;
   /** @nullable */
   homeLocationId: number | null;
+  /** @nullable */
+  lastLogin: string | null;
 }
