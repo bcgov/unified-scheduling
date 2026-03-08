@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type GetApiAuthLoginParams = {
-  redirectUri?: string;
-};
+export interface UserClaim {
+  type: string;
+  value: string;
+}

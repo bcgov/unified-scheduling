@@ -13,6 +13,7 @@ export const dashboardRoutes: RouteRecordRaw[] = [
     ],
     meta: {
       title: 'Dashboard',
+      requiresAuth: true,
     },
   },
 ];

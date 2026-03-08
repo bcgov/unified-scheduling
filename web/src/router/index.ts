@@ -1,4 +1,5 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import { createRouter, createWebHistory  } from 'vue-router';
+import type { RouteRecordRaw, RouteLocationNormalized, RouteLocationNormalizedLoaded } from 'vue-router';
 import type { createPinia } from 'pinia';
 import { Modules, type ModuleKey } from '@/stores/config';
 import { useAccessControl } from '@/composables/useAccessControl';
@@ -6,14 +7,60 @@ import { schedulingRoutes } from '@/modules/scheduling/routes';
 import { usersRoutes } from '@/modules/users/routes';
 import { trainingRoutes } from '@/modules/training/routes';
 import { dashboardRoutes } from '@/modules/dashboard/routes';
+import { useAuthStore } from '@/stores/auth';
+import { getApiAuthUser } from '@/api-access/generated/auth/auth';
 
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string;
-    // is optional
     module?: ModuleKey;
+    requiresAuth?: boolean;
   }
 }
+
+/**
+ * Auth guard that checks authentication before navigating to protected routes.
+ *  1. Calls the backend /api/auth/user endpoint
+ *  2. If authenticated, stores user info and allows navigation
+ *  3. If 401, HttpService interceptor redirects to /api/auth/login (Keycloak SSO)
+ */
+async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormalizedLoaded) {
+  const authStore = useAuthStore();
+
+  // If we already have user info, allow navigation
+  if (authStore.isAuthenticated) {
+    return true;
+  }
+
+  try {
+    const { data: userInfo } = await getApiAuthUser();
+
+    authStore.setUserInfo(userInfo.value);
+
+    if (userInfo.value?.isAuthenticated) {
+      return true;
+    } else {
+      // Not authenticated — redirect to backend login endpoint.
+      // Use the intended destination as returnUrl so the user lands
+      // on the correct page after Keycloak SSO completes.
+      redirectToLogin(to.fullPath);
+      return false;
+    }
+  } catch {
+    // getUserInfo returned 401 — redirect to backend login.
+    // Pass the intended destination so the user returns here after SSO.
+    redirectToLogin(to.fullPath);
+    return false;
+  }
+}
+
+const AUTH_LOGIN_PATH = '/api/auth/login';
+
+const redirectToLogin = (returnUrl: string) => {
+  const redirectUri = encodeURIComponent(returnUrl);
+  window.location.href = `${AUTH_LOGIN_PATH}?redirectUri=${redirectUri}`;
+};
+
 
 const baseRoutes: RouteRecordRaw[] = [
   {
@@ -45,7 +92,11 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
     routes,
   });
 
-  router.beforeEach((to) => {
+  router.beforeEach(async (to, from) => {
+    if (to.meta.requiresAuth) {
+      return await authGuard(to, from);
+    }
+
     const moduleKey = to.meta?.module;
 
     if (!moduleKey) {

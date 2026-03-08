@@ -1,6 +1,10 @@
 {
   "features": {
     "modules": {
+      "dashboard": {
+        "isEnabled": true,
+        "description": "The dashboard module provides an overview of scheduling data, including upcoming events, resource utilization, and key performance indicators."
+      },
       "users": {
         "isEnabled": false,
         "description": "The users module allows administrators to manage users and roles."
