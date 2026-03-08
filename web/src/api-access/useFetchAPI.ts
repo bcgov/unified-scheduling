@@ -20,7 +20,6 @@ export type UseFetchAPIOptions = {
   options?: UseFetchOptions;
 };
 
-
 const buildQueryString = (params?: QueryParams) => {
   if (!params) {
     return '';

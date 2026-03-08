@@ -4,10 +4,8 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-
-
+using Microsoft.Extensions.Logging;
 using Unified.Auth.Models;
 
 namespace Unified.Auth.Controllers;
@@ -21,7 +19,6 @@ public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;
     private readonly IConfiguration _configuration;
-
 
     public AuthController(ILogger<AuthController> logger, IConfiguration configuration)
     {

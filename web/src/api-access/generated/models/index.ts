@@ -6,6 +6,5 @@
  */
 
 export * from './getApiAuthLoginParams';
-export * from './tokenResponse';
 export * from './userClaim';
 export * from './userInfo';

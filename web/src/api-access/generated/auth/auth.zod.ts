@@ -6,20 +6,20 @@
  */
 import * as zod from 'zod';
 
-
 export const getApiAuthLoginQueryRedirectUriDefault = `/api`;
 
 export const GetApiAuthLoginQueryParams = zod.strictObject({
-  "redirectUri": zod.string().default(getApiAuthLoginQueryRedirectUriDefault)
-})
+  redirectUri: zod.string().default(getApiAuthLoginQueryRedirectUriDefault),
+});
 
 export const GetApiAuthUserResponse = zod.object({
-  "isAuthenticated": zod.boolean(),
-  "name": zod.string().nullable(),
-  "authenticationType": zod.string().nullable(),
-  "claims": zod.array(zod.object({
-  "type": zod.string(),
-  "value": zod.string()
-}))
-})
-
+  isAuthenticated: zod.boolean(),
+  name: zod.string().nullable(),
+  authenticationType: zod.string().nullable(),
+  claims: zod.array(
+    zod.object({
+      type: zod.string(),
+      value: zod.string(),
+    }),
+  ),
+});

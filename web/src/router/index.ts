@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory  } from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw, RouteLocationNormalized, RouteLocationNormalizedLoaded } from 'vue-router';
 import type { createPinia } from 'pinia';
 import { Modules, type ModuleKey } from '@/stores/config';
@@ -60,7 +60,6 @@ const redirectToLogin = (returnUrl: string) => {
   const redirectUri = encodeURIComponent(returnUrl);
   window.location.href = `${AUTH_LOGIN_PATH}?redirectUri=${redirectUri}`;
 };
-
 
 const baseRoutes: RouteRecordRaw[] = [
   {
