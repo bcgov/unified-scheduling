@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using Mapster;
 
-namespace Unified.Auth.Data.Entities;
+namespace Unified.Db.Models;
 
 [AdaptTo("[name]Dto")]
-public class UserEntity
+public class User
 {
     [AdaptIgnore]
     public static readonly Guid SystemUser = new("00000000-0000-0000-0000-000000000001");

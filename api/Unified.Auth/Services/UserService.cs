@@ -1,11 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Unified.Auth.Data;
-using Unified.Auth.Data.Entities;
 using Unified.Auth.Models;
+using Unified.Db.Models;
 
 namespace Unified.Auth.Services;
 
-public sealed class UserService(AuthDbContext authDbContext) : IUserService
+public sealed class UserService(UnifiedDbContext authDbContext) : IUserService
 {
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,
@@ -65,7 +64,7 @@ public sealed class UserService(AuthDbContext authDbContext) : IUserService
         CancellationToken cancellationToken = default
     )
     {
-        var userEntity = new UserEntity
+        var userEntity = new User
         {
             Id = Guid.NewGuid(),
             IdirName = request.IdirName.Trim(),

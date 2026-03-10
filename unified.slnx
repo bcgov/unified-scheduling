@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="db/db.csproj" />
   <Project Path="api/Unified.Auth/Unified.Auth.csproj" />
   <Project Path="api/Unified.Api/Unified.Api.csproj" />
   <Project Path="api/Unified.Core/Unified.Core.csproj" />

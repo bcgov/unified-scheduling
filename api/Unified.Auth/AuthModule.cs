@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Unified.Auth.Data;
 using Unified.Auth.Services;
+using Unified.Auth.Services.EF;
+using Unified.Db.Models;
 
 namespace Unified.Auth;
 
@@ -18,7 +19,7 @@ public static class AuthModule
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddAuthModule(this IServiceCollection services)
     {
-        services.AddDbContext<AuthDbContext>(
+        services.AddDbContext<UnifiedDbContext>(
             (serviceProvider, options) =>
             {
                 var configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -35,6 +36,7 @@ public static class AuthModule
             }
         );
 
+        services.AddSingleton<MigrationAndSeedService>();
         services.AddScoped<IUserService, UserService>();
 
         return services;

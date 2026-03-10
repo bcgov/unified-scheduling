@@ -5,13 +5,13 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Unified.Auth.Data;
+using Unified.Db.Models;
 
 #nullable disable
 
-namespace Unified.Auth.Migrations
+namespace Unified.Db.Migrations
 {
-    [DbContext(typeof(AuthDbContext))]
+    [DbContext(typeof(UnifiedDbContext))]
     [Migration("20260305175125_AddUsersTable")]
     partial class AddUsersTable
     {
@@ -25,7 +25,7 @@ namespace Unified.Auth.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Unified.Auth.Data.Entities.UserEntity", b =>
+            modelBuilder.Entity("Unified.Db.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

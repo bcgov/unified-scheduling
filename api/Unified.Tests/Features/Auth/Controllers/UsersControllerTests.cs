@@ -2,27 +2,26 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Unified.Auth.Controllers;
-using Unified.Auth.Data;
-using Unified.Auth.Data.Entities;
 using Unified.Auth.Models;
 using Unified.Auth.Services;
+using Unified.Db.Models;
 using Xunit.Sdk;
 
 namespace Unified.Tests.Features.Auth.Controllers;
 
 public class UsersControllerTests : IAsyncLifetime
 {
-    private AuthDbContext _dbContext = null!;
+    private UnifiedDbContext _dbContext = null!;
     private UsersController _controller = null!;
     private UserService _userService = null!;
 
     public ValueTask InitializeAsync()
     {
-        var options = new DbContextOptionsBuilder<AuthDbContext>()
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        _dbContext = new AuthDbContext(options);
+        _dbContext = new UnifiedDbContext(options);
         _userService = new UserService(_dbContext);
         _controller = new UsersController(_userService);
 
@@ -34,9 +33,9 @@ public class UsersControllerTests : IAsyncLifetime
         await _dbContext.DisposeAsync();
     }
 
-    private async Task<UserEntity> SeedSingleUser()
+    private async Task<User> SeedSingleUser()
     {
-        var user = new UserEntity
+        var user = new User
         {
             Id = Guid.NewGuid(),
             IdirName = "jsmith",
@@ -58,7 +57,7 @@ public class UsersControllerTests : IAsyncLifetime
     {
         var users = new[]
         {
-            new UserEntity
+            new User
             {
                 Id = Guid.NewGuid(),
                 IdirName = "jsmith",
@@ -70,7 +69,7 @@ public class UsersControllerTests : IAsyncLifetime
                 HomeLocationId = 1,
                 LastLogin = DateTimeOffset.UtcNow,
             },
-            new UserEntity
+            new User
             {
                 Id = Guid.NewGuid(),
                 IdirName = "jdoe",
@@ -82,7 +81,7 @@ public class UsersControllerTests : IAsyncLifetime
                 HomeLocationId = 2,
                 LastLogin = DateTimeOffset.UtcNow,
             },
-            new UserEntity
+            new User
             {
                 Id = Guid.NewGuid(),
                 IdirName = "bjones",

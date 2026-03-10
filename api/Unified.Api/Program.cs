@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.FeatureManagement;
 using Unified.Auth;
+using Unified.Auth.Services.EF;
 using Unified.Core;
 using Unified.Infrastructure;
 using Unified.Stats;
@@ -34,7 +35,8 @@ var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 {
     // Run database migrations
-    await app.MigrateAuthDatabaseAsync();
+    var migrationService = app.Services.GetRequiredService<MigrationAndSeedService>();
+    await migrationService.ExecuteMigrationsAndSeeds();
 
     // Configure the HTTP request pipeline.
     app.UseUnifiedErrorHandling();

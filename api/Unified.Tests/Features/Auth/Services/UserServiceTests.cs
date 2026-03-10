@@ -1,24 +1,23 @@
 using Microsoft.EntityFrameworkCore;
-using Unified.Auth.Data;
-using Unified.Auth.Data.Entities;
 using Unified.Auth.Models;
 using Unified.Auth.Services;
+using Unified.Db.Models;
 using Xunit.Sdk;
 
 namespace Unified.Tests.Features.Auth.Services;
 
 public class UserServiceTests : IAsyncLifetime
 {
-    private AuthDbContext _dbContext = null!;
+    private UnifiedDbContext _dbContext = null!;
     private UserService _userService = null!;
 
     public ValueTask InitializeAsync()
     {
-        var options = new DbContextOptionsBuilder<AuthDbContext>()
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
-        _dbContext = new AuthDbContext(options);
+        _dbContext = new UnifiedDbContext(options);
         _userService = new UserService(_dbContext);
 
         return ValueTask.CompletedTask;
@@ -33,7 +32,7 @@ public class UserServiceTests : IAsyncLifetime
     {
         var users = new[]
         {
-            new UserEntity
+            new User
             {
                 Id = Guid.NewGuid(),
                 IdirName = "jsmith",
@@ -45,7 +44,7 @@ public class UserServiceTests : IAsyncLifetime
                 HomeLocationId = 1,
                 LastLogin = DateTimeOffset.UtcNow.AddDays(-1),
             },
-            new UserEntity
+            new User
             {
                 Id = Guid.NewGuid(),
                 IdirName = "jdoe",
@@ -57,7 +56,7 @@ public class UserServiceTests : IAsyncLifetime
                 HomeLocationId = 2,
                 LastLogin = DateTimeOffset.UtcNow.AddDays(-2),
             },
-            new UserEntity
+            new User
             {
                 Id = Guid.NewGuid(),
                 IdirName = "bjones",
@@ -69,7 +68,7 @@ public class UserServiceTests : IAsyncLifetime
                 HomeLocationId = 1,
                 LastLogin = DateTimeOffset.UtcNow.AddDays(-3),
             },
-            new UserEntity
+            new User
             {
                 Id = Guid.NewGuid(),
                 IdirName = "ajohnson",

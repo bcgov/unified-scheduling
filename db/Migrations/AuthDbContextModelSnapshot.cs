@@ -4,13 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using Unified.Auth.Data;
+using Unified.Db.Models;
 
 #nullable disable
 
-namespace Unified.Auth.Migrations
+namespace Unified.Db.Migrations
 {
-    [DbContext(typeof(AuthDbContext))]
+    [DbContext(typeof(UnifiedDbContext))]
     partial class AuthDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
@@ -22,7 +22,7 @@ namespace Unified.Auth.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Unified.Auth.Data.Entities.UserEntity", b =>
+            modelBuilder.Entity("Unified.Db.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
