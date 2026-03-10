@@ -6,6 +6,8 @@ using Unified.Stats;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
+
 builder.Services.AddInfrastructureModule();
 
 // Add services to the container.

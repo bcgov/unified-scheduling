@@ -57,13 +57,16 @@ public static class InfrastructureModule
         services
             .AddAuthentication(options =>
             {
-                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
             })
             .AddCookie(options =>
             {
                 options.Cookie.Name = "UnifiedAuthCookie";
+                if (env.IsDevelopment())
+                    options.Cookie.Name += ".Development";
+
                 options.Cookie.HttpOnly = true;
                 // Keep strict settings for non-development; allow local HTTP development.
                 options.Cookie.SameSite = SameSiteMode.None;
@@ -72,6 +75,11 @@ public static class InfrastructureModule
                 options.Cookie.Path = "/api/auth";
                 options.Events = new CookieAuthenticationEvents
                 {
+                    OnRedirectToAccessDenied = context =>
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return context.Response.CompleteAsync();
+                    },
                     // After the auth cookie has been validated, this event is called.
                     // In it we see if the access token is close to expiring.  If it is
                     // then we use the refresh token to get a new access token and save them.
@@ -210,39 +218,6 @@ public static class InfrastructureModule
                             return Task.CompletedTask;
                         },
                     };
-                }
-            )
-            .AddJwtBearer(
-                JwtBearerDefaults.AuthenticationScheme,
-                options =>
-                {
-                    options.Authority = keycloakOptions.Authority;
-                    options.Audience = keycloakOptions.Audience;
-                    options.RequireHttpsMetadata = !env.IsDevelopment();
-                    options.SaveToken = true;
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuerSigningKey = true,
-                        ValidateIssuer = false,
-                        ValidateAudience = false,
-                        ClockSkew = TimeSpan.FromSeconds(5),
-                    };
-                    options.Events = new JwtBearerEvents
-                    {
-                        OnAuthenticationFailed = context =>
-                        {
-                            context.NoResult();
-                            context.Response.StatusCode = 401;
-                            return Task.CompletedTask;
-                        },
-                        OnForbidden = context =>
-                        {
-                            context.NoResult();
-                            context.Response.StatusCode = 403;
-                            return Task.CompletedTask;
-                        },
-                    };
-                    JsonWebTokenHandler.DefaultInboundClaimTypeMap.Remove("sub");
                 }
             );
 
