@@ -29,7 +29,7 @@ export const usersRoutes: RouteRecordRaw[] = [
           {
             path: 'identification',
             name: 'UserIdentification',
-            component: () => import('./components/identification.vue'),
+            component: () => import('./components/Identification.vue'),
             meta: {
               title: 'User Identification',
             },
