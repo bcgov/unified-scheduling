@@ -9,3 +9,5 @@ export * from './createUserRequest';
 export * from './getApiAuthLoginParams';
 export * from './userClaim';
 export * from './userInfo';
+export * from './updateUserRequest';
+export * from './user';
