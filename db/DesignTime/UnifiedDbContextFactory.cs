@@ -19,7 +19,8 @@ public class UnifiedDbContextFactory : IDesignTimeDbContextFactory<UnifiedDbCont
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                "DatabaseConnectionString is not set. Set it as an environment variable before running dotnet ef.");
+                "DatabaseConnectionString is not set. Set it as an environment variable before running dotnet ef."
+            );
         }
 
         var optionsBuilder = new DbContextOptionsBuilder<UnifiedDbContext>();
