@@ -31,11 +31,24 @@ public static class InfrastructureModule
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddInfrastructureModule(this IServiceCollection services)
     {
+        services.AddSingleton<
+            IValidateOptions<FeatureFlagsOptions>,
+            RequiredBooleanOptionsValidator<FeatureFlagsOptions>
+        >();
+
         services
             .AddOptions<KeycloakOptions>()
-            .BindConfiguration(KeycloakOptions.ConfigurationSection)
+            .BindConfiguration(KeycloakOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        services
+            .AddOptions<FeatureFlagsOptions>()
+            .BindConfiguration(FeatureFlagsOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<FeatureFlagsOptions>>().Value);
 
         services.AddHttpClient("TokenRefresh");
         services.AddHttpContextAccessor();

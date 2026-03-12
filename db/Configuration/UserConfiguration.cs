@@ -1,26 +1,39 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Unified.Db.Models;
+using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db.Configuration;
 
-public class UserConfiguration : IEntityTypeConfiguration<User>
+public class UserConfiguration : BaseEntityConfiguration<User>
 {
-    public void Configure(EntityTypeBuilder<User> builder)
+    public override void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("users");
+        builder.Property(b => b.Id).HasIdentityOptions(startValue: 200);
 
-        builder.HasKey(x => x.Id);
+        // @TODO: Enable after adding User Roles
+        // builder
+        //     .HasMany(m => m.UserRoles)
+        //     .WithOne(m => m.User)
+        //     .HasForeignKey(m => m.UserId)
+        //     .OnDelete(DeleteBehavior.ClientCascade);
 
-        builder.Property(x => x.IdirName).HasMaxLength(200).IsRequired();
-        builder.Property(x => x.IsEnabled).IsRequired();
-        builder.Property(x => x.FirstName).HasMaxLength(150).IsRequired();
-        builder.Property(x => x.LastName).HasMaxLength(150).IsRequired();
-        builder.Property(x => x.Email).HasMaxLength(320).IsRequired();
-        builder.Property(x => x.HomeLocationId);
-        builder.Property(x => x.LastLogin);
+        // @TODO: Enable after adding Location
+        // builder
+        //     .HasOne(l => l.HomeLocation)
+        //     .WithMany()
+        //     .HasForeignKey(m => m.HomeLocationId)
+        //     .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasIndex(x => x.IdirName).IsUnique();
-        builder.HasIndex(x => x.Email).IsUnique();
+        builder.HasData(
+            new User
+            {
+                Id = User.SystemUser,
+                FirstName = "SYSTEM",
+                LastName = "SYSTEM",
+                IsEnabled = false,
+            }
+        );
+
+        base.Configure(builder);
     }
 }

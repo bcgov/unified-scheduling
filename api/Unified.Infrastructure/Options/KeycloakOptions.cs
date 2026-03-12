@@ -7,7 +7,7 @@ namespace Unified.Infrastructure.Options;
 /// </summary>
 public class KeycloakOptions
 {
-    public const string ConfigurationSection = "Keycloak";
+    public const string SectionName = "Keycloak";
 
     /// <summary>
     /// Keycloak authority URL (e.g., https://keycloak.example.com/realms/myrealm)
