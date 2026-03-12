@@ -15,38 +15,39 @@ const modules = shallowRef(Modules);
     </div>
     <div style="display: flex; gap: 2rem; margin-left: 8rem">
       <RouterLink
-        class="u-router-link u-router-link--border"
+        class="router-link router-link--border"
         v-if="accessControl.canAccessModule(modules.scheduling)"
         to="/schedule"
         active-class="active"
       >
-        Schedule</RouterLink
-      >
-      <RouterLink
-        class="u-router-link u-router-link--border"
-        v-if="accessControl.canAccessModule(modules.users)"
-        to="/users"
-        active-class="active"
-        >My Team
+        Schedule
       </RouterLink>
-      <RouterLink class="u-router-link" to="/dashboard" active-class="active">Dashboard</RouterLink>
+      <RouterLink
+        class="router-link router-link--border"
+        v-if="accessControl.canAccessModule(modules.users)"
+        to="/myteam"
+        active-class="active"
+      >
+        My Team
+      </RouterLink>
+      <RouterLink class="router-link" to="/dashboard" active-class="active">Dashboard</RouterLink>
     </div>
   </v-app-bar>
 </template>
 
 <style>
-.u-router-link {
+.router-link {
   color: rgba(var(--v-theme-on-surface), 0.87);
   padding-right: 2rem;
   text-decoration: none;
 }
 
-.u-router-link--border {
+.router-link--border {
   border-right: 2px solid #333;
 }
 
-.u-router-link.active,
-.u-router-link:hover {
+.router-link.active,
+.router-link:hover {
   font-weight: 500;
   color: rgba(var(--v-theme-primary), 1);
   text-decoration: underline;

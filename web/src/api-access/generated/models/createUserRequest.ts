@@ -13,6 +13,7 @@ export interface CreateUserRequest {
   firstName: string;
   lastName: string;
   email: string;
+  badgeNumber: string;
   /** @nullable */
   homeLocationId: number | null;
 }

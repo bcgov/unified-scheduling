@@ -4,7 +4,7 @@ import type { createPinia } from 'pinia';
 import { Modules, type ModuleKey } from '@/stores/config';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { schedulingRoutes } from '@/modules/scheduling/routes';
-import { usersRoutes } from '@/modules/users/routes';
+import { usersRoutes } from '@/modules/myteam/routes';
 import { trainingRoutes } from '@/modules/training/routes';
 import { dashboardRoutes } from '@/modules/dashboard/routes';
 import { useAuthStore } from '@/stores/auth';

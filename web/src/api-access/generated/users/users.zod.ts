@@ -6,72 +6,74 @@
  */
 import * as zod from 'zod';
 
-
 export const GetApiUsersQueryParams = zod.strictObject({
-  "FirstName": zod.string().optional(),
-  "LastName": zod.string().optional()
-})
+  Search: zod.string().optional(),
+  IsEnabled: zod.boolean().optional(),
+});
 
 export const GetApiUsersResponseItem = zod.object({
-  "id": zod.uuid(),
-  "idirName": zod.string(),
-  "idirId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "email": zod.string(),
-  "homeLocationId": zod.number().nullable(),
-  "lastLogin": zod.iso.datetime({}).nullable()
-})
-export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem)
+  id: zod.uuid(),
+  idirName: zod.string(),
+  idirId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  badgeNumber: zod.string().nullable(),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({}).nullable(),
+});
+export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem);
 
 export const PostApiUsersBody = zod.strictObject({
-  "idirName": zod.string(),
-  "idirId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "email": zod.string(),
-  "homeLocationId": zod.number().nullable()
-})
+  idirName: zod.string(),
+  idirId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  badgeNumber: zod.string(),
+  homeLocationId: zod.number().nullable(),
+});
 
 export const GetApiUsersIdParams = zod.strictObject({
-  "id": zod.uuid()
-})
+  id: zod.uuid(),
+});
 
 export const GetApiUsersIdResponse = zod.object({
-  "id": zod.uuid(),
-  "idirName": zod.string(),
-  "idirId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "email": zod.string(),
-  "homeLocationId": zod.number().nullable(),
-  "lastLogin": zod.iso.datetime({}).nullable()
-})
+  id: zod.uuid(),
+  idirName: zod.string(),
+  idirId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  badgeNumber: zod.string().nullable(),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({}).nullable(),
+});
 
 export const PutApiUsersIdParams = zod.strictObject({
-  "id": zod.uuid()
-})
+  id: zod.uuid(),
+});
 
 export const PutApiUsersIdBody = zod.strictObject({
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "email": zod.string(),
-  "homeLocationId": zod.number().nullable()
-})
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  homeLocationId: zod.number().nullable(),
+});
 
 export const PutApiUsersIdResponse = zod.object({
-  "id": zod.uuid(),
-  "idirName": zod.string(),
-  "idirId": zod.uuid().nullable(),
-  "isEnabled": zod.boolean(),
-  "firstName": zod.string(),
-  "lastName": zod.string(),
-  "email": zod.string(),
-  "homeLocationId": zod.number().nullable(),
-  "lastLogin": zod.iso.datetime({}).nullable()
-})
-
+  id: zod.uuid(),
+  idirName: zod.string(),
+  idirId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  badgeNumber: zod.string().nullable(),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({}).nullable(),
+});

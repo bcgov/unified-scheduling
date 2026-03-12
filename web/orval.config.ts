@@ -15,6 +15,39 @@ export default defineConfig({
           path: './src/api-access/useFetchAPI.ts',
           name: 'useFetchAPI',
         },
+        transformer: (verb) => {
+          if (verb?.queryParams?.schema) {
+            // Add MaybeRef to imports if not already there
+            // Check if MaybeRef import already exists
+            const hasMaybeRefImport = verb?.queryParams.schema.imports.some(
+              (imp) => imp.name === 'MaybeRef' && imp.importPath === 'vue',
+            );
+
+            // Add MaybeRef import if not present
+            if (!hasMaybeRefImport) {
+              verb?.queryParams.schema.imports.push({
+                name: 'MaybeRef',
+                importPath: 'vue',
+                default: false,
+                values: false,
+                syntheticDefaultImport: false,
+                namespaceImport: false,
+              });
+            }
+
+            // Keep original type shape, rename export, then add MaybeRef alias with original name
+            const typeName = verb.queryParams.schema.name;
+            const originalTypeName = `Original${typeName}`;
+            const renamedModel = verb.queryParams.schema.model.replace(
+              `export type ${typeName} =`,
+              `export type ${originalTypeName} =`,
+            );
+
+            verb.queryParams.schema.model = `${renamedModel}\nexport type ${typeName} = MaybeRef<${originalTypeName}>;\n`;
+          }
+
+          return verb;
+        },
         mock: {
           properties: {
             '/firstName/': () => faker.person.firstName(),
@@ -23,6 +56,7 @@ export default defineConfig({
           },
         },
       },
+
       mock: true,
       tsconfig: './tsconfig.app.json',
     },

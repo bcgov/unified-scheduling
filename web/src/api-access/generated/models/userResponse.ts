@@ -15,6 +15,8 @@ export interface UserResponse {
   lastName: string;
   email: string;
   /** @nullable */
+  badgeNumber: string | null;
+  /** @nullable */
   homeLocationId: number | null;
   /** @nullable */
   lastLogin: string | null;

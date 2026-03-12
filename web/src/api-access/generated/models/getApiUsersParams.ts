@@ -4,8 +4,11 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { MaybeRef } from 'vue';
 
-export type GetApiUsersParams = {
-  FirstName?: string;
-  LastName?: string;
+export type OriginalGetApiUsersParams = {
+  Search?: string;
+  IsEnabled?: boolean;
 };
+
+export type GetApiUsersParams = MaybeRef<OriginalGetApiUsersParams>;
