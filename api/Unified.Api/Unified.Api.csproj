@@ -10,7 +10,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Scalar.AspNetCore" Version="2.12.46" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.13.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\db\db.csproj" />
