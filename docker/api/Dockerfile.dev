@@ -11,5 +11,5 @@ RUN curl -sSL https://aka.ms/getvsdbgsh | /bin/sh /dev/stdin -v latest -l /vsdbg
 # Copy project files and restore NuGet packages
 WORKDIR /opt/app-root/src
 COPY ../api/ ./api/
-# COPY ../db/db.csproj ./db/
+COPY ../db/db.csproj ./db/
 RUN dotnet restore ./api/Unified.Api/Unified.Api.csproj

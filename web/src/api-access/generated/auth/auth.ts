@@ -4,7 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { GetApiAuthLoginParams, TokenResponse } from '../models';
+import type { GetApiAuthLoginParams, UserInfo } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI';
 
@@ -16,8 +16,8 @@ export const getApiAuthLogin = (
 ) => {
   return useFetchAPI<void>({ url: `/api/auth/login`, method: 'GET', params }, options);
 };
-export const getApiAuthToken = (options?: SecondParameter<typeof useFetchAPI<TokenResponse>>) => {
-  return useFetchAPI<TokenResponse>({ url: `/api/auth/token`, method: 'GET' }, options);
+export const getApiAuthUser = (options?: SecondParameter<typeof useFetchAPI<UserInfo>>) => {
+  return useFetchAPI<UserInfo>({ url: `/api/auth/user`, method: 'GET' }, options);
 };
 export type GetApiAuthLoginResult = NonNullable<Awaited<ReturnType<typeof getApiAuthLogin>>>;
-export type GetApiAuthTokenResult = NonNullable<Awaited<ReturnType<typeof getApiAuthToken>>>;
+export type GetApiAuthUserResult = NonNullable<Awaited<ReturnType<typeof getApiAuthUser>>>;

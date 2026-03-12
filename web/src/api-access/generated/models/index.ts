@@ -7,9 +7,8 @@
 
 export * from './createUserRequest';
 export * from './getApiAuthLoginParams';
-export * from './getApiUsersParams';
-export * from './problemDetails';
-export * from './tokenResponse';
+export * from './userClaim';
+export * from './userInfo';
 export * from './updateUserRequest';
 export * from './user';
 export * from './userResponse';

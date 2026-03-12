@@ -1,34 +1,27 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
-import type { TokenResponse } from '@/api-access/generated/models';
+import type { UserInfo } from '@/api-access/generated/models';
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(null);
-  const tokenExpiry = ref<string | null>(null);
+  const userInfo = ref<UserInfo | null>(null);
 
-  const isAuthenticated = computed(() => !!token.value);
+  const isAuthenticated = computed(() => userInfo.value?.isAuthenticated ?? false);
 
-  const isTokenExpired = computed(() => {
-    if (!tokenExpiry.value) return true;
-    return new Date() > new Date(tokenExpiry.value);
-  });
+  const userName = computed(() => userInfo.value?.name ?? null);
 
-  const setToken = (authToken: TokenResponse) => {
-    if (authToken.accessToken) token.value = authToken.accessToken;
-    if (authToken.expiresAt) tokenExpiry.value = authToken.expiresAt;
-  };
+  function setUserInfo(info: UserInfo | null) {
+    userInfo.value = info;
+  }
 
-  const clearToken = () => {
-    token.value = null;
-    tokenExpiry.value = null;
-  };
+  function clearUserInfo() {
+    userInfo.value = null;
+  }
 
   return {
-    token,
-    tokenExpiry,
+    userInfo,
     isAuthenticated,
-    isTokenExpired,
-    setToken,
-    clearToken,
+    userName,
+    setUserInfo,
+    clearUserInfo,
   };
 });

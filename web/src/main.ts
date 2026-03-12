@@ -4,7 +4,6 @@ import { createPinia } from 'pinia';
 import 'vuetify/styles';
 import { createVuetify } from 'vuetify';
 
-import { initializeAuthSession } from '@/api-access/authSession';
 import { setupMockServiceWorker } from '@/mocks';
 import { useConfigStore } from '@/stores/config';
 import { initializeRouter } from '@/router';
@@ -18,11 +17,6 @@ const bootstrap = async () => {
   app.use(pinia);
 
   await setupMockServiceWorker();
-
-  const isAuthenticated = await initializeAuthSession();
-  if (!isAuthenticated) {
-    return;
-  }
 
   const configStore = useConfigStore(pinia);
   await configStore.loadConfig();

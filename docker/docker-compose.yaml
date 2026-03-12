@@ -38,7 +38,7 @@ services:
       - 5000:5000
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER-..}/api/:/opt/app-root/src/api/
-      # - ${LOCAL_WORKSPACE_FOLDER-..}/db/:/opt/app-root/src/db
+      - ${LOCAL_WORKSPACE_FOLDER-..}/db/:/opt/app-root/src/db
       - api-dev-bin:/opt/app-root/src/api/Unified.Api/bin
       - api-dev-obj:/opt/app-root/src/api/Unified.Api/obj
     depends_on:

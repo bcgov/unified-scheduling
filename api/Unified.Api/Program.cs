@@ -1,11 +1,17 @@
 using System.Text.Json.Serialization;
-using Microsoft.FeatureManagement;
-using Unified.Auth;
 using Unified.Core;
+using Unified.Db;
+using Unified.Db.Services.EF;
 using Unified.Infrastructure;
+using Unified.Infrastructure.Options;
 using Unified.Stats;
+using Unified.UserManagement;
 
 var builder = WebApplication.CreateBuilder(args);
+var featureFlagsOptions =
+    builder.Configuration.GetSection(FeatureFlagsOptions.SectionName).Get<FeatureFlagsOptions>()
+    ?? new FeatureFlagsOptions();
+
 {
     // Add services to the container.
     builder.Services.AddUnifiedErrorHandling();
@@ -18,14 +24,17 @@ var builder = WebApplication.CreateBuilder(args);
         });
 
     builder.Services.AddControllers();
-    builder.Services.AddFeatureManagement();
 
     // Modules
-    builder.Services.AddInfrastructureModule().AddCoreModule().AddAuthModule();
+    builder
+        .Services.AddInfrastructureModule()
+        .AddCoreModule()
+        .AddDbModule(builder.Configuration)
+        .AddUserManagementModule();
 
     builder.Services.AddUnifiedOpenApi();
 
-    if (builder.Configuration.GetValue<bool>("FeatureManagement:Stats"))
+    if (featureFlagsOptions.StatsModule)
     {
         builder.Services.AddStatsModule();
     }
@@ -34,7 +43,8 @@ var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 {
     // Run database migrations
-    await app.MigrateAuthDatabaseAsync();
+    var migrationService = app.Services.GetRequiredService<MigrationAndSeedService>();
+    await migrationService.ExecuteMigrationsAndSeeds();
 
     // Configure the HTTP request pipeline.
     app.UseUnifiedErrorHandling();
@@ -46,7 +56,7 @@ var app = builder.Build();
     app.MapControllers();
 
     // Modules
-    if (await app.Services.GetRequiredService<IFeatureManager>().IsEnabledAsync("Stats"))
+    if (featureFlagsOptions.StatsModule)
     {
         app.MapStatsEndpoints();
     }

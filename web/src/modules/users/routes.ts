@@ -25,6 +25,7 @@ export const usersRoutes: RouteRecordRaw[] = [
     ],
     meta: {
       module: Modules.users,
+      requiresAuth: true,
     },
   },
 ];
