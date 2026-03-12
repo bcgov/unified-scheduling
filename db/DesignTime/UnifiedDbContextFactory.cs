@@ -13,12 +13,16 @@ public class UnifiedDbContextFactory : IDesignTimeDbContextFactory<UnifiedDbCont
 {
     public UnifiedDbContext CreateDbContext(string[] args)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<UnifiedDbContext>();
-
         // Try to get connection string from environment variable (for CI/CD pipelines)
         // Falls back to local development default
         var connectionString = Environment.GetEnvironmentVariable("DatabaseConnectionString");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "DatabaseConnectionString is not set. Set it as an environment variable before running dotnet ef.");
+        }
 
+        var optionsBuilder = new DbContextOptionsBuilder<UnifiedDbContext>();
         optionsBuilder.UseNpgsql(connectionString);
 
         return new UnifiedDbContext(optionsBuilder.Options);
