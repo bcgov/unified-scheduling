@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { mount } from '@vue/test-utils';
+
 import App from '../App.vue';
 import { createTestApp } from './helpers/createTestApp';
 
@@ -10,9 +11,10 @@ describe('App', async () => {
   it('mounts renders properly', () => {
     const wrapper = mount(App, {
       global: {
-        plugins: [app.router],
+        plugins: [app.router, app.vuetify],
       },
     });
-    expect(wrapper.text()).toContain('Unified');
+    
+    expect(wrapper.text()).toContain('Dashboard');
   });
 });
