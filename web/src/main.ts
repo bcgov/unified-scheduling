@@ -1,7 +1,6 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 
-import { initializeAuthSession } from '@/api-access/authSession';
 import { useConfigStore } from '@/stores/config';
 import { initializeRouter } from '@/router';
 
@@ -12,11 +11,6 @@ const bootstrap = async () => {
 
   const pinia = createPinia();
   app.use(pinia);
-
-  const isAuthenticated = await initializeAuthSession();
-  if (!isAuthenticated) {
-    return;
-  }
 
   const configStore = useConfigStore(pinia);
   await configStore.loadConfig();

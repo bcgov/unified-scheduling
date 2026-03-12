@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Unified.UserManagement.Models;
 
@@ -17,10 +18,12 @@ namespace Unified.UserManagement.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(ILogger<AuthController> logger)
+    public AuthController(ILogger<AuthController> logger, IConfiguration configuration)
     {
         _logger = logger;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -36,21 +39,19 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Get a new authentication token.
+    /// Gets the current authenticated user's information
     /// </summary>
-    /// <returns>A token response with accessToken and expiresAt.</returns>
-    [HttpGet("token")]
-    [ProducesResponseType(typeof(TokenResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<TokenResponse>> Token()
+    [HttpGet("user")]
+    [Authorize]
+    public ActionResult<UserInfo> GetUserInfo()
     {
-        var accessToken = await HttpContext.GetTokenAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            "access_token"
+        var user = new UserInfo(
+            User.Identity?.IsAuthenticated ?? false,
+            User.Identity?.Name,
+            User.Identity?.AuthenticationType,
+            User.Claims.Select(c => new UserClaim(c.Type, c.Value)).ToList()
         );
-        var expiresAt = await HttpContext.GetTokenAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            "expires_at"
-        );
-        return Ok(new TokenResponse(accessToken, expiresAt));
+
+        return Ok(user);
     }
 }

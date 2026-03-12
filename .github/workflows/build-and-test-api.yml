@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       
       - name: Check for file changes
         uses: dorny/paths-filter@v3
@@ -72,7 +72,7 @@ jobs:
 
       - name: Setup .NET
         if: steps.filter.outputs.api == 'true'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
