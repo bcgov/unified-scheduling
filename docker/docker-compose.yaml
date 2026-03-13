@@ -14,6 +14,7 @@ services:
       - '8080:8080'
     volumes:
       - '${LOCAL_WORKSPACE_FOLDER-..}/web/src:/opt/app-root/src/src'
+      - '${LOCAL_WORKSPACE_FOLDER-..}/web/public:/opt/app-root/src/public'
       - '${LOCAL_WORKSPACE_FOLDER-..}/web/package.json:/opt/app-root/src/package.json'
       - '${LOCAL_WORKSPACE_FOLDER-..}/web/vite.config.ts:/opt/app-root/src/vite.config.ts'
       - '${LOCAL_WORKSPACE_FOLDER-..}/web/tsconfig.json:/opt/app-root/src/tsconfig.json'
