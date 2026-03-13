@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
-using Unified.Auth.Controllers;
-using Unified.Auth.Models;
+using Unified.UserManagement.Controllers;
+using Unified.UserManagement.Models;
 
-namespace Unified.Tests.Features.Auth;
+namespace Unified.Tests.UserManagement.Controllers;
 
 public class AuthControllerTest
 {

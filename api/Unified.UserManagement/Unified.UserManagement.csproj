@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Mapster" Version="7.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.3" />
     <PackageReference
       Include="Microsoft.AspNetCore.Authentication.OpenIdConnect"
@@ -12,6 +13,10 @@
     />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.9" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\db\db.csproj" />
+    <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

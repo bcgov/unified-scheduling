@@ -1,0 +1,36 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Unified.Db.Models;
+using Unified.Db.Services.EF;
+
+namespace Unified.Db;
+
+public static class DbModule
+{
+    public static IServiceCollection AddDbModule(
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
+    {
+        var connectionString = configuration["DatabaseConnectionString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "DatabaseConnectionString configuration value is required for database setup."
+            );
+        }
+
+        services.AddDbContext<UnifiedDbContext>(
+            (serviceProvider, options) =>
+            {
+                options.UseNpgsql(connectionString);
+            }
+        );
+
+        services.AddSingleton(configuration);
+        services.AddSingleton<MigrationAndSeedService>();
+
+        return services;
+    }
+}

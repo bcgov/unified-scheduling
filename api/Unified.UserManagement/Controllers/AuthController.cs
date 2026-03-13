@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Unified.Auth.Models;
+using Unified.UserManagement.Models;
 
-namespace Unified.Auth.Controllers;
+namespace Unified.UserManagement.Controllers;
 
 /// <summary>
 /// Auth controller for handling authentication and token management

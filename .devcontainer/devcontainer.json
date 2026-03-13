@@ -30,7 +30,8 @@
         "sonarsource.sonarlint-vscode",
         "bierner.markdown-mermaid",
         "ms-azuretools.vscode-docker",
-        "redhat.vscode-yaml"
+        "redhat.vscode-yaml",
+        "csharpier.csharpier-vscode"
       ],
       "settings": {
         "editor.codeActionsOnSave": {

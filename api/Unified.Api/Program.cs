@@ -1,47 +1,65 @@
-using Microsoft.FeatureManagement;
-using Unified.Auth;
+using System.Text.Json.Serialization;
 using Unified.Core;
+using Unified.Db;
+using Unified.Db.Services.EF;
 using Unified.Infrastructure;
+using Unified.Infrastructure.Options;
 using Unified.Stats;
+using Unified.UserManagement;
 
 var builder = WebApplication.CreateBuilder(args);
+var featureFlagsOptions =
+    builder.Configuration.GetSection(FeatureFlagsOptions.SectionName).Get<FeatureFlagsOptions>()
+    ?? new FeatureFlagsOptions();
 
-builder.Services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
-
-builder.Services.AddInfrastructureModule();
-
-// Add services to the container.
-builder.Services.AddControllers();
-builder.Services.AddFeatureManagement();
-
-builder.Services.AddUnifiedOpenApi();
-
-// Modules
-builder.Services.AddCoreModule();
-builder.Services.AddAuthModule();
-
-if (builder.Configuration.GetValue<bool>("FeatureManagement:Stats"))
 {
-    builder.Services.AddStatsModule();
+    // Add services to the container.
+    builder.Services.AddUnifiedErrorHandling();
+
+    builder
+        .Services.Configure<RouteOptions>(options => options.LowercaseUrls = true)
+        .ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+        });
+
+    builder.Services.AddControllers();
+
+    // Modules
+    builder
+        .Services.AddInfrastructureModule()
+        .AddCoreModule()
+        .AddDbModule(builder.Configuration)
+        .AddUserManagementModule();
+
+    builder.Services.AddUnifiedOpenApi();
+
+    if (featureFlagsOptions.StatsModule)
+    {
+        builder.Services.AddStatsModule();
+    }
 }
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-app.UseUnifiedOpenApi();
-
-app.UseHttpsRedirection();
-
-app.UseAuthentication();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-// Modules
-if (await app.Services.GetRequiredService<IFeatureManager>().IsEnabledAsync("Stats"))
 {
-    app.MapStatsEndpoints();
+    // Run database migrations
+    var migrationService = app.Services.GetRequiredService<MigrationAndSeedService>();
+    await migrationService.ExecuteMigrationsAndSeeds();
+
+    // Configure the HTTP request pipeline.
+    app.UseUnifiedErrorHandling();
+    app.UseUnifiedOpenApi();
+    app.UseHttpsRedirection();
+
+    app.UseAuthentication().UseAuthorization();
+
+    app.MapControllers();
+
+    // Modules
+    if (featureFlagsOptions.StatsModule)
+    {
+        app.MapStatsEndpoints();
+    }
 }
 
 app.Run();

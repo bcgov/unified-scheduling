@@ -5,6 +5,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './createUserRequest';
 export * from './getApiAuthLoginParams';
 export * from './userClaim';
 export * from './userInfo';
+export * from './updateUserRequest';
+export * from './user';

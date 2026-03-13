@@ -1,4 +1,4 @@
-namespace Unified.Auth.Models;
+namespace Unified.UserManagement.Models;
 
 public sealed record UserInfo(
     bool IsAuthenticated,
