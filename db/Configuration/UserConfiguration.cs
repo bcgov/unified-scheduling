@@ -24,16 +24,6 @@ public class UserConfiguration : BaseEntityConfiguration<User>
         //     .HasForeignKey(m => m.HomeLocationId)
         //     .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasData(
-            new User
-            {
-                Id = User.SystemUser,
-                FirstName = "SYSTEM",
-                LastName = "SYSTEM",
-                IsEnabled = false,
-            }
-        );
-
         base.Configure(builder);
     }
 }

@@ -27,22 +27,12 @@ namespace Unified.Db.Migrations
                     Gender = table.Column<int>(type: "integer", nullable: false),
                     BadgeNumber = table.Column<string>(type: "text", nullable: true),
                     Rank = table.Column<string>(type: "text", nullable: true),
-                    LastLogin = table.Column<DateTimeOffset>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
+                    LastLogin = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    CreatedOn = table.Column<DateTimeOffset>(
-                        type: "timestamp with time zone",
-                        nullable: false,
-                        defaultValueSql: "now()"
-                    ),
+                    CreatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
                     UpdatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    UpdatedOn = table.Column<DateTimeOffset>(
-                        type: "timestamp with time zone",
-                        nullable: true
-                    ),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
+                    UpdatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -52,77 +42,31 @@ namespace Unified.Db.Migrations
                         column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull
-                    );
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Users_Users_UpdatedById",
                         column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull
-                    );
-                }
-            );
-
-            migrationBuilder.InsertData(
-                table: "Users",
-                columns: new[]
-                {
-                    "Id",
-                    "BadgeNumber",
-                    "CreatedById",
-                    "Email",
-                    "FirstName",
-                    "Gender",
-                    "HomeLocationId",
-                    "IdirId",
-                    "IdirName",
-                    "IsEnabled",
-                    "KeyCloakId",
-                    "LastLogin",
-                    "LastName",
-                    "Rank",
-                    "UpdatedById",
-                    "UpdatedOn",
-                },
-                values: new object[]
-                {
-                    new Guid("00000000-0000-0000-0000-000000000001"),
-                    null,
-                    null,
-                    "",
-                    "SYSTEM",
-                    0,
-                    null,
-                    null,
-                    "",
-                    false,
-                    null,
-                    null,
-                    "SYSTEM",
-                    null,
-                    null,
-                    null,
-                }
-            );
+                        onDelete: ReferentialAction.SetNull);
+                });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_CreatedById",
                 table: "Users",
-                column: "CreatedById"
-            );
+                column: "CreatedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_UpdatedById",
                 table: "Users",
-                column: "UpdatedById"
-            );
+                column: "UpdatedById");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "Users");
+            migrationBuilder.DropTable(
+                name: "Users");
         }
     }
 }
