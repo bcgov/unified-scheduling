@@ -7,7 +7,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       globals: true,
-      setupFiles: ['./src/__tests__/mocks/setup.ts'],
+      setupFiles: ['./src/__tests__/helpers/setup.ts'],
       server: {
         deps: {
           inline: ['vuetify'],
