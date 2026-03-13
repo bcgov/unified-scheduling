@@ -14,7 +14,7 @@ describe('App', async () => {
         plugins: [app.router, app.vuetify],
       },
     });
-    
+
     expect(wrapper.text()).toContain('Dashboard');
   });
 });

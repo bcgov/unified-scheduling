@@ -1,11 +1,10 @@
 import { createPinia } from 'pinia';
 import { initializeRouter } from '../../router/index';
-import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
 
-const pinia = createPinia();
-const router = initializeRouter(pinia);
+
 const vuetify = createVuetify({
   components,
   directives,
@@ -18,6 +17,8 @@ const vuetify = createVuetify({
  */
 export async function createTestApp() {
   // ... setup router, pinia, render app ...
+  const pinia = createPinia();
+  const router = initializeRouter(pinia);
 
   return {
     router, // The navigation system
