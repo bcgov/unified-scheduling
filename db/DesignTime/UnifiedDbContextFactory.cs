@@ -13,8 +13,7 @@ public class UnifiedDbContextFactory : IDesignTimeDbContextFactory<UnifiedDbCont
 {
     public UnifiedDbContext CreateDbContext(string[] args)
     {
-        // Try to get connection string from environment variable (for CI/CD pipelines)
-        // Falls back to local development default
+        // Try to get connection string from environment variable
         var connectionString = Environment.GetEnvironmentVariable("DatabaseConnectionString");
         if (string.IsNullOrWhiteSpace(connectionString))
         {

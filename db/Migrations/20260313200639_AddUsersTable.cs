@@ -64,48 +64,6 @@ namespace Unified.Db.Migrations
                 }
             );
 
-            migrationBuilder.InsertData(
-                table: "Users",
-                columns: new[]
-                {
-                    "Id",
-                    "BadgeNumber",
-                    "CreatedById",
-                    "Email",
-                    "FirstName",
-                    "Gender",
-                    "HomeLocationId",
-                    "IdirId",
-                    "IdirName",
-                    "IsEnabled",
-                    "KeyCloakId",
-                    "LastLogin",
-                    "LastName",
-                    "Rank",
-                    "UpdatedById",
-                    "UpdatedOn",
-                },
-                values: new object[]
-                {
-                    new Guid("00000000-0000-0000-0000-000000000001"),
-                    null,
-                    null,
-                    "",
-                    "SYSTEM",
-                    0,
-                    null,
-                    null,
-                    "",
-                    false,
-                    null,
-                    null,
-                    "SYSTEM",
-                    null,
-                    null,
-                    null,
-                }
-            );
-
             migrationBuilder.CreateIndex(
                 name: "IX_Users_CreatedById",
                 table: "Users",

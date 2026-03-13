@@ -97,20 +97,6 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000001"),
-                            ConcurrencyToken = 0u,
-                            CreatedOn = new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Email = "",
-                            FirstName = "SYSTEM",
-                            Gender = 0,
-                            IdirName = "",
-                            IsEnabled = false,
-                            LastName = "SYSTEM"
-                        });
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.User", b =>
