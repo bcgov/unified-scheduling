@@ -4,6 +4,13 @@ import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 
+const pinia = createPinia();
+const router = initializeRouter(pinia);
+const vuetify = createVuetify({
+  components,
+  directives,
+});
+
 /**
  *
  * @see https://alexop.dev/posts/vue3_testing_pyramid_vitest_browser_mode/
@@ -11,12 +18,6 @@ import * as directives from 'vuetify/directives'
  */
 export async function createTestApp() {
   // ... setup router, pinia, render app ...
-  const pinia = createPinia();
-  const router = initializeRouter(pinia);
-  const vuetify = createVuetify({
-    components,
-    directives,
-  });
 
   return {
     router, // The navigation system
