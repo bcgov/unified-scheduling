@@ -1,11 +1,7 @@
 <script setup lang="ts">
-import { shallowRef } from 'vue';
-import { Modules } from '@/stores/config';
 import { useAccessControl } from '@/composables/useAccessControl';
 
 const accessControl = useAccessControl();
-
-const modules = shallowRef(Modules);
 </script>
 
 <template>
@@ -14,23 +10,15 @@ const modules = shallowRef(Modules);
       <img width="132" src="../../assets/images/bcid-logo-en.svg" alt="" />
     </div>
     <div style="display: flex; gap: 2rem; margin-left: 8rem">
-      <RouterLink
-        class="router-link router-link--border"
-        v-if="accessControl.canAccessModule(modules.scheduling)"
-        to="/schedule"
-        active-class="active"
-      >
+      <RouterLink class="router-link" to="/dashboard" active-class="active">Dashboard</RouterLink>
+      <RouterLink class="router-link router-link--border" v-if="accessControl.isFeatureFlagEnabled('schedulingModule')"
+        to="/schedule" active-class="active">
         Schedule
       </RouterLink>
-      <RouterLink
-        class="router-link router-link--border"
-        v-if="accessControl.canAccessModule(modules.users)"
-        to="/myteam"
-        active-class="active"
-      >
+      <RouterLink class="router-link router-link--border" v-if="accessControl.isFeatureFlagEnabled('myteamsModule')"
+        to="/myteam" active-class="active">
         My Team
       </RouterLink>
-      <RouterLink class="router-link" to="/dashboard" active-class="active">Dashboard</RouterLink>
     </div>
   </v-app-bar>
 </template>

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { UserResponse } from '@/api-access/generated/models';
+import { useAccessControl } from '@/composables/useAccessControl';
 
 const { user } = defineProps<{
   user: Partial<UserResponse>;
@@ -27,7 +28,10 @@ const gotoProfile = () => {
         {{ fullName }}
       </div>
       <div style="font-size: 0.8rem; text-align: center">Chief Sheriff</div>
-      <div style="font-size: 0.8rem; text-align: center">{{ user.badgeNumber }}</div>
+      <div v-if="useAccessControl().isFeatureFlagEnabled('userBadgeNumber')"
+        style="font-size: 0.8rem; text-align: center">
+        {{ user.badgeNumber }}
+      </div>
     </v-card-title>
   </v-card>
 </template>

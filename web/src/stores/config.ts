@@ -1,37 +1,20 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
-
-export const Modules = {
-  scheduling: 'scheduling',
-  users: 'users',
-  training: 'training',
-} as const;
-
-export type ModuleKey = (typeof Modules)[keyof typeof Modules];
-
-export interface FeatureModuleConfig {
-  isEnabled?: boolean;
-  description?: string;
-}
-
-export interface AppConfig {
-  features?: {
-    modules?: Record<ModuleKey, FeatureModuleConfig>;
-  };
-}
+import { getApiConfig } from '@/api-access/generated/config/config';
+import type { ConfigResponse } from '@/api-access/generated/models';
 
 export const useConfigStore = defineStore('config', () => {
-  const config = ref<AppConfig | null>(null);
+  const config = ref<ConfigResponse | null>(null);
 
   const isLoaded = computed(() => !!config.value);
 
-  const loadConfig = async (): Promise<AppConfig | null> => {
+  const loadConfig = async (): Promise<ConfigResponse | null> => {
     if (config.value) {
       return config.value;
     }
 
-    const response = await fetch('/src/assets/config.json');
-    config.value = await response.json();
+    const { data } = await getApiConfig();
+    config.value = data.value;
     return config.value;
   };
 

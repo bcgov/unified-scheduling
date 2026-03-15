@@ -1,7 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { Modules } from '@/stores/config';
 
-export const usersRoutes: RouteRecordRaw[] = [
+export const myteamRoutes: RouteRecordRaw[] = [
   {
     path: '/myteam',
     children: [
@@ -38,7 +37,7 @@ export const usersRoutes: RouteRecordRaw[] = [
       },
     ],
     meta: {
-      module: Modules.users,
+      module: 'myteam',
       requiresAuth: true,
     },
   },

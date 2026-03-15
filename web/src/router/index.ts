@@ -1,10 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw, RouteLocationNormalized, RouteLocationNormalizedLoaded } from 'vue-router';
 import type { createPinia } from 'pinia';
-import { Modules, type ModuleKey } from '@/stores/config';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { schedulingRoutes } from '@/modules/scheduling/routes';
-import { usersRoutes } from '@/modules/myteam/routes';
+import { myteamRoutes } from '@/modules/myteam/routes';
 import { trainingRoutes } from '@/modules/training/routes';
 import { dashboardRoutes } from '@/modules/dashboard/routes';
 import { useAuthStore } from '@/stores/auth';
@@ -13,7 +12,7 @@ import { getApiAuthUser } from '@/api-access/generated/auth/auth';
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string;
-    module?: ModuleKey;
+    module?: string;
     requiresAuth?: boolean;
   }
 }
@@ -74,15 +73,15 @@ const routes: RouteRecordRaw[] = [...baseRoutes, ...dashboardRoutes];
 export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   const accessControl = useAccessControl(pinia);
 
-  if (accessControl.canAccessModule(Modules.scheduling)) {
+  if (accessControl.isFeatureFlagEnabled('schedulingModule')) {
     routes.push(...schedulingRoutes);
   }
 
-  if (accessControl.canAccessModule(Modules.users)) {
-    routes.push(...usersRoutes);
+  if (accessControl.isFeatureFlagEnabled('myteamsModule')) {
+    routes.push(...myteamRoutes);
   }
 
-  if (accessControl.canAccessModule(Modules.training)) {
+  if (accessControl.isFeatureFlagEnabled('training')) {
     routes.push(...trainingRoutes);
   }
 
@@ -102,7 +101,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
       return true;
     }
 
-    if (!accessControl.canAccessModule(moduleKey)) {
+    if (!accessControl.isFeatureFlagEnabled(moduleKey)) {
       console.warn(`Access denied to module: ${moduleKey}`);
       return { path: '/dashboard' };
     }

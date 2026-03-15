@@ -1,21 +1,27 @@
-import { computed } from 'vue';
 import type { Pinia } from 'pinia';
-import { useConfigStore, type FeatureModuleConfig, type ModuleKey } from '@/stores/config';
+import { useConfigStore } from '@/stores/config';
 
 export const useAccessControl = (pinia?: Pinia) => {
   const configStore = useConfigStore(pinia);
 
-  const modules = computed(
-    () => configStore.config?.features?.modules ?? ({} as Partial<Record<ModuleKey, FeatureModuleConfig>>),
-  );
+  const isFeatureFlagEnabled = (moduleKey: string): boolean => {
+    if (moduleKey === 'myteamsModule' && configStore.config?.featureFlags?.myTeamsModule) {
+      return true;
+    }
 
-  const canAccessModule = (moduleKey: ModuleKey): boolean => {
-    return modules.value[moduleKey]?.isEnabled ?? false;
+    if (moduleKey === 'schedulingModule' && configStore.config?.featureFlags?.schedulingModule) {
+      return true;
+    }
+
+    if (moduleKey === 'userBadgeNumber' && configStore.config?.featureFlags?.userBadgeNumber) {
+      return true;
+    }
+
+    return false;
   };
 
   return {
     configStore,
-    modules,
-    canAccessModule,
+    isFeatureFlagEnabled: isFeatureFlagEnabled,
   };
 };
