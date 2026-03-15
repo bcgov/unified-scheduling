@@ -48,7 +48,7 @@ public static class InfrastructureModule
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddSingleton(sp => sp.GetRequiredService<IOptions<FeatureFlagsOptions>>().Value);
+        services.AddSingleton<IFeatureFlags, FeatureFlagsAccessor>();
 
         services.AddHttpClient("TokenRefresh");
         services.AddHttpContextAccessor();

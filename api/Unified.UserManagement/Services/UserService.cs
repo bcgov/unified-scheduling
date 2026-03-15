@@ -7,7 +7,7 @@ using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Services;
 
-public sealed class UserService(UnifiedDbContext DB, FeatureFlagsOptions featureFlagsOptions) : IUserService
+public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags) : IUserService
 {
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,
@@ -18,7 +18,7 @@ public sealed class UserService(UnifiedDbContext DB, FeatureFlagsOptions feature
 
         if (queryParams?.Search?.Trim() is { Length: > 0 } searchText)
         {
-            query = featureFlagsOptions switch
+            query = featureFlags.Current switch
             {
                 { UserBadgeNumber: true } => query.Where(x =>
                     x.FirstName.Contains(searchText)

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Api.Models;
-using Unified.Flags;
+using Unified.Infrastructure.Options;
 
 namespace Unified.Api.Controllers;
 
@@ -10,19 +10,19 @@ namespace Unified.Api.Controllers;
 public class ConfigController : ControllerBase
 {
     private readonly ILogger<ConfigController> _logger;
-    private readonly FeatureFlagsOptions _featureFlagsOptions;
+    private readonly IFeatureFlags _featureFlags;
 
-    public ConfigController(ILogger<ConfigController> logger, FeatureFlagsOptions featureFlagsOptions)
+    public ConfigController(ILogger<ConfigController> logger, IFeatureFlags featureFlags)
     {
         _logger = logger;
-        _featureFlagsOptions = featureFlagsOptions;
+        _featureFlags = featureFlags;
     }
 
     [HttpGet]
     [AllowAnonymous]
     public ActionResult<ConfigResponse> Get()
     {
-        var response = new ConfigResponse { FeatureFlags = _featureFlagsOptions };
+        var response = new ConfigResponse { FeatureFlags = _featureFlags.Current };
         return Ok(response);
     }
 }
