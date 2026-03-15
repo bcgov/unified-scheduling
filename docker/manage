@@ -134,9 +134,9 @@ configureEnvironment () {
   done
 
   # Default database startup parameters
-  export POSTGRESQL_DATABASE=${POSTGRESQL_DATABASE:-unifiedschedulingdb}
-  export POSTGRESQL_USER=${POSTGRESQL_USER:-unifiedscheduling}
-  export POSTGRESQL_PASSWORD=${POSTGRESQL_PASSWORD:-unifiedscheduling123}
+  export POSTGRESQL_DATABASE=${POSTGRESQL_DATABASE:-unifieddb}
+  export POSTGRESQL_USER=${POSTGRESQL_USER:-uniuser}
+  export POSTGRESQL_PASSWORD=${POSTGRESQL_PASSWORD:-unipassword}
   export POSTGRESQL_ADMIN_PASSWORD=${POSTGRESQL_ADMIN_PASSWORD:-admin123}
 
   export KeycloakAuthority=${KeycloakAuthority}
