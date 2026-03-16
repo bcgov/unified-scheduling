@@ -10,11 +10,15 @@ const navigationStore = useNavigationStore();
       <img width="132" src="../../assets/images/bcid-logo-en.svg" alt="" />
     </div>
     <div class="router-link-container">
-      <div v-for="navItem in navigationStore.links" :key="navItem.name">
-        <RouterLink :class="['router-link', navItem?.class ?? '']" :to="navItem.path" active-class="active">
-          {{ navItem.name }}
-        </RouterLink>
-      </div>
+      <RouterLink
+        v-for="navItem in navigationStore.links"
+        :key="navItem.name"
+        :class="['router-link', navItem?.class ?? '']"
+        :to="navItem.path"
+        active-class="active"
+      >
+        {{ navItem.name }}
+      </RouterLink>
     </div>
   </v-app-bar>
 </template>

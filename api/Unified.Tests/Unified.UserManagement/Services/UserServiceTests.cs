@@ -12,6 +12,11 @@ public class UserServiceTests : IAsyncLifetime
     private UnifiedDbContext _dbContext = null!;
     private UserService _userService = null!;
 
+    private sealed class TestFeatureFlags(FeatureFlagsOptions current) : IFeatureFlags
+    {
+        public FeatureFlagsOptions Current { get; } = current;
+    }
+
     public ValueTask InitializeAsync()
     {
         var options = new DbContextOptionsBuilder<UnifiedDbContext>()
@@ -28,7 +33,9 @@ public class UserServiceTests : IAsyncLifetime
     {
         return new UserService(
             _dbContext,
-            new FeatureFlagsOptions { StatsModule = true, UserBadgeNumber = userBadgeNumberEnabled }
+            new TestFeatureFlags(
+                new FeatureFlagsOptions { StatsModule = true, UserBadgeNumber = userBadgeNumberEnabled }
+            )
         );
     }
 

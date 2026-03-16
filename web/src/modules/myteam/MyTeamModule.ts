@@ -1,5 +1,4 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { Modules } from '@/stores/config';
 import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
 
 const myTeamRoutes: RouteRecordRaw[] = [
@@ -39,7 +38,7 @@ const myTeamRoutes: RouteRecordRaw[] = [
       },
     ],
     meta: {
-      module: Modules.users,
+      module: 'myteam',
       requiresAuth: true,
     },
   },

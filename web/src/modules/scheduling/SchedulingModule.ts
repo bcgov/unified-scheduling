@@ -1,5 +1,4 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { Modules } from '@/stores/config';
 
 export const schedulingRoutes: RouteRecordRaw[] = [
   {
@@ -15,7 +14,7 @@ export const schedulingRoutes: RouteRecordRaw[] = [
       },
     ],
     meta: {
-      module: Modules.scheduling,
+      module: 'scheduling',
       requiresAuth: true,
     },
   },
