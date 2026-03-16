@@ -32,13 +32,25 @@ const { data, error, isFetching, execute } = getApiUsers(searchParams);
 
   <div class="my-team-list-header">
     <div class="my-team-search-wrapper">
-      <v-text-field v-model="searchText" placeholder="Search" density="compact" variant="outlined"
-        class="my-team-search-input" @keydown.enter="() => execute()" />
+      <v-text-field
+        v-model="searchText"
+        placeholder="Search"
+        density="compact"
+        variant="outlined"
+        class="my-team-search-input"
+        @keydown.enter="() => execute()"
+      />
     </div>
     <div class="my-team-filter-row">
       <label> In Active </label>
-      <v-switch inset v-model="isEnabled" color="primary" hide-details density="compact"
-        @update:model-value="() => execute()"></v-switch>
+      <v-switch
+        inset
+        v-model="isEnabled"
+        color="primary"
+        hide-details
+        density="compact"
+        @update:model-value="() => execute()"
+      ></v-switch>
       <label> Active </label>
     </div>
   </div>

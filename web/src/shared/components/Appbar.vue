@@ -19,9 +19,13 @@ const navItems = ref([
     </div>
     <div class="router-link-container">
       <div v-for="navItem in navItems" :key="navItem.name">
-        <RouterLink class="router-link" :class="{'router-link--border': navItem.module}"
-          v-if="!navItem.module || accessControl.canAccessModule(navItem.module)" :to="navItem.path"
-          active-class="active">
+        <RouterLink
+          class="router-link"
+          :class="{ 'router-link--border': navItem.module }"
+          v-if="!navItem.module || accessControl.canAccessModule(navItem.module)"
+          :to="navItem.path"
+          active-class="active"
+        >
           {{ navItem.name }}
         </RouterLink>
       </div>
