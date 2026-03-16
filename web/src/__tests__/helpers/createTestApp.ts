@@ -3,8 +3,8 @@ import { initializeRouter } from '../../router/index';
 import { createVuetify } from 'vuetify';
 import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
-import { getGetApiConfigMockHandler } from '@/api-access/generated/config/config.msw';
-import type { FeatureFlagsOptions } from '@/api-access/generated/models';
+import { getGetApiConfigMockHandler, getGetApiConfigResponseMock } from '@/api-access/generated/config/config.msw';
+import type { FeatureFlags } from '@/api-access/generated/models';
 import { useConfigStore } from '@/stores/config';
 import { useAuthStore } from '@/stores/auth';
 import { server } from '../mocks/server';
@@ -14,19 +14,13 @@ const vuetify = createVuetify({
   directives,
 });
 
-const defaultFeatureFlags: FeatureFlagsOptions = {
-  statsModule: true,
-  myTeamsModule: true,
-  userBadgeNumber: true,
-  trainingModule: true,
-  schedulingModule: true,
-};
-
 interface CreateTestAppOptions {
-  featureFlags?: Partial<FeatureFlagsOptions>;
+  featureFlags?: Partial<FeatureFlags>;
   loadConfig?: boolean;
   isAuthenticated?: boolean;
 }
+// Generate default config response, then override with any specified in createTestApp options.
+const configResponse = getGetApiConfigResponseMock();
 
 /**
  *
@@ -46,14 +40,14 @@ export async function createTestApp(options: CreateTestAppOptions = {}) {
   });
 
   if (options.loadConfig !== false) {
-    server.use(
-      getGetApiConfigMockHandler({
-        featureFlags: {
-          ...defaultFeatureFlags,
-          ...options.featureFlags,
-        },
-      }),
-    );
+    const defaultFeatureFlags = configResponse.featureFlags;
+
+    configResponse.featureFlags = {
+      ...defaultFeatureFlags,
+      ...options.featureFlags,
+    };
+
+    server.use(getGetApiConfigMockHandler(configResponse));
 
     const configStore = useConfigStore(pinia);
     await configStore.loadConfig();
