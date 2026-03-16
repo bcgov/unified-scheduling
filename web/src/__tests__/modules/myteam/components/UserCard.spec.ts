@@ -5,10 +5,14 @@ import { getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users
 import UserCard from '@/modules/myteam/components/UserCard.vue';
 import { createTestApp } from '../../../helpers/createTestApp';
 
-describe('UserCard', async () => {
-  const app = await createTestApp();
+describe('UserCard', () => {
+  it('mounts and renders user details including badge when feature flag is enabled', async () => {
+    const app = await createTestApp({
+      featureFlags: {
+        userBadgeNumber: true,
+      },
+    });
 
-  it('mounts and renders user details', () => {
     const user = getGetApiUsersIdResponseMock();
     const fullName = `${user.firstName} ${user.lastName}`.trim();
     const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`;
@@ -18,7 +22,7 @@ describe('UserCard', async () => {
         user,
       },
       global: {
-        plugins: [app.router, app.vuetify],
+        plugins: app.mountPlugins,
       },
     });
 
@@ -28,5 +32,28 @@ describe('UserCard', async () => {
     if (user.badgeNumber) {
       expect(wrapper.text()).toContain(user.badgeNumber);
     }
+  });
+
+  it('hides badge number when feature flag is disabled', async () => {
+    const app = await createTestApp({
+      featureFlags: {
+        userBadgeNumber: false,
+      },
+    });
+
+    const user = getGetApiUsersIdResponseMock({
+      badgeNumber: 'ABC123',
+    });
+
+    const wrapper = mount(UserCard, {
+      props: {
+        user,
+      },
+      global: {
+        plugins: app.mountPlugins,
+      },
+    });
+
+    expect(wrapper.text()).not.toContain('ABC123');
   });
 });
