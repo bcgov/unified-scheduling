@@ -5,10 +5,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface FeatureFlagsOptions {
+export interface FeatureFlags {
+  schedulingModule: boolean;
   statsModule: boolean;
+  trainingModule: boolean;
   myTeamsModule: boolean;
   userBadgeNumber: boolean;
-  trainingModule: boolean;
-  schedulingModule: boolean;
 }

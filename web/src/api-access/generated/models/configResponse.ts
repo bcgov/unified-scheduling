@@ -4,8 +4,8 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { FeatureFlagsOptions } from './featureFlagsOptions';
+import type { FeatureFlags } from './featureFlags';
 
 export interface ConfigResponse {
-  featureFlags: FeatureFlagsOptions;
+  featureFlags: FeatureFlags;
 }

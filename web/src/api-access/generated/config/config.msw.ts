@@ -17,31 +17,31 @@ export const getGetApiConfigResponseMock = (
   faker.helpers.arrayElement([
     {
       featureFlags: {
+        schedulingModule: faker.datatype.boolean(),
         statsModule: faker.datatype.boolean(),
+        trainingModule: faker.datatype.boolean(),
         myTeamsModule: faker.datatype.boolean(),
         userBadgeNumber: faker.datatype.boolean(),
-        trainingModule: faker.datatype.boolean(),
-        schedulingModule: faker.datatype.boolean(),
       },
       ...overrideResponse,
     },
     {
       featureFlags: {
+        schedulingModule: faker.datatype.boolean(),
         statsModule: faker.datatype.boolean(),
+        trainingModule: faker.datatype.boolean(),
         myTeamsModule: faker.datatype.boolean(),
         userBadgeNumber: faker.datatype.boolean(),
-        trainingModule: faker.datatype.boolean(),
-        schedulingModule: faker.datatype.boolean(),
       },
       ...overrideResponse,
     },
     {
       featureFlags: {
+        schedulingModule: faker.datatype.boolean(),
         statsModule: faker.datatype.boolean(),
+        trainingModule: faker.datatype.boolean(),
         myTeamsModule: faker.datatype.boolean(),
         userBadgeNumber: faker.datatype.boolean(),
-        trainingModule: faker.datatype.boolean(),
-        schedulingModule: faker.datatype.boolean(),
       },
       ...overrideResponse,
     },
