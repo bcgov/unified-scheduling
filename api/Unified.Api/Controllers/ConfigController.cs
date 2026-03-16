@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Api.Models;
-using Unified.Infrastructure.Options;
+using Unified.FeatureFlags;
 
 namespace Unified.Api.Controllers;
 

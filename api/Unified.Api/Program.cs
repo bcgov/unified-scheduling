@@ -2,15 +2,14 @@ using System.Text.Json.Serialization;
 using Unified.Core;
 using Unified.Db;
 using Unified.Db.Services.EF;
+using Unified.FeatureFlags;
 using Unified.Infrastructure;
-using Unified.Infrastructure.Options;
 using Unified.Stats;
 using Unified.UserManagement;
 
 var builder = WebApplication.CreateBuilder(args);
 var featureFlagsOptions =
-    builder.Configuration.GetSection(FeatureFlagsOptions.SectionName).Get<FeatureFlagsOptions>()
-    ?? new FeatureFlagsOptions();
+    builder.Configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
 
 {
     // Add services to the container.

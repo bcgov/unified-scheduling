@@ -2,7 +2,7 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
-using Unified.Infrastructure.Options;
+using Unified.FeatureFlags;
 using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Services;

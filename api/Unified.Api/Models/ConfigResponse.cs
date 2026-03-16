@@ -1,8 +1,8 @@
-using Unified.Infrastructure.Options;
+using Unified.FeatureFlags;
 
 namespace Unified.Api.Models;
 
 public class ConfigResponse
 {
-    public required FeatureFlagsOptions FeatureFlags { get; set; }
+    public required FeatureFlags.FeatureFlags FeatureFlags { get; set; }
 }
