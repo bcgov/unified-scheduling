@@ -3,10 +3,8 @@ import type { RouteRecordRaw, RouteLocationNormalized, RouteLocationNormalizedLo
 import type { createPinia } from 'pinia';
 import { Modules, type ModuleKey } from '@/stores/config';
 import { useAccessControl } from '@/composables/useAccessControl';
-import { schedulingRoutes } from '@/modules/scheduling/routes';
-import { usersRoutes } from '@/modules/myteam/routes';
-import { trainingRoutes } from '@/modules/training/routes';
-import { dashboardRoutes } from '@/modules/dashboard/routes';
+import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
+import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
 
@@ -68,22 +66,16 @@ const baseRoutes: RouteRecordRaw[] = [
   },
 ];
 
-const routes: RouteRecordRaw[] = [...baseRoutes, ...dashboardRoutes];
+const routes: RouteRecordRaw[] = [...baseRoutes];
 
 // Initialize module routes based on access control
 export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   const accessControl = useAccessControl(pinia);
 
-  if (accessControl.canAccessModule(Modules.scheduling)) {
-    routes.push(...schedulingRoutes);
-  }
+  dashboardModule.registerModule(routes);
 
   if (accessControl.canAccessModule(Modules.users)) {
-    routes.push(...usersRoutes);
-  }
-
-  if (accessControl.canAccessModule(Modules.training)) {
-    routes.push(...trainingRoutes);
+    myTeamsModule.registerModule(routes);
   }
 
   const router = createRouter({

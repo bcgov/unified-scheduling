@@ -1,15 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Modules } from '@/stores/config';
-import { useAccessControl } from '@/composables/useAccessControl';
+import { useNavigationStore } from '@/stores/NavigationStore';
 
-const accessControl = useAccessControl();
-
-const navItems = ref([
-  { name: 'Dashboard', path: '/dashboard', module: null },
-  { name: 'Schedule', path: '/schedule', module: Modules.scheduling },
-  { name: 'My Team', path: '/myteam', module: Modules.users },
-]);
+const navigationStore = useNavigationStore();
 </script>
 
 <template>
@@ -18,14 +10,8 @@ const navItems = ref([
       <img width="132" src="../../assets/images/bcid-logo-en.svg" alt="" />
     </div>
     <div class="router-link-container">
-      <div v-for="navItem in navItems" :key="navItem.name">
-        <RouterLink
-          class="router-link"
-          :class="{ 'router-link--border': navItem.module }"
-          v-if="!navItem.module || accessControl.canAccessModule(navItem.module)"
-          :to="navItem.path"
-          active-class="active"
-        >
+      <div v-for="navItem in navigationStore.links" :key="navItem.name">
+        <RouterLink :class="['router-link', navItem?.class ?? '']" :to="navItem.path" active-class="active">
           {{ navItem.name }}
         </RouterLink>
       </div>

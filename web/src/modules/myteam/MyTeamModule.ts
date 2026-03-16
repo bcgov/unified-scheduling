@@ -1,14 +1,15 @@
 import type { RouteRecordRaw } from 'vue-router';
 import { Modules } from '@/stores/config';
+import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
 
-export const usersRoutes: RouteRecordRaw[] = [
+const myTeamRoutes: RouteRecordRaw[] = [
   {
     path: '/myteam',
     children: [
       {
         path: '',
         name: 'MyTeam',
-        component: () => import('./Myteam.vue'),
+        component: () => import('./views/Myteam.vue'),
         meta: {
           title: 'My team',
         },
@@ -16,7 +17,7 @@ export const usersRoutes: RouteRecordRaw[] = [
       {
         path: ':userId',
         name: 'UserProfile',
-        component: () => import('./UserProfile.vue'),
+        component: () => import('./views/UserProfile.vue'),
         redirect: (to) => ({
           name: 'UserIdentification',
           params: to.params,
@@ -43,3 +44,13 @@ export const usersRoutes: RouteRecordRaw[] = [
     },
   },
 ];
+
+const navLink: NavigationLink = { name: 'My Team', path: '/myteam', class: 'router-link--border' };
+
+export function registerModule(routes: RouteRecordRaw[]) {
+  const navigationStore = useNavigationStore();
+
+  routes.push(...myTeamRoutes);
+
+  navigationStore.registerLink(navLink);
+}
