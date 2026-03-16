@@ -6,11 +6,12 @@ import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
 import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
+import type { FeatureFlagsOptions } from '@/api-access/generated/models';
 
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string;
-    module?: string;
+    module?: keyof FeatureFlagsOptions;
     requiresAuth?: boolean;
   }
 }
@@ -73,7 +74,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
   dashboardModule.registerModule(routes);
 
-  if (accessControl.isFeatureFlagEnabled('myteamsModule')) {
+  if (accessControl.isFeatureFlagEnabled('myTeamsModule')) {
     myTeamsModule.registerModule(routes);
   }
 

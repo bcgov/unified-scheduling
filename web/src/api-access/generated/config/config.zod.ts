@@ -9,8 +9,9 @@ import * as zod from 'zod';
 export const GetApiConfigResponse = zod.object({
   featureFlags: zod.object({
     statsModule: zod.boolean(),
-    schedulingModule: zod.boolean(),
     myTeamsModule: zod.boolean(),
     userBadgeNumber: zod.boolean(),
+    trainingModule: zod.boolean(),
+    schedulingModule: zod.boolean(),
   }),
 });

@@ -14,7 +14,7 @@ export const trainingRoutes: RouteRecordRaw[] = [
       },
     ],
     meta: {
-      module: 'training',
+      module: 'trainingModule',
       requiresAuth: true,
     },
   },

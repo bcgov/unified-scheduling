@@ -7,7 +7,8 @@
 
 export interface FeatureFlagsOptions {
   statsModule: boolean;
-  schedulingModule: boolean;
   myTeamsModule: boolean;
   userBadgeNumber: boolean;
+  trainingModule: boolean;
+  schedulingModule: boolean;
 }

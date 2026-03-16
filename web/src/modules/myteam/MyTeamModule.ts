@@ -38,7 +38,7 @@ const myTeamRoutes: RouteRecordRaw[] = [
       },
     ],
     meta: {
-      module: 'myteam',
+      module: 'myTeamsModule',
       requiresAuth: true,
     },
   },

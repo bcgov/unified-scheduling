@@ -28,8 +28,10 @@ const gotoProfile = () => {
         {{ fullName }}
       </div>
       <div style="font-size: 0.8rem; text-align: center">Chief Sheriff</div>
-      <div v-if="useAccessControl().isFeatureFlagEnabled('userBadgeNumber')"
-        style="font-size: 0.8rem; text-align: center">
+      <div
+        v-if="useAccessControl().isFeatureFlagEnabled('userBadgeNumber')"
+        style="font-size: 0.8rem; text-align: center"
+      >
         {{ user.badgeNumber }}
       </div>
     </v-card-title>
