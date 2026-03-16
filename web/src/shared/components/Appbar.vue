@@ -1,49 +1,54 @@
 <script setup lang="ts">
-import { shallowRef } from 'vue';
+import { ref } from 'vue';
 import { Modules } from '@/stores/config';
 import { useAccessControl } from '@/composables/useAccessControl';
 
 const accessControl = useAccessControl();
 
-const modules = shallowRef(Modules);
+const navItems = ref([
+  { name: 'Dashboard', path: '/dashboard', module: null },
+  { name: 'Schedule', path: '/schedule', module: Modules.scheduling },
+  { name: 'My Team', path: '/myteam', module: Modules.users },
+]);
 </script>
 
 <template>
-  <v-app-bar style="background-color: #eaeaea; padding: 0.5rem 2rem" density="compact">
+  <v-app-bar class="app-bar" density="compact">
     <div style="margin-left: 2rem">
       <img width="132" src="../../assets/images/bcid-logo-en.svg" alt="" />
     </div>
-    <div style="display: flex; gap: 2rem; margin-left: 8rem">
-      <RouterLink
-        class="router-link router-link--border"
-        v-if="accessControl.canAccessModule(modules.scheduling)"
-        to="/schedule"
-        active-class="active"
-      >
-        Schedule
-      </RouterLink>
-      <RouterLink
-        class="router-link router-link--border"
-        v-if="accessControl.canAccessModule(modules.users)"
-        to="/myteam"
-        active-class="active"
-      >
-        My Team
-      </RouterLink>
-      <RouterLink class="router-link" to="/dashboard" active-class="active">Dashboard</RouterLink>
+    <div class="router-link-container">
+      <div v-for="navItem in navItems" :key="navItem.name">
+        <RouterLink class="router-link" :class="{'router-link--border': navItem.module}"
+          v-if="!navItem.module || accessControl.canAccessModule(navItem.module)" :to="navItem.path"
+          active-class="active">
+          {{ navItem.name }}
+        </RouterLink>
+      </div>
     </div>
   </v-app-bar>
 </template>
 
 <style>
+.app-bar {
+  background-color: #eaeaea;
+  padding: 0.5rem 2rem;
+}
+
+.router-link-container {
+  display: flex;
+  gap: 2rem;
+  margin-left: 8rem;
+}
+
 .router-link {
   color: rgba(var(--v-theme-on-surface), 0.87);
-  padding-right: 2rem;
+  padding-left: 2rem;
   text-decoration: none;
 }
 
 .router-link--border {
-  border-right: 2px solid #333;
+  border-left: 2px solid #333;
 }
 
 .router-link.active,

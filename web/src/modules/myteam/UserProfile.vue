@@ -11,11 +11,11 @@ const { data, error, isFetching } = getApiUsersId(props.userId);
 <template>
   <div v-if="isFetching">Loading ...</div>
   <div v-else-if="error">Error: {{ error.message }}</div>
-  <h2 style="margin-left: 4rem">Profile</h2>
-  <div style="display: flex; gap: 1rem; background-color: #fff; padding: 2rem">
+  <h2 class="profile-title">Profile</h2>
+  <div class="profile-layout">
     <!-- Left Panel -->
     <div class="left-panel">
-      <div style="border: 1px solid rgba(var(--v-theme-surface-light)); padding: 2rem">
+      <div class="avatar-container">
         <v-avatar color="brown" size="80">
           <span class="text-headline-small">{{ data?.firstName?.[0] || '' }}{{ data?.lastName?.[0] || '' }}</span>
         </v-avatar>
@@ -27,7 +27,7 @@ const { data, error, isFetching } = getApiUsersId(props.userId);
         <div>{{ data?.badgeNumber }}</div>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%">
+      <div class="profile-subnav">
         <v-btn variant="outlined">Identification</v-btn>
         <v-btn variant="outlined">Acting rank</v-btn>
         <v-btn variant="outlined">Schedule</v-btn>
@@ -46,12 +46,35 @@ const { data, error, isFetching } = getApiUsersId(props.userId);
 </template>
 
 <style scoped>
+.profile-title {
+  margin-left: 4rem;
+}
+
+.profile-layout {
+  display: flex;
+  gap: 1rem;
+  background-color: #fff;
+  padding: 2rem;
+}
+
 .left-panel {
   display: flex;
   flex-direction: column;
   gap: 2rem;
   align-items: center;
   margin-right: 4rem;
+}
+
+.avatar-container {
+  border: 1px solid rgba(var(--v-theme-surface-light));
+  padding: 2rem;
+}
+
+.profile-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
 }
 
 .right-panel {

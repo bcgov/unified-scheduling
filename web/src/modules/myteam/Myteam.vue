@@ -24,33 +24,21 @@ const { data, error, isFetching, execute } = getApiUsers(searchParams);
 </script>
 
 <template>
-  <div style="display: flex; align-items: center; justify-content: space-between">
+  <div class="my-team-header-row">
     <div>
-      <h2 style="margin-left: 4rem">My Team</h2>
+      <h2 class="my-team-title">My Team</h2>
     </div>
   </div>
 
   <div class="my-team-list-header">
-    <div style="width: 320px">
-      <v-text-field
-        v-model="searchText"
-        placeholder="Search"
-        density="compact"
-        variant="outlined"
-        style="max-width: 400px"
-        @keydown.enter="() => execute()"
-      />
+    <div class="my-team-search-wrapper">
+      <v-text-field v-model="searchText" placeholder="Search" density="compact" variant="outlined"
+        class="my-team-search-input" @keydown.enter="() => execute()" />
     </div>
-    <div style="display: flex; gap: 1rem; align-items: center">
+    <div class="my-team-filter-row">
       <label> In Active </label>
-      <v-switch
-        inset
-        v-model="isEnabled"
-        color="primary"
-        hide-details
-        density="compact"
-        @update:model-value="() => execute()"
-      ></v-switch>
+      <v-switch inset v-model="isEnabled" color="primary" hide-details density="compact"
+        @update:model-value="() => execute()"></v-switch>
       <label> Active </label>
     </div>
   </div>
@@ -63,6 +51,16 @@ const { data, error, isFetching, execute } = getApiUsers(searchParams);
 </template>
 
 <style scoped>
+.my-team-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.my-team-title {
+  margin-left: 4rem;
+}
+
 .my-team-list-header {
   padding: 2rem;
   background-color: #fff;
@@ -70,6 +68,20 @@ const { data, error, isFetching, execute } = getApiUsers(searchParams);
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+}
+
+.my-team-search-wrapper {
+  width: 320px;
+}
+
+.my-team-search-input {
+  max-width: 400px;
+}
+
+.my-team-filter-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .my-team-list-container {
