@@ -3,14 +3,14 @@ import { Modules } from '@/stores/config';
 
 export const schedulingRoutes: RouteRecordRaw[] = [
   {
-    path: '/scheduling',
+    path: '/schedule',
     children: [
       {
         path: '',
-        name: 'Scheduling',
+        name: 'Schedule',
         component: () => import('./Scheduling.vue'),
         meta: {
-          title: 'Scheduling',
+          title: 'Schedule',
         },
       },
     ],

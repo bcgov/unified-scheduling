@@ -1,12 +1,17 @@
-import { ref, computed } from 'vue';
+import { computed, shallowRef } from 'vue';
 import { defineStore } from 'pinia';
+import type { User } from '@/api-access/generated/models';
 
 export const useUsersStore = defineStore('users', () => {
-  const count = ref(0);
-  const doubleCount = computed(() => count.value * 2);
-  function increment() {
-    count.value++;
-  }
+  const entities = shallowRef<User[]>([]);
 
-  return { count, doubleCount, increment };
+  const entitiesMap = computed(() => {
+    const map: Record<string, User> = {};
+    entities.value.forEach((user) => {
+      map[user.id] = user;
+    });
+    return map;
+  });
+
+  return { entities, entitiesMap };
 });

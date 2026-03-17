@@ -1,4 +1,5 @@
 import { createFetch, type UseFetchOptions } from '@vueuse/core';
+import { computed, unref, type MaybeRef } from 'vue';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
@@ -10,7 +11,7 @@ type RequestBody = unknown;
 export type UseFetchAPIRequest = {
   url: string;
   method: HttpMethod;
-  params?: QueryParams;
+  params?: MaybeRef<QueryParams>;
   headers?: HeadersInit;
   data?: RequestBody;
 };
@@ -74,11 +75,16 @@ export const useFetchAPI = <T>(
   { url, method, params, headers, data }: UseFetchAPIRequest,
   { fetchOptions, options }: UseFetchAPIOptions = {},
 ) => {
-  const queryString = buildQueryString(params);
   const body = toBodyInit(data, headers);
 
+  // Build reactive URL with query params
+  const reactiveUrl = computed(() => {
+    const queryString = buildQueryString(unref(params));
+    return `${url}${queryString}`;
+  });
+
   return fetchAPI<T>(
-    `${url}${queryString}`,
+    reactiveUrl,
     {
       ...fetchOptions,
       method,

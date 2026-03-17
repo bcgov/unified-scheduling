@@ -1,6 +1,10 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 
+import 'vuetify/styles';
+import { createVuetify } from 'vuetify';
+
+import { setupMockServiceWorker } from '@/mocks';
 import { useConfigStore } from '@/stores/config';
 import { initializeRouter } from '@/router';
 
@@ -12,13 +16,18 @@ const bootstrap = async () => {
   const pinia = createPinia();
   app.use(pinia);
 
+  await setupMockServiceWorker();
+
   const configStore = useConfigStore(pinia);
   await configStore.loadConfig();
 
   // Initialize module routes based on access control
   const router = initializeRouter(pinia);
-
   app.use(router);
+
+  // vuetify
+  const vuetify = createVuetify();
+  app.use(vuetify);
 
   await router.isReady();
   app.mount('#app');

@@ -4,7 +4,10 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { MaybeRef } from 'vue';
 
-export type GetApiAuthLoginParams = {
+export type OriginalGetApiAuthLoginParams = {
   redirectUri?: string;
 };
+
+export type GetApiAuthLoginParams = MaybeRef<OriginalGetApiAuthLoginParams>;

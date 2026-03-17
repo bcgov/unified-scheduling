@@ -1,5 +1,13 @@
 import { createPinia } from 'pinia';
 import { initializeRouter } from '../../router/index';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
+
+const vuetify = createVuetify({
+  components,
+  directives,
+});
 
 /**
  *
@@ -13,6 +21,7 @@ export async function createTestApp() {
 
   return {
     router, // The navigation system
+    vuetify,
     // cleanup       // A function to tidy up after the test
   };
 }
