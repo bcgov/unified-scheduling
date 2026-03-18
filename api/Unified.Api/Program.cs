@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
+using Unified.Api.Services;
 using Unified.Core;
 using Unified.Db;
-using Unified.Db.Services.EF;
 using Unified.FeatureFlags;
 using Unified.Infrastructure;
 using Unified.Stats;
@@ -30,6 +30,9 @@ var featureFlagsOptions =
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
         .AddUserManagementModule();
+
+    builder.Services.AddSingleton<MigrationAndSeedService>();
+    builder.Services.AddTransient(typeof(SeederFactory<>));
 
     builder.Services.AddUnifiedOpenApi();
 

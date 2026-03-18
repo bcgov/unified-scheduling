@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Db.Models;
-using Unified.Db.Services.EF;
 
 namespace Unified.Db;
 
@@ -29,7 +28,6 @@ public static class DbModule
         );
 
         services.AddSingleton(configuration);
-        services.AddSingleton<MigrationAndSeedService>();
 
         return services;
     }
