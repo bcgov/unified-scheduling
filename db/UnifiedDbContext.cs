@@ -11,6 +11,7 @@ public class UnifiedDbContext : DbContext
     public UnifiedDbContext(DbContextOptions<UnifiedDbContext> options)
         : base(options) { }
 
+    public DbSet<Location> Locations { get; set; }
     public DbSet<Region> Regions { get; set; }
     public DbSet<User> Users { get; set; }
 
