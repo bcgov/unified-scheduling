@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
-using Unified.Infrastructure.Options;
+using Unified.FeatureFlags;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 
@@ -11,6 +11,11 @@ public class UserServiceTests : IAsyncLifetime
 {
     private UnifiedDbContext _dbContext = null!;
     private UserService _userService = null!;
+
+    private sealed class TestFeatureFlags(FeatureFlags.FeatureFlags current) : IFeatureFlags
+    {
+        public FeatureFlags.FeatureFlags Current { get; } = current;
+    }
 
     public ValueTask InitializeAsync()
     {
@@ -28,7 +33,9 @@ public class UserServiceTests : IAsyncLifetime
     {
         return new UserService(
             _dbContext,
-            new FeatureFlagsOptions { StatsModule = true, UserBadgeNumber = userBadgeNumberEnabled }
+            new TestFeatureFlags(
+                new FeatureFlags.FeatureFlags { StatsModule = true, UserBadgeNumber = userBadgeNumberEnabled }
+            )
         );
     }
 

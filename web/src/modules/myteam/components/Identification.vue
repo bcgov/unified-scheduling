@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { UserResponse } from '@/api-access/generated/models';
+import { useAccessControl } from '@/composables/useAccessControl';
 
 const { user } = defineProps<{
   user: UserResponse;
 }>();
+
+const accessControl = useAccessControl();
+const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
 </script>
 <template>
   <h3>Identification</h3>
@@ -24,8 +29,10 @@ const { user } = defineProps<{
     <label class="identification-label">Gender</label>
     <div>Female</div>
 
-    <label class="identification-label">Badge Number</label>
-    <div>{{ user?.badgeNumber }}</div>
+    <template v-if="showBadgeNumber">
+      <label class="identification-label">Badge Number</label>
+      <div>{{ user?.badgeNumber }}</div>
+    </template>
 
     <label class="identification-label">Rank</label>
     <div>Rank</div>

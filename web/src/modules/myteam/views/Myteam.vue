@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import UserCard from './components/UserCard.vue';
+import UserCard from '../components/UserCard.vue';
 import { getApiUsers } from '@/api-access/generated/users/users';
 import type { GetApiUsersParams } from '@/api-access/generated/models';
 

@@ -3,15 +3,15 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { HttpResponse, http } from 'msw';
 
 import { getGetApiUsersMockHandler, getGetApiUsersResponseMock } from '@/api-access/generated/users/users.msw';
-import Myteam from '@/modules/myteam/Myteam.vue';
+import Myteam from '@/modules/myteam/views/Myteam.vue';
 import UserCard from '@/modules/myteam/components/UserCard.vue';
 import { createTestApp } from '../../helpers/createTestApp';
 import { server } from '../../mocks/server';
 
-describe('Myteam', async () => {
-  const app = await createTestApp();
-
+describe('Myteam', () => {
   it('fetches users and renders user cards', async () => {
+    const app = await createTestApp();
+
     const users = getGetApiUsersResponseMock();
 
     server.use(
@@ -26,7 +26,7 @@ describe('Myteam', async () => {
 
     const wrapper = mount(Myteam, {
       global: {
-        plugins: [app.router, app.vuetify],
+        plugins: app.mountPlugins,
       },
     });
 
@@ -44,6 +44,8 @@ describe('Myteam', async () => {
   });
 
   it('renders an error state when the users request fails', async () => {
+    const app = await createTestApp();
+
     server.use(
       http.get('*/api/users', () => {
         return HttpResponse.json({ message: 'Failed to load users' }, { status: 500, statusText: 'Server Error' });
@@ -52,7 +54,7 @@ describe('Myteam', async () => {
 
     const wrapper = mount(Myteam, {
       global: {
-        plugins: [app.router, app.vuetify],
+        plugins: app.mountPlugins,
       },
     });
 

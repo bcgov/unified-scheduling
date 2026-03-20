@@ -1,12 +1,12 @@
 import { computed, shallowRef } from 'vue';
 import { defineStore } from 'pinia';
-import type { User } from '@/api-access/generated/models';
+import type { UserResponse } from '@/api-access/generated/models';
 
 export const useUsersStore = defineStore('users', () => {
-  const entities = shallowRef<User[]>([]);
+  const entities = shallowRef<UserResponse[]>([]);
 
   const entitiesMap = computed(() => {
-    const map: Record<string, User> = {};
+    const map: Record<string, UserResponse> = {};
     entities.value.forEach((user) => {
       map[user.id] = user;
     });

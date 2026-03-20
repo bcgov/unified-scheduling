@@ -1,5 +1,4 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { Modules } from '@/stores/config';
 
 export const trainingRoutes: RouteRecordRaw[] = [
   {
@@ -15,7 +14,7 @@ export const trainingRoutes: RouteRecordRaw[] = [
       },
     ],
     meta: {
-      module: Modules.training,
+      module: 'trainingModule',
       requiresAuth: true,
     },
   },

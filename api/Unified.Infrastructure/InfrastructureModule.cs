@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Unified.FeatureFlags;
 using Unified.Infrastructure.Helpers;
 using Unified.Infrastructure.Options;
 
@@ -32,8 +33,8 @@ public static class InfrastructureModule
     public static IServiceCollection AddInfrastructureModule(this IServiceCollection services)
     {
         services.AddSingleton<
-            IValidateOptions<FeatureFlagsOptions>,
-            RequiredBooleanOptionsValidator<FeatureFlagsOptions>
+            IValidateOptions<FeatureFlags.FeatureFlags>,
+            RequiredBooleanOptionsValidator<FeatureFlags.FeatureFlags>
         >();
 
         services
@@ -43,12 +44,12 @@ public static class InfrastructureModule
             .ValidateOnStart();
 
         services
-            .AddOptions<FeatureFlagsOptions>()
-            .BindConfiguration(FeatureFlagsOptions.SectionName)
+            .AddOptions<FeatureFlags.FeatureFlags>()
+            .BindConfiguration(FeatureFlags.FeatureFlags.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddSingleton(sp => sp.GetRequiredService<IOptions<FeatureFlagsOptions>>().Value);
+        services.AddSingleton<IFeatureFlags, FeatureFlagsAccessor>();
 
         services.AddHttpClient("TokenRefresh");
         services.AddHttpContextAccessor();

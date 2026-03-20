@@ -1,21 +1,20 @@
-import { computed } from 'vue';
 import type { Pinia } from 'pinia';
-import { useConfigStore, type FeatureModuleConfig, type ModuleKey } from '@/stores/config';
+import { useConfigStore } from '@/stores/config';
+import type { FeatureFlags } from '@/api-access/generated/models';
 
 export const useAccessControl = (pinia?: Pinia) => {
   const configStore = useConfigStore(pinia);
 
-  const modules = computed(
-    () => configStore.config?.features?.modules ?? ({} as Partial<Record<ModuleKey, FeatureModuleConfig>>),
-  );
+  const isFeatureFlagEnabled = (moduleKey: keyof FeatureFlags): boolean => {
+    if (configStore.config?.featureFlags?.[`${moduleKey}`]) {
+      return true;
+    }
 
-  const canAccessModule = (moduleKey: ModuleKey): boolean => {
-    return modules.value[moduleKey]?.isEnabled ?? false;
+    return false;
   };
 
   return {
     configStore,
-    modules,
-    canAccessModule,
+    isFeatureFlagEnabled,
   };
 };

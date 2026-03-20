@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { getApiUsersId } from '@/api-access/generated/users/users';
+import { useAccessControl } from '@/composables/useAccessControl';
 
 const props = defineProps<{
   userId: string;
 }>();
 
 const { data, error, isFetching } = getApiUsersId(props.userId);
+const accessControl = useAccessControl();
+const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
 </script>
 
 <template>
@@ -24,7 +28,7 @@ const { data, error, isFetching } = getApiUsersId(props.userId);
       <div>
         <div>{{ data?.firstName }} {{ data?.lastName }}</div>
         <div>Chief Sheriff</div>
-        <div>{{ data?.badgeNumber }}</div>
+        <div v-if="showBadgeNumber">{{ data?.badgeNumber }}</div>
       </div>
 
       <div class="profile-subnav">

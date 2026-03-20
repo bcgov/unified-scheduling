@@ -18,8 +18,9 @@
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",
     "format": "npm run prettier:fix",
-    "gen:api": "orval --config ./orval.config.ts",
-    "gen:api:clean": "orval --config ./orval.config.ts --clean",
+    "clean:api": "node --eval \"import { rmSync } from 'node:fs'; rmSync('./src/api-access/generated', { recursive: true, force: true });\"",
+    "gen:api": "orval --config ./orval.config.ts && npm run format",
+    "gen:api:clean": "npm run clean:api && npm run gen:api",
     "pre:push": "run-s lint format build test"
   },
   "dependencies": {
