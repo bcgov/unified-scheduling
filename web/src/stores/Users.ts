@@ -7,8 +7,8 @@ export const useUsersStore = defineStore('users', () => {
 
   const entitiesMap = computed(() => {
     const map: Record<string, UserResponse> = {};
-    entities.value.forEach((user) => {
-      map[user.id] = user;
+    entities.value.forEach((e) => {
+      map[e.id] = e;
     });
     return map;
   });

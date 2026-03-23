@@ -10,6 +10,7 @@ const props = defineProps<{
 const { data, error, isFetching } = getApiUsersId(props.userId);
 const accessControl = useAccessControl();
 const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
+
 </script>
 
 <template>

@@ -1,14 +1,13 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 
-import 'vuetify/styles';
-import { createVuetify } from 'vuetify';
-
 import { setupMockServiceWorker } from '@/mocks';
 import { useConfigStore } from '@/stores/config';
 import { initializeRouter } from '@/router';
+import vuetify from '@/plugins/vuetify';
 
 import App from './App.vue';
+import { useLocationsStore } from './stores/LocationsStore';
 
 const bootstrap = async () => {
   const app = createApp(App);
@@ -25,8 +24,10 @@ const bootstrap = async () => {
   const router = initializeRouter(pinia);
   app.use(router);
 
+  const locationStore = useLocationsStore(pinia);
+  await locationStore.getEntities();
+
   // vuetify
-  const vuetify = createVuetify();
   app.use(vuetify);
 
   await router.isReady();

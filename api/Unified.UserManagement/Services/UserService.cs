@@ -64,6 +64,8 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             FirstName = request.FirstName.Trim(),
             LastName = request.LastName.Trim(),
             Email = request.Email.Trim(),
+            Gender = request.Gender,
+            Rank = request.Rank.Trim(),
             BadgeNumber = request.BadgeNumber?.Trim(),
             HomeLocationId = request.HomeLocationId,
             LastLogin = DateTimeOffset.Now,

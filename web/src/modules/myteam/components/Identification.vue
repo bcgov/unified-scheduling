@@ -2,13 +2,31 @@
 import { computed } from 'vue';
 import type { UserResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
+import { useLocationsStore } from '@/stores/LocationsStore';
+
+type UserResponseWithGender = UserResponse & { gender: 0 | 1 | 2 | null };
 
 const { user } = defineProps<{
-  user: UserResponse;
+  user: UserResponseWithGender;
 }>();
 
 const accessControl = useAccessControl();
+const locationsStore = useLocationsStore();
 const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
+
+const locationName = computed(() => {
+  if (user?.homeLocationId === null) {
+    return '-';
+  }
+
+  return locationsStore.entitiesMap[user.homeLocationId]?.name ?? '-';
+});
+
+const genderLabels: Record<number, string> = { 0: 'Male', 1: 'Female', 2: 'Other' };
+const genderLabel = computed(() =>
+  user?.gender !== null && user?.gender !== undefined ? (genderLabels[user.gender] ?? '-') : '-',
+);
+
 </script>
 <template>
   <h3>Identification</h3>
@@ -21,13 +39,13 @@ const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userB
     <div>{{ user?.lastName }}</div>
 
     <label class="identification-label">IDIR</label>
-    <div>{{ user?.idirId }}</div>
+    <div>{{ user?.idirName }}</div>
 
     <label class="identification-label">Email</label>
     <div>{{ user?.email }}</div>
 
     <label class="identification-label">Gender</label>
-    <div>Female</div>
+    <div>{{ genderLabel }}</div>
 
     <template v-if="showBadgeNumber">
       <label class="identification-label">Badge Number</label>
@@ -35,10 +53,10 @@ const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userB
     </template>
 
     <label class="identification-label">Rank</label>
-    <div>Rank</div>
+    <div>{{ user?.rank }}</div>
 
     <label class="identification-label">Location</label>
-    <div>Location</div>
+    <div>{{ locationName }}</div>
 
     <label class="identification-label">Role</label>
     <div>Role</div>
