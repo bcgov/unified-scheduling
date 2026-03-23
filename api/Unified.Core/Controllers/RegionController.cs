@@ -12,15 +12,8 @@ namespace Unified.Core.Controllers;
 [Route("api/[controller]")]
 [Authorize]
 [ApiController]
-public class RegionController : ControllerBase
+public class RegionController(UnifiedDbContext Db) : ControllerBase
 {
-    private UnifiedDbContext Db { get; }
-
-    public RegionController(UnifiedDbContext dbContext)
-    {
-        Db = dbContext;
-    }
-
     [HttpGet]
     public async Task<ActionResult<List<RegionDto>>> Regions()
     {

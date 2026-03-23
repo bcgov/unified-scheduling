@@ -15,15 +15,8 @@ namespace Unified.Core.Controllers;
 /// </summary>
 [Route("api/[controller]")]
 [ApiController]
-public class LocationController : ControllerBase
+public class LocationController(UnifiedDbContext Db) : ControllerBase
 {
-    private UnifiedDbContext Db { get; }
-
-    public LocationController(UnifiedDbContext dbContext)
-    {
-        Db = dbContext;
-    }
-
     [HttpGet]
     [Route("all")]
     public async Task<ActionResult<List<LocationDto>>> AllLocations()

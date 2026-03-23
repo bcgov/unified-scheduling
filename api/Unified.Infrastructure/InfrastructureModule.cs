@@ -231,6 +231,29 @@ public static class InfrastructureModule
                                 context.ProtocolMessage.SetParameter("kc_idp_hint", keycloakOptions.IdpHint);
                             return Task.CompletedTask;
                         },
+                        OnRemoteFailure = context =>
+                        {
+                            // Handle authentication failures gracefully
+                            // For API clients (Swagger, etc.), return 401 instead of throwing exception
+                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                            context.Response.ContentType = "application/problem+json";
+
+                            var problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails
+                            {
+                                Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.1.1",
+                                Title = "Authentication Failed",
+                                Status = StatusCodes.Status401Unauthorized,
+                                Detail = "An authentication error occurred. Please try again.",
+                            };
+                            problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+
+                            var json = System.Text.Json.JsonSerializer.Serialize(problemDetails);
+
+                            context.Response.WriteAsync(json);
+                            context.HandleResponse();
+
+                            return Task.CompletedTask;
+                        },
                     };
                 }
             );

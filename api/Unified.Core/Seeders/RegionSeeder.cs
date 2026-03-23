@@ -17,8 +17,18 @@ public class RegionSeeder(ILogger<RegionSeeder> logger) : SeederBase<UnifiedDbCo
 
     private static readonly Region[] SeedRegions =
     [
-        new() { Id = 100, Name = "Central Programs", Code = "CP" },
-        new() { Id = 101, Name = "Office of the Chief Sheriff", Code = "OCS" },
+        new()
+        {
+            Id = 100,
+            Name = "Central Programs",
+            Code = "CP",
+        },
+        new()
+        {
+            Id = 101,
+            Name = "Office of the Chief Sheriff",
+            Code = "OCS",
+        },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)

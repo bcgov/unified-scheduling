@@ -5,6 +5,7 @@ import { postApiUsers } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
 import type { CreateUserRequest, UserResponse } from '@/api-access/generated/models';
 import Select from '@/shared/components/Select.vue';
+import { mapProblemDetailsValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { usePositionsStore } from '@/stores/PositionsStore';
 
@@ -69,19 +70,17 @@ const resetForm = () => {
   apiErrorMessage.value = '';
 };
 
-const requiredFieldMessage = 'Required';
-
 const createUserFormSchema = PostApiUsersBody.extend({
-  firstName: PostApiUsersBody.shape.firstName.trim().min(1, requiredFieldMessage),
-  lastName: PostApiUsersBody.shape.lastName.trim().min(1, requiredFieldMessage),
-  email: PostApiUsersBody.shape.email.trim().min(1, requiredFieldMessage).email('Invalid email format'),
-  idirName: PostApiUsersBody.shape.idirName.trim().min(1, requiredFieldMessage),
-  rank: PostApiUsersBody.shape.rank.trim().min(1, requiredFieldMessage),
-  badgeNumber: PostApiUsersBody.shape.badgeNumber.trim().min(1, requiredFieldMessage),
+  firstName: PostApiUsersBody.shape.firstName.trim().min(1, validationMessages.required),
+  lastName: PostApiUsersBody.shape.lastName.trim().min(1, validationMessages.required),
+  email: PostApiUsersBody.shape.email.trim().min(1, validationMessages.required).email(validationMessages.invalidEmail),
+  idirName: PostApiUsersBody.shape.idirName.trim().min(1, validationMessages.required),
+  rank: PostApiUsersBody.shape.rank.trim().min(1, validationMessages.required),
+  badgeNumber: PostApiUsersBody.shape.badgeNumber.trim().min(1, validationMessages.required),
   homeLocationId: PostApiUsersBody.shape.homeLocationId.refine((value) => value !== null, {
-    message: requiredFieldMessage,
+    message: validationMessages.required,
   }),
-  gender: zod.number({ error: requiredFieldMessage }),
+  gender: zod.number({ error: validationMessages.required }),
 });
 
 const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
@@ -112,6 +111,16 @@ const validateForm = (): CreateUserRequest | null => {
   return payload as CreateUserRequest;
 };
 
+const applyServerValidationErrors = (rawError: unknown): boolean => {
+  const mappedErrors = mapProblemDetailsValidationErrors(rawError);
+  if (!mappedErrors) {
+    return false;
+  }
+
+  formErrors.value = mappedErrors;
+  return true;
+};
+
 const handleClose = () => {
   if (!isLoading.value) {
     emit('update:modelValue', false);
@@ -132,6 +141,10 @@ const handleSave = async () => {
     const { data, error } = await postApiUsers(payload);
 
     if (error.value) {
+      if (applyServerValidationErrors(error.value)) {
+        return;
+      }
+
       apiErrorMessage.value = error.value.message || 'Failed to create user';
       return;
     }
