@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
 
 namespace Unified.UserManagement;
@@ -16,6 +17,7 @@ public static class UserManagementModule
     public static IServiceCollection AddUserManagementModule(this IServiceCollection services)
     {
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<UserSeeder>();
 
         return services;
     }

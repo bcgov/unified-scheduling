@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="db/db.csproj" />
   <Project Path="api/Unified.Api/Unified.Api.csproj" />
+  <Project Path="api/Unified.Common/Unified.Common.csproj" />
   <Project Path="api/Unified.Core/Unified.Core.csproj" />
   <Project Path="api/Unified.Infrastructure/Unified.Infrastructure.csproj" />
   <Project Path="api/Unified.Stats/Unified.Stats.csproj" />
