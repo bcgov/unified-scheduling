@@ -56,6 +56,7 @@ public class UserServiceTests : IAsyncLifetime
                 IsEnabled = true,
                 FirstName = "John",
                 LastName = "Smith",
+                Gender = Gender.Male,
                 BadgeNumber = "BADGE-001",
                 Email = "john.smith@example.com",
                 HomeLocationId = 1,
@@ -69,6 +70,7 @@ public class UserServiceTests : IAsyncLifetime
                 IsEnabled = true,
                 FirstName = "Jane",
                 LastName = "Doe",
+                Gender = Gender.Female,
                 BadgeNumber = "BADGE-002",
                 Email = "jane.doe@example.com",
                 HomeLocationId = 2,
@@ -82,6 +84,7 @@ public class UserServiceTests : IAsyncLifetime
                 IsEnabled = false,
                 FirstName = "Bob",
                 LastName = "Jones",
+                Gender = Gender.Male,
                 BadgeNumber = "BADGE-003",
                 Email = "bob.jones@example.com",
                 HomeLocationId = 1,
@@ -95,6 +98,7 @@ public class UserServiceTests : IAsyncLifetime
                 IsEnabled = true,
                 FirstName = "Alice",
                 LastName = "Johnson",
+                Gender = Gender.Female,
                 BadgeNumber = "BADGE-004",
                 Email = "alice.johnson@example.com",
                 HomeLocationId = null,
@@ -276,6 +280,8 @@ public class UserServiceTests : IAsyncLifetime
             FirstName: "Test",
             LastName: "User",
             Email: "test.user@example.com",
+            Gender: Gender.Other,
+            Rank: "Deputy Sheriff",
             BadgeNumber: "BADGE-NEW",
             HomeLocationId: 1
         );
@@ -289,6 +295,8 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("Test", result.FirstName);
         Assert.Equal("User", result.LastName);
         Assert.Equal("test.user@example.com", result.Email);
+        Assert.Equal(Gender.Other, result.Gender);
+        Assert.Equal("Deputy Sheriff", result.Rank);
 
         var userInDb = await _dbContext.Users.FindAsync([result.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(userInDb);
@@ -305,6 +313,8 @@ public class UserServiceTests : IAsyncLifetime
             FirstName: "  Test  ",
             LastName: "  User  ",
             Email: "  test.user@example.com  ",
+            Gender: Gender.Female,
+            Rank: "  Sergeant  ",
             BadgeNumber: "  BADGE-TRIM  ",
             HomeLocationId: 1
         );
@@ -317,6 +327,8 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("Test", result.FirstName);
         Assert.Equal("User", result.LastName);
         Assert.Equal("test.user@example.com", result.Email);
+        Assert.Equal(Gender.Female, result.Gender);
+        Assert.Equal("Sergeant", result.Rank);
     }
 
     [Fact]

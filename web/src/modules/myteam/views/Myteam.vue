@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import UserCard from '../components/UserCard.vue';
+import { mdiPlus } from '@mdi/js';
 import { getApiUsers } from '@/api-access/generated/users/users';
 import type { GetApiUsersParams } from '@/api-access/generated/models';
+import UserCard from '../components/UserCard.vue';
+import CreateUser from '../components/CreateUser.vue';
 
 const searchText = ref('');
 const isEnabled = ref<boolean | undefined>(true);
@@ -21,12 +23,26 @@ const searchParams = computed(() => {
 
 // Call the execute function when you want to re run api call with updated search params
 const { data, error, isFetching, execute } = getApiUsers(searchParams);
+
+const showCreateUserModal = ref(false);
+
+const handleAddMember = () => {
+  showCreateUserModal.value = true;
+};
+
+const handleUserCreated = async () => {
+  // Refresh the user list after creating a new user
+  await execute();
+};
 </script>
 
 <template>
   <div class="my-team-header-row">
     <div>
       <h2 class="my-team-title">My Team</h2>
+    </div>
+    <div>
+      <v-btn @click="handleAddMember"> <v-icon :icon="mdiPlus"></v-icon> Add Member </v-btn>
     </div>
   </div>
 
@@ -35,7 +51,6 @@ const { data, error, isFetching, execute } = getApiUsers(searchParams);
       <v-text-field
         v-model="searchText"
         placeholder="Search"
-        density="compact"
         variant="outlined"
         class="my-team-search-input"
         @keydown.enter="() => execute()"
@@ -43,14 +58,7 @@ const { data, error, isFetching, execute } = getApiUsers(searchParams);
     </div>
     <div class="my-team-filter-row">
       <label> In Active </label>
-      <v-switch
-        inset
-        v-model="isEnabled"
-        color="primary"
-        hide-details
-        density="compact"
-        @update:model-value="() => execute()"
-      ></v-switch>
+      <v-switch inset v-model="isEnabled" color="primary" hide-details @update:model-value="() => execute()"></v-switch>
       <label> Active </label>
     </div>
   </div>
@@ -60,6 +68,9 @@ const { data, error, isFetching, execute } = getApiUsers(searchParams);
     <div v-else-if="error">Error: {{ error.message }}</div>
     <UserCard v-else v-for="user in data" :key="user.id" :user="user" />
   </div>
+
+  <!-- Create User Modal -->
+  <CreateUser v-model="showCreateUserModal" @created="handleUserCreated" />
 </template>
 
 <style scoped>

@@ -1,3 +1,5 @@
+using Unified.Db.Models.UserManagement;
+
 namespace Unified.UserManagement.Models;
 
 public sealed record UserResponse(
@@ -8,6 +10,8 @@ public sealed record UserResponse(
     string FirstName,
     string LastName,
     string Email,
+    Gender Gender,
+    string? Rank,
     string? BadgeNumber,
     int? HomeLocationId,
     DateTimeOffset? LastLogin

@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { Gender } from './gender';
 
 export interface CreateUserRequest {
   idirName: string;
@@ -13,6 +14,8 @@ export interface CreateUserRequest {
   firstName: string;
   lastName: string;
   email: string;
+  gender: Gender;
+  rank: string;
   badgeNumber: string;
   /** @nullable */
   homeLocationId: number | null;

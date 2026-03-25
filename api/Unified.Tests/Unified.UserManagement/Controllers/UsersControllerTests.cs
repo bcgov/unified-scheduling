@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
@@ -73,6 +74,8 @@ public class UsersControllerTests
             FirstName: "New",
             LastName: "User",
             Email: "new.user@example.com",
+            Gender: Gender.Male,
+            Rank: "Sergeant",
             BadgeNumber: "BADGE-NEW",
             HomeLocationId: 1
         );
@@ -146,6 +149,8 @@ public class UsersControllerTests
             FirstName: firstName,
             LastName: lastName,
             Email: $"{firstName}.{lastName}@example.com",
+            Gender: Gender.Other,
+            Rank: "Deputy Sheriff",
             BadgeNumber: "BADGE-TEST",
             HomeLocationId: 1,
             LastLogin: DateTimeOffset.UtcNow
