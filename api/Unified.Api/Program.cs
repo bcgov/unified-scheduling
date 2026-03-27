@@ -23,9 +23,7 @@ var featureFlagsOptions =
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders =
-            ForwardedHeaders.XForwardedFor |
-            ForwardedHeaders.XForwardedProto |
-            ForwardedHeaders.XForwardedHost;
+            ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
         // Trust all proxies (nginx runs in the same pod / overlay network)
         options.KnownIPNetworks.Clear();
         options.KnownProxies.Clear();
@@ -53,18 +51,18 @@ var featureFlagsOptions =
     builder.Services.AddUnifiedOpenApi();
 
     // CORS — mirrors the Probate pattern; origins are comma-separated in config
-    var corsOptions = builder.Configuration
-        .GetSection(CorsOptions.SectionName)
-        .Get<CorsOptions>();
+    var corsOptions = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>();
 
     builder.Services.AddCors(options =>
     {
-        options.AddPolicy("UnifiedCorsPolicy", policy =>
-            policy
-                .WithOrigins(corsOptions.AllowedOrigins.Split(','))
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials()
+        options.AddPolicy(
+            "UnifiedCorsPolicy",
+            policy =>
+                policy
+                    .WithOrigins(corsOptions.AllowedOrigins.Split(','))
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials()
         );
     });
 
