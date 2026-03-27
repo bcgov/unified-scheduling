@@ -4,9 +4,9 @@ using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Validators;
 
-public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
+public class UserRequestValidator : AbstractValidator<UserRequestDto>
 {
-    public CreateUserRequestValidator()
+    public UserRequestValidator()
     {
         RuleFor(x => x.IdirName)
             .NotEmpty()
@@ -41,7 +41,18 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
             .WithMessage(ApiValidationErrorCodes.TooLong)
             .EmailAddress()
             .WithErrorCode(ApiValidationErrorCodes.InvalidEmail)
-            .WithMessage(ApiValidationErrorCodes.InvalidEmail);
+            .WithMessage(ApiValidationErrorCodes.InvalidEmail)
+            .When(x => x.Email is not null);
+
+        RuleFor(x => x.Gender)
+            .IsInEnum()
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage(ApiValidationErrorCodes.Invalid);
+
+        RuleFor(x => x.HomeLocationId)
+            .GreaterThan(0)
+            .WithErrorCode(ApiValidationErrorCodes.Required)
+            .WithMessage(ApiValidationErrorCodes.Required);
 
         RuleFor(x => x.Rank)
             .NotEmpty()
@@ -52,13 +63,9 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
             .WithMessage(ApiValidationErrorCodes.TooLong);
 
         RuleFor(x => x.BadgeNumber)
-            .NotEmpty()
-            .WithErrorCode(ApiValidationErrorCodes.Required)
-            .WithMessage(ApiValidationErrorCodes.Required);
-
-        RuleFor(x => x.HomeLocationId)
-            .NotNull()
-            .WithErrorCode(ApiValidationErrorCodes.Required)
-            .WithMessage(ApiValidationErrorCodes.Required);
+            .MaximumLength(100)
+            .WithErrorCode(ApiValidationErrorCodes.TooLong)
+            .WithMessage(ApiValidationErrorCodes.TooLong)
+            .When(x => x.BadgeNumber is not null);
     }
 }

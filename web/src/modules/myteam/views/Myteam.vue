@@ -4,7 +4,7 @@ import { mdiPlus } from '@mdi/js';
 import { getApiUsers } from '@/api-access/generated/users/users';
 import type { GetApiUsersParams } from '@/api-access/generated/models';
 import UserCard from '../components/UserCard.vue';
-import CreateUser from '../components/CreateUser.vue';
+import UserFormModal from '../components/UserFormModal.vue';
 
 const searchText = ref('');
 const isEnabled = ref<boolean | undefined>(true);
@@ -33,6 +33,10 @@ const handleAddMember = () => {
 const handleUserCreated = async () => {
   // Refresh the user list after creating a new user
   await execute();
+};
+
+const handleCreateModalClose = () => {
+  showCreateUserModal.value = false;
 };
 </script>
 
@@ -70,7 +74,7 @@ const handleUserCreated = async () => {
   </div>
 
   <!-- Create User Modal -->
-  <CreateUser v-model="showCreateUserModal" @created="handleUserCreated" />
+  <UserFormModal v-if="showCreateUserModal" @close="handleCreateModalClose" @created="handleUserCreated" />
 </template>
 
 <style scoped>

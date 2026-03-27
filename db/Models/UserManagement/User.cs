@@ -16,8 +16,8 @@ public class User : BaseEntity
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-    public int? HomeLocationId { get; set; }
     public Gender Gender { get; set; }
+    public int? HomeLocationId { get; set; }
     public string? BadgeNumber { get; set; }
     public string? Rank { get; set; }
     public DateTimeOffset? LastLogin { get; set; }

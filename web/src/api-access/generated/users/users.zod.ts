@@ -29,15 +29,14 @@ export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem);
 
 export const PostApiUsersBody = zod.strictObject({
   idirName: zod.string(),
-  idirId: zod.uuid().nullable(),
   isEnabled: zod.boolean(),
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
   gender: zod.number(),
+  homeLocationId: zod.number(),
   rank: zod.string(),
   badgeNumber: zod.string(),
-  homeLocationId: zod.number().nullable(),
 });
 
 export const GetApiUsersIdParams = zod.strictObject({
@@ -64,11 +63,15 @@ export const PutApiUsersIdParams = zod.strictObject({
 });
 
 export const PutApiUsersIdBody = zod.strictObject({
+  idirName: zod.string(),
   isEnabled: zod.boolean(),
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
-  homeLocationId: zod.number().nullable(),
+  gender: zod.number(),
+  homeLocationId: zod.number(),
+  rank: zod.string(),
+  badgeNumber: zod.string(),
 });
 
 export const PutApiUsersIdResponse = zod.object({

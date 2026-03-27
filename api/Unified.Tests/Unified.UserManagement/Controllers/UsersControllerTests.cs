@@ -183,7 +183,7 @@ public class UsersControllerTests
             return Task.FromResult(GetByIdResult);
         }
 
-        public Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
+        public Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(CreateResult);
         }

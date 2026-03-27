@@ -85,7 +85,10 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
   router.beforeEach(async (to, from) => {
     if (to.meta.requiresAuth) {
-      return await authGuard(to, from);
+      const authResult = await authGuard(to, from);
+      if (!authResult) {
+        return false;
+      }
     }
 
     const moduleKey = to.meta?.module;

@@ -22,7 +22,7 @@ public static class UserManagementModule
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<UserSeeder>();
 
-        services.AddScoped<IValidator<CreateUserRequest>, CreateUserRequestValidator>();
+        services.AddScoped<UserRequestValidator>();
 
         return services;
     }

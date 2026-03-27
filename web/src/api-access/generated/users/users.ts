@@ -4,7 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { CreateUserRequest, GetApiUsersParams, UpdateUserRequest, UserResponse } from '../models';
+import type { GetApiUsersParams, UserRequestDto, UserResponse } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI';
 
@@ -17,11 +17,11 @@ export const getApiUsers = (
   return useFetchAPI<UserResponse[]>({ url: `/api/users`, method: 'GET', params }, options);
 };
 export const postApiUsers = (
-  createUserRequest: CreateUserRequest,
+  userRequestDto: UserRequestDto,
   options?: SecondParameter<typeof useFetchAPI<UserResponse>>,
 ) => {
   return useFetchAPI<UserResponse>(
-    { url: `/api/users`, method: 'POST', headers: { 'Content-Type': 'application/json' }, data: createUserRequest },
+    { url: `/api/users`, method: 'POST', headers: { 'Content-Type': 'application/json' }, data: userRequestDto },
     options,
   );
 };
@@ -30,16 +30,11 @@ export const getApiUsersId = (id: string, options?: SecondParameter<typeof useFe
 };
 export const putApiUsersId = (
   id: string,
-  updateUserRequest: UpdateUserRequest,
+  userRequestDto: UserRequestDto,
   options?: SecondParameter<typeof useFetchAPI<UserResponse>>,
 ) => {
   return useFetchAPI<UserResponse>(
-    {
-      url: `/api/users/${id}`,
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      data: updateUserRequest,
-    },
+    { url: `/api/users/${id}`, method: 'PUT', headers: { 'Content-Type': 'application/json' }, data: userRequestDto },
     options,
   );
 };

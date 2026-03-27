@@ -6,7 +6,6 @@
  */
 
 export * from './configResponse';
-export * from './createUserRequest';
 export * from './featureFlags';
 export * from './gender';
 export * from './getApiAuthLoginParams';
@@ -14,7 +13,7 @@ export * from './getApiUsersParams';
 export * from './locationDto';
 export * from './problemDetails';
 export * from './regionDto';
-export * from './updateUserRequest';
 export * from './userClaim';
 export * from './userInfo';
+export * from './userRequestDto';
 export * from './userResponse';

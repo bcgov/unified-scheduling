@@ -26,7 +26,6 @@ const genderLabels: Record<number, string> = { 0: 'Male', 1: 'Female', 2: 'Other
 const genderLabel = computed(() =>
   user?.gender !== null && user?.gender !== undefined ? (genderLabels[user.gender] ?? '-') : '-',
 );
-
 </script>
 <template>
   <h3>Identification</h3>

@@ -50,22 +50,18 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             .SingleOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<UserResponse> CreateAsync(
-        CreateUserRequest request,
-        CancellationToken cancellationToken = default
-    )
+    public async Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default)
     {
         var userEntity = new User
         {
             Id = Guid.NewGuid(),
-            IdirName = request.IdirName.Trim(),
-            IdirId = request.IdirId,
+            IdirName = request.IdirName!.Trim(),
             IsEnabled = request.IsEnabled,
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim(),
-            Email = request.Email.Trim(),
+            FirstName = request.FirstName!.Trim(),
+            LastName = request.LastName!.Trim(),
+            Email = request.Email!.Trim(),
             Gender = request.Gender,
-            Rank = request.Rank.Trim(),
+            Rank = request.Rank?.Trim(),
             BadgeNumber = request.BadgeNumber?.Trim(),
             HomeLocationId = request.HomeLocationId,
             LastLogin = DateTimeOffset.Now,
@@ -79,7 +75,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
     public async Task<UserResponse?> UpdateAsync(
         Guid id,
-        UpdateUserRequest request,
+        UserRequestDto request,
         CancellationToken cancellationToken = default
     )
     {
@@ -91,9 +87,13 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         }
 
         userEntity.IsEnabled = request.IsEnabled;
-        userEntity.FirstName = request.FirstName.Trim();
-        userEntity.LastName = request.LastName.Trim();
-        userEntity.Email = request.Email.Trim();
+        userEntity.FirstName = request.FirstName!.Trim();
+        userEntity.LastName = request.LastName!.Trim();
+        userEntity.Email = request.Email!.Trim();
+        userEntity.IdirName = request.IdirName!.Trim();
+        userEntity.Gender = request.Gender;
+        userEntity.Rank = request.Rank?.Trim();
+        userEntity.BadgeNumber = request.BadgeNumber?.Trim();
         userEntity.HomeLocationId = request.HomeLocationId;
         userEntity.LastLogin = DateTimeOffset.Now;
 
