@@ -1,6 +1,6 @@
 ﻿using System;
-using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace Unified.Infrastructure.Helpers
 {
@@ -63,6 +63,7 @@ namespace Unified.Infrastructure.Helpers
             // _logger.LogInformation($"uriBuilder.Uri.AbsoluteUri `{uriBuilder.Uri.AbsoluteUri}`");
             return uriBuilder.Uri.AbsoluteUri;
         }
+
         public static string ResolveBaseHref(HttpRequest request)
         {
             if (request == null)
@@ -84,10 +85,7 @@ namespace Unified.Infrastructure.Helpers
             if (!string.IsNullOrEmpty(pathValue))
             {
                 var segments = pathValue.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                if (
-                    segments.Length > 1
-                    && string.Equals(segments[1], "api", StringComparison.OrdinalIgnoreCase)
-                )
+                if (segments.Length > 1 && string.Equals(segments[1], "api", StringComparison.OrdinalIgnoreCase))
                 {
                     return NormalizeBaseHref($"/{segments[0]}/");
                 }
@@ -95,6 +93,7 @@ namespace Unified.Infrastructure.Helpers
 
             return "/";
         }
+
         public static string NormalizeBaseHref(string baseHref)
         {
             var trimmed = baseHref?.Trim();
@@ -109,6 +108,5 @@ namespace Unified.Infrastructure.Helpers
 
             return trimmed;
         }
-
     }
 }

@@ -73,5 +73,6 @@ public class KeycloakOptions
     /// <summary>
     /// Keycloak identity provider hint for automatic provider selection.
     /// </summary>
-    public string KcIdpHint { get; set; } = "bceid";
+    public string KcIdpHint { get; set; } = "idir";
+    public string CookieName { get; set; } = "UnifiedAuth";
 }

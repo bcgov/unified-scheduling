@@ -1,8 +1,9 @@
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using IdentityModel.Client;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -15,23 +16,24 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Unified.Infrastructure.Helpers;
 using Unified.Infrastructure.Options;
+
 namespace Unified.Infrastructure;
 
+public static class AuthenticationServiceCollectionExtension
 {
-    public static class AuthenticationServiceCollectionExtension
-{
+    private record TokenResponse(
+        [property: JsonPropertyName("access_token")] string AccessToken,
+        [property: JsonPropertyName("refresh_token")] string RefreshToken,
+        [property: JsonPropertyName("expires_in")] int ExpiresIn
+    );
+
     public static IServiceCollection AddUnifiedAuthentication(
         this IServiceCollection services,
-        IWebHostEnvironment env,
+        IHostEnvironment env,
         IConfiguration configuration
     )
     {
-        services.AddHttpClient();
-
-        var keycloakOptions = services
-            .BuildServiceProvider()
-            .GetRequiredService<IOptions<KeycloakOptions>>()
-            .Value;
+        var keycloakOptions = services.BuildServiceProvider().GetRequiredService<IOptions<KeycloakOptions>>().Value;
 
         var refreshThreshold = KeycloakOptions.DefaultRefreshThreshold;
         if (!string.IsNullOrWhiteSpace(keycloakOptions.RefreshThreshold))
@@ -43,13 +45,12 @@ namespace Unified.Infrastructure;
             .AddAuthentication(options =>
             {
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.DefaultAuthenticateScheme =
-                    CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
             })
             .AddCookie(options =>
             {
-                options.Cookie.Name = "ProbateAuth";
+                options.Cookie.Name = keycloakOptions.CookieName;
                 if (env.IsDevelopment())
                     options.Cookie.Name += ".Development";
 
@@ -66,63 +67,59 @@ namespace Unified.Infrastructure;
                     },
                     OnValidatePrincipal = async cookieCtx =>
                     {
-                        var accessTokenExpiration = DateTimeOffset.Parse(
-                            cookieCtx.Properties.GetTokenValue("expires_at")
-                                ?? DateTimeOffset.UtcNow.ToString()
-                        );
-                        var timeRemaining = accessTokenExpiration.Subtract(
-                            DateTimeOffset.UtcNow
-                        );
+                        var expiresAt = cookieCtx.Properties.GetTokenValue("expires_at");
+                        if (
+                            string.IsNullOrWhiteSpace(expiresAt)
+                            || !DateTimeOffset.TryParse(expiresAt, out var accessTokenExpiration)
+                        )
+                        {
+                            cookieCtx.RejectPrincipal();
+                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                            return;
+                        }
 
+                        var timeRemaining = accessTokenExpiration.Subtract(DateTimeOffset.UtcNow);
                         if (timeRemaining > refreshThreshold)
                             return;
 
                         var refreshToken = cookieCtx.Properties.GetTokenValue("refresh_token");
-                        if (string.IsNullOrEmpty(refreshToken))
+                        if (string.IsNullOrWhiteSpace(refreshToken))
+                        {
+                            cookieCtx.RejectPrincipal();
+                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                             return;
+                        }
 
                         var httpClientFactory =
                             cookieCtx.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
-                        var httpClient = httpClientFactory.CreateClient();
+                        var httpClient = httpClientFactory.CreateClient("TokenRefresh");
 
-                        // Wrap in using to dispose the underlying HttpRequestMessage and prevent resource leaks
-                        using (
-                            var refreshRequest = new RefreshTokenRequest
+                        var tokenEndpoint = $"{keycloakOptions.Authority}/protocol/openid-connect/token";
+                        var content = new FormUrlEncodedContent(
+                            new Dictionary<string, string>
                             {
-                                Address =
-                                    keycloakOptions.Authority
-                                    + "/protocol/openid-connect/token",
-                                ClientId = keycloakOptions.Client,
-                                ClientSecret = keycloakOptions.Secret,
-                                RefreshToken = refreshToken,
+                                ["grant_type"] = "refresh_token",
+                                ["client_id"] = keycloakOptions.Client,
+                                ["client_secret"] = keycloakOptions.Secret,
+                                ["refresh_token"] = refreshToken,
                             }
-                        )
+                        );
+
+                        var response = await httpClient.PostAsync(tokenEndpoint, content);
+                        if (!response.IsSuccessStatusCode)
                         {
-                            var response = await httpClient.RequestRefreshTokenAsync(
-                                refreshRequest
-                            );
-
-                            if (response.IsError)
+                            cookieCtx.RejectPrincipal();
+                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                        }
+                        else
+                        {
+                            var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
+                            if (tokenResponse != null)
                             {
-                                cookieCtx.RejectPrincipal();
-                                await cookieCtx.HttpContext.SignOutAsync(
-                                    CookieAuthenticationDefaults.AuthenticationScheme
-                                );
-                            }
-                            else
-                            {
-                                var expiresInSeconds = response.ExpiresIn;
-                                var updatedExpiresAt = DateTimeOffset.UtcNow.AddSeconds(
-                                    expiresInSeconds
-                                );
-                                cookieCtx.Properties.UpdateTokenValue(
-                                    "expires_at",
-                                    updatedExpiresAt.ToString()
-                                );
-                                cookieCtx.Properties.UpdateTokenValue(
-                                    "refresh_token",
-                                    response.RefreshToken
-                                );
+                                var updatedExpiresAt = DateTimeOffset.UtcNow.AddSeconds(tokenResponse.ExpiresIn);
+                                cookieCtx.Properties.UpdateTokenValue("expires_at", updatedExpiresAt.ToString());
+                                cookieCtx.Properties.UpdateTokenValue("access_token", tokenResponse.AccessToken);
+                                cookieCtx.Properties.UpdateTokenValue("refresh_token", tokenResponse.RefreshToken);
                                 cookieCtx.ShouldRenew = true;
                             }
                         }
@@ -166,53 +163,26 @@ namespace Unified.Infrastructure;
                     },
                     OnRedirectToIdentityProvider = context =>
                     {
-                        // Set the redirect URI explicitly using forwarded headers if available.
-                        // X-Forwarded-Host should contain host:port when a non-standard
-                        // port is needed (e.g. localhost:8080 for local dev).
-                        // X-Forwarded-Port is NOT used here because on OpenShift the
-                        // nginx proxy leaks the internal container port (8080) which
-                        // is wrong for the external URL (standard 443).
                         var request = context.HttpContext.Request;
-                        var forwardedHost = request
-                            .Headers["X-Forwarded-Host"]
-                            .FirstOrDefault();
-                        var forwardedProto =
-                            request.Headers["X-Forwarded-Proto"].FirstOrDefault()
-                            ?? request.Scheme;
-
                         var baseHref = XForwardedForHelper.ResolveBaseHref(request);
-                        var callbackPathWithBase =
-                            $"{baseHref.TrimEnd('/')}{context.Options.CallbackPath}";
 
-                        string redirectUri;
-                        if (!string.IsNullOrEmpty(forwardedHost))
-                        {
-                            redirectUri =
-                                $"{forwardedProto}://{forwardedHost}{callbackPathWithBase}";
-                        }
-                        else
-                        {
-                            // Fallback to request host (preserves port for local dev)
-                            redirectUri =
-                                $"{request.Scheme}://{request.Host}{callbackPathWithBase}";
-                        }
-
-                        context.ProtocolMessage.RedirectUri = redirectUri;
-
+                        context.ProtocolMessage.RedirectUri = XForwardedForHelper.BuildUrlString(
+                            forwardedProto: request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? request.Scheme,
+                            forwardedHost: request.Headers["X-Forwarded-Host"].FirstOrDefault()
+                                ?? request.Host.ToString(),
+                            forwardedPort: request.Headers["X-Forwarded-Port"].FirstOrDefault() ?? "",
+                            baseUrl: baseHref,
+                            remainingPath: context.Options.CallbackPath
+                        );
                         // Check if kc_idp_hint was set in authentication properties (from login endpoint)
-                        if (
-                            context.Properties.Items.TryGetValue("kc_idp_hint", out var idpHint)
-                        )
+                        if (context.Properties.Items.TryGetValue("kc_idp_hint", out var idpHint))
                         {
                             context.ProtocolMessage.SetParameter("kc_idp_hint", idpHint);
                         }
                         else
                         {
                             // Fallback to configuration default
-                            context.ProtocolMessage.SetParameter(
-                                "kc_idp_hint",
-                                keycloakOptions.KcIdpHint
-                            );
+                            context.ProtocolMessage.SetParameter("kc_idp_hint", keycloakOptions.KcIdpHint);
                         }
                         return Task.CompletedTask;
                     },
@@ -221,5 +191,4 @@ namespace Unified.Infrastructure;
 
         return services;
     }
-}
 }
