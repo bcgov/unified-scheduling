@@ -1,12 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 
-
 namespace Unified.Infrastructure.Options;
-{
-    /// <summary>
-    /// Configuration options for Cross-Origin Resource Sharing (CORS).
-    /// </summary>
-    public sealed class CorsOptions
+
+/// <summary>
+/// Configuration options for Cross-Origin Resource Sharing (CORS).
+/// </summary>
+public sealed class CorsOptions
 {
     public const string SectionName = "Cors";
 
@@ -16,5 +15,4 @@ namespace Unified.Infrastructure.Options;
     /// </summary>
     [Required(ErrorMessage = "CORS domain configuration is required")]
     public string AllowedOrigins { get; set; } = default!;
-}
 }
