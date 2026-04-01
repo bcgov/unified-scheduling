@@ -30,8 +30,8 @@
         "sonarsource.sonarlint-vscode",
         "bierner.markdown-mermaid",
         "ms-azuretools.vscode-docker",
-        "redhat.vscode-yaml",
-        "csharpier.csharpier-vscode"
+        "csharpier.csharpier-vscode",
+        "redhat.vscode-yaml"
       ],
       "settings": {
         "editor.codeActionsOnSave": {
@@ -40,7 +40,7 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
         "[csharp]": {
-          "editor.defaultFormatter": "ms-dotnettools.csharp"
+          "editor.defaultFormatter": "csharpier.csharpier-vscode"
         },
         "[vue]": {
           "editor.defaultFormatter": "vue.volar"
