@@ -67,7 +67,6 @@ var featureFlagsOptions =
     });
 
     // Authentication & Authorization
-    builder.Services.AddUnifiedAuthentication(builder.Environment, builder.Configuration);
     builder.Services.AddAuthorization();
 
     if (featureFlagsOptions.StatsModule)

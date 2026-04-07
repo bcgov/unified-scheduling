@@ -33,7 +33,7 @@ public static class AuthenticationServiceCollectionExtension
         IConfiguration configuration
     )
     {
-        var keycloakOptions = services.BuildServiceProvider().GetRequiredService<IOptions<KeycloakOptions>>().Value;
+        var keycloakOptions = configuration.GetSection(KeycloakOptions.SectionName).Get<KeycloakOptions>();
 
         var refreshThreshold = KeycloakOptions.DefaultRefreshThreshold;
         if (!string.IsNullOrWhiteSpace(keycloakOptions.RefreshThreshold))
@@ -84,11 +84,7 @@ public static class AuthenticationServiceCollectionExtension
 
                         var refreshToken = cookieCtx.Properties.GetTokenValue("refresh_token");
                         if (string.IsNullOrWhiteSpace(refreshToken))
-                        {
-                            cookieCtx.RejectPrincipal();
-                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                             return;
-                        }
 
                         var httpClientFactory =
                             cookieCtx.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
