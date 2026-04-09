@@ -165,7 +165,7 @@ public static class AuthenticationServiceCollectionExtension
                         context.ProtocolMessage.RedirectUri = XForwardedForHelper.BuildUrlString(
                             forwardedProto: request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? request.Scheme,
                             forwardedHost: request.Headers["X-Forwarded-Host"].FirstOrDefault()
-                                ?? request.Host.ToString(),
+                            ?? request.Host.ToString(),
                             forwardedPort: request.Headers["X-Forwarded-Port"].FirstOrDefault() ?? "",
                             baseUrl: baseHref,
                             remainingPath: context.Options.CallbackPath

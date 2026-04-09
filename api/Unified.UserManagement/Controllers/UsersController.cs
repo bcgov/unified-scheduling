@@ -11,10 +11,7 @@ namespace Unified.UserManagement.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class UsersController(
-    IUserService userService,
-    UserRequestValidator userRequestValidator
-) : ControllerBase
+public class UsersController(IUserService userService, UserRequestValidator userRequestValidator) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
