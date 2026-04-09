@@ -273,18 +273,18 @@ public class UserServiceTests : IAsyncLifetime
     public async Task CreateAsync_Should_Create_New_User()
     {
         // Arrange
-        var request = new CreateUserRequest(
-            IdirName: "testuser",
-            IdirId: Guid.NewGuid(),
-            IsEnabled: true,
-            FirstName: "Test",
-            LastName: "User",
-            Email: "test.user@example.com",
-            Gender: Gender.Other,
-            Rank: "Deputy Sheriff",
-            BadgeNumber: "BADGE-NEW",
-            HomeLocationId: 1
-        );
+        var request = new UserRequestDto
+        {
+            IdirName = "testuser",
+            IsEnabled = true,
+            FirstName = "Test",
+            LastName = "User",
+            Email = "test.user@example.com",
+            Gender = Gender.Other,
+            Rank = "Deputy Sheriff",
+            BadgeNumber = "BADGE-NEW",
+            HomeLocationId = 1,
+        };
 
         // Act
         var result = await _userService.CreateAsync(request, TestContext.Current.CancellationToken);
@@ -306,18 +306,18 @@ public class UserServiceTests : IAsyncLifetime
     public async Task CreateAsync_Should_Trim_String_Fields()
     {
         // Arrange
-        var request = new CreateUserRequest(
-            IdirName: "  testuser  ",
-            IdirId: Guid.NewGuid(),
-            IsEnabled: true,
-            FirstName: "  Test  ",
-            LastName: "  User  ",
-            Email: "  test.user@example.com  ",
-            Gender: Gender.Female,
-            Rank: "  Sergeant  ",
-            BadgeNumber: "  BADGE-TRIM  ",
-            HomeLocationId: 1
-        );
+        var request = new UserRequestDto
+        {
+            IdirName = "  testuser  ",
+            IsEnabled = true,
+            FirstName = "  Test  ",
+            LastName = "  User  ",
+            Email = "  test.user@example.com  ",
+            Gender = Gender.Female,
+            Rank = "  Sergeant  ",
+            BadgeNumber = "  BADGE-TRIM  ",
+            HomeLocationId = 1,
+        };
 
         // Act
         var result = await _userService.CreateAsync(request, TestContext.Current.CancellationToken);
@@ -337,13 +337,18 @@ public class UserServiceTests : IAsyncLifetime
         // Arrange
         await SeedTestData();
         var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
-        var request = new UpdateUserRequest(
-            IsEnabled: false,
-            FirstName: "Updated",
-            LastName: "Name",
-            Email: "updated@example.com",
-            HomeLocationId: 5
-        );
+        var request = new UserRequestDto
+        {
+            IdirName = "updateduser",
+            IsEnabled = false,
+            FirstName = "Updated",
+            LastName = "Name",
+            Email = "updated@example.com",
+            Gender = Gender.Male,
+            Rank = "Sergeant",
+            BadgeNumber = "BADGE-005",
+            HomeLocationId = 5,
+        };
 
         // Act
         var result = await _userService.UpdateAsync(existingUser.Id, request, TestContext.Current.CancellationToken);
@@ -363,13 +368,18 @@ public class UserServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedTestData();
-        var request = new UpdateUserRequest(
-            IsEnabled: true,
-            FirstName: "Test",
-            LastName: "User",
-            Email: "test@example.com",
-            HomeLocationId: 1
-        );
+        var request = new UserRequestDto
+        {
+            IdirName = "testuser",
+            IsEnabled = true,
+            FirstName = "Test",
+            LastName = "User",
+            Email = "test@example.com",
+            Gender = Gender.Female,
+            Rank = "Deputy Sheriff",
+            BadgeNumber = "BADGE-001",
+            HomeLocationId = 1,
+        };
 
         // Act
         var result = await _userService.UpdateAsync(Guid.NewGuid(), request, TestContext.Current.CancellationToken);
@@ -384,13 +394,18 @@ public class UserServiceTests : IAsyncLifetime
         // Arrange
         await SeedTestData();
         var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
-        var request = new UpdateUserRequest(
-            IsEnabled: true,
-            FirstName: "  Updated  ",
-            LastName: "  Name  ",
-            Email: "  updated@example.com  ",
-            HomeLocationId: 1
-        );
+        var request = new UserRequestDto
+        {
+            IdirName = "  updateduser  ",
+            IsEnabled = true,
+            FirstName = "  Updated  ",
+            LastName = "  Name  ",
+            Email = "  updated@example.com  ",
+            Gender = Gender.Other,
+            Rank = "  Deputy Sheriff  ",
+            BadgeNumber = "  BADGE-001  ",
+            HomeLocationId = 1,
+        };
 
         // Act
         var result = await _userService.UpdateAsync(existingUser.Id, request, TestContext.Current.CancellationToken);

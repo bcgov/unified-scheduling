@@ -3,6 +3,7 @@ using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
+using Unified.UserManagement.Validators;
 
 namespace Unified.Tests.UserManagement.Controllers;
 
@@ -14,7 +15,7 @@ public class UsersControllerTests
         // Arrange
         var expectedUsers = new List<UserResponse> { CreateUserResponse("John", "Smith") };
         var fakeService = new FakeUserService { GetAllResult = expectedUsers };
-        var controller = new UsersController(fakeService);
+        var controller = new UsersController(fakeService, new UserRequestValidator());
         var queryParams = new UserQueryParams { Search = "John" };
 
         // Act
@@ -33,7 +34,7 @@ public class UsersControllerTests
         // Arrange
         var expectedUser = CreateUserResponse("Jane", "Doe");
         var fakeService = new FakeUserService { GetByIdResult = expectedUser };
-        var controller = new UsersController(fakeService);
+        var controller = new UsersController(fakeService, new UserRequestValidator());
 
         // Act
         var result = await controller.GetById(expectedUser.Id, TestContext.Current.CancellationToken);
@@ -51,7 +52,7 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { GetByIdResult = null };
-        var controller = new UsersController(fakeService);
+        var controller = new UsersController(fakeService, new UserRequestValidator());
 
         // Act
         var result = await controller.GetById(Guid.NewGuid(), TestContext.Current.CancellationToken);
@@ -66,19 +67,19 @@ public class UsersControllerTests
         // Arrange
         var createdUser = CreateUserResponse("New", "User");
         var fakeService = new FakeUserService { CreateResult = createdUser };
-        var controller = new UsersController(fakeService);
-        var request = new CreateUserRequest(
-            IdirName: "newuser",
-            IdirId: Guid.NewGuid(),
-            IsEnabled: true,
-            FirstName: "New",
-            LastName: "User",
-            Email: "new.user@example.com",
-            Gender: Gender.Male,
-            Rank: "Sergeant",
-            BadgeNumber: "BADGE-NEW",
-            HomeLocationId: 1
-        );
+        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var request = new UserRequestDto
+        {
+            IdirName = "newuser",
+            IsEnabled = true,
+            FirstName = "New",
+            LastName = "User",
+            Email = "new.user@example.com",
+            Gender = Gender.Male,
+            Rank = "Sergeant",
+            BadgeNumber = "BADGE-NEW",
+            HomeLocationId = 1,
+        };
 
         // Act
         var result = await controller.Create(request, TestContext.Current.CancellationToken);
@@ -98,14 +99,19 @@ public class UsersControllerTests
         // Arrange
         var updatedUser = CreateUserResponse("Updated", "Name");
         var fakeService = new FakeUserService { UpdateResult = updatedUser };
-        var controller = new UsersController(fakeService);
-        var request = new UpdateUserRequest(
-            IsEnabled: false,
-            FirstName: "Updated",
-            LastName: "Name",
-            Email: "updated@example.com",
-            HomeLocationId: 2
-        );
+        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var request = new UserRequestDto
+        {
+            IdirName = "updateduser",
+            IsEnabled = false,
+            FirstName = "Updated",
+            LastName = "Name",
+            Email = "updated@example.com",
+            Gender = Gender.Female,
+            Rank = "Sergeant",
+            BadgeNumber = "BADGE-UPDATED",
+            HomeLocationId = 2,
+        };
 
         // Act
         var result = await controller.Update(updatedUser.Id, request, TestContext.Current.CancellationToken);
@@ -123,14 +129,19 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { UpdateResult = null };
-        var controller = new UsersController(fakeService);
-        var request = new UpdateUserRequest(
-            IsEnabled: true,
-            FirstName: "Updated",
-            LastName: "Name",
-            Email: "updated@example.com",
-            HomeLocationId: 1
-        );
+        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var request = new UserRequestDto
+        {
+            IdirName = "updateduser",
+            IsEnabled = true,
+            FirstName = "Updated",
+            LastName = "Name",
+            Email = "updated@example.com",
+            Gender = Gender.Other,
+            Rank = "Constable",
+            BadgeNumber = "BADGE-UPDATED",
+            HomeLocationId = 1,
+        };
 
         // Act
         var result = await controller.Update(Guid.NewGuid(), request, TestContext.Current.CancellationToken);
@@ -190,7 +201,7 @@ public class UsersControllerTests
 
         public Task<UserResponse?> UpdateAsync(
             Guid id,
-            UpdateUserRequest request,
+            UserRequestDto request,
             CancellationToken cancellationToken = default
         )
         {

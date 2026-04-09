@@ -19,7 +19,6 @@ const locationName = computed(() => {
 
   return locationsStore.entitiesMap[user.homeLocationId]?.name ?? '-';
 });
-
 </script>
 <template>
   <h3>Identification</h3>
