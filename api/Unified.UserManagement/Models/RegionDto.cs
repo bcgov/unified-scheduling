@@ -1,6 +1,6 @@
 using System;
 
-namespace Unified.Core.Models;
+namespace Unified.UserManagement.Models;
 
 public partial class RegionDto
 {

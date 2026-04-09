@@ -4,7 +4,7 @@ using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Db.Models;
 
-namespace Unified.Core.Seeders;
+namespace Unified.UserManagement.Seeders;
 
 /// <summary>
 /// Seeder for the Region table.

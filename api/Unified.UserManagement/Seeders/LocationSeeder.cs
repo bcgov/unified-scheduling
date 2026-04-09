@@ -4,7 +4,7 @@ using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Db.Models;
 
-namespace Unified.Core.Seeders;
+namespace Unified.UserManagement.Seeders;
 
 /// <summary>
 /// Seeder for the Location table, sourced from Sheriff Scheduling location data.
@@ -23,7 +23,6 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS1",
             Name = "Office of Professional Standards",
             Timezone = "America/Vancouver",
-            JustinCode = "1",
         },
         new()
         {
@@ -31,7 +30,6 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS2",
             Name = "Sheriff Provincial Operation Centre",
             Timezone = "America/Vancouver",
-            JustinCode = "2",
         },
         new()
         {
@@ -39,7 +37,6 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS3",
             Name = "Central Float Pool",
             Timezone = "America/Vancouver",
-            JustinCode = "3",
         },
         new()
         {
@@ -48,7 +45,6 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             Name = "Integrated Threat Assessment Unit",
             Timezone = "America/Vancouver",
             RegionId = 100,
-            JustinCode = "4",
         },
         new()
         {
@@ -57,7 +53,6 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             Name = "Office of the Chief Sheriff",
             Timezone = "America/Vancouver",
             RegionId = 101,
-            JustinCode = "5",
         },
         new()
         {
@@ -74,7 +69,6 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             Name = "Training Section",
             Timezone = "America/Vancouver",
             RegionId = 100,
-            JustinCode = "7",
         },
         new()
         {
@@ -83,7 +77,6 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             Name = "Recruitment Office",
             Timezone = "America/Vancouver",
             RegionId = 100,
-            JustinCode = "9",
         },
         new()
         {
@@ -92,7 +85,6 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             Name = "Provincial Programs",
             Timezone = "America/Vancouver",
             RegionId = 100,
-            JustinCode = "10",
         },
     ];
 

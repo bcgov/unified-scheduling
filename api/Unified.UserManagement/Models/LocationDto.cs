@@ -1,4 +1,4 @@
-namespace Unified.Core.Models;
+namespace Unified.UserManagement.Models;
 
 public class LocationDto
 {

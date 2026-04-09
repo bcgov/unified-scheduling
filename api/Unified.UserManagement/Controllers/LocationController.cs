@@ -5,10 +5,10 @@ using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Unified.Core.Models;
+using Unified.UserManagement.Models;
 using Unified.Db;
 
-namespace Unified.Core.Controllers;
+namespace Unified.UserManagement.Controllers;
 
 /// <summary>
 /// Used to fetch Locations, plus expire locations. These locations are inserted by JCDataUpdaterService.
