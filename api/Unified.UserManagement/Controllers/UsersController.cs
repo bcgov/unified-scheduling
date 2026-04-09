@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Common.Validation;
@@ -9,6 +10,7 @@ namespace Unified.UserManagement.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class UsersController(
     IUserService userService,
     UserRequestValidator userRequestValidator

@@ -8,6 +8,7 @@ namespace Unified.Infrastructure.Options;
 public class KeycloakOptions
 {
     public const string SectionName = "Keycloak";
+    public static readonly TimeSpan DefaultRefreshThreshold = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// Keycloak authority URL (e.g., https://keycloak.example.com/realms/myrealm)
@@ -63,4 +64,15 @@ public class KeycloakOptions
     /// Logout endpoint (optional, defaults to {Authority}/protocol/openid-connect/logout)
     /// </summary>
     public string? LogoutEndpoint { get; set; } = "/protocol/openid-connect/logout";
+
+    /// <summary>
+    /// (Optional) Refresh threshold (TimeSpan format) for refreshing access tokens.
+    /// </summary>
+    public string? RefreshThreshold { get; set; }
+
+    /// <summary>
+    /// Keycloak identity provider hint for automatic provider selection.
+    /// </summary>
+    public string KcIdpHint { get; set; } = "idir";
+    public string CookieName { get; set; } = "UnifiedAuth";
 }

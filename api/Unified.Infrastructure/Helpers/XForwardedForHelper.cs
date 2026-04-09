@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Unified.Infrastructure.Helpers
@@ -61,6 +62,51 @@ namespace Unified.Infrastructure.Helpers
 
             // _logger.LogInformation($"uriBuilder.Uri.AbsoluteUri `{uriBuilder.Uri.AbsoluteUri}`");
             return uriBuilder.Uri.AbsoluteUri;
+        }
+
+        public static string ResolveBaseHref(HttpRequest request)
+        {
+            if (request == null)
+                return "/";
+
+            if (request.Headers.TryGetValue("X-Base-Href", out var baseHrefValues))
+            {
+                var normalized = NormalizeBaseHref(baseHrefValues.ToString());
+                if (normalized != "/")
+                    return normalized;
+            }
+
+            if (request.PathBase.HasValue && !string.IsNullOrWhiteSpace(request.PathBase.Value))
+            {
+                return NormalizeBaseHref(request.PathBase.Value);
+            }
+
+            var pathValue = request.Path.Value;
+            if (!string.IsNullOrEmpty(pathValue))
+            {
+                var segments = pathValue.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                if (segments.Length > 1 && string.Equals(segments[1], "api", StringComparison.OrdinalIgnoreCase))
+                {
+                    return NormalizeBaseHref($"/{segments[0]}/");
+                }
+            }
+
+            return "/";
+        }
+
+        public static string NormalizeBaseHref(string baseHref)
+        {
+            var trimmed = baseHref?.Trim();
+            if (string.IsNullOrEmpty(trimmed))
+                return "/";
+
+            if (!trimmed.StartsWith("/"))
+                trimmed = "/" + trimmed;
+
+            if (!trimmed.EndsWith("/"))
+                trimmed += "/";
+
+            return trimmed;
         }
     }
 }
