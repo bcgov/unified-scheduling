@@ -5,4 +5,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type Gender = number;
+export type Gender = (typeof Gender)[keyof typeof Gender];
+
+export const Gender = {
+  Male: 'Male',
+  Female: 'Female',
+  Other: 'Other',
+} as const;

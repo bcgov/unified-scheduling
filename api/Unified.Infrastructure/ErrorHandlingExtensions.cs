@@ -43,38 +43,6 @@ public static class ErrorHandlingExtensions
             };
         });
 
-        services.Configure<ApiBehaviorOptions>(options =>
-        {
-            options.InvalidModelStateResponseFactory = context =>
-            {
-                var errors = context
-                    .ModelState.Where(x => x.Value is { Errors.Count: > 0 })
-                    .ToDictionary(
-                        x => ToCamelCaseFieldName(x.Key),
-                        x =>
-                            x.Value!.Errors.Select(e =>
-                                    string.IsNullOrWhiteSpace(e.ErrorMessage)
-                                        ? ApiValidationErrorCodes.Invalid
-                                        : e.ErrorMessage
-                                )
-                                .Distinct()
-                                .ToArray()
-                    );
-
-                var problemDetails = new ProblemDetails
-                {
-                    Status = StatusCodes.Status400BadRequest,
-                    Title = "One or more validation errors occurred.",
-                    Type = "https://datatracker.ietf.org/doc/html/rfc9110#section-15.5.1",
-                };
-
-                problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
-                problemDetails.Extensions["errors"] = errors;
-
-                return new BadRequestObjectResult(problemDetails);
-            };
-        });
-
         return services;
     }
 
@@ -83,23 +51,5 @@ public static class ErrorHandlingExtensions
         app.UseExceptionHandler();
 
         return app;
-    }
-
-    private static string ToCamelCaseFieldName(string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(fieldName))
-        {
-            return fieldName;
-        }
-
-        var segments = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        var leafName = segments.Length > 0 ? segments[^1] : fieldName;
-
-        return leafName.Length switch
-        {
-            0 => fieldName,
-            1 => leafName.ToLowerInvariant(),
-            _ => char.ToLowerInvariant(leafName[0]) + leafName[1..],
-        };
     }
 }

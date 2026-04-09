@@ -63,6 +63,7 @@ const fetchAPI = createFetch({
   combination: 'overwrite',
   options: {
     immediate: true,
+    updateDataOnError: true, // adds error response data to data property and error property stays as Error instance
     async onFetchError(ctx) {
       // Handle Global api call errors here
       // Return ctx to allow the error to propagate to the caller

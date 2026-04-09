@@ -10,7 +10,7 @@ public static class FluentValidationResultExtensions
             .Errors.GroupBy(failure => failure.PropertyName)
             .ToDictionary(
                 group => group.Key,
-                group => group.Select(failure => failure.ErrorMessage).Distinct().ToArray()
+                group => group.Select(failure => failure.ErrorCode).Distinct().ToArray()
             );
     }
 }

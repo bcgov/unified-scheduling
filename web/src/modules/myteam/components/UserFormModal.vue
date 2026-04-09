@@ -3,11 +3,12 @@ import { computed, ref } from 'vue';
 import * as zod from 'zod';
 import { postApiUsers, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
-import type { UserRequestDto, UserResponse } from '@/api-access/generated/models';
+import { Gender, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
 import Select from '@/shared/components/Select.vue';
-import { mapProblemDetailsValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
+import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { usePositionsStore } from '@/stores/PositionsStore';
+import { mapToSelectOptions } from '@/utils/select';
 
 const props = defineProps<{
   /** When provided, the modal operates in edit mode */
@@ -27,43 +28,29 @@ const positionsStore = usePositionsStore();
 
 const rankOptions = positionsStore.getSelectOptions();
 const homeLocationOptions = computed(() => locationsStore.getSelectOptions());
-const genderOptions = [
-  { code: 0, description: 'Male' },
-  { code: 1, description: 'Female' },
-  { code: 2, description: 'Other' },
-];
+const genderOptions = mapToSelectOptions(Object.values(Gender), (gender) => gender, (gender) => gender);
 
 const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-type UserFormData = UserRequestDto;
+type UserRequestFormData = Partial<UserRequestDto>;
 
-const createInitialFormData = (): UserFormData => ({
-  firstName: '',
-  lastName: '',
-  email: '',
-  isEnabled: true,
-  idirName: '',
-  gender: 0,
-  rank: '',
-  badgeNumber: '',
-  homeLocationId: 0,
-});
+const createInitialFormData = (): UserRequestFormData => ({});
 
-const populateFromUser = (user: UserResponse): UserFormData => ({
+const populateFromUser = (user: UserResponse): UserRequestFormData => ({
   firstName: user.firstName ?? '',
   lastName: user.lastName ?? '',
   email: user.email ?? '',
   isEnabled: user.isEnabled,
   idirName: user.idirName ?? '',
-  gender: typeof user.gender === 'number' ? user.gender : 0,
+  gender: user.gender,
   rank: user.rank ?? '',
   badgeNumber: user.badgeNumber ?? '',
-  homeLocationId: user.homeLocationId ?? 0,
+  homeLocationId: user.homeLocationId ?? undefined,
 });
 
-const formData = ref<UserFormData>(props.user ? populateFromUser(props.user) : createInitialFormData());
+const formData = ref<UserRequestFormData>(props.user ? populateFromUser(props.user) : createInitialFormData());
 
 const createUserFormSchema = PostApiUsersBody.extend({
   firstName: PostApiUsersBody.shape.firstName.min(1, validationMessages.required),
@@ -71,21 +58,27 @@ const createUserFormSchema = PostApiUsersBody.extend({
   email: PostApiUsersBody.shape.email.min(1, validationMessages.required).email(validationMessages.invalidEmail),
   idirName: PostApiUsersBody.shape.idirName.min(1, validationMessages.required),
   rank: PostApiUsersBody.shape.rank.min(1, validationMessages.required),
-  homeLocationId: PostApiUsersBody.shape.homeLocationId.refine((value) => value !== null, {
+  homeLocationId: PostApiUsersBody.shape.homeLocationId.refine((value) => value !== undefined, {
     message: validationMessages.required,
   }),
-  gender: zod.number({ error: validationMessages.required }),
+  gender: PostApiUsersBody.shape.gender.refine((value) => !!value, {
+    message: validationMessages.required,
+  }),
 });
 
 // In edit mode idirName is not editable so we relax that requirement
-const editUserFormSchema = createUserFormSchema.extend({
-});
+const editUserFormSchema = createUserFormSchema.extend({});
 
 const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
   const errors: Record<string, string> = {};
   for (const issue of error.issues) {
     const fieldName = issue.path[0];
     if (typeof fieldName === 'string' && !errors[fieldName]) {
+      if (issue.code === 'invalid_type' || issue.code === 'invalid_value') {
+        errors[fieldName] =  validationMessages.required;
+        continue;
+      }
+
       errors[fieldName] = issue.message;
     }
   }
@@ -102,12 +95,11 @@ const validateForm = (): UserRequestDto | null => {
     return null;
   }
 
-  const payload: Partial<UserFormData> = { ...validationResult.data };
-  return payload as UserRequestDto;
+  return validationResult.data;
 };
 
 const applyServerValidationErrors = (rawError: unknown): boolean => {
-  const mappedErrors = mapProblemDetailsValidationErrors(rawError);
+  const mappedErrors = mapToValidationErrors(rawError);
   if (!mappedErrors) return false;
   formErrors.value = mappedErrors;
   return true;
@@ -138,7 +130,7 @@ const handleSave = async () => {
       const { data, error } = await putApiUsersId(props.user.id, payload);
 
       if (error.value) {
-        if (applyServerValidationErrors(error.value)) return;
+        if (applyServerValidationErrors(data.value)) return;
         apiErrorMessage.value = error.value.message || 'Failed to update user';
         return;
       }
@@ -149,7 +141,7 @@ const handleSave = async () => {
       const { data, error } = await postApiUsers(payload);
 
       if (error.value) {
-        if (applyServerValidationErrors(error.value)) return;
+        if (applyServerValidationErrors(data.value)) return;
         apiErrorMessage.value = error.value.message || 'Failed to create user';
         return;
       }
@@ -172,7 +164,7 @@ const handleSave = async () => {
     @update:model-value="handleDialogVisibility"
     width="660"
     max-width="calc(100vw - 24px)"
-    content-class="user-form-dialog"
+    content-class="user-form-dialog-content"
     persistent
   >
     <v-card class="user-form-modal">
@@ -190,7 +182,7 @@ const handleSave = async () => {
 
       <v-card-text class="modal-body">
         <div class="form-grid">
-          <label class="row-label" for="first-name">First Name</label>
+          <label class="form-field-label" for="first-name">First Name</label>
           <v-text-field
             id="first-name"
             v-model="formData.firstName"
@@ -200,7 +192,7 @@ const handleSave = async () => {
             :disabled="isLoading"
           />
 
-          <label class="row-label" for="last-name">Last Name</label>
+          <label class="form-field-label" for="last-name">Last Name</label>
           <v-text-field
             id="last-name"
             v-model="formData.lastName"
@@ -210,7 +202,7 @@ const handleSave = async () => {
             :disabled="isLoading"
           />
 
-          <label class="row-label" for="email">Email</label>
+          <label class="form-field-label" for="email">Email</label>
           <v-text-field
             id="email"
             v-model="formData.email"
@@ -221,7 +213,7 @@ const handleSave = async () => {
             :disabled="isLoading"
           />
 
-          <label class="row-label" for="idir-name">IDIR Name</label>
+          <label class="form-field-label" for="idir-name">IDIR Name</label>
           <v-text-field
             id="idir-name"
             v-model="formData.idirName"
@@ -231,7 +223,7 @@ const handleSave = async () => {
             :disabled="isLoading"
           />
 
-          <label class="row-label" for="gender">Gender</label>
+          <label class="form-field-label" for="gender">Gender</label>
           <Select
             id="gender"
             v-model="formData.gender"
@@ -240,7 +232,7 @@ const handleSave = async () => {
             :error-messages="formErrors.gender"
           />
 
-          <label class="row-label" for="rank">Rank</label>
+          <label class="form-field-label" for="rank">Rank</label>
           <Select
             id="rank"
             v-model="formData.rank"
@@ -249,7 +241,7 @@ const handleSave = async () => {
             :error-messages="formErrors.rank"
           />
 
-          <label class="row-label" for="badge-number">Badge Number</label>
+          <label class="form-field-label" for="badge-number">Badge Number</label>
           <v-text-field
             id="badge-number"
             v-model="formData.badgeNumber"
@@ -259,7 +251,7 @@ const handleSave = async () => {
             :disabled="isLoading"
           />
 
-          <label class="row-label" for="home-location">Home Location</label>
+          <label class="form-field-label" for="home-location">Home Location</label>
           <Select
             id="home-location"
             v-model="formData.homeLocationId"
@@ -268,7 +260,7 @@ const handleSave = async () => {
             :error-messages="formErrors.homeLocationId"
           />
 
-          <span class="row-label">Is enabled</span>
+          <span class="form-field-label">Is enabled</span>
           <div class="toggle-wrapper">
             <span class="toggle-label">Inactive</span>
             <v-switch
@@ -295,6 +287,10 @@ const handleSave = async () => {
 </template>
 
 <style scoped>
+:deep(.user-form-dialog-content) {
+  width: min(660px, calc(100vw - 24px));
+}
+
 .user-form-modal {
   width: 100%;
   border-radius: 12px;
@@ -303,10 +299,6 @@ const handleSave = async () => {
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 48px);
-}
-
-:deep(.user-form-dialog) {
-  width: min(660px, calc(100vw - 24px));
 }
 
 .modal-header {
@@ -349,7 +341,7 @@ const handleSave = async () => {
   margin-top: 1rem;
 }
 
-.row-label {
+.form-field-label {
   font-size: 1.15rem;
   font-weight: 700;
   color: #1b2740;

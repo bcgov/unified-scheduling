@@ -28,19 +28,14 @@ export const getValidationMessageFromCode = (errorCode: string): string => {
   return validationCodeToMessage[errorCode] ?? validationMessages.invalid;
 };
 
-export const mapProblemDetailsValidationErrors = (rawError: unknown): Record<string, string> | null => {
-  const candidate = rawError as {
-    data?: { extensions?: { errors?: unknown } };
-    extensions?: { errors?: unknown };
-  };
+export const mapToValidationErrors = (rawError: unknown): Record<string, string> | null => {
+  const candidate = rawError as { errors?: Record<string, string[]> };
 
-  const extensionErrors = candidate?.data?.extensions?.errors ?? candidate?.extensions?.errors;
-
-  if (!extensionErrors || typeof extensionErrors !== 'object') {
+  if (!candidate?.errors || typeof candidate.errors !== 'object') {
     return null;
   }
 
-  const apiFieldErrors = extensionErrors as Record<string, unknown>;
+  const apiFieldErrors = candidate.errors;
   const mappedErrors: Record<string, string> = {};
 
   for (const [fieldName, rawCodes] of Object.entries(apiFieldErrors)) {
@@ -49,7 +44,8 @@ export const mapProblemDetailsValidationErrors = (rawError: unknown): Record<str
       continue;
     }
 
-    mappedErrors[fieldName] = getValidationMessageFromCode(errorCodes[0]);
+    const camelCaseFieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
+    mappedErrors[camelCaseFieldName] = getValidationMessageFromCode(errorCodes[0]);
   }
 
   return Object.keys(mappedErrors).length > 0 ? mappedErrors : null;
