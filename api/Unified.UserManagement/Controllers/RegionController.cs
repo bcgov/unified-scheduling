@@ -4,8 +4,8 @@ using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Unified.UserManagement.Models;
 using Unified.Db;
+using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Controllers;
 
