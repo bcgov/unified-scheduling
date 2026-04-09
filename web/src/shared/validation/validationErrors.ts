@@ -25,7 +25,7 @@ const toErrorCodeList = (value: unknown): string[] => {
 };
 
 export const getValidationMessageFromCode = (errorCode: string): string => {
-  return validationCodeToMessage[errorCode] ?? validationMessages.invalid;
+  return validationCodeToMessage[errorCode] ?? errorCode;
 };
 
 export const mapToValidationErrors = (rawError: unknown): Record<string, string> | null => {

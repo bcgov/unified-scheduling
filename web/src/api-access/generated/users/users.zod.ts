@@ -36,7 +36,7 @@ export const PostApiUsersBody = zod.strictObject({
   gender: zod.enum(['Male', 'Female', 'Other']),
   homeLocationId: zod.number(),
   rank: zod.string(),
-  badgeNumber: zod.string(),
+  badgeNumber: zod.string().optional(),
 });
 
 export const GetApiUsersIdParams = zod.strictObject({
@@ -71,7 +71,7 @@ export const PutApiUsersIdBody = zod.strictObject({
   gender: zod.enum(['Male', 'Female', 'Other']),
   homeLocationId: zod.number(),
   rank: zod.string(),
-  badgeNumber: zod.string(),
+  badgeNumber: zod.string().optional(),
 });
 
 export const PutApiUsersIdResponse = zod.object({

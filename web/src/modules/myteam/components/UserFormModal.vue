@@ -28,7 +28,11 @@ const positionsStore = usePositionsStore();
 
 const rankOptions = positionsStore.getSelectOptions();
 const homeLocationOptions = computed(() => locationsStore.getSelectOptions());
-const genderOptions = mapToSelectOptions(Object.values(Gender), (gender) => gender, (gender) => gender);
+const genderOptions = mapToSelectOptions(
+  Object.values(Gender),
+  (gender) => gender,
+  (gender) => gender,
+);
 
 const isLoading = ref(false);
 const apiErrorMessage = ref('');
@@ -75,7 +79,7 @@ const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
     const fieldName = issue.path[0];
     if (typeof fieldName === 'string' && !errors[fieldName]) {
       if (issue.code === 'invalid_type' || issue.code === 'invalid_value') {
-        errors[fieldName] =  validationMessages.required;
+        errors[fieldName] = validationMessages.required;
         continue;
       }
 
