@@ -36,8 +36,8 @@ describe('Identification', () => {
       expect(wrapper.text()).toContain(user.lastName);
     }
 
-    if (user.idirId) {
-      expect(wrapper.text()).toContain(user.idirId);
+    if (user.idirName) {
+      expect(wrapper.text()).toContain(user.idirName);
     }
 
     if (user.email) {
