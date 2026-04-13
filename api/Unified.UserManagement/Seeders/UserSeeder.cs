@@ -53,10 +53,7 @@ public class UserSeeder(ILogger<UserSeeder> logger) : SeederBase<UnifiedDbContex
             existingUser.IsEnabled = seedUser.IsEnabled;
             existingUser.FirstName = seedUser.FirstName;
             existingUser.LastName = seedUser.LastName;
-            existingUser.Email = seedUser.Email;
-            existingUser.Gender = seedUser.Gender;
-            existingUser.BadgeNumber = seedUser.BadgeNumber;
-            existingUser.Rank = seedUser.Rank;
+
             updatedCount++;
         }
 

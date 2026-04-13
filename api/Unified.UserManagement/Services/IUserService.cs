@@ -11,7 +11,7 @@ public interface IUserService
 
     Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-    Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default);
+    Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default);
 
-    Task<UserResponse?> UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken = default);
+    Task<UserResponse?> UpdateAsync(Guid id, UserRequestDto request, CancellationToken cancellationToken = default);
 }

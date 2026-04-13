@@ -9,6 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
+import { Gender } from '../models';
 import type { UserResponse } from '../models';
 
 export const getGetApiUsersResponseMock = (): UserResponse[] =>
@@ -21,6 +22,11 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -39,6 +45,11 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -57,6 +68,11 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -81,6 +97,11 @@ export const getPostApiUsersResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -100,6 +121,11 @@ export const getPostApiUsersResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -119,6 +145,11 @@ export const getPostApiUsersResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -144,6 +175,11 @@ export const getGetApiUsersIdResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -163,6 +199,11 @@ export const getGetApiUsersIdResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -182,6 +223,11 @@ export const getGetApiUsersIdResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -207,6 +253,11 @@ export const getPutApiUsersIdResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -226,6 +277,11 @@ export const getPutApiUsersIdResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,
@@ -245,6 +301,11 @@ export const getPutApiUsersIdResponseMock = (
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         null,

@@ -19,6 +19,8 @@ export const GetApiUsersResponseItem = zod.object({
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
+  gender: zod.enum(['Male', 'Female', 'Other']),
+  rank: zod.string().nullable(),
   badgeNumber: zod.string().nullable(),
   homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({}).nullable(),
@@ -27,13 +29,14 @@ export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem);
 
 export const PostApiUsersBody = zod.strictObject({
   idirName: zod.string(),
-  idirId: zod.uuid().nullable(),
   isEnabled: zod.boolean(),
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
-  badgeNumber: zod.string(),
-  homeLocationId: zod.number().nullable(),
+  gender: zod.enum(['Male', 'Female', 'Other']),
+  homeLocationId: zod.number(),
+  rank: zod.string(),
+  badgeNumber: zod.string().optional(),
 });
 
 export const GetApiUsersIdParams = zod.strictObject({
@@ -48,6 +51,8 @@ export const GetApiUsersIdResponse = zod.object({
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
+  gender: zod.enum(['Male', 'Female', 'Other']),
+  rank: zod.string().nullable(),
   badgeNumber: zod.string().nullable(),
   homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({}).nullable(),
@@ -58,11 +63,15 @@ export const PutApiUsersIdParams = zod.strictObject({
 });
 
 export const PutApiUsersIdBody = zod.strictObject({
+  idirName: zod.string(),
   isEnabled: zod.boolean(),
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
-  homeLocationId: zod.number().nullable(),
+  gender: zod.enum(['Male', 'Female', 'Other']),
+  homeLocationId: zod.number(),
+  rank: zod.string(),
+  badgeNumber: zod.string().optional(),
 });
 
 export const PutApiUsersIdResponse = zod.object({
@@ -73,6 +82,8 @@ export const PutApiUsersIdResponse = zod.object({
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
+  gender: zod.enum(['Male', 'Female', 'Other']),
+  rank: zod.string().nullable(),
   badgeNumber: zod.string().nullable(),
   homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({}).nullable(),

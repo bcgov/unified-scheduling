@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { Gender } from './gender';
 
 export interface UserResponse {
   id: string;
@@ -14,6 +15,9 @@ export interface UserResponse {
   firstName: string;
   lastName: string;
   email: string;
+  gender: Gender;
+  /** @nullable */
+  rank: string | null;
   /** @nullable */
   badgeNumber: string | null;
   /** @nullable */

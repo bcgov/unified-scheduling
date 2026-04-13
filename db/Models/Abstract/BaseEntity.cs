@@ -25,7 +25,7 @@ public abstract class BaseEntity
     /// </summary>
     /// <value></value>
     [AdaptIgnore]
-    public User CreatedBy { get; set; }
+    public User? CreatedBy { get; set; }
 
     /// <summary>
     /// get/set - When this entity was created.
@@ -46,7 +46,7 @@ public abstract class BaseEntity
     /// </summary>
     /// <value></value>
     [AdaptIgnore]
-    public User UpdatedBy { get; set; }
+    public User? UpdatedBy { get; set; }
 
     /// <summary>
     /// get/set - When this entity was updated.

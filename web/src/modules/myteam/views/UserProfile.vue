@@ -1,21 +1,38 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { getApiUsersId } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
+import UserFormModal from '../components/UserFormModal.vue';
 
 const props = defineProps<{
   userId: string;
 }>();
 
-const { data, error, isFetching } = getApiUsersId(props.userId);
+const { data, error, isFetching, execute } = getApiUsersId(props.userId);
 const accessControl = useAccessControl();
 const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
+const showEditUserModal = ref(false);
+
+const handleEditMember = () => {
+  showEditUserModal.value = true;
+};
+
+const handleUserUpdated = async () => {
+  await execute();
+};
+
+const handleEditModalClose = () => {
+  showEditUserModal.value = false;
+};
 </script>
 
 <template>
   <div v-if="isFetching">Loading ...</div>
   <div v-else-if="error">Error: {{ error.message }}</div>
-  <h2 class="profile-title">Profile</h2>
+  <div class="profile-header-row">
+    <h2 class="profile-title">Profile</h2>
+    <v-btn @click="handleEditMember" :disabled="!data">Edit Member</v-btn>
+  </div>
   <div class="profile-layout">
     <!-- Left Panel -->
     <div class="left-panel">
@@ -47,9 +64,23 @@ const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userB
       </RouterView>
     </div>
   </div>
+
+  <UserFormModal
+    v-if="showEditUserModal && data"
+    :user="data"
+    @close="handleEditModalClose"
+    @updated="handleUserUpdated"
+  />
 </template>
 
 <style scoped>
+.profile-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
 .profile-title {
   margin-left: 4rem;
 }

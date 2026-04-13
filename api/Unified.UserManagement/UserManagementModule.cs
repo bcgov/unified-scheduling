@@ -1,6 +1,9 @@
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.UserManagement.Models;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
+using Unified.UserManagement.Validators;
 
 namespace Unified.UserManagement;
 
@@ -18,6 +21,10 @@ public static class UserManagementModule
     {
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<UserSeeder>();
+        services.AddScoped<RegionSeeder>();
+        services.AddScoped<LocationSeeder>();
+
+        services.AddScoped<UserRequestValidator>();
 
         return services;
     }
