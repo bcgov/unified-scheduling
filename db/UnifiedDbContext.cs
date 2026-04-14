@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Db.Models;
+using Unified.Db.Models.Lookup;
 using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db;
@@ -14,6 +15,7 @@ public class UnifiedDbContext : DbContext
     public DbSet<Location> Locations { get; set; }
     public DbSet<Region> Regions { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<PositionType> PositionTypes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
