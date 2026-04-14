@@ -9,7 +9,9 @@ public sealed class PositionTypeLookupStrategy(UnifiedDbContext db) : ILookupStr
     public LookupCodeTypes CodeType => LookupCodeTypes.PositionTypes;
 
     /// <inheritdoc />
-    public async Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
+        CancellationToken cancellationToken = default
+    )
     {
         return await db
             .PositionTypes.AsNoTracking()

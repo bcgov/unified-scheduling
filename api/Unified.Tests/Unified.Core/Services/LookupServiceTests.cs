@@ -39,8 +39,8 @@ public class LookupServiceTests
         // Act + Assert
         // Note: LookupCodeTypes.PositionTypes=1, so trying to use (LookupCodeTypes)99 would fail if it existed
         // Since we only have PositionTypes, trying to get a code type that doesn't exist should throw
-        await Assert.ThrowsAsync<KeyNotFoundException>(
-            () => service.GetAllAsync((LookupCodeTypes)999, TestContext.Current.CancellationToken)
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            service.GetAllAsync((LookupCodeTypes)999, TestContext.Current.CancellationToken)
         );
     }
 
