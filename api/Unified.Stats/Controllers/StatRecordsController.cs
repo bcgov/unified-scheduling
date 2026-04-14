@@ -45,6 +45,27 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         return Created($"/api/stats/records/{result.Id}", result);
     }
 
+    [HttpPost("batch")]
+    [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IEnumerable<StatRecordResponse>>> CreateBatch(
+        [FromBody] IEnumerable<StatRecordRequest> requests,
+        CancellationToken cancellationToken
+    )
+    {
+        var requestList = requests.ToList();
+
+        foreach (var request in requestList)
+        {
+            var validation = await validator.ValidateAsync(request, cancellationToken);
+            if (!validation.IsValid)
+                return ValidationProblem(new ValidationProblemDetails(validation.ToValidationErrors()));
+        }
+
+        var result = await service.CreateBatchAsync(requestList, cancellationToken);
+        return Created("/api/stats/records", result);
+    }
+
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(StatRecordResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

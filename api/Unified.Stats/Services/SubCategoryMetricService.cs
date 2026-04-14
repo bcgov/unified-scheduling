@@ -7,10 +7,14 @@ namespace Unified.Stats.Services;
 
 public sealed class SubCategoryMetricService(UnifiedDbContext db) : ISubCategoryMetricService
 {
-    public async Task<IReadOnlyCollection<SubCategoryMetricResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<SubCategoryMetricResponse>> GetAllAsync(int? subCategoryId = null, CancellationToken cancellationToken = default)
     {
-        return await db.SubCategoryMetrics
-            .AsNoTracking()
+        var query = db.SubCategoryMetrics.AsNoTracking();
+
+        if (subCategoryId is int id)
+            query = query.Where(scm => scm.SubCategoryId == id);
+
+        return await query
             .OrderBy(scm => scm.DisplayOrder)
             .ProjectToType<SubCategoryMetricResponse>()
             .ToListAsync(cancellationToken);

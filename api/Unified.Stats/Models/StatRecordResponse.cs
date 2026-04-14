@@ -9,6 +9,7 @@ public sealed record StatRecordResponse(
     int SubCategoryMetricId,
     decimal Value,
     string? Comment,
+    string Status,
     DateTimeOffset CreatedOn,
     Guid? CreatedById,
     DateTimeOffset? UpdatedOn

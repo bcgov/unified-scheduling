@@ -26,4 +26,13 @@ public class StatRecord : BaseEntity
     public decimal Value { get; set; }
 
     public string? Comment { get; set; }
+
+    [Required]
+    public string Status { get; set; } = StatRecordStatus.Draft;
+}
+
+public static class StatRecordStatus
+{
+    public const string Draft = "Draft";
+    public const string Submitted = "Submitted";
 }

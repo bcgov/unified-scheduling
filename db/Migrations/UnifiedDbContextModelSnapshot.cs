@@ -380,6 +380,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 500L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -566,6 +567,11 @@ namespace Unified.Db.Migrations
                     b.Property<string>("PeriodType")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Draft");
 
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");

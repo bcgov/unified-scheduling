@@ -9,4 +9,5 @@ public sealed record StatRecordRequest
     public required int SubCategoryMetricId { get; init; }
     public required decimal Value { get; init; }
     public string? Comment { get; init; }
+    public string Status { get; init; } = Db.Models.Stats.StatRecordStatus.Draft;
 }

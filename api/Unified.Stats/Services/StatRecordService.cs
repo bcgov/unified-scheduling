@@ -30,6 +30,9 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         if (queryParams?.ToDate is DateOnly toDate)
             query = query.Where(r => r.DateTo <= toDate);
 
+        if (queryParams?.Status is { Length: > 0 } status)
+            query = query.Where(r => r.Status == status);
+
         return await query
             .OrderByDescending(r => r.DateFrom)
             .ProjectToType<StatRecordResponse>()
@@ -47,21 +50,21 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
 
     public async Task<StatRecordResponse> CreateAsync(StatRecordRequest request, CancellationToken cancellationToken = default)
     {
-        var entity = new StatRecord
-        {
-            DateFrom = request.DateFrom,
-            DateTo = request.DateTo,
-            PeriodType = request.PeriodType.Trim(),
-            LocationId = request.LocationId,
-            SubCategoryMetricId = request.SubCategoryMetricId,
-            Value = request.Value,
-            Comment = request.Comment?.Trim(),
-        };
-
+        var entity = MapToEntity(request);
         db.StatRecords.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
-
         return entity.Adapt<StatRecordResponse>();
+    }
+
+    public async Task<IReadOnlyCollection<StatRecordResponse>> CreateBatchAsync(
+        IEnumerable<StatRecordRequest> requests,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var entities = requests.Select(MapToEntity).ToList();
+        db.StatRecords.AddRange(entities);
+        await db.SaveChangesAsync(cancellationToken);
+        return entities.Adapt<List<StatRecordResponse>>();
     }
 
     public async Task<StatRecordResponse?> UpdateAsync(int id, StatRecordRequest request, CancellationToken cancellationToken = default)
@@ -77,6 +80,7 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         entity.SubCategoryMetricId = request.SubCategoryMetricId;
         entity.Value = request.Value;
         entity.Comment = request.Comment?.Trim();
+        entity.Status = request.Status;
 
         await db.SaveChangesAsync(cancellationToken);
         return entity.Adapt<StatRecordResponse>();
@@ -123,7 +127,7 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
                 LocationId = locationIds[rng.Next(locationIds.Count)],
                 SubCategoryMetricId = subCategoryMetricIds[rng.Next(subCategoryMetricIds.Count)],
                 Value = Math.Round((decimal)(rng.NextDouble() * 1000), 2),
-                Comment = null,
+                Status = StatRecordStatus.Submitted,
             });
         }
 
@@ -132,4 +136,16 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
 
         return records.Count;
     }
+
+    private static StatRecord MapToEntity(StatRecordRequest request) => new()
+    {
+        DateFrom = request.DateFrom,
+        DateTo = request.DateTo,
+        PeriodType = request.PeriodType.Trim(),
+        LocationId = request.LocationId,
+        SubCategoryMetricId = request.SubCategoryMetricId,
+        Value = request.Value,
+        Comment = request.Comment?.Trim(),
+        Status = request.Status,
+    };
 }

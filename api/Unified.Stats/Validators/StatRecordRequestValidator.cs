@@ -44,5 +44,10 @@ public class StatRecordRequestValidator : AbstractValidator<StatRecordRequest>
             .WithErrorCode(ApiValidationErrorCodes.TooLong)
             .WithMessage(ApiValidationErrorCodes.TooLong)
             .When(x => x.Comment is not null);
+
+        RuleFor(x => x.Status)
+            .Must(s => s == Db.Models.Stats.StatRecordStatus.Draft || s == Db.Models.Stats.StatRecordStatus.Submitted)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage(ApiValidationErrorCodes.Invalid);
     }
 }

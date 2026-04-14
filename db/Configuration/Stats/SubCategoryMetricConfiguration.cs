@@ -8,6 +8,8 @@ public class SubCategoryMetricConfiguration : BaseEntityConfiguration<SubCategor
 {
     public override void Configure(EntityTypeBuilder<SubCategoryMetric> builder)
     {
+        builder.Property(b => b.Id).HasIdentityOptions(startValue: 500);
+
         builder
             .HasOne(scm => scm.SubCategory)
             .WithMany()
