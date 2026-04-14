@@ -1,6 +1,5 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
-using Unified.UserManagement.Models;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
