@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { UserResponse } from '@/api-access/generated/models';
+import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useLocationsStore } from '@/stores/LocationsStore';
+import { useLookupStore } from '@/stores/LookupStore';
 
 const { user } = defineProps<{
   user: UserResponse;
@@ -10,6 +11,7 @@ const { user } = defineProps<{
 
 const accessControl = useAccessControl();
 const locationsStore = useLocationsStore();
+const lookupStore = useLookupStore();
 const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
 
 const locationName = computed(() => {
@@ -45,7 +47,7 @@ const locationName = computed(() => {
     </template>
 
     <label class="identification-label">Rank</label>
-    <div>{{ user?.rank }}</div>
+    <div>{{ lookupStore.getDescriptionFromCode(LookupCodeTypes.PositionTypes, user?.rank ?? '') }}</div>
 
     <label class="identification-label">Location</label>
     <div>{{ locationName }}</div>
