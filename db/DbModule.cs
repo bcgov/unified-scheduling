@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Db.Models;
@@ -24,6 +25,7 @@ public static class DbModule
             (serviceProvider, options) =>
             {
                 options.UseNpgsql(connectionString);
+                options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
             }
         );
 

@@ -570,8 +570,7 @@ namespace Unified.Db.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Draft");
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
