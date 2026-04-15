@@ -1,12 +1,11 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Unified.Db.Models.UserManagement
+namespace Unified.Db.Models.UserManagement;
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum Gender
 {
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum Gender
-    {
-        Male,
-        Female,
-        Other,
-    }
+    Male,
+    Female,
+    Other,
 }
