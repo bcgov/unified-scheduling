@@ -72,9 +72,7 @@ export const useLookupStore = defineStore('lookup', () => {
     const map: Partial<Record<LookupCodeTypes, Record<string, LookupCodeResponse>>> = {};
     for (const codeType in lookupCodeTypes.value) {
       const entries = lookupCodeTypes.value[codeType as LookupCodeTypes] ?? [];
-      map[codeType as LookupCodeTypes] = Object.fromEntries(
-        entries.filter((e) => e.code).map((e) => [e.code!, e]),
-      );
+      map[codeType as LookupCodeTypes] = Object.fromEntries(entries.filter((e) => e.code).map((e) => [e.code!, e]));
     }
     return map;
   });
