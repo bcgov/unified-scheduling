@@ -11,6 +11,8 @@ export * from './gender';
 export * from './getApiAuthLoginParams';
 export * from './getApiUsersParams';
 export * from './locationDto';
+export * from './lookupCodeResponse';
+export * from './lookupCodeTypes';
 export * from './problemDetails';
 export * from './regionDto';
 export * from './userClaim';
