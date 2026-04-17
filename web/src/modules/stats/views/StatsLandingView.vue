@@ -1,29 +1,23 @@
 <script setup lang="ts">
-import { mdiMagnify, mdiCheckAll, mdiClipboardTextOutline, mdiClipboardTextMultipleOutline } from '@mdi/js';
-
 const links = [
   {
     title: 'Non-Supervision Form',
     description: 'Enter non-supervision hours worked for a location and period.',
-    icon: mdiClipboardTextOutline,
     to: { name: 'NonSupervisionForm' },
   },
   {
     title: 'Supervision Form',
     description: 'Enter supervision hours worked for a location and period.',
-    icon: mdiClipboardTextMultipleOutline,
     to: { name: 'SupervisionForm' },
   },
   {
     title: 'Search / View / Edit Data',
     description: 'Search, view, and edit previously submitted stat records.',
-    icon: mdiMagnify,
     to: { name: 'StatSearch' },
   },
   {
     title: 'Monthly End Sign Offs',
     description: 'Review and sign off monthly stat records for a location.',
-    icon: mdiCheckAll,
     to: { name: 'StatSignoffs' },
   },
 ];
@@ -31,88 +25,62 @@ const links = [
 
 <template>
   <div class="stats-landing-page">
-    <div class="page-header">
-      <h2 class="page-title">Stats</h2>
-    </div>
+    <h2 class="page-title">Stats</h2>
 
-    <div class="landing-grid">
-      <v-card
-        v-for="link in links"
-        :key="link.title"
-        class="landing-card"
-        variant="outlined"
-        :to="link.to"
-        hover
-      >
-        <v-card-text class="landing-card-body">
-          <v-icon :icon="link.icon" class="landing-icon" size="36" />
-          <div>
-            <div class="landing-card-title">{{ link.title }}</div>
-            <div class="landing-card-desc">{{ link.description }}</div>
-          </div>
-        </v-card-text>
-      </v-card>
-    </div>
+    <ul class="link-list">
+      <li v-for="link in links" :key="link.title">
+        <RouterLink :to="link.to" class="link-item">
+          <span class="link-title">{{ link.title }}</span>
+          <span class="link-desc">{{ link.description }}</span>
+        </RouterLink>
+      </li>
+    </ul>
   </div>
 </template>
 
 <style scoped>
 .stats-landing-page {
   padding: 2rem;
-  max-width: 800px;
-}
-
-.page-header {
-  margin-bottom: 2rem;
+  max-width: 520px;
 }
 
 .page-title {
   font-size: 1.4rem;
   font-weight: 700;
   color: #1b2740;
+  margin-bottom: 1.5rem;
 }
 
-.landing-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 1.25rem;
+.link-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.landing-card {
-  border-radius: 10px;
-  border-color: #d0d0d2;
-  cursor: pointer;
-  transition: box-shadow 0.15s ease;
+.link-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #e0e0e0;
   text-decoration: none;
 }
 
-.landing-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+.link-item:hover .link-title {
+  text-decoration: underline;
 }
 
-.landing-card-body {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1.4rem;
+.link-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a5296;
 }
 
-.landing-icon {
-  color: #5f8f2c;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.landing-card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1b2740;
-  margin-bottom: 0.3rem;
-}
-
-.landing-card-desc {
-  font-size: 0.875rem;
+.link-desc {
+  font-size: 0.825rem;
   color: #5a5a5a;
-  line-height: 1.45;
+  margin-top: 0.15rem;
 }
 </style>

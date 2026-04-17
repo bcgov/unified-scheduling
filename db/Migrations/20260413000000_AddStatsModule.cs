@@ -115,6 +115,7 @@ namespace Unified.Db.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:IdentitySequenceOptions", "'500', '1', '', '', 'False', '1'")
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     SubCategoryId = table.Column<int>(type: "integer", nullable: false),
                     MetricId = table.Column<int>(type: "integer", nullable: false),
@@ -147,6 +148,7 @@ namespace Unified.Db.Migrations
                     LocationId = table.Column<int>(type: "integer", nullable: false),
                     SubCategoryMetricId = table.Column<int>(type: "integer", nullable: false),
                     Value = table.Column<decimal>(type: "numeric(18,4)", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false, defaultValue: "Draft"),
                     Comment = table.Column<string>(type: "text", nullable: true),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: true),
                     CreatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),

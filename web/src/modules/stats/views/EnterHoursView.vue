@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 
 const props = defineProps<{
   /** 1 = Non-Supervision, 2 = Supervision. When set, locks all assignments to that group. */
@@ -73,6 +73,12 @@ const periodOptions: { label: string; value: PeriodType }[] = [
   { label: 'Monthly', value: 'Monthly' },
 ];
 
+// Daily / Monthly anchor
+const anchorDate = ref('');
+// Weekly — free dateFrom/dateTo, capped at 7 days
+const weeklyFrom = ref('');
+const weeklyTo = ref('');
+
 let nextId = 1;
 const createAssignment = (): AssignmentData => ({
   id: String(nextId++),
@@ -99,39 +105,57 @@ const toDateStr = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
+const addDays = (dateStr: string, days: number): string => {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return toDateStr(d);
+};
+
+const diffDays = (from: string, to: string): number => {
+  const a = new Date(from + 'T00:00:00');
+  const b = new Date(to + 'T00:00:00');
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+};
+
+const today = new Date();
+anchorDate.value = toDateStr(today);
+weeklyFrom.value = toDateStr(today);
+weeklyTo.value = addDays(toDateStr(today), 6);
+
+// When weekly dateFrom changes → auto-set dateTo to +6 days
+watch(weeklyFrom, (val) => {
+  if (val) weeklyTo.value = addDays(val, 6);
+});
+
+// When weekly dateTo changes → cap to 7 days from dateFrom
+watch(weeklyTo, (val) => {
+  if (val && weeklyFrom.value && diffDays(weeklyFrom.value, val) > 6) {
+    weeklyTo.value = addDays(weeklyFrom.value, 6);
+  }
+});
+
 const dateRange = computed((): { dateFrom: string; dateTo: string } => {
-  const today = new Date();
   if (periodType.value === 'Daily') {
-    const s = toDateStr(today);
-    return { dateFrom: s, dateTo: s };
+    return { dateFrom: anchorDate.value, dateTo: anchorDate.value };
   }
   if (periodType.value === 'Weekly') {
-    const day = today.getDay(); // 0 = Sunday
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return { dateFrom: toDateStr(monday), dateTo: toDateStr(sunday) };
+    return { dateFrom: weeklyFrom.value, dateTo: weeklyTo.value };
   }
-  // Monthly
-  const first = new Date(today.getFullYear(), today.getMonth(), 1);
-  const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  // Monthly — anchorDate is "YYYY-MM"
+  const [y, m] = anchorDate.value.split('-').map(Number);
+  const first = new Date(y, m - 1, 1);
+  const last = new Date(y, m, 0);
   return { dateFrom: toDateStr(first), dateTo: toDateStr(last) };
 });
 
-const formatDisplayDate = (dateStr: string): string => {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-CA', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-};
-
-const dateRangeLabel = computed(() => {
-  const { dateFrom, dateTo } = dateRange.value;
-  if (dateFrom === dateTo) return formatDisplayDate(dateFrom);
-  return `${formatDisplayDate(dateFrom)} – ${formatDisplayDate(dateTo)}`;
+// Reset dates when switching period types
+watch(periodType, () => {
+  const t = new Date();
+  anchorDate.value = periodType.value === 'Monthly'
+    ? `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`
+    : toDateStr(t);
+  weeklyFrom.value = toDateStr(t);
+  weeklyTo.value = addDays(toDateStr(t), 6);
 });
 
 // ── Assignment management ──────────────────────────────────────────────────
@@ -171,8 +195,22 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
     const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
     for (const scm of scms) {
       const raw = assignment.metricValues[scm.id];
-      if (raw && raw.trim() !== '' && isNaN(parseFloat(raw))) {
+      if (!raw || raw.trim() === '') continue;
+
+      const val = parseFloat(raw);
+      if (isNaN(val)) {
         errors[`assignment_${i}_metric_${scm.id}`] = 'Must be a valid number';
+        continue;
+      }
+
+      const metric = metrics.value.find((m) => m.id === scm.metricId);
+      const isRegularHours = metric?.unitOfMeasure === 'hours' && !metric.name.toLowerCase().includes('overtime');
+      if (isRegularHours) {
+        if (periodType.value === 'Daily' && val > 7) {
+          errors[`assignment_${i}_metric_${scm.id}`] = 'Daily hours cannot exceed 7';
+        } else if (periodType.value === 'Weekly' && val > 35) {
+          errors[`assignment_${i}_metric_${scm.id}`] = 'Weekly hours cannot exceed 35';
+        }
       }
     }
   }
@@ -182,7 +220,7 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
   if (Object.keys(errors).length > 0) return null;
 
   const records: StatRecordRequest[] = [];
-  const { dateFrom, dateTo } = dateRange.value;
+  const { dateFrom: dateFromVal, dateTo: dateToVal } = dateRange.value;
 
   for (const assignment of assignments.value) {
     const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
@@ -190,8 +228,8 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
       const raw = assignment.metricValues[scm.id];
       if (!raw || raw.trim() === '') continue;
       records.push({
-        dateFrom,
-        dateTo,
+        dateFrom: dateFromVal,
+        dateTo: dateToVal,
         periodType: periodType.value,
         locationId: selectedLocationId.value!,
         subCategoryMetricId: scm.id,
@@ -225,10 +263,7 @@ const handleSave = async (status: string) => {
       return;
     }
     const label = status === 'Submitted' ? 'submitted' : 'saved as draft';
-    successMessage.value = `${data.value?.length ?? records.length} record(s) ${label} successfully.`;
-    // Reset form
-    assignments.value = [createAssignment()];
-    selectedLocationId.value = null;
+    successMessage.value = `Records ${label} successfully.`;
   } catch (err) {
     apiError.value = err instanceof Error ? err.message : 'An unexpected error occurred.';
   } finally {
@@ -239,55 +274,52 @@ const handleSave = async (status: string) => {
 
 <template>
   <div class="enter-hours-page">
-    <!-- Page header -->
-    <div class="page-header">
-      <h2 class="page-title">{{ formTitle }}</h2>
-    </div>
+    <div class="page-card">
+      <!-- Green header -->
+      <div class="page-header">
+        <span class="page-title">{{ formTitle }}</span>
+      </div>
+      <div class="header-strip" />
 
-    <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
+      <div class="page-body">
+        <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
 
-    <template v-else>
-      <!-- Alerts -->
-      <v-alert
-        v-if="apiError"
-        type="error"
-        density="compact"
-        class="page-alert"
-        closable
-        @click:close="apiError = ''"
-      >
-        {{ apiError }}
-      </v-alert>
-      <v-alert
-        v-if="successMessage"
-        type="success"
-        density="compact"
-        class="page-alert"
-        closable
-        @click:close="successMessage = ''"
-      >
-        {{ successMessage }}
-      </v-alert>
+        <template v-else>
+          <!-- Alerts -->
+          <v-alert
+            v-if="apiError"
+            type="error"
+            density="compact"
+            class="page-alert"
+            closable
+            @click:close="apiError = ''"
+          >
+            {{ apiError }}
+          </v-alert>
+          <v-alert
+            v-if="successMessage"
+            type="success"
+            density="compact"
+            class="page-alert"
+            closable
+            @click:close="successMessage = ''"
+          >
+            {{ successMessage }}
+          </v-alert>
 
-      <!-- Location + Period card -->
-      <v-card class="form-card" variant="outlined">
-        <v-card-text>
-          <div class="header-grid">
-            <!-- Location -->
-            <label class="field-label" for="location-select">Location</label>
-            <div>
-              <Select
-                id="location-select"
-                label="Select Location"
-                :items="locationOptions"
-                :model-value="selectedLocationId"
-                :error-messages="formErrors['location']"
-                @update:model-value="onLocationChange"
-              />
-            </div>
+          <!-- Location + Period -->
+          <div class="form-grid">
+            <label class="form-field-label" for="location-select">Location</label>
+            <Select
+              id="location-select"
+              label="Select Location"
+              :items="locationOptions"
+              :model-value="selectedLocationId"
+              :error-messages="formErrors['location']"
+              @update:model-value="onLocationChange"
+            />
 
-            <!-- Period type -->
-            <label class="field-label">Period</label>
+            <label class="form-field-label">Period</label>
             <div class="period-row">
               <v-btn-toggle
                 v-model="periodType"
@@ -307,95 +339,108 @@ const handleSave = async (status: string) => {
               </v-btn-toggle>
             </div>
 
-            <!-- Date range display -->
-            <label class="field-label">Date Range</label>
-            <span class="date-range-display">{{ dateRangeLabel }}</span>
+            <template v-if="periodType === 'Weekly'">
+              <label class="form-field-label">Date From</label>
+              <v-text-field v-model="weeklyFrom" type="date" hide-details />
+              <label class="form-field-label">Date To</label>
+              <v-text-field v-model="weeklyTo" type="date" :min="weeklyFrom" :max="addDays(weeklyFrom, 6)" hide-details />
+            </template>
+            <template v-else>
+              <label class="form-field-label">{{ periodType === 'Monthly' ? 'Month' : 'Date' }}</label>
+              <v-text-field v-model="anchorDate" :type="periodType === 'Monthly' ? 'month' : 'date'" hide-details />
+            </template>
           </div>
-        </v-card-text>
-      </v-card>
 
-      <!-- Assignment rows -->
-      <div class="assignments-section">
-        <div class="assignments-header">
-          <span class="section-label">Work Assignments</span>
-        </div>
+          <div class="section-divider" />
 
-        <div v-if="assignments.length === 0" class="empty-assignments">
-          No assignments added. Click "Add Assignment" to begin.
-        </div>
+          <!-- Assignment rows -->
+          <div class="assignments-section">
+            <span class="section-label">Work Assignments</span>
 
-        <AssignmentRow
-          v-for="(assignment, i) in assignments"
-          :key="assignment.id"
-          v-model="assignments[i]"
-          :groups="groups"
-          :categories="categories"
-          :sub-categories="subCategories"
-          :sub-category-metrics="subCategoryMetrics"
-          :metrics="metrics"
-          :index="i"
-          :errors="formErrors"
-          :fixed-group-id="groupId"
-          @remove="removeAssignment(assignment.id)"
-        />
+            <div v-if="assignments.length === 0" class="empty-assignments">
+              No assignments added. Click "Add Assignment" to begin.
+            </div>
 
-        <v-btn
-          variant="outlined"
-          class="add-assignment-btn"
-          :prepend-icon="mdiPlus"
-          @click="addAssignment"
-        >
-          Add Assignment
-        </v-btn>
+            <AssignmentRow
+              v-for="(assignment, i) in assignments"
+              :key="assignment.id"
+              v-model="assignments[i]"
+              :groups="groups"
+              :categories="categories"
+              :sub-categories="subCategories"
+              :sub-category-metrics="subCategoryMetrics"
+              :metrics="metrics"
+              :index="i"
+              :errors="formErrors"
+              :fixed-group-id="groupId"
+              @remove="removeAssignment(assignment.id)"
+            />
+
+            <v-btn
+              variant="outlined"
+              class="add-assignment-btn"
+              :prepend-icon="mdiPlus"
+              @click="addAssignment"
+            >
+              Add Assignment
+            </v-btn>
+          </div>
+
+          <!-- Form-level error -->
+          <p v-if="formErrors['form']" class="form-level-error">{{ formErrors['form'] }}</p>
+
+          <!-- Actions -->
+          <div class="form-actions">
+            <v-btn variant="outlined" :disabled="isSubmitting" @click="$router.back()">Back</v-btn>
+            <v-btn variant="outlined" color="primary" :loading="isSubmitting" @click="handleSave('Draft')">
+              Save Draft
+            </v-btn>
+            <v-btn color="primary" variant="flat" :loading="isSubmitting" @click="handleSave('Submitted')">
+              Submit
+            </v-btn>
+          </div>
+        </template>
       </div>
-
-      <!-- Form-level error -->
-      <p v-if="formErrors['form']" class="form-level-error">{{ formErrors['form'] }}</p>
-
-      <!-- Actions -->
-      <div class="form-actions">
-        <v-btn variant="outlined" :disabled="isSubmitting" @click="$router.back()">Back</v-btn>
-        <v-btn
-          variant="outlined"
-          color="primary"
-          :loading="isSubmitting"
-          @click="handleSave('Draft')"
-        >
-          Save Draft
-        </v-btn>
-        <v-btn
-          color="primary"
-          variant="flat"
-          :loading="isSubmitting"
-          @click="handleSave('Submitted')"
-        >
-          Submit
-        </v-btn>
-      </div>
-    </template>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .enter-hours-page {
   padding: 2rem;
-  max-width: 860px;
+  max-width: 900px;
+}
+
+.page-card {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e9e9eb;
 }
 
 .page-header {
   display: flex;
   align-items: center;
-  margin-bottom: 1.5rem;
+  padding: 0.6rem 1.4rem;
+  background: #5f8f2c;
+  color: #fff;
 }
 
 .page-title {
-  font-size: 1.4rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  color: #1b2740;
+}
+
+.header-strip {
+  background: #d0d0d2;
+  height: 4px;
+}
+
+.page-body {
+  padding: 1.4rem;
 }
 
 .loading-state {
-  padding: 2rem;
+  padding: 1rem 0;
   color: #6b6b6b;
 }
 
@@ -403,22 +448,17 @@ const handleSave = async (status: string) => {
   margin-bottom: 1rem;
 }
 
-.form-card {
-  border-radius: 8px;
-  border-color: #d0d0d2;
-  margin-bottom: 1.5rem;
-}
-
-.header-grid {
+.form-grid {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 0.85rem 1rem;
+  grid-template-columns: 210px 1fr;
+  gap: 1rem;
   align-items: center;
+  margin-bottom: 1rem;
 }
 
-.field-label {
-  font-size: 0.95rem;
-  font-weight: 600;
+.form-field-label {
+  font-size: 1.15rem;
+  font-weight: 700;
   color: #1b2740;
 }
 
@@ -426,11 +466,12 @@ const handleSave = async (status: string) => {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.date-range-display {
-  font-size: 0.95rem;
-  color: #3a3a3a;
+.section-divider {
+  border-top: 1px solid #d0d0d2;
+  margin: 1.2rem 0;
 }
 
 .assignments-section {
@@ -440,14 +481,8 @@ const handleSave = async (status: string) => {
   margin-bottom: 1.5rem;
 }
 
-.assignments-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .section-label {
-  font-size: 1rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: #1b2740;
 }
@@ -455,7 +490,6 @@ const handleSave = async (status: string) => {
 .empty-assignments {
   font-size: 0.9rem;
   color: #6b6b6b;
-  padding: 1rem 0;
 }
 
 .add-assignment-btn {
@@ -474,11 +508,42 @@ const handleSave = async (status: string) => {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+  padding-top: 0.5rem;
 }
 
 .form-actions .v-btn {
   text-transform: none;
   letter-spacing: 0;
   min-width: 120px;
+}
+
+:deep(.v-field) {
+  border-radius: 8px;
+  background: #efeff1;
+}
+
+@media (max-width: 640px) {
+  .enter-hours-page {
+    padding: 1rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.4rem 0;
+  }
+
+  .form-field-label {
+    font-size: 1rem;
+    margin-bottom: 0;
+  }
+
+  .form-actions {
+    flex-wrap: wrap;
+  }
+
+  .form-actions .v-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }
 </style>

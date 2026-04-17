@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { mdiClose } from '@mdi/js';
 import type {
   StatGroupResponse,
   StatCategoryResponse,
@@ -110,11 +109,12 @@ const onCommentInput = (value: string) => {
       <v-btn
         variant="text"
         density="compact"
-        :icon="mdiClose"
+        color="white"
         class="remove-btn"
-        title="Remove assignment"
         @click="emit('remove')"
-      />
+      >
+        Remove
+      </v-btn>
     </div>
 
     <v-card-text class="assignment-body">
@@ -201,6 +201,7 @@ const onCommentInput = (value: string) => {
 <style scoped>
 .assignment-card {
   border-radius: 8px;
+  overflow: hidden;
   border-color: #d0d0d2;
 }
 
@@ -208,35 +209,37 @@ const onCommentInput = (value: string) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.6rem 1rem 0.6rem 1.2rem;
-  background: #f3f3f5;
-  border-bottom: 1px solid #d0d0d2;
-  border-radius: 8px 8px 0 0;
+  padding: 0.5rem 1rem 0.5rem 1.4rem;
+  background: #5f8f2c;
 }
 
 .assignment-title {
-  font-weight: 600;
-  color: #1b2740;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
 }
 
 .remove-btn {
-  color: #6b6b6b;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.9rem;
 }
 
 .assignment-body {
-  padding: 1.2rem;
+  padding: 1.2rem 1.4rem;
+  background: #e9e9eb;
 }
 
 .assignment-grid {
   display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 0.75rem 1rem;
+  grid-template-columns: 210px 1fr;
+  gap: 1rem;
   align-items: center;
 }
 
 .field-label {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: #1b2740;
   line-height: 1.4;
 }
@@ -250,5 +253,26 @@ const onCommentInput = (value: string) => {
 .field-error {
   font-size: 0.85rem;
   color: #b00020;
+}
+
+:deep(.v-field) {
+  border-radius: 8px;
+  background: #efeff1;
+}
+
+@media (max-width: 640px) {
+  .assignment-body {
+    padding: 1rem;
+  }
+
+  .assignment-grid {
+    grid-template-columns: 1fr;
+    gap: 0.4rem 0;
+  }
+
+  .field-label {
+    font-size: 1rem;
+    margin-bottom: 0;
+  }
 }
 </style>
