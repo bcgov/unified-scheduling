@@ -32,7 +32,7 @@ const positionDescription = computed(() => {
 
 onMounted(async () => {
   await lookupStore.load(LookupCodeTypes.PositionTypes);
-})
+});
 </script>
 <template>
   <h3>Identification</h3>
