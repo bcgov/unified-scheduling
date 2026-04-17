@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -21,6 +21,18 @@ const locationName = computed(() => {
 
   return locationsStore.entitiesMap[user.homeLocationId]?.name ?? '-';
 });
+
+const positionDescription = computed(() => {
+  if (user?.rank == null) {
+    return '-';
+  }
+
+  return lookupStore.getDescriptionFromCode(LookupCodeTypes.PositionTypes, user.rank);
+});
+
+onMounted(async () => {
+  await lookupStore.load(LookupCodeTypes.PositionTypes);
+})
 </script>
 <template>
   <h3>Identification</h3>
@@ -47,7 +59,7 @@ const locationName = computed(() => {
     </template>
 
     <label class="identification-label">Rank</label>
-    <div>{{ lookupStore.getDescriptionFromCode(LookupCodeTypes.PositionTypes, user?.rank ?? '') }}</div>
+    <div>{{ positionDescription }}</div>
 
     <label class="identification-label">Location</label>
     <div>{{ locationName }}</div>
