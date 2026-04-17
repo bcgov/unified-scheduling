@@ -76,10 +76,7 @@ export const getApiStatsMetrics = (options?: FetchOptions) =>
   useFetchAPI<StatMetricResponse[]>({ url: '/api/stats/metrics', method: 'GET' }, options);
 
 export const getApiStatsSubCategoryMetrics = (options?: FetchOptions) =>
-  useFetchAPI<SubCategoryMetricResponse[]>(
-    { url: '/api/stats/sub-category-metrics', method: 'GET' },
-    options,
-  );
+  useFetchAPI<SubCategoryMetricResponse[]>({ url: '/api/stats/sub-category-metrics', method: 'GET' }, options);
 
 export const postApiStatsRecordsBatch = (records: StatRecordRequest[], options?: FetchOptions) =>
   useFetchAPI<StatRecordResponse[]>(

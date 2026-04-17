@@ -32,9 +32,7 @@ const model = defineModel<AssignmentData>({ required: true });
 // ── Derived options ────────────────────────────────────────────────────────
 
 const groupOptions = computed(() =>
-  [...props.groups]
-    .sort((a, b) => a.displayOrder - b.displayOrder)
-    .map((g) => ({ code: g.id, description: g.name })),
+  [...props.groups].sort((a, b) => a.displayOrder - b.displayOrder).map((g) => ({ code: g.id, description: g.name })),
 );
 
 const effectiveGroupId = computed(() => props.fixedGroupId ?? model.value.groupId);
@@ -106,15 +104,7 @@ const onCommentInput = (value: string) => {
   <v-card class="assignment-card" variant="outlined">
     <div class="assignment-header">
       <span class="assignment-title">Assignment {{ index + 1 }}</span>
-      <v-btn
-        variant="text"
-        density="compact"
-        color="white"
-        class="remove-btn"
-        @click="emit('remove')"
-      >
-        Remove
-      </v-btn>
+      <v-btn variant="text" density="compact" color="white" class="remove-btn" @click="emit('remove')"> Remove </v-btn>
     </div>
 
     <v-card-text class="assignment-body">

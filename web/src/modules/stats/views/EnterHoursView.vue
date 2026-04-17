@@ -151,9 +151,8 @@ const dateRange = computed((): { dateFrom: string; dateTo: string } => {
 // Reset dates when switching period types
 watch(periodType, () => {
   const t = new Date();
-  anchorDate.value = periodType.value === 'Monthly'
-    ? `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`
-    : toDateStr(t);
+  anchorDate.value =
+    periodType.value === 'Monthly' ? `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}` : toDateStr(t);
   weeklyFrom.value = toDateStr(t);
   weeklyTo.value = addDays(toDateStr(t), 6);
 });
@@ -321,19 +320,8 @@ const handleSave = async (status: string) => {
 
             <label class="form-field-label">Period</label>
             <div class="period-row">
-              <v-btn-toggle
-                v-model="periodType"
-                mandatory
-                density="compact"
-                variant="outlined"
-                color="primary"
-              >
-                <v-btn
-                  v-for="opt in periodOptions"
-                  :key="opt.value"
-                  :value="opt.value"
-                  size="small"
-                >
+              <v-btn-toggle v-model="periodType" mandatory density="compact" variant="outlined" color="primary">
+                <v-btn v-for="opt in periodOptions" :key="opt.value" :value="opt.value" size="small">
                   {{ opt.label }}
                 </v-btn>
               </v-btn-toggle>
@@ -343,7 +331,13 @@ const handleSave = async (status: string) => {
               <label class="form-field-label">Date From</label>
               <v-text-field v-model="weeklyFrom" type="date" hide-details />
               <label class="form-field-label">Date To</label>
-              <v-text-field v-model="weeklyTo" type="date" :min="weeklyFrom" :max="addDays(weeklyFrom, 6)" hide-details />
+              <v-text-field
+                v-model="weeklyTo"
+                type="date"
+                :min="weeklyFrom"
+                :max="addDays(weeklyFrom, 6)"
+                hide-details
+              />
             </template>
             <template v-else>
               <label class="form-field-label">{{ periodType === 'Monthly' ? 'Month' : 'Date' }}</label>
@@ -376,12 +370,7 @@ const handleSave = async (status: string) => {
               @remove="removeAssignment(assignment.id)"
             />
 
-            <v-btn
-              variant="outlined"
-              class="add-assignment-btn"
-              :prepend-icon="mdiPlus"
-              @click="addAssignment"
-            >
+            <v-btn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
               Add Assignment
             </v-btn>
           </div>
