@@ -7,6 +7,7 @@ import type { SelectOption } from '@/types/select';
 import { mapToSelectOptions } from '@/utils/select';
 
 type LookupCodeTypesMap = Partial<Record<LookupCodeTypes, LookupCodeResponse[]>>;
+type LookupCodeTypesLoadingMap = Partial<Record<LookupCodeTypes, boolean>>;
 /**
  * LookupStore
  *
@@ -67,6 +68,7 @@ type LookupCodeTypesMap = Partial<Record<LookupCodeTypes, LookupCodeResponse[]>>
  */
 export const useLookupStore = defineStore('lookup', () => {
   const lookupCodeTypes = shallowRef<LookupCodeTypesMap>({});
+  const lookupCodeTypesLoading = shallowRef<LookupCodeTypesLoadingMap>({});
 
   const entityMap = computed(() => {
     const map: Partial<Record<LookupCodeTypes, Record<string, LookupCodeResponse>>> = {};
@@ -80,10 +82,16 @@ export const useLookupStore = defineStore('lookup', () => {
   const load = async (...codeTypes: LookupCodeTypes[]): Promise<void> => {
     await Promise.all(
       codeTypes
-        .filter((codeType) => !lookupCodeTypes.value[codeType])
+        .filter((codeType) => !lookupCodeTypes.value[codeType] && !lookupCodeTypesLoading.value[codeType])
         .map(async (codeType) => {
-          const { data } = await getApiLookupCodeType(codeType);
-          lookupCodeTypes.value = { ...lookupCodeTypes.value, [codeType]: data.value ?? [] };
+          lookupCodeTypesLoading.value = { ...lookupCodeTypesLoading.value, [codeType]: true };
+
+          try {
+            const { data } = await getApiLookupCodeType(codeType);
+            lookupCodeTypes.value = { ...lookupCodeTypes.value, [codeType]: data.value ?? [] };
+          } finally {
+            lookupCodeTypesLoading.value = { ...lookupCodeTypesLoading.value, [codeType]: false };
+          }
         }),
     );
   };
