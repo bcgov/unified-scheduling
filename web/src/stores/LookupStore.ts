@@ -92,7 +92,7 @@ export const useLookupStore = defineStore('lookup', () => {
           } finally {
             lookupCodeTypesLoading.value = { ...lookupCodeTypesLoading.value, [codeType]: false };
           }
-        }),
+        })
     );
   };
 
