@@ -1,5 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import {
+  getApiStatsCategories,
+  getApiStatsGroups,
+  getApiStatsMetrics,
+  getApiStatsSubCategories,
+  getApiStatsSubCategoryMetrics,
+  postApiStatsRecordsBatch,
+  type StatCategoryResponse,
+  type StatGroupResponse,
+  type StatMetricResponse,
+  type StatRecordRequest,
+  type SubCategoryMetricResponse,
+  type SubCategoryResponse,
+} from '@/api-access/stats';
+import Select from '@/shared/components/Select.vue';
+import { useLocationsStore } from '@/stores/LocationsStore';
+import type { SelectValue } from '@/types/select';
+import { mdiPlus } from '@mdi/js';
+import { computed, onMounted, ref, watch } from 'vue';
+import AssignmentRow from '../components/AssignmentRow.vue';
+import type { AssignmentData, PeriodType } from '../types';
 
 const props = defineProps<{
   /** 1 = Non-Supervision, 2 = Supervision. When set, locks all assignments to that group. */
@@ -11,26 +31,6 @@ const formTitle = computed(() => {
   if (props.groupId === 2) return 'Enter Supervision Hours';
   return 'Enter Hours Worked';
 });
-import { mdiPlus } from '@mdi/js';
-import {
-  getApiStatsGroups,
-  getApiStatsCategories,
-  getApiStatsSubCategories,
-  getApiStatsMetrics,
-  getApiStatsSubCategoryMetrics,
-  postApiStatsRecordsBatch,
-  type StatGroupResponse,
-  type StatCategoryResponse,
-  type SubCategoryResponse,
-  type StatMetricResponse,
-  type SubCategoryMetricResponse,
-  type StatRecordRequest,
-} from '@/api-access/stats';
-import Select from '@/shared/components/Select.vue';
-import { useLocationsStore } from '@/stores/LocationsStore';
-import type { SelectValue } from '@/types/select';
-import AssignmentRow from '../components/AssignmentRow.vue';
-import type { AssignmentData, PeriodType } from '../types';
 
 // ── Reference data ─────────────────────────────────────────────────────────
 
@@ -256,7 +256,7 @@ const handleSave = async (status: string) => {
 
   isSubmitting.value = true;
   try {
-    const { data, error } = await postApiStatsRecordsBatch(records);
+    const { error } = await postApiStatsRecordsBatch(records);
     if (error.value) {
       apiError.value = error.value.message || 'Failed to save records. Please try again.';
       return;
@@ -285,38 +285,21 @@ const handleSave = async (status: string) => {
 
         <template v-else>
           <!-- Alerts -->
-          <v-alert
-            v-if="apiError"
-            type="error"
-            density="compact"
-            class="page-alert"
-            closable
-            @click:close="apiError = ''"
-          >
+          <v-alert v-if="apiError" type="error" density="compact" class="page-alert" closable
+            @click:close="apiError = ''">
             {{ apiError }}
           </v-alert>
-          <v-alert
-            v-if="successMessage"
-            type="success"
-            density="compact"
-            class="page-alert"
-            closable
-            @click:close="successMessage = ''"
-          >
+          <v-alert v-if="successMessage" type="success" density="compact" class="page-alert" closable
+            @click:close="successMessage = ''">
             {{ successMessage }}
           </v-alert>
 
           <!-- Location + Period -->
           <div class="form-grid">
             <label class="form-field-label" for="location-select">Location</label>
-            <Select
-              id="location-select"
-              label="Select Location"
-              :items="locationOptions"
-              :model-value="selectedLocationId"
-              :error-messages="formErrors['location']"
-              @update:model-value="onLocationChange"
-            />
+            <Select id="location-select" label="Select Location" :items="locationOptions"
+              :model-value="selectedLocationId" :error-messages="formErrors['location']"
+              @update:model-value="onLocationChange" />
 
             <label class="form-field-label">Period</label>
             <div class="period-row">
@@ -331,13 +314,8 @@ const handleSave = async (status: string) => {
               <label class="form-field-label">Date From</label>
               <v-text-field v-model="weeklyFrom" type="date" hide-details />
               <label class="form-field-label">Date To</label>
-              <v-text-field
-                v-model="weeklyTo"
-                type="date"
-                :min="weeklyFrom"
-                :max="addDays(weeklyFrom, 6)"
-                hide-details
-              />
+              <v-text-field v-model="weeklyTo" type="date" :min="weeklyFrom" :max="addDays(weeklyFrom, 6)"
+                hide-details />
             </template>
             <template v-else>
               <label class="form-field-label">{{ periodType === 'Monthly' ? 'Month' : 'Date' }}</label>
@@ -355,20 +333,10 @@ const handleSave = async (status: string) => {
               No assignments added. Click "Add Assignment" to begin.
             </div>
 
-            <AssignmentRow
-              v-for="(assignment, i) in assignments"
-              :key="assignment.id"
-              v-model="assignments[i]"
-              :groups="groups"
-              :categories="categories"
-              :sub-categories="subCategories"
-              :sub-category-metrics="subCategoryMetrics"
-              :metrics="metrics"
-              :index="i"
-              :errors="formErrors"
-              :fixed-group-id="groupId"
-              @remove="removeAssignment(assignment.id)"
-            />
+            <AssignmentRow v-for="(assignment, i) in assignments" :key="assignment.id" v-model="assignments[i]"
+              :groups="groups" :categories="categories" :sub-categories="subCategories"
+              :sub-category-metrics="subCategoryMetrics" :metrics="metrics" :index="i" :errors="formErrors"
+              :fixed-group-id="groupId" @remove="removeAssignment(assignment.id)" />
 
             <v-btn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
               Add Assignment

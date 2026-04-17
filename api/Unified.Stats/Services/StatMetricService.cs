@@ -7,10 +7,12 @@ namespace Unified.Stats.Services;
 
 public sealed class StatMetricService(UnifiedDbContext db) : IStatMetricService
 {
-    public async Task<IReadOnlyCollection<StatMetricResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<StatMetricResponse>> GetAllAsync(
+        CancellationToken cancellationToken = default
+    )
     {
-        return await db.StatMetrics
-            .AsNoTracking()
+        return await db
+            .StatMetrics.AsNoTracking()
             .OrderBy(m => m.Name)
             .ProjectToType<StatMetricResponse>()
             .ToListAsync(cancellationToken);
@@ -18,8 +20,8 @@ public sealed class StatMetricService(UnifiedDbContext db) : IStatMetricService
 
     public async Task<StatMetricResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await db.StatMetrics
-            .AsNoTracking()
+        return await db
+            .StatMetrics.AsNoTracking()
             .Where(m => m.Id == id)
             .ProjectToType<StatMetricResponse>()
             .SingleOrDefaultAsync(cancellationToken);

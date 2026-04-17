@@ -20,7 +20,15 @@ public class StatSignoffConfiguration : BaseEntityConfiguration<StatSignoff>
             .HasForeignKey(s => s.LocationId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(s => new { s.UserId, s.LocationId, s.Month, s.Year }).IsUnique();
+        builder
+            .HasIndex(s => new
+            {
+                s.UserId,
+                s.LocationId,
+                s.Month,
+                s.Year,
+            })
+            .IsUnique();
 
         base.Configure(builder);
     }

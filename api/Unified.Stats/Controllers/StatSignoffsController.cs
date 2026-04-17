@@ -32,7 +32,10 @@ public class StatSignoffsController(IStatSignoffService service, StatSignoffRequ
     [HttpPost]
     [ProducesResponseType(typeof(StatSignoffResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<StatSignoffResponse>> Create([FromBody] StatSignoffRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<StatSignoffResponse>> Create(
+        [FromBody] StatSignoffRequest request,
+        CancellationToken cancellationToken
+    )
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)

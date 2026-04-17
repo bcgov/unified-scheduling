@@ -41,14 +41,17 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
 
     public async Task<StatRecordResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await db.StatRecords
-            .AsNoTracking()
+        return await db
+            .StatRecords.AsNoTracking()
             .Where(r => r.Id == id)
             .ProjectToType<StatRecordResponse>()
             .SingleOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<StatRecordResponse> CreateAsync(StatRecordRequest request, CancellationToken cancellationToken = default)
+    public async Task<StatRecordResponse> CreateAsync(
+        StatRecordRequest request,
+        CancellationToken cancellationToken = default
+    )
     {
         var entity = MapToEntity(request);
         db.StatRecords.Add(entity);
@@ -67,7 +70,11 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         return entities.Adapt<List<StatRecordResponse>>();
     }
 
-    public async Task<StatRecordResponse?> UpdateAsync(int id, StatRecordRequest request, CancellationToken cancellationToken = default)
+    public async Task<StatRecordResponse?> UpdateAsync(
+        int id,
+        StatRecordRequest request,
+        CancellationToken cancellationToken = default
+    )
     {
         var entity = await db.StatRecords.SingleOrDefaultAsync(r => r.Id == id, cancellationToken);
         if (entity is null)
@@ -99,13 +106,10 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
 
     public async Task<int> GenerateTestDataAsync(int count, CancellationToken cancellationToken = default)
     {
-        var locationIds = await db.Locations
-            .AsNoTracking()
-            .Select(l => l.Id)
-            .ToListAsync(cancellationToken);
+        var locationIds = await db.Locations.AsNoTracking().Select(l => l.Id).ToListAsync(cancellationToken);
 
-        var subCategoryMetricIds = await db.SubCategoryMetrics
-            .AsNoTracking()
+        var subCategoryMetricIds = await db
+            .SubCategoryMetrics.AsNoTracking()
             .Select(scm => scm.Id)
             .ToListAsync(cancellationToken);
 
@@ -119,16 +123,18 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         for (var i = 0; i < count; i++)
         {
             var dateFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-rng.Next(0, 365)));
-            records.Add(new StatRecord
-            {
-                DateFrom = dateFrom,
-                DateTo = dateFrom.AddDays(rng.Next(0, 30)),
-                PeriodType = periodTypes[rng.Next(periodTypes.Length)],
-                LocationId = locationIds[rng.Next(locationIds.Count)],
-                SubCategoryMetricId = subCategoryMetricIds[rng.Next(subCategoryMetricIds.Count)],
-                Value = Math.Round((decimal)(rng.NextDouble() * 1000), 2),
-                Status = StatRecordStatus.Submitted,
-            });
+            records.Add(
+                new StatRecord
+                {
+                    DateFrom = dateFrom,
+                    DateTo = dateFrom.AddDays(rng.Next(0, 30)),
+                    PeriodType = periodTypes[rng.Next(periodTypes.Length)],
+                    LocationId = locationIds[rng.Next(locationIds.Count)],
+                    SubCategoryMetricId = subCategoryMetricIds[rng.Next(subCategoryMetricIds.Count)],
+                    Value = Math.Round((decimal)(rng.NextDouble() * 1000), 2),
+                    Status = StatRecordStatus.Submitted,
+                }
+            );
         }
 
         db.StatRecords.AddRange(records);
@@ -137,15 +143,16 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         return records.Count;
     }
 
-    private static StatRecord MapToEntity(StatRecordRequest request) => new()
-    {
-        DateFrom = request.DateFrom,
-        DateTo = request.DateTo,
-        PeriodType = request.PeriodType.Trim(),
-        LocationId = request.LocationId,
-        SubCategoryMetricId = request.SubCategoryMetricId,
-        Value = request.Value,
-        Comment = request.Comment?.Trim(),
-        Status = request.Status,
-    };
+    private static StatRecord MapToEntity(StatRecordRequest request) =>
+        new()
+        {
+            DateFrom = request.DateFrom,
+            DateTo = request.DateTo,
+            PeriodType = request.PeriodType.Trim(),
+            LocationId = request.LocationId,
+            SubCategoryMetricId = request.SubCategoryMetricId,
+            Value = request.Value,
+            Comment = request.Comment?.Trim(),
+            Status = request.Status,
+        };
 }

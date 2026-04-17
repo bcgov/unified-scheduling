@@ -25,7 +25,9 @@ public static class DbModule
             (serviceProvider, options) =>
             {
                 options.UseNpgsql(connectionString);
-                options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+                options.ConfigureWarnings(w =>
+                    w.Ignore(RelationalEventId.PendingModelChangesWarning)
+                );
             }
         );
 

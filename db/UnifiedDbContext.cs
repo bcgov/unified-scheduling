@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Db.Models;
-using Unified.Db.Models.Stats;
 using Unified.Db.Models.Lookup;
+using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db;

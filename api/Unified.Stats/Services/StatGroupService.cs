@@ -9,8 +9,8 @@ public sealed class StatGroupService(UnifiedDbContext db) : IStatGroupService
 {
     public async Task<IReadOnlyCollection<StatGroupResponse>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await db.StatGroups
-            .AsNoTracking()
+        return await db
+            .StatGroups.AsNoTracking()
             .OrderBy(g => g.DisplayOrder)
             .ThenBy(g => g.Name)
             .ProjectToType<StatGroupResponse>()
@@ -19,8 +19,8 @@ public sealed class StatGroupService(UnifiedDbContext db) : IStatGroupService
 
     public async Task<StatGroupResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await db.StatGroups
-            .AsNoTracking()
+        return await db
+            .StatGroups.AsNoTracking()
             .Where(g => g.Id == id)
             .ProjectToType<StatGroupResponse>()
             .SingleOrDefaultAsync(cancellationToken);

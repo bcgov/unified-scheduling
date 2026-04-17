@@ -35,7 +35,10 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [HttpPost]
     [ProducesResponseType(typeof(StatRecordResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<StatRecordResponse>> Create([FromBody] StatRecordRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<StatRecordResponse>> Create(
+        [FromBody] StatRecordRequest request,
+        CancellationToken cancellationToken
+    )
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
@@ -70,7 +73,11 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [ProducesResponseType(typeof(StatRecordResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<StatRecordResponse>> Update(int id, [FromBody] StatRecordRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<StatRecordResponse>> Update(
+        int id,
+        [FromBody] StatRecordRequest request,
+        CancellationToken cancellationToken
+    )
     {
         var validation = await validator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
@@ -95,7 +102,10 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [HttpPost("generate")]
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<int>> Generate([FromQuery] int count = 100, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<int>> Generate(
+        [FromQuery] int count = 100,
+        CancellationToken cancellationToken = default
+    )
     {
         if (count is <= 0 or > 10000)
             return BadRequest(new ProblemDetails { Detail = "count must be between 1 and 10000." });

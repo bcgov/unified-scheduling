@@ -8,10 +8,12 @@ namespace Unified.Stats.Services;
 
 public sealed class StatSignoffService(UnifiedDbContext db) : IStatSignoffService
 {
-    public async Task<IReadOnlyCollection<StatSignoffResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyCollection<StatSignoffResponse>> GetAllAsync(
+        CancellationToken cancellationToken = default
+    )
     {
-        return await db.StatSignoffs
-            .AsNoTracking()
+        return await db
+            .StatSignoffs.AsNoTracking()
             .OrderByDescending(s => s.Year)
             .ThenByDescending(s => s.Month)
             .ProjectToType<StatSignoffResponse>()
@@ -20,14 +22,17 @@ public sealed class StatSignoffService(UnifiedDbContext db) : IStatSignoffServic
 
     public async Task<StatSignoffResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await db.StatSignoffs
-            .AsNoTracking()
+        return await db
+            .StatSignoffs.AsNoTracking()
             .Where(s => s.Id == id)
             .ProjectToType<StatSignoffResponse>()
             .SingleOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<StatSignoffResponse> CreateAsync(StatSignoffRequest request, CancellationToken cancellationToken = default)
+    public async Task<StatSignoffResponse> CreateAsync(
+        StatSignoffRequest request,
+        CancellationToken cancellationToken = default
+    )
     {
         var entity = new StatSignoff
         {

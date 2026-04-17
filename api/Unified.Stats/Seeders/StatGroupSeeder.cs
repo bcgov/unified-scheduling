@@ -14,8 +14,18 @@ public class StatGroupSeeder(ILogger<StatGroupSeeder> logger) : SeederBase<Unifi
 
     private static readonly StatGroup[] SeedGroups =
     [
-        new() { Id = 1, Name = "Non-Supervision", DisplayOrder = 1 },
-        new() { Id = 2, Name = "Supervision", DisplayOrder = 2 },
+        new()
+        {
+            Id = 1,
+            Name = "Non-Supervision",
+            DisplayOrder = 1,
+        },
+        new()
+        {
+            Id = 2,
+            Name = "Supervision",
+            DisplayOrder = 2,
+        },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
@@ -27,8 +37,7 @@ public class StatGroupSeeder(ILogger<StatGroupSeeder> logger) : SeederBase<Unifi
 
         foreach (var seed in SeedGroups)
         {
-            var existing = await dbContext.StatGroups
-                .FirstOrDefaultAsync(g => g.Id == seed.Id, cancellationToken);
+            var existing = await dbContext.StatGroups.FirstOrDefaultAsync(g => g.Id == seed.Id, cancellationToken);
 
             if (existing is null)
             {
