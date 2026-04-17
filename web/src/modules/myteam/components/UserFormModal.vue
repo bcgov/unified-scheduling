@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import * as zod from 'zod';
 import { postApiUsers, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
-import { Gender, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
+import { Gender, LookupCodeTypes, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
 import Select from '@/shared/components/Select.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { usePositionsStore } from '@/stores/PositionsStore';
+import { useLookupStore } from '@/stores/LookupStore';
 import { mapToSelectOptions } from '@/utils/select';
 
 const props = defineProps<{
@@ -21,12 +21,16 @@ const emit = defineEmits<{
   (e: 'updated', user: UserResponse | null): void;
 }>();
 
+const locationsStore = useLocationsStore();
+const lookupStore = useLookupStore();
+
+onMounted(async () => {
+  await lookupStore.load(LookupCodeTypes.PositionTypes);
+});
+
 const isEditMode = computed(() => !!props.user);
 
-const locationsStore = useLocationsStore();
-const positionsStore = usePositionsStore();
-
-const rankOptions = positionsStore.getSelectOptions();
+const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
 const homeLocationOptions = computed(() => locationsStore.getSelectOptions());
 const genderOptions = mapToSelectOptions(
   Object.values(Gender),
@@ -241,7 +245,7 @@ const handleSave = async () => {
             id="rank"
             v-model="formData.rank"
             label="Rank"
-            :items="rankOptions"
+            :items="positionTypeOptions"
             :error-messages="formErrors.rank"
           />
 

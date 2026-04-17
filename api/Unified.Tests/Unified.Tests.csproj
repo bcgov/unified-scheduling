@@ -17,6 +17,7 @@
     <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.2" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Unified.Core\Unified.Core.csproj" />
     <ProjectReference Include="..\Unified.UserManagement\Unified.UserManagement.csproj" />
     <ProjectReference Include="..\..\db\db.csproj" />
   </ItemGroup>
