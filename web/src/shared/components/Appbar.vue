@@ -36,7 +36,7 @@ const navigationStore = useNavigationStore();
 }
 
 .router-link {
-  color: rgba(var(--v-theme-on-surface), 0.87);
+  color: #333;
   padding-left: 2rem;
   text-decoration: none;
 }
