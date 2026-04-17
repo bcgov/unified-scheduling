@@ -285,21 +285,38 @@ const handleSave = async (status: string) => {
 
         <template v-else>
           <!-- Alerts -->
-          <v-alert v-if="apiError" type="error" density="compact" class="page-alert" closable
-            @click:close="apiError = ''">
+          <v-alert
+            v-if="apiError"
+            type="error"
+            density="compact"
+            class="page-alert"
+            closable
+            @click:close="apiError = ''"
+          >
             {{ apiError }}
           </v-alert>
-          <v-alert v-if="successMessage" type="success" density="compact" class="page-alert" closable
-            @click:close="successMessage = ''">
+          <v-alert
+            v-if="successMessage"
+            type="success"
+            density="compact"
+            class="page-alert"
+            closable
+            @click:close="successMessage = ''"
+          >
             {{ successMessage }}
           </v-alert>
 
           <!-- Location + Period -->
           <div class="form-grid">
             <label class="form-field-label" for="location-select">Location</label>
-            <Select id="location-select" label="Select Location" :items="locationOptions"
-              :model-value="selectedLocationId" :error-messages="formErrors['location']"
-              @update:model-value="onLocationChange" />
+            <Select
+              id="location-select"
+              label="Select Location"
+              :items="locationOptions"
+              :model-value="selectedLocationId"
+              :error-messages="formErrors['location']"
+              @update:model-value="onLocationChange"
+            />
 
             <label class="form-field-label">Period</label>
             <div class="period-row">
@@ -314,8 +331,13 @@ const handleSave = async (status: string) => {
               <label class="form-field-label">Date From</label>
               <v-text-field v-model="weeklyFrom" type="date" hide-details />
               <label class="form-field-label">Date To</label>
-              <v-text-field v-model="weeklyTo" type="date" :min="weeklyFrom" :max="addDays(weeklyFrom, 6)"
-                hide-details />
+              <v-text-field
+                v-model="weeklyTo"
+                type="date"
+                :min="weeklyFrom"
+                :max="addDays(weeklyFrom, 6)"
+                hide-details
+              />
             </template>
             <template v-else>
               <label class="form-field-label">{{ periodType === 'Monthly' ? 'Month' : 'Date' }}</label>
@@ -333,10 +355,20 @@ const handleSave = async (status: string) => {
               No assignments added. Click "Add Assignment" to begin.
             </div>
 
-            <AssignmentRow v-for="(assignment, i) in assignments" :key="assignment.id" v-model="assignments[i]"
-              :groups="groups" :categories="categories" :sub-categories="subCategories"
-              :sub-category-metrics="subCategoryMetrics" :metrics="metrics" :index="i" :errors="formErrors"
-              :fixed-group-id="groupId" @remove="removeAssignment(assignment.id)" />
+            <AssignmentRow
+              v-for="(assignment, i) in assignments"
+              :key="assignment.id"
+              v-model="assignments[i]"
+              :groups="groups"
+              :categories="categories"
+              :sub-categories="subCategories"
+              :sub-category-metrics="subCategoryMetrics"
+              :metrics="metrics"
+              :index="i"
+              :errors="formErrors"
+              :fixed-group-id="groupId"
+              @remove="removeAssignment(assignment.id)"
+            />
 
             <v-btn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
               Add Assignment
