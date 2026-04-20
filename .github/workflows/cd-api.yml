@@ -85,7 +85,7 @@ jobs:
         with:
           licence_plate: ${{ env.GITOPS_LICENCE_PLATE }}
           gitops_branch: ${{ env.GITOPS_BRANCH }}
-          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          gitops_gh_token: ${{ secrets.GITOPS_GH_TOKEN  }}
           image_name: unified-scheduling-api
           new_image: ${{ env.GITHUB_IMAGE_REPO }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.short_sha }}
           kustomize_path: services/unified-scheduling/overlays/dev
