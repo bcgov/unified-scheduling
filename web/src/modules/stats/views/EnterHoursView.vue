@@ -167,7 +167,7 @@ const removeAssignment = (id: string) => {
   assignments.value = assignments.value.filter((a) => a.id !== id);
 };
 
-const onLocationChange = (value: SelectValue) => {
+const onLocationChange = (value: SelectValue | undefined) => {
   selectedLocationId.value = value !== null && value !== undefined ? Number(value) : null;
 };
 

@@ -67,12 +67,12 @@ const metricDetails = computed(() => {
 
 // ── Event handlers ─────────────────────────────────────────────────────────
 
-const onGroupChange = (value: SelectValue) => {
+const onGroupChange = (value: SelectValue | undefined) => {
   const newGroupId = value !== null && value !== undefined ? Number(value) : null;
   model.value = { ...model.value, groupId: newGroupId, categoryId: null, subCategoryId: null, metricValues: {} };
 };
 
-const onCategoryChange = (value: SelectValue) => {
+const onCategoryChange = (value: SelectValue | undefined) => {
   const newCategoryId = value !== null && value !== undefined ? Number(value) : null;
   if (!newCategoryId) {
     model.value = { ...model.value, categoryId: null, subCategoryId: null, metricValues: {} };
@@ -83,7 +83,7 @@ const onCategoryChange = (value: SelectValue) => {
   model.value = { ...model.value, categoryId: newCategoryId, subCategoryId: autoSubId, metricValues: {} };
 };
 
-const onSubCategoryChange = (value: SelectValue) => {
+const onSubCategoryChange = (value: SelectValue | undefined) => {
   const newId = value !== null && value !== undefined ? Number(value) : null;
   model.value = { ...model.value, subCategoryId: newId, metricValues: {} };
 };
