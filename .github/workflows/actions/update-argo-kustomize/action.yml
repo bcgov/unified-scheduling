@@ -1,0 +1,99 @@
+name: Update Argo CD Kustomize gitops repo
+description: Update the gitops tenant repository image using Kustomize CLI
+
+inputs:
+  licence_plate:
+    description: The OpenShift licence plate
+    required: true
+  gitops_branch:
+    description: The branch to update standard branches for tenant-gitops (develop, test, prod)
+    required: true
+  gitops_gh_token:
+    description: The token to use to access the gitops repository
+    required: true
+  image_name:
+    description: The current image name to update in kustomization.yaml
+    required: true
+  new_image:
+    description: The new full image reference (e.g., ghcr.io/org/repo:tag)
+    required: true
+  kustomize_path:
+    description: Path to the directory containing kustomization.yaml
+    required: true
+
+runs:
+  using: composite
+
+  steps:
+    - name: Checkout ArgoCD Repo
+      id: gitops
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      with:
+        repository: bcgov-c/tenant-gitops-${{ inputs.licence_plate }}
+        ref: ${{ inputs.gitops_branch }}
+        token: ${{ inputs.gitops_gh_token }}
+        path: gitops
+
+    - name: Update Image with Kustomize
+      id: kustomize
+      if: steps.gitops.outcome == 'success'
+      shell: bash
+      run: |
+        # Run kustomize edit set image using the kustomize container
+        # Note: gitops/ prefix is the local checkout directory from the previous step
+        # inputs.kustomize_path is relative to the gitops repo root (e.g., services/whisper/overlays/dev)
+        docker run --rm \
+          -v "${{ github.workspace }}/gitops/${{ inputs.kustomize_path }}:/workspace" \
+          -w /workspace \
+          registry.k8s.io/kustomize/kustomize:v5.6.0@sha256:b5f56e6becd1ba93a1a775a149763e3841a177beb10191624100bed81b44d297 \
+          edit set image ${{ inputs.image_name }}=${{ inputs.new_image }}
+
+    - name: Commit and Push Changes
+      id: commit
+      if: steps.kustomize.outcome == 'success'
+      shell: bash
+      run: |
+        # Navigate into the gitops repository directory
+        cd gitops
+
+        # Configure git (repo-local, not global)
+        git config user.email "actions@github.com"
+        git config user.name "GitHub Actions"
+
+        # Add the kustomization.yaml file
+        git add ${{ inputs.kustomize_path }}/kustomization.yaml
+
+        # Only commit and push if there are staged changes
+        if git diff --cached --quiet; then
+          echo "No changes to commit; skipping git commit and push."
+        else
+          DATETIME=$(date +'%Y-%m-%d %H:%M:%S')
+          git commit -m "Update image ${{ inputs.image_name }} to ${{ inputs.new_image }}" -m "Updated on $DATETIME"
+
+          BRANCH="${{ inputs.gitops_branch }}"
+          MAX_RETRIES=3
+          RETRY_DELAY=5
+
+          attempt=1
+          while [ "$attempt" -le "$MAX_RETRIES" ]; do
+            echo "Attempt $attempt of $MAX_RETRIES to push changes to ${BRANCH}..."
+
+            if git push origin "${BRANCH}"; then
+              echo "Push to origin ${BRANCH} succeeded."
+              break
+            fi
+
+            if [ "$attempt" -ge "$MAX_RETRIES" ]; then
+              echo "Push to origin ${BRANCH} failed after ${MAX_RETRIES} attempts; exiting with error."
+              exit 1
+            fi
+
+            echo "Push to origin ${BRANCH} failed (attempt $attempt); fetching latest remote changes."
+            git fetch origin "${BRANCH}"
+            git rebase "origin/${BRANCH}"
+
+            echo "Retrying in ${RETRY_DELAY} seconds..."
+            sleep "$RETRY_DELAY"
+            attempt=$((attempt + 1))
+          done
+        fi

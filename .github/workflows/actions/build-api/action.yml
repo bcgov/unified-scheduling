@@ -14,7 +14,7 @@ runs:
 
   steps:
     - name: Setup .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309 # v5.1.0
       with:
         dotnet-version: ${{ inputs.dotnet_version }}
 
@@ -26,9 +26,9 @@ runs:
     - name: Build API
       run: dotnet build --configuration Release --no-restore
       shell: bash
-      working-directory: ${{ inputs.working_directory }}
+      working-directory: ${{ inputs.working_directory }}/api
 
-    # - name: Build DB
-      # run: dotnet build --configuration Release --no-restore
-      # shell: bash
-      # working-directory: ${{ inputs.working_directory }}/db
+    - name: Build DB
+      run: dotnet build --configuration Release --no-restore
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}/db
