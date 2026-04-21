@@ -4,6 +4,7 @@ import type { createPinia } from 'pinia';
 import { useAccessControl } from '@/composables/useAccessControl';
 import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
 import * as dashboardModule from '@/modules/dashboard/DashboardModule';
+import * as statsModule from '@/modules/stats/StatsModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
 import type { FeatureFlags } from '@/api-access/generated/models';
@@ -76,6 +77,10 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
   if (accessControl.isFeatureFlagEnabled('myTeamsModule')) {
     myTeamsModule.registerModule(routes);
+  }
+
+  if (accessControl.isFeatureFlagEnabled('statsModule')) {
+    statsModule.registerModule(routes);
   }
 
   const router = createRouter({

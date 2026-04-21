@@ -18,6 +18,6 @@ import Appbar from '@/shared/components/Appbar.vue';
   margin-top: 64px;
   overflow-y: auto;
   padding: 0 8rem;
-  background-color: rgba(var(--v-theme-surface-light), 0.6);
+  background-color: #f5f5f5;
 }
 </style>
