@@ -1,14 +1,14 @@
-name: Publish API
+name: Publish Dotnet
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'api/**'
-      - 'db/**'
-      - 'docker/api/**'
-      - '.github/workflows/cd-api.yml'
+      - "api/**"
+      - "db/**"
+      - "docker/api/**"
+      - ".github/workflows/cd-dotnet.yml"
 
   workflow_dispatch:
 

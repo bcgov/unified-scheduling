@@ -1,5 +1,5 @@
-name: Build API
-description: Builds the API codebase with quality gates
+name: Build Dotnet
+description: Builds the .NET solution with quality gates
 
 inputs:
   working_directory:
