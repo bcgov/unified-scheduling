@@ -19,16 +19,11 @@ runs:
         dotnet-version: ${{ inputs.dotnet_version }}
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore unified.slnx
       shell: bash
       working-directory: ${{ inputs.working_directory }}
 
-    - name: Build API
-      run: dotnet build --configuration Release --no-restore
+    - name: Build Solution
+      run: dotnet build unified.slnx --configuration Release --no-restore
       shell: bash
-      working-directory: ${{ inputs.working_directory }}/api
-
-    - name: Build DB
-      run: dotnet build --configuration Release --no-restore
-      shell: bash
-      working-directory: ${{ inputs.working_directory }}/db
+      working-directory: ${{ inputs.working_directory }}
