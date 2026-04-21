@@ -104,45 +104,6 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         return true;
     }
 
-    public async Task<int> GenerateTestDataAsync(int count, CancellationToken cancellationToken = default)
-    {
-        var locationIds = await db.Locations.AsNoTracking().Select(l => l.Id).ToListAsync(cancellationToken);
-
-        var subCategoryMetricIds = await db
-            .SubCategoryMetrics.AsNoTracking()
-            .Select(scm => scm.Id)
-            .ToListAsync(cancellationToken);
-
-        if (locationIds.Count == 0 || subCategoryMetricIds.Count == 0)
-            return 0;
-
-        var periodTypes = new[] { "Daily", "Weekly", "Monthly" };
-        var rng = new Random();
-        var records = new List<StatRecord>(count);
-
-        for (var i = 0; i < count; i++)
-        {
-            var dateFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-rng.Next(0, 365)));
-            records.Add(
-                new StatRecord
-                {
-                    DateFrom = dateFrom,
-                    DateTo = dateFrom.AddDays(rng.Next(0, 30)),
-                    PeriodType = periodTypes[rng.Next(periodTypes.Length)],
-                    LocationId = locationIds[rng.Next(locationIds.Count)],
-                    SubCategoryMetricId = subCategoryMetricIds[rng.Next(subCategoryMetricIds.Count)],
-                    Value = Math.Round((decimal)(rng.NextDouble() * 1000), 2),
-                    Status = StatRecordStatus.Submitted,
-                }
-            );
-        }
-
-        db.StatRecords.AddRange(records);
-        await db.SaveChangesAsync(cancellationToken);
-
-        return records.Count;
-    }
-
     private static StatRecord MapToEntity(StatRecordRequest request) =>
         new()
         {

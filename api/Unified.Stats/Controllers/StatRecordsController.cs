@@ -96,21 +96,4 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         return deleted ? NoContent() : NotFound();
     }
 
-    /// <summary>
-    /// Generates synthetic stat records for BI pipeline testing.
-    /// </summary>
-    [HttpPost("generate")]
-    [ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<int>> Generate(
-        [FromQuery] int count = 100,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (count is <= 0 or > 10000)
-            return BadRequest(new ProblemDetails { Detail = "count must be between 1 and 10000." });
-
-        var created = await service.GenerateTestDataAsync(count, cancellationToken);
-        return Ok(created);
-    }
 }

@@ -20,5 +20,4 @@ public interface IStatRecordService
         CancellationToken cancellationToken = default
     );
     Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
-    Task<int> GenerateTestDataAsync(int count, CancellationToken cancellationToken = default);
 }
