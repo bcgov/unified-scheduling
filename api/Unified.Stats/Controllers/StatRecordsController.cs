@@ -95,5 +95,4 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         var deleted = await service.DeleteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
-
 }
