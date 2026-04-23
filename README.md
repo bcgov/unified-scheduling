@@ -49,8 +49,8 @@ Once running:
 
 | URL | Description |
 |-----|-------------|
-| https://localhost:8080/ | Frontend |
-| https://localhost:8080/api/ | Swagger / API docs |
+| http://localhost:8080/ | Frontend |
+| http://localhost:8080/api/ | Swagger / API docs |
 | http://localhost:5000/api/ | API direct |
 
 ---
