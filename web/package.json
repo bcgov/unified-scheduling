@@ -36,7 +36,7 @@
     "@mdi/js": "^7.4.47",
     "@playwright/test": "^1.59.1",
     "@tsconfig/node24": "^24.0.4",
-    "@types/jsdom": "^27.0.0",
+    "@types/jsdom": "^28.0.1",
     "@types/node": "^24.10.9",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vitest/eslint-plugin": "^1.6.16",
