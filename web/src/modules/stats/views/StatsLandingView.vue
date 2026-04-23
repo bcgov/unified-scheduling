@@ -40,15 +40,15 @@ const links = [
 
 <style scoped>
 .stats-landing-page {
-  padding: 2rem;
+  padding: var(--ua-spacing-xl);
   max-width: 520px;
 }
 
 .page-title {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #1b2740;
-  margin-bottom: 1.5rem;
+  font-size: var(--ua-font-size-xl);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-primary);
+  margin-bottom: var(--ua-spacing-lg);
 }
 
 .link-list {
@@ -57,14 +57,14 @@ const links = [
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--ua-spacing-xs);
 }
 
 .link-item {
   display: flex;
   flex-direction: column;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid #e0e0e0;
+  padding: var(--ua-spacing-sm) 0;
+  border-bottom: 1px solid var(--ua-border-color);
   text-decoration: none;
 }
 
@@ -73,14 +73,14 @@ const links = [
 }
 
 .link-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #1a5296;
+  font-size: var(--ua-font-size-sm);
+  font-weight: var(--ua-font-weight-semibold);
+  color: var(--ua-link-color);
 }
 
 .link-desc {
-  font-size: 0.825rem;
-  color: #5a5a5a;
+  font-size: var(--ua-font-size-xs);
+  color: var(--ua-text-secondary);
   margin-top: 0.15rem;
 }
 </style>

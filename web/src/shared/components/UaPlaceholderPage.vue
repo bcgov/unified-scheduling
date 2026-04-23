@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { title, description } = withDefaults(
+withDefaults(
   defineProps<{
     title: string;
     description?: string;

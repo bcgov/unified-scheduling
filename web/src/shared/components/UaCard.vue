@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { title, headerColor } = withDefaults(
+withDefaults(
   defineProps<{
     /** Title shown in the card header. Omit for a headerless card. */
     title?: string;

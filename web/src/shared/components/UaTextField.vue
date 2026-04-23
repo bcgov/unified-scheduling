@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { label, id } = defineProps<{
+defineProps<{
   /** Visible label text for the field. */
   label: string;
   /** HTML id for the input element, used for label association. */

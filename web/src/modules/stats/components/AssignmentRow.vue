@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import type {
-  StatGroupResponse,
-  StatCategoryResponse,
-  SubCategoryResponse,
-  StatMetricResponse,
-  SubCategoryMetricResponse,
+    StatCategoryResponse,
+    StatGroupResponse,
+    StatMetricResponse,
+    SubCategoryMetricResponse,
+    SubCategoryResponse,
 } from '@/api-access/stats';
 import Select from '@/shared/components/Select.vue';
 import type { SelectValue } from '@/types/select';
+import { computed } from 'vue';
 import type { AssignmentData } from '../types';
 
 const props = defineProps<{
@@ -108,10 +108,10 @@ const onCommentInput = (value: string) => {
     </div>
 
     <v-card-text class="assignment-body">
-      <div class="assignment-grid">
+      <UaFormGrid>
         <!-- Group — hidden when a fixed group is set at the form level -->
         <template v-if="!fixedGroupId">
-          <label class="field-label" :for="`group-${model.id}`">Group</label>
+          <label class="ua-form-label" :for="`group-${model.id}`">Group</label>
           <Select
             :id="`group-${model.id}`"
             label="Select Group"
@@ -123,7 +123,7 @@ const onCommentInput = (value: string) => {
         </template>
 
         <!-- Work Area (Category) -->
-        <label class="field-label" :for="`category-${model.id}`">Work Area</label>
+        <label class="ua-form-label" :for="`category-${model.id}`">Work Area</label>
         <Select
           :id="`category-${model.id}`"
           label="Select Work Area"
@@ -136,7 +136,7 @@ const onCommentInput = (value: string) => {
 
         <!-- Subcategory — only shown when there are multiple options -->
         <template v-if="showSubCategorySelect">
-          <label class="field-label" :for="`subcategory-${model.id}`">Subcategory</label>
+          <label class="ua-form-label" :for="`subcategory-${model.id}`">Subcategory</label>
           <Select
             :id="`subcategory-${model.id}`"
             label="Select Subcategory"
@@ -149,7 +149,7 @@ const onCommentInput = (value: string) => {
 
         <!-- Dynamic metric inputs -->
         <template v-for="m in metricDetails" :key="m.id">
-          <label class="field-label" :for="`metric-${model.id}-${m.id}`">
+          <label class="ua-form-label" :for="`metric-${model.id}-${m.id}`">
             {{ m.name }}
             <span class="unit-label">({{ m.unit }})</span>
           </label>
@@ -173,7 +173,7 @@ const onCommentInput = (value: string) => {
         </template>
 
         <!-- Comment -->
-        <label class="field-label" :for="`comment-${model.id}`">Comment</label>
+        <label class="ua-form-label" :for="`comment-${model.id}`">Comment</label>
         <v-textarea
           :id="`comment-${model.id}`"
           rows="2"
@@ -183,86 +183,67 @@ const onCommentInput = (value: string) => {
           :model-value="model.comment"
           @update:model-value="(v) => onCommentInput(String(v))"
         />
-      </div>
+      </UaFormGrid>
     </v-card-text>
   </v-card>
 </template>
 
 <style scoped>
 .assignment-card {
-  border-radius: 8px;
+  border-radius: var(--ua-border-radius);
   overflow: hidden;
-  border-color: #d0d0d2;
+  border-color: var(--ua-border-color);
 }
 
 .assignment-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 1rem 0.5rem 1.4rem;
-  background: #5f8f2c;
+  padding: var(--ua-spacing-sm) var(--ua-spacing-md) var(--ua-spacing-sm) var(--ua-spacing-lg);
+  background: var(--ua-card-header-bg);
 }
 
 .assignment-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #fff;
+  font-size: var(--ua-font-size-base);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-card-header-color);
 }
 
 .remove-btn {
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.9rem;
+  font-size: var(--ua-font-size-sm);
 }
 
 .assignment-body {
-  padding: 1.2rem 1.4rem;
-  background: #e9e9eb;
+  padding: var(--ua-spacing-lg);
+  background: var(--ua-card-body-bg);
 }
 
-.assignment-grid {
-  display: grid;
-  grid-template-columns: 210px 1fr;
-  gap: 1rem;
-  align-items: center;
-}
-
-.field-label {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #1b2740;
+.ua-form-label {
+  font-size: var(--ua-font-size-lg);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-primary);
   line-height: 1.4;
 }
 
 .unit-label {
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: #6b6b6b;
+  font-size: var(--ua-font-size-xs);
+  font-weight: var(--ua-font-weight-normal);
+  color: var(--ua-text-muted);
 }
 
 .field-error {
-  font-size: 0.85rem;
-  color: #b00020;
+  font-size: var(--ua-font-size-sm);
+  color: rgb(var(--v-theme-error));
 }
 
 :deep(.v-field) {
-  border-radius: 8px;
-  background: #efeff1;
+  border-radius: var(--ua-border-radius);
+  background: var(--ua-field-bg);
 }
 
 @media (max-width: 640px) {
   .assignment-body {
-    padding: 1rem;
-  }
-
-  .assignment-grid {
-    grid-template-columns: 1fr;
-    gap: 0.4rem 0;
-  }
-
-  .field-label {
-    font-size: 1rem;
-    margin-bottom: 0;
+    padding: var(--ua-spacing-md);
   }
 }
 </style>

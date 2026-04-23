@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { title, persistent, width, loading } = withDefaults(
+const props = withDefaults(
   defineProps<{
     /** Title displayed in the modal header. */
     title: string;
@@ -22,7 +22,7 @@ const emit = defineEmits<{
 }>();
 
 const handleClose = () => {
-  if (!loading) {
+  if (!props.loading) {
     emit('close');
   }
 };

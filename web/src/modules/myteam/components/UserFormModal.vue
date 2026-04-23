@@ -175,7 +175,7 @@ const handleSave = async () => {
         :model-value="formData.firstName"
         :error-messages="formErrors.firstName"
         :disabled="isLoading"
-        @update:model-value="(v) => (formData.firstName = v)"
+        @update:model-value="(v: string) => (formData.firstName = v)"
       />
 
       <UaTextField
@@ -184,7 +184,7 @@ const handleSave = async () => {
         :model-value="formData.lastName"
         :error-messages="formErrors.lastName"
         :disabled="isLoading"
-        @update:model-value="(v) => (formData.lastName = v)"
+        @update:model-value="(v: string) => (formData.lastName = v)"
       />
 
       <UaTextField
@@ -194,7 +194,7 @@ const handleSave = async () => {
         :model-value="formData.email"
         :error-messages="formErrors.email"
         :disabled="isLoading"
-        @update:model-value="(v) => (formData.email = v)"
+        @update:model-value="(v: string) => (formData.email = v)"
       />
 
       <UaTextField
@@ -203,7 +203,7 @@ const handleSave = async () => {
         :model-value="formData.idirName"
         :error-messages="formErrors.idirName"
         :disabled="isLoading"
-        @update:model-value="(v) => (formData.idirName = v)"
+        @update:model-value="(v: string) => (formData.idirName = v)"
       />
 
       <label class="ua-form-label" for="gender">Gender</label>
@@ -230,7 +230,7 @@ const handleSave = async () => {
         :model-value="formData.badgeNumber"
         :error-messages="formErrors.badgeNumber"
         :disabled="isLoading"
-        @update:model-value="(v) => (formData.badgeNumber = v)"
+        @update:model-value="(v: string) => (formData.badgeNumber = v)"
       />
 
       <label class="ua-form-label" for="home-location">Home Location</label>

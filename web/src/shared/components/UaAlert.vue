@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { type, closable } = withDefaults(
+withDefaults(
   defineProps<{
     type?: 'success' | 'error' | 'warning' | 'info';
     closable?: boolean;
