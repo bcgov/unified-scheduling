@@ -1,0 +1,103 @@
+name: Publish Web
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'web/**'
+      - 'docker/web/**'
+      - 'docker/nginx-runtime/**'
+      - 'docker/vue-on-nginx/**'
+      - '.github/workflows/cd-web.yml'
+
+  workflow_dispatch:
+
+env:
+  WEB_IMAGE_NAME: web
+  WEB_RUNTIME_IMAGE_NAME: web-runtime
+  WEB_ARTIFACTS_IMAGE_NAME: web-artifacts
+  GITHUB_IMAGE_REPO: ghcr.io/bcgov/unified-scheduling
+  WEB_BASE_HREF: /unified-scheduling/
+  GITOPS_LICENCE_PLATE: a94b15
+  GITOPS_BRANCH: develop
+
+permissions:
+  id-token: write
+  packages: write
+
+jobs:
+  build:
+    name: Build and Push Web Image
+    runs-on: ubuntu-latest
+    outputs:
+      short_sha: ${{ steps.short_sha.outputs.SHORT_SHA }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Log in to the GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get short SHA
+        id: short_sha
+        run: |
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        with:
+          driver: docker
+
+      - name: Setup Web Image Metadata
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: |
+            ${{ env.GITHUB_IMAGE_REPO }}/${{ env.WEB_IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.short_sha.outputs.SHORT_SHA }}
+
+      - name: Build and Push Web Image
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          push: true
+          context: .
+          file: ./docker/web/Dockerfile.release
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NODE_VERSION=22
+            WEB_BASE_HREF=${{ env.WEB_BASE_HREF }}
+            NGINX_RUNTIME_SRC=./docker/nginx-runtime
+            VUE_ON_NGINX_SRC=./docker/vue-on-nginx
+            WEB_SRC=./web
+
+  update-gitops-dev:
+    name: Update GitOps Dev
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Update ArgoCD Kustomize Repo with new Image
+        uses: ./.github/workflows/actions/update-argo-kustomize
+        with:
+          licence_plate: ${{ env.GITOPS_LICENCE_PLATE }}
+          gitops_branch: ${{ env.GITOPS_BRANCH }}
+          gitops_gh_token: ${{ secrets.GITOPS_GH_TOKEN  }}
+          image_name: unified-scheduling-web
+          new_image: ${{ env.GITHUB_IMAGE_REPO }}/${{ env.WEB_IMAGE_NAME }}:${{ needs.build.outputs.short_sha }}
+          kustomize_path: services/unified-scheduling/overlays/dev

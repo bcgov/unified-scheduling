@@ -1,0 +1,90 @@
+name: Build and Test Dotnet
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "api/**"
+      - "db/**"
+
+  push:
+    branches:
+      - main
+    paths:
+      - "api/**"
+      - "db/**"
+
+  workflow_dispatch:
+
+env:
+  WORKING_DIRECTORY: .
+  NUGET_CERT_REVOCATION_MODE: offline
+
+jobs:
+  related-csproj:
+    name: Find related csproj files
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      csproj-files: ${{ steps.filter.outputs.csharp-projects }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Get all related csproj files
+        id: filter
+        run: |
+          echo "csharp-projects=$(find api db -name '*.csproj' | tr '\n' ' ')" >> $GITHUB_OUTPUT
+
+  build-and-test-dotnet:
+    name: Build and Test Dotnet
+    needs: related-csproj
+    if: needs.related-csproj.outputs.csproj-files != ''
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install CSharpier
+        run: |
+          dotnet new tool-manifest --force
+          dotnet tool install csharpier
+
+      - name: Check CSharpier Formatting
+        run: |
+          for csproj in ${{ needs.related-csproj.outputs.csproj-files }}; do
+            project_dir=$(dirname "$csproj")
+            echo "Checking CSharpier formatting for $project_dir"
+            dotnet csharpier check "$project_dir"
+          done
+
+      - name: Check Dotnet Format (Style)
+        run: |
+          for csproj in ${{ needs.related-csproj.outputs.csproj-files }}; do
+            echo "Checking style formatting for $csproj"
+            dotnet format style $csproj --verify-no-changes --verbosity diagnostic
+          done
+
+      - name: Check Dotnet Format (Analyzers)
+        run: |
+          for csproj in ${{ needs.related-csproj.outputs.csproj-files }}; do
+            echo "Checking analyzers for $csproj"
+            dotnet format analyzers $csproj --verify-no-changes --verbosity diagnostic
+          done
+
+      - name: Build .NET solution
+        uses: ./.github/workflows/actions/build-dotnet
+        with:
+          working_directory: ${{ env.WORKING_DIRECTORY }}
+          dotnet_version: 10.0
