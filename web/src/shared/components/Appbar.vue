@@ -6,7 +6,7 @@ const navigationStore = useNavigationStore();
 
 <template>
   <v-app-bar class="app-bar" density="compact">
-    <div style="margin-left: 2rem">
+    <div style="margin-left: var(--ua-spacing-xl)">
       <img width="132" src="../../assets/images/bcid-logo-en.svg" alt="" />
     </div>
     <div class="router-link-container">
@@ -25,30 +25,30 @@ const navigationStore = useNavigationStore();
 
 <style>
 .app-bar {
-  background-color: #eaeaea;
-  padding: 0.5rem 2rem;
+  background-color: rgb(var(--v-theme-surface-light));
+  padding: var(--ua-spacing-sm) var(--ua-spacing-xl);
 }
 
 .router-link-container {
   display: flex;
-  gap: 2rem;
+  gap: var(--ua-spacing-xl);
   margin-left: 8rem;
 }
 
 .router-link {
-  color: #333;
-  padding-left: 2rem;
+  color: var(--ua-text-primary);
+  padding-left: var(--ua-spacing-xl);
   text-decoration: none;
 }
 
 .router-link--border {
-  border-left: 2px solid #333;
+  border-left: 2px solid var(--ua-text-primary);
 }
 
 .router-link.active,
 .router-link:hover {
-  font-weight: 500;
-  color: rgba(var(--v-theme-primary), 1);
+  font-weight: var(--ua-font-weight-semibold);
+  color: rgb(var(--v-theme-primary));
   text-decoration: underline;
 }
 </style>
