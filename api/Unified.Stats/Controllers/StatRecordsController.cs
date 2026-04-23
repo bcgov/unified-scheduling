@@ -1,7 +1,7 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using FluentValidation;
 using Unified.Stats.Models;
 using Unified.Stats.Services;
 using Unified.Stats.Validators;

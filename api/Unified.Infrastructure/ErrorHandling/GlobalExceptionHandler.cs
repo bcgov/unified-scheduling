@@ -48,20 +48,14 @@ public class GlobalExceptionHandler : IExceptionHandler
         return true;
     }
 
-    private ValidationProblemDetails HandleValidationException(
-        ValidationException ex,
-        HttpContext httpContext
-    )
+    private ValidationProblemDetails HandleValidationException(ValidationException ex, HttpContext httpContext)
     {
         _logger.LogInformation(ex, "Validation failed: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
 
-        var errors = ex.Errors
-            .GroupBy(f => f.PropertyName)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Select(f => f.ErrorCode).Distinct().ToArray()
-            );
+        var errors = ex
+            .Errors.GroupBy(f => f.PropertyName)
+            .ToDictionary(g => g.Key, g => g.Select(f => f.ErrorCode).Distinct().ToArray());
 
         return new ValidationProblemDetails(errors)
         {
@@ -70,10 +64,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         };
     }
 
-    private ProblemDetails HandleKeyNotFoundException(
-        KeyNotFoundException ex,
-        HttpContext httpContext
-    )
+    private ProblemDetails HandleKeyNotFoundException(KeyNotFoundException ex, HttpContext httpContext)
     {
         _logger.LogInformation(ex, "Resource not found: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -86,10 +77,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         };
     }
 
-    private ProblemDetails HandleInvalidOperationException(
-        InvalidOperationException ex,
-        HttpContext httpContext
-    )
+    private ProblemDetails HandleInvalidOperationException(InvalidOperationException ex, HttpContext httpContext)
     {
         _logger.LogInformation(ex, "Invalid operation: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -102,10 +90,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         };
     }
 
-    private ProblemDetails HandleConcurrencyException(
-        DbUpdateConcurrencyException ex,
-        HttpContext httpContext
-    )
+    private ProblemDetails HandleConcurrencyException(DbUpdateConcurrencyException ex, HttpContext httpContext)
     {
         _logger.LogWarning(ex, "Concurrency conflict: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
@@ -118,10 +103,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         };
     }
 
-    private ProblemDetails HandleAuthenticationException(
-        Exception ex,
-        HttpContext httpContext
-    )
+    private ProblemDetails HandleAuthenticationException(Exception ex, HttpContext httpContext)
     {
         _logger.LogWarning(ex, "Authentication error: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
