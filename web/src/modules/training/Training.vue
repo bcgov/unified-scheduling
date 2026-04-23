@@ -1,9 +1,7 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
+</script>
 
 <template>
-  <div class="training-container" style="padding: 8px 24px">
-    <h2>Training Module</h2>
-  </div>
+  <UaPlaceholderPage title="Training" />
 </template>
-
-<style scoped></style>
