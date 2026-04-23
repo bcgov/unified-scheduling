@@ -16,10 +16,12 @@ namespace Unified.Infrastructure.ErrorHandling;
 public class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<GlobalExceptionHandler> _logger;
+    private readonly IProblemDetailsService _problemDetailsService;
 
-    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
+    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger, IProblemDetailsService problemDetailsService)
     {
         _logger = logger;
+        _problemDetailsService = problemDetailsService;
     }
 
     public async ValueTask<bool> TryHandleAsync(
@@ -30,11 +32,11 @@ public class GlobalExceptionHandler : IExceptionHandler
     {
         if (exception is OperationCanceledException)
         {
-            httpContext.Response.StatusCode = 499; // Client Closed Request
+            httpContext.Response.StatusCode = StatusCodes.Status499ClientClosedRequest;
             return true;
         }
 
-        object problemDetails = exception switch
+        var problemDetails = exception switch
         {
             ValidationException ex => HandleValidationException(ex, httpContext),
             KeyNotFoundException ex => HandleKeyNotFoundException(ex, httpContext),
@@ -44,7 +46,21 @@ public class GlobalExceptionHandler : IExceptionHandler
             _ => HandleUnknownException(exception, httpContext),
         };
 
-        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        var wasWritten = await _problemDetailsService.TryWriteAsync(
+            new ProblemDetailsContext
+            {
+                HttpContext = httpContext,
+                Exception = exception,
+                ProblemDetails = problemDetails,
+            }
+        );
+
+        if (!wasWritten)
+        {
+            httpContext.Response.ContentType = "application/problem+json";
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        }
+
         return true;
     }
 
@@ -61,6 +77,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         {
             Status = StatusCodes.Status400BadRequest,
             Title = "Validation failed.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
 
@@ -74,6 +91,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             Status = StatusCodes.Status404NotFound,
             Title = "Resource not found.",
             Detail = ex.Message,
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
 
@@ -87,6 +105,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             Status = StatusCodes.Status400BadRequest,
             Title = "Invalid request.",
             Detail = ex.Message,
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
 
@@ -100,6 +119,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             Status = StatusCodes.Status409Conflict,
             Title = "Conflict.",
             Detail = "The resource was modified by another request. Please retry.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
 
@@ -113,6 +133,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             Status = StatusCodes.Status401Unauthorized,
             Title = "Unauthorized.",
             Detail = "Authentication is required to access this resource.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
 
@@ -125,7 +146,8 @@ public class GlobalExceptionHandler : IExceptionHandler
         {
             Status = StatusCodes.Status500InternalServerError,
             Title = "An error occurred while processing your request.",
-            Detail = ex.Message,
+            Detail = "An unexpected server error occurred.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
 }

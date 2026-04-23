@@ -37,7 +37,7 @@ public class StatSignoffsController(IStatSignoffService service, StatSignoffRequ
         CancellationToken cancellationToken
     )
     {
-        validator.ValidateAndThrow(request);
+        await validator.ValidateAndThrowAsync(request, cancellationToken);
 
         var result = await service.CreateAsync(request, cancellationToken);
         return Created($"/api/stats/signoffs/{result.Id}", result);

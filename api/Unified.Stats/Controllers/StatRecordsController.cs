@@ -40,7 +40,7 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         CancellationToken cancellationToken
     )
     {
-        validator.ValidateAndThrow(request);
+        await validator.ValidateAndThrowAsync(request, cancellationToken);
 
         var result = await service.CreateAsync(request, cancellationToken);
         return Created($"/api/stats/records/{result.Id}", result);
@@ -58,7 +58,7 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
 
         foreach (var request in requestList)
         {
-            validator.ValidateAndThrow(request);
+            await validator.ValidateAndThrowAsync(request, cancellationToken);
         }
 
         var result = await service.CreateBatchAsync(requestList, cancellationToken);
@@ -75,7 +75,7 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         CancellationToken cancellationToken
     )
     {
-        validator.ValidateAndThrow(request);
+        await validator.ValidateAndThrowAsync(request, cancellationToken);
 
         var result = await service.UpdateAsync(id, request, cancellationToken);
         return result is null ? NotFound() : Ok(result);

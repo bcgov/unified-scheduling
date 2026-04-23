@@ -46,7 +46,7 @@ public class UsersController(IUserService userService, UserRequestValidator user
         CancellationToken cancellationToken
     )
     {
-        userRequestValidator.ValidateAndThrow(request);
+        await userRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var user = await userService.CreateAsync(request, cancellationToken);
 
@@ -63,7 +63,7 @@ public class UsersController(IUserService userService, UserRequestValidator user
         CancellationToken cancellationToken
     )
     {
-        userRequestValidator.ValidateAndThrow(request);
+        await userRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var user = await userService.UpdateAsync(id, request, cancellationToken);
         if (user is null)
