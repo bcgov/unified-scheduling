@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import * as zod from 'zod';
+import { Gender, LookupCodeTypes, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
 import { postApiUsers, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
-import { Gender, LookupCodeTypes, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
 import Select from '@/shared/components/Select.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
 import { mapToSelectOptions } from '@/utils/select';
+import { computed, onMounted, ref } from 'vue';
+import * as zod from 'zod';
 
 const props = defineProps<{
   /** When provided, the modal operates in edit mode */
@@ -119,12 +119,6 @@ const handleClose = () => {
   }
 };
 
-const handleDialogVisibility = (isVisible: boolean) => {
-  if (!isVisible) {
-    handleClose();
-  }
-};
-
 const handleSave = async () => {
   const payload = validateForm();
   if (!payload) return;
@@ -167,230 +161,136 @@ const handleSave = async () => {
 </script>
 
 <template>
-  <v-dialog
-    :model-value="true"
-    @update:model-value="handleDialogVisibility"
-    width="660"
-    max-width="calc(100vw - 24px)"
-    content-class="user-form-dialog-content"
-    persistent
-  >
-    <v-card class="user-form-modal">
-      <div class="modal-header">
-        <span class="modal-title">{{ isEditMode ? 'Edit Member' : 'Add Member' }}</span>
-        <v-btn class="close-btn" variant="text" @click="handleClose" :disabled="isLoading">
-          <v-icon icon="mdi-close" size="20" class="mr-1" />
-          Close
-        </v-btn>
-      </div>
-      <v-alert v-if="apiErrorMessage" type="error" density="compact" class="mb-4">
+  <UaModal :title="isEditMode ? 'Edit Member' : 'Add Member'" :loading="isLoading" @close="handleClose">
+    <template #alerts>
+      <UaAlert v-if="apiErrorMessage" type="error" @close="apiErrorMessage = ''">
         Request failed: {{ apiErrorMessage }}
-      </v-alert>
-      <div class="header-strip" />
+      </UaAlert>
+    </template>
 
-      <v-card-text class="modal-body">
-        <div class="form-grid">
-          <label class="form-field-label" for="first-name">First Name</label>
-          <v-text-field
-            id="first-name"
-            v-model="formData.firstName"
-            placeholder="First Name"
-            hide-details="auto"
-            :error-messages="formErrors.firstName"
-            :disabled="isLoading"
-          />
+    <UaFormGrid>
+      <UaTextField
+        id="first-name"
+        label="First Name"
+        :model-value="formData.firstName"
+        :error-messages="formErrors.firstName"
+        :disabled="isLoading"
+        @update:model-value="(v) => (formData.firstName = v)"
+      />
 
-          <label class="form-field-label" for="last-name">Last Name</label>
-          <v-text-field
-            id="last-name"
-            v-model="formData.lastName"
-            placeholder="Last Name"
-            hide-details="auto"
-            :error-messages="formErrors.lastName"
-            :disabled="isLoading"
-          />
+      <UaTextField
+        id="last-name"
+        label="Last Name"
+        :model-value="formData.lastName"
+        :error-messages="formErrors.lastName"
+        :disabled="isLoading"
+        @update:model-value="(v) => (formData.lastName = v)"
+      />
 
-          <label class="form-field-label" for="email">Email</label>
-          <v-text-field
-            id="email"
-            v-model="formData.email"
-            type="email"
-            placeholder="Email"
-            hide-details="auto"
-            :error-messages="formErrors.email"
-            :disabled="isLoading"
-          />
+      <UaTextField
+        id="email"
+        label="Email"
+        type="email"
+        :model-value="formData.email"
+        :error-messages="formErrors.email"
+        :disabled="isLoading"
+        @update:model-value="(v) => (formData.email = v)"
+      />
 
-          <label class="form-field-label" for="idir-name">IDIR Name</label>
-          <v-text-field
-            id="idir-name"
-            v-model="formData.idirName"
-            placeholder="IDIR Name"
-            hide-details="auto"
-            :error-messages="formErrors.idirName"
-            :disabled="isLoading"
-          />
+      <UaTextField
+        id="idir-name"
+        label="IDIR Name"
+        :model-value="formData.idirName"
+        :error-messages="formErrors.idirName"
+        :disabled="isLoading"
+        @update:model-value="(v) => (formData.idirName = v)"
+      />
 
-          <label class="form-field-label" for="gender">Gender</label>
-          <Select
-            id="gender"
-            v-model="formData.gender"
-            label="Gender"
-            :items="genderOptions"
-            :error-messages="formErrors.gender"
-          />
+      <label class="ua-form-label" for="gender">Gender</label>
+      <Select
+        id="gender"
+        v-model="formData.gender"
+        label="Gender"
+        :items="genderOptions"
+        :error-messages="formErrors.gender"
+      />
 
-          <label class="form-field-label" for="rank">Rank</label>
-          <Select
-            id="rank"
-            v-model="formData.rank"
-            label="Rank"
-            :items="positionTypeOptions"
-            :error-messages="formErrors.rank"
-          />
+      <label class="ua-form-label" for="rank">Rank</label>
+      <Select
+        id="rank"
+        v-model="formData.rank"
+        label="Rank"
+        :items="positionTypeOptions"
+        :error-messages="formErrors.rank"
+      />
 
-          <label class="form-field-label" for="badge-number">Badge Number</label>
-          <v-text-field
-            id="badge-number"
-            v-model="formData.badgeNumber"
-            placeholder="Badge Number"
-            hide-details="auto"
-            :error-messages="formErrors.badgeNumber"
-            :disabled="isLoading"
-          />
+      <UaTextField
+        id="badge-number"
+        label="Badge Number"
+        :model-value="formData.badgeNumber"
+        :error-messages="formErrors.badgeNumber"
+        :disabled="isLoading"
+        @update:model-value="(v) => (formData.badgeNumber = v)"
+      />
 
-          <label class="form-field-label" for="home-location">Home Location</label>
-          <Select
-            id="home-location"
-            v-model="formData.homeLocationId"
-            label="Home Location"
-            :items="homeLocationOptions"
-            :error-messages="formErrors.homeLocationId"
-          />
+      <label class="ua-form-label" for="home-location">Home Location</label>
+      <Select
+        id="home-location"
+        v-model="formData.homeLocationId"
+        label="Home Location"
+        :items="homeLocationOptions"
+        :error-messages="formErrors.homeLocationId"
+      />
 
-          <span class="form-field-label">Is enabled</span>
-          <div class="toggle-wrapper">
-            <span class="toggle-label">Inactive</span>
-            <v-switch
-              v-model="formData.isEnabled"
-              inset
-              color="success"
-              hide-details
-              class="enabled-switch"
-              :disabled="isLoading"
-            />
-            <span class="toggle-label">Active</span>
-          </div>
-        </div>
-      </v-card-text>
+      <span class="ua-form-label">Is enabled</span>
+      <div class="toggle-wrapper">
+        <span class="toggle-label">Inactive</span>
+        <v-switch
+          v-model="formData.isEnabled"
+          inset
+          color="success"
+          hide-details
+          class="enabled-switch"
+          :disabled="isLoading"
+        />
+        <span class="toggle-label">Active</span>
+      </div>
+    </UaFormGrid>
 
-      <v-card-actions class="modal-actions">
-        <v-btn class="action-btn" variant="outlined" @click="handleClose" :disabled="isLoading">Close</v-btn>
-        <v-btn class="action-btn" color="primary" variant="flat" @click="handleSave" :loading="isLoading">
-          {{ isEditMode ? 'Save Changes' : 'Add Member' }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+    <template #actions>
+      <v-btn variant="outlined" @click="handleClose" :disabled="isLoading">Close</v-btn>
+      <v-btn color="primary" variant="flat" @click="handleSave" :loading="isLoading">
+        {{ isEditMode ? 'Save Changes' : 'Add Member' }}
+      </v-btn>
+    </template>
+  </UaModal>
 </template>
 
 <style scoped>
-:deep(.user-form-dialog-content) {
-  width: min(660px, calc(100vw - 24px));
-}
-
-.user-form-modal {
-  width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #e9e9eb;
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 48px);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.6rem 2.2rem;
-  background: #5f8f2c;
-  color: #fff;
-}
-
-.modal-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-.close-btn {
-  text-transform: none;
-  color: #fff;
-  font-size: 1.15rem;
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-.header-strip {
-  background: #d0d0d2;
-}
-
-.modal-body {
-  padding: 1.4rem;
-  overflow-y: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 210px 1fr;
-  gap: 1rem 1rem;
-  margin-top: 1rem;
-}
-
-.form-field-label {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #1b2740;
-}
-
-.modal-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.8rem;
-  padding: 1.75rem 2.35rem 2.15rem;
-}
-
-.action-btn {
-  font-size: 1.15rem;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.action-btn:last-child {
-  background: #b6b6b8;
-  color: #1f2a44;
+.ua-form-label {
+  font-size: var(--ua-font-size-lg);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-primary);
 }
 
 :deep(.v-field) {
-  border-radius: 8px;
-  background: #efeff1;
+  border-radius: var(--ua-border-radius);
+  background: var(--ua-field-bg);
 }
 
 :deep(.v-field__input) {
-  color: #1f2a44;
+  color: var(--ua-text-primary);
 }
 
 .toggle-wrapper {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--ua-spacing-sm);
 }
 
 .toggle-label {
-  font-size: 1rem;
-  color: #1f2a44;
+  font-size: var(--ua-font-size-base);
+  color: var(--ua-text-primary);
 }
 
 .enabled-switch {
