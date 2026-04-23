@@ -15,6 +15,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Unified.FeatureFlags;
+using Unified.Infrastructure.ErrorHandling;
 using Unified.Infrastructure.Helpers;
 using Unified.Infrastructure.Options;
 
@@ -32,6 +33,10 @@ public static class InfrastructureModule
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddInfrastructureModule(this IServiceCollection services)
     {
+        services.AddProblemDetails();
+
+        services.AddExceptionHandler<GlobalExceptionHandler>();
+
         services.AddSingleton<
             IValidateOptions<FeatureFlags.FeatureFlags>,
             RequiredBooleanOptionsValidator<FeatureFlags.FeatureFlags>

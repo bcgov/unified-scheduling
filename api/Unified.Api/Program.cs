@@ -14,9 +14,6 @@ var featureFlagsOptions =
     builder.Configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
 
 {
-    // Add services to the container.
-    builder.Services.AddUnifiedErrorHandling();
-
     // Configure forwarded headers so the app sees the external scheme/host
     // from the nginx reverse proxy. Required for OIDC token exchange to
     // construct the correct redirect_uri.
@@ -99,7 +96,7 @@ var app = builder.Build();
     await migrationService.ExecuteMigrationsAndSeeds();
 
     // Configure the HTTP request pipeline.
-    app.UseUnifiedErrorHandling();
+    app.UseExceptionHandler();
     app.UseUnifiedOpenApi();
     app.UseHttpsRedirection();
     app.UseRouting();

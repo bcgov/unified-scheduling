@@ -1,7 +1,7 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Unified.Common.Validation;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
@@ -46,11 +46,7 @@ public class UsersController(IUserService userService, UserRequestValidator user
         CancellationToken cancellationToken
     )
     {
-        var validationResult = await userRequestValidator.ValidateAsync(request, cancellationToken);
-        if (!validationResult.IsValid)
-        {
-            return ValidationProblem(new ValidationProblemDetails(validationResult.ToValidationErrors()));
-        }
+        await userRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var user = await userService.CreateAsync(request, cancellationToken);
 
@@ -67,11 +63,7 @@ public class UsersController(IUserService userService, UserRequestValidator user
         CancellationToken cancellationToken
     )
     {
-        var validationResult = await userRequestValidator.ValidateAsync(request, cancellationToken);
-        if (!validationResult.IsValid)
-        {
-            return ValidationProblem(new ValidationProblemDetails(validationResult.ToValidationErrors()));
-        }
+        await userRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var user = await userService.UpdateAsync(id, request, cancellationToken);
         if (user is null)
