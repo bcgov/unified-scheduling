@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Unified.Common.Validation;
+using FluentValidation;
 using Unified.Stats.Models;
 using Unified.Stats.Services;
 using Unified.Stats.Validators;
@@ -37,9 +37,7 @@ public class StatSignoffsController(IStatSignoffService service, StatSignoffRequ
         CancellationToken cancellationToken
     )
     {
-        var validation = await validator.ValidateAsync(request, cancellationToken);
-        if (!validation.IsValid)
-            return ValidationProblem(new ValidationProblemDetails(validation.ToValidationErrors()));
+        validator.ValidateAndThrow(request);
 
         var result = await service.CreateAsync(request, cancellationToken);
         return Created($"/api/stats/signoffs/{result.Id}", result);
