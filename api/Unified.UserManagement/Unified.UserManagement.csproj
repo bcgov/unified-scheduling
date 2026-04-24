@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
     <PackageReference
       Include="Microsoft.AspNetCore.Authentication.OpenIdConnect"
-      Version="10.0.5"
+      Version="10.0.7"
     />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.9" />
