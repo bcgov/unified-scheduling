@@ -20,19 +20,19 @@ public class RoleSeeder(ILogger<RoleSeeder> logger) : SeederBase<UnifiedDbContex
         new()
         {
             Id = 1,
-            Name = Role.Administrator,
+            Name = "Administrator",
             Description = "Administrator",
         },
         new()
         {
             Id = 2,
-            Name = Role.Manager,
+            Name = "Manager",
             Description = "Manager",
         },
         new()
         {
             Id = 3,
-            Name = Role.Staff,
+            Name = "Staff",
             Description = "Staff",
         },
     ];
