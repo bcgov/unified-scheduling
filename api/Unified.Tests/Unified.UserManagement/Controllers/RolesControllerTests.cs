@@ -15,8 +15,18 @@ public class RolesControllerTests
         // Arrange
         var expectedRoles = new List<RoleDto>
         {
-            new() { Id = 1, Name = "Administrator", Description = "Administrator role" },
-            new() { Id = 2, Name = "Manager", Description = "Manager role" }
+            new()
+            {
+                Id = 1,
+                Name = "Administrator",
+                Description = "Administrator role",
+            },
+            new()
+            {
+                Id = 2,
+                Name = "Manager",
+                Description = "Manager role",
+            },
         };
         var fakeService = new FakeRoleService { GetAllResult = expectedRoles };
         var controller = new RolesController(fakeService, new RoleRequestValidator());
@@ -34,14 +44,15 @@ public class RolesControllerTests
     public async Task Create_Should_Return_Created_With_Location_And_Body()
     {
         // Arrange
-        var createdRole = new RoleDto { Id = 1, Name = "Viewer", Description = "Read-only viewer role" };
+        var createdRole = new RoleDto
+        {
+            Id = 1,
+            Name = "Viewer",
+            Description = "Read-only viewer role",
+        };
         var fakeService = new FakeRoleService { CreateResult = createdRole };
         var controller = new RolesController(fakeService, new RoleRequestValidator());
-        var request = new RoleRequestDto
-        {
-            Name = "Viewer",
-            Description = "Read-only viewer role"
-        };
+        var request = new RoleRequestDto { Name = "Viewer", Description = "Read-only viewer role" };
 
         // Act
         var result = await controller.Create(request, TestContext.Current.CancellationToken);
@@ -61,15 +72,11 @@ public class RolesControllerTests
         var fakeService = new FakeRoleService();
         var validator = new RoleRequestValidator();
         var controller = new RolesController(fakeService, validator);
-        var request = new RoleRequestDto
-        {
-            Name = "",
-            Description = "Valid description"
-        };
+        var request = new RoleRequestDto { Name = "", Description = "Valid description" };
 
         // Act & Assert
-        await Assert.ThrowsAsync<FluentValidation.ValidationException>(
-            () => validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
+        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+            validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
         );
     }
 

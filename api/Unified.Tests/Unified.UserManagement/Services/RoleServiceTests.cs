@@ -32,9 +32,24 @@ public class RoleServiceTests : IAsyncLifetime
     {
         var roles = new[]
         {
-            new Role { Id = 1, Name = "Administrator", Description = "System administrator" },
-            new Role { Id = 2, Name = "Manager", Description = "Role manager" },
-            new Role { Id = 3, Name = "Staff", Description = "Regular staff member" }
+            new Role
+            {
+                Id = 1,
+                Name = "Administrator",
+                Description = "System administrator",
+            },
+            new Role
+            {
+                Id = 2,
+                Name = "Manager",
+                Description = "Role manager",
+            },
+            new Role
+            {
+                Id = 3,
+                Name = "Staff",
+                Description = "Regular staff member",
+            },
         };
 
         _dbContext.Roles.AddRange(roles);
@@ -74,11 +89,7 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task CreateAsync_Should_Create_And_Return_Role()
     {
         // Arrange
-        var request = new RoleRequestDto
-        {
-            Name = "Viewer",
-            Description = "Read-only viewer"
-        };
+        var request = new RoleRequestDto { Name = "Viewer", Description = "Read-only viewer" };
 
         // Act
         var result = await _roleService.CreateAsync(request, TestContext.Current.CancellationToken);
@@ -90,8 +101,10 @@ public class RoleServiceTests : IAsyncLifetime
         Assert.True(result.Id > 0);
 
         // Verify persistence
-        var storedRole = await _dbContext.Roles
-            .FirstOrDefaultAsync(r => r.Name == "Viewer", TestContext.Current.CancellationToken);
+        var storedRole = await _dbContext.Roles.FirstOrDefaultAsync(
+            r => r.Name == "Viewer",
+            TestContext.Current.CancellationToken
+        );
         Assert.NotNull(storedRole);
         Assert.Equal("Viewer", storedRole.Name);
     }
@@ -106,8 +119,10 @@ public class RoleServiceTests : IAsyncLifetime
         var createdRole = await _roleService.CreateAsync(request, TestContext.Current.CancellationToken);
 
         // Assert - Verify by querying DB
-        var queryResult = await _dbContext.Roles
-            .FirstOrDefaultAsync(r => r.Id == createdRole.Id, TestContext.Current.CancellationToken);
+        var queryResult = await _dbContext.Roles.FirstOrDefaultAsync(
+            r => r.Id == createdRole.Id,
+            TestContext.Current.CancellationToken
+        );
         Assert.NotNull(queryResult);
         Assert.Equal("Auditor", queryResult.Name);
         Assert.Equal("Audit role", queryResult.Description);

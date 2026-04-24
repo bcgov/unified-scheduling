@@ -19,11 +19,7 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
 
     public async Task<RoleDto> CreateAsync(RoleRequestDto request, CancellationToken cancellationToken = default)
     {
-        var role = new Role
-        {
-            Name = request.Name,
-            Description = request.Description,
-        };
+        var role = new Role { Name = request.Name, Description = request.Description };
 
         DB.Roles.Add(role);
         await DB.SaveChangesAsync(cancellationToken);

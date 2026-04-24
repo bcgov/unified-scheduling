@@ -13,11 +13,7 @@ public class RoleRequestValidatorTests
     public void Validate_When_All_Required_Fields_Present_Should_Pass()
     {
         // Arrange
-        var request = new RoleRequestDto
-        {
-            Name = "Administrator",
-            Description = "System administrator role"
-        };
+        var request = new RoleRequestDto { Name = "Administrator", Description = "System administrator role" };
 
         // Act
         var result = _validator.TestValidate(request);
@@ -30,11 +26,7 @@ public class RoleRequestValidatorTests
     public void Validate_When_Name_Empty_Should_Fail()
     {
         // Arrange
-        var request = new RoleRequestDto
-        {
-            Name = "",
-            Description = "Valid description"
-        };
+        var request = new RoleRequestDto { Name = "", Description = "Valid description" };
 
         // Act
         var result = _validator.TestValidate(request);
@@ -47,11 +39,7 @@ public class RoleRequestValidatorTests
     public void Validate_When_Description_Empty_Should_Fail()
     {
         // Arrange
-        var request = new RoleRequestDto
-        {
-            Name = "Valid Name",
-            Description = ""
-        };
+        var request = new RoleRequestDto { Name = "Valid Name", Description = "" };
 
         // Act
         var result = _validator.TestValidate(request);
@@ -64,11 +52,7 @@ public class RoleRequestValidatorTests
     public void Validate_When_Name_Exceeds_Max_Length_Should_Fail()
     {
         // Arrange
-        var request = new RoleRequestDto
-        {
-            Name = new string('a', 101),
-            Description = "Valid description"
-        };
+        var request = new RoleRequestDto { Name = new string('a', 101), Description = "Valid description" };
 
         // Act
         var result = _validator.TestValidate(request);
@@ -81,11 +65,7 @@ public class RoleRequestValidatorTests
     public void Validate_When_Description_Exceeds_Max_Length_Should_Fail()
     {
         // Arrange
-        var request = new RoleRequestDto
-        {
-            Name = "Valid Name",
-            Description = new string('a', 501)
-        };
+        var request = new RoleRequestDto { Name = "Valid Name", Description = new string('a', 501) };
 
         // Act
         var result = _validator.TestValidate(request);
@@ -98,11 +78,7 @@ public class RoleRequestValidatorTests
     public void Validate_When_Name_At_Max_Length_Should_Pass()
     {
         // Arrange
-        var request = new RoleRequestDto
-        {
-            Name = new string('a', 100),
-            Description = "Valid description"
-        };
+        var request = new RoleRequestDto { Name = new string('a', 100), Description = "Valid description" };
 
         // Act
         var result = _validator.TestValidate(request);
@@ -115,11 +91,7 @@ public class RoleRequestValidatorTests
     public void Validate_When_Description_At_Max_Length_Should_Pass()
     {
         // Arrange
-        var request = new RoleRequestDto
-        {
-            Name = "Valid Name",
-            Description = new string('a', 500)
-        };
+        var request = new RoleRequestDto { Name = "Valid Name", Description = new string('a', 500) };
 
         // Act
         var result = _validator.TestValidate(request);
