@@ -6,6 +6,7 @@ import type {
     SubCategoryMetricResponse,
     SubCategoryResponse,
 } from '@/api-access/stats';
+import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import Select from '@/shared/components/Select.vue';
 import type { SelectValue } from '@/types/select';
 import { computed } from 'vue';

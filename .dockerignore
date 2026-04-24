@@ -1,0 +1,57 @@
+# ─── Version control ────────────────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+
+# ─── CI / GitHub ────────────────────────────────────────────────────────────
+.github
+
+# ─── Editor & OS artefacts ──────────────────────────────────────────────────
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Documentation ──────────────────────────────────────────────────────────
+docs
+*.md
+LICENSE
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+
+# ─── Web – dependencies & generated output ──────────────────────────────────
+# node_modules are installed inside the image; never copy from the host
+web/node_modules
+web/dist
+web/.vite
+web/coverage
+web/.nyc_output
+
+# Playwright e2e tests – not needed at runtime
+web/e2e
+web/playwright-report
+web/test-results
+
+# Local env overrides – env vars are injected via docker-compose
+web/.env.local
+web/.env.*.local
+web/*.log
+
+# ─── API / DB – .NET build output ───────────────────────────────────────────
+# Compiled artefacts are rebuilt inside the image
+api/**/bin
+api/**/obj
+db/bin
+db/obj
+
+# ─── Docker folder – exclude everything except what Dockerfile.dev copies ───
+# docker/web/dev-entrypoint.sh is referenced by COPY in web/Dockerfile.dev
+docker/api
+docker/nginx-runtime
+docker/vue-on-nginx
+docker/manage
+docker/README.md
+docker/.env
+docker/.env.template

@@ -33,7 +33,7 @@
   /* ── Layout ──────────────────────────────────────────────────── */
   --ua-page-padding-x: 2rem;
   --ua-page-padding-y: 1.5rem;
-  --ua-appbar-height: 64px;
+  --ua-appbar-height: 52px;
   --ua-content-max-width: 1200px;
   --ua-form-label-width: 210px;
   --ua-border-radius: 8px;
@@ -48,7 +48,7 @@
   --ua-field-bg: #efeff1;
 
   /* ── Component tokens ────────────────────────────────────────── */
-  --ua-card-header-bg: rgb(var(--v-theme-header-green));
+  --ua-card-header-bg: rgb(var(--v-theme-primary));
   --ua-card-header-color: #fff;
   --ua-card-body-bg: rgb(var(--v-theme-surface-variant));
   --ua-card-border-radius: var(--ua-border-radius-lg);

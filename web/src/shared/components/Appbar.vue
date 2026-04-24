@@ -5,28 +5,40 @@ const navigationStore = useNavigationStore();
 </script>
 
 <template>
-  <v-app-bar class="app-bar" density="compact">
-    <div style="margin-left: var(--ua-spacing-xl)">
-      <img width="132" src="../../assets/images/bcid-logo-en.svg" alt="" />
-    </div>
-    <div class="router-link-container">
-      <RouterLink
-        v-for="navItem in navigationStore.links"
-        :key="navItem.name"
-        :class="['router-link', navItem?.class ?? '']"
-        :to="navItem.path"
-        active-class="active"
-      >
-        {{ navItem.name }}
-      </RouterLink>
-    </div>
-  </v-app-bar>
+  <div class="app-bar-wrapper">
+    <v-app-bar class="app-bar" density="compact" flat>
+      <div style="margin-left: var(--ua-spacing-xl)">
+        <img width="177" height="44" src="/images/bcid-logo-rev-en.svg" alt="B.C. Government Logo" />
+      </div>
+      <div class="router-link-container">
+        <RouterLink v-for="navItem in navigationStore.links" :key="navItem.name"
+          :class="['router-link', navItem?.class ?? '']" :to="navItem.path" active-class="active">
+          {{ navItem.name }}
+        </RouterLink>
+      </div>
+    </v-app-bar>
+    <div class="gold-accent-bar" />
+  </div>
 </template>
 
 <style>
+.app-bar-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
 .app-bar {
-  background-color: rgb(var(--v-theme-surface-light));
+  background-color: rgb(var(--v-theme-primary)) !important;
   padding: var(--ua-spacing-sm) var(--ua-spacing-xl);
+  position: static !important;
+}
+
+.gold-accent-bar {
+  height: 4px;
+  background-color: rgb(var(--v-theme-accent));
 }
 
 .router-link-container {
@@ -36,19 +48,22 @@ const navigationStore = useNavigationStore();
 }
 
 .router-link {
-  color: var(--ua-text-primary);
+  color: #ffffff;
   padding-left: var(--ua-spacing-xl);
   text-decoration: none;
+  width: 120px;
+  text-align: center;
+  display: inline-block;
 }
 
 .router-link--border {
-  border-left: 2px solid var(--ua-text-primary);
+  border-left: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .router-link.active,
 .router-link:hover {
   font-weight: var(--ua-font-weight-semibold);
-  color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-accent));
   text-decoration: underline;
 }
 </style>

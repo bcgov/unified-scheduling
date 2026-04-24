@@ -1,0 +1,18 @@
+# Context for the production web build is the docker/ directory.
+# Only nginx-runtime/ and vue-on-nginx/ are needed by Dockerfile.release.
+
+# Exclude the API Dockerfile – not referenced in the web prod build
+api
+
+# Exclude web Dockerfile.release itself and dev scripts – already consumed by
+# the CLI before the context is sent; not referenced by any COPY instruction
+web/Dockerfile.dev
+web/dev-entrypoint.sh
+
+# Runtime config and secrets – injected at container start, not baked in
+.env
+.env.template
+
+# Tooling / docs
+manage
+README.md

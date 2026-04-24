@@ -19,5 +19,6 @@ import Appbar from '@/shared/components/Appbar.vue';
   overflow-y: auto;
   padding: 0 var(--ua-page-padding-x);
   background-color: rgb(var(--v-theme-background));
+  padding-top: var(--ua-spacing-md);
 }
 </style>

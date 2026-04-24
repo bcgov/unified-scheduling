@@ -13,6 +13,9 @@ import {
     type SubCategoryMetricResponse,
     type SubCategoryResponse,
 } from '@/api-access/stats';
+import UaAlert from '@/shared/components/UaAlert.vue';
+import UaCard from '@/shared/components/UaCard.vue';
+import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import Select from '@/shared/components/Select.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
