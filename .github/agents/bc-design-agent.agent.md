@@ -12,13 +12,13 @@ consistent, accessible, and visually aligned digital services that meet BC gover
 
 Load the relevant skill before responding to any request:
 
-| Task | Skill |
-|---|---|
-| Show BC Gov colours / hex values / colour scales | `bc-design-colours` |
-| List available BC Gov Design System components | `bc-design-components` |
-| Explain or apply design tokens | `bc-design-tokens` |
-| Review a component for WCAG 2.1 AA accessibility | `bc-design-wcag` |
-| Create a new shared Vue component | `bc-design-create-component` |
+| Task                                             | Skill                        |
+| ------------------------------------------------ | ---------------------------- |
+| Show BC Gov colours / hex values / colour scales | `bc-design-colours`          |
+| List available BC Gov Design System components   | `bc-design-components`       |
+| Explain or apply design tokens                   | `bc-design-tokens`           |
+| Review a component for WCAG 2.1 AA accessibility | `bc-design-wcag`             |
+| Create a new shared Vue component                | `bc-design-create-component` |
 
 ## Knowledge sources
 
@@ -49,164 +49,177 @@ For Vue projects, design tokens are the recommended path to reimplement componen
 All URLs are relative to `https://www2.gov.bc.ca/gov/content/digital/design-system`.
 
 #### Navigation and structure
-| Component | URL path |
-|---|---|
-| Header | `/components/header` |
-| Footer | `/components/footer` |
+
+| Component | URL path             |
+| --------- | -------------------- |
+| Header    | `/components/header` |
+| Footer    | `/components/footer` |
 
 #### Inputs and controls
-| Component | URL path |
-|---|---|
-| Buttons | `/components/buttons` |
+
+| Component     | URL path                    |
+| ------------- | --------------------------- |
+| Buttons       | `/components/buttons`       |
 | Toggle button | `/components/toggle-button` |
-| Checkbox | `/components/checkbox` |
-| Radio | `/components/radio` |
-| Switch | `/components/switch` |
-| Text field | `/components/text-field` |
-| Text area | `/components/text-area` |
-| Number field | `/components/number-field` |
-| Time field | `/components/time-field` |
-| Date picker | `/components/date-picker` |
-| Calendar | `/components/calendar` |
-| Tags | `/components/tags` |
+| Checkbox      | `/components/checkbox`      |
+| Radio         | `/components/radio`         |
+| Switch        | `/components/switch`        |
+| Text field    | `/components/text-field`    |
+| Text area     | `/components/text-area`     |
+| Number field  | `/components/number-field`  |
+| Time field    | `/components/time-field`    |
+| Date picker   | `/components/date-picker`   |
+| Calendar      | `/components/calendar`      |
+| Tags          | `/components/tags`          |
 
 #### Notifications and feedback
-| Component | URL path |
-|---|---|
-| Alert banner | `/components/alert-banner` |
-| Inline alert | `/components/inline-alert` |
-| Dialogs | `/components/dialogs` |
+
+| Component           | URL path                          |
+| ------------------- | --------------------------------- |
+| Alert banner        | `/components/alert-banner`        |
+| Inline alert        | `/components/inline-alert`        |
+| Dialogs             | `/components/dialogs`             |
 | Progress indicators | `/components/progress-indicators` |
-| Tooltip | `/components/tooltip` |
+| Tooltip             | `/components/tooltip`             |
 
 #### Content
-| Component | URL path |
-|---|---|
+
+| Component       | URL path                |
+| --------------- | ----------------------- |
 | Accordion group | `/components/accordion` |
-| Callout | `/components/callout` |
+| Callout         | `/components/callout`   |
 
 ---
 
 ### Colour palettes
 
 #### Theme colours — primary brand
-| Token | Value | Description |
-|---|---|---|
+
+| Token               | Value     | Description                |
+| ------------------- | --------- | -------------------------- |
 | `theme.primaryBlue` | `#013366` | Primary blue — BC Gov navy |
-| `theme.primaryGold` | `#FCBA19` | Primary gold |
+| `theme.primaryGold` | `#FCBA19` | Primary gold               |
 
 #### Blue scale (10–100)
-| Token | Value |
-|---|---|
-| `theme.Blue10` | `#F1F8FE` |
-| `theme.Blue20` | `#D8EAFD` |
-| `theme.Blue30` | `#C1DDFC` |
-| `theme.Blue40` | `#A8D0FB` |
-| `theme.Blue50` | `#91C4FA` |
-| `theme.Blue60` | `#7AB8F9` |
-| `theme.Blue70` | `#5595D9` |
-| `theme.Blue80` | `#3470B1` |
-| `theme.Blue90` | `#1E5189` |
+
+| Token           | Value     |
+| --------------- | --------- |
+| `theme.Blue10`  | `#F1F8FE` |
+| `theme.Blue20`  | `#D8EAFD` |
+| `theme.Blue30`  | `#C1DDFC` |
+| `theme.Blue40`  | `#A8D0FB` |
+| `theme.Blue50`  | `#91C4FA` |
+| `theme.Blue60`  | `#7AB8F9` |
+| `theme.Blue70`  | `#5595D9` |
+| `theme.Blue80`  | `#3470B1` |
+| `theme.Blue90`  | `#1E5189` |
 | `theme.Blue100` | `#013366` |
 
 #### Gold scale (10–100)
-| Token | Value |
-|---|---|
-| `theme.Gold10` | `#FEF8E8` |
-| `theme.Gold20` | `#FEF0D8` |
-| `theme.Gold30` | `#FDE9C4` |
-| `theme.Gold40` | `#FCE2B0` |
-| `theme.Gold50` | `#FBDA9D` |
-| `theme.Gold60` | `#FBD389` |
-| `theme.Gold70` | `#FACC75` |
-| `theme.Gold80` | `#F9C462` |
-| `theme.Gold90` | `#F8BA47` |
+
+| Token           | Value     |
+| --------------- | --------- |
+| `theme.Gold10`  | `#FEF8E8` |
+| `theme.Gold20`  | `#FEF0D8` |
+| `theme.Gold30`  | `#FDE9C4` |
+| `theme.Gold40`  | `#FCE2B0` |
+| `theme.Gold50`  | `#FBDA9D` |
+| `theme.Gold60`  | `#FBD389` |
+| `theme.Gold70`  | `#FACC75` |
+| `theme.Gold80`  | `#F9C462` |
+| `theme.Gold90`  | `#F8BA47` |
 | `theme.Gold100` | `#FCBA19` |
 
 #### Greyscale
-| Token | Value |
-|---|---|
+
+| Token              | Value     |
+| ------------------ | --------- |
 | `theme.gray.white` | `#FFFFFF` |
-| `theme.gray10` | `#FAF9F8` |
-| `theme.gray20` | `#F3F2F1` |
-| `theme.gray30` | `#ECEAE8` |
-| `theme.gray40` | `#E0DEDC` |
-| `theme.gray50` | `#D1CFCD` |
-| `theme.gray60` | `#C6C5C3` |
-| `theme.gray70` | `#9F9D9C` |
-| `theme.gray80` | `#605E5C` |
-| `theme.gray90` | `#3D3C3B` |
-| `theme.gray100` | `#353433` |
-| `theme.gray110` | `#252423` |
+| `theme.gray10`     | `#FAF9F8` |
+| `theme.gray20`     | `#F3F2F1` |
+| `theme.gray30`     | `#ECEAE8` |
+| `theme.gray40`     | `#E0DEDC` |
+| `theme.gray50`     | `#D1CFCD` |
+| `theme.gray60`     | `#C6C5C3` |
+| `theme.gray70`     | `#9F9D9C` |
+| `theme.gray80`     | `#605E5C` |
+| `theme.gray90`     | `#3D3C3B` |
+| `theme.gray100`    | `#353433` |
+| `theme.gray110`    | `#252423` |
 
 #### Typography colours
-| Token | Value | Usage |
-|---|---|---|
-| `typography.color.primary` | `#2D2D2D` | Default body text and headings |
-| `typography.color.secondary` | `#474543` | Secondary / miscellaneous text |
-| `typography.color.disabled` | `#9F9D9C` | Inactive UI elements |
-| `typography.color.placeholder` | `#9F9D9C` | Form placeholder text |
-| `typography.color.link` | `#255A90` | Hyperlinks |
-| `typography.color.danger` | `#CE3E39` | Error / danger message text |
-| `typography.color.primaryInvert` | `#FFFFFF` | Text on dark backgrounds |
+
+| Token                              | Value     | Usage                              |
+| ---------------------------------- | --------- | ---------------------------------- |
+| `typography.color.primary`         | `#2D2D2D` | Default body text and headings     |
+| `typography.color.secondary`       | `#474543` | Secondary / miscellaneous text     |
+| `typography.color.disabled`        | `#9F9D9C` | Inactive UI elements               |
+| `typography.color.placeholder`     | `#9F9D9C` | Form placeholder text              |
+| `typography.color.link`            | `#255A90` | Hyperlinks                         |
+| `typography.color.danger`          | `#CE3E39` | Error / danger message text        |
+| `typography.color.primaryInvert`   | `#FFFFFF` | Text on dark backgrounds           |
 | `typography.color.secondaryInvert` | `#ECEAE8` | Secondary text on dark backgrounds |
 
 #### Surface / layout colours
-| Token | Value | Usage |
-|---|---|---|
-| `surface.color.primary.default` | `#013366` | Primary theme colour |
-| `surface.color.primary.hover` | `#1E5189` | Primary hover state |
-| `surface.color.primary.pressed` | `#01264C` | Primary pressed state |
-| `surface.color.primary.disabled` | `#EDEBE9` | Primary disabled state |
-| `surface.color.secondary.default` | `#FFFFFF` | Secondary theme colour |
-| `surface.color.secondary.hover` | `#EDEBE9` | Secondary hover |
-| `surface.color.secondary.pressed` | `#E0DEDC` | Secondary pressed |
-| `surface.color.tertiary.default` | `#FFFFFF00` | Tertiary (transparent) |
-| `surface.color.tertiary.hover` | `#ECEAE8` | Tertiary hover |
-| `surface.color.background.white` | `#FFFFFF` | White background |
-| `surface.color.background.lightGray` | `#FAF9F8` | Default page background |
-| `surface.color.background.lightBlue` | `#F1F8FE` | Light blue background |
-| `surface.color.background.darkBlue` | `#013366` | Dark blue background |
-| `surface.color.border.light` | `#D8D8D8` | Light border |
-| `surface.color.border.medium` | `#898785` | Default border |
-| `surface.color.border.dark` | `#353433` | Dark border / hover |
-| `surface.color.border.active` | `#2E5DD7` | Active / focused border |
+
+| Token                                | Value       | Usage                   |
+| ------------------------------------ | ----------- | ----------------------- |
+| `surface.color.primary.default`      | `#013366`   | Primary theme colour    |
+| `surface.color.primary.hover`        | `#1E5189`   | Primary hover state     |
+| `surface.color.primary.pressed`      | `#01264C`   | Primary pressed state   |
+| `surface.color.primary.disabled`     | `#EDEBE9`   | Primary disabled state  |
+| `surface.color.secondary.default`    | `#FFFFFF`   | Secondary theme colour  |
+| `surface.color.secondary.hover`      | `#EDEBE9`   | Secondary hover         |
+| `surface.color.secondary.pressed`    | `#E0DEDC`   | Secondary pressed       |
+| `surface.color.tertiary.default`     | `#FFFFFF00` | Tertiary (transparent)  |
+| `surface.color.tertiary.hover`       | `#ECEAE8`   | Tertiary hover          |
+| `surface.color.background.white`     | `#FFFFFF`   | White background        |
+| `surface.color.background.lightGray` | `#FAF9F8`   | Default page background |
+| `surface.color.background.lightBlue` | `#F1F8FE`   | Light blue background   |
+| `surface.color.background.darkBlue`  | `#013366`   | Dark blue background    |
+| `surface.color.border.light`         | `#D8D8D8`   | Light border            |
+| `surface.color.border.medium`        | `#898785`   | Default border          |
+| `surface.color.border.dark`          | `#353433`   | Dark border / hover     |
+| `surface.color.border.active`        | `#2E5DD7`   | Active / focused border |
 
 #### Button surface colours
-| Token | Value | Usage |
-|---|---|---|
-| `surface.color.primary.button.default` | `#013366` | Primary button fill |
-| `surface.color.primary.button.hover` | `#1E5189` | Primary button hover |
-| `surface.color.primary.button.disabled` | `#EDEBE9` | Primary button disabled |
-| `surface.color.secondary.button.default` | `#FFFFFF` | Secondary button fill |
-| `surface.color.secondary.button.hover` | `#EDEBE9` | Secondary button hover |
-| `surface.color.primary.dangerButton.default` | `#CE3E39` | Danger button fill |
-| `surface.color.primary.dangerButton.hover` | `#A2312D` | Danger button hover |
+
+| Token                                        | Value     | Usage                   |
+| -------------------------------------------- | --------- | ----------------------- |
+| `surface.color.primary.button.default`       | `#013366` | Primary button fill     |
+| `surface.color.primary.button.hover`         | `#1E5189` | Primary button hover    |
+| `surface.color.primary.button.disabled`      | `#EDEBE9` | Primary button disabled |
+| `surface.color.secondary.button.default`     | `#FFFFFF` | Secondary button fill   |
+| `surface.color.secondary.button.hover`       | `#EDEBE9` | Secondary button hover  |
+| `surface.color.primary.dangerButton.default` | `#CE3E39` | Danger button fill      |
+| `surface.color.primary.dangerButton.hover`   | `#A2312D` | Danger button hover     |
 
 #### Support / status colours
-| Token | Value | Usage |
-|---|---|---|
-| `support.surfaceColor.info` | `#F7F9FC` | Info message background |
-| `support.surfaceColor.danger` | `#F4E1E2` | Error message background |
+
+| Token                          | Value     | Usage                      |
+| ------------------------------ | --------- | -------------------------- |
+| `support.surfaceColor.info`    | `#F7F9FC` | Info message background    |
+| `support.surfaceColor.danger`  | `#F4E1E2` | Error message background   |
 | `support.surfaceColor.success` | `#F6FFF8` | Success message background |
 | `support.surfaceColor.warning` | `#FEF1D8` | Warning message background |
-| `support.borderColor.info` | `#053662` | Info border |
-| `support.borderColor.danger` | `#CE3E39` | Error border |
-| `support.borderColor.success` | `#42814A` | Success border |
-| `support.borderColor.warning` | `#F8BB47` | Warning border |
+| `support.borderColor.info`     | `#053662` | Info border                |
+| `support.borderColor.danger`   | `#CE3E39` | Error border               |
+| `support.borderColor.success`  | `#42814A` | Success border             |
+| `support.borderColor.warning`  | `#F8BB47` | Warning border             |
 
 #### Icon colours
-| Token | Value | Usage |
-|---|---|---|
-| `icons.color.primary` | `#2D2D2D` | Default icon colour |
+
+| Token                       | Value     | Usage                     |
+| --------------------------- | --------- | ------------------------- |
+| `icons.color.primary`       | `#2D2D2D` | Default icon colour       |
 | `icons.color.primaryInvert` | `#FFFFFF` | Icons on dark backgrounds |
-| `icons.color.secondary` | `#474543` | Secondary icons |
-| `icons.color.disabled` | `#9F9D9C` | Disabled icons |
-| `icons.color.link` | `#255A90` | Linked icons |
-| `icons.color.info` | `#053662` | Info state icons |
-| `icons.color.danger` | `#CE3E39` | Danger/error icons |
-| `icons.color.success` | `#42814A` | Success icons |
-| `icons.color.warning` | `#F8BB47` | Warning icons |
+| `icons.color.secondary`     | `#474543` | Secondary icons           |
+| `icons.color.disabled`      | `#9F9D9C` | Disabled icons            |
+| `icons.color.link`          | `#255A90` | Linked icons              |
+| `icons.color.info`          | `#053662` | Info state icons          |
+| `icons.color.danger`        | `#CE3E39` | Danger/error icons        |
+| `icons.color.success`       | `#42814A` | Success icons             |
+| `icons.color.warning`       | `#F8BB47` | Warning icons             |
 
 ---
 
@@ -216,18 +229,19 @@ All URLs are relative to `https://www2.gov.bc.ca/gov/content/digital/design-syst
 Weights: Light (300), Regular (400), Bold (700) — each with italic variant.
 
 #### Type scale
-| Style | Weight | Size (px) | Size (rem) | Line height |
-|---|---|---|---|---|
-| Heading 1 | 700 | 36px | 2.25rem | 1.5em |
-| Heading 2 | 700 | 32px | 2rem | 1.5em |
-| Heading 3 | 700 | 28px | 1.75rem | 1.5em |
-| Heading 4 | 700 | 24px | 1.5rem | 1.5em |
-| Heading 5 | 700 | 20px | 1.25rem | 1.5em |
-| Heading 6 | 700 | 18px | 1.125rem | 1.5em |
-| Large body | 400 | 18px | 1.125rem | 1.5em |
-| Body | 400 | 16px | 1rem | 1.5em |
-| Small body | 400 | 14px | 0.875rem | 1.25em |
-| Label | 400 | 12px | 0.75rem | 1.25em |
+
+| Style      | Weight | Size (px) | Size (rem) | Line height |
+| ---------- | ------ | --------- | ---------- | ----------- |
+| Heading 1  | 700    | 36px      | 2.25rem    | 1.5em       |
+| Heading 2  | 700    | 32px      | 2rem       | 1.5em       |
+| Heading 3  | 700    | 28px      | 1.75rem    | 1.5em       |
+| Heading 4  | 700    | 24px      | 1.5rem     | 1.5em       |
+| Heading 5  | 700    | 20px      | 1.25rem    | 1.5em       |
+| Heading 6  | 700    | 18px      | 1.125rem   | 1.5em       |
+| Large body | 400    | 18px      | 1.125rem   | 1.5em       |
+| Body       | 400    | 16px      | 1rem       | 1.5em       |
+| Small body | 400    | 14px      | 0.875rem   | 1.25em      |
+| Label      | 400    | 12px      | 0.75rem    | 1.25em      |
 
 WCAG minimums: body text **4.5:1**, large text (H1/H2) **3:1**.
 
@@ -238,90 +252,99 @@ WCAG minimums: body text **4.5:1**, large text (H1/H2) **3:1**.
 8-point grid. All values in `rem`.
 
 #### Margin
-| Token | Value |
-|---|---|
-| `layout.margin.none` | 0rem |
-| `layout.margin.hair` | 0.125rem (2px) |
-| `layout.margin.xsmall` | 0.25rem (4px) |
-| `layout.margin.medium` *(default)* | 0.5rem (8px) |
-| `layout.margin.large` | 1rem (16px) |
-| `layout.margin.xlarge` | 1.5rem (24px) |
-| `layout.margin.xxlarge` | 2rem (32px) |
-| `layout.margin.xxxlarge` | 2.5rem (40px) |
-| `layout.margin.huge` | 3rem (48px) |
+
+| Token                              | Value          |
+| ---------------------------------- | -------------- |
+| `layout.margin.none`               | 0rem           |
+| `layout.margin.hair`               | 0.125rem (2px) |
+| `layout.margin.xsmall`             | 0.25rem (4px)  |
+| `layout.margin.medium` _(default)_ | 0.5rem (8px)   |
+| `layout.margin.large`              | 1rem (16px)    |
+| `layout.margin.xlarge`             | 1.5rem (24px)  |
+| `layout.margin.xxlarge`            | 2rem (32px)    |
+| `layout.margin.xxxlarge`           | 2.5rem (40px)  |
+| `layout.margin.huge`               | 3rem (48px)    |
 
 #### Padding
-| Token | Value |
-|---|---|
-| `layout.padding.none` | 0rem |
-| `layout.padding.hair` | 0.125rem (2px) |
-| `layout.padding.xsmall` | 0.25rem (4px) |
-| `layout.padding.small` | 0.5rem (8px) |
-| `layout.padding.medium` *(default)* | 1rem (16px) |
-| `layout.padding.large` | 1.5rem (24px) |
-| `layout.padding.xlarge` | 2rem (32px) |
+
+| Token                               | Value          |
+| ----------------------------------- | -------------- |
+| `layout.padding.none`               | 0rem           |
+| `layout.padding.hair`               | 0.125rem (2px) |
+| `layout.padding.xsmall`             | 0.25rem (4px)  |
+| `layout.padding.small`              | 0.5rem (8px)   |
+| `layout.padding.medium` _(default)_ | 1rem (16px)    |
+| `layout.padding.large`              | 1.5rem (24px)  |
+| `layout.padding.xlarge`             | 2rem (32px)    |
 
 #### Border radius
-| Token | Value |
-|---|---|
-| `layout.borderRadius.none` | 0px |
-| `layout.borderRadius.small` | 2px |
-| `layout.borderRadius.medium` *(default)* | 4px |
-| `layout.borderRadius.large` | 6px |
-| `layout.borderRadius.circular` | 9999px |
+
+| Token                                    | Value  |
+| ---------------------------------------- | ------ |
+| `layout.borderRadius.none`               | 0px    |
+| `layout.borderRadius.small`              | 2px    |
+| `layout.borderRadius.medium` _(default)_ | 4px    |
+| `layout.borderRadius.large`              | 6px    |
+| `layout.borderRadius.circular`           | 9999px |
 
 #### Border width
-| Token | Value |
-|---|---|
-| `layout.borderWidth.none` | 0px |
-| `layout.borderWidth.small` | 1px |
-| `layout.borderWidth.medium` *(default)* | 2px |
-| `layout.borderWidth.large` | 4px |
+
+| Token                                   | Value |
+| --------------------------------------- | ----- |
+| `layout.borderWidth.none`               | 0px   |
+| `layout.borderWidth.small`              | 1px   |
+| `layout.borderWidth.medium` _(default)_ | 2px   |
+| `layout.borderWidth.large`              | 4px   |
 
 #### Icon sizes
-| Token | Value |
-|---|---|
-| `icons.size.xsmall` | 14px |
-| `icons.size.small` | 16px |
-| `icons.size.medium` *(default)* | 20px |
-| `icons.size.large` | 24px |
-| `icons.size.xlarge` | 32px |
+
+| Token                           | Value |
+| ------------------------------- | ----- |
+| `icons.size.xsmall`             | 14px  |
+| `icons.size.small`              | 16px  |
+| `icons.size.medium` _(default)_ | 20px  |
+| `icons.size.large`              | 24px  |
+| `icons.size.xlarge`             | 32px  |
 
 ---
 
 ### WCAG 2.1 AA reference
 
 #### Perceivable
-| Criterion | Level | Guidance |
-|---|---|---|
-| 1.1.1 Non-text content | A | All images/icons need alt text or `aria-label` |
-| 1.3.1 Info and relationships | A | Use semantic HTML (headings, lists, labels) |
-| 1.3.4 Orientation | AA | Support both portrait and landscape |
-| 1.4.1 Use of colour | A | Never use colour as the only way to convey information |
-| 1.4.3 Contrast (text) | AA | 4.5:1 for body text; 3:1 for large text |
-| 1.4.4 Resize text | AA | Text resizable to 200% without loss of content |
-| 1.4.5 Images of text | AA | Use real text, not images of text |
-| 1.4.10 Reflow | AA | No horizontal scrolling at 320px viewport width |
-| 1.4.11 Non-text contrast | AA | UI components and graphics: 3:1 against adjacent colours |
-| 1.4.12 Text spacing | AA | No loss of content when letter/word/line spacing is increased |
+
+| Criterion                    | Level | Guidance                                                      |
+| ---------------------------- | ----- | ------------------------------------------------------------- |
+| 1.1.1 Non-text content       | A     | All images/icons need alt text or `aria-label`                |
+| 1.3.1 Info and relationships | A     | Use semantic HTML (headings, lists, labels)                   |
+| 1.3.4 Orientation            | AA    | Support both portrait and landscape                           |
+| 1.4.1 Use of colour          | A     | Never use colour as the only way to convey information        |
+| 1.4.3 Contrast (text)        | AA    | 4.5:1 for body text; 3:1 for large text                       |
+| 1.4.4 Resize text            | AA    | Text resizable to 200% without loss of content                |
+| 1.4.5 Images of text         | AA    | Use real text, not images of text                             |
+| 1.4.10 Reflow                | AA    | No horizontal scrolling at 320px viewport width               |
+| 1.4.11 Non-text contrast     | AA    | UI components and graphics: 3:1 against adjacent colours      |
+| 1.4.12 Text spacing          | AA    | No loss of content when letter/word/line spacing is increased |
 
 #### Operable
-| Criterion | Level | Guidance |
-|---|---|---|
-| 2.1.1 Keyboard | A | All functionality must be keyboard accessible |
-| 2.4.3 Focus order | A | Focus order must be logical and meaningful |
-| 2.4.7 Focus visible | AA | Keyboard focus indicator must be visible |
+
+| Criterion           | Level | Guidance                                      |
+| ------------------- | ----- | --------------------------------------------- |
+| 2.1.1 Keyboard      | A     | All functionality must be keyboard accessible |
+| 2.4.3 Focus order   | A     | Focus order must be logical and meaningful    |
+| 2.4.7 Focus visible | AA    | Keyboard focus indicator must be visible      |
 
 #### Understandable
-| Criterion | Level | Guidance |
-|---|---|---|
-| 3.3.1 Error identification | A | Describe errors in text, not just colour |
-| 3.3.2 Labels or instructions | A | Form inputs must have visible labels |
+
+| Criterion                    | Level | Guidance                                 |
+| ---------------------------- | ----- | ---------------------------------------- |
+| 3.3.1 Error identification   | A     | Describe errors in text, not just colour |
+| 3.3.2 Labels or instructions | A     | Form inputs must have visible labels     |
 
 #### Robust
-| Criterion | Level | Guidance |
-|---|---|---|
-| 4.1.2 Name, role, value | A | All UI components must work with assistive technology |
+
+| Criterion               | Level | Guidance                                              |
+| ----------------------- | ----- | ----------------------------------------------------- |
+| 4.1.2 Name, role, value | A     | All UI components must work with assistive technology |
 
 Tools: [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/) · [WCAG guidance](https://digital.gov.bc.ca/wcag/home/)
 

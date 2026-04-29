@@ -1,6 +1,6 @@
-import 'vuetify/styles';
 import { createVuetify, type ThemeDefinition } from 'vuetify';
-import { aliases, mdi } from 'vuetify/iconsets/mdi';
+import { aliases, mdi } from 'vuetify/iconsets/mdi-svg';
+import 'vuetify/styles';
 
 const uaLightTheme: ThemeDefinition = {
   dark: false,

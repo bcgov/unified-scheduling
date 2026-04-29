@@ -14,13 +14,13 @@ description: "Explain BC Gov design tokens, their naming convention, and how to 
 
 ## Mapping BC Gov tokens to this project's Vuetify theme
 
-| BC Gov token / value | Vuetify CSS variable |
-|---|---|
-| `#013366` (primaryBlue) | `rgb(var(--v-theme-primary))` |
-| `#FCBA19` (primaryGold) | `rgb(var(--v-theme-accent))` |
-| `#2E8540` (success) | `rgb(var(--v-theme-success))` |
-| `#D8292F` (danger/error) | `rgb(var(--v-theme-error))` |
-| `#F5A623` (warning) | `rgb(var(--v-theme-warning))` |
-| `#1A5A96` (info) | `rgb(var(--v-theme-info))` |
-| `#FFFFFF` (surface) | `rgb(var(--v-theme-surface))` |
-| Spacing | `--ua-spacing-*` from `variables.css` |
+| BC Gov token / value     | Vuetify CSS variable                  |
+| ------------------------ | ------------------------------------- |
+| `#013366` (primaryBlue)  | `rgb(var(--v-theme-primary))`         |
+| `#FCBA19` (primaryGold)  | `rgb(var(--v-theme-accent))`          |
+| `#2E8540` (success)      | `rgb(var(--v-theme-success))`         |
+| `#D8292F` (danger/error) | `rgb(var(--v-theme-error))`           |
+| `#F5A623` (warning)      | `rgb(var(--v-theme-warning))`         |
+| `#1A5A96` (info)         | `rgb(var(--v-theme-info))`            |
+| `#FFFFFF` (surface)      | `rgb(var(--v-theme-surface))`         |
+| Spacing                  | `--ua-spacing-*` from `variables.css` |

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type {
-    StatCategoryResponse,
-    StatGroupResponse,
-    StatMetricResponse,
-    SubCategoryMetricResponse,
-    SubCategoryResponse,
+  StatCategoryResponse,
+  StatGroupResponse,
+  StatMetricResponse,
+  SubCategoryMetricResponse,
+  SubCategoryResponse,
 } from '@/api-access/stats';
-import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import Select from '@/shared/components/Select.vue';
+import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import type { SelectValue } from '@/types/select';
 import { computed } from 'vue';
 import type { AssignmentData } from '../types';
@@ -115,39 +115,22 @@ const onCommentInput = (value: string) => {
         <!-- Group — hidden when a fixed group is set at the form level -->
         <template v-if="!fixedGroupId">
           <label class="ua-form-label" :for="`group-${model.id}`">Group</label>
-          <Select
-            :id="`group-${model.id}`"
-            label="Select Group"
-            :items="groupOptions"
-            :model-value="model.groupId"
-            :error-messages="errors[`assignment_${index}_group`]"
-            @update:model-value="onGroupChange"
-          />
+          <Select :id="`group-${model.id}`" label="Select Group" :items="groupOptions" :model-value="model.groupId"
+            :error-messages="errors[`assignment_${index}_group`]" @update:model-value="onGroupChange" />
         </template>
 
         <!-- Work Area (Category) -->
         <label class="ua-form-label" :for="`category-${model.id}`">Work Area</label>
-        <Select
-          :id="`category-${model.id}`"
-          label="Select Work Area"
-          :items="categoryOptions"
-          :model-value="model.categoryId"
-          :error-messages="errors[`assignment_${index}_category`]"
-          :disabled="!model.groupId"
-          @update:model-value="onCategoryChange"
-        />
+        <Select :id="`category-${model.id}`" label="Select Work Area" :items="categoryOptions"
+          :model-value="model.categoryId" :error-messages="errors[`assignment_${index}_category`]"
+          :disabled="!model.groupId" @update:model-value="onCategoryChange" />
 
         <!-- Subcategory — only shown when there are multiple options -->
         <template v-if="showSubCategorySelect">
           <label class="ua-form-label" :for="`subcategory-${model.id}`">Subcategory</label>
-          <Select
-            :id="`subcategory-${model.id}`"
-            label="Select Subcategory"
-            :items="subCategoryOptions"
-            :model-value="model.subCategoryId"
-            :error-messages="errors[`assignment_${index}_subCategory`]"
-            @update:model-value="onSubCategoryChange"
-          />
+          <Select :id="`subcategory-${model.id}`" label="Select Subcategory" :items="subCategoryOptions"
+            :model-value="model.subCategoryId" :error-messages="errors[`assignment_${index}_subCategory`]"
+            @update:model-value="onSubCategoryChange" />
         </template>
 
         <!-- Dynamic metric inputs -->
@@ -156,17 +139,10 @@ const onCommentInput = (value: string) => {
             {{ m.name }}
             <span class="unit-label">({{ m.unit }})</span>
           </label>
-          <v-text-field
-            :id="`metric-${model.id}-${m.id}`"
-            type="number"
-            min="0"
-            step="0.25"
-            placeholder="0"
-            hide-details="auto"
-            :model-value="model.metricValues[m.id] ?? ''"
+          <v-text-field :id="`metric-${model.id}-${m.id}`" type="number" min="0" step="0.25" placeholder="0"
+            hide-details="auto" :model-value="model.metricValues[m.id] ?? ''"
             :error-messages="errors[`assignment_${index}_metric_${m.id}`]"
-            @update:model-value="(v) => onMetricValueInput(m.id, String(v))"
-          />
+            @update:model-value="(v) => onMetricValueInput(m.id, String(v))" />
         </template>
 
         <!-- Assignment-level error (no metrics entered) -->
@@ -177,15 +153,8 @@ const onCommentInput = (value: string) => {
 
         <!-- Comment -->
         <label class="ua-form-label" :for="`comment-${model.id}`">Comment</label>
-        <v-textarea
-          :id="`comment-${model.id}`"
-          rows="2"
-          auto-grow
-          hide-details="auto"
-          placeholder="Optional note"
-          :model-value="model.comment"
-          @update:model-value="(v) => onCommentInput(String(v))"
-        />
+        <v-textarea :id="`comment-${model.id}`" rows="2" auto-grow hide-details="auto" placeholder="Optional note"
+          :model-value="model.comment" @update:model-value="(v) => onCommentInput(String(v))" />
       </UaFormGrid>
     </v-card-text>
   </v-card>

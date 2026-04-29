@@ -7,7 +7,6 @@ description: "Review a component or screen for WCAG 2.1 AA compliance. Use when 
 
 1. Identify which WCAG 2.1 AA criteria are most relevant to the element under review (use the WCAG reference table in the agent's cached knowledge)
 2. Check each relevant criterion and call out findings under these headings:
-
    - **Colour contrast** — compare foreground/background hex values; state the required ratio (4.5:1 body, 3:1 large text, 3:1 non-text UI). Use [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/) values.
    - **Keyboard accessibility** — are all interactive elements reachable and operable via keyboard alone?
    - **Focus visibility** — is the focus ring visible on all interactive elements?
