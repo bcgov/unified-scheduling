@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import {
-    getApiStatsCategories,
-    getApiStatsGroups,
-    getApiStatsMetrics,
-    getApiStatsSubCategories,
-    getApiStatsSubCategoryMetrics,
-    postApiStatsRecordsBatch,
-    type StatCategoryResponse,
-    type StatGroupResponse,
-    type StatMetricResponse,
-    type StatRecordRequest,
-    type SubCategoryMetricResponse,
-    type SubCategoryResponse,
+  getApiStatsCategories,
+  getApiStatsGroups,
+  getApiStatsMetrics,
+  getApiStatsSubCategories,
+  getApiStatsSubCategoryMetrics,
+  postApiStatsRecordsBatch,
+  type StatCategoryResponse,
+  type StatGroupResponse,
+  type StatMetricResponse,
+  type StatRecordRequest,
+  type SubCategoryMetricResponse,
+  type SubCategoryResponse,
 } from '@/api-access/stats';
+import Select from '@/shared/components/Select.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
-import Select from '@/shared/components/Select.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
 import { mdiPlus } from '@mdi/js';
@@ -28,6 +28,23 @@ const props = defineProps<{
   /** 1 = Non-Supervision, 2 = Supervision. When set, locks all assignments to that group. */
   groupId?: number;
 }>();
+
+/**
+ * Header colours keyed by groupId.
+ * All values are BC Gov palette colours that pass WCAG AA (≥4.5:1) with white text.
+ * Add new groups here — no other changes required.
+ *
+ * Group 1 — Non-Supervision: #42814A (BC Gov support.borderColor.success — forest green)
+ * Group 2 — Supervision:     #CE3E39 (BC Gov support.borderColor.danger  — deep crimson)
+ */
+const GROUP_HEADER_COLORS: Record<number, string> = {
+  1: '#42814A',
+  2: '#CE3E39',
+};
+
+const cardHeaderColor = computed(() =>
+  props.groupId != null ? GROUP_HEADER_COLORS[props.groupId] : undefined,
+);
 
 const formTitle = computed(() => {
   if (props.groupId === 1) return 'Enter Non-Supervision Hours';
@@ -276,7 +293,7 @@ const handleSave = async (status: string) => {
 
 <template>
   <div class="enter-hours-page">
-    <UaCard :title="formTitle">
+    <UaCard :title="formTitle" :header-color="cardHeaderColor">
       <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
 
       <template v-else>
@@ -290,14 +307,9 @@ const handleSave = async (status: string) => {
         <!-- Location + Period -->
         <UaFormGrid>
           <label class="ua-form-label" for="location-select">Location</label>
-          <Select
-            id="location-select"
-            label="Select Location"
-            :items="locationOptions"
-            :model-value="selectedLocationId"
-            :error-messages="formErrors['location']"
-            @update:model-value="onLocationChange"
-          />
+          <Select id="location-select" label="Select Location" :items="locationOptions"
+            :model-value="selectedLocationId" :error-messages="formErrors['location']"
+            @update:model-value="onLocationChange" />
 
           <label class="ua-form-label">Period</label>
           <div class="period-row">
@@ -312,13 +324,7 @@ const handleSave = async (status: string) => {
             <label class="ua-form-label">Date From</label>
             <v-text-field v-model="weeklyFrom" type="date" hide-details />
             <label class="ua-form-label">Date To</label>
-            <v-text-field
-              v-model="weeklyTo"
-              type="date"
-              :min="weeklyFrom"
-              :max="addDays(weeklyFrom, 6)"
-              hide-details
-            />
+            <v-text-field v-model="weeklyTo" type="date" :min="weeklyFrom" :max="addDays(weeklyFrom, 6)" hide-details />
           </template>
           <template v-else>
             <label class="ua-form-label">{{ periodType === 'Monthly' ? 'Month' : 'Date' }}</label>
@@ -336,20 +342,10 @@ const handleSave = async (status: string) => {
             No assignments added. Click "Add Assignment" to begin.
           </div>
 
-          <AssignmentRow
-            v-for="(assignment, i) in assignments"
-            :key="assignment.id"
-            v-model="assignments[i]"
-            :groups="groups"
-            :categories="categories"
-            :sub-categories="subCategories"
-            :sub-category-metrics="subCategoryMetrics"
-            :metrics="metrics"
-            :index="i"
-            :errors="formErrors"
-            :fixed-group-id="groupId"
-            @remove="removeAssignment(assignment.id)"
-          />
+          <AssignmentRow v-for="(assignment, i) in assignments" :key="assignment.id" v-model="assignments[i]"
+            :groups="groups" :categories="categories" :sub-categories="subCategories"
+            :sub-category-metrics="subCategoryMetrics" :metrics="metrics" :index="i" :errors="formErrors"
+            :fixed-group-id="groupId" :header-color="cardHeaderColor" @remove="removeAssignment(assignment.id)" />
 
           <v-btn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
             Add Assignment

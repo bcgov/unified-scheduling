@@ -22,6 +22,8 @@ const props = defineProps<{
   errors: Record<string, string>;
   /** When set, the group dropdown is hidden and this group is used for all category filtering. */
   fixedGroupId?: number | null;
+  /** Override the header background colour. Falls back to --ua-card-header-bg. */
+  headerColor?: string;
 }>();
 
 const emit = defineEmits<{
@@ -103,7 +105,7 @@ const onCommentInput = (value: string) => {
 
 <template>
   <v-card class="assignment-card" variant="outlined">
-    <div class="assignment-header">
+    <div class="assignment-header" :style="headerColor ? { backgroundColor: headerColor } : undefined">
       <span class="assignment-title">Assignment {{ index + 1 }}</span>
       <v-btn variant="text" density="compact" color="white" class="remove-btn" @click="emit('remove')"> Remove </v-btn>
     </div>
