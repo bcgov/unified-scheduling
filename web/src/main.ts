@@ -1,3 +1,5 @@
+import '@bcgov/design-tokens/css/variables.css';
+
 import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 

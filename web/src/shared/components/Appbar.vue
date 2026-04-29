@@ -48,7 +48,7 @@ const navigationStore = useNavigationStore();
 }
 
 .router-link {
-  color: #ffffff;
+  color: var(--ua-card-header-color);
   padding-left: var(--ua-spacing-xl);
   text-decoration: none;
   width: 120px;

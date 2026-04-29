@@ -7,6 +7,11 @@
  *
  * Vuetify theme colors are available as rgb() via --v-theme-{name}.
  * Use these tokens for layout, spacing, and component patterns.
+ *
+ * Colour values are sourced from the official @bcgov/design-tokens package,
+ * imported before this file in main.ts. --ua-* colour aliases reference
+ * the official --surface-*, --typography-*, and --icons-* CSS variables
+ * so that future BC Gov design system updates flow through automatically.
  */
 
 :root {
@@ -40,12 +45,13 @@
   --ua-border-radius-lg: 12px;
 
   /* ── Colors (non-theme, for specific patterns) ───────────────── */
-  --ua-text-primary: #313132;
-  --ua-text-secondary: #5a5a5a;
-  --ua-text-muted: #6b6b6b;
-  --ua-link-color: #1a5a96;
-  --ua-border-color: #d0d0d2;
-  --ua-field-bg: #efeff1;
+  /* Aliases over official @bcgov/design-tokens CSS variables.      */
+  --ua-text-primary: var(--typography-color-primary);
+  --ua-text-secondary: var(--typography-color-secondary);
+  --ua-text-muted: var(--typography-color-disabled);
+  --ua-link-color: var(--typography-color-link);
+  --ua-border-color: var(--surface-color-border-default);
+  --ua-field-bg: var(--surface-color-forms-default);
 
   /* ── Component tokens ────────────────────────────────────────── */
   --ua-card-header-bg: rgb(var(--v-theme-primary));

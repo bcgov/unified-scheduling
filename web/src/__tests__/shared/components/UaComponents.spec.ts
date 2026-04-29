@@ -6,7 +6,8 @@ import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { createVuetify } from 'vuetify';
 import { createTestApp } from '../../helpers/createTestApp';
 
 describe('UaPageHeader', () => {
@@ -52,8 +53,13 @@ describe('UaFormGrid', () => {
   });
 });
 
-describe('UaTextField', async () => {
-  const { vuetify } = await createTestApp();
+// TODO: Previously used top-level `await createTestApp()` inside `async describe` which works
+// with happy-dom but is not idiomatic. Use `beforeAll` for clarity and portability.
+describe('UaTextField', () => {
+  let vuetify: ReturnType<typeof createVuetify>;
+  beforeAll(async () => {
+    ({ vuetify } = await createTestApp());
+  });
 
   it('renders label and input', () => {
     const wrapper = mount(UaTextField, {
@@ -65,8 +71,11 @@ describe('UaTextField', async () => {
   });
 });
 
-describe('UaAlert', async () => {
-  const { vuetify } = await createTestApp();
+describe('UaAlert', () => {
+  let vuetify: ReturnType<typeof createVuetify>;
+  beforeAll(async () => {
+    ({ vuetify } = await createTestApp());
+  });
 
   it('renders alert content', () => {
     const wrapper = mount(UaAlert, {
@@ -95,8 +104,11 @@ describe('UaPlaceholderPage', () => {
   });
 });
 
-describe('UaModal', async () => {
-  const { vuetify } = await createTestApp();
+describe('UaModal', () => {
+  let vuetify: ReturnType<typeof createVuetify>;
+  beforeAll(async () => {
+    ({ vuetify } = await createTestApp());
+  });
 
   it('renders modal with title', () => {
     // v-dialog requires visualViewport which is unavailable in happy-dom.
