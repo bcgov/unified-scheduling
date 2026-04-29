@@ -16,13 +16,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <v-alert
-    :type="type"
-    density="compact"
-    class="ua-alert"
-    :closable="closable"
-    @click:close="emit('close')"
-  >
+  <v-alert :type="type" density="compact" class="ua-alert" :closable="closable" @click:close="emit('close')">
     <slot />
   </v-alert>
 </template>

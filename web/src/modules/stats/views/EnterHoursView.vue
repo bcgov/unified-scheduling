@@ -42,9 +42,7 @@ const GROUP_HEADER_COLORS: Record<number, string> = {
   2: '#CE3E39',
 };
 
-const cardHeaderColor = computed(() =>
-  props.groupId != null ? GROUP_HEADER_COLORS[props.groupId] : undefined,
-);
+const cardHeaderColor = computed(() => (props.groupId != null ? GROUP_HEADER_COLORS[props.groupId] : undefined));
 
 const formTitle = computed(() => {
   if (props.groupId === 1) return 'Enter Non-Supervision Hours';
@@ -307,9 +305,14 @@ const handleSave = async (status: string) => {
         <!-- Location + Period -->
         <UaFormGrid>
           <label class="ua-form-label" for="location-select">Location</label>
-          <Select id="location-select" label="Select Location" :items="locationOptions"
-            :model-value="selectedLocationId" :error-messages="formErrors['location']"
-            @update:model-value="onLocationChange" />
+          <Select
+            id="location-select"
+            label="Select Location"
+            :items="locationOptions"
+            :model-value="selectedLocationId"
+            :error-messages="formErrors['location']"
+            @update:model-value="onLocationChange"
+          />
 
           <label class="ua-form-label">Period</label>
           <div class="period-row">
@@ -342,10 +345,21 @@ const handleSave = async (status: string) => {
             No assignments added. Click "Add Assignment" to begin.
           </div>
 
-          <AssignmentRow v-for="(assignment, i) in assignments" :key="assignment.id" v-model="assignments[i]"
-            :groups="groups" :categories="categories" :sub-categories="subCategories"
-            :sub-category-metrics="subCategoryMetrics" :metrics="metrics" :index="i" :errors="formErrors"
-            :fixed-group-id="groupId" :header-color="cardHeaderColor" @remove="removeAssignment(assignment.id)" />
+          <AssignmentRow
+            v-for="(assignment, i) in assignments"
+            :key="assignment.id"
+            v-model="assignments[i]"
+            :groups="groups"
+            :categories="categories"
+            :sub-categories="subCategories"
+            :sub-category-metrics="subCategoryMetrics"
+            :metrics="metrics"
+            :index="i"
+            :errors="formErrors"
+            :fixed-group-id="groupId"
+            :header-color="cardHeaderColor"
+            @remove="removeAssignment(assignment.id)"
+          />
 
           <v-btn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
             Add Assignment
