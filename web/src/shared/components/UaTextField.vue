@@ -12,22 +12,15 @@ defineProps<{
 }>();
 
 defineEmits<{
-  (e: 'update:modelValue', value: string): void;
+  (e: 'update:modelValue', value: string | number | null): void;
 }>();
 </script>
 
 <template>
   <label class="ua-form-label" :for="id">{{ label }}</label>
-  <v-text-field
-    :id="id"
-    :model-value="modelValue"
-    :placeholder="placeholder || label"
-    :type="type"
-    :error-messages="errorMessages"
-    :disabled="disabled"
-    hide-details="auto"
-    @update:model-value="$emit('update:modelValue', $event)"
-  />
+  <v-text-field :id="id" :model-value="modelValue" :placeholder="placeholder || label" :type="type"
+    :error-messages="errorMessages" :disabled="disabled" hide-details="auto"
+    @update:model-value="$emit('update:modelValue', $event)" />
 </template>
 
 <style scoped>

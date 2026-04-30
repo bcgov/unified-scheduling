@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useNavigationStore } from '@/stores/NavigationStore';
-
+const bcgovLogo = new URL('/images/bcid-logo-rev-en.svg', import.meta.url).href;
 const navigationStore = useNavigationStore();
 </script>
 
@@ -8,16 +8,11 @@ const navigationStore = useNavigationStore();
   <div class="app-bar-wrapper">
     <v-app-bar class="app-bar" density="compact" flat>
       <div style="margin-left: var(--ua-spacing-xl)">
-        <img width="177" height="44" src="/images/bcid-logo-rev-en.svg" alt="B.C. Government Logo" />
+        <img width="177" height="44" :src="bcgovLogo" alt="B.C. Government Logo" />
       </div>
       <div class="router-link-container">
-        <RouterLink
-          v-for="navItem in navigationStore.links"
-          :key="navItem.name"
-          :class="['router-link', navItem?.class ?? '']"
-          :to="navItem.path"
-          active-class="active"
-        >
+        <RouterLink v-for="navItem in navigationStore.links" :key="navItem.name"
+          :class="['router-link', navItem?.class ?? '']" :to="navItem.path" active-class="active">
           {{ navItem.name }}
         </RouterLink>
       </div>
