@@ -17,7 +17,8 @@ namespace Unified.Db.Migrations
                 maxLength: 100,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "text");
+                oldType: "text"
+            );
 
             migrationBuilder.AlterColumn<string>(
                 name: "Description",
@@ -26,7 +27,8 @@ namespace Unified.Db.Migrations
                 maxLength: 500,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "text");
+                oldType: "text"
+            );
         }
 
         /// <inheritdoc />
@@ -39,7 +41,8 @@ namespace Unified.Db.Migrations
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "character varying(100)",
-                oldMaxLength: 100);
+                oldMaxLength: 100
+            );
 
             migrationBuilder.AlterColumn<string>(
                 name: "Description",
@@ -48,7 +51,8 @@ namespace Unified.Db.Migrations
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "character varying(500)",
-                oldMaxLength: 500);
+                oldMaxLength: 500
+            );
         }
     }
 }
