@@ -20,11 +20,13 @@ public static class UserManagementModule
     public static IServiceCollection AddUserManagementModule(this IServiceCollection services)
     {
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<UserSeeder>();
         services.AddScoped<RegionSeeder>();
         services.AddScoped<LocationSeeder>();
 
         services.AddScoped<UserRequestValidator>();
+        services.AddScoped<RoleRequestValidator>();
 
         return services;
     }

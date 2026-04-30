@@ -13,6 +13,12 @@ namespace Unified.UserManagement.Controllers;
 [Authorize]
 public class UsersController(IUserService userService, UserRequestValidator userRequestValidator) : ControllerBase
 {
+    /// <summary>
+    /// Returns users filtered by optional query parameters.
+    /// </summary>
+    /// <param name="queryParams">Optional filters for user search and status.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of users.</returns>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<UserResponse>>> Get(
@@ -24,6 +30,12 @@ public class UsersController(IUserService userService, UserRequestValidator user
         return Ok(users);
     }
 
+    /// <summary>
+    /// Returns a user by id.
+    /// </summary>
+    /// <param name="id">The user identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The requested user if found.</returns>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -38,6 +50,12 @@ public class UsersController(IUserService userService, UserRequestValidator user
         return Ok(user);
     }
 
+    /// <summary>
+    /// Creates a new user.
+    /// </summary>
+    /// <param name="request">The user payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The newly created user.</returns>
     [HttpPost]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -53,6 +71,13 @@ public class UsersController(IUserService userService, UserRequestValidator user
         return Created($"/api/users/{user.Id}", user);
     }
 
+    /// <summary>
+    /// Updates an existing user.
+    /// </summary>
+    /// <param name="id">The user identifier.</param>
+    /// <param name="request">The updated user payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated user if found.</returns>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
