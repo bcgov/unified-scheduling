@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Unified.Api.Services;
+using Unified.Authorization;
 using Unified.Core;
 using Unified.Db;
 using Unified.FeatureFlags;
@@ -64,7 +65,7 @@ var featureFlagsOptions =
     });
 
     // Authentication & Authorization
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorizationModule();
 
     if (featureFlagsOptions.StatsModule)
     {

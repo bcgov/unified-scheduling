@@ -19,5 +19,6 @@
     <ProjectReference Include="..\Unified.Core\Unified.Core.csproj" />
     <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
     <ProjectReference Include="..\Unified.Stats\Unified.Stats.csproj" />
+    <ProjectReference Include="..\Unified.Authorization\Unified.Authorization.csproj" />
   </ItemGroup>
 </Project>
