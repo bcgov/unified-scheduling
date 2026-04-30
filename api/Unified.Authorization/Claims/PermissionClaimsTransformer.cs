@@ -25,19 +25,11 @@ public sealed class PermissionClaimsTransformer : IClaimsTransformation
         var identity = (ClaimsIdentity)principal.Identity!;
 
         // @TODO: Get Permissions from Database
-        var permissions = StaffPermissions;
+        var permissions = Array.Empty<string>();
 
         foreach (var permission in permissions)
             identity.AddClaim(new Claim(UnifiedClaimTypes.Permission, permission));
 
         return Task.FromResult(principal);
     }
-
-    private static readonly string[] StaffPermissions =
-    [
-        Permissions.Login,
-        Permissions.ViewShifts,
-        Permissions.ViewDutyRoster,
-        Permissions.ViewHomeLocation,
-    ];
 }

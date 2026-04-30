@@ -36,29 +36,57 @@ public static class AuthorizationModule
 
         // Register one policy per permission constant
         services.AddAuthorizationBuilder()
-            .AddPermissionPolicy(Permissions.Login)
-            .AddPermissionPolicy(Permissions.CreateUsers)
-            .AddPermissionPolicy(Permissions.EditUsers)
-            .AddPermissionPolicy(Permissions.ViewUsers)
-            .AddPermissionPolicy(Permissions.ExpireUsers)
-            .AddPermissionPolicy(Permissions.ViewRoles)
-            .AddPermissionPolicy(Permissions.CreateAndAssignRoles)
-            .AddPermissionPolicy(Permissions.EditRoles)
-            .AddPermissionPolicy(Permissions.ExpireRoles)
-            .AddPermissionPolicy(Permissions.ViewShifts)
-            .AddPermissionPolicy(Permissions.CreateAndAssignShifts)
-            .AddPermissionPolicy(Permissions.EditShifts)
-            .AddPermissionPolicy(Permissions.ExpireShifts)
-            .AddPermissionPolicy(Permissions.ImportShifts)
-            .AddPermissionPolicy(Permissions.ViewDutyRoster)
-            .AddPermissionPolicy(Permissions.CreateAndAssignDuties)
-            .AddPermissionPolicy(Permissions.EditDuties)
-            .AddPermissionPolicy(Permissions.ExpireDuties)
-            .AddPermissionPolicy(Permissions.ViewHomeLocation)
-            .AddPermissionPolicy(Permissions.ViewAssignedLocation)
-            .AddPermissionPolicy(Permissions.ViewRegion)
-            .AddPermissionPolicy(Permissions.ViewProvince)
-            .AddPermissionPolicy(Permissions.GenerateReports);
+            .AddPermissionPolicy(Permissions.AuthLogin)
+            // Users
+            .AddPermissionPolicy(Permissions.UsersCreate)
+            .AddPermissionPolicy(Permissions.UsersEdit)
+            .AddPermissionPolicy(Permissions.UsersView)
+            .AddPermissionPolicy(Permissions.UsersExpire)
+            .AddPermissionPolicy(Permissions.UsersViewOtherProfiles)
+            // Roles
+            .AddPermissionPolicy(Permissions.RolesView)
+            .AddPermissionPolicy(Permissions.RolesCreateAndAssign)
+            .AddPermissionPolicy(Permissions.RolesEdit)
+            .AddPermissionPolicy(Permissions.RolesExpire)
+            // Types
+            .AddPermissionPolicy(Permissions.TypesCreate)
+            .AddPermissionPolicy(Permissions.TypesEdit)
+            .AddPermissionPolicy(Permissions.TypesExpire)
+            // Shifts
+            .AddPermissionPolicy(Permissions.ShiftsView)
+            .AddPermissionPolicy(Permissions.ShiftsCreateAndAssign)
+            .AddPermissionPolicy(Permissions.ShiftsEdit)
+            .AddPermissionPolicy(Permissions.ShiftsExpire)
+            .AddPermissionPolicy(Permissions.ShiftsImport)
+            .AddPermissionPolicy(Permissions.ShiftsViewAllFuture)
+            // Schedule
+            .AddPermissionPolicy(Permissions.ScheduleViewDistribute)
+            // Assignments
+            .AddPermissionPolicy(Permissions.AssignmentsCreate)
+            .AddPermissionPolicy(Permissions.AssignmentsEdit)
+            .AddPermissionPolicy(Permissions.AssignmentsExpire)
+            // Duty Roster
+            .AddPermissionPolicy(Permissions.DutyRosterView)
+            .AddPermissionPolicy(Permissions.DutyRosterViewFuture)
+            // Duties
+            .AddPermissionPolicy(Permissions.DutiesCreateAndAssign)
+            .AddPermissionPolicy(Permissions.DutiesEdit)
+            .AddPermissionPolicy(Permissions.DutiesExpire)
+            // Location
+            .AddPermissionPolicy(Permissions.LocationViewHome)
+            .AddPermissionPolicy(Permissions.LocationViewAssigned)
+            .AddPermissionPolicy(Permissions.LocationViewRegion)
+            .AddPermissionPolicy(Permissions.LocationViewProvince)
+            .AddPermissionPolicy(Permissions.LocationExpire)
+            // Training
+            .AddPermissionPolicy(Permissions.TrainingEditPast)
+            .AddPermissionPolicy(Permissions.TrainingRemovePast)
+            .AddPermissionPolicy(Permissions.TrainingAdjustExpiry)
+            .AddPermissionPolicy(Permissions.TrainingExempt)
+            // IDIR
+            .AddPermissionPolicy(Permissions.IdirEdit)
+            // Reports
+            .AddPermissionPolicy(Permissions.ReportsGenerate);
 
         return services;
     }

@@ -5,76 +5,83 @@ Permission-based authorization for the Unified Scheduling API using ASP.NET Core
 ## How it works
 
 1. **Roles** come from Keycloak as standard `ClaimTypes.Role` claims.
-2. **`PermissionClaimsTransformer`** runs after authentication. It reads the user's role claims, expands them into permission claims, and adds `unified/permission` claims to the identity.
-3. **Named policies** are registered for every permission constant (e.g., `Permission:EditShifts`).
-4. **`PermissionAuthorizationHandler`** evaluates those policies by checking whether the user holds the matching permission claim.
+2. **`PermissionClaimsTransformer`** runs once per authenticated request. It reads the user's role claims, expands them into permission claims, and adds `unified/permission` claims to the identity. Currently the role-to-permission mapping is hardcoded; the transformer is designed to swap in a DB-backed service later.
+3. **Named policies** are registered for every permission constant (e.g., `Permission:ShiftsEdit`).
+4. **`PermissionAuthorizationHandler`** evaluates those policies by checking whether the user holds the matching permission claim. If the claim is absent it throws `UnauthorizedAccessException`, which the global exception handler maps to a `403 ProblemDetails` response.
 
 ## Securing a controller
 
-Apply `[Authorize(Policy = ...)]` at the controller or action level using `AuthorizationModule.PolicyName()` to avoid magic strings.
+Apply `[Authorize(Policy = ...)]` at the controller or action level. Because C# attribute arguments must be **compile-time constants**, you cannot call `AuthorizationModule.PolicyName()` (a method) inside an attribute. Use string concatenation of the two `const` values instead:
 
 ```csharp
 using Microsoft.AspNetCore.Authorization;
 using Unified.Authorization;
 
-// Entire controller requires Login
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = AuthorizationModule.PolicyName(Permissions.Login))]
 public class ShiftsController(IShiftService shiftService) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Policy = AuthorizationModule.PolicyName(Permissions.ViewShifts))]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.ShiftsView)]
     public async Task<ActionResult<IEnumerable<ShiftResponse>>> Get(...) { ... }
 
     [HttpPost]
-    [Authorize(Policy = AuthorizationModule.PolicyName(Permissions.CreateAndAssignShifts))]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.ShiftsCreateAndAssign)]
     public async Task<ActionResult<ShiftResponse>> Create(...) { ... }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = AuthorizationModule.PolicyName(Permissions.EditShifts))]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.ShiftsEdit)]
     public async Task<ActionResult<ShiftResponse>> Update(...) { ... }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = AuthorizationModule.PolicyName(Permissions.ExpireShifts))]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.ShiftsExpire)]
     public async Task<IActionResult> Delete(...) { ... }
 }
 ```
 
+Use `AuthorizationModule.PolicyName(permission)` at **runtime** (e.g., `IAuthorizationService.AuthorizeAsync`) where a method call is valid.
+
 ## Available permissions
 
-All permission constants live in `Permissions.cs`. Roles and their default permission grants are currently hardcoded in `PermissionClaimsTransformer.GetPermissionsForRole()`.
+All permission constants live in `Permissions.cs` and follow the `EntityNameAction` PascalCase convention.
 
 | Category | Permissions |
 |---|---|
-| Auth | `Login` |
-| Users | `CreateUsers`, `EditUsers`, `ViewUsers`, `ExpireUsers` |
-| Roles | `ViewRoles`, `CreateAndAssignRoles`, `EditRoles`, `ExpireRoles` |
-| Shifts | `ViewShifts`, `CreateAndAssignShifts`, `EditShifts`, `ExpireShifts`, `ImportShifts` |
-| Duties | `ViewDutyRoster`, `CreateAndAssignDuties`, `EditDuties`, `ExpireDuties` |
-| Location | `ViewHomeLocation`, `ViewAssignedLocation`, `ViewRegion`, `ViewProvince` |
-| Reports | `GenerateReports` |
+| Auth | `AuthLogin` |
+| Users | `UsersCreate`, `UsersEdit`, `UsersView`, `UsersExpire`, `UsersViewOtherProfiles` |
+| Roles | `RolesView`, `RolesCreateAndAssign`, `RolesEdit`, `RolesExpire` |
+| Types | `TypesCreate`, `TypesEdit`, `TypesExpire` |
+| Shifts | `ShiftsView`, `ShiftsCreateAndAssign`, `ShiftsEdit`, `ShiftsExpire`, `ShiftsImport`, `ShiftsViewAllFuture` |
+| Schedule | `ScheduleViewDistribute` |
+| Assignments | `AssignmentsCreate`, `AssignmentsEdit`, `AssignmentsExpire` |
+| Duty Roster | `DutyRosterView`, `DutyRosterViewFuture` |
+| Duties | `DutiesCreateAndAssign`, `DutiesEdit`, `DutiesExpire` |
+| Location | `LocationViewHome`, `LocationViewAssigned`, `LocationViewRegion`, `LocationViewProvince`, `LocationExpire` |
+| Training | `TrainingEditPast`, `TrainingRemovePast`, `TrainingAdjustExpiry`, `TrainingExempt` |
+| IDIR | `IdirEdit` |
+| Reports | `ReportsGenerate` |
 
 ## Adding a new permission
 
-1. Add a constant to `Permissions.cs`.
-2. Add it to the appropriate role array in `PermissionClaimsTransformer.GetPermissionsForRole()`.
+1. Add a constant to `Permissions.cs` following the `EntityNameAction` convention.
+2. Add it to the appropriate role array(s) in `PermissionClaimsTransformer`.
 3. Register the policy in `AuthorizationModule.cs` (one `.AddPermissionPolicy(Permissions.YourNew)` line).
-4. Apply `[Authorize(Policy = AuthorizationModule.PolicyName(Permissions.YourNew))]` to the relevant controller or action.
+4. Apply `[Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.YourNew)]` to the relevant controller or action.
 
 ## Replacing hardcoded data with database values
 
-The roles, permissions, and their mappings are currently hardcoded in `PermissionClaimsTransformer.GetPermissionsForRole()`. They are marked with `// TODO` comments pointing to this section.
+The role-to-permission mapping is currently hardcoded in `PermissionClaimsTransformer`. It is marked with `// TODO` comments pointing to this section.
 
 **Migration path:**
 
 1. Add a `Permission` entity and a `RolePermission` join entity to `db/Models/UserManagement/`.
-2. Create and run a migration to seed the initial data from the hardcoded role-permission mappings.
+2. Create and run a migration to seed the initial data from the hardcoded mappings.
 3. Create `IPermissionService` (e.g., in `Unified.UserManagement`) with a method:
    ```csharp
    Task<IReadOnlyList<string>> GetPermissionsForRolesAsync(IEnumerable<string> roles);
    ```
-4. Inject `IPermissionService` into `PermissionClaimsTransformer` and replace the hardcoded `GetPermissionsForRole` call with the async DB call.
+4. Inject `IPermissionService` into `PermissionClaimsTransformer` and replace the hardcoded mapping with the async DB call.
+
 The `AuthorizationModule`, policies, handler, and `RequirePermission` extension require **no changes** — only the data source changes.
 
 ## Improvements over sheriff-scheduling
@@ -96,5 +103,3 @@ Called from `Program.cs`:
 ```csharp
 builder.Services.AddAuthorizationModule();
 ```
-
-This replaces the bare `builder.Services.AddAuthorization()` call.

@@ -58,7 +58,7 @@ public class UsersController(IUserService userService, UserRequestValidator user
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The newly created user.</returns>
     [HttpPost]
-    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.CreateUsers)]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.UsersCreate)]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<UserResponse>> Create(
