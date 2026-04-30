@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
@@ -57,6 +58,7 @@ public class UsersController(IUserService userService, UserRequestValidator user
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The newly created user.</returns>
     [HttpPost]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.CreateUsers)]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<UserResponse>> Create(

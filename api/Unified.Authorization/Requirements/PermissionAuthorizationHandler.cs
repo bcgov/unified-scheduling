@@ -7,6 +7,10 @@ namespace Unified.Authorization.Requirements;
 /// Succeeds when the authenticated user has a <see cref="UnifiedClaimTypes.Permission"/>
 /// claim matching <see cref="PermissionRequirement.Permission"/>.
 ///
+/// Throws <see cref="UnauthorizedAccessException"/> when the authenticated user lacks
+/// the required permission, which is caught by the global exception handler and
+/// returned as a 403 ProblemDetails response.
+///
 /// Permission claims are added at login by <see cref="PermissionClaimsTransformer"/>,
 /// which expands the user's Keycloak role claims into permission claims.
 /// </summary>
@@ -23,6 +27,9 @@ public sealed class PermissionAuthorizationHandler
 
         if (hasPermission)
             context.Succeed(requirement);
+        else
+            throw new UnauthorizedAccessException(
+                $"Missing required permission: {requirement.Permission}");
 
         return Task.CompletedTask;
     }
