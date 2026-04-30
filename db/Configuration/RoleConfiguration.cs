@@ -10,6 +10,9 @@ public class RoleConfiguration : BaseEntityConfiguration<Role>
     {
         builder.Property(b => b.Id).HasIdentityOptions(startValue: 50);
 
+        builder.Property(b => b.Name).IsRequired().HasMaxLength(100);
+        builder.Property(b => b.Description).IsRequired().HasMaxLength(500);
+
         base.Configure(builder);
     }
 }
