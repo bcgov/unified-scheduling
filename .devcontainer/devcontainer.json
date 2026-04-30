@@ -43,7 +43,7 @@
           "editor.defaultFormatter": "csharpier.csharpier-vscode"
         },
         "[vue]": {
-          "editor.defaultFormatter": "vue.volar"
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
         },
         "[typescript]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode"

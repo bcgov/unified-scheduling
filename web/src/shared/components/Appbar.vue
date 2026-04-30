@@ -11,8 +11,13 @@ const navigationStore = useNavigationStore();
         <img width="177" height="44" :src="bcgovLogo" alt="B.C. Government Logo" />
       </div>
       <div class="router-link-container">
-        <RouterLink v-for="navItem in navigationStore.links" :key="navItem.name"
-          :class="['router-link', navItem?.class ?? '']" :to="navItem.path" active-class="active">
+        <RouterLink
+          v-for="navItem in navigationStore.links"
+          :key="navItem.name"
+          :class="['router-link', navItem?.class ?? '']"
+          :to="navItem.path"
+          active-class="active"
+        >
           {{ navItem.name }}
         </RouterLink>
       </div>
