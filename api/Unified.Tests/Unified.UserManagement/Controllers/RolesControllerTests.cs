@@ -66,7 +66,7 @@ public class RolesControllerTests
     }
 
     [Fact]
-    public async Task Create_Should_Return_BadRequest_When_Name_Empty()
+    public async Task Create_Should_Throw_ValidationException_When_Name_Empty()
     {
         // Arrange
         var fakeService = new FakeRoleService();
@@ -76,7 +76,7 @@ public class RolesControllerTests
 
         // Act & Assert
         await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
-            validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
+            controller.Create(request, TestContext.Current.CancellationToken)
         );
     }
 
