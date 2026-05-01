@@ -4,8 +4,8 @@ Permission-based authorization for the Unified Scheduling API using ASP.NET Core
 
 ## How it works
 
-1. **Roles** come from Keycloak as standard `ClaimTypes.Role` claims.
-2. **`PermissionClaimsTransformer`** runs once per authenticated request. It reads the user's role claims, expands them into permission claims, and adds `unified/permission` claims to the identity. Currently the role-to-permission mapping is hardcoded; the transformer is designed to swap in a DB-backed service later.
+1. **Roles** are loaded from the user's record in the application database after Keycloak authentication and added as standard `ClaimTypes.Role` claims on the principal.
+2. **`PermissionClaimsTransformer`** runs once per authenticated request. It reads the user's role claims, looks up the permissions associated with those roles, and adds `unified/permission` claims to the identity. The DB-backed lookup is pending; the transformer currently leaves the permission set empty and is the single integration point for `IPermissionService`.
 3. **Named policies** are registered for every permission constant (e.g., `Permission:ShiftsEdit`).
 4. **`PermissionAuthorizationHandler`** evaluates those policies by checking whether the user holds the matching permission claim. If the claim is absent it throws `UnauthorizedAccessException`, which the global exception handler maps to a `403 ProblemDetails` response.
 
@@ -41,46 +41,30 @@ public class ShiftsController(IShiftService shiftService) : ControllerBase
 
 Use `AuthorizationModule.PolicyName(permission)` at **runtime** (e.g., `IAuthorizationService.AuthorizeAsync`) where a method call is valid.
 
-## Available permissions
+## Permission constants
 
-All permission constants live in `Permissions.cs` and follow the `EntityNameAction` PascalCase convention.
-
-| Category | Permissions |
-|---|---|
-| Auth | `AuthLogin` |
-| Users | `UsersCreate`, `UsersEdit`, `UsersView`, `UsersExpire`, `UsersViewOtherProfiles` |
-| Roles | `RolesView`, `RolesCreateAndAssign`, `RolesEdit`, `RolesExpire` |
-| Types | `TypesCreate`, `TypesEdit`, `TypesExpire` |
-| Shifts | `ShiftsView`, `ShiftsCreateAndAssign`, `ShiftsEdit`, `ShiftsExpire`, `ShiftsImport`, `ShiftsViewAllFuture` |
-| Schedule | `ScheduleViewDistribute` |
-| Assignments | `AssignmentsCreate`, `AssignmentsEdit`, `AssignmentsExpire` |
-| Duty Roster | `DutyRosterView`, `DutyRosterViewFuture` |
-| Duties | `DutiesCreateAndAssign`, `DutiesEdit`, `DutiesExpire` |
-| Location | `LocationViewHome`, `LocationViewAssigned`, `LocationViewRegion`, `LocationViewProvince`, `LocationExpire` |
-| Training | `TrainingEditPast`, `TrainingRemovePast`, `TrainingAdjustExpiry`, `TrainingExempt` |
-| IDIR | `IdirEdit` |
-| Reports | `ReportsGenerate` |
+All permission constants live in `Permissions.cs` and follow the `EntityNameAction` PascalCase convention (e.g., `ShiftsView`, `UsersCreate`).
 
 ## Adding a new permission
 
 1. Add a constant to `Permissions.cs` following the `EntityNameAction` convention.
-2. Add it to the appropriate role array(s) in `PermissionClaimsTransformer`.
-3. Register the policy in `AuthorizationModule.cs` (one `.AddPermissionPolicy(Permissions.YourNew)` line).
-4. Apply `[Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.YourNew)]` to the relevant controller or action.
+2. Register the policy in `AuthorizationModule.cs` (one `.AddPermissionPolicy(Permissions.YourNew)` line).
+3. Apply `[Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.YourNew)]` to the relevant controller or action.
+4. Associate the permission with the appropriate role(s) in the database so `PermissionClaimsTransformer` will surface it for users in those roles.
 
 ## Replacing hardcoded data with database values
 
-The role-to-permission mapping is currently hardcoded in `PermissionClaimsTransformer`. It is marked with `// TODO` comments pointing to this section.
+`PermissionClaimsTransformer` currently returns an empty permission set. It is marked with `// TODO` comments pointing to this section.
 
 **Migration path:**
 
 1. Add a `Permission` entity and a `RolePermission` join entity to `db/Models/UserManagement/`.
-2. Create and run a migration to seed the initial data from the hardcoded mappings.
+2. Create and run a migration to seed the initial data.
 3. Create `IPermissionService` (e.g., in `Unified.UserManagement`) with a method:
    ```csharp
    Task<IReadOnlyList<string>> GetPermissionsForRolesAsync(IEnumerable<string> roles);
    ```
-4. Inject `IPermissionService` into `PermissionClaimsTransformer` and replace the hardcoded mapping with the async DB call.
+4. Inject `IPermissionService` into `PermissionClaimsTransformer` and populate the permission claims from the DB call.
 
 The `AuthorizationModule`, policies, handler, and `RequirePermission` extension require **no changes** — only the data source changes.
 
