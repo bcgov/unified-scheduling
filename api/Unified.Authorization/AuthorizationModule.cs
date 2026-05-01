@@ -22,7 +22,7 @@ public static class AuthorizationModule
 
     /// <summary>
     /// Builds the policy name for a given permission constant.
-    /// Example: PolicyName(Permissions.EditShifts) → "Permission:EditShifts"
+    /// Example: PolicyName(Permissions.ShiftsEdit) → "Permission:ShiftsEdit"
     /// </summary>
     public static string PolicyName(string permission) => $"{PolicyPrefix}{permission}";
 

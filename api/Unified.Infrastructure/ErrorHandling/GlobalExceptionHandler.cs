@@ -39,7 +39,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         var problemDetails = exception switch
         {
             ValidationException ex => HandleValidationException(ex, httpContext),
-            UnauthorizedAccessException ex => HandleForbiddenException(ex, httpContext),
+            ForbiddenException ex => HandleForbiddenException(ex, httpContext),
             KeyNotFoundException ex => HandleKeyNotFoundException(ex, httpContext),
             InvalidOperationException ex => HandleInvalidOperationException(ex, httpContext),
             DbUpdateConcurrencyException ex => HandleConcurrencyException(ex, httpContext),
@@ -82,7 +82,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         };
     }
 
-    private ProblemDetails HandleForbiddenException(UnauthorizedAccessException ex, HttpContext httpContext)
+    private ProblemDetails HandleForbiddenException(ForbiddenException ex, HttpContext httpContext)
     {
         _logger.LogInformation(ex, "Access denied: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;

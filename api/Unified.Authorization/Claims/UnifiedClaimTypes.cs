@@ -6,7 +6,7 @@ namespace Unified.Authorization.Claims;
 public static class UnifiedClaimTypes
 {
     /// <summary>
-    /// Claim type used for individual permission values (e.g., "EditShifts").
+    /// Claim type used for individual permission values (e.g., "ShiftsEdit").
     /// Multiple claims of this type may exist — one per granted permission.
     /// </summary>
     public const string Permission = "unified/permission";

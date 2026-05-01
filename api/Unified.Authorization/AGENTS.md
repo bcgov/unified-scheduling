@@ -4,7 +4,7 @@ This file guides AI agents extending or working with the authorization system.
 
 ## Project purpose
 
-`Unified.Authorization` provides permission-based access control using ASP.NET Core Authorization Policies. It is intentionally decoupled from the database — the role-to-permission mapping is currently hardcoded with clear TODO markers pointing to the migration path.
+`Unified.Authorization` provides permission-based access control using ASP.NET Core Authorization Policies. The role-to-permission mapping is sourced from the application database via `PermissionClaimsTransformer` (DB-backed lookup is the pending integration point).
 
 See [README.md § Improvements over sheriff-scheduling](README.md#improvements-over-sheriff-scheduling) for a comparison with the legacy approach.
 
@@ -13,11 +13,11 @@ See [README.md § Improvements over sheriff-scheduling](README.md#improvements-o
 | File | Responsibility |
 |---|---|
 | `Permissions.cs` | All permission name constants (`EntityNameAction` PascalCase) |
-| `Roles.cs` | All role name constants (must match Keycloak) |
+| `Roles.cs` | Role name constants (kept in sync with role records loaded from the application DB) |
 | `Claims/UnifiedClaimTypes.cs` | Custom claim type string used for permission claims |
-| `Claims/PermissionClaimsTransformer.cs` | Adds permission claims from role claims at login |
+| `Claims/PermissionClaimsTransformer.cs` | Adds permission claims to the principal based on the user's role claims |
 | `Requirements/PermissionRequirement.cs` | `IAuthorizationRequirement` holding a single permission |
-| `Requirements/PermissionAuthorizationHandler.cs` | Evaluates the requirement; throws `UnauthorizedAccessException` on failure |
+| `Requirements/PermissionAuthorizationHandler.cs` | Evaluates the requirement; throws `ForbiddenException` on failure |
 | `AuthorizationModule.cs` | DI registration: transformer, handler, all named policies |
 | `EndpointAuthorizationExtensions.cs` | `.RequirePermission(...)` fluent helper for Minimal API endpoints |
 
@@ -26,15 +26,15 @@ See [README.md § Improvements over sheriff-scheduling](README.md#improvements-o
 ### Add a permission for a new feature
 
 1. `Permissions.cs` — add `public const string EntityNameAction = nameof(EntityNameAction);` following the existing naming convention.
-2. `PermissionClaimsTransformer.cs` — add the constant to the appropriate role array(s).
-3. `AuthorizationModule.cs` — add `.AddPermissionPolicy(Permissions.EntityNameAction)` inside `AddAuthorizationModule`.
-4. Apply the policy to the controller or action (see **Protect a controller action** below).
+2. `AuthorizationModule.cs` — add `.AddPermissionPolicy(Permissions.EntityNameAction)` inside `AddAuthorizationModule`.
+3. Apply the policy to the controller or action (see **Protect a controller action** below).
+4. Associate the permission with the appropriate role(s) in the database so the transformer surfaces it on the principal.
 
 ### Add a new role
 
 1. `Roles.cs` — add a `public const string YourRole = nameof(YourRole);`.
-2. `PermissionClaimsTransformer.cs` — add a new `switch` arm with the role's permission array.
-3. Ensure the role name exactly matches the Keycloak role name (case-sensitive).
+2. Insert the corresponding role record (and its permission associations) in the application database.
+3. Ensure the role name in `Roles.cs` exactly matches the DB role name (case-sensitive).
 
 ### Protect a controller action
 
@@ -72,7 +72,7 @@ if (!result.Succeeded) return Forbid();
 
 ### Replace static data with database
 
-See `README.md` → "Replacing hardcoded data with database values" for the full migration path. The key integration point is `PermissionClaimsTransformer.TransformAsync` — replace the hardcoded array lookup with an async `IPermissionService` call.
+See `README.md` → "Replacing hardcoded data with database values" for the full migration path. The key integration point is `PermissionClaimsTransformer.TransformAsync` — inject `IPermissionService` and populate permission claims from the DB.
 
 ## Design rules
 

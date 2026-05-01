@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Unified.Authorization.Claims;
+using Unified.Infrastructure.ErrorHandling;
 
 namespace Unified.Authorization.Requirements;
 
@@ -7,12 +8,13 @@ namespace Unified.Authorization.Requirements;
 /// Succeeds when the authenticated user has a <see cref="UnifiedClaimTypes.Permission"/>
 /// claim matching <see cref="PermissionRequirement.Permission"/>.
 ///
-/// Throws <see cref="UnauthorizedAccessException"/> when the authenticated user lacks
-/// the required permission, which is caught by the global exception handler and
-/// returned as a 403 ProblemDetails response.
+/// Throws <see cref="ForbiddenException"/> when an authenticated user lacks the required
+/// permission; the global exception handler maps it to a 403 ProblemDetails response.
+/// Unauthenticated requests are not failed here so that the standard authentication
+/// challenge (401) flow is preserved.
 ///
 /// Permission claims are added at login by <see cref="PermissionClaimsTransformer"/>,
-/// which expands the user's Keycloak role claims into permission claims.
+/// which expands the user's role claims into permission claims.
 /// </summary>
 public sealed class PermissionAuthorizationHandler
     : AuthorizationHandler<PermissionRequirement>
@@ -21,6 +23,10 @@ public sealed class PermissionAuthorizationHandler
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
+        // Let the authentication pipeline handle unauthenticated users (401 challenge).
+        if (context.User.Identity?.IsAuthenticated != true)
+            return Task.CompletedTask;
+
         var hasPermission = context.User.Claims
             .Any(c => c.Type == UnifiedClaimTypes.Permission
                    && c.Value == requirement.Permission);
@@ -28,7 +34,7 @@ public sealed class PermissionAuthorizationHandler
         if (hasPermission)
             context.Succeed(requirement);
         else
-            throw new UnauthorizedAccessException(
+            throw new ForbiddenException(
                 $"Missing required permission: {requirement.Permission}");
 
         return Task.CompletedTask;
