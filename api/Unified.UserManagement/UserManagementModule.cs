@@ -1,5 +1,7 @@
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.Authorization;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
@@ -27,6 +29,20 @@ public static class UserManagementModule
 
         services.AddScoped<UserRequestValidator>();
         services.AddScoped<RoleRequestValidator>();
+
+        // Register permission policies owned by this module
+        services.AddAuthorizationBuilder()
+            // Users
+            .AddPermissionPolicy(Permissions.UsersCreate)
+            .AddPermissionPolicy(Permissions.UsersEdit)
+            .AddPermissionPolicy(Permissions.UsersView)
+            .AddPermissionPolicy(Permissions.UsersExpire)
+            .AddPermissionPolicy(Permissions.UsersViewOtherProfiles)
+            // Roles
+            .AddPermissionPolicy(Permissions.RolesView)
+            .AddPermissionPolicy(Permissions.RolesCreateAndAssign)
+            .AddPermissionPolicy(Permissions.RolesEdit)
+            .AddPermissionPolicy(Permissions.RolesExpire);
 
         return services;
     }

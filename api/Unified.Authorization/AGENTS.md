@@ -26,7 +26,7 @@ See [README.md § Improvements over sheriff-scheduling](README.md#improvements-o
 ### Add a permission for a new feature
 
 1. `Permissions.cs` — add `public const string EntityNameAction = nameof(EntityNameAction);` following the existing naming convention.
-2. `AuthorizationModule.cs` — add `.AddPermissionPolicy(Permissions.EntityNameAction)` inside `AddAuthorizationModule`.
+2. In your feature module's `AddXxxModule` method, call `services.AddAuthorizationBuilder().AddPermissionPolicy(Permissions.EntityNameAction)`. Each module owns its own permission registrations — do not add them to `AuthorizationModule`.
 3. Apply the policy to the controller or action (see **Protect a controller action** below).
 4. Associate the permission with the appropriate role(s) in the database so the transformer surfaces it on the principal.
 
@@ -38,19 +38,19 @@ See [README.md § Improvements over sheriff-scheduling](README.md#improvements-o
 
 ### Protect a controller action
 
-> **Important — use string concatenation, not `PolicyName()`, in attributes.**
+> **Important — use string concatenation, not `BuildPolicyName()`, in attributes.**
 >
-> C# attribute arguments must be **compile-time constants**. `AuthorizationModule.PolicyName()` is a method call and cannot be used inside `[Authorize(...)]`. Instead, concatenate the two `const` values directly — the compiler evaluates it at compile time:
+> C# attribute arguments must be **compile-time constants**. `AuthorizationModule.BuildPolicyName()` is a method call and cannot be used inside `[Authorize(...)]`. Instead, concatenate the two `const` values directly — the compiler evaluates it at compile time:
 >
 > ```csharp
 > // ✅ Correct — both sides are const, result is a compile-time constant
 > [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.ShiftsEdit)]
 >
 > // ❌ Wrong — method calls are not allowed in attribute arguments
-> [Authorize(Policy = AuthorizationModule.PolicyName(Permissions.ShiftsEdit))]
+> [Authorize(Policy = AuthorizationModule.BuildPolicyName(Permissions.ShiftsEdit))]
 > ```
 >
-> Use `AuthorizationModule.PolicyName(permission)` only at **runtime**, e.g., in `IAuthorizationService.AuthorizeAsync` calls inside service code.
+> Use `AuthorizationModule.BuildPolicyName(permission)` only at **runtime**, e.g., in `IAuthorizationService.AuthorizeAsync` calls inside service code.
 
 Example controller:
 
@@ -66,7 +66,7 @@ Inject `IAuthorizationService` and use the helper method (valid here because it'
 
 ```csharp
 var result = await _authorizationService.AuthorizeAsync(
-    user, null, AuthorizationModule.PolicyName(Permissions.ShiftsView));
+    user, null, AuthorizationModule.BuildPolicyName(Permissions.ShiftsView));
 if (!result.Succeeded) return Forbid();
 ```
 
@@ -80,7 +80,7 @@ See `README.md` → "Replacing hardcoded data with database values" for the full
 - **Policy naming** — policies are prefixed `"Permission:"` (e.g., `"Permission:ShiftsEdit"`). The prefix is intentional:
   - Makes authorization failures in logs immediately recognisable as permission checks rather than role or feature-flag policies.
   - Allows other policy families (`"FeatureFlag:"`) to coexist without name collisions.
-  - The prefix is hidden from callers via `PolicyPrefix` constant and `PolicyName()` helper — no maintenance burden.
+  - The prefix is hidden from callers via `PolicyPrefix` constant and `BuildPolicyName()` helper — no maintenance burden.
   > **Keep the prefix. Do not remove it.**
 - **One requirement type** (`PermissionRequirement`) covers all cases. Do not create separate requirement classes per feature.
 - **No logic in `Permissions.cs` or `Roles.cs`** — they are pure constant containers.

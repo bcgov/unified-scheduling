@@ -11,7 +11,7 @@ Permission-based authorization for the Unified Scheduling API using ASP.NET Core
 
 ## Securing a controller
 
-Apply `[Authorize(Policy = ...)]` at the controller or action level. Because C# attribute arguments must be **compile-time constants**, you cannot call `AuthorizationModule.PolicyName()` (a method) inside an attribute. Use string concatenation of the two `const` values instead:
+Apply `[Authorize(Policy = ...)]` at the controller or action level. Because C# attribute arguments must be **compile-time constants**, you cannot call `AuthorizationModule.BuildPolicyName()` (a method) inside an attribute. Use string concatenation of the two `const` values instead:
 
 ```csharp
 using Microsoft.AspNetCore.Authorization;
@@ -39,7 +39,7 @@ public class ShiftsController(IShiftService shiftService) : ControllerBase
 }
 ```
 
-Use `AuthorizationModule.PolicyName(permission)` at **runtime** (e.g., `IAuthorizationService.AuthorizeAsync`) where a method call is valid.
+Use `AuthorizationModule.BuildPolicyName(permission)` at **runtime** (e.g., `IAuthorizationService.AuthorizeAsync`) where a method call is valid.
 
 ## Permission constants
 

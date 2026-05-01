@@ -27,8 +27,7 @@ public sealed class PermissionClaimsTransformer : IClaimsTransformation
         // @TODO: Get Permissions from Database
         var permissions = Array.Empty<string>();
 
-        foreach (var permission in permissions)
-            identity.AddClaim(new Claim(UnifiedClaimTypes.Permission, permission));
+        identity.AddClaims(permissions.Select(p => new Claim(UnifiedClaimTypes.Permission, p)));
 
         return Task.FromResult(principal);
     }

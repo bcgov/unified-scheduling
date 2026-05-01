@@ -16,15 +16,15 @@ public static class AuthorizationModule
 {
     /// <summary>
     /// Policy name prefix. Policies are named "Permission:{permissionName}".
-    /// Use <see cref="PolicyName"/> to build a policy name from a permission constant.
+    /// Use <see cref="BuildPolicyName"/> to build a policy name from a permission constant.
     /// </summary>
     public const string PolicyPrefix = "Permission:";
 
     /// <summary>
     /// Builds the policy name for a given permission constant.
-    /// Example: PolicyName(Permissions.ShiftsEdit) → "Permission:ShiftsEdit"
+    /// Example: BuildPolicyName(Permissions.ShiftsEdit) → "Permission:ShiftsEdit"
     /// </summary>
-    public static string PolicyName(string permission) => $"{PolicyPrefix}{permission}";
+    public static string BuildPolicyName(string permission) => $"{PolicyPrefix}{permission}";
 
     public static IServiceCollection AddAuthorizationModule(this IServiceCollection services)
     {
@@ -34,68 +34,28 @@ public static class AuthorizationModule
         // Handler that checks permission claims
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
-        // Register one policy per permission constant
-        services.AddAuthorizationBuilder()
-            .AddPermissionPolicy(Permissions.AuthLogin)
-            // Users
-            .AddPermissionPolicy(Permissions.UsersCreate)
-            .AddPermissionPolicy(Permissions.UsersEdit)
-            .AddPermissionPolicy(Permissions.UsersView)
-            .AddPermissionPolicy(Permissions.UsersExpire)
-            .AddPermissionPolicy(Permissions.UsersViewOtherProfiles)
-            // Roles
-            .AddPermissionPolicy(Permissions.RolesView)
-            .AddPermissionPolicy(Permissions.RolesCreateAndAssign)
-            .AddPermissionPolicy(Permissions.RolesEdit)
-            .AddPermissionPolicy(Permissions.RolesExpire)
-            // Types
-            .AddPermissionPolicy(Permissions.TypesCreate)
-            .AddPermissionPolicy(Permissions.TypesEdit)
-            .AddPermissionPolicy(Permissions.TypesExpire)
-            // Shifts
-            .AddPermissionPolicy(Permissions.ShiftsView)
-            .AddPermissionPolicy(Permissions.ShiftsCreateAndAssign)
-            .AddPermissionPolicy(Permissions.ShiftsEdit)
-            .AddPermissionPolicy(Permissions.ShiftsExpire)
-            .AddPermissionPolicy(Permissions.ShiftsImport)
-            .AddPermissionPolicy(Permissions.ShiftsViewAllFuture)
-            // Schedule
-            .AddPermissionPolicy(Permissions.ScheduleViewDistribute)
-            // Assignments
-            .AddPermissionPolicy(Permissions.AssignmentsCreate)
-            .AddPermissionPolicy(Permissions.AssignmentsEdit)
-            .AddPermissionPolicy(Permissions.AssignmentsExpire)
-            // Duty Roster
-            .AddPermissionPolicy(Permissions.DutyRosterView)
-            .AddPermissionPolicy(Permissions.DutyRosterViewFuture)
-            // Duties
-            .AddPermissionPolicy(Permissions.DutiesCreateAndAssign)
-            .AddPermissionPolicy(Permissions.DutiesEdit)
-            .AddPermissionPolicy(Permissions.DutiesExpire)
-            // Location
-            .AddPermissionPolicy(Permissions.LocationViewHome)
-            .AddPermissionPolicy(Permissions.LocationViewAssigned)
-            .AddPermissionPolicy(Permissions.LocationViewRegion)
-            .AddPermissionPolicy(Permissions.LocationViewProvince)
-            .AddPermissionPolicy(Permissions.LocationExpire)
-            // Training
-            .AddPermissionPolicy(Permissions.TrainingEditPast)
-            .AddPermissionPolicy(Permissions.TrainingRemovePast)
-            .AddPermissionPolicy(Permissions.TrainingAdjustExpiry)
-            .AddPermissionPolicy(Permissions.TrainingExempt)
-            // IDIR
-            .AddPermissionPolicy(Permissions.IdirEdit)
-            // Reports
-            .AddPermissionPolicy(Permissions.ReportsGenerate);
+        // Register cross-cutting permissions. Each feature module registers its
+        // own permissions by calling AddAuthorizationBuilder().AddPermissionPolicy(...)
+        // inside its own AddXxxModule() extension.
 
         return services;
     }
 
-    private static AuthorizationBuilder AddPermissionPolicy(
+    /// <summary>
+    /// Registers a single named permission policy on the authorization builder.
+    /// Each feature module should call this for its own permissions rather than
+    /// listing them all here — keeping policy ownership co-located with the module.
+    ///
+    /// Example usage inside a module's AddXxxModule:
+    ///   services.AddAuthorizationBuilder()
+    ///       .AddPermissionPolicy(Permissions.ShiftsView)
+    ///       .AddPermissionPolicy(Permissions.ShiftsEdit);
+    /// </summary>
+    public static AuthorizationBuilder AddPermissionPolicy(
         this AuthorizationBuilder builder, string permission)
     {
         return builder.AddPolicy(
-            PolicyName(permission),
+            BuildPolicyName(permission),
             policy => policy
                 .RequireAuthenticatedUser()
                 .AddRequirements(new PermissionRequirement(permission)));
