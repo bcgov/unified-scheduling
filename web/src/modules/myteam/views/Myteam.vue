@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { GetApiUsersParams } from '@/api-access/generated/models';
 import { getApiUsers } from '@/api-access/generated/users/users';
+import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
+import UaTextField from '@/shared/components/UaTextField.vue';
 import { mdiPlus } from '@mdi/js';
 import { computed, ref } from 'vue';
 import UserCard from '../components/UserCard.vue';
@@ -44,16 +46,16 @@ const handleCreateModalClose = () => {
 <template>
   <UaPageHeader title="My Team">
     <template #actions>
-      <v-btn @click="handleAddMember"> <v-icon :icon="mdiPlus"></v-icon> Add Member </v-btn>
+      <UaBtn @click="handleAddMember" :prepend-icon="mdiPlus">Add Member</UaBtn>
     </template>
   </UaPageHeader>
 
   <div class="my-team-list-header">
     <div class="my-team-search-wrapper">
-      <v-text-field
+      <UaTextField
+        id="team-search"
+        label="Search"
         v-model="searchText"
-        placeholder="Search"
-        variant="outlined"
         class="my-team-search-input"
         @keydown.enter="() => execute()"
       />

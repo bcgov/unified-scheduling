@@ -13,10 +13,12 @@ import {
   type SubCategoryMetricResponse,
   type SubCategoryResponse,
 } from '@/api-access/stats';
-import Select from '@/shared/components/Select.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
+import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
+import UaSelect from '@/shared/components/UaSelect.vue';
+import UaTextField from '@/shared/components/UaTextField.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
 import { mdiPlus } from '@mdi/js';
@@ -305,7 +307,7 @@ const handleSave = async (status: string) => {
         <!-- Location + Period -->
         <UaFormGrid>
           <label class="ua-form-label" for="location-select">Location</label>
-          <Select
+          <UaSelect
             id="location-select"
             label="Select Location"
             :items="locationOptions"
@@ -317,21 +319,30 @@ const handleSave = async (status: string) => {
           <label class="ua-form-label">Period</label>
           <div class="period-row">
             <v-btn-toggle v-model="periodType" mandatory density="compact" variant="outlined" color="primary">
-              <v-btn v-for="opt in periodOptions" :key="opt.value" :value="opt.value" size="small">
+              <UaBtn v-for="opt in periodOptions" :key="opt.value" :value="opt.value" size="small">
                 {{ opt.label }}
-              </v-btn>
+              </UaBtn>
             </v-btn-toggle>
           </div>
 
           <template v-if="periodType === 'Weekly'">
-            <label class="ua-form-label">Date From</label>
-            <v-text-field v-model="weeklyFrom" type="date" hide-details />
-            <label class="ua-form-label">Date To</label>
-            <v-text-field v-model="weeklyTo" type="date" :min="weeklyFrom" :max="addDays(weeklyFrom, 6)" hide-details />
+            <UaTextField id="weekly-from" label="Date From" v-model="weeklyFrom" type="date" />
+            <UaTextField
+              id="weekly-to"
+              label="Date To"
+              v-model="weeklyTo"
+              type="date"
+              :min="weeklyFrom"
+              :max="addDays(weeklyFrom, 6)"
+            />
           </template>
           <template v-else>
-            <label class="ua-form-label">{{ periodType === 'Monthly' ? 'Month' : 'Date' }}</label>
-            <v-text-field v-model="anchorDate" :type="periodType === 'Monthly' ? 'month' : 'date'" hide-details />
+            <UaTextField
+              id="anchor-date"
+              :label="periodType === 'Monthly' ? 'Month' : 'Date'"
+              v-model="anchorDate"
+              :type="periodType === 'Monthly' ? 'month' : 'date'"
+            />
           </template>
         </UaFormGrid>
 
@@ -361,9 +372,9 @@ const handleSave = async (status: string) => {
             @remove="removeAssignment(assignment.id)"
           />
 
-          <v-btn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
+          <UaBtn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
             Add Assignment
-          </v-btn>
+          </UaBtn>
         </div>
 
         <!-- Form-level error -->
@@ -371,13 +382,13 @@ const handleSave = async (status: string) => {
 
         <!-- Actions -->
         <div class="form-actions">
-          <v-btn variant="outlined" :disabled="isSubmitting" @click="$router.back()">Back</v-btn>
-          <v-btn variant="outlined" color="primary" :loading="isSubmitting" @click="handleSave('Draft')">
+          <UaBtn variant="outlined" :disabled="isSubmitting" @click="$router.back()">Back</UaBtn>
+          <UaBtn variant="outlined" color="primary" :loading="isSubmitting" @click="handleSave('Draft')">
             Save Draft
-          </v-btn>
-          <v-btn color="primary" variant="flat" :loading="isSubmitting" @click="handleSave('Submitted')">
+          </UaBtn>
+          <UaBtn color="primary" variant="flat" :loading="isSubmitting" @click="handleSave('Submitted')">
             Submit
-          </v-btn>
+          </UaBtn>
         </div>
       </template>
     </UaCard>
@@ -448,7 +459,7 @@ const handleSave = async (status: string) => {
   padding-top: var(--ua-spacing-sm);
 }
 
-.form-actions .v-btn {
+.form-actions :deep(.v-btn) {
   min-width: 120px;
 }
 
@@ -466,7 +477,7 @@ const handleSave = async (status: string) => {
     flex-wrap: wrap;
   }
 
-  .form-actions .v-btn {
+  .form-actions :deep(.v-btn) {
     flex: 1 1 auto;
     min-width: 0;
   }

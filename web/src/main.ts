@@ -1,4 +1,4 @@
-import '@bcgov/design-tokens/css/variables.css';
+import '@bcgov/design-tokens/css-prefixed/variables.css';
 
 import { createPinia } from 'pinia';
 import { createApp } from 'vue';

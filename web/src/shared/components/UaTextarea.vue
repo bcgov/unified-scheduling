@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends string | number | null = string">
+<script setup lang="ts">
 defineOptions({ inheritAttrs: false });
 
 defineProps<{
@@ -9,33 +9,25 @@ defineProps<{
   errorMessages?: string;
   disabled?: boolean;
   placeholder?: string;
-  type?: string;
-  modelValue?: T;
+  modelValue?: string;
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: T): void;
+  (e: 'update:modelValue', value: string): void;
 }>();
-
-const updateModelValue = (value: string) => {
-  emit('update:modelValue', value as T);
-};
 </script>
 
 <template>
-  <label class="ua-form-label" :for="id"
-    ><slot name="label">{{ label }}</slot></label
-  >
-  <v-text-field
+  <label class="ua-form-label" :for="id">{{ label }}</label>
+  <v-textarea
     :id="id"
     :model-value="modelValue"
     :placeholder="placeholder || label"
-    :type="type"
     :error-messages="errorMessages"
     :disabled="disabled"
     hide-details="auto"
     v-bind="$attrs"
-    @update:model-value="updateModelValue"
+    @update:model-value="(v: string) => emit('update:modelValue', String(v))"
   />
 </template>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UaCard from '@/shared/components/UaCard.vue';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { UserResponse } from '@/api-access/generated/models';
@@ -19,11 +20,11 @@ const gotoProfile = () => {
 </script>
 
 <template>
-  <v-card class="user-card" @click="gotoProfile">
+  <UaCard class="user-card" @click="gotoProfile">
     <v-avatar color="grey" size="40">
       <span class="text-headline-small">{{ initials }}</span>
     </v-avatar>
-    <v-card-title :title="fullName" class="user-card-title">
+    <div :title="fullName" class="user-card-title">
       <div class="user-full-name">
         {{ fullName }}
       </div>
@@ -34,19 +35,23 @@ const gotoProfile = () => {
       >
         {{ user.badgeNumber }}
       </div>
-    </v-card-title>
-  </v-card>
+    </div>
+  </UaCard>
 </template>
 
 <style scoped>
 .user-card {
   width: 160px;
   height: 160px;
+  cursor: pointer;
+}
+
+:deep(.ua-card__body) {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: rgb(var(--v-theme-surface));
+  height: 100%;
   padding: var(--ua-spacing-md);
 }
 

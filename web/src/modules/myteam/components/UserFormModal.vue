@@ -3,10 +3,11 @@ import { Gender, LookupCodeTypes, type UserRequestDto, type UserResponse } from 
 import { postApiUsers, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
+import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
+import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
-import Select from '@/shared/components/Select.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
@@ -211,7 +212,7 @@ const handleSave = async () => {
       />
 
       <label class="ua-form-label" for="gender">Gender</label>
-      <Select
+      <UaSelect
         id="gender"
         v-model="formData.gender"
         label="Gender"
@@ -220,7 +221,7 @@ const handleSave = async () => {
       />
 
       <label class="ua-form-label" for="rank">Rank</label>
-      <Select
+      <UaSelect
         id="rank"
         v-model="formData.rank"
         label="Rank"
@@ -234,11 +235,11 @@ const handleSave = async () => {
         :model-value="formData.badgeNumber"
         :error-messages="formErrors.badgeNumber"
         :disabled="isLoading"
-        @update:model-value="(v: string) => (formData.badgeNumber = v)"
+        @update:model-value="(v) => (formData.badgeNumber = v as string)"
       />
 
       <label class="ua-form-label" for="home-location">Home Location</label>
-      <Select
+      <UaSelect
         id="home-location"
         v-model="formData.homeLocationId"
         label="Home Location"
@@ -262,10 +263,10 @@ const handleSave = async () => {
     </UaFormGrid>
 
     <template #actions>
-      <v-btn variant="outlined" @click="handleClose" :disabled="isLoading">Close</v-btn>
-      <v-btn color="primary" variant="flat" @click="handleSave" :loading="isLoading">
+      <UaBtn variant="outlined" @click="handleClose" :disabled="isLoading">Close</UaBtn>
+      <UaBtn color="primary" variant="flat" @click="handleSave" :loading="isLoading">
         {{ isEditMode ? 'Save Changes' : 'Add Member' }}
-      </v-btn>
+      </UaBtn>
     </template>
   </UaModal>
 </template>

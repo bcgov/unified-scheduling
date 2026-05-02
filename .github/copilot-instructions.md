@@ -17,12 +17,14 @@ npm run pre:push     # lint + format + build + test (run before pushing)
 ```
 
 **Run a single test file:**
+
 ```bash
 cd web
 npx vitest run src/path/to/file.spec.ts
 ```
 
 **Regenerate API client** (requires API running at `http://localhost:5000`):
+
 ```bash
 npm run gen:api
 ```
@@ -36,11 +38,13 @@ dotnet test          # run all tests (xUnit v3 MTP runner)
 ```
 
 **Run a single test project:**
+
 ```bash
 dotnet test api/Unified.Tests/Unified.Tests.csproj
 ```
 
 **Format check (run before pushing):**
+
 ```bash
 dotnet csharpier check .
 dotnet format style --verify-no-changes
@@ -48,6 +52,7 @@ dotnet format analyzers --verify-no-changes
 ```
 
 **Auto-fix formatting:**
+
 ```bash
 dotnet csharpier .
 dotnet format style
@@ -64,6 +69,7 @@ make down    # stop + remove volumes
 ```
 
 Services once running:
+
 - `http://localhost:8080/` — Frontend
 - `http://localhost:8080/api/` — API (Scalar/OpenAPI docs)
 - `http://localhost:5000/api/` — API direct
@@ -100,7 +106,7 @@ Each domain module registers its own seeders (e.g., `UserSeeder`, `RegionSeeder`
 Each feature lives in `src/modules/<name>/` with a `*Module.ts` that exports `registerModule(routes)`. The router (`src/router/index.ts`) calls `registerModule` per module and optionally gates registration behind feature flags from the API config:
 
 ```ts
-if (accessControl.isFeatureFlagEnabled('statsModule')) {
+if (accessControl.isFeatureFlagEnabled("statsModule")) {
   statsModule.registerModule(routes);
 }
 ```
@@ -120,6 +126,25 @@ Run `npm run gen:api` (with the API running) to regenerate. Run `npm run gen:api
 
 ## Key Conventions
 
+### Shared UI Components (`Ua*`)
+
+Always use `Ua{Component}` wrappers from `src/shared/components/` instead of raw Vuetify components.
+
+| Ua component        | Wraps                                      |
+| ------------------- | ------------------------------------------ |
+| `UaAlert`           | `v-alert`                                  |
+| `UaBtn`             | `v-btn`                                    |
+| `UaCard`            | custom card with header/body/actions slots |
+| `UaFormGrid`        | label+field grid layout                    |
+| `UaModal`           | `v-dialog`                                 |
+| `UaPageHeader`      | page title + actions slot                  |
+| `UaPlaceholderPage` | empty state page                           |
+| `UaSelect`          | `v-select`                                 |
+| `UaTextarea`        | `v-textarea`                               |
+| `UaTextField`       | `v-text-field`                             |
+
+**Rule**: Never use `v-btn`, `v-card`, `v-select`, `v-text-field`, `v-textarea` directly in feature modules. If a raw Vuetify component is needed in more than one place and no `Ua*` wrapper exists, create one in `src/shared/components/` first.
+
 ### Feature Flags (dual-sided)
 
 Feature flags are declared in both the backend and frontend and must stay in sync:
@@ -138,7 +163,9 @@ FluentValidation is used for request validation. Validators live in the domain m
 **Frontend**: Tests use `createTestApp()` from `src/__tests__/helpers/createTestApp.ts` which sets up Pinia, Vue Router, Vuetify, and MSW. MSW handlers from `src/__tests__/mocks/` intercept API calls. Feature flags and auth state can be overridden per test:
 
 ```ts
-const { mountPlugins } = await createTestApp({ featureFlags: { statsModule: false } });
+const { mountPlugins } = await createTestApp({
+  featureFlags: { statsModule: false },
+});
 ```
 
 ### GitHub Actions

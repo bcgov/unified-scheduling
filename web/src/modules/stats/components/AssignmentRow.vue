@@ -6,8 +6,12 @@ import type {
   SubCategoryMetricResponse,
   SubCategoryResponse,
 } from '@/api-access/stats';
-import Select from '@/shared/components/Select.vue';
+import UaBtn from '@/shared/components/UaBtn.vue';
+import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
+import UaSelect from '@/shared/components/UaSelect.vue';
+import UaTextarea from '@/shared/components/UaTextarea.vue';
+import UaTextField from '@/shared/components/UaTextField.vue';
 import type { SelectValue } from '@/types/select';
 import { computed } from 'vue';
 import type { AssignmentData } from '../types';
@@ -104,121 +108,92 @@ const onCommentInput = (value: string) => {
 </script>
 
 <template>
-  <v-card class="assignment-card" variant="outlined">
-    <div class="assignment-header" :style="headerColor ? { backgroundColor: headerColor } : undefined">
-      <span class="assignment-title">Assignment {{ index + 1 }}</span>
-      <v-btn variant="text" density="compact" color="white" class="remove-btn" @click="emit('remove')"> Remove </v-btn>
-    </div>
-
-    <v-card-text class="assignment-body">
-      <UaFormGrid>
-        <!-- Group — hidden when a fixed group is set at the form level -->
-        <template v-if="!fixedGroupId">
-          <label class="ua-form-label" :for="`group-${model.id}`">Group</label>
-          <Select
-            :id="`group-${model.id}`"
-            label="Select Group"
-            :items="groupOptions"
-            :model-value="model.groupId"
-            :error-messages="errors[`assignment_${index}_group`]"
-            @update:model-value="onGroupChange"
-          />
-        </template>
-
-        <!-- Work Area (Category) -->
-        <label class="ua-form-label" :for="`category-${model.id}`">Work Area</label>
-        <Select
-          :id="`category-${model.id}`"
-          label="Select Work Area"
-          :items="categoryOptions"
-          :model-value="model.categoryId"
-          :error-messages="errors[`assignment_${index}_category`]"
-          :disabled="!model.groupId"
-          @update:model-value="onCategoryChange"
+  <UaCard :title="`Assignment ${index + 1}`" :header-color="headerColor" class="assignment-card">
+    <template #header-actions>
+      <UaBtn variant="text" density="compact" color="white" class="remove-btn" @click="emit('remove')">Remove</UaBtn>
+    </template>
+    <UaFormGrid>
+      <!-- Group — hidden when a fixed group is set at the form level -->
+      <template v-if="!fixedGroupId">
+        <label class="ua-form-label" :for="`group-${model.id}`">Group</label>
+        <UaSelect
+          :id="`group-${model.id}`"
+          label="Select Group"
+          :items="groupOptions"
+          :model-value="model.groupId"
+          :error-messages="errors[`assignment_${index}_group`]"
+          @update:model-value="onGroupChange"
         />
+      </template>
 
-        <!-- Subcategory — only shown when there are multiple options -->
-        <template v-if="showSubCategorySelect">
-          <label class="ua-form-label" :for="`subcategory-${model.id}`">Subcategory</label>
-          <Select
-            :id="`subcategory-${model.id}`"
-            label="Select Subcategory"
-            :items="subCategoryOptions"
-            :model-value="model.subCategoryId"
-            :error-messages="errors[`assignment_${index}_subCategory`]"
-            @update:model-value="onSubCategoryChange"
-          />
-        </template>
+      <!-- Work Area (Category) -->
+      <label class="ua-form-label" :for="`category-${model.id}`">Work Area</label>
+      <UaSelect
+        :id="`category-${model.id}`"
+        label="Select Work Area"
+        :items="categoryOptions"
+        :model-value="model.categoryId"
+        :error-messages="errors[`assignment_${index}_category`]"
+        :disabled="!model.groupId"
+        @update:model-value="onCategoryChange"
+      />
 
-        <!-- Dynamic metric inputs -->
-        <template v-for="m in metricDetails" :key="m.id">
-          <label class="ua-form-label" :for="`metric-${model.id}-${m.id}`">
+      <!-- Subcategory — only shown when there are multiple options -->
+      <template v-if="showSubCategorySelect">
+        <label class="ua-form-label" :for="`subcategory-${model.id}`">Subcategory</label>
+        <UaSelect
+          :id="`subcategory-${model.id}`"
+          label="Select Subcategory"
+          :items="subCategoryOptions"
+          :model-value="model.subCategoryId"
+          :error-messages="errors[`assignment_${index}_subCategory`]"
+          @update:model-value="onSubCategoryChange"
+        />
+      </template>
+
+      <!-- Dynamic metric inputs -->
+      <template v-for="m in metricDetails" :key="m.id">
+        <UaTextField
+          :id="`metric-${model.id}-${m.id}`"
+          :label="m.name"
+          type="number"
+          min="0"
+          step="0.25"
+          placeholder="0"
+          :model-value="model.metricValues[m.id] ?? ''"
+          :error-messages="errors[`assignment_${index}_metric_${m.id}`]"
+          @update:model-value="(v: string) => onMetricValueInput(m.id, String(v))"
+        >
+          <template #label>
             {{ m.name }}
             <span class="unit-label">({{ m.unit }})</span>
-          </label>
-          <v-text-field
-            :id="`metric-${model.id}-${m.id}`"
-            type="number"
-            min="0"
-            step="0.25"
-            placeholder="0"
-            hide-details="auto"
-            :model-value="model.metricValues[m.id] ?? ''"
-            :error-messages="errors[`assignment_${index}_metric_${m.id}`]"
-            @update:model-value="(v) => onMetricValueInput(m.id, String(v))"
-          />
-        </template>
+          </template>
+        </UaTextField>
+      </template>
 
-        <!-- Assignment-level error (no metrics entered) -->
-        <template v-if="errors[`assignment_${index}`]">
-          <span />
-          <span class="field-error">{{ errors[`assignment_${index}`] }}</span>
-        </template>
+      <!-- Assignment-level error (no metrics entered) -->
+      <template v-if="errors[`assignment_${index}`]">
+        <span />
+        <span class="field-error">{{ errors[`assignment_${index}`] }}</span>
+      </template>
 
-        <!-- Comment -->
-        <label class="ua-form-label" :for="`comment-${model.id}`">Comment</label>
-        <v-textarea
-          :id="`comment-${model.id}`"
-          rows="2"
-          auto-grow
-          hide-details="auto"
-          placeholder="Optional note"
-          :model-value="model.comment"
-          @update:model-value="(v) => onCommentInput(String(v))"
-        />
-      </UaFormGrid>
-    </v-card-text>
-  </v-card>
+      <!-- Comment -->
+      <UaTextarea
+        :id="`comment-${model.id}`"
+        label="Comment"
+        rows="2"
+        auto-grow
+        placeholder="Optional note"
+        :model-value="model.comment"
+        @update:model-value="(v: string) => onCommentInput(String(v))"
+      />
+    </UaFormGrid>
+  </UaCard>
 </template>
 
 <style scoped>
-.assignment-card {
-  border-radius: var(--ua-border-radius);
-  overflow: hidden;
-  border-color: var(--ua-border-color);
-}
-
-.assignment-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--ua-spacing-sm) var(--ua-spacing-md) var(--ua-spacing-sm) var(--ua-spacing-lg);
-  background: var(--ua-card-header-bg);
-}
-
-.assignment-title {
-  font-size: var(--ua-font-size-base);
-  font-weight: var(--ua-font-weight-bold);
-  color: var(--ua-card-header-color);
-}
-
 .remove-btn {
   font-size: var(--ua-font-size-sm);
-}
-
-.assignment-body {
-  padding: var(--ua-spacing-lg);
-  background: var(--ua-card-body-bg);
 }
 
 .ua-form-label {
@@ -245,8 +220,5 @@ const onCommentInput = (value: string) => {
 }
 
 @media (max-width: 640px) {
-  .assignment-body {
-    padding: var(--ua-spacing-md);
-  }
 }
 </style>

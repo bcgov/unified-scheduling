@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { getApiUsersId } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
+import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import { computed, ref } from 'vue';
 import UserFormModal from '../components/UserFormModal.vue';
@@ -32,7 +33,7 @@ const handleEditModalClose = () => {
   <div v-else-if="error">Error: {{ error.message }}</div>
   <UaPageHeader title="Profile">
     <template #actions>
-      <v-btn @click="handleEditMember" :disabled="!data">Edit Member</v-btn>
+      <UaBtn @click="handleEditMember" :disabled="!data">Edit Member</UaBtn>
     </template>
   </UaPageHeader>
   <div class="profile-layout">
@@ -51,12 +52,12 @@ const handleEditModalClose = () => {
       </div>
 
       <div class="profile-subnav">
-        <v-btn variant="outlined">Identification</v-btn>
-        <v-btn variant="outlined">Acting rank</v-btn>
-        <v-btn variant="outlined">Schedule</v-btn>
-        <v-btn variant="outlined">Work History</v-btn>
-        <v-btn variant="outlined">Schedule</v-btn>
-        <v-btn variant="outlined">Deactivate</v-btn>
+        <UaBtn variant="outlined">Identification</UaBtn>
+        <UaBtn variant="outlined">Acting rank</UaBtn>
+        <UaBtn variant="outlined">Schedule</UaBtn>
+        <UaBtn variant="outlined">Work History</UaBtn>
+        <UaBtn variant="outlined">Schedule</UaBtn>
+        <UaBtn variant="outlined">Deactivate</UaBtn>
       </div>
     </div>
     <!-- Right Panel -->
