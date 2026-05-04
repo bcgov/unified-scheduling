@@ -14,10 +14,11 @@ import Appbar from '@/shared/components/Appbar.vue';
 
 <style scoped>
 .main-content {
-  height: calc(100vh - 64px);
-  margin-top: 64px;
+  height: calc(100vh - var(--ua-appbar-height));
+  margin-top: var(--ua-appbar-height);
   overflow-y: auto;
-  padding: 0 8rem;
-  background-color: #f5f5f5;
+  padding: 0 var(--ua-page-padding-x);
+  background-color: rgb(var(--v-theme-background));
+  padding-top: var(--ua-spacing-md);
 }
 </style>

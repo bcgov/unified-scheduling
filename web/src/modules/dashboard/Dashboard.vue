@@ -1,9 +1,7 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
+</script>
 
 <template>
-  <div class="dashboard-container">
-    <h2>Dashboard</h2>
-  </div>
+  <UaPlaceholderPage title="Dashboard" description="Your dashboard will appear here." />
 </template>
-
-<style scoped></style>

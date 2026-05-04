@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { mdiPlus } from '@mdi/js';
-import { getApiUsers } from '@/api-access/generated/users/users';
 import type { GetApiUsersParams } from '@/api-access/generated/models';
+import { getApiUsers } from '@/api-access/generated/users/users';
+import UaBtn from '@/shared/components/UaBtn.vue';
+import UaPageHeader from '@/shared/components/UaPageHeader.vue';
+import UaTextField from '@/shared/components/UaTextField.vue';
+import { mdiPlus } from '@mdi/js';
+import { computed, ref } from 'vue';
 import UserCard from '../components/UserCard.vue';
 import UserFormModal from '../components/UserFormModal.vue';
 
@@ -41,21 +44,18 @@ const handleCreateModalClose = () => {
 </script>
 
 <template>
-  <div class="my-team-header-row">
-    <div>
-      <h2 class="my-team-title">My Team</h2>
-    </div>
-    <div>
-      <v-btn @click="handleAddMember"> <v-icon :icon="mdiPlus"></v-icon> Add Member </v-btn>
-    </div>
-  </div>
+  <UaPageHeader title="My Team">
+    <template #actions>
+      <UaBtn @click="handleAddMember" :prepend-icon="mdiPlus">Add Member</UaBtn>
+    </template>
+  </UaPageHeader>
 
   <div class="my-team-list-header">
     <div class="my-team-search-wrapper">
-      <v-text-field
+      <UaTextField
+        id="team-search"
+        label="Search"
         v-model="searchText"
-        placeholder="Search"
-        variant="outlined"
         class="my-team-search-input"
         @keydown.enter="() => execute()"
       />
@@ -78,23 +78,13 @@ const handleCreateModalClose = () => {
 </template>
 
 <style scoped>
-.my-team-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.my-team-title {
-  margin-left: 4rem;
-}
-
 .my-team-list-header {
-  padding: 2rem;
-  background-color: #fff;
+  padding: var(--ua-spacing-xl);
+  background-color: rgb(var(--v-theme-surface));
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: var(--ua-spacing-md);
 }
 
 .my-team-search-wrapper {
@@ -107,16 +97,16 @@ const handleCreateModalClose = () => {
 
 .my-team-filter-row {
   display: flex;
-  gap: 1rem;
+  gap: var(--ua-spacing-md);
   align-items: center;
 }
 
 .my-team-list-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 2rem;
+  gap: var(--ua-spacing-xl);
   justify-content: flex-start;
   align-items: flex-start;
-  padding: 2rem;
+  padding: var(--ua-spacing-xl);
 }
 </style>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
 import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
+import { computed, onMounted } from 'vue';
 
 const { user } = defineProps<{
   user: UserResponse;
@@ -37,7 +37,6 @@ onMounted(async () => {
 <template>
   <h3>Identification</h3>
   <div class="identification-grid">
-    <!-- Label on left, value on right - auto-flows into rows -->
     <label class="identification-label">First Name</label>
     <div>{{ user?.firstName }}</div>
 
@@ -66,8 +65,6 @@ onMounted(async () => {
 
     <label class="identification-label">Role</label>
     <div>Role</div>
-
-    <!-- Add more label/value pairs - they will automatically flow into new rows -->
   </div>
 </template>
 
@@ -75,11 +72,11 @@ onMounted(async () => {
 .identification-grid {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 1rem 6rem;
-  margin-top: 1rem;
+  gap: var(--ua-spacing-md) var(--ua-spacing-2xl);
+  margin-top: var(--ua-spacing-md);
 }
 
 .identification-label {
-  font-weight: bold;
+  font-weight: var(--ua-font-weight-bold);
 }
 </style>

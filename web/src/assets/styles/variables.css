@@ -1,0 +1,61 @@
+/**
+ * Unified Application (UA) Design Tokens
+ *
+ * These CSS custom properties complement the Vuetify theme and provide
+ * consistent spacing, typography, layout, and component-level tokens
+ * that are not covered by Vuetify's theme system.
+ *
+ * Vuetify theme colors are available as rgb() via --v-theme-{name}.
+ * Use these tokens for layout, spacing, and component patterns.
+ *
+ * Colour values are sourced from the official @bcgov/design-tokens package,
+ * imported before this file in main.ts. --ua-* colour aliases reference
+ * the official --surface-*, --typography-*, and --icons-* CSS variables
+ * so that future BC Gov design system updates flow through automatically.
+ */
+
+:root {
+  /* ── Spacing ─────────────────────────────────────────────────── */
+  --ua-spacing-xs: var(--bcds-layout-padding-xsmall); /* 0.25rem */
+  --ua-spacing-sm: var(--bcds-layout-padding-small); /* 0.5rem  */
+  --ua-spacing-md: var(--bcds-layout-padding-medium); /* 1rem    */
+  --ua-spacing-lg: var(--bcds-layout-padding-large); /* 1.5rem  */
+  --ua-spacing-xl: var(--bcds-layout-padding-xlarge); /* 2rem    */
+  --ua-spacing-2xl: var(--bcds-layout-margin-xxxlarge); /* 3rem    */
+
+  /* ── Typography ──────────────────────────────────────────────── */
+  --ua-font-size-xs: var(--bcds-typography-font-size-label); /* 0.75rem  */
+  --ua-font-size-sm: var(--bcds-typography-font-size-small-body); /* 0.875rem */
+  --ua-font-size-base: var(--bcds-typography-font-size-body); /* 1rem     */
+  --ua-font-size-lg: var(--bcds-typography-font-size-large-body); /* 1.125rem */
+  --ua-font-size-xl: 1.4rem; /* no token — between h5 (1.25rem) and h4 (1.5rem) */
+  --ua-font-size-2xl: var(--bcds-typography-font-size-h3); /* 1.75rem  */
+
+  --ua-font-weight-normal: var(--bcds-typography-font-weights-regular); /* 400 */
+  --ua-font-weight-semibold: 600; /* no token — BC Sans only defines regular/bold */
+  --ua-font-weight-bold: var(--bcds-typography-font-weights-bold); /* 700 */
+
+  /* ── Layout ──────────────────────────────────────────────────── */
+  --ua-page-padding-x: var(--bcds-layout-padding-xlarge); /* 2rem   */
+  --ua-page-padding-y: var(--bcds-layout-padding-large); /* 1.5rem */
+  --ua-appbar-height: 52px; /* project-specific */
+  --ua-content-max-width: 1200px; /* project-specific */
+  --ua-form-label-width: 210px; /* project-specific */
+  --ua-border-radius: 8px; /* project-specific — no token (medium=4px, large=6px) */
+  --ua-border-radius-lg: 12px; /* project-specific — no token */
+
+  /* ── Colors (non-theme, for specific patterns) ───────────────── */
+  /* Aliases over official @bcgov/design-tokens CSS variables.      */
+  --ua-text-primary: var(--bcds-typography-color-primary);
+  --ua-text-secondary: var(--bcds-typography-color-secondary);
+  --ua-text-muted: var(--bcds-typography-color-disabled);
+  --ua-link-color: var(--bcds-typography-color-link);
+  --ua-border-color: var(--bcds-surface-color-border-default);
+  --ua-field-bg: var(--bcds-surface-color-forms-default);
+
+  /* ── Component tokens ────────────────────────────────────────── */
+  --ua-card-header-bg: rgb(var(--v-theme-primary));
+  --ua-card-header-color: #fff;
+  --ua-card-body-bg: rgb(var(--v-theme-surface-variant));
+  --ua-card-border-radius: var(--ua-border-radius-lg);
+}

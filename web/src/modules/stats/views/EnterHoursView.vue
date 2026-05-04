@@ -13,7 +13,12 @@ import {
   type SubCategoryMetricResponse,
   type SubCategoryResponse,
 } from '@/api-access/stats';
-import Select from '@/shared/components/Select.vue';
+import UaAlert from '@/shared/components/UaAlert.vue';
+import UaBtn from '@/shared/components/UaBtn.vue';
+import UaCard from '@/shared/components/UaCard.vue';
+import UaFormGrid from '@/shared/components/UaFormGrid.vue';
+import UaSelect from '@/shared/components/UaSelect.vue';
+import UaTextField from '@/shared/components/UaTextField.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
 import { mdiPlus } from '@mdi/js';
@@ -25,6 +30,21 @@ const props = defineProps<{
   /** 1 = Non-Supervision, 2 = Supervision. When set, locks all assignments to that group. */
   groupId?: number;
 }>();
+
+/**
+ * Header colours keyed by groupId.
+ * All values are BC Gov palette colours that pass WCAG AA (≥4.5:1) with white text.
+ * Add new groups here — no other changes required.
+ *
+ * Group 1 — Non-Supervision: #42814A (BC Gov support.borderColor.success — forest green)
+ * Group 2 — Supervision:     #CE3E39 (BC Gov support.borderColor.danger  — deep crimson)
+ */
+const GROUP_HEADER_COLORS: Record<number, string> = {
+  1: '#42814A',
+  2: '#CE3E39',
+};
+
+const cardHeaderColor = computed(() => (props.groupId != null ? GROUP_HEADER_COLORS[props.groupId] : undefined));
 
 const formTitle = computed(() => {
   if (props.groupId === 1) return 'Enter Non-Supervision Hours';
@@ -273,264 +293,191 @@ const handleSave = async (status: string) => {
 
 <template>
   <div class="enter-hours-page">
-    <div class="page-card">
-      <!-- Green header -->
-      <div class="page-header">
-        <span class="page-title">{{ formTitle }}</span>
-      </div>
-      <div class="header-strip" />
+    <UaCard :title="formTitle" :header-color="cardHeaderColor">
+      <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
 
-      <div class="page-body">
-        <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
+      <template v-else>
+        <UaAlert v-if="apiError" type="error" @close="apiError = ''">
+          {{ apiError }}
+        </UaAlert>
+        <UaAlert v-if="successMessage" type="success" @close="successMessage = ''">
+          {{ successMessage }}
+        </UaAlert>
 
-        <template v-else>
-          <!-- Alerts -->
-          <v-alert
-            v-if="apiError"
-            type="error"
-            density="compact"
-            class="page-alert"
-            closable
-            @click:close="apiError = ''"
-          >
-            {{ apiError }}
-          </v-alert>
-          <v-alert
-            v-if="successMessage"
-            type="success"
-            density="compact"
-            class="page-alert"
-            closable
-            @click:close="successMessage = ''"
-          >
-            {{ successMessage }}
-          </v-alert>
+        <!-- Location + Period -->
+        <UaFormGrid>
+          <label class="ua-form-label" for="location-select">Location</label>
+          <UaSelect
+            id="location-select"
+            label="Select Location"
+            :items="locationOptions"
+            :model-value="selectedLocationId"
+            :error-messages="formErrors['location']"
+            @update:model-value="onLocationChange"
+          />
 
-          <!-- Location + Period -->
-          <div class="form-grid">
-            <label class="form-field-label" for="location-select">Location</label>
-            <Select
-              id="location-select"
-              label="Select Location"
-              :items="locationOptions"
-              :model-value="selectedLocationId"
-              :error-messages="formErrors['location']"
-              @update:model-value="onLocationChange"
+          <label class="ua-form-label">Period</label>
+          <div class="period-row">
+            <v-btn-toggle v-model="periodType" mandatory density="compact" variant="outlined" color="primary">
+              <UaBtn v-for="opt in periodOptions" :key="opt.value" :value="opt.value" size="small">
+                {{ opt.label }}
+              </UaBtn>
+            </v-btn-toggle>
+          </div>
+
+          <template v-if="periodType === 'Weekly'">
+            <UaTextField id="weekly-from" label="Date From" v-model="weeklyFrom" type="date" />
+            <UaTextField
+              id="weekly-to"
+              label="Date To"
+              v-model="weeklyTo"
+              type="date"
+              :min="weeklyFrom"
+              :max="addDays(weeklyFrom, 6)"
             />
-
-            <label class="form-field-label">Period</label>
-            <div class="period-row">
-              <v-btn-toggle v-model="periodType" mandatory density="compact" variant="outlined" color="primary">
-                <v-btn v-for="opt in periodOptions" :key="opt.value" :value="opt.value" size="small">
-                  {{ opt.label }}
-                </v-btn>
-              </v-btn-toggle>
-            </div>
-
-            <template v-if="periodType === 'Weekly'">
-              <label class="form-field-label">Date From</label>
-              <v-text-field v-model="weeklyFrom" type="date" hide-details />
-              <label class="form-field-label">Date To</label>
-              <v-text-field
-                v-model="weeklyTo"
-                type="date"
-                :min="weeklyFrom"
-                :max="addDays(weeklyFrom, 6)"
-                hide-details
-              />
-            </template>
-            <template v-else>
-              <label class="form-field-label">{{ periodType === 'Monthly' ? 'Month' : 'Date' }}</label>
-              <v-text-field v-model="anchorDate" :type="periodType === 'Monthly' ? 'month' : 'date'" hide-details />
-            </template>
-          </div>
-
-          <div class="section-divider" />
-
-          <!-- Assignment rows -->
-          <div class="assignments-section">
-            <span class="section-label">Work Assignments</span>
-
-            <div v-if="assignments.length === 0" class="empty-assignments">
-              No assignments added. Click "Add Assignment" to begin.
-            </div>
-
-            <AssignmentRow
-              v-for="(assignment, i) in assignments"
-              :key="assignment.id"
-              v-model="assignments[i]"
-              :groups="groups"
-              :categories="categories"
-              :sub-categories="subCategories"
-              :sub-category-metrics="subCategoryMetrics"
-              :metrics="metrics"
-              :index="i"
-              :errors="formErrors"
-              :fixed-group-id="groupId"
-              @remove="removeAssignment(assignment.id)"
+          </template>
+          <template v-else>
+            <UaTextField
+              id="anchor-date"
+              :label="periodType === 'Monthly' ? 'Month' : 'Date'"
+              v-model="anchorDate"
+              :type="periodType === 'Monthly' ? 'month' : 'date'"
             />
+          </template>
+        </UaFormGrid>
 
-            <v-btn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
-              Add Assignment
-            </v-btn>
+        <div class="section-divider" />
+
+        <!-- Assignment rows -->
+        <div class="assignments-section">
+          <span class="section-label">Work Assignments</span>
+
+          <div v-if="assignments.length === 0" class="empty-assignments">
+            No assignments added. Click "Add Assignment" to begin.
           </div>
 
-          <!-- Form-level error -->
-          <p v-if="formErrors['form']" class="form-level-error">{{ formErrors['form'] }}</p>
+          <AssignmentRow
+            v-for="(assignment, i) in assignments"
+            :key="assignment.id"
+            v-model="assignments[i]"
+            :groups="groups"
+            :categories="categories"
+            :sub-categories="subCategories"
+            :sub-category-metrics="subCategoryMetrics"
+            :metrics="metrics"
+            :index="i"
+            :errors="formErrors"
+            :fixed-group-id="groupId"
+            :header-color="cardHeaderColor"
+            @remove="removeAssignment(assignment.id)"
+          />
 
-          <!-- Actions -->
-          <div class="form-actions">
-            <v-btn variant="outlined" :disabled="isSubmitting" @click="$router.back()">Back</v-btn>
-            <v-btn variant="outlined" color="primary" :loading="isSubmitting" @click="handleSave('Draft')">
-              Save Draft
-            </v-btn>
-            <v-btn color="primary" variant="flat" :loading="isSubmitting" @click="handleSave('Submitted')">
-              Submit
-            </v-btn>
-          </div>
-        </template>
-      </div>
-    </div>
+          <UaBtn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
+            Add Assignment
+          </UaBtn>
+        </div>
+
+        <!-- Form-level error -->
+        <p v-if="formErrors['form']" class="form-level-error">{{ formErrors['form'] }}</p>
+
+        <!-- Actions -->
+        <div class="form-actions">
+          <UaBtn variant="outlined" :disabled="isSubmitting" @click="$router.back()">Back</UaBtn>
+          <UaBtn variant="outlined" color="primary" :loading="isSubmitting" @click="handleSave('Draft')">
+            Save Draft
+          </UaBtn>
+          <UaBtn color="primary" variant="flat" :loading="isSubmitting" @click="handleSave('Submitted')">
+            Submit
+          </UaBtn>
+        </div>
+      </template>
+    </UaCard>
   </div>
 </template>
 
 <style scoped>
 .enter-hours-page {
-  padding: 2rem;
+  padding: var(--ua-spacing-xl);
   max-width: 900px;
 }
 
-.page-card {
-  border-radius: 12px;
-  overflow: hidden;
-  background: #e9e9eb;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  padding: 0.6rem 1.4rem;
-  background: #5f8f2c;
-  color: #fff;
-}
-
-.page-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-.header-strip {
-  background: #d0d0d2;
-  height: 4px;
-}
-
-.page-body {
-  padding: 1.4rem;
+.ua-form-label {
+  font-size: var(--ua-font-size-lg);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-primary);
 }
 
 .loading-state {
-  padding: 1rem 0;
-  color: #6b6b6b;
-}
-
-.page-alert {
-  margin-bottom: 1rem;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 210px 1fr;
-  gap: 1rem;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.form-field-label {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #1b2740;
+  padding: var(--ua-spacing-md) 0;
+  color: var(--ua-text-muted);
 }
 
 .period-row {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--ua-spacing-md);
   flex-wrap: wrap;
 }
 
 .section-divider {
-  border-top: 1px solid #d0d0d2;
-  margin: 1.2rem 0;
+  border-top: 1px solid var(--ua-border-color);
+  margin: var(--ua-spacing-lg) 0;
 }
 
 .assignments-section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--ua-spacing-md);
+  margin-bottom: var(--ua-spacing-lg);
 }
 
 .section-label {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #1b2740;
+  font-size: var(--ua-font-size-lg);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-primary);
 }
 
 .empty-assignments {
-  font-size: 0.9rem;
-  color: #6b6b6b;
+  font-size: var(--ua-font-size-sm);
+  color: var(--ua-text-muted);
 }
 
 .add-assignment-btn {
   align-self: flex-start;
-  text-transform: none;
-  letter-spacing: 0;
 }
 
 .form-level-error {
-  font-size: 0.9rem;
-  color: #b00020;
-  margin-bottom: 1rem;
+  font-size: var(--ua-font-size-sm);
+  color: rgb(var(--v-theme-error));
+  margin-bottom: var(--ua-spacing-md);
 }
 
 .form-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--ua-spacing-md);
   justify-content: flex-end;
-  padding-top: 0.5rem;
+  padding-top: var(--ua-spacing-sm);
 }
 
-.form-actions .v-btn {
-  text-transform: none;
-  letter-spacing: 0;
+.form-actions :deep(.v-btn) {
   min-width: 120px;
 }
 
 :deep(.v-field) {
-  border-radius: 8px;
-  background: #efeff1;
+  border-radius: var(--ua-border-radius);
+  background: var(--ua-field-bg);
 }
 
 @media (max-width: 640px) {
   .enter-hours-page {
-    padding: 1rem;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-    gap: 0.4rem 0;
-  }
-
-  .form-field-label {
-    font-size: 1rem;
-    margin-bottom: 0;
+    padding: var(--ua-spacing-md);
   }
 
   .form-actions {
     flex-wrap: wrap;
   }
 
-  .form-actions .v-btn {
+  .form-actions :deep(.v-btn) {
     flex: 1 1 auto;
     min-width: 0;
   }

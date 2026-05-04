@@ -1,10 +1,14 @@
-import { createApp } from 'vue';
+import '@bcgov/design-tokens/css-prefixed/variables.css';
+
 import { createPinia } from 'pinia';
+import { createApp } from 'vue';
 
 import { setupMockServiceWorker } from '@/mocks';
-import { useConfigStore } from '@/stores/config';
-import { initializeRouter } from '@/router';
 import vuetify from '@/plugins/vuetify';
+import { initializeRouter } from '@/router';
+import { useConfigStore } from '@/stores/config';
+
+import '@/assets/styles/variables.css';
 
 import App from './App.vue';
 import { useLocationsStore } from './stores/LocationsStore';

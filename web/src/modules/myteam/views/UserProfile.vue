@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import { getApiUsersId } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
+import UaBtn from '@/shared/components/UaBtn.vue';
+import UaPageHeader from '@/shared/components/UaPageHeader.vue';
+import { computed, ref } from 'vue';
 import UserFormModal from '../components/UserFormModal.vue';
 
 const props = defineProps<{
@@ -29,10 +31,11 @@ const handleEditModalClose = () => {
 <template>
   <div v-if="isFetching">Loading ...</div>
   <div v-else-if="error">Error: {{ error.message }}</div>
-  <div class="profile-header-row">
-    <h2 class="profile-title">Profile</h2>
-    <v-btn @click="handleEditMember" :disabled="!data">Edit Member</v-btn>
-  </div>
+  <UaPageHeader title="Profile">
+    <template #actions>
+      <UaBtn @click="handleEditMember" :disabled="!data">Edit Member</UaBtn>
+    </template>
+  </UaPageHeader>
   <div class="profile-layout">
     <!-- Left Panel -->
     <div class="left-panel">
@@ -49,12 +52,12 @@ const handleEditModalClose = () => {
       </div>
 
       <div class="profile-subnav">
-        <v-btn variant="outlined">Identification</v-btn>
-        <v-btn variant="outlined">Acting rank</v-btn>
-        <v-btn variant="outlined">Schedule</v-btn>
-        <v-btn variant="outlined">Work History</v-btn>
-        <v-btn variant="outlined">Schedule</v-btn>
-        <v-btn variant="outlined">Deactivate</v-btn>
+        <UaBtn variant="outlined">Identification</UaBtn>
+        <UaBtn variant="outlined">Acting rank</UaBtn>
+        <UaBtn variant="outlined">Schedule</UaBtn>
+        <UaBtn variant="outlined">Work History</UaBtn>
+        <UaBtn variant="outlined">Schedule</UaBtn>
+        <UaBtn variant="outlined">Deactivate</UaBtn>
       </div>
     </div>
     <!-- Right Panel -->
@@ -74,47 +77,36 @@ const handleEditModalClose = () => {
 </template>
 
 <style scoped>
-.profile-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.profile-title {
-  margin-left: 4rem;
-}
-
 .profile-layout {
   display: flex;
-  gap: 1rem;
-  background-color: #fff;
-  padding: 2rem;
+  gap: var(--ua-spacing-md);
+  background-color: rgb(var(--v-theme-surface));
+  padding: var(--ua-spacing-xl);
 }
 
 .left-panel {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: var(--ua-spacing-xl);
   align-items: center;
-  margin-right: 4rem;
+  margin-right: var(--ua-spacing-2xl);
 }
 
 .avatar-container {
-  border: 1px solid rgba(var(--v-theme-surface-light));
-  padding: 2rem;
+  border: 1px solid rgb(var(--v-theme-surface-light));
+  padding: var(--ua-spacing-xl);
 }
 
 .profile-subnav {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--ua-spacing-md);
   width: 100%;
 }
 
 .right-panel {
   flex: 1;
-  background-color: rgba(var(--v-theme-surface-light));
-  padding: 0.5rem 2rem;
+  background-color: rgb(var(--v-theme-surface-light));
+  padding: var(--ua-spacing-sm) var(--ua-spacing-xl);
 }
 </style>

@@ -1,25 +1,7 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
+</script>
 
 <template>
-  <div class="placeholder-page">
-    <h2 class="page-title">Search / View / Edit Data</h2>
-    <p class="placeholder-text">This feature is coming soon.</p>
-  </div>
+  <UaPlaceholderPage title="Search / View / Edit Data" />
 </template>
-
-<style scoped>
-.placeholder-page {
-  padding: 2rem;
-}
-
-.page-title {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #1b2740;
-  margin-bottom: 1rem;
-}
-
-.placeholder-text {
-  color: #6b6b6b;
-}
-</style>

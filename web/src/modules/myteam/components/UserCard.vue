@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UaCard from '@/shared/components/UaCard.vue';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { UserResponse } from '@/api-access/generated/models';
@@ -19,39 +20,43 @@ const gotoProfile = () => {
 </script>
 
 <template>
-  <v-card class="user-card" @click="gotoProfile">
+  <UaCard class="user-card" @click="gotoProfile">
     <v-avatar color="grey" size="40">
       <span class="text-headline-small">{{ initials }}</span>
     </v-avatar>
-    <v-card-title :title="fullName" class="user-card-title">
+    <div :title="fullName" class="user-card-title">
       <div class="user-full-name">
         {{ fullName }}
       </div>
-      <div style="font-size: 0.8rem; text-align: center">Chief Sheriff</div>
+      <div style="font-size: var(--ua-font-size-sm); text-align: center">Chief Sheriff</div>
       <div
         v-if="useAccessControl().isFeatureFlagEnabled('userBadgeNumber')"
-        style="font-size: 0.8rem; text-align: center"
+        style="font-size: var(--ua-font-size-sm); text-align: center"
       >
         {{ user.badgeNumber }}
       </div>
-    </v-card-title>
-  </v-card>
+    </div>
+  </UaCard>
 </template>
 
 <style scoped>
 .user-card {
   width: 160px;
   height: 160px;
+  cursor: pointer;
+}
+
+:deep(.ua-card__body) {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: rgba(var(--v-theme-surface-bright), 1);
-  padding: 1rem;
+  height: 100%;
+  padding: var(--ua-spacing-md);
 }
 
 .user-card-title {
-  font-size: 1rem;
+  font-size: var(--ua-font-size-base);
   width: 100%;
   white-space: nowrap;
   overflow: hidden;
@@ -62,6 +67,6 @@ const gotoProfile = () => {
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
-  font-weight: bold;
+  font-weight: var(--ua-font-weight-bold);
 }
 </style>
