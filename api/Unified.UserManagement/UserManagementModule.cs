@@ -23,9 +23,12 @@ public static class UserManagementModule
     {
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<IPermissionService, PermissionService>();
+        
         services.AddScoped<UserSeeder>();
         services.AddScoped<RegionSeeder>();
         services.AddScoped<LocationSeeder>();
+        services.AddScoped<PermissionSeeder>();
 
         services.AddScoped<UserRequestValidator>();
         services.AddScoped<RoleRequestValidator>();
