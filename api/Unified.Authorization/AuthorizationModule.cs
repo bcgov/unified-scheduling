@@ -29,7 +29,7 @@ public static class AuthorizationModule
     public static IServiceCollection AddAuthorizationModule(this IServiceCollection services)
     {
         // Expand role claims → permission claims at authentication time
-        services.AddSingleton<IClaimsTransformation, PermissionClaimsTransformer>();
+        services.AddScoped<IClaimsTransformation, PermissionClaimsTransformer>();
 
         // Handler that checks permission claims
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
