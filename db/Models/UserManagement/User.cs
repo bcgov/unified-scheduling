@@ -21,4 +21,6 @@ public class User : BaseEntity
     public string? BadgeNumber { get; set; }
     public string? Rank { get; set; }
     public DateTimeOffset? LastLogin { get; set; }
+
+    public virtual ICollection<UserRole> UserRoles { get; set; } = [];
 }
