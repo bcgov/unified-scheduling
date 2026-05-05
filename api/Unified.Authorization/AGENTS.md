@@ -14,12 +14,11 @@ See [README.md § Improvements over sheriff-scheduling](README.md#improvements-o
 |---|---|
 | `Permissions.cs` | All permission name constants (`EntityNameAction` PascalCase) |
 | `Roles.cs` | Role name constants (kept in sync with role records loaded from the application DB) |
-| `Claims/UnifiedClaimTypes.cs` | Custom claim type string used for permission claims |
-| `Claims/PermissionClaimsTransformer.cs` | Adds permission claims to the principal based on the user's role claims |
+| `Claims/UnifiedClaimTypes.cs` | Custom claim type strings used for permission, user identity, and profile claims |
+| `Claims/UnifiedClaimsTransformer.cs` | Loads the authenticated user from the DB, expands their active roles into permission claims, and adds identity claims (`UserId`, `FirstName`, `LastName`, `HomeLocationId`) |
 | `Requirements/PermissionRequirement.cs` | `IAuthorizationRequirement` holding a single permission |
 | `Requirements/PermissionAuthorizationHandler.cs` | Evaluates the requirement; throws `ForbiddenException` on failure |
-| `AuthorizationModule.cs` | DI registration: transformer, handler, all named policies |
-| `EndpointAuthorizationExtensions.cs` | `.RequirePermission(...)` fluent helper for Minimal API endpoints |
+| `AuthorizationModule.cs` | DI registration: transformer, handler, and `AddPermissionPolicy` builder extension |
 
 ## Common tasks
 
@@ -34,7 +33,7 @@ See [README.md § Improvements over sheriff-scheduling](README.md#improvements-o
 
 1. `Roles.cs` — add a `public const string YourRole = nameof(YourRole);`.
 2. Insert the corresponding role record (and its permission associations) in the application database.
-3. Ensure the role name in `Roles.cs` exactly matches the DB role name (case-sensitive).
+3. Ensure the role name in `Roles.cs` exactly matches the DB role name (case-sensitive) and the corresponding Keycloak role name.
 
 ### Protect a controller action
 
@@ -72,7 +71,7 @@ if (!result.Succeeded) return Forbid();
 
 ### Replace static data with database
 
-See `README.md` → "Replacing hardcoded data with database values" for the full migration path. The key integration point is `PermissionClaimsTransformer.TransformAsync` — inject `IPermissionService` and populate permission claims from the DB.
+See `README.md` → "DB-backed permission claims" for how the transformer works. The transformer (`UnifiedClaimsTransformer`) queries `UnifiedDbContext` directly — no separate service is needed for the auth path.
 
 ## Design rules
 
