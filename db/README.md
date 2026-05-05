@@ -8,7 +8,7 @@ Use this project for EF Core migrations.
    ```
    Ensure Docker Compose services are running before using `exec`:
    ```bash
-   ./maange start
+   ./manage start
    ```
 
 2. Create a migration:
