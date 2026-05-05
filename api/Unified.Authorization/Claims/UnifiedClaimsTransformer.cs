@@ -10,7 +10,7 @@ namespace Unified.Authorization.Claims;
 /// <c>sub</c> claim, loads their active role permissions from the database, and
 /// adds the corresponding permission claims to the identity.
 /// </summary>
-public sealed class PermissionClaimsTransformer(UnifiedDbContext db) : IClaimsTransformation
+public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTransformation
 {
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
@@ -27,21 +27,36 @@ public sealed class PermissionClaimsTransformer(UnifiedDbContext db) : IClaimsTr
 
         var idir = Guid.Parse(nameIdentifier.Replace("@idir", ""));
 
-        var permissions = await db.Users
+        var user = await db
+            .Users.Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .ThenInclude(r => r.RolePermissions)
             .Where(u => u.IdirId == idir && u.IsEnabled)
-            .SelectMany(u => u.UserRoles)
-            .Where(ur =>
-                ur.EffectiveDate <= DateTimeOffset.UtcNow
-                && (ur.ExpiryDate == null || ur.ExpiryDate > DateTimeOffset.UtcNow)
-            )
-            .SelectMany(ur => ur.Role.RolePermissions)
+            .FirstOrDefaultAsync();
+
+        if (user == null)
+            return principal;
+
+        var permissions = user
+            .ActiveUserRoles.SelectMany(ur => ur.Role.RolePermissions)
             .Select(rp => rp.PermissionId)
             .Distinct()
-            .ToListAsync();
+            .ToList();
+
+        var roles = user
+            .ActiveUserRoles.Select(ur => ur.Role.Name)
+            .Distinct()
+            .ToList();
 
         var identity = (ClaimsIdentity)principal.Identity!;
-        // Add Claims for the user's Idir ID and permissions. These claims are not stored in the cookie and only exist for the lifetime of the request.
+        // Add Claims for the user's Idir ID, User ID, roles, and permissions. These claims are not stored in the cookie and only exist for the lifetime of the request.
         identity.AddClaim(new Claim(UnifiedClaimTypes.IdirId, idir.ToString()));
+        identity.AddClaim(new Claim(UnifiedClaimTypes.UserId, user.Id.ToString()));
+        identity.AddClaim(new Claim(UnifiedClaimTypes.FirstName, user.FirstName));
+        identity.AddClaim(new Claim(UnifiedClaimTypes.LastName, user.LastName));
+        if (user.HomeLocationId.HasValue)
+            identity.AddClaim(new Claim(UnifiedClaimTypes.HomeLocationId, user.HomeLocationId.Value.ToString()));
+        identity.AddClaims(roles.Select(r => new Claim(ClaimTypes.Role, r)));
         identity.AddClaims(permissions.Select(p => new Claim(UnifiedClaimTypes.Permission, p)));
 
         return principal;

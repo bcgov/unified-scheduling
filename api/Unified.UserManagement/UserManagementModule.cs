@@ -24,7 +24,7 @@ public static class UserManagementModule
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IPermissionService, PermissionService>();
-        
+
         services.AddScoped<UserSeeder>();
         services.AddScoped<RegionSeeder>();
         services.AddScoped<LocationSeeder>();
@@ -34,7 +34,8 @@ public static class UserManagementModule
         services.AddScoped<RoleRequestValidator>();
 
         // Register permission policies owned by this module
-        services.AddAuthorizationBuilder()
+        services
+            .AddAuthorizationBuilder()
             // Users
             .AddPermissionPolicy(Permissions.UsersCreate)
             .AddPermissionPolicy(Permissions.UsersEdit)
