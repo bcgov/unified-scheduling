@@ -5,9 +5,9 @@ Permission-based authorization for the Unified Scheduling API using ASP.NET Core
 ## How it works
 
 1. **Roles** are loaded from the user's record in the application database after Keycloak authentication and added as standard `ClaimTypes.Role` claims on the principal.
-2. **`PermissionClaimsTransformer`** runs once per authenticated request. It reads the user's role claims, looks up the permissions associated with those roles, and adds `unified/permission` claims to the identity. The DB-backed lookup is pending; the transformer currently leaves the permission set empty and is the single integration point for `IPermissionService`.
+2. **`UnifiedClaimsTransformer`** runs once per authenticated request. It looks up the authenticated user by their Keycloak `sub` claim (`IdirId`), loads their active `UserRole` → `Role` → `RolePermission` graph from the database, and adds `UnifiedClaimTypes/Permission` claims (plus `UserId`, `FirstName`, `LastName`, `HomeLocationId`, and role claims) to the identity.
 3. **Named policies** are registered for every permission constant (e.g., `Permission:ShiftsEdit`).
-4. **`PermissionAuthorizationHandler`** evaluates those policies by checking whether the user holds the matching permission claim. If the claim is absent it throws `UnauthorizedAccessException`, which the global exception handler maps to a `403 ProblemDetails` response.
+4. **`PermissionAuthorizationHandler`** evaluates those policies by checking whether the user holds the matching permission claim. If the claim is absent it throws `ForbiddenException`, which the global exception handler maps to a `403 ProblemDetails` response.
 
 ## Securing a controller
 
@@ -50,23 +50,18 @@ All permission constants live in `Permissions.cs` and follow the `EntityNameActi
 1. Add a constant to `Permissions.cs` following the `EntityNameAction` convention.
 2. Register the policy in `AuthorizationModule.cs` (one `.AddPermissionPolicy(Permissions.YourNew)` line).
 3. Apply `[Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.YourNew)]` to the relevant controller or action.
-4. Associate the permission with the appropriate role(s) in the database so `PermissionClaimsTransformer` will surface it for users in those roles.
+4. Associate the permission with the appropriate role(s) in the database so `UnifiedClaimsTransformer` will surface it for users in those roles.
 
-## Replacing hardcoded data with database values
+## DB-backed permission claims
 
-`PermissionClaimsTransformer` currently returns an empty permission set. It is marked with `// TODO` comments pointing to this section.
+`UnifiedClaimsTransformer` is fully implemented and queries the database on every authenticated request. It:
 
-**Migration path:**
+- Resolves the user by `IdirId` (parsed from the Keycloak `sub` claim).
+- Eagerly loads `UserRoles → Role → RolePermissions` and filters to active roles (`EffectiveDate ≤ now < ExpiryDate`).
+- Adds `UnifiedClaimTypes/Permission` claims for each distinct `PermissionId` on the user's active roles.
+- Also adds `UserId`, `FirstName`, `LastName`, `HomeLocationId`, and `ClaimTypes.Role` claims for use by downstream code.
 
-1. Add a `Permission` entity and a `RolePermission` join entity to `db/Models/UserManagement/`.
-2. Create and run a migration to seed the initial data.
-3. Create `IPermissionService` (e.g., in `Unified.UserManagement`) with a method:
-   ```csharp
-   Task<IReadOnlyList<string>> GetPermissionsForRolesAsync(IEnumerable<string> roles);
-   ```
-4. Inject `IPermissionService` into `PermissionClaimsTransformer` and populate the permission claims from the DB call.
-
-The `AuthorizationModule`, policies, handler, and `RequirePermission` extension require **no changes** — only the data source changes.
+`IPermissionService` (in `Unified.UserManagement`) exposes a read-only `GetAllAsync` method used by the permissions listing API endpoint — it is **not** used inside the transformer.
 
 ## Improvements over sheriff-scheduling
 
@@ -76,7 +71,7 @@ This project replaces the [sheriff-scheduling authorization pattern](https://git
 |---|---|---|
 | Mechanism | Custom `IAuthorizationFilter` attribute | `IAuthorizationRequirement` + `IAuthorizationHandler` |
 | API compatibility | MVC controllers only | MVC controllers (same pattern, standard ASP.NET Core) |
-| DB coupling | `ClaimsService` directly queries EF in the transformer | Transformer is stateless; DB plugged in later via `IPermissionService` |
+| DB coupling | `ClaimsService` directly queries EF in the transformer | `UnifiedClaimsTransformer` queries EF directly via `UnifiedDbContext` — no intermediate service layer in the auth path |
 | Responsibility split | Auth logic spread across attribute, service, and transformer | Single path: transformer adds claims, handler evaluates one requirement |
 | Idempotency | `_isTransformed` instance flag (scope bug risk with DI) | Checks for existing permission claims — stateless and safe |
 
