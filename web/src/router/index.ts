@@ -7,6 +7,7 @@ import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import * as statsModule from '@/modules/stats/StatsModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
+import { getApiUsers } from '@/api-access/generated/users/users';
 import type { FeatureFlags } from '@/api-access/generated/models';
 
 declare module 'vue-router' {
@@ -37,6 +38,10 @@ async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormal
     authStore.setUserInfo(userInfo.value);
 
     if (userInfo.value?.isAuthenticated) {
+      if (userInfo.value.name) {
+        const { data: users } = await getApiUsers({ IdirName: userInfo.value.name });
+        authStore.setCurrentUser(users.value?.[0] ?? null);
+      }
       return true;
     } else {
       // Not authenticated — redirect to backend login endpoint.

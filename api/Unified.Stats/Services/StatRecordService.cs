@@ -60,10 +60,27 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
     }
 
     public async Task<IReadOnlyCollection<StatRecordResponse>> CreateBatchAsync(
-        IEnumerable<StatRecordRequest> requests,
+        IReadOnlyList<StatRecordRequest> requests,
+        string callerIdirName,
+        bool callerIsSupervisor,
         CancellationToken cancellationToken = default
     )
     {
+        if (!callerIsSupervisor)
+        {
+            if (string.IsNullOrWhiteSpace(callerIdirName))
+                throw new UnauthorizedAccessException("Only supervisors can submit records on behalf of another user.");
+
+            var callerId = await db.Users
+                .AsNoTracking()
+                .Where(u => u.IdirName == callerIdirName)
+                .Select(u => u.Id)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (requests.Any(r => r.UserId != callerId))
+                throw new UnauthorizedAccessException("Only supervisors can submit records on behalf of another user.");
+        }
+
         var entities = requests.Select(MapToEntity).ToList();
         db.StatRecords.AddRange(entities);
         await db.SaveChangesAsync(cancellationToken);
@@ -83,6 +100,7 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         entity.DateFrom = request.DateFrom;
         entity.DateTo = request.DateTo;
         entity.PeriodType = request.PeriodType.Trim();
+        entity.UserId = request.UserId;
         entity.LocationId = request.LocationId;
         entity.SubCategoryMetricId = request.SubCategoryMetricId;
         entity.Value = request.Value;
@@ -110,6 +128,7 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
             DateFrom = request.DateFrom,
             DateTo = request.DateTo,
             PeriodType = request.PeriodType.Trim(),
+            UserId = request.UserId,
             LocationId = request.LocationId,
             SubCategoryMetricId = request.SubCategoryMetricId,
             Value = request.Value,

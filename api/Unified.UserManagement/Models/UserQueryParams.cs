@@ -4,4 +4,6 @@ public sealed record UserQueryParams
 {
     public string? Search { get; init; }
     public bool? IsEnabled { get; init; }
+    public string? IdirName { get; init; }
+    public int? LocationId { get; init; }
 }

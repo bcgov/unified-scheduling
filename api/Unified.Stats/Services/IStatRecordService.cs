@@ -11,7 +11,9 @@ public interface IStatRecordService
     Task<StatRecordResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
     Task<StatRecordResponse> CreateAsync(StatRecordRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<StatRecordResponse>> CreateBatchAsync(
-        IEnumerable<StatRecordRequest> requests,
+        IReadOnlyList<StatRecordRequest> requests,
+        string callerIdirName,
+        bool callerIsSupervisor,
         CancellationToken cancellationToken = default
     );
     Task<StatRecordResponse?> UpdateAsync(

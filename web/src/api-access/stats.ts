@@ -38,6 +38,7 @@ export interface SubCategoryMetricResponse {
 }
 
 export interface StatRecordRequest {
+  userId: string;
   dateFrom: string;
   dateTo: string;
   periodType: string;
@@ -50,6 +51,7 @@ export interface StatRecordRequest {
 
 export interface StatRecordResponse {
   id: number;
+  userId: string;
   dateFrom: string;
   dateTo: string;
   periodType: string;

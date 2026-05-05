@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Unified.Db.Models.Abstract;
+using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db.Models.Stats;
 
@@ -14,6 +15,10 @@ public class StatRecord : BaseEntity
 
     [Required]
     public string PeriodType { get; set; } = string.Empty;
+
+    public Guid UserId { get; set; }
+
+    public User? User { get; set; }
 
     public int LocationId { get; set; }
 

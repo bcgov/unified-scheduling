@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { UserResponse } from '@/api-access/generated/models';
+import { getApiUsers } from '@/api-access/generated/users/users';
 import {
   getApiStatsCategories,
   getApiStatsGroups,
@@ -13,15 +15,16 @@ import {
   type SubCategoryMetricResponse,
   type SubCategoryResponse,
 } from '@/api-access/stats';
+import Select from '@/shared/components/Select.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
+import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
-import { mdiPlus } from '@mdi/js';
 import { computed, onMounted, ref, watch } from 'vue';
 import AssignmentRow from '../components/AssignmentRow.vue';
 import type { AssignmentData, PeriodType } from '../types';
@@ -79,8 +82,32 @@ onMounted(async () => {
 
 // ── Locations ──────────────────────────────────────────────────────────────
 
+const authStore = useAuthStore();
 const locationsStore = useLocationsStore();
 const locationOptions = computed(() => locationsStore.getSelectOptions());
+
+// ── Supervisor user picker ──────────────────────────────────────────────────
+
+const locationUsers = ref<UserResponse[]>([]);
+const selectedUserId = ref<string | null>(null);
+// Tracks which location's fetch is authoritative; stale responses are discarded.
+let activeLocationId: number | null = null;
+
+const userOptions = computed(() =>
+  locationUsers.value.map((u) => ({
+    title: `${u.firstName} ${u.lastName}`,
+    value: u.id,
+  }))
+);
+
+const loadUsersForLocation = async (locationId: number) => {
+  activeLocationId = locationId;
+  const { data } = await getApiUsers({ LocationId: locationId, IsEnabled: true });
+  if (activeLocationId !== locationId) return;
+  locationUsers.value = data.value ?? [];
+  const currentUserAtLocation = locationUsers.value.some((u) => u.id === authStore.currentUser?.id);
+  selectedUserId.value = currentUserAtLocation ? (authStore.currentUser?.id ?? null) : null;
+};
 
 // ── Form state ─────────────────────────────────────────────────────────────
 
@@ -187,14 +214,28 @@ const removeAssignment = (id: string) => {
   assignments.value = assignments.value.filter((a) => a.id !== id);
 };
 
-const onLocationChange = (value: SelectValue | undefined) => {
+const onLocationChange = async (value: SelectValue | undefined) => {
   selectedLocationId.value = value !== null && value !== undefined ? Number(value) : null;
+  if (authStore.isSupervisor) {
+    selectedUserId.value = null;
+    locationUsers.value = [];
+    if (selectedLocationId.value) {
+      await loadUsersForLocation(selectedLocationId.value);
+    }
+  }
 };
 
 // ── Submission ─────────────────────────────────────────────────────────────
 
 const buildRecords = (status: string): StatRecordRequest[] | null => {
   const errors: Record<string, string> = {};
+
+  const resolvedUserId = authStore.isSupervisor ? selectedUserId.value : authStore.currentUser?.id;
+  if (!resolvedUserId) {
+    errors['user'] = authStore.isSupervisor
+      ? 'Please select a user to submit hours for.'
+      : 'Unable to determine current user. Please refresh and try again.';
+  }
 
   if (!selectedLocationId.value) {
     errors['location'] = 'Location is required';
@@ -247,6 +288,7 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
       const raw = assignment.metricValues[scm.id];
       if (!raw || raw.trim() === '') continue;
       records.push({
+        userId: resolvedUserId!,
         dateFrom: dateFromVal,
         dateTo: dateToVal,
         periodType: periodType.value,
@@ -307,14 +349,9 @@ const handleSave = async (status: string) => {
         <!-- Location + Period -->
         <UaFormGrid>
           <label class="ua-form-label" for="location-select">Location</label>
-          <UaSelect
-            id="location-select"
-            label="Select Location"
-            :items="locationOptions"
-            :model-value="selectedLocationId"
-            :error-messages="formErrors['location']"
-            @update:model-value="onLocationChange"
-          />
+          <UaSelect id="location-select" label="Select Location" :items="locationOptions"
+            :model-value="selectedLocationId" :error-messages="formErrors['location']"
+            @update:model-value="onLocationChange" />
 
           <label class="ua-form-label">Period</label>
           <div class="period-row">
@@ -327,23 +364,54 @@ const handleSave = async (status: string) => {
 
           <template v-if="periodType === 'Weekly'">
             <UaTextField id="weekly-from" label="Date From" v-model="weeklyFrom" type="date" />
-            <UaTextField
-              id="weekly-to"
-              label="Date To"
-              v-model="weeklyTo"
-              type="date"
-              :min="weeklyFrom"
-              :max="addDays(weeklyFrom, 6)"
-            />
+            <UaTextField id="weekly-to" label="Date To" v-model="weeklyTo" type="date" :min="weeklyFrom"
+              :max="addDays(weeklyFrom, 6)" />
           </template>
           <template v-else>
-            <UaTextField
-              id="anchor-date"
-              :label="periodType === 'Monthly' ? 'Month' : 'Date'"
-              v-model="anchorDate"
-              :type="periodType === 'Monthly' ? 'month' : 'date'"
-            />
+            <UaTextField id="anchor-date" :label="periodType === 'Monthly' ? 'Month' : 'Date'" v-model="anchorDate"
+              :type="periodType === 'Monthly' ? 'month' : 'date'" <template v-if="authStore.isSupervisor">
+              <label class="form-field-label" for="user-select">Employee</label>
+              <Select id="user-select" label="Select Employee" :items="userOptions" :model-value="selectedUserId"
+                :disabled="!selectedLocationId" :error-messages="formErrors['user']"
+                @update:model-value="(v) => (selectedUserId = v ? String(v) : null)" />
           </template>
+
+          <label class="form-field-label">Period</label>
+          <div class="period-row">
+            <v-btn-toggle v-model="periodType" mandatory density="compact" variant="outlined" color="primary">
+              <v-btn v-for="opt in periodOptions" :key="opt.value" :value="opt.value" size="small">
+                {{ opt.label }}
+              </v-btn>
+            </v-btn-toggle>
+          </div>
+
+          <template v-if="periodType === 'Weekly'">
+            <label class="form-field-label">Date From</label>
+            <v-text-field v-model="weeklyFrom" type="date" hide-details />
+            <label class="form-field-label">Date To</label>
+            <v-text-field v-model="weeklyTo" type="date" :min="weeklyFrom" :max="addDays(weeklyFrom, 6)" hide-details />
+          </template>
+          <template v-else>
+            <label class="form-field-label">{{ periodType === 'Monthly' ? 'Month' : 'Date' }}</label>
+            <v-text-field v-model="anchorDate" :type="periodType === 'Monthly' ? 'month' : 'date'" hide-details />
+          </template>
+  </div>
+
+  <div class="section-divider" />
+
+  <!-- Assignment rows -->
+  <div class="assignments-section">
+    <span class="section-label">Work Assignments</span>
+
+    <div v-if="assignments.length === 0" class="empty-assignments">
+      No assignments added. Click "Add Assignment" to begin.
+    </div>
+
+    <AssignmentRow v-for="(assignment, i) in assignments" :key="assignment.id" v-model="assignments[i]" :groups="groups"
+      :categories="categories" :sub-categories="subCategories" :sub-category-metrics="subCategoryMetrics"
+      :metrics="metrics" :index="i" :errors="formErrors" :fixed-group-id="groupId"
+      @remove="removeAssignment(assignment.id)" />
+</template>
         </UaFormGrid>
 
         <div class="section-divider" />

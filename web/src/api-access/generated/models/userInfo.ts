@@ -13,4 +13,5 @@ export interface UserInfo {
   /** @nullable */
   authenticationType: string | null;
   claims: UserClaim[];
+  roles: string[];
 }

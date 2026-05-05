@@ -45,11 +45,16 @@ public class AuthController : ControllerBase
     [Authorize]
     public ActionResult<UserInfo> GetUserInfo()
     {
+        var claims = User.Claims.ToList();
         var user = new UserInfo(
             User.Identity?.IsAuthenticated ?? false,
             User.Identity?.Name,
             User.Identity?.AuthenticationType,
-            User.Claims.Select(c => new UserClaim(c.Type, c.Value)).ToList()
+            claims.Select(c => new UserClaim(c.Type, c.Value)).ToList(),
+            claims
+                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                .Select(c => c.Value)
+                .ToList()
         );
 
         return Ok(user);

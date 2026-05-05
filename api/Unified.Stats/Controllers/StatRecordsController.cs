@@ -49,19 +49,23 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [HttpPost("batch")]
     [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<StatRecordResponse>>> CreateBatch(
-        [FromBody] IEnumerable<StatRecordRequest> requests,
+        [FromBody] IReadOnlyList<StatRecordRequest> requests,
         CancellationToken cancellationToken
     )
     {
-        var requestList = requests.ToList();
-
-        foreach (var request in requestList)
+        foreach (var request in requests)
         {
             await validator.ValidateAndThrowAsync(request, cancellationToken);
         }
 
-        var result = await service.CreateBatchAsync(requestList, cancellationToken);
+        var result = await service.CreateBatchAsync(
+            requests,
+            User.Identity?.Name ?? string.Empty,
+            User.IsInRole("Supervisor"),
+            cancellationToken
+        );
         return Created("/api/stats/records", result);
     }
 
