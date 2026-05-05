@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 # Generate runtime config.json with environment variable
 echo "Generating runtime config..."
