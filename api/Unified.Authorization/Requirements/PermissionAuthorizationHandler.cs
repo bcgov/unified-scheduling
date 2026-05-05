@@ -13,29 +13,28 @@ namespace Unified.Authorization.Requirements;
 /// Unauthenticated requests are not failed here so that the standard authentication
 /// challenge (401) flow is preserved.
 ///
-/// Permission claims are added at login by <see cref="PermissionClaimsTransformer"/>,
+/// Permission claims are added at login by <see cref="UnifiedClaimsTransformer"/>,
 /// which expands the user's role claims into permission claims.
 /// </summary>
-public sealed class PermissionAuthorizationHandler
-    : AuthorizationHandler<PermissionRequirement>
+public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {
     protected override Task HandleRequirementAsync(
         AuthorizationHandlerContext context,
-        PermissionRequirement requirement)
+        PermissionRequirement requirement
+    )
     {
         // Let the authentication pipeline handle unauthenticated users (401 challenge).
         if (context.User.Identity?.IsAuthenticated != true)
             return Task.CompletedTask;
 
-        var hasPermission = context.User.Claims
-            .Any(c => c.Type == UnifiedClaimTypes.Permission
-                   && c.Value == requirement.Permission);
+        var hasPermission = context.User.Claims.Any(c =>
+            c.Type == UnifiedClaimTypes.Permission && c.Value == requirement.Permission
+        );
 
         if (hasPermission)
             context.Succeed(requirement);
         else
-            throw new ForbiddenException(
-                $"Missing required permission: {requirement.Permission}");
+            throw new ForbiddenException($"Missing required permission: {requirement.Permission}");
 
         return Task.CompletedTask;
     }

@@ -29,7 +29,7 @@ public static class AuthorizationModule
     public static IServiceCollection AddAuthorizationModule(this IServiceCollection services)
     {
         // Expand role claims → permission claims at authentication time
-        services.AddScoped<IClaimsTransformation, PermissionClaimsTransformer>();
+        services.AddScoped<IClaimsTransformation, UnifiedClaimsTransformer>();
 
         // Handler that checks permission claims
         services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
@@ -51,13 +51,11 @@ public static class AuthorizationModule
     ///       .AddPermissionPolicy(Permissions.ShiftsView)
     ///       .AddPermissionPolicy(Permissions.ShiftsEdit);
     /// </summary>
-    public static AuthorizationBuilder AddPermissionPolicy(
-        this AuthorizationBuilder builder, string permission)
+    public static AuthorizationBuilder AddPermissionPolicy(this AuthorizationBuilder builder, string permission)
     {
         return builder.AddPolicy(
             BuildPolicyName(permission),
-            policy => policy
-                .RequireAuthenticatedUser()
-                .AddRequirements(new PermissionRequirement(permission)));
+            policy => policy.RequireAuthenticatedUser().AddRequirements(new PermissionRequirement(permission))
+        );
     }
 }
