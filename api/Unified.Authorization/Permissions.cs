@@ -2,14 +2,7 @@ namespace Unified.Authorization;
 
 /// <summary>
 /// Permission name constants used throughout the application.
-/// 
-/// TODO: Replace this static class with a database-backed service.
-/// Steps to replace:
-///   1. Add a Permission entity to db/Models/UserManagement/
-///   2. Add a UserRole join entity linking User → Role
-///   3. Add a RolePermission join entity linking Role → Permission
-///   4. Implement IPermissionService that loads from DB
-///   5. Inject IPermissionService into PermissionClaimsTransformer and replace the hardcoded permissions map with DB queries
+
 /// </summary>
 public static class Permissions
 {
