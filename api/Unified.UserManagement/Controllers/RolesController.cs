@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
@@ -11,14 +12,19 @@ namespace Unified.UserManagement.Controllers;
 [Route("api/[controller]")]
 [Authorize]
 [ApiController]
-public class RolesController(IRoleService roleService, RoleRequestValidator roleRequestValidator) : ControllerBase
+public class RolesController(
+    IRoleService roleService,
+    RoleRequestValidator roleRequestValidator,
+    UpdateRoleRequestValidator updateRoleRequestValidator
+) : ControllerBase
 {
     /// <summary>
-    /// Returns all available roles.
+    /// Returns all available roles with their assigned permissions.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of roles.</returns>
     [HttpGet]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.RolesView)]
     [ProducesResponseType(typeof(IEnumerable<RoleDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<RoleDto>>> Get(CancellationToken cancellationToken)
     {
@@ -27,12 +33,13 @@ public class RolesController(IRoleService roleService, RoleRequestValidator role
     }
 
     /// <summary>
-    /// Creates a new role.
+    /// Creates a new role, optionally assigning permissions.
     /// </summary>
-    /// <param name="request">The role payload.</param>
+    /// <param name="request">The role payload including optional permission IDs.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The newly created role.</returns>
     [HttpPost]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.RolesCreateAndAssign)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<RoleDto>> Create(
@@ -45,5 +52,35 @@ public class RolesController(IRoleService roleService, RoleRequestValidator role
         var role = await roleService.CreateAsync(request, cancellationToken);
 
         return Created($"/api/roles/{role.Id}", role);
+    }
+
+    /// <summary>
+    /// Updates an existing role's name, description, and permission assignments.
+    /// Permissions not included in the request are removed from the role.
+    /// </summary>
+    /// <param name="id">The role ID.</param>
+    /// <param name="request">The updated role payload including the full desired permission set.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated role.</returns>
+    [HttpPut("{id:int}")]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.RolesEdit)]
+    [ProducesResponseType(typeof(RoleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<RoleDto>> Update(
+        int id,
+        [FromBody] UpdateRoleRequestDto request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (id != request.Id)
+            return BadRequest();
+
+        await updateRoleRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+
+        var role = await roleService.UpdateAsync(request, cancellationToken);
+
+        return Ok(role);
     }
 }

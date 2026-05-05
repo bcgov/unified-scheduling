@@ -2,7 +2,6 @@ namespace Unified.Authorization;
 
 /// <summary>
 /// Permission name constants used throughout the application.
-
 /// </summary>
 public static class Permissions
 {

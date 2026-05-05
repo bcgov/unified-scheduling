@@ -32,6 +32,7 @@ public static class UserManagementModule
 
         services.AddScoped<UserRequestValidator>();
         services.AddScoped<RoleRequestValidator>();
+        services.AddScoped<UpdateRoleRequestValidator>();
 
         // Register permission policies owned by this module
         services
