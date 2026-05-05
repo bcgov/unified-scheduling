@@ -40,6 +40,8 @@ public sealed class PermissionClaimsTransformer(UnifiedDbContext db) : IClaimsTr
             .ToListAsync();
 
         var identity = (ClaimsIdentity)principal.Identity!;
+        // Add Claims for the user's Idir ID and permissions. These claims are not stored in the cookie and only exist for the lifetime of the request.
+        identity.AddClaim(new Claim(UnifiedClaimTypes.IdirId, idir.ToString()));
         identity.AddClaims(permissions.Select(p => new Claim(UnifiedClaimTypes.Permission, p)));
 
         return principal;
