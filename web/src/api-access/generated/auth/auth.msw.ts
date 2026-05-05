@@ -27,6 +27,9 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         type: faker.string.alpha({ length: { min: 10, max: 20 } }),
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
+      roles: Array.from({ length: faker.number.int({ min: 0, max: 3 }) }, () =>
+        faker.string.alpha({ length: { min: 5, max: 15 } }),
+      ),
       ...overrideResponse,
     },
     {
@@ -43,6 +46,9 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         type: faker.string.alpha({ length: { min: 10, max: 20 } }),
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
+      roles: Array.from({ length: faker.number.int({ min: 0, max: 3 }) }, () =>
+        faker.string.alpha({ length: { min: 5, max: 15 } }),
+      ),
       ...overrideResponse,
     },
     {
@@ -59,6 +65,9 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         type: faker.string.alpha({ length: { min: 10, max: 20 } }),
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
+      roles: Array.from({ length: faker.number.int({ min: 0, max: 3 }) }, () =>
+        faker.string.alpha({ length: { min: 5, max: 15 } }),
+      ),
       ...overrideResponse,
     },
   ]);

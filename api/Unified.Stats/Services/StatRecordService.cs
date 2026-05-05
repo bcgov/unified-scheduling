@@ -71,8 +71,8 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
             if (string.IsNullOrWhiteSpace(callerIdirName))
                 throw new UnauthorizedAccessException("Only supervisors can submit records on behalf of another user.");
 
-            var callerId = await db.Users
-                .AsNoTracking()
+            var callerId = await db
+                .Users.AsNoTracking()
                 .Where(u => u.IdirName == callerIdirName)
                 .Select(u => u.Id)
                 .SingleOrDefaultAsync(cancellationToken);

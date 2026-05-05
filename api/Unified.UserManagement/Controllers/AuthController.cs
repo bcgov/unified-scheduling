@@ -51,10 +51,7 @@ public class AuthController : ControllerBase
             User.Identity?.Name,
             User.Identity?.AuthenticationType,
             claims.Select(c => new UserClaim(c.Type, c.Value)).ToList(),
-            claims
-                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
-                .Select(c => c.Value)
-                .ToList()
+            claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList()
         );
 
         return Ok(user);
