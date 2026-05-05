@@ -10,4 +10,9 @@ public static class UnifiedClaimTypes
     /// Multiple claims of this type may exist — one per granted permission.
     /// </summary>
     public const string Permission = "unified/permission";
+
+    /// <summary>
+    /// Claim type for the user's Idir ID without the "@idir" suffix (e.g., "1234-5678-90ab-cdef").
+    /// </summary>
+    public const string IdirId = "idir_user_guid";
 }
