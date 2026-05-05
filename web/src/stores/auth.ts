@@ -1,6 +1,6 @@
-import { ref, computed } from 'vue';
-import { defineStore } from 'pinia';
 import type { UserInfo, UserResponse } from '@/api-access/generated/models';
+import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
 
 export const useAuthStore = defineStore('auth', () => {
   const userInfo = ref<UserInfo | null>(null);
