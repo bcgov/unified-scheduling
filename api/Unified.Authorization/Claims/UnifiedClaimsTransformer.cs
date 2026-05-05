@@ -43,10 +43,7 @@ public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTrans
             .Distinct()
             .ToList();
 
-        var roles = user
-            .ActiveUserRoles.Select(ur => ur.Role.Name)
-            .Distinct()
-            .ToList();
+        var roles = user.ActiveUserRoles.Select(ur => ur.Role.Name).Distinct().ToList();
 
         var identity = (ClaimsIdentity)principal.Identity!;
         // Add Claims for the user's Idir ID, User ID, roles, and permissions. These claims are not stored in the cookie and only exist for the lifetime of the request.
