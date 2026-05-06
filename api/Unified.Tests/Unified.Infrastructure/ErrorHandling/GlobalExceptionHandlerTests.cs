@@ -108,9 +108,35 @@ public class GlobalExceptionHandlerTests
         Assert.Equal(StatusCodes.Status499ClientClosedRequest, context.Response.StatusCode);
     }
 
+    [Fact]
+    public async Task TryHandleAsync_Should_Map_ForbiddenException_To_403_With_ProblemDetails()
+    {
+        // Arrange
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = new ForbiddenException("Missing required permission: ShiftsEdit");
+
+        // Act
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal("Access denied.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "You do not have permission to perform this action.",
+            body.RootElement.GetProperty("detail").GetString()
+        );
+        Assert.True(body.RootElement.TryGetProperty("traceId", out _));
+    }
+
     private static GlobalExceptionHandler CreateHandler(HttpContext context)
     {
         var services = new ServiceCollection();
+        services.AddOptions();
+        services.AddLogging();
         services.AddProblemDetails();
 
         var provider = services.BuildServiceProvider();
