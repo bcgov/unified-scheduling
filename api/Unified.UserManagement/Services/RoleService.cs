@@ -13,7 +13,7 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
         var roles = await DB
             .Roles.AsNoTracking()
             .Include(r => r.RolePermissions)
-            .ThenInclude(rp => rp.Permission)
+                .ThenInclude(rp => rp.Permission)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
 
