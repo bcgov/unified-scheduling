@@ -9,8 +9,8 @@ on:
     branches:
       - main
     paths:
-      - 'api/**'
-      - 'db/**'
+      - "api/**"
+      - "db/**"
 
   workflow_dispatch:
 
@@ -27,10 +27,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
-      
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+
       - name: Check for file changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 #v3.0.3
         id: filter
         with:
           filters: |
@@ -41,7 +41,7 @@ jobs:
       - name: Get changed files
         if: steps.filter.outputs.api == 'true'
         id: changed-files
-        uses: jitterbit/get-changed-files@v1
+        uses: jitterbit/get-changed-files@b17fbb00bdc0c0f63fcf166580804b4d2cdc2a42 #v1
         continue-on-error: true
 
       - name: Find csproj files
@@ -72,7 +72,7 @@ jobs:
 
       - name: Setup .NET
         if: steps.filter.outputs.api == 'true'
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 #v5.2.0
         with:
           dotnet-version: 10.0.x
 
@@ -113,7 +113,7 @@ jobs:
         with:
           working_directory: ${{ env.WORKING_DIRECTORY }}
           dotnet_version: 10.0
-      
+
       - name: Summary
         run: |
           if [[ "${{ steps.filter.outputs.api }}" == "false" ]]; then
