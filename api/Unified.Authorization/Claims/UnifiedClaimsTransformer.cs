@@ -29,8 +29,8 @@ public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTrans
 
         var user = await db
             .Users.Include(u => u.UserRoles)
-            .ThenInclude(ur => ur.Role)
-            .ThenInclude(r => r.RolePermissions)
+                .ThenInclude(ur => ur.Role)
+                    .ThenInclude(r => r.RolePermissions)
             .Where(u => u.IdirId == idir && u.IsEnabled)
             .FirstOrDefaultAsync();
 
