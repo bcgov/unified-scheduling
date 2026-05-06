@@ -2,7 +2,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Unified.Authorization;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
@@ -24,7 +23,7 @@ public class RolesController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of roles.</returns>
     [HttpGet]
-    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.RolesView)]
+    [Authorize(Policy = UserManagementPolicies.RolesView)]
     [ProducesResponseType(typeof(IEnumerable<RoleDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<RoleDto>>> Get(CancellationToken cancellationToken)
     {
@@ -39,7 +38,7 @@ public class RolesController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The newly created role.</returns>
     [HttpPost]
-    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.RolesCreateAndAssign)]
+    [Authorize(Policy = UserManagementPolicies.RolesCreateAndAssign)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<RoleDto>> Create(
@@ -63,7 +62,7 @@ public class RolesController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The updated role.</returns>
     [HttpPut("{id:int}")]
-    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.RolesEdit)]
+    [Authorize(Policy = UserManagementPolicies.RolesEdit)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

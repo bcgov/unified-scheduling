@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Unified.Authorization;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 
@@ -18,7 +17,7 @@ public class PermissionsController(IPermissionService permissionService) : Contr
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of permissions.</returns>
     [HttpGet]
-    [Authorize(Policy = AuthorizationModule.PolicyPrefix + Permissions.RolesView)]
+    [Authorize(Policy = UserManagementPolicies.RolesView)]
     [ProducesResponseType(typeof(IEnumerable<PermissionDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<PermissionDto>>> Get(CancellationToken cancellationToken)
     {
