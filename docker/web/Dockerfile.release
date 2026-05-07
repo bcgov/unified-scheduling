@@ -1,8 +1,7 @@
 # Define ARG at the top level
 ARG NODE_VERSION=22
 ARG WEB_BASE_HREF=/
-ARG NGINX_RUNTIME_SRC=./nginx-runtime
-ARG VUE_ON_NGINX_SRC=./vue-on-nginx
+ARG NGINX_RUNTIME_SRC=./docker/nginx-runtime
 ARG WEB_SRC=./web
 ARG NPM_INSTALL_ARGS=""
 
@@ -12,7 +11,6 @@ ARG NPM_INSTALL_ARGS=""
 # Use the offical nginx (based on debian)
 FROM nginx:stable AS runtime
 ARG NGINX_RUNTIME_SRC
-ARG VUE_ON_NGINX_SRC
 
 ENV STI_SCRIPTS_PATH=/usr/libexec/s2i
 
@@ -21,17 +19,15 @@ RUN apt-get update -y && \
     apt-get install -y openssl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy our OpenShift s2i scripts over to default location
-COPY ${VUE_ON_NGINX_SRC}/s2i/bin/ /usr/libexec/s2i/
-
 # Expose this variable to OpenShift
 LABEL io.openshift.s2i.scripts-url=image:///usr/libexec/s2i
 
 # Copy config from source to container
 COPY ${NGINX_RUNTIME_SRC}/nginx.conf.template /tmp/
 
-# Copy run script
-COPY ${NGINX_RUNTIME_SRC}/s2i/bin/run /usr/libexec/s2i/run
+# Create a runtime script used as image entrypoint.
+RUN mkdir -p /usr/libexec/s2i && \
+    printf '#!/bin/sh\nset -eu\nexec nginx -g "daemon off;"\n' > /usr/libexec/s2i/fix-base-url
 
 # =================================================================================
 # Fix up permissions
@@ -85,18 +81,14 @@ RUN npm run build
 # 3. Build web image
 ###################################################################################
 FROM runtime
-ARG VUE_ON_NGINX_SRC
 
 # Copy the build artifacts from the 'builder' image
 # to the distribution folder on the runtime image.
 COPY --from=artifacts /opt/app-root/src/dist/. /tmp/app/dist/
 
-# # Ensure S2I script copied over is runnable.
-COPY ${VUE_ON_NGINX_SRC}/s2i/bin/fix-base-url /usr/libexec/s2i/fix-base-url
-
 # Fix permissions.
 USER root
-RUN chmod 674 /usr/libexec/s2i/fix-base-url
+RUN chmod 755 /usr/libexec/s2i/fix-base-url
 RUN chmod -R 674 /tmp/app/dist/
 
 # From nginx-runtime.
@@ -106,4 +98,4 @@ USER 104
 # short circuit the s2i lifecycle.
 # The runtime image "loses" its s2i runtime voodoo when it 
 # is used in a dockerSrategy, which is why the explicit `CMD` is necessary
-CMD  /usr/libexec/s2i/fix-base-url
+CMD ["/usr/libexec/s2i/fix-base-url"]

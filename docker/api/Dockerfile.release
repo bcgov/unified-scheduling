@@ -3,18 +3,26 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy project files
-COPY api/api.csproj ./api/
-# COPY db/db.csproj ./db/
+COPY ["api/Unified.Api/Unified.Api.csproj", "api/Unified.Api/"]
+COPY ["api/Unified.Common/Unified.Common.csproj", "api/Unified.Common/"]
+COPY ["api/Unified.UserManagement/Unified.UserManagement.csproj", "api/Unified.UserManagement/"]
+COPY ["api/Unified.Core/Unified.Core.csproj", "api/Unified.Core/"]
+COPY ["api/Unified.Infrastructure/Unified.Infrastructure.csproj", "api/Unified.Infrastructure/"]
+COPY ["api/Unified.Stats/Unified.Stats.csproj", "api/Unified.Stats/"]
+COPY ["db/db.csproj", "db/"]
 
-# Restore dependencies
-RUN dotnet restore ./api/api.csproj
 # Copy source code
 COPY api ./api
-# COPY db/ ./db/
+COPY db ./db
+
+# Remove host build artifacts that can contain incompatible NuGet cache metadata
+RUN find /src -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+
+# Restore dependencies
+RUN dotnet restore ./api/Unified.Api/Unified.Api.csproj
 
 # Build and publish
-WORKDIR /src/api
-RUN dotnet publish -c Release -o /app/publish --no-restore
+RUN dotnet publish ./api/Unified.Api/Unified.Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
@@ -34,4 +42,4 @@ EXPOSE 8080
 USER 1001
 
 # Start the application
-ENTRYPOINT ["dotnet", "api.dll"]
+ENTRYPOINT ["dotnet", "Unified.Api.dll"]
