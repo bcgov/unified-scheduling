@@ -23,57 +23,57 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger) : SeederBase<Uni
     private static readonly Permission[] SeedPermissions =
     [
         // Authentication
-        new() { Id = Permissions.AuthLogin, Description = "Log in to the application" },
+        new() { Id = nameof(Permissions.AuthLogin), Description = "Log in to the application" },
         // Users
-        new() { Id = Permissions.UsersCreate, Description = "Create new users" },
-        new() { Id = Permissions.UsersEdit, Description = "Edit existing users" },
-        new() { Id = Permissions.UsersView, Description = "View users" },
-        new() { Id = Permissions.UsersExpire, Description = "Expire users" },
-        new() { Id = Permissions.UsersViewOtherProfiles, Description = "View other user profiles" },
+        new() { Id = nameof(Permissions.UsersCreate), Description = "Create new users" },
+        new() { Id = nameof(Permissions.UsersEdit), Description = "Edit existing users" },
+        new() { Id = nameof(Permissions.UsersView), Description = "View users" },
+        new() { Id = nameof(Permissions.UsersExpire), Description = "Expire users" },
+        new() { Id = nameof(Permissions.UsersViewOtherProfiles), Description = "View other user profiles" },
         // Roles
-        new() { Id = Permissions.RolesView, Description = "View roles" },
-        new() { Id = Permissions.RolesCreateAndAssign, Description = "Create and assign roles" },
-        new() { Id = Permissions.RolesEdit, Description = "Edit roles" },
-        new() { Id = Permissions.RolesExpire, Description = "Expire roles" },
+        new() { Id = nameof(Permissions.RolesView), Description = "View roles" },
+        new() { Id = nameof(Permissions.RolesCreateAndAssign), Description = "Create and assign roles" },
+        new() { Id = nameof(Permissions.RolesEdit), Description = "Edit roles" },
+        new() { Id = nameof(Permissions.RolesExpire), Description = "Expire roles" },
         // Types
-        // new() { Id = Permissions.TypesCreate, Description = "Create types" },
-        // new() { Id = Permissions.TypesEdit, Description = "Edit types" },
-        // new() { Id = Permissions.TypesExpire, Description = "Expire types" },
+        new() { Id = nameof(Permissions.TypesCreate), Description = "Create types" },
+        new() { Id = nameof(Permissions.TypesEdit), Description = "Edit types" },
+        new() { Id = nameof(Permissions.TypesExpire), Description = "Expire types" },
         // Shifts
-        // new() { Id = Permissions.ShiftsView, Description = "View shifts" },
-        // new() { Id = Permissions.ShiftsCreateAndAssign, Description = "Create and assign shifts" },
-        // new() { Id = Permissions.ShiftsEdit, Description = "Edit shifts" },
-        // new() { Id = Permissions.ShiftsExpire, Description = "Expire shifts" },
-        // new() { Id = Permissions.ShiftsImport, Description = "Import shifts" },
-        // new() { Id = Permissions.ShiftsViewAllFuture, Description = "View all future shifts" },
+        new() { Id = nameof(Permissions.ShiftsView), Description = "View shifts" },
+        new() { Id = nameof(Permissions.ShiftsCreateAndAssign), Description = "Create and assign shifts" },
+        new() { Id = nameof(Permissions.ShiftsEdit), Description = "Edit shifts" },
+        new() { Id = nameof(Permissions.ShiftsExpire), Description = "Expire shifts" },
+        new() { Id = nameof(Permissions.ShiftsImport), Description = "Import shifts" },
+        new() { Id = nameof(Permissions.ShiftsViewAllFuture), Description = "View all future shifts" },
         // Schedule
-        // new() { Id = Permissions.ScheduleViewDistribute, Description = "View distribute schedule" },
+        new() { Id = nameof(Permissions.ScheduleViewDistribute), Description = "View distribute schedule" },
         // Assignments
-        // new() { Id = Permissions.AssignmentsCreate, Description = "Create assignments" },
-        // new() { Id = Permissions.AssignmentsEdit, Description = "Edit assignments" },
-        // new() { Id = Permissions.AssignmentsExpire, Description = "Expire assignments" },
+        new() { Id = nameof(Permissions.AssignmentsCreate), Description = "Create assignments" },
+        new() { Id = nameof(Permissions.AssignmentsEdit), Description = "Edit assignments" },
+        new() { Id = nameof(Permissions.AssignmentsExpire), Description = "Expire assignments" },
         // Duty Roster
-        // new() { Id = Permissions.DutyRosterView, Description = "View duty roster" },
-        // new() { Id = Permissions.DutyRosterViewFuture, Description = "View duty roster in the future" },
+        new() { Id = nameof(Permissions.DutyRosterView), Description = "View duty roster" },
+        new() { Id = nameof(Permissions.DutyRosterViewFuture), Description = "View duty roster in the future" },
         // Duties
-        // new() { Id = Permissions.DutiesCreateAndAssign, Description = "Create and assign duties" },
-        // new() { Id = Permissions.DutiesEdit, Description = "Edit duties" },
-        // new() { Id = Permissions.DutiesExpire, Description = "Expire duties" },
+        new() { Id = nameof(Permissions.DutiesCreateAndAssign), Description = "Create and assign duties" },
+        new() { Id = nameof(Permissions.DutiesEdit), Description = "Edit duties" },
+        new() { Id = nameof(Permissions.DutiesExpire), Description = "Expire duties" },
         // Location
-        // new() { Id = Permissions.LocationViewHome, Description = "View home location" },
-        // new() { Id = Permissions.LocationViewAssigned, Description = "View assigned location" },
-        // new() { Id = Permissions.LocationViewRegion, Description = "View region" },
-        // new() { Id = Permissions.LocationViewProvince, Description = "View province" },
-        // new() { Id = Permissions.LocationExpire, Description = "Expire locations" },
+        new() { Id = nameof(Permissions.LocationViewHome), Description = "View home location" },
+        new() { Id = nameof(Permissions.LocationViewAssigned), Description = "View assigned location" },
+        new() { Id = nameof(Permissions.LocationViewRegion), Description = "View region" },
+        new() { Id = nameof(Permissions.LocationViewProvince), Description = "View province" },
+        new() { Id = nameof(Permissions.LocationExpire), Description = "Expire locations" },
         // Training
-        // new() { Id = Permissions.TrainingEditPast, Description = "Edit past training records" },
-        // new() { Id = Permissions.TrainingRemovePast, Description = "Remove past training records" },
-        // new() { Id = Permissions.TrainingAdjustExpiry, Description = "Adjust training expiry" },
-        // new() { Id = Permissions.TrainingExempt, Description = "Exempt from training requirements" },
+        new() { Id = nameof(Permissions.TrainingEditPast), Description = "Edit past training records" },
+        new() { Id = nameof(Permissions.TrainingRemovePast), Description = "Remove past training records" },
+        new() { Id = nameof(Permissions.TrainingAdjustExpiry), Description = "Adjust training expiry" },
+        new() { Id = nameof(Permissions.TrainingExempt), Description = "Exempt from training requirements" },
         // IDIR
-        // new() { Id = Permissions.IdirEdit, Description = "Edit IDIR" },
+        new() { Id = nameof(Permissions.IdirEdit), Description = "Edit IDIR" },
         // Reports
-        // new() { Id = Permissions.ReportsGenerate, Description = "Generate reports" },
+        new() { Id = nameof(Permissions.ReportsGenerate), Description = "Generate reports" },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)

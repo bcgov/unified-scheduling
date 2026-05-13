@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Unified.Authorization;
+using Unified.Authorization.Claims;
 using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Controllers;
@@ -39,17 +41,28 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the current authenticated user's information
+    /// Gets the current authenticated user's information including their permissions
     /// </summary>
     [HttpGet("user")]
     [Authorize]
     public ActionResult<UserInfo> GetUserInfo()
     {
+        var claims = User.Claims.Select(c => new UserClaim(c.Type, c.Value)).ToList();
+        
+        // Extract permission claims
+        var permissions = claims
+            .Where(c => c.Type == UnifiedClaimTypes.Permission)
+            .Select(c => Enum.TryParse<Permissions>(c.Value, out var parsed) ? parsed : (Permissions?)null)
+            .Where(p => p.HasValue)
+            .Select(p => p!.Value)
+            .ToList();
+
         var user = new UserInfo(
             User.Identity?.IsAuthenticated ?? false,
             User.Identity?.Name,
             User.Identity?.AuthenticationType,
-            User.Claims.Select(c => new UserClaim(c.Type, c.Value)).ToList()
+            claims,
+            permissions
         );
 
         return Ok(user);

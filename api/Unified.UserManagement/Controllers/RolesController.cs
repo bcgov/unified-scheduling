@@ -82,4 +82,21 @@ public class RolesController(
 
         return Ok(role);
     }
+
+    /// <summary>
+    /// Deletes a role and its related user-role and role-permission assignments.
+    /// </summary>
+    /// <param name="id">The role ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>No content.</returns>
+    [HttpDelete("{id:int}")]
+    [Authorize(Policy = UserManagementPolicies.RolesExpire)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        await roleService.DeleteAsync(id, cancellationToken);
+
+        return NoContent();
+    }
 }

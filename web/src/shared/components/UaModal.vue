@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { mdiClose } from '@mdi/js';
+
 const props = withDefaults(
   defineProps<{
     /** Title displayed in the modal header. */
@@ -46,7 +48,7 @@ const handleDialogVisibility = (isVisible: boolean) => {
       <div class="ua-modal__header">
         <span class="ua-modal__title">{{ title }}</span>
         <v-btn class="ua-modal__close-btn" variant="text" @click="handleClose" :disabled="loading">
-          <v-icon icon="mdi-close" size="20" class="mr-1" />
+          <v-icon :icon="mdiClose" size="20" class="mr-1" />
           Close
         </v-btn>
       </div>

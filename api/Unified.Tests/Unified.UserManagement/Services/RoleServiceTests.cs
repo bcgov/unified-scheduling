@@ -377,4 +377,27 @@ public class RoleServiceTests : IAsyncLifetime
             _roleService.UpdateAsync(request, TestContext.Current.CancellationToken)
         );
     }
+
+    // ── DeleteAsync ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DeleteAsync_Should_Delete_Role()
+    {
+        // Arrange
+        await SeedRoles();
+
+        // Act
+        await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(await _dbContext.Roles.AnyAsync(r => r.Id == 1, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenRoleNotFound_ThrowsKeyNotFoundException()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _roleService.DeleteAsync(9999, TestContext.Current.CancellationToken)
+        );
+    }
 }

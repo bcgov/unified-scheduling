@@ -17,6 +17,7 @@ export * from './locationDto';
 export * from './lookupCodeResponse';
 export * from './lookupCodeTypes';
 export * from './permissionDto';
+export * from './permissions';
 export * from './problemDetails';
 export * from './regionDto';
 export * from './roleDto';

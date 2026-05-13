@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { Permissions } from './permissions';
 import type { UserClaim } from './userClaim';
 
 export interface UserInfo {
@@ -13,4 +14,5 @@ export interface UserInfo {
   /** @nullable */
   authenticationType: string | null;
   claims: UserClaim[];
+  permissions: Permissions[];
 }

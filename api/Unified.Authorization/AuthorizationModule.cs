@@ -58,4 +58,12 @@ public static class AuthorizationModule
             policy => policy.RequireAuthenticatedUser().AddRequirements(new PermissionRequirement(permission))
         );
     }
+
+    /// <summary>
+    /// Registers a single named permission policy on the authorization builder from a permission enum value.
+    /// </summary>
+    public static AuthorizationBuilder AddPermissionPolicy(this AuthorizationBuilder builder, Permissions permission)
+    {
+        return builder.AddPermissionPolicy(permission.ToString());
+    }
 }

@@ -5,6 +5,8 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import { computed, ref } from 'vue';
 import UserFormModal from '../components/UserFormModal.vue';
+import { Permissions } from '@/api-access/generated/models';
+import { mdiPencil } from '@mdi/js';
 
 const props = defineProps<{
   userId: string;
@@ -33,7 +35,13 @@ const handleEditModalClose = () => {
   <div v-else-if="error">Error: {{ error.message }}</div>
   <UaPageHeader title="Profile">
     <template #actions>
-      <UaBtn @click="handleEditMember" :disabled="!data">Edit Member</UaBtn>
+      <UaBtn
+        v-if="accessControl.hasPermission(Permissions.UsersEdit)"
+        @click="handleEditMember"
+        :disabled="!data"
+        :prepend-icon="mdiPencil"
+        >Edit Member</UaBtn
+      >
     </template>
   </UaPageHeader>
   <div class="profile-layout">
