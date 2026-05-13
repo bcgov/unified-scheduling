@@ -81,6 +81,15 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
         return MapToDto(role);
     }
 
+    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var role = await DB.Roles.FindAsync([id], cancellationToken: cancellationToken)
+            ?? throw new KeyNotFoundException($"Role {id} not found.");
+
+        DB.Roles.Remove(role);
+        await DB.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task AddPermissionsAsync(
         Role role,
         IEnumerable<string> permissionIds,

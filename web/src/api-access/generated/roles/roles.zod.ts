@@ -56,3 +56,7 @@ export const PutApiRolesIdResponse = zod.object({
     )
     .optional(),
 });
+
+export const DeleteApiRolesIdParams = zod.strictObject({
+  id: zod.number(),
+});

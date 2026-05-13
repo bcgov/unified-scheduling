@@ -42,9 +42,23 @@ const myTeamRoutes: RouteRecordRaw[] = [
       requiresAuth: true,
     },
   },
+  {
+    path: '/roles-permissions',
+    name: 'RolesPermissions',
+    component: () => import('./views/RolesPermissions.vue'),
+    meta: {
+      title: 'Roles & Permissions',
+      requiresAuth: true,
+    },
+  },
 ];
 
 const navLink: NavigationLink = { name: 'My Team', path: '/myteam', class: 'router-link--border' };
+const rolesAndPermissionsNavLink: NavigationLink = {
+  name: 'Roles & Permissions',
+  path: '/roles-permissions',
+  class: 'router-link--border',
+};
 
 export function registerModule(routes: RouteRecordRaw[]) {
   const navigationStore = useNavigationStore();
@@ -52,4 +66,5 @@ export function registerModule(routes: RouteRecordRaw[]) {
   routes.push(...myTeamRoutes);
 
   navigationStore.registerLink(navLink);
+  navigationStore.registerLink(rolesAndPermissionsNavLink);
 }

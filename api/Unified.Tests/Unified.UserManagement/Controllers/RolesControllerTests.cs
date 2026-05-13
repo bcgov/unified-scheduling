@@ -155,6 +155,20 @@ public class RolesControllerTests
         );
     }
 
+    // ── Delete ───────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Delete_Should_Return_NoContent()
+    {
+        var service = new FakeRoleService();
+        var controller = BuildController(service);
+
+        var result = await controller.Delete(7, TestContext.Current.CancellationToken);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Equal(7, service.DeletedRoleId);
+    }
+
     // ── Fake ─────────────────────────────────────────────────────────────────
 
     private sealed class FakeRoleService : IRoleService
@@ -162,6 +176,7 @@ public class RolesControllerTests
         public IReadOnlyCollection<RoleDto>? GetAllResult { get; set; }
         public RoleDto? CreateResult { get; set; }
         public RoleDto? UpdateResult { get; set; }
+        public int? DeletedRoleId { get; private set; }
 
         public Task<IReadOnlyCollection<RoleDto>> GetAllAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(GetAllResult ?? (IReadOnlyCollection<RoleDto>)new List<RoleDto>());
@@ -171,5 +186,11 @@ public class RolesControllerTests
 
         public Task<RoleDto> UpdateAsync(UpdateRoleRequestDto request, CancellationToken cancellationToken = default) =>
             Task.FromResult(UpdateResult ?? new RoleDto());
+
+        public Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+        {
+            DeletedRoleId = id;
+            return Task.CompletedTask;
+        }
     }
 }

@@ -12,6 +12,7 @@ import { mapToValidationErrors, validationMessages } from '@/shared/validation/v
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
 import { mapToSelectOptions } from '@/utils/select';
+import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, onMounted, ref } from 'vue';
 import * as zod from 'zod';
 
@@ -263,8 +264,8 @@ const handleSave = async () => {
     </UaFormGrid>
 
     <template #actions>
-      <UaBtn variant="outlined" @click="handleClose" :disabled="isLoading">Close</UaBtn>
-      <UaBtn color="primary" variant="flat" @click="handleSave" :loading="isLoading">
+      <UaBtn variant="outlined" @click="handleClose" :disabled="isLoading" :prepend-icon="mdiClose">Close</UaBtn>
+      <UaBtn color="primary" variant="flat" @click="handleSave" :loading="isLoading" :prepend-icon="mdiContentSave">
         {{ isEditMode ? 'Save Changes' : 'Add Member' }}
       </UaBtn>
     </template>
