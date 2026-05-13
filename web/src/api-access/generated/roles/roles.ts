@@ -37,6 +37,10 @@ export const putApiRolesId = (
     options,
   );
 };
+export const deleteApiRolesId = (id: number, options?: SecondParameter<typeof useFetchAPI<void>>) => {
+  return useFetchAPI<void>({ url: `/api/roles/${id}`, method: 'DELETE' }, options);
+};
 export type GetApiRolesResult = NonNullable<Awaited<ReturnType<typeof getApiRoles>>>;
 export type PostApiRolesResult = NonNullable<Awaited<ReturnType<typeof postApiRoles>>>;
 export type PutApiRolesIdResult = NonNullable<Awaited<ReturnType<typeof putApiRolesId>>>;
+export type DeleteApiRolesIdResult = NonNullable<Awaited<ReturnType<typeof deleteApiRolesId>>>;

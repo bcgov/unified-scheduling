@@ -9,6 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
+import { Permissions } from '../models';
 import type { UserInfo } from '../models';
 
 export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<UserInfo, object>> = {}): UserInfo =>
@@ -27,6 +28,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         type: faker.string.alpha({ length: { min: 10, max: 20 } }),
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
+      permissions: faker.helpers.arrayElements(Object.values(Permissions)),
       ...overrideResponse,
     },
     {
@@ -43,6 +45,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         type: faker.string.alpha({ length: { min: 10, max: 20 } }),
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
+      permissions: faker.helpers.arrayElements(Object.values(Permissions)),
       ...overrideResponse,
     },
     {
@@ -59,6 +62,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         type: faker.string.alpha({ length: { min: 10, max: 20 } }),
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
+      permissions: faker.helpers.arrayElements(Object.values(Permissions)),
       ...overrideResponse,
     },
   ]);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GetApiUsersParams } from '@/api-access/generated/models';
+import { Permissions, type GetApiUsersParams } from '@/api-access/generated/models';
 import { getApiUsers } from '@/api-access/generated/users/users';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
@@ -8,6 +8,9 @@ import { mdiPlus } from '@mdi/js';
 import { computed, ref } from 'vue';
 import UserCard from '../components/UserCard.vue';
 import UserFormModal from '../components/UserFormModal.vue';
+import { useAccessControl } from '@/composables/useAccessControl';
+
+const accessControl = useAccessControl();
 
 const searchText = ref('');
 const isEnabled = ref<boolean | undefined>(true);
@@ -46,7 +49,12 @@ const handleCreateModalClose = () => {
 <template>
   <UaPageHeader title="My Team">
     <template #actions>
-      <UaBtn @click="handleAddMember" :prepend-icon="mdiPlus">Add Member</UaBtn>
+      <UaBtn
+        v-if="accessControl.hasPermission(Permissions.UsersCreate)"
+        @click="handleAddMember"
+        :prepend-icon="mdiPlus"
+        >Add Member</UaBtn
+      >
     </template>
   </UaPageHeader>
 
