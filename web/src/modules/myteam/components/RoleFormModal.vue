@@ -2,14 +2,17 @@
 import type { RoleDto, RoleRequestDto, UpdateRoleRequestDto } from '@/api-access/generated/models';
 import { getApiPermissions } from '@/api-access/generated/permissions/permissions';
 import { postApiRoles, putApiRolesId } from '@/api-access/generated/roles/roles';
+import { PostApiRolesBody } from '@/api-access/generated/roles/roles.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
+import { validationMessages } from '@/shared/validation/validationErrors';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
+import * as zod from 'zod';
 
 const props = defineProps<{
   /** When provided, the modal operates in edit mode */
@@ -74,23 +77,53 @@ watch(allPermissions, () => {
   initializeSelectedPermissions();
 });
 
-// Watch for changes in allPermissions and reinitialize
-const validateForm = (): boolean => {
+const roleFormSchema = PostApiRolesBody.extend({
+  name: PostApiRolesBody.shape.name.min(1, 'Role name is required'),
+  description: PostApiRolesBody.shape.description.min(1, 'Description is required'),
+  permissionIds: PostApiRolesBody.shape.permissionIds.refine(
+    (value) => Array.isArray(value) && value.length > 0,
+    'At least one permission must be selected',
+  ),
+});
+
+const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
+  const errors: Record<string, string> = {};
+
+  for (const issue of error.issues) {
+    const fieldName = issue.path[0];
+    if (typeof fieldName !== 'string' || errors[fieldName]) {
+      continue;
+    }
+
+    if (issue.code === 'invalid_type' || issue.code === 'invalid_value') {
+      errors[fieldName] = validationMessages.required;
+      continue;
+    }
+
+    errors[fieldName] = issue.message;
+  }
+
+  return errors;
+};
+
+const validateForm = (selectedPermissionIds: string[]): RoleRequestDto | null => {
   formErrors.value = {};
+  const validationResult = roleFormSchema.safeParse({
+    name: formData.value.name ?? '',
+    description: formData.value.description ?? '',
+    permissionIds: selectedPermissionIds,
+  });
 
-  if (!formData.value.name?.trim()) {
-    formErrors.value['name'] = 'Role name is required';
+  if (!validationResult.success) {
+    formErrors.value = getFieldErrors(validationResult.error);
+    if (formErrors.value['permissionIds']) {
+      formErrors.value['permissions'] = formErrors.value['permissionIds'];
+      delete formErrors.value['permissionIds'];
+    }
+    return null;
   }
 
-  if (!formData.value.description?.trim()) {
-    formErrors.value['description'] = 'Description is required';
-  }
-
-  if (!selectedPermissions.value || Array.from(selectedPermissions.value.values()).filter((v) => v).length === 0) {
-    formErrors.value['permissions'] = 'At least one permission must be selected';
-  }
-
-  return Object.keys(formErrors.value).length === 0;
+  return validationResult.data;
 };
 
 const handleClose = () => {
@@ -105,12 +138,13 @@ const togglePermission = (permissionId: string) => {
 };
 
 const handleSave = async () => {
-  if (!validateForm()) return;
-
   // Collect selected permission IDs
   const selectedPermissionIds = Array.from(selectedPermissions.value.entries())
     .filter(([, checked]) => checked)
     .map(([id]) => id);
+
+  const payload = validateForm(selectedPermissionIds);
+  if (!payload) return;
 
   isLoading.value = true;
   apiErrorMessage.value = '';
@@ -136,9 +170,7 @@ const handleSave = async () => {
     } else {
       // --- Create mode ---
       const createDto: RoleRequestDto = {
-        name: formData.value.name || '',
-        description: formData.value.description || '',
-        permissionIds: selectedPermissionIds,
+        ...payload,
       };
 
       const { data, error } = await postApiRoles(createDto);
