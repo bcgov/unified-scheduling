@@ -2,6 +2,7 @@ import { createPinia } from 'pinia';
 import { describe, expect, it } from 'vitest';
 import { getGetApiConfigResponseMock } from '@/api-access/generated/config/config.msw';
 import { useAccessControl } from '@/composables/useAccessControl';
+import { Permissions } from '@/api-access/generated/models';
 
 const config = getGetApiConfigResponseMock();
 
@@ -33,5 +34,83 @@ describe('useAccessControl', () => {
     configStore.config = null;
 
     expect(isFeatureFlagEnabled('schedulingModule')).toBe(false);
+  });
+
+  it('returns true if user has a permission', () => {
+    const pinia = createPinia();
+    const { authStore, hasPermission } = useAccessControl(pinia);
+    authStore.userInfo = {
+      isAuthenticated: true,
+      name: 'Test User',
+      authenticationType: 'test',
+      claims: [],
+      permissions: [Permissions.RolesEdit],
+    };
+    expect(hasPermission(Permissions.RolesEdit)).toBe(true);
+  });
+
+  it('returns false if user does not have a permission', () => {
+    const pinia = createPinia();
+    const { authStore, hasPermission } = useAccessControl(pinia);
+    authStore.userInfo = {
+      isAuthenticated: true,
+      name: 'Test User',
+      authenticationType: 'test',
+      claims: [],
+      permissions: [Permissions.RolesEdit],
+    };
+    expect(hasPermission(Permissions.UsersCreate)).toBe(false);
+  });
+
+  it('returns true if user has any of the permissions', () => {
+    const pinia = createPinia();
+    const { authStore, hasAnyPermission } = useAccessControl(pinia);
+    authStore.userInfo = {
+      isAuthenticated: true,
+      name: 'Test User',
+      authenticationType: 'test',
+      claims: [],
+      permissions: [Permissions.RolesEdit],
+    };
+    expect(hasAnyPermission(Permissions.UsersCreate, Permissions.RolesEdit)).toBe(true);
+  });
+
+  it('returns false if user has none of the permissions', () => {
+    const pinia = createPinia();
+    const { authStore, hasAnyPermission } = useAccessControl(pinia);
+    authStore.userInfo = {
+      isAuthenticated: true,
+      name: 'Test User',
+      authenticationType: 'test',
+      claims: [],
+      permissions: [Permissions.RolesEdit],
+    };
+    expect(hasAnyPermission(Permissions.UsersCreate, Permissions.UsersEdit)).toBe(false);
+  });
+
+  it('returns true if user has all of the permissions', () => {
+    const pinia = createPinia();
+    const { authStore, hasAllPermissions } = useAccessControl(pinia);
+    authStore.userInfo = {
+      isAuthenticated: true,
+      name: 'Test User',
+      authenticationType: 'test',
+      claims: [],
+      permissions: [Permissions.RolesEdit, Permissions.UsersCreate],
+    };
+    expect(hasAllPermissions(Permissions.RolesEdit, Permissions.UsersCreate)).toBe(true);
+  });
+
+  it('returns false if user is missing any required permission', () => {
+    const pinia = createPinia();
+    const { authStore, hasAllPermissions } = useAccessControl(pinia);
+    authStore.userInfo = {
+      isAuthenticated: true,
+      name: 'Test User',
+      authenticationType: 'test',
+      claims: [],
+      permissions: [Permissions.RolesEdit],
+    };
+    expect(hasAllPermissions(Permissions.RolesEdit, Permissions.UsersCreate)).toBe(false);
   });
 });
