@@ -56,9 +56,9 @@ const formData = ref<RoleFormData>(props.role ? populateFromRole(props.role) : c
 const initializeSelectedPermissions = () => {
   selectedPermissions.value.clear();
 
-  if (!allPermissions.value) return;
+  if (permissionsError) return;
 
-  allPermissions.value.forEach((perm) => {
+  allPermissions.value?.forEach((perm) => {
     const isSelected = formData.value.permissionIds?.includes(perm.id!) || false;
     selectedPermissions.value.set(perm.id!, isSelected);
   });

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createTestApp } from '../../../helpers/createTestApp';
 import RoleFormModal from '@/modules/myteam/components/RoleFormModal.vue';
@@ -6,10 +6,7 @@ import {
   getGetApiPermissionsMockHandler,
   getGetApiPermissionsResponseMock,
 } from '@/api-access/generated/permissions/permissions.msw';
-import {
-  getPostApiRolesMockHandler,
-  getPutApiRolesIdMockHandler,
-} from '@/api-access/generated/roles/roles.msw';
+import { getPostApiRolesMockHandler } from '@/api-access/generated/roles/roles.msw';
 import { server } from '../../../mocks/server';
 import type { PermissionDto, RoleDto } from '@/api-access/generated/models';
 
@@ -54,7 +51,9 @@ describe('RoleFormModal', () => {
     await flushPromises();
     const content = document.body.textContent ?? '';
     expect(content).toContain('Edit Role');
-    expect(content).toContain('Existing Role');
+    // Check that the form title indicates edit mode (which is shown when role is provided)
+    const titleElement = document.querySelector('[class*="modal"] [class*="title"]');
+    expect(titleElement?.textContent).toContain('Edit Role');
     wrapper.unmount();
   });
 

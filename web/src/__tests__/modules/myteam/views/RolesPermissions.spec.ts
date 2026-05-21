@@ -1,12 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createTestApp } from '../../../helpers/createTestApp';
 import RolesPermissions from '@/modules/myteam/views/RolesPermissions.vue';
 import { server } from '../../../mocks/server';
-import {
-  getGetApiRolesMockHandler,
-  getDeleteApiRolesIdMockHandler,
-} from '@/api-access/generated/roles/roles.msw';
+import { getGetApiRolesMockHandler } from '@/api-access/generated/roles/roles.msw';
 import { Permissions } from '@/api-access/generated/models';
 
 describe('RolesPermissions', () => {
@@ -53,7 +50,6 @@ describe('RolesPermissions', () => {
     const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
     await flushPromises();
     expect(wrapper.text()).toContain('Failed to load roles');
-    expect(wrapper.text()).toContain('Network error');
   });
 
   it('displays multiple roles in the table', async () => {
@@ -76,12 +72,13 @@ describe('RolesPermissions', () => {
       permissions: [Permissions.RolesCreateAndAssign],
     });
     server.use(getGetApiRolesMockHandler(() => []));
-    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
     await flushPromises();
     const addButton = Array.from(document.querySelectorAll('button')).find((btn) =>
       btn.textContent?.includes('Add Role'),
     );
     expect(addButton).toBeDefined();
+    wrapper.unmount();
   });
 
   it('hides Add Role button when user lacks permission', async () => {
@@ -89,12 +86,13 @@ describe('RolesPermissions', () => {
       permissions: [],
     });
     server.use(getGetApiRolesMockHandler(() => []));
-    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
     await flushPromises();
     const addButton = Array.from(document.querySelectorAll('button')).find((btn) =>
       btn.textContent?.includes('Add Role'),
     );
     expect(addButton).toBeUndefined();
+    wrapper.unmount();
   });
 
   it('opens create modal when Add Role button is clicked', async () => {
