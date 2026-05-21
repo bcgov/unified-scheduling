@@ -19,7 +19,8 @@ public static class UserManagementPolicies
 
     // --- Roles ---
     public const string RolesView = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesView);
-    public const string RolesCreateAndAssign = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesCreateAndAssign);
+    public const string RolesCreateAndAssign =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesCreateAndAssign);
     public const string RolesEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesEdit);
     public const string RolesExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesExpire);
 }
