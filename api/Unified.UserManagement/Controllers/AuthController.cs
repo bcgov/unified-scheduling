@@ -48,7 +48,7 @@ public class AuthController : ControllerBase
     public ActionResult<UserInfo> GetUserInfo()
     {
         var claims = User.Claims.Select(c => new UserClaim(c.Type, c.Value)).ToList();
-        
+
         // Extract permission claims
         var permissions = claims
             .Where(c => c.Type == UnifiedClaimTypes.Permission)
