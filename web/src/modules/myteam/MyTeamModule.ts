@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
+import { useAccessControl } from '@/composables/useAccessControl';
+import { Permissions } from '@/api-access/generated/models';
 
 const myTeamRoutes: RouteRecordRaw[] = [
   {
@@ -62,9 +64,13 @@ const rolesAndPermissionsNavLink: NavigationLink = {
 
 export function registerModule(routes: RouteRecordRaw[]) {
   const navigationStore = useNavigationStore();
+  const accessControl = useAccessControl();
 
   routes.push(...myTeamRoutes);
 
   navigationStore.registerLink(navLink);
-  navigationStore.registerLink(rolesAndPermissionsNavLink);
+
+  if (accessControl.hasPermission(Permissions.RolesView)) {
+    navigationStore.registerLink(rolesAndPermissionsNavLink);
+  }
 }
