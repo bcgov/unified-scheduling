@@ -83,7 +83,8 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        var role = await DB.Roles.FindAsync([id], cancellationToken: cancellationToken)
+        var role =
+            await DB.Roles.FindAsync([id], cancellationToken: cancellationToken)
             ?? throw new KeyNotFoundException($"Role {id} not found.");
 
         DB.Roles.Remove(role);
