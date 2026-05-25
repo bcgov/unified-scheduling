@@ -48,18 +48,21 @@ const handleConfirmDelete = async () => {
   isDeleting.value = true;
   deleteError.value = '';
 
-  const { error } = await deleteApiRolesId(roleToDelete.value.id!);
+  try {
+    const { error } = await deleteApiRolesId(roleToDelete.value.id!);
 
-  if (error.value) {
-    deleteError.value =
-      error.value instanceof Error ? error.value.message : 'An error occurred while deleting the role';
-    return;
+    if (error.value) {
+      deleteError.value =
+        error.value instanceof Error ? error.value.message : 'An error occurred while deleting the role';
+      return;
+    }
+
+    showDeleteConfirm.value = false;
+    roleToDelete.value = null;
+    await fetchRoles();
+  } finally {
+    isDeleting.value = false;
   }
-
-  showDeleteConfirm.value = false;
-  roleToDelete.value = null;
-  await fetchRoles();
-  isDeleting.value = false;
 };
 
 const handleRoleFormClose = () => {
