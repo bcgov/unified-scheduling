@@ -34,6 +34,79 @@ const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 const selectedPermissions = ref<Map<string, boolean>>(new Map());
 
+type PermissionItem = NonNullable<typeof allPermissions.value>[number];
+
+const defaultPermissionGroup = 'Other';
+
+const getPermissionGroup = (permission: PermissionItem): string => {
+  const group = permission.group?.trim();
+  return group ? group : defaultPermissionGroup;
+};
+
+const groupedPermissions = computed(() => {
+  const grouped = new Map<string, PermissionItem[]>();
+  const visiblePermissions = (allPermissions.value ?? []);
+
+  for (const permission of visiblePermissions) {
+    const groupName = getPermissionGroup(permission);
+    const existingGroup = grouped.get(groupName) ?? [];
+    existingGroup.push(permission);
+    grouped.set(groupName, existingGroup);
+  }
+
+  for (const permissions of grouped.values()) {
+    permissions.sort((a, b) => {
+      const labelA = (a.description || a.id || '').toLowerCase();
+      const labelB = (b.description || b.id || '').toLowerCase();
+      return labelA.localeCompare(labelB);
+    });
+  }
+
+  return Array.from(grouped.entries())
+    .sort(([groupA], [groupB]) => groupA.localeCompare(groupB))
+    .map(([groupName, permissions]) => ({
+      checkedCount: permissions.filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length,
+      groupName,
+      groupLabel: groupName,
+      permissions,
+    }));
+});
+
+const permissionsByGroupLabel = computed(
+  () => new Map(groupedPermissions.value.map((group) => [group.groupLabel, group.permissions])),
+);
+
+const totalPermissionCount = computed(
+  () => (allPermissions.value ?? []).length,
+);
+
+const selectedPermissionCount = computed(
+  () =>
+    (allPermissions.value ?? [])
+      .filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length,
+);
+
+const permissionTableGroupBy = ref([{ key: 'groupLabel', order: 'asc' as const }]);
+
+const permissionTableSortBy = ref([{ key: 'id', order: 'asc' as const }]);
+
+const permissionTableHeaders = [
+  { title: 'Group', key: 'data-table-group' },
+  { title: '', key: 'permissionToggle', groupable: false, align: 'center' as const, width: 72 },
+  { title: 'Permission', key: 'id', groupable: false },
+  { title: 'Description', key: 'description', groupable: false },
+];
+
+const permissionTableItems = computed(() =>
+  groupedPermissions.value.flatMap((group) => {
+    return group.permissions.map((permission) => ({
+      groupLabel: group.groupLabel,
+      id: permission.id ?? '',
+      description: permission.description || permission.id || '',
+    }));
+  }),
+);
+
 type RoleFormData = Partial<RoleRequestDto & { id?: number; concurrencyToken?: number }>;
 
 const createInitialFormData = (): RoleFormData => ({
@@ -46,7 +119,7 @@ const populateFromRole = (role: RoleDto): RoleFormData => ({
   id: role.id,
   name: role.name ?? '',
   description: role.description ?? '',
-  permissionIds: role.permissions?.map((p) => p.id!) || [],
+  permissionIds: role.permissions?.map((p) => p.id).filter((id): id is string => Boolean(id)) ?? [],
   concurrencyToken: role.concurrencyToken,
 });
 
@@ -132,9 +205,38 @@ const handleClose = () => {
   }
 };
 
-const togglePermission = (permissionId: string) => {
-  const current = selectedPermissions.value.get(permissionId) || false;
-  selectedPermissions.value.set(permissionId, !current);
+const setPermissionSelection = (permissionId: string, isSelected: boolean) => {
+  selectedPermissions.value.set(permissionId, isSelected);
+};
+
+const setGroupSelection = (groupLabel: string, isSelected: boolean) => {
+  const permissions = permissionsByGroupLabel.value.get(groupLabel) ?? [];
+  for (const permission of permissions) {
+    if (!permission.id) continue;
+    selectedPermissions.value.set(permission.id, isSelected);
+  }
+};
+
+const getPermissionsForGroupLabel = (groupLabel: string): PermissionItem[] =>
+  permissionsByGroupLabel.value.get(groupLabel) ?? [];
+
+const getGroupSelectionSummary = (groupLabel: string): string => {
+  const permissions = getPermissionsForGroupLabel(groupLabel);
+  const selectedCount = permissions.filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length;
+  return `(${selectedCount} / ${permissions.length} selected)`;
+};
+
+const isGroupFullySelected = (groupLabel: string): boolean => {
+  const permissions = getPermissionsForGroupLabel(groupLabel);
+  return (
+    permissions.length > 0 && permissions.every((permission) => selectedPermissions.value.get(permission.id ?? ''))
+  );
+};
+
+const isGroupPartiallySelected = (groupLabel: string): boolean => {
+  const permissions = getPermissionsForGroupLabel(groupLabel);
+  const selectedCount = permissions.filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length;
+  return selectedCount > 0 && selectedCount < permissions.length;
 };
 
 const handleSave = async () => {
@@ -220,30 +322,72 @@ const handleSave = async () => {
 
       <!-- Permissions Section -->
       <div class="permissions-section">
-        <label class="ua-form-label">Permissions</label>
+        <div class="permissions-header">
+          <label class="ua-form-label">Permissions</label>
+          <p class="permissions-counter">{{ selectedPermissionCount }} / {{ totalPermissionCount }} selected</p>
+        </div>
         <div class="permissions-list">
           <div v-if="permissionsError" class="error-message">
             Failed to load permissions: {{ permissionsError.message }}
           </div>
           <div v-else-if="isFetchingPermissions" class="no-permissions-message">Loading permissions...</div>
-          <div
-            v-else-if="!permissionsError && (!allPermissions || allPermissions.length === 0)"
-            class="no-permissions-message"
-          >
+          <div v-else-if="!permissionsError && groupedPermissions.length === 0" class="no-permissions-message">
             No permissions available.
           </div>
-          <div v-else v-for="permission in allPermissions" :key="permission.id" class="permission-item">
-            <input
-              type="checkbox"
-              :id="`perm-${permission.id}`"
-              :checked="selectedPermissions.get(permission.id!) || false"
-              :disabled="isLoading"
-              @change="togglePermission(permission.id!)"
-            />
-            <label :for="`perm-${permission.id}`" class="permission-label">
-              {{ permission.description || permission.id }}
-            </label>
-          </div>
+
+          <!-- <p class="permission-table-title">Permissions by module</p> -->
+          <v-data-table
+            v-else
+            :headers="permissionTableHeaders"
+            :items="permissionTableItems"
+            :group-by="permissionTableGroupBy"
+            :sort-by="permissionTableSortBy"
+            item-value="id"
+            :items-per-page="-1"
+            density="comfortable"
+            hide-default-header
+            hide-default-footer
+            class="permission-table"
+          >
+            <template #group-header="{ item, columns, toggleGroup, isGroupOpen }">
+              <tr>
+                <td :colspan="columns.length" class="permission-group-header-cell">
+                  <div class="permission-group-header-row">
+                    <button
+                      type="button"
+                      class="permission-group-toggle-btn"
+                      :aria-label="`Toggle ${item.value} group`"
+                      @click="toggleGroup(item)"
+                    >
+                      {{ isGroupOpen(item) ? '▾' : '▸' }}
+                    </button>
+                    <input
+                      type="checkbox"
+                      :id="`table-group-${item.value}`"
+                      :checked="isGroupFullySelected(item.value)"
+                      :indeterminate.prop="isGroupPartiallySelected(item.value)"
+                      :disabled="isLoading"
+                      @change="setGroupSelection(item.value, ($event.target as HTMLInputElement).checked)"
+                    />
+                    <label :for="`table-group-${item.value}`" class="permission-group-label">{{ item.value }}</label>
+                    <span class="permission-group-summary">{{ getGroupSelectionSummary(item.value) }}</span>
+                  </div>
+                </td>
+              </tr>
+            </template>
+
+            <template #[`item.permissionToggle`]="{ item }">
+              <div class="permission-table-permission-toggle">
+                <input
+                  type="checkbox"
+                  :id="`table-perm-${item.id}`"
+                  :checked="selectedPermissions.get(item.id) || false"
+                  :disabled="isLoading"
+                  @change="setPermissionSelection(item.id, ($event.target as HTMLInputElement).checked)"
+                />
+              </div>
+            </template>
+          </v-data-table>
         </div>
         <div v-if="formErrors.permissions" class="error-message">{{ formErrors.permissions }}</div>
       </div>
@@ -269,6 +413,13 @@ const handleSave = async () => {
   grid-column: 1 / -1;
 }
 
+.permissions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ua-spacing-md);
+}
+
 .permissions-list {
   display: flex;
   flex-direction: column;
@@ -280,6 +431,13 @@ const handleSave = async () => {
   min-height: 150px;
 }
 
+.permissions-counter {
+  margin: var(--ua-spacing-xs) 0 var(--ua-spacing-sm);
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-sm);
+  text-align: right;
+}
+
 .no-permissions-message {
   color: var(--ua-text-secondary);
   font-size: var(--ua-font-size-sm);
@@ -287,33 +445,67 @@ const handleSave = async () => {
   padding: var(--ua-spacing-md);
 }
 
-.permission-item {
-  display: flex;
-  align-items: center;
-  gap: var(--ua-spacing-md);
-
-  input[type='checkbox'] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-  }
+.permission-table-wrapper {
+  margin-top: var(--ua-spacing-xs);
 }
 
-.permission-label {
-  cursor: pointer;
-  user-select: none;
-  font-size: var(--ua-font-size-base);
-  color: var(--ua-text-primary);
+.permission-table-title {
+  margin: 0 0 var(--ua-spacing-sm);
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-sm);
+}
 
-  input[type='checkbox']:disabled ~ & {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+.permission-table {
+  border: 1px solid var(--ua-border-color);
+  border-radius: var(--ua-border-radius-sm);
+}
+
+.permission-group-header-cell {
+  background-color: rgba(var(--v-theme-surface-variant), 0.35);
+}
+
+.permission-group-header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ua-spacing-sm);
+  padding: var(--ua-spacing-sm) var(--ua-spacing-xs);
+}
+
+.permission-group-toggle-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-base);
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.permission-group-label {
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-primary);
+}
+
+.permission-group-summary {
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-sm);
+}
+
+.permission-table-permission-toggle {
+  display: flex;
+  justify-content: center;
+}
+
+.permission-table-permission-toggle input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.permission-table-permission-toggle input[type='checkbox']:disabled,
+.permission-group-header-row input[type='checkbox']:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .error-message {
