@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RoleDto, RoleRequestDto, UpdateRoleRequestDto } from '@/api-access/generated/models';
+import type { PermissionDto, RoleDto, RoleRequestDto, UpdateRoleRequestDto } from '@/api-access/generated/models';
 import { getApiPermissions } from '@/api-access/generated/permissions/permissions';
 import { postApiRoles, putApiRolesId } from '@/api-access/generated/roles/roles';
 import { PostApiRolesBody } from '@/api-access/generated/roles/roles.zod';
@@ -34,18 +34,18 @@ const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 const selectedPermissions = ref<Map<string, boolean>>(new Map());
 
-type PermissionItem = NonNullable<typeof allPermissions.value>[number];
-
 const defaultPermissionGroup = 'Other';
 
-const getPermissionGroup = (permission: PermissionItem): string => {
+const permissionsList = computed(() => (Array.isArray(allPermissions.value) ? allPermissions.value : []));
+
+const getPermissionGroup = (permission: PermissionDto): string => {
   const group = permission.group?.trim();
   return group ? group : defaultPermissionGroup;
 };
 
 const groupedPermissions = computed(() => {
-  const grouped = new Map<string, PermissionItem[]>();
-  const visiblePermissions = (allPermissions.value ?? []);
+  const grouped = new Map<string, PermissionDto[]>();
+  const visiblePermissions = permissionsList.value;
 
   for (const permission of visiblePermissions) {
     const groupName = getPermissionGroup(permission);
@@ -76,14 +76,10 @@ const permissionsByGroupLabel = computed(
   () => new Map(groupedPermissions.value.map((group) => [group.groupLabel, group.permissions])),
 );
 
-const totalPermissionCount = computed(
-  () => (allPermissions.value ?? []).length,
-);
+const totalPermissionCount = computed(() => permissionsList.value.length);
 
 const selectedPermissionCount = computed(
-  () =>
-    (allPermissions.value ?? [])
-      .filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length,
+  () => permissionsList.value.filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length,
 );
 
 const permissionTableGroupBy = ref([{ key: 'groupLabel', order: 'asc' as const }]);
@@ -131,7 +127,7 @@ const initializeSelectedPermissions = () => {
 
   if (permissionsError.value) return;
 
-  allPermissions.value?.forEach((perm) => {
+  permissionsList.value.forEach((perm) => {
     const isSelected = formData.value.permissionIds?.includes(perm.id!) || false;
     selectedPermissions.value.set(perm.id!, isSelected);
   });

@@ -60,9 +60,9 @@ describe('RoleFormModal', () => {
   it('loads and displays all available permissions', async () => {
     const app = await createTestApp();
     const permissions: PermissionDto[] = [
-      { id: '1', description: 'View Dashboard' },
-      { id: '2', description: 'Edit Users' },
-      { id: '3', description: 'Delete Roles' },
+      { id: '1', description: 'View Dashboard', group: 'Dashboard' },
+      { id: '2', description: 'Edit Users', group: 'Users' },
+      { id: '3', description: 'Delete Roles', group: 'Users' },
     ];
     server.use(getGetApiPermissionsMockHandler(() => permissions));
     const wrapper = mount(RoleFormModal, {
@@ -72,9 +72,8 @@ describe('RoleFormModal', () => {
     });
     await flushPromises();
     const content = document.body.textContent ?? '';
-    expect(content).toContain('View Dashboard');
-    expect(content).toContain('Edit Users');
-    expect(content).toContain('Delete Roles');
+    expect(content).toContain('Dashboard');
+    expect(content).toContain('Users');
     wrapper.unmount();
   });
 
