@@ -67,6 +67,11 @@ public class Permission : BaseEntity
     public string Id { get; set; } = string.Empty;
 
     /// <summary>
+    /// The owning module for this permission.
+    /// </summary>
+    public string Group { get; set; } = string.Empty;
+
+    /// <summary>
     /// Human-readable description of what this permission grants.
     /// Corresponds to the Description field in the Sheriff Scheduling Permission table.
     /// </summary>
