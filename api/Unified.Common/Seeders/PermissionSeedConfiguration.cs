@@ -6,7 +6,7 @@ namespace Unified.Common.Seeding;
 /// </summary>
 public sealed record PermissionSeedConfiguration
 {
-	public required IReadOnlyList<PermissionSeedDefinition> Permissions { get; init; }
+    public required IReadOnlyList<PermissionSeedDefinition> Permissions { get; init; }
 }
 
 /// <summary>
@@ -14,9 +14,9 @@ public sealed record PermissionSeedConfiguration
 /// </summary>
 public sealed record PermissionSeedDefinition
 {
-	public required string Group { get; init; }
+    public required string Group { get; init; }
 
-	public required string Id { get; init; }
+    public required string Id { get; init; }
 
-	public required string Description { get; init; }
+    public required string Description { get; init; }
 }

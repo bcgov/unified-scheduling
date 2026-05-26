@@ -16,15 +16,14 @@ namespace Unified.Db.Migrations
                 type: "character varying(100)",
                 maxLength: 100,
                 nullable: false,
-                defaultValue: "");
+                defaultValue: ""
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Group",
-                table: "Permissions");
+            migrationBuilder.DropColumn(name: "Group", table: "Permissions");
         }
     }
 }
