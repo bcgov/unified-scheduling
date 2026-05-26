@@ -22,6 +22,7 @@ export const getGetApiRolesResponseMock = (): RoleDto[] =>
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,
@@ -36,6 +37,7 @@ export const getGetApiRolesResponseMock = (): RoleDto[] =>
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,
@@ -50,6 +52,7 @@ export const getGetApiRolesResponseMock = (): RoleDto[] =>
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,
@@ -68,6 +71,7 @@ export const getPostApiRolesResponseMock = (overrideResponse: Partial<Extract<Ro
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,
@@ -83,6 +87,7 @@ export const getPostApiRolesResponseMock = (overrideResponse: Partial<Extract<Ro
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,
@@ -98,6 +103,7 @@ export const getPostApiRolesResponseMock = (overrideResponse: Partial<Extract<Ro
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,
@@ -117,6 +123,7 @@ export const getPutApiRolesIdResponseMock = (overrideResponse: Partial<Extract<R
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,
@@ -132,6 +139,7 @@ export const getPutApiRolesIdResponseMock = (overrideResponse: Partial<Extract<R
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,
@@ -147,6 +155,7 @@ export const getPutApiRolesIdResponseMock = (overrideResponse: Partial<Extract<R
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          group: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
           concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
         })),
         undefined,

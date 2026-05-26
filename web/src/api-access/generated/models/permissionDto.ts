@@ -8,5 +8,6 @@
 export interface PermissionDto {
   id?: string;
   description?: string;
+  group?: string;
   concurrencyToken?: number;
 }

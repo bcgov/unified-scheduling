@@ -9,6 +9,7 @@ import * as zod from 'zod';
 export const GetApiPermissionsResponseItem = zod.object({
   id: zod.string().optional(),
   description: zod.string().optional(),
+  group: zod.string().optional(),
   concurrencyToken: zod.number().optional(),
 });
 export const GetApiPermissionsResponse = zod.array(GetApiPermissionsResponseItem);

@@ -16,6 +16,7 @@ export const GetApiRolesResponseItem = zod.object({
       zod.object({
         id: zod.string().optional(),
         description: zod.string().optional(),
+        group: zod.string().optional(),
         concurrencyToken: zod.number().optional(),
       }),
     )
@@ -51,6 +52,7 @@ export const PutApiRolesIdResponse = zod.object({
       zod.object({
         id: zod.string().optional(),
         description: zod.string().optional(),
+        group: zod.string().optional(),
         concurrencyToken: zod.number().optional(),
       }),
     )
