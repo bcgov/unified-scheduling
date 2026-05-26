@@ -2,7 +2,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
-using Unified.Common.Seeding;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
@@ -15,21 +14,6 @@ namespace Unified.UserManagement;
 /// </summary>
 public static class UserManagementModule
 {
-    private static readonly PermissionSeedDefinition[] PermissionSeeds =
-    [
-        // Users
-        new(nameof(Permissions.UsersCreate), "Create new users"),
-        new(nameof(Permissions.UsersEdit), "Edit existing users"),
-        new(nameof(Permissions.UsersView), "View users"),
-        new(nameof(Permissions.UsersExpire), "Expire users"),
-        new(nameof(Permissions.UsersViewOtherProfiles), "View other user profiles"),
-        // Roles
-        new(nameof(Permissions.RolesView), "View roles"),
-        new(nameof(Permissions.RolesCreateAndAssign), "Create and Assign Roles"),
-        new(nameof(Permissions.RolesEdit), "Edit roles"),
-        new(nameof(Permissions.RolesExpire), "Expire roles"),
-    ];
-
     /// <summary>
     /// Add user management module services to the dependency injection container
     /// </summary>
@@ -45,7 +29,7 @@ public static class UserManagementModule
         services.AddScoped<RegionSeeder>();
         services.AddScoped<LocationSeeder>();
         services.AddScoped<PermissionSeeder>();
-        services.AddSingleton(new PermissionSeedConfiguration(nameof(UserManagementModule), PermissionSeeds));
+        services.AddSingleton(UserManagementPermissionSeedData.Configuration);
 
         services.AddScoped<UserRequestValidator>();
         services.AddScoped<RoleRequestValidator>();

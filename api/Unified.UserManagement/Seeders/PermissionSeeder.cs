@@ -22,29 +22,29 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Updating permissions from module configuration...");
+        logger.LogInformation("Updating permissions from group configuration...");
 
         var createdCount = 0;
         var updatedCount = 0;
-        var moduleConfigurations = configurations.ToArray();
-        var seedDefinitions = moduleConfigurations
+        var groupConfigurations = configurations.ToArray();
+        var seedDefinitions = groupConfigurations
             .SelectMany(config => config.Permissions)
-            .GroupBy(permission => permission.Id, StringComparer.Ordinal)
-            .Select(group => group.First())
-            .ToArray();
+            .DistinctBy(permission => permission.Id, StringComparer.Ordinal)
+            .ToList();
 
         logger.LogInformation(
-            "Loaded {PermissionCount} permission seed entries from {ConfigurationCount} module configurations.",
-            seedDefinitions.Length,
-            moduleConfigurations.Length
+            "Loaded {PermissionCount} permission seed entries from {ConfigurationCount} group configurations.",
+            seedDefinitions.Count,
+            groupConfigurations.Length
         );
 
-        foreach (var seedPermissionDefinition in seedDefinitions)
+        foreach (var seedDefinition in seedDefinitions)
         {
             var seedPermission = new Permission
             {
-                Id = seedPermissionDefinition.Id,
-                Description = seedPermissionDefinition.Description,
+                Id = seedDefinition.Id,
+                Group = seedDefinition.Group,
+                Description = seedDefinition.Description,
             };
 
             var existingPermission = await dbContext
@@ -58,6 +58,8 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
                 createdCount++;
                 continue;
             }
+
+            existingPermission.Group = seedPermission.Group;
 
             updatedCount++;
         }
