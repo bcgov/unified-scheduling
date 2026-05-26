@@ -213,7 +213,7 @@ const setGroupSelection = (groupLabel: string, isSelected: boolean) => {
   }
 };
 
-const getPermissionsForGroupLabel = (groupLabel: string): PermissionItem[] =>
+const getPermissionsForGroupLabel = (groupLabel: string): PermissionDto[] =>
   permissionsByGroupLabel.value.get(groupLabel) ?? [];
 
 const getGroupSelectionSummary = (groupLabel: string): string => {
