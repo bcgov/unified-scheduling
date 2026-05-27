@@ -2,7 +2,7 @@ namespace Unified.UserManagement.Models;
 
 public sealed record PermissionDto
 {
-    public string Id { get; init; } = string.Empty;
+    public required string Id { get; init; }
 
     public string Description { get; init; } = string.Empty;
 
