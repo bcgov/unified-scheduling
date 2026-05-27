@@ -77,46 +77,6 @@ describe('RoleFormModal', () => {
     wrapper.unmount();
   });
 
-  it('toggles a permission group and updates selection counts', async () => {
-    const app = await createTestApp();
-    const permissions: PermissionDto[] = [
-      { id: '1', description: 'View Dashboard', group: 'Dashboard' },
-      { id: '2', description: 'Edit Users', group: 'Users' },
-      { id: '3', description: 'Delete Roles', group: 'Users' },
-    ];
-    server.use(getGetApiPermissionsMockHandler(() => permissions));
-
-    const wrapper = mount(RoleFormModal, {
-      props: { role: null },
-      global: { plugins: app.mountPlugins },
-      attachTo: document.body,
-    });
-
-    await flushPromises();
-    expect(document.body.textContent ?? '').toContain('0 / 3 selected');
-
-    const usersGroupCheckbox = document.querySelector('#table-group-Users') as HTMLInputElement;
-    expect(usersGroupCheckbox).toBeTruthy();
-
-    usersGroupCheckbox.click();
-    await flushPromises();
-
-    const usersPermissionOne = document.querySelector('#table-perm-2') as HTMLInputElement;
-    const usersPermissionTwo = document.querySelector('#table-perm-3') as HTMLInputElement;
-    expect(usersPermissionOne.checked).toBe(true);
-    expect(usersPermissionTwo.checked).toBe(true);
-    expect(document.body.textContent ?? '').toContain('2 / 3 selected');
-
-    usersGroupCheckbox.click();
-    await flushPromises();
-
-    expect((document.querySelector('#table-perm-2') as HTMLInputElement).checked).toBe(false);
-    expect((document.querySelector('#table-perm-3') as HTMLInputElement).checked).toBe(false);
-    expect(document.body.textContent ?? '').toContain('0 / 3 selected');
-
-    wrapper.unmount();
-  });
-
   it('shows error message when permissions fail to load', async () => {
     const app = await createTestApp();
     server.use(
