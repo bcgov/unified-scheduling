@@ -5,7 +5,7 @@
 namespace Unified.Db.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdatePermissionsTableAddGroupColum : Migration
+    public partial class UpdatePermissionsTableAddGroupColumn : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

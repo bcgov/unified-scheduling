@@ -12,8 +12,8 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20260526160230_UpdatePermissionsTableAddGroupColum")]
-    partial class UpdatePermissionsTableAddGroupColum
+    [Migration("20260526160230_UpdatePermissionsTableAddGroupColumn")]
+    partial class UpdatePermissionsTableAddGroupColumn
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
