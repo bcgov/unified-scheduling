@@ -6,7 +6,7 @@
  */
 
 export interface PermissionDto {
-  id?: string;
+  id: string;
   description?: string;
   group?: string;
   concurrencyToken?: number;

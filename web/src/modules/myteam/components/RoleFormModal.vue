@@ -65,7 +65,6 @@ const groupedPermissions = computed(() => {
   return Array.from(grouped.entries())
     .sort(([groupA], [groupB]) => groupA.localeCompare(groupB))
     .map(([groupName, permissions]) => ({
-      checkedCount: permissions.filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length,
       groupName,
       groupLabel: groupName,
       permissions,
@@ -79,7 +78,7 @@ const permissionsByGroupLabel = computed(
 const totalPermissionCount = computed(() => permissionsList.value.length);
 
 const selectedPermissionCount = computed(
-  () => permissionsList.value.filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length,
+  () => permissionsList.value.filter((permission) => selectedPermissions.value.get(permission.id)).length,
 );
 
 const permissionTableGroupBy = ref([{ key: 'groupLabel', order: 'asc' as const }]);
@@ -97,7 +96,7 @@ const permissionTableItems = computed(() =>
   groupedPermissions.value.flatMap((group) => {
     return group.permissions.map((permission) => ({
       groupLabel: group.groupLabel,
-      id: permission.id ?? '',
+      id: permission.id,
       description: permission.description || permission.id || '',
     }));
   }),
@@ -115,7 +114,7 @@ const populateFromRole = (role: RoleDto): RoleFormData => ({
   id: role.id,
   name: role.name ?? '',
   description: role.description ?? '',
-  permissionIds: role.permissions?.map((p) => p.id).filter((id): id is string => Boolean(id)) ?? [],
+  permissionIds: role.permissions?.map((p) => p.id) ?? [],
   concurrencyToken: role.concurrencyToken,
 });
 
@@ -128,8 +127,8 @@ const initializeSelectedPermissions = () => {
   if (permissionsError.value) return;
 
   permissionsList.value.forEach((perm) => {
-    const isSelected = formData.value.permissionIds?.includes(perm.id!) || false;
-    selectedPermissions.value.set(perm.id!, isSelected);
+    const isSelected = formData.value.permissionIds?.includes(perm.id) || false;
+    selectedPermissions.value.set(perm.id, isSelected);
   });
 };
 
@@ -208,7 +207,6 @@ const setPermissionSelection = (permissionId: string, isSelected: boolean) => {
 const setGroupSelection = (groupLabel: string, isSelected: boolean) => {
   const permissions = permissionsByGroupLabel.value.get(groupLabel) ?? [];
   for (const permission of permissions) {
-    if (!permission.id) continue;
     selectedPermissions.value.set(permission.id, isSelected);
   }
 };
@@ -218,20 +216,18 @@ const getPermissionsForGroupLabel = (groupLabel: string): PermissionDto[] =>
 
 const getGroupSelectionSummary = (groupLabel: string): string => {
   const permissions = getPermissionsForGroupLabel(groupLabel);
-  const selectedCount = permissions.filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length;
+  const selectedCount = permissions.filter((permission) => selectedPermissions.value.get(permission.id)).length;
   return `(${selectedCount} / ${permissions.length} selected)`;
 };
 
 const isGroupFullySelected = (groupLabel: string): boolean => {
   const permissions = getPermissionsForGroupLabel(groupLabel);
-  return (
-    permissions.length > 0 && permissions.every((permission) => selectedPermissions.value.get(permission.id ?? ''))
-  );
+  return permissions.length > 0 && permissions.every((permission) => selectedPermissions.value.get(permission.id));
 };
 
 const isGroupPartiallySelected = (groupLabel: string): boolean => {
   const permissions = getPermissionsForGroupLabel(groupLabel);
-  const selectedCount = permissions.filter((permission) => selectedPermissions.value.get(permission.id ?? '')).length;
+  const selectedCount = permissions.filter((permission) => selectedPermissions.value.get(permission.id)).length;
   return selectedCount > 0 && selectedCount < permissions.length;
 };
 
@@ -331,7 +327,6 @@ const handleSave = async () => {
             No permissions available.
           </div>
 
-          <!-- <p class="permission-table-title">Permissions by module</p> -->
           <v-data-table
             v-else
             :headers="permissionTableHeaders"
@@ -439,16 +434,6 @@ const handleSave = async () => {
   font-size: var(--ua-font-size-sm);
   text-align: center;
   padding: var(--ua-spacing-md);
-}
-
-.permission-table-wrapper {
-  margin-top: var(--ua-spacing-xs);
-}
-
-.permission-table-title {
-  margin: 0 0 var(--ua-spacing-sm);
-  color: var(--ua-text-secondary);
-  font-size: var(--ua-font-size-sm);
 }
 
 .permission-table {
