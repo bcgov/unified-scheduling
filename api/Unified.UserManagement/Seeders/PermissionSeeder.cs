@@ -59,14 +59,29 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
                 continue;
             }
 
-            existingPermission.Group = seedPermission.Group;
+            var hasChanges = false;
 
-            updatedCount++;
+            if (!StringComparer.Ordinal.Equals(existingPermission.Group, seedPermission.Group))
+            {
+                existingPermission.Group = seedPermission.Group;
+                hasChanges = true;
+            }
+
+            if (!StringComparer.Ordinal.Equals(existingPermission.Description, seedPermission.Description))
+            {
+                existingPermission.Description = seedPermission.Description;
+                hasChanges = true;
+            }
+
+            if (hasChanges)
+            {
+                updatedCount++;
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation(
-            "Permission seeding complete. Created {CreatedCount}, skipped {UpdatedCount} (already customised).",
+            "Permission seeding complete. Created {CreatedCount}, updated {UpdatedCount}.",
             createdCount,
             updatedCount
         );
