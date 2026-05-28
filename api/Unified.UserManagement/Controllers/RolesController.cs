@@ -38,7 +38,7 @@ public class RolesController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The newly created role.</returns>
     [HttpPost]
-    [Authorize(Policy = UserManagementPolicies.RolesCreateAndAssign)]
+    [Authorize(Policy = UserManagementPolicies.RolesCreate)]
     [ProducesResponseType(typeof(RoleDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<RoleDto>> Create(

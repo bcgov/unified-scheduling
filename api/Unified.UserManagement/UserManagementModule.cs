@@ -41,12 +41,13 @@ public static class UserManagementModule
             // Users
             .AddPermissionPolicy(Permissions.UsersCreate)
             .AddPermissionPolicy(Permissions.UsersEdit)
+            .AddPermissionPolicy(Permissions.UserRoleAssign)
             .AddPermissionPolicy(Permissions.UsersView)
             .AddPermissionPolicy(Permissions.UsersExpire)
             .AddPermissionPolicy(Permissions.UsersViewOtherProfiles)
             // Roles
             .AddPermissionPolicy(Permissions.RolesView)
-            .AddPermissionPolicy(Permissions.RolesCreateAndAssign)
+            .AddPermissionPolicy(Permissions.RolesCreate)
             .AddPermissionPolicy(Permissions.RolesEdit)
             .AddPermissionPolicy(Permissions.RolesExpire);
 

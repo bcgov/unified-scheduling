@@ -31,6 +31,12 @@ public static class UserManagementPermissionSeedData
                 new()
                 {
                     Group = PermissionGroupUsers,
+                    Id = nameof(Permissions.UserRoleAssign),
+                    Description = "Assign roles to users",
+                },
+                new()
+                {
+                    Group = PermissionGroupUsers,
                     Id = nameof(Permissions.UsersView),
                     Description = "View users",
                 },
@@ -56,8 +62,8 @@ public static class UserManagementPermissionSeedData
                 new()
                 {
                     Group = PermissionGroupRoles,
-                    Id = nameof(Permissions.RolesCreateAndAssign),
-                    Description = "Create and Assign Roles",
+                    Id = nameof(Permissions.RolesCreate),
+                    Description = "Create roles",
                 },
                 new()
                 {

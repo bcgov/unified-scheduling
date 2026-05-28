@@ -22,7 +22,7 @@ namespace Unified.Db.Models.UserManagement;
 ///   ExpireUsers              → UsersExpire
 ///   EditUsers                → UsersEdit
 ///   ViewRoles                → RolesView
-///   CreateAndAssignRoles     → RolesCreateAndAssign
+///   CreateAndAssignRoles     → RolesCreate / UserRoleAssign
 ///   ExpireRoles              → RolesExpire
 ///   EditRoles                → RolesEdit
 ///   CreateTypes              → TypesCreate

@@ -69,7 +69,7 @@ describe('RolesPermissions', () => {
 
   it('renders Add Role button when user has permission', async () => {
     const app = await createTestApp({
-      permissions: [Permissions.RolesCreateAndAssign],
+      permissions: [Permissions.RolesCreate],
     });
     server.use(getGetApiRolesMockHandler(() => []));
     const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
@@ -97,7 +97,7 @@ describe('RolesPermissions', () => {
 
   it('opens create modal when Add Role button is clicked', async () => {
     const app = await createTestApp({
-      permissions: [Permissions.RolesCreateAndAssign],
+      permissions: [Permissions.RolesCreate],
     });
     server.use(getGetApiRolesMockHandler(() => []));
     const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
