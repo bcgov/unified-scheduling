@@ -14,4 +14,10 @@ public interface IUserService
     Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default);
 
     Task<UserResponse?> UpdateAsync(Guid id, UserRequestDto request, CancellationToken cancellationToken = default);
+
+    Task<UserRoleResponseDto> AssignRoleAsync(
+        Guid id,
+        AssignUserRoleRequestDto request,
+        CancellationToken cancellationToken = default
+    );
 }

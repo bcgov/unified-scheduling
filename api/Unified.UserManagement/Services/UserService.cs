@@ -101,4 +101,57 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
         return userEntity.Adapt<UserResponse>();
     }
+
+    public async Task<UserRoleResponseDto> AssignRoleAsync(
+        Guid id,
+        AssignUserRoleRequestDto request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var userExists = await DB.Users.AnyAsync(x => x.Id == id, cancellationToken);
+        if (!userExists)
+        {
+            throw new KeyNotFoundException($"User {id} not found.");
+        }
+
+        var roleExists = await DB.Roles.AnyAsync(r => r.Id == request.RoleId, cancellationToken);
+        if (!roleExists)
+        {
+            throw new KeyNotFoundException($"Role {request.RoleId} not found.");
+        }
+
+        var userRole = await DB
+            .UserRoles
+            .SingleOrDefaultAsync(ur => ur.UserId == id && ur.RoleId == request.RoleId, cancellationToken);
+
+        UserRole assignedUserRole;
+
+        if (userRole is null)
+        {
+            assignedUserRole = new UserRole
+            {
+                UserId = id,
+                RoleId = request.RoleId,
+                EffectiveDate = request.EffectiveDate,
+                ExpiryDate = request.ExpiryDate,
+            };
+
+            DB.UserRoles.Add(assignedUserRole);
+        }
+        else
+        {
+            userRole.EffectiveDate = request.EffectiveDate;
+            userRole.ExpiryDate = request.ExpiryDate;
+            if (request.ExpiryDate is null)
+            {
+                userRole.ExpiryReason = null;
+            }
+
+            assignedUserRole = userRole;
+        }
+
+        await DB.SaveChangesAsync(cancellationToken);
+
+        return assignedUserRole.Adapt<UserRoleResponseDto>();
+    }
 }
