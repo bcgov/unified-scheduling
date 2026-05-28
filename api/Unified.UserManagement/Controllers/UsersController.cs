@@ -11,7 +11,11 @@ namespace Unified.UserManagement.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class UsersController(IUserService userService, UserRequestValidator userRequestValidator) : ControllerBase
+public class UsersController(
+    IUserService userService,
+    UserRequestValidator userRequestValidator,
+    AssignUserRoleRequestValidator assignUserRoleRequestValidator
+) : ControllerBase
 {
     /// <summary>
     /// Returns users filtered by optional query parameters.
@@ -98,5 +102,29 @@ public class UsersController(IUserService userService, UserRequestValidator user
         }
 
         return Ok(user);
+    }
+
+    /// <summary>
+    /// Assigns a role to a user.
+    /// </summary>
+    /// <param name="id">The user identifier.</param>
+    /// <param name="request">The role assignment payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The assigned user role if the user exists.</returns>
+    [HttpPost("{id:guid}/roles")]
+    [Authorize(Policy = UserManagementPolicies.UserRoleAssign)]
+    [ProducesResponseType(typeof(UserRoleResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserRoleResponseDto>> AssignRole(
+        Guid id,
+        [FromBody] AssignUserRoleRequestDto request,
+        CancellationToken cancellationToken
+    )
+    {
+        await assignUserRoleRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+
+        var userRole = await userService.AssignRoleAsync(id, request, cancellationToken);
+        return Ok(userRole);
     }
 }

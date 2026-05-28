@@ -32,6 +32,7 @@ public static class UserManagementModule
         services.AddSingleton(UserManagementPermissionSeedData.Configuration);
 
         services.AddScoped<UserRequestValidator>();
+        services.AddScoped<AssignUserRoleRequestValidator>();
         services.AddScoped<RoleRequestValidator>();
         services.AddScoped<UpdateRoleRequestValidator>();
 

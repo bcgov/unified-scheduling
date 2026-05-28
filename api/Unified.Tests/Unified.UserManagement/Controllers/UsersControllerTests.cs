@@ -15,7 +15,11 @@ public class UsersControllerTests
         // Arrange
         var expectedUsers = new List<UserResponse> { CreateUserResponse("John", "Smith") };
         var fakeService = new FakeUserService { GetAllResult = expectedUsers };
-        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
         var queryParams = new UserQueryParams { Search = "John" };
 
         // Act
@@ -34,7 +38,11 @@ public class UsersControllerTests
         // Arrange
         var expectedUser = CreateUserResponse("Jane", "Doe");
         var fakeService = new FakeUserService { GetByIdResult = expectedUser };
-        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
 
         // Act
         var result = await controller.GetById(expectedUser.Id, TestContext.Current.CancellationToken);
@@ -52,7 +60,11 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { GetByIdResult = null };
-        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
 
         // Act
         var result = await controller.GetById(Guid.NewGuid(), TestContext.Current.CancellationToken);
@@ -67,7 +79,11 @@ public class UsersControllerTests
         // Arrange
         var createdUser = CreateUserResponse("New", "User");
         var fakeService = new FakeUserService { CreateResult = createdUser };
-        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
         var request = new UserRequestDto
         {
             IdirName = "newuser",
@@ -99,7 +115,11 @@ public class UsersControllerTests
         // Arrange
         var updatedUser = CreateUserResponse("Updated", "Name");
         var fakeService = new FakeUserService { UpdateResult = updatedUser };
-        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
         var request = new UserRequestDto
         {
             IdirName = "updateduser",
@@ -129,7 +149,11 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { UpdateResult = null };
-        var controller = new UsersController(fakeService, new UserRequestValidator());
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
         var request = new UserRequestDto
         {
             IdirName = "updateduser",
@@ -148,6 +172,66 @@ public class UsersControllerTests
 
         // Assert
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task AssignRole_Should_Return_Ok_When_User_Found()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var assignedUserRole = new UserRoleResponseDto
+        {
+            Id = 5001,
+            UserId = userId,
+            RoleId = 5,
+            EffectiveDate = DateTimeOffset.UtcNow,
+            ExpiryDate = null,
+            ExpiryReason = null,
+        };
+        var fakeService = new FakeUserService { AssignRoleResult = assignedUserRole };
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
+        var request = new AssignUserRoleRequestDto
+        {
+            RoleId = 5,
+            EffectiveDate = DateTimeOffset.UtcNow,
+            ExpiryDate = null,
+        };
+
+        // Act
+        var result = await controller.AssignRole(userId, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<UserRoleResponseDto>(okResult.Value);
+        Assert.Equal(5001, response.Id);
+        Assert.Equal(userId, response.UserId);
+    }
+
+    [Fact]
+    public async Task AssignRole_Should_Throw_When_User_Missing()
+    {
+        // Arrange
+        var fakeService = new FakeUserService { AssignRoleException = new KeyNotFoundException("User not found.") };
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
+        var request = new AssignUserRoleRequestDto
+        {
+            RoleId = 5,
+            EffectiveDate = DateTimeOffset.UtcNow,
+            ExpiryDate = DateTimeOffset.UtcNow.AddDays(30),
+        };
+
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            controller.AssignRole(Guid.NewGuid(), request, TestContext.Current.CancellationToken)
+        );
     }
 
     private static UserResponse CreateUserResponse(string firstName, string lastName)
@@ -178,6 +262,19 @@ public class UsersControllerTests
 
         public UserResponse? UpdateResult { get; init; } = CreateUserResponse("Updated", "User");
 
+        public UserRoleResponseDto AssignRoleResult { get; init; } =
+            new UserRoleResponseDto
+            {
+                Id = 5001,
+                UserId = Guid.NewGuid(),
+                RoleId = 1,
+                EffectiveDate = DateTimeOffset.UtcNow,
+                ExpiryDate = null,
+                ExpiryReason = null,
+            };
+
+        public Exception? AssignRoleException { get; init; }
+
         public UserQueryParams? LastQueryParams { get; private set; }
 
         public Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
@@ -206,6 +303,20 @@ public class UsersControllerTests
         )
         {
             return Task.FromResult(UpdateResult);
+        }
+
+        public Task<UserRoleResponseDto> AssignRoleAsync(
+            Guid id,
+            AssignUserRoleRequestDto request,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (AssignRoleException is not null)
+            {
+                return Task.FromException<UserRoleResponseDto>(AssignRoleException);
+            }
+
+            return Task.FromResult(AssignRoleResult);
         }
     }
 }
