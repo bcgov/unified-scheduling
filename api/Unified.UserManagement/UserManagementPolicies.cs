@@ -12,6 +12,7 @@ public static class UserManagementPolicies
     // --- Users ---
     public const string UsersCreate = AuthorizationModule.PolicyPrefix + nameof(Permissions.UsersCreate);
     public const string UsersEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.UsersEdit);
+    public const string UserRoleAssign = AuthorizationModule.PolicyPrefix + nameof(Permissions.UserRoleAssign);
     public const string UsersView = AuthorizationModule.PolicyPrefix + nameof(Permissions.UsersView);
     public const string UsersExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.UsersExpire);
     public const string UsersViewOtherProfiles =
@@ -19,8 +20,7 @@ public static class UserManagementPolicies
 
     // --- Roles ---
     public const string RolesView = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesView);
-    public const string RolesCreateAndAssign =
-        AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesCreateAndAssign);
+    public const string RolesCreate = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesCreate);
     public const string RolesEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesEdit);
     public const string RolesExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesExpire);
 }

@@ -16,13 +16,14 @@ public enum Permissions
     // --- Users ---
     UsersCreate,
     UsersEdit,
+    UserRoleAssign,
     UsersView,
     UsersExpire,
     UsersViewOtherProfiles,
 
     // --- Roles ---
     RolesView,
-    RolesCreateAndAssign,
+    RolesCreate,
     RolesEdit,
     RolesExpire,
 

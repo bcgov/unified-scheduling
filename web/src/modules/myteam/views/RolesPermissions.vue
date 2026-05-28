@@ -86,7 +86,7 @@ const handleRoleUpdated = async () => {
     <UaPageHeader title="Roles & Permissions">
       <template #actions>
         <UaBtn
-          v-if="accessControl.hasPermission(Permissions.RolesCreateAndAssign)"
+          v-if="accessControl.hasPermission(Permissions.RolesCreate)"
           @click="handleAddRole"
           :prepend-icon="mdiPlus"
         >
