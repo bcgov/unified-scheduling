@@ -67,7 +67,7 @@ public class Permission : BaseEntity
     public string Id { get; set; } = string.Empty;
 
     /// <summary>
-    /// The owning module for this permission.
+    /// UI-only grouping label used to organize permissions in the role management screens.
     /// </summary>
     public string Group { get; set; } = string.Empty;
 

@@ -29,8 +29,21 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
         var groupConfigurations = configurations.ToArray();
         var seedDefinitions = groupConfigurations
             .SelectMany(config => config.Permissions)
-            .DistinctBy(permission => permission.Id, StringComparer.Ordinal)
             .ToList();
+
+        var duplicatePermissionIds = seedDefinitions
+            .GroupBy(permission => permission.Id, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+
+        if (duplicatePermissionIds.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Duplicate permission seed IDs detected: {string.Join(", ", duplicatePermissionIds)}"
+            );
+        }
 
         logger.LogInformation(
             "Loaded {PermissionCount} permission seed entries from {ConfigurationCount} group configurations.",

@@ -54,14 +54,6 @@ const groupedPermissions = computed(() => {
     grouped.set(groupName, existingGroup);
   }
 
-  for (const permissions of grouped.values()) {
-    permissions.sort((a, b) => {
-      const labelA = (a.description || a.id || '').toLowerCase();
-      const labelB = (b.description || b.id || '').toLowerCase();
-      return labelA.localeCompare(labelB);
-    });
-  }
-
   return Array.from(grouped.entries())
     .sort(([groupA], [groupB]) => groupA.localeCompare(groupB))
     .map(([groupName, permissions]) => ({
@@ -86,7 +78,7 @@ const permissionTableGroupBy = ref([{ key: 'groupLabel', order: 'asc' as const }
 const permissionTableSortBy = ref([{ key: 'id', order: 'asc' as const }]);
 
 const permissionTableHeaders = [
-  { title: 'Group', key: 'data-table-group' },
+  { title: '', key: 'data-table-group' },
   { title: '', key: 'permissionToggle', groupable: false, align: 'center' as const, width: 72 },
   { title: 'Permission', key: 'id', groupable: false },
   { title: 'Description', key: 'description', groupable: false },
@@ -336,7 +328,6 @@ const handleSave = async () => {
             item-value="id"
             :items-per-page="-1"
             density="comfortable"
-            hide-default-header
             hide-default-footer
             class="permission-table"
           >
@@ -409,17 +400,6 @@ const handleSave = async () => {
   align-items: center;
   justify-content: space-between;
   gap: var(--ua-spacing-md);
-}
-
-.permissions-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ua-spacing-md);
-  padding: var(--ua-spacing-md);
-  border: 1px solid var(--ua-border-color);
-  border-radius: var(--ua-border-radius);
-  background-color: rgb(var(--v-theme-surface));
-  min-height: 150px;
 }
 
 .permissions-counter {
