@@ -10,7 +10,7 @@ public static class UserManagementPermissionSeedData
 {
     private const string PermissionGroupUsers = "Users";
     private const string PermissionGroupRoles = "Roles";
-    public PermissionSeedConfiguration Configuration { get; } =
+    public static PermissionSeedConfiguration Configuration { get; } =
         new()
         {
             Permissions =
