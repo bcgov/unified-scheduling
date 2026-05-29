@@ -27,9 +27,7 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
         var createdCount = 0;
         var updatedCount = 0;
         var groupConfigurations = configurations.ToArray();
-        var seedDefinitions = groupConfigurations
-            .SelectMany(config => config.Permissions)
-            .ToList();
+        var seedDefinitions = groupConfigurations.SelectMany(config => config.Permissions).ToList();
 
         var duplicatePermissionIds = seedDefinitions
             .GroupBy(permission => permission.Id, StringComparer.Ordinal)
