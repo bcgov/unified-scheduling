@@ -10,7 +10,7 @@ import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
 import { Gender } from '../models';
-import type { UserResponse } from '../models';
+import type { UserResponse, UserRoleResponseDto } from '../models';
 
 export const getGetApiUsersResponseMock = (): UserResponse[] =>
   faker.helpers.arrayElement([
@@ -319,6 +319,57 @@ export const getPutApiUsersIdResponseMock = (
     },
   ]);
 
+export const getPostApiUsersIdRolesResponseMock = (
+  overrideResponse: Partial<Extract<UserRoleResponseDto, object>> = {},
+): UserRoleResponseDto =>
+  faker.helpers.arrayElement([
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      roleId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      expiryReason: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      roleId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      expiryReason: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      roleId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      expiryReason: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+  ]);
+
 export const getGetApiUsersMockHandler = (
   overrideResponse?:
     | UserResponse[]
@@ -406,9 +457,32 @@ export const getPutApiUsersIdMockHandler = (
     options,
   );
 };
+
+export const getPostApiUsersIdRolesMockHandler = (
+  overrideResponse?:
+    | UserRoleResponseDto
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserRoleResponseDto> | UserRoleResponseDto),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    '*/api/users/:id/roles',
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPostApiUsersIdRolesResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 export const getUsersMock = () => [
   getGetApiUsersMockHandler(),
   getPostApiUsersMockHandler(),
   getGetApiUsersIdMockHandler(),
   getPutApiUsersIdMockHandler(),
+  getPostApiUsersIdRolesMockHandler(),
 ];

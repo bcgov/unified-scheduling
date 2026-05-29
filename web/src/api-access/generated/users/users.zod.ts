@@ -88,3 +88,22 @@ export const PutApiUsersIdResponse = zod.object({
   homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({ offset: true }).nullable(),
 });
+
+export const PostApiUsersIdRolesParams = zod.strictObject({
+  id: zod.uuid(),
+});
+
+export const PostApiUsersIdRolesBody = zod.strictObject({
+  roleId: zod.number(),
+  effectiveDate: zod.iso.datetime({ offset: true }),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});
+
+export const PostApiUsersIdRolesResponse = zod.object({
+  id: zod.number().optional(),
+  userId: zod.uuid().optional(),
+  roleId: zod.number().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+  expiryReason: zod.string().nullish(),
+});
