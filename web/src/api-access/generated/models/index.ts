@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './assignUserRoleRequestDto';
 export * from './configResponse';
 export * from './featureFlags';
 export * from './gender';
@@ -36,3 +37,4 @@ export * from './userClaim';
 export * from './userInfo';
 export * from './userRequestDto';
 export * from './userResponse';
+export * from './userRoleResponseDto';
