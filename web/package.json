@@ -43,7 +43,7 @@
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.9",
     "@vue/tsconfig": "^0.9.1",
-    "eslint": "^9.39.2",
+    "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-oxlint": "^1.68.0",
     "eslint-plugin-playwright": "^2.10.2",
