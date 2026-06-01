@@ -120,9 +120,10 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             throw new KeyNotFoundException($"Role {request.RoleId} not found.");
         }
 
-        var userRole = await DB
-            .UserRoles
-            .SingleOrDefaultAsync(ur => ur.UserId == id && ur.RoleId == request.RoleId, cancellationToken);
+        var userRole = await DB.UserRoles.SingleOrDefaultAsync(
+            ur => ur.UserId == id && ur.RoleId == request.RoleId,
+            cancellationToken
+        );
 
         UserRole assignedUserRole;
 

@@ -27,7 +27,7 @@ public static class UserManagementPermissionSeedData
                     Group = PermissionGroupUsers,
                     Id = nameof(Permissions.UsersEdit),
                     Description = "Edit existing users",
-                },                
+                },
                 new()
                 {
                     Group = PermissionGroupUsers,

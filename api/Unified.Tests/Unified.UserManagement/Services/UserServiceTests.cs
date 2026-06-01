@@ -423,7 +423,14 @@ public class UserServiceTests : IAsyncLifetime
         // Arrange
         await SeedTestData();
         var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
-        _dbContext.Roles.Add(new Role { Id = 100, Name = "Supervisor", Description = "Supervisor role" });
+        _dbContext.Roles.Add(
+            new Role
+            {
+                Id = 100,
+                Name = "Supervisor",
+                Description = "Supervisor role",
+            }
+        );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var effectiveDate = DateTimeOffset.UtcNow.AddDays(-1);
@@ -459,7 +466,14 @@ public class UserServiceTests : IAsyncLifetime
     public async Task AssignRoleAsync_Should_Throw_When_User_Does_Not_Exist()
     {
         // Arrange
-        _dbContext.Roles.Add(new Role { Id = 100, Name = "Supervisor", Description = "Supervisor role" });
+        _dbContext.Roles.Add(
+            new Role
+            {
+                Id = 100,
+                Name = "Supervisor",
+                Description = "Supervisor role",
+            }
+        );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act + Assert
