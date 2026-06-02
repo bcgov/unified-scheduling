@@ -56,7 +56,7 @@ public class AuthController : ControllerBase
             .Select(p => p!.Value)
             .ToList();
 
-        var userIdValue = User.FindFirstValue(UnifiedClaimTypes.UserId);
+        var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
         var userId = Guid.TryParse(userIdValue, out var parsed) ? parsed : (Guid?)null;
 
         var user = new UserInfo(

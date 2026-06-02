@@ -21,6 +21,7 @@ import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
+import { Permissions } from '@/api-access/generated/models';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
@@ -105,8 +106,8 @@ const loadUsersForLocation = async (locationId: number) => {
   const { data } = await getApiUsers({ LocationId: locationId, IsEnabled: true });
   if (activeLocationId !== locationId) return;
   locationUsers.value = data.value ?? [];
-  const currentUserAtLocation = locationUsers.value.some((u) => u.id === authStore.currentUser?.id);
-  selectedUserId.value = currentUserAtLocation ? (authStore.currentUser?.id ?? null) : null;
+  const currentUserAtLocation = locationUsers.value.some((u) => u.id === authStore.currentUserId);
+  selectedUserId.value = currentUserAtLocation ? (authStore.currentUserId ?? null) : null;
 };
 
 // ── Form state ─────────────────────────────────────────────────────────────
@@ -216,7 +217,8 @@ const removeAssignment = (id: string) => {
 
 const onLocationChange = async (value: SelectValue | undefined) => {
   selectedLocationId.value = value !== null && value !== undefined ? Number(value) : null;
-  if (authStore.isSupervisor) {
+  activeLocationId = selectedLocationId.value;
+  if (authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)) {
     selectedUserId.value = null;
     locationUsers.value = [];
     if (selectedLocationId.value) {
@@ -230,9 +232,9 @@ const onLocationChange = async (value: SelectValue | undefined) => {
 const buildRecords = (status: string): StatRecordRequest[] | null => {
   const errors: Record<string, string> = {};
 
-  const resolvedUserId = authStore.isSupervisor ? selectedUserId.value : authStore.currentUser?.id;
+  const resolvedUserId = authStore.hasPermission(Permissions.StatsRecordsEnterForOthers) ? selectedUserId.value : authStore.currentUserId;
   if (!resolvedUserId) {
-    errors['user'] = authStore.isSupervisor
+    errors['user'] = authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)
       ? 'Please select a user to submit hours for.'
       : 'Unable to determine current user. Please refresh and try again.';
   }
@@ -387,7 +389,7 @@ const handleSave = async (status: string) => {
             />
           </template>
 
-          <template v-if="authStore.isSupervisor">
+          <template v-if="authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)">
             <label class="ua-form-label" for="user-select">Employee</label>
             <UaSelect
               id="user-select"

@@ -75,4 +75,7 @@ public enum Permissions
 
     // --- Reports ---
     ReportsGenerate,
+
+    // --- Stats ---
+    StatsRecordsEnterForOthers,
 }

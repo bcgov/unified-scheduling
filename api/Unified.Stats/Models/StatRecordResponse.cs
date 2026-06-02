@@ -6,7 +6,7 @@ public sealed record StatRecordResponse
     public DateOnly DateFrom { get; init; }
     public DateOnly DateTo { get; init; }
     public string PeriodType { get; init; } = string.Empty;
-    public Guid UserId { get; init; }
+    public Guid? UserId { get; init; }
     public int LocationId { get; init; }
     public int SubCategoryMetricId { get; init; }
     public decimal Value { get; init; }

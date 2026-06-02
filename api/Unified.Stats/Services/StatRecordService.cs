@@ -2,6 +2,7 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
 using Unified.Db.Models.Stats;
+using Unified.Infrastructure.ErrorHandling;
 using Unified.Stats.Models;
 
 namespace Unified.Stats.Services;
@@ -50,9 +51,13 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
 
     public async Task<StatRecordResponse> CreateAsync(
         StatRecordRequest request,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
         CancellationToken cancellationToken = default
     )
     {
+        EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
+
         var entity = MapToEntity(request);
         db.StatRecords.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -61,25 +66,13 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
 
     public async Task<IReadOnlyCollection<StatRecordResponse>> CreateBatchAsync(
         IReadOnlyList<StatRecordRequest> requests,
-        string callerIdirName,
-        bool callerIsSupervisor,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
         CancellationToken cancellationToken = default
     )
     {
-        if (!callerIsSupervisor)
-        {
-            if (string.IsNullOrWhiteSpace(callerIdirName))
-                throw new UnauthorizedAccessException("Only supervisors can submit records on behalf of another user.");
-
-            var callerId = await db
-                .Users.AsNoTracking()
-                .Where(u => u.IdirName == callerIdirName)
-                .Select(u => u.Id)
-                .SingleOrDefaultAsync(cancellationToken);
-
-            if (requests.Any(r => r.UserId != callerId))
-                throw new UnauthorizedAccessException("Only supervisors can submit records on behalf of another user.");
-        }
+        foreach (var request in requests)
+            EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         var entities = requests.Select(MapToEntity).ToList();
         db.StatRecords.AddRange(entities);
@@ -90,12 +83,18 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
     public async Task<StatRecordResponse?> UpdateAsync(
         int id,
         StatRecordRequest request,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
         CancellationToken cancellationToken = default
     )
     {
         var entity = await db.StatRecords.SingleOrDefaultAsync(r => r.Id == id, cancellationToken);
         if (entity is null)
             return null;
+
+        // Check caller is allowed to modify the existing record's owner, then the new owner.
+        EnsureAuthorizedToSubmitFor(entity.UserId, callerUserId, callerCanEnterForOthers);
+        EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         entity.DateFrom = request.DateFrom;
         entity.DateTo = request.DateTo;
@@ -111,15 +110,28 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         return entity.Adapt<StatRecordResponse>();
     }
 
-    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(
+        int id,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
+        CancellationToken cancellationToken = default
+    )
     {
         var entity = await db.StatRecords.SingleOrDefaultAsync(r => r.Id == id, cancellationToken);
         if (entity is null)
             return false;
 
+        EnsureAuthorizedToSubmitFor(entity.UserId, callerUserId, callerCanEnterForOthers);
+
         db.StatRecords.Remove(entity);
         await db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private static void EnsureAuthorizedToSubmitFor(Guid? requestedUserId, Guid callerUserId, bool callerCanEnterForOthers)
+    {
+        if (!callerCanEnterForOthers && requestedUserId != callerUserId)
+            throw new ForbiddenException();
     }
 
     private static StatRecord MapToEntity(StatRecordRequest request) =>

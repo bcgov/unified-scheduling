@@ -9,17 +9,24 @@ public interface IStatRecordService
         CancellationToken cancellationToken = default
     );
     Task<StatRecordResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-    Task<StatRecordResponse> CreateAsync(StatRecordRequest request, CancellationToken cancellationToken = default);
+    Task<StatRecordResponse> CreateAsync(
+        StatRecordRequest request,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
+        CancellationToken cancellationToken = default
+    );
     Task<IReadOnlyCollection<StatRecordResponse>> CreateBatchAsync(
         IReadOnlyList<StatRecordRequest> requests,
-        string callerIdirName,
-        bool callerIsSupervisor,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
         CancellationToken cancellationToken = default
     );
     Task<StatRecordResponse?> UpdateAsync(
         int id,
         StatRecordRequest request,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
         CancellationToken cancellationToken = default
     );
-    Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(int id, Guid callerUserId, bool callerCanEnterForOthers, CancellationToken cancellationToken = default);
 }

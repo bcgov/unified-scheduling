@@ -16,7 +16,7 @@ public class StatRecord : BaseEntity
     [Required]
     public string PeriodType { get; set; } = string.Empty;
 
-    public Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
 
     public User? User { get; set; }
 

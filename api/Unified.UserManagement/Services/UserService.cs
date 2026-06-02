@@ -29,11 +29,6 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             };
         }
 
-        if (queryParams?.IdirName?.Trim() is { Length: > 0 } idirName)
-        {
-            query = query.Where(x => x.IdirName == idirName);
-        }
-
         if (queryParams?.LocationId is int locationId)
         {
             query = query.Where(x => x.HomeLocationId == locationId);
