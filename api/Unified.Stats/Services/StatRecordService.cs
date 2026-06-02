@@ -128,7 +128,11 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         return true;
     }
 
-    private static void EnsureAuthorizedToSubmitFor(Guid? requestedUserId, Guid callerUserId, bool callerCanEnterForOthers)
+    private static void EnsureAuthorizedToSubmitFor(
+        Guid? requestedUserId,
+        Guid callerUserId,
+        bool callerCanEnterForOthers
+    )
     {
         if (!callerCanEnterForOthers && requestedUserId != callerUserId)
             throw new ForbiddenException();

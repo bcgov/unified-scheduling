@@ -28,5 +28,10 @@ public interface IStatRecordService
         bool callerCanEnterForOthers,
         CancellationToken cancellationToken = default
     );
-    Task<bool> DeleteAsync(int id, Guid callerUserId, bool callerCanEnterForOthers, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(
+        int id,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
+        CancellationToken cancellationToken = default
+    );
 }

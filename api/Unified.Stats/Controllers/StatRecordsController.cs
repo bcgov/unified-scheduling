@@ -111,7 +111,10 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     /// </summary>
     private bool TryGetCallerContext(out Guid callerUserId, out bool callerCanEnterForOthers)
     {
-        callerCanEnterForOthers = User.HasClaim(UnifiedClaimTypes.Permission, Permissions.StatsRecordsEnterForOthers.ToString());
+        callerCanEnterForOthers = User.HasClaim(
+            UnifiedClaimTypes.Permission,
+            Permissions.StatsRecordsEnterForOthers.ToString()
+        );
 
         var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
         if (Guid.TryParse(userIdValue, out callerUserId))

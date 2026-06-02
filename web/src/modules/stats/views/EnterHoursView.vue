@@ -232,7 +232,9 @@ const onLocationChange = async (value: SelectValue | undefined) => {
 const buildRecords = (status: string): StatRecordRequest[] | null => {
   const errors: Record<string, string> = {};
 
-  const resolvedUserId = authStore.hasPermission(Permissions.StatsRecordsEnterForOthers) ? selectedUserId.value : authStore.currentUserId;
+  const resolvedUserId = authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)
+    ? selectedUserId.value
+    : authStore.currentUserId;
   if (!resolvedUserId) {
     errors['user'] = authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)
       ? 'Please select a user to submit hours for.'
