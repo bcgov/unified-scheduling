@@ -29,6 +29,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
       permissions: faker.helpers.arrayElements(Object.values(Permissions)),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), null]),
       ...overrideResponse,
     },
     {
@@ -46,6 +47,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
       permissions: faker.helpers.arrayElements(Object.values(Permissions)),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), null]),
       ...overrideResponse,
     },
     {
@@ -63,6 +65,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
         value: faker.string.alpha({ length: { min: 10, max: 20 } }),
       })),
       permissions: faker.helpers.arrayElements(Object.values(Permissions)),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), null]),
       ...overrideResponse,
     },
   ]);

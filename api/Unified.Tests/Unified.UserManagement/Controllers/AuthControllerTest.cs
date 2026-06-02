@@ -49,7 +49,7 @@ public class AuthControllerTest
             new(ClaimTypes.Email, "test-user@example.com"),
             new(ClaimTypes.Role, "Scheduler"),
             new(UnifiedClaimTypes.UserId, userId.ToString()),
-            new(UnifiedClaimTypes.Permission, Permissions.StatsRecordsEnterForOthers),
+            new(UnifiedClaimTypes.Permission, Permissions.StatsRecordsEnterForOthers.ToString()),
         };
         var identity = new ClaimsIdentity(claims, "TestAuth");
         var principal = new ClaimsPrincipal(identity);

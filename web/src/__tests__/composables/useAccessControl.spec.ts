@@ -45,6 +45,7 @@ describe('useAccessControl', () => {
       authenticationType: 'test',
       claims: [],
       permissions: [Permissions.RolesEdit],
+      userId: null,
     };
     expect(hasPermission(Permissions.RolesEdit)).toBe(true);
   });
@@ -58,6 +59,7 @@ describe('useAccessControl', () => {
       authenticationType: 'test',
       claims: [],
       permissions: [Permissions.RolesEdit],
+      userId: null,
     };
     expect(hasPermission(Permissions.UsersCreate)).toBe(false);
   });
@@ -71,6 +73,7 @@ describe('useAccessControl', () => {
       authenticationType: 'test',
       claims: [],
       permissions: [Permissions.RolesEdit],
+      userId: null,
     };
     expect(hasAnyPermission(Permissions.UsersCreate, Permissions.RolesEdit)).toBe(true);
   });
@@ -84,6 +87,7 @@ describe('useAccessControl', () => {
       authenticationType: 'test',
       claims: [],
       permissions: [Permissions.RolesEdit],
+      userId: null,
     };
     expect(hasAnyPermission(Permissions.UsersCreate, Permissions.UsersEdit)).toBe(false);
   });
@@ -97,6 +101,7 @@ describe('useAccessControl', () => {
       authenticationType: 'test',
       claims: [],
       permissions: [Permissions.RolesEdit, Permissions.UsersCreate],
+      userId: null,
     };
     expect(hasAllPermissions(Permissions.RolesEdit, Permissions.UsersCreate)).toBe(true);
   });
@@ -110,6 +115,7 @@ describe('useAccessControl', () => {
       authenticationType: 'test',
       claims: [],
       permissions: [Permissions.RolesEdit],
+      userId: null,
     };
     expect(hasAllPermissions(Permissions.RolesEdit, Permissions.UsersCreate)).toBe(false);
   });
