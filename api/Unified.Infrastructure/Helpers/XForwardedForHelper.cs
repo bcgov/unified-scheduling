@@ -1,18 +1,11 @@
 ﻿using System;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 
 namespace Unified.Infrastructure.Helpers
 {
     public static class XForwardedForHelper
     {
-        private static readonly ILogger _logger;
-
-        static XForwardedForHelper()
-        {
-            using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
-            _logger = factory.CreateLogger("XForwardedForHelper");
-        }
+        private const string DefaultLocalhost = "localhost";
 
         public static string BuildUrlString(
             string forwardedProto,
@@ -24,10 +17,12 @@ namespace Unified.Infrastructure.Helpers
         )
         {
             // Default: Assume the code is running locally, unless specified.
-            forwardedProto = string.IsNullOrEmpty(forwardedProto) ? "http" : forwardedProto;
-            forwardedHost = string.IsNullOrEmpty(forwardedHost) ? "localhost" : forwardedHost;
-            forwardedPort = string.IsNullOrEmpty(forwardedPort) ? "8080" : forwardedPort;
+            forwardedProto = NormalizeForwardedProto(forwardedProto);
+            forwardedHost = NormalizeForwardedValue(forwardedHost, DefaultLocalhost);
+            forwardedPort = NormalizeForwardedPort(forwardedPort, "8080");
             baseUrl = string.IsNullOrEmpty(baseUrl) ? "/" : baseUrl;
+
+            forwardedHost = NormalizeHostAndPort(forwardedProto, forwardedHost, ref forwardedPort);
 
             var sanitizedPath = baseUrl;
             var isLocalhost = forwardedHost.Contains("localhost");
@@ -53,15 +48,113 @@ namespace Unified.Infrastructure.Helpers
                     ? ""
                     : $":{forwardedPort}";
 
-            if (!string.IsNullOrEmpty(portComponent))
+            if (!string.IsNullOrEmpty(portComponent) && int.TryParse(forwardedPort, out var port) && port > 0)
             {
-                int port;
-                int.TryParse(forwardedPort, out port);
                 uriBuilder.Port = port;
             }
 
-            // _logger.LogInformation($"uriBuilder.Uri.AbsoluteUri `{uriBuilder.Uri.AbsoluteUri}`");
-            return uriBuilder.Uri.AbsoluteUri;
+            try
+            {
+                return uriBuilder.Uri.AbsoluteUri;
+            }
+            catch (UriFormatException)
+            {
+                var fallbackUriBuilder = new UriBuilder
+                {
+                    Scheme = forwardedProto,
+                    Host = DefaultLocalhost,
+                    Path = sanitizedPath,
+                    Query = query,
+                };
+
+                if (int.TryParse(forwardedPort, out var fallbackPort) && fallbackPort > 0)
+                {
+                    fallbackUriBuilder.Port = fallbackPort;
+                }
+
+                return fallbackUriBuilder.Uri.AbsoluteUri;
+            }
+        }
+
+        private static string NormalizeForwardedValue(string value, string fallback)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return fallback;
+
+            var normalized = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(normalized))
+                return fallback;
+
+            return normalized.Trim().Trim('\'', '"');
+        }
+
+        private static string NormalizeForwardedProto(string value)
+        {
+            var normalized = NormalizeForwardedValue(value, "http");
+            return string.Equals(normalized, "https", StringComparison.OrdinalIgnoreCase) ? "https" : "http";
+        }
+
+        private static string NormalizeForwardedPort(string value, string fallback)
+        {
+            var normalized = NormalizeForwardedValue(value, fallback);
+            return int.TryParse(normalized, out var port) && port > 0 ? port.ToString() : fallback;
+        }
+
+        private static string NormalizeHostAndPort(string forwardedProto, string forwardedHost, ref string forwardedPort)
+        {
+            forwardedHost = forwardedHost.Trim().Trim('\'', '"');
+
+            if (Uri.TryCreate(forwardedHost, UriKind.Absolute, out var absoluteHostUri))
+            {
+                if (string.IsNullOrWhiteSpace(forwardedPort) && !absoluteHostUri.IsDefaultPort)
+                    forwardedPort = absoluteHostUri.Port.ToString();
+
+                return NormalizeValidatedHost(absoluteHostUri.Host);
+            }
+
+            if (Uri.TryCreate($"{forwardedProto}://{forwardedHost}", UriKind.Absolute, out var hostWithPortUri))
+            {
+                if (string.IsNullOrWhiteSpace(forwardedPort) && !hostWithPortUri.IsDefaultPort)
+                    forwardedPort = hostWithPortUri.Port.ToString();
+
+                return NormalizeValidatedHost(hostWithPortUri.Host);
+            }
+
+            if (TrySplitHostAndPort(forwardedHost, out var hostOnly, out var parsedPort))
+            {
+                if (string.IsNullOrWhiteSpace(forwardedPort) && parsedPort > 0)
+                    forwardedPort = parsedPort.ToString();
+
+                return NormalizeValidatedHost(hostOnly);
+            }
+
+            return NormalizeValidatedHost(forwardedHost);
+        }
+
+        private static bool TrySplitHostAndPort(string value, out string host, out int port)
+        {
+            host = value;
+            port = 0;
+
+            var lastColonIndex = value.LastIndexOf(':');
+            if (lastColonIndex <= 0 || value.Contains(']'))
+                return false;
+
+            var hostPart = value[..lastColonIndex];
+            var portPart = value[(lastColonIndex + 1)..];
+            if (!int.TryParse(portPart, out port) || port <= 0)
+                return false;
+
+            host = hostPart;
+            return true;
+        }
+
+        private static string NormalizeValidatedHost(string value)
+        {
+            var normalized = value.Trim().Trim('\'', '"').TrimEnd('/');
+            return Uri.CheckHostName(normalized) == UriHostNameType.Unknown ? DefaultLocalhost : normalized;
         }
 
         public static string ResolveBaseHref(HttpRequest request)
@@ -100,10 +193,10 @@ namespace Unified.Infrastructure.Helpers
             if (string.IsNullOrEmpty(trimmed))
                 return "/";
 
-            if (!trimmed.StartsWith("/"))
+            if (!trimmed.StartsWith('/'))
                 trimmed = "/" + trimmed;
 
-            if (!trimmed.EndsWith("/"))
+            if (!trimmed.EndsWith('/'))
                 trimmed += "/";
 
             return trimmed;
