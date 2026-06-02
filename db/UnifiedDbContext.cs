@@ -15,8 +15,11 @@ public class UnifiedDbContext : DbContext
 
     public DbSet<Location> Locations { get; set; }
     public DbSet<Region> Regions { get; set; }
+    public DbSet<Permission> Permissions { get; set; }
     public DbSet<Role> Roles { get; set; }
+    public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<UserRole> UserRoles { get; set; }
     public DbSet<PositionType> PositionTypes { get; set; }
 
     // Stats

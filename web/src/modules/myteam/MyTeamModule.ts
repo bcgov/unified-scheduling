@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
+import { useAccessControl } from '@/composables/useAccessControl';
+import { Permissions } from '@/api-access/generated/models';
 
 const myTeamRoutes: RouteRecordRaw[] = [
   {
@@ -42,14 +44,33 @@ const myTeamRoutes: RouteRecordRaw[] = [
       requiresAuth: true,
     },
   },
+  {
+    path: '/roles-permissions',
+    name: 'RolesPermissions',
+    component: () => import('./views/RolesPermissions.vue'),
+    meta: {
+      title: 'Roles & Permissions',
+      requiresAuth: true,
+    },
+  },
 ];
 
 const navLink: NavigationLink = { name: 'My Team', path: '/myteam', class: 'router-link--border' };
+const rolesAndPermissionsNavLink: NavigationLink = {
+  name: 'Roles & Permissions',
+  path: '/roles-permissions',
+  class: 'router-link--border',
+};
 
 export function registerModule(routes: RouteRecordRaw[]) {
   const navigationStore = useNavigationStore();
+  const accessControl = useAccessControl();
 
   routes.push(...myTeamRoutes);
 
   navigationStore.registerLink(navLink);
+
+  if (accessControl.hasPermission(Permissions.RolesView)) {
+    navigationStore.registerLink(rolesAndPermissionsNavLink);
+  }
 }

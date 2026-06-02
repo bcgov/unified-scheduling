@@ -50,6 +50,7 @@ const navigationStore = useNavigationStore();
   display: flex;
   gap: var(--ua-spacing-xl);
   margin-left: 8rem;
+  align-items: center;
 }
 
 .router-link {

@@ -1,3 +1,5 @@
+using Unified.Authorization;
+
 namespace Unified.UserManagement.Models;
 
 public sealed record UserInfo(
@@ -5,7 +7,8 @@ public sealed record UserInfo(
     string? Name,
     string? AuthenticationType,
     IReadOnlyList<UserClaim> Claims,
-    IReadOnlyList<string> Roles
+    IReadOnlyList<Permissions> Permissions,
+    Guid? UserId
 );
 
 public sealed record UserClaim(string Type, string Value);

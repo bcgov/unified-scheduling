@@ -1,5 +1,3 @@
-using System;
-
 namespace Unified.UserManagement.Models;
 
 public sealed record RoleDto
@@ -11,4 +9,6 @@ public sealed record RoleDto
     public string Description { get; set; } = string.Empty;
 
     public uint ConcurrencyToken { get; set; }
+
+    public IReadOnlyList<PermissionDto> Permissions { get; set; } = [];
 }

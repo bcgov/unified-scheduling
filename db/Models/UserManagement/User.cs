@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Unified.Db.Models.Abstract;
 
 namespace Unified.Db.Models.UserManagement;
@@ -21,4 +22,23 @@ public class User : BaseEntity
     public string? BadgeNumber { get; set; }
     public string? Rank { get; set; }
     public DateTimeOffset? LastLogin { get; set; }
+
+    public virtual ICollection<UserRole> UserRoles { get; set; } = [];
+
+    [NotMapped]
+    public virtual IReadOnlyList<UserRole> ActiveUserRoles =>
+        UserRoles
+            .Where(ur =>
+                ur.EffectiveDate <= DateTimeOffset.UtcNow
+                && (ur.ExpiryDate == null || ur.ExpiryDate > DateTimeOffset.UtcNow)
+            )
+            .ToList();
+
+    [NotMapped]
+    public virtual IReadOnlyList<Permission> Permissions =>
+        ActiveUserRoles
+            .SelectMany(ur => ur.Role.RolePermissions)
+            .Select(rp => rp.Permission)
+            .DistinctBy(p => p.Id)
+            .ToList();
 }

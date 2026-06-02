@@ -574,6 +574,51 @@ namespace Unified.Db.Migrations
                     b.ToTable("SubCategoryMetrics");
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.UserManagement.Permission", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Group")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("Permissions");
+                });
+
             modelBuilder.Entity("Unified.Db.Models.UserManagement.Role", b =>
                 {
                     b.Property<int>("Id")
@@ -620,6 +665,55 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.UserManagement.RolePermission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 100L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("PermissionId")
+                        .IsRequired()
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("PermissionId");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.User", b =>
@@ -697,6 +791,64 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.UserManagement.UserRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 5000L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTimeOffset>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExpiryReason")
+                        .HasColumnType("text");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("RoleId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserRoles");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Location", b =>
@@ -940,6 +1092,23 @@ namespace Unified.Db.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.UserManagement.Permission", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("UpdatedBy");
+                });
+
             modelBuilder.Entity("Unified.Db.Models.UserManagement.Role", b =>
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
@@ -953,6 +1122,39 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("CreatedBy");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.UserManagement.RolePermission", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.Permission", "Permission")
+                        .WithMany()
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.Role", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
 
                     b.Navigation("UpdatedBy");
                 });
@@ -972,6 +1174,51 @@ namespace Unified.Db.Migrations
                     b.Navigation("CreatedBy");
 
                     b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.UserManagement.UserRole", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.Role", "Role")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Role");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.UserManagement.Role", b =>
+                {
+                    b.Navigation("RolePermissions");
+
+                    b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.UserManagement.User", b =>
+                {
+                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

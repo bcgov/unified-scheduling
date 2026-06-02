@@ -4,7 +4,7 @@ import { createVuetify } from 'vuetify';
 import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
 import { getGetApiConfigMockHandler, getGetApiConfigResponseMock } from '@/api-access/generated/config/config.msw';
-import type { FeatureFlags } from '@/api-access/generated/models';
+import type { FeatureFlags, Permissions } from '@/api-access/generated/models';
 import { useConfigStore } from '@/stores/config';
 import { useAuthStore } from '@/stores/auth';
 import { server } from '../mocks/server';
@@ -18,6 +18,7 @@ interface CreateTestAppOptions {
   featureFlags?: Partial<FeatureFlags>;
   loadConfig?: boolean;
   isAuthenticated?: boolean;
+  permissions?: Permissions[];
 }
 // Generate default config response, then override with any specified in createTestApp options.
 const configResponse = getGetApiConfigResponseMock();
@@ -37,7 +38,7 @@ export async function createTestApp(options: CreateTestAppOptions = {}) {
     name: 'Unit Test User',
     authenticationType: 'test',
     claims: [],
-    roles: [],
+    permissions: options.permissions ?? [],
   });
 
   if (options.loadConfig !== false) {

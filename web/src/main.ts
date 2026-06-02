@@ -11,21 +11,33 @@ import { useConfigStore } from '@/stores/config';
 import '@/assets/styles/variables.css';
 
 import App from './App.vue';
-import { useLocationsStore } from './stores/LocationsStore';
+import { useLocationsStore } from '@/stores/LocationsStore';
+import { getApiAuthUser } from '@/api-access/generated/auth/auth';
+import { useAuthStore } from '@/stores/auth';
 
 const bootstrap = async () => {
-  const app = createApp(App);
-
-  const pinia = createPinia();
-  app.use(pinia);
-
   await setupMockServiceWorker();
 
+  const pinia = createPinia();
+
+  // @NOTE: Load config before initializing the router to ensure feature flags are available for route setup
   const configStore = useConfigStore(pinia);
   await configStore.loadConfig();
 
+  // @NOTE: Load user info to ensure permissions are available for route guards
+  const { error, data: userInfo } = await getApiAuthUser();
+  const authStore = useAuthStore(pinia);
+  if (!error.value && userInfo.value) {
+    authStore.setUserInfo(userInfo.value);
+  }
+
+  const app = createApp(App);
+
+  app.use(pinia);
+
   // Initialize module routes based on access control
   const router = initializeRouter(pinia);
+
   app.use(router);
 
   const locationStore = useLocationsStore(pinia);

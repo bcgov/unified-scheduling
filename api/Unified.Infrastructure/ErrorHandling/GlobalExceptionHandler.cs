@@ -39,7 +39,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         var problemDetails = exception switch
         {
             ValidationException ex => HandleValidationException(ex, httpContext),
-            UnauthorizedAccessException ex => HandleUnauthorizedAccessException(ex, httpContext),
+            ForbiddenException ex => HandleForbiddenException(ex, httpContext),
             KeyNotFoundException ex => HandleKeyNotFoundException(ex, httpContext),
             InvalidOperationException ex => HandleInvalidOperationException(ex, httpContext),
             DbUpdateConcurrencyException ex => HandleConcurrencyException(ex, httpContext),
@@ -82,16 +82,16 @@ public class GlobalExceptionHandler : IExceptionHandler
         };
     }
 
-    private ProblemDetails HandleUnauthorizedAccessException(UnauthorizedAccessException ex, HttpContext httpContext)
+    private ProblemDetails HandleForbiddenException(ForbiddenException ex, HttpContext httpContext)
     {
-        _logger.LogInformation(ex, "Unauthorized access: {Message}", ex.Message);
+        _logger.LogInformation(ex, "Access denied: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
 
         return new ProblemDetails
         {
             Status = StatusCodes.Status403Forbidden,
-            Title = "Forbidden.",
-            Detail = ex.Message,
+            Title = "Access denied.",
+            Detail = "You do not have permission to perform this action.",
             Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }

@@ -416,4 +416,100 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("Name", result.LastName);
         Assert.Equal("updated@example.com", result.Email);
     }
+
+    [Fact]
+    public async Task AssignRoleAsync_Should_Create_UserRole_When_User_And_Role_Exist()
+    {
+        // Arrange
+        await SeedTestData();
+        var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        _dbContext.Roles.Add(
+            new Role
+            {
+                Id = 100,
+                Name = "Supervisor",
+                Description = "Supervisor role",
+            }
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var effectiveDate = DateTimeOffset.UtcNow.AddDays(-1);
+        var expiryDate = DateTimeOffset.UtcNow.AddDays(10);
+        var request = new AssignUserRoleRequestDto
+        {
+            RoleId = 100,
+            EffectiveDate = effectiveDate,
+            ExpiryDate = expiryDate,
+        };
+
+        // Act
+        var result = await _userService.AssignRoleAsync(user.Id, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.Id > 0);
+        Assert.Equal(user.Id, result.UserId);
+        Assert.Equal(100, result.RoleId);
+        Assert.Equal(effectiveDate, result.EffectiveDate);
+        Assert.Equal(expiryDate, result.ExpiryDate);
+
+        var userRole = await _dbContext.UserRoles.SingleOrDefaultAsync(
+            x => x.UserId == user.Id && x.RoleId == 100,
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(userRole);
+        Assert.Equal(effectiveDate, userRole.EffectiveDate);
+        Assert.Equal(expiryDate, userRole.ExpiryDate);
+    }
+
+    [Fact]
+    public async Task AssignRoleAsync_Should_Throw_When_User_Does_Not_Exist()
+    {
+        // Arrange
+        _dbContext.Roles.Add(
+            new Role
+            {
+                Id = 100,
+                Name = "Supervisor",
+                Description = "Supervisor role",
+            }
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _userService.AssignRoleAsync(
+                Guid.NewGuid(),
+                new AssignUserRoleRequestDto
+                {
+                    RoleId = 100,
+                    EffectiveDate = DateTimeOffset.UtcNow,
+                    ExpiryDate = null,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task AssignRoleAsync_Should_Throw_When_Role_Does_Not_Exist()
+    {
+        // Arrange
+        await SeedTestData();
+        var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _userService.AssignRoleAsync(
+                user.Id,
+                new AssignUserRoleRequestDto
+                {
+                    RoleId = 9999,
+                    EffectiveDate = DateTimeOffset.UtcNow,
+                    ExpiryDate = null,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
 }
