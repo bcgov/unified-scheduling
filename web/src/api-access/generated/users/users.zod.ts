@@ -9,6 +9,7 @@ import * as zod from 'zod';
 export const GetApiUsersQueryParams = zod.strictObject({
   Search: zod.string().optional(),
   IsEnabled: zod.boolean().optional(),
+  LocationId: zod.number().optional(),
 });
 
 export const GetApiUsersResponseItem = zod.object({

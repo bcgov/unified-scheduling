@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.Authorization;
 using Unified.Stats.Services;
 using Unified.Stats.Validators;
 
@@ -28,6 +29,15 @@ public static class StatsModule
         // Validators (data entry only)
         s.AddScoped<StatRecordRequestValidator>();
         s.AddScoped<StatSignoffRequestValidator>();
+
+        // Permission seed data
+        s.AddSingleton(StatsPermissionSeedData.Configuration);
+
+        // Register permission policies owned by this module
+        s
+            .AddAuthorizationBuilder()
+            // Stats
+            .AddPermissionPolicy(Permissions.StatsRecordsEnterForOthers);
 
         return s;
     }

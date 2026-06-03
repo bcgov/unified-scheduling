@@ -1,4 +1,4 @@
-import type { Permissions, UserInfo } from '@/api-access/generated/models';
+import type { UserInfo } from '@/api-access/generated/models';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
@@ -10,10 +10,6 @@ export const useAuthStore = defineStore('auth', () => {
   const userName = computed(() => userInfo.value?.name ?? null);
 
   const currentUserId = computed(() => userInfo.value?.userId ?? null);
-
-  function hasPermission(permission: Permissions): boolean {
-    return userInfo.value?.permissions.includes(permission) ?? false;
-  }
 
   function setUserInfo(info: UserInfo | null) {
     userInfo.value = info;
@@ -28,7 +24,6 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     userName,
     currentUserId,
-    hasPermission,
     setUserInfo,
     clearUserInfo,
   };

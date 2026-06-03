@@ -5,7 +5,7 @@ import type {
   StatMetricResponse,
   SubCategoryMetricResponse,
   SubCategoryResponse,
-} from '@/api-access/stats';
+} from '@/api-access/generated/models';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';

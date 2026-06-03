@@ -9,6 +9,7 @@ export interface StatRecordRequest {
   dateFrom: string;
   dateTo: string;
   periodType: string;
+  userId: string;
   locationId: number;
   subCategoryMetricId: number;
   value: number;

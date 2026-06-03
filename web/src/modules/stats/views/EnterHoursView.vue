@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import type { UserResponse } from '@/api-access/generated/models';
 import { getApiUsers } from '@/api-access/generated/users/users';
-import {
-  getApiStatsCategories,
-  getApiStatsGroups,
-  getApiStatsMetrics,
-  getApiStatsSubCategories,
-  getApiStatsSubCategoryMetrics,
-  postApiStatsRecordsBatch,
-  type StatCategoryResponse,
-  type StatGroupResponse,
-  type StatMetricResponse,
-  type StatRecordRequest,
-  type SubCategoryMetricResponse,
-  type SubCategoryResponse,
-} from '@/api-access/stats';
+import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
+import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
+import { getApiStatsMetrics } from '@/api-access/generated/stat-metrics/stat-metrics';
+import { postApiStatsRecordsBatch } from '@/api-access/generated/stat-records/stat-records';
+import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
+import { getApiStatsSubCategoryMetrics } from '@/api-access/generated/sub-category-metrics/sub-category-metrics';
+import type {
+  StatCategoryResponse,
+  StatGroupResponse,
+  StatMetricResponse,
+  StatRecordRequest,
+  SubCategoryMetricResponse,
+  SubCategoryResponse,
+} from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
@@ -22,6 +22,7 @@ import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { Permissions } from '@/api-access/generated/models';
+import { useAccessControl } from '@/composables/useAccessControl';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
@@ -84,6 +85,7 @@ onMounted(async () => {
 // ── Locations ──────────────────────────────────────────────────────────────
 
 const authStore = useAuthStore();
+const { hasPermission } = useAccessControl();
 const locationsStore = useLocationsStore();
 const locationOptions = computed(() => locationsStore.getSelectOptions());
 
@@ -218,7 +220,7 @@ const removeAssignment = (id: string) => {
 const onLocationChange = async (value: SelectValue | undefined) => {
   selectedLocationId.value = value !== null && value !== undefined ? Number(value) : null;
   activeLocationId = selectedLocationId.value;
-  if (authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)) {
+  if (hasPermission(Permissions.StatsRecordsEnterForOthers)) {
     selectedUserId.value = null;
     locationUsers.value = [];
     if (selectedLocationId.value) {
@@ -232,11 +234,11 @@ const onLocationChange = async (value: SelectValue | undefined) => {
 const buildRecords = (status: string): StatRecordRequest[] | null => {
   const errors: Record<string, string> = {};
 
-  const resolvedUserId = authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)
+  const resolvedUserId = hasPermission(Permissions.StatsRecordsEnterForOthers)
     ? selectedUserId.value
     : authStore.currentUserId;
   if (!resolvedUserId) {
-    errors['user'] = authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)
+    errors['user'] = hasPermission(Permissions.StatsRecordsEnterForOthers)
       ? 'Please select a user to submit hours for.'
       : 'Unable to determine current user. Please refresh and try again.';
   }
@@ -391,7 +393,7 @@ const handleSave = async (status: string) => {
             />
           </template>
 
-          <template v-if="authStore.hasPermission(Permissions.StatsRecordsEnterForOthers)">
+          <template v-if="hasPermission(Permissions.StatsRecordsEnterForOthers)">
             <label class="ua-form-label" for="user-select">Employee</label>
             <UaSelect
               id="user-select"

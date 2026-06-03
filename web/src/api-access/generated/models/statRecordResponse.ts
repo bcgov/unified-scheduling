@@ -10,6 +10,7 @@ export interface StatRecordResponse {
   dateFrom?: string;
   dateTo?: string;
   periodType?: string;
+  userId?: string;
   locationId?: number;
   subCategoryMetricId?: number;
   value?: number;
