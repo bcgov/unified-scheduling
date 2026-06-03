@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
+using Unified.Authorization.Claims;
 using Unified.Stats.Models;
 using Unified.Stats.Services;
 using Unified.Stats.Validators;
@@ -35,39 +37,44 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [HttpPost]
     [ProducesResponseType(typeof(StatRecordResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<StatRecordResponse>> Create(
         [FromBody] StatRecordRequest request,
         CancellationToken cancellationToken
     )
     {
+        if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
+            return Unauthorized();
+
         await validator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var result = await service.CreateAsync(request, cancellationToken);
+        var result = await service.CreateAsync(request, callerUserId, callerCanEnterForOthers, cancellationToken);
         return Created($"/api/stats/records/{result.Id}", result);
     }
 
     [HttpPost("batch")]
     [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<StatRecordResponse>>> CreateBatch(
-        [FromBody] IEnumerable<StatRecordRequest> requests,
+        [FromBody] IReadOnlyList<StatRecordRequest> requests,
         CancellationToken cancellationToken
     )
     {
-        var requestList = requests.ToList();
+        if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
+            return Unauthorized();
 
-        foreach (var request in requestList)
-        {
+        foreach (var request in requests)
             await validator.ValidateAndThrowAsync(request, cancellationToken);
-        }
 
-        var result = await service.CreateBatchAsync(requestList, cancellationToken);
+        var result = await service.CreateBatchAsync(requests, callerUserId, callerCanEnterForOthers, cancellationToken);
         return Created("/api/stats/records", result);
     }
 
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(StatRecordResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<StatRecordResponse>> Update(
         int id,
@@ -75,18 +82,45 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         CancellationToken cancellationToken
     )
     {
+        if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
+            return Unauthorized();
+
         await validator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var result = await service.UpdateAsync(id, request, cancellationToken);
+        var result = await service.UpdateAsync(id, request, callerUserId, callerCanEnterForOthers, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await service.DeleteAsync(id, cancellationToken);
+        if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
+            return Unauthorized();
+
+        var deleted = await service.DeleteAsync(id, callerUserId, callerCanEnterForOthers, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Resolves the caller's DB user ID and whether they hold the
+    /// <see cref="Permissions.StatsRecordsEnterForOthers"/> permission from claims.
+    /// Returns false if the user ID claim is absent (user not found in DB).
+    /// </summary>
+    private bool TryGetCallerContext(out Guid callerUserId, out bool callerCanEnterForOthers)
+    {
+        callerCanEnterForOthers = User.HasClaim(
+            UnifiedClaimTypes.Permission,
+            Permissions.StatsRecordsEnterForOthers.ToString()
+        );
+
+        var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
+        if (Guid.TryParse(userIdValue, out callerUserId))
+            return true;
+
+        callerUserId = Guid.Empty;
+        return false;
     }
 }

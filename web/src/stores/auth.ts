@@ -1,6 +1,6 @@
-import { ref, computed } from 'vue';
-import { defineStore } from 'pinia';
 import type { UserInfo } from '@/api-access/generated/models';
+import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
 
 export const useAuthStore = defineStore('auth', () => {
   const userInfo = ref<UserInfo | null>(null);
@@ -8,6 +8,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => userInfo.value?.isAuthenticated ?? false);
 
   const userName = computed(() => userInfo.value?.name ?? null);
+
+  const currentUserId = computed(() => userInfo.value?.userId ?? null);
 
   function setUserInfo(info: UserInfo | null) {
     userInfo.value = info;
@@ -21,6 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
     userInfo,
     isAuthenticated,
     userName,
+    currentUserId,
     setUserInfo,
     clearUserInfo,
   };

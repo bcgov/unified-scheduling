@@ -64,6 +64,8 @@ export const GetApiAuthUserResponse = zod.object({
       'TrainingExempt',
       'IdirEdit',
       'ReportsGenerate',
+      'StatsRecordsEnterForOthers',
     ]),
   ),
+  userId: zod.uuid().nullable(),
 });

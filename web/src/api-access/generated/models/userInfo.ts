@@ -15,4 +15,6 @@ export interface UserInfo {
   authenticationType: string | null;
   claims: UserClaim[];
   permissions: Permissions[];
+  /** @nullable */
+  userId: string | null;
 }

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Unified.Authorization;
+using Unified.Authorization.Claims;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.Models;
 
@@ -40,11 +42,14 @@ public class AuthControllerTest
     [Fact]
     public void GetUserInfo_Should_Return_Authenticated_User_Details()
     {
+        var userId = Guid.NewGuid();
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, "test-user"),
             new(ClaimTypes.Email, "test-user@example.com"),
             new(ClaimTypes.Role, "Scheduler"),
+            new(UnifiedClaimTypes.UserId, userId.ToString()),
+            new(UnifiedClaimTypes.Permission, Permissions.StatsRecordsEnterForOthers.ToString()),
         };
         var identity = new ClaimsIdentity(claims, "TestAuth");
         var principal = new ClaimsPrincipal(identity);
@@ -58,8 +63,27 @@ public class AuthControllerTest
         Assert.True(userInfo.IsAuthenticated);
         Assert.Equal("test-user", userInfo.Name);
         Assert.Equal("TestAuth", userInfo.AuthenticationType);
-        Assert.Equal(3, userInfo.Claims.Count);
+        Assert.Equal(5, userInfo.Claims.Count);
         Assert.Contains(userInfo.Claims, c => c.Type == ClaimTypes.Email && c.Value == "test-user@example.com");
+        Assert.Equal(userId, userInfo.UserId);
+        Assert.Contains(Permissions.StatsRecordsEnterForOthers, userInfo.Permissions);
+    }
+
+    [Fact]
+    public void GetUserInfo_Should_Return_Null_UserId_When_Claim_Missing()
+    {
+        var claims = new List<Claim> { new(ClaimTypes.Name, "test-user") };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+        var controller = CreateController(principal);
+
+        var result = controller.GetUserInfo();
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var userInfo = Assert.IsType<UserInfo>(okResult.Value);
+
+        Assert.Null(userInfo.UserId);
+        Assert.Empty(userInfo.Permissions);
     }
 
     [Fact]

@@ -7,7 +7,8 @@ public sealed record UserInfo(
     string? Name,
     string? AuthenticationType,
     IReadOnlyList<UserClaim> Claims,
-    IReadOnlyList<Permissions> Permissions
+    IReadOnlyList<Permissions> Permissions,
+    Guid? UserId
 );
 
 public sealed record UserClaim(string Type, string Value);

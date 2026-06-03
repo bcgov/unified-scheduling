@@ -5,7 +5,7 @@ import type {
   StatMetricResponse,
   SubCategoryMetricResponse,
   SubCategoryResponse,
-} from '@/api-access/stats';
+} from '@/api-access/generated/models';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -39,7 +39,9 @@ const model = defineModel<AssignmentData>({ required: true });
 // ── Derived options ────────────────────────────────────────────────────────
 
 const groupOptions = computed(() =>
-  [...props.groups].sort((a, b) => a.displayOrder - b.displayOrder).map((g) => ({ code: g.id, description: g.name })),
+  [...props.groups]
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+    .map((g) => ({ code: g.id!, description: g.name! })),
 );
 
 const effectiveGroupId = computed(() => props.fixedGroupId ?? model.value.groupId);
@@ -47,16 +49,16 @@ const effectiveGroupId = computed(() => props.fixedGroupId ?? model.value.groupI
 const categoryOptions = computed(() =>
   props.categories
     .filter((c) => !c.isArchived && (effectiveGroupId.value === null || c.groupId === effectiveGroupId.value))
-    .sort((a, b) => a.displayOrder - b.displayOrder)
-    .map((c) => ({ code: c.id, description: c.name })),
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+    .map((c) => ({ code: c.id!, description: c.name! })),
 );
 
 const subCategoryOptions = computed(() => {
   if (!model.value.categoryId) return [];
   return props.subCategories
     .filter((sc) => sc.categoryId === model.value.categoryId)
-    .sort((a, b) => a.displayOrder - b.displayOrder)
-    .map((sc) => ({ code: sc.id, description: sc.name }));
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+    .map((sc) => ({ code: sc.id!, description: sc.name! }));
 });
 
 const showSubCategorySelect = computed(() => subCategoryOptions.value.length > 1);
@@ -65,10 +67,10 @@ const metricDetails = computed(() => {
   if (!model.value.subCategoryId) return [];
   return props.subCategoryMetrics
     .filter((scm) => scm.subCategoryId === model.value.subCategoryId)
-    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     .map((scm) => {
       const metric = props.metrics.find((m) => m.id === scm.metricId);
-      return { id: scm.id, name: metric?.name ?? '', unit: metric?.unitOfMeasure ?? '' };
+      return { id: scm.id!, name: metric?.name ?? '', unit: metric?.unitOfMeasure ?? '' };
     });
 });
 
@@ -86,7 +88,7 @@ const onCategoryChange = (value: SelectValue | undefined) => {
     return;
   }
   const subs = props.subCategories.filter((sc) => sc.categoryId === newCategoryId);
-  const autoSubId = subs.length === 1 ? subs[0].id : null;
+  const autoSubId = subs.length === 1 ? (subs[0].id ?? null) : null;
   model.value = { ...model.value, categoryId: newCategoryId, subCategoryId: autoSubId, metricValues: {} };
 };
 

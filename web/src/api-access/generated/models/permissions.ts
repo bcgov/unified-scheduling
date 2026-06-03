@@ -48,4 +48,5 @@ export const Permissions = {
   TrainingExempt: 'TrainingExempt',
   IdirEdit: 'IdirEdit',
   ReportsGenerate: 'ReportsGenerate',
+  StatsRecordsEnterForOthers: 'StatsRecordsEnterForOthers',
 } as const;

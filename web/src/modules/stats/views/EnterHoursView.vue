@@ -1,24 +1,29 @@
 <script setup lang="ts">
-import {
-  getApiStatsCategories,
-  getApiStatsGroups,
-  getApiStatsMetrics,
-  getApiStatsSubCategories,
-  getApiStatsSubCategoryMetrics,
-  postApiStatsRecordsBatch,
-  type StatCategoryResponse,
-  type StatGroupResponse,
-  type StatMetricResponse,
-  type StatRecordRequest,
-  type SubCategoryMetricResponse,
-  type SubCategoryResponse,
-} from '@/api-access/stats';
+import type { UserResponse } from '@/api-access/generated/models';
+import { getApiUsers } from '@/api-access/generated/users/users';
+import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
+import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
+import { getApiStatsMetrics } from '@/api-access/generated/stat-metrics/stat-metrics';
+import { postApiStatsRecordsBatch } from '@/api-access/generated/stat-records/stat-records';
+import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
+import { getApiStatsSubCategoryMetrics } from '@/api-access/generated/sub-category-metrics/sub-category-metrics';
+import type {
+  StatCategoryResponse,
+  StatGroupResponse,
+  StatMetricResponse,
+  StatRecordRequest,
+  SubCategoryMetricResponse,
+  SubCategoryResponse,
+} from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
+import { Permissions } from '@/api-access/generated/models';
+import { useAccessControl } from '@/composables/useAccessControl';
+import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
 import { mdiPlus } from '@mdi/js';
@@ -79,8 +84,33 @@ onMounted(async () => {
 
 // ── Locations ──────────────────────────────────────────────────────────────
 
+const authStore = useAuthStore();
+const { hasPermission } = useAccessControl();
 const locationsStore = useLocationsStore();
 const locationOptions = computed(() => locationsStore.getSelectOptions());
+
+// ── Supervisor user picker ──────────────────────────────────────────────────
+
+const locationUsers = ref<UserResponse[]>([]);
+const selectedUserId = ref<string | null>(null);
+// Tracks which location's fetch is authoritative; stale responses are discarded.
+let activeLocationId: number | null = null;
+
+const userOptions = computed(() =>
+  locationUsers.value.map((u) => ({
+    code: u.id,
+    description: `${u.firstName} ${u.lastName}`,
+  })),
+);
+
+const loadUsersForLocation = async (locationId: number) => {
+  activeLocationId = locationId;
+  const { data } = await getApiUsers({ LocationId: locationId, IsEnabled: true });
+  if (activeLocationId !== locationId) return;
+  locationUsers.value = data.value ?? [];
+  const currentUserAtLocation = locationUsers.value.some((u) => u.id === authStore.currentUserId);
+  selectedUserId.value = currentUserAtLocation ? (authStore.currentUserId ?? null) : null;
+};
 
 // ── Form state ─────────────────────────────────────────────────────────────
 
@@ -187,14 +217,31 @@ const removeAssignment = (id: string) => {
   assignments.value = assignments.value.filter((a) => a.id !== id);
 };
 
-const onLocationChange = (value: SelectValue | undefined) => {
+const onLocationChange = async (value: SelectValue | undefined) => {
   selectedLocationId.value = value !== null && value !== undefined ? Number(value) : null;
+  activeLocationId = selectedLocationId.value;
+  if (hasPermission(Permissions.StatsRecordsEnterForOthers)) {
+    selectedUserId.value = null;
+    locationUsers.value = [];
+    if (selectedLocationId.value) {
+      await loadUsersForLocation(selectedLocationId.value);
+    }
+  }
 };
 
 // ── Submission ─────────────────────────────────────────────────────────────
 
 const buildRecords = (status: string): StatRecordRequest[] | null => {
   const errors: Record<string, string> = {};
+
+  const resolvedUserId = hasPermission(Permissions.StatsRecordsEnterForOthers)
+    ? selectedUserId.value
+    : authStore.currentUserId;
+  if (!resolvedUserId) {
+    errors['user'] = hasPermission(Permissions.StatsRecordsEnterForOthers)
+      ? 'Please select a user to submit hours for.'
+      : 'Unable to determine current user. Please refresh and try again.';
+  }
 
   if (!selectedLocationId.value) {
     errors['location'] = 'Location is required';
@@ -213,7 +260,7 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
 
     const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
     for (const scm of scms) {
-      const raw = assignment.metricValues[scm.id];
+      const raw = assignment.metricValues[scm.id!];
       if (!raw || raw.trim() === '') continue;
 
       const val = parseFloat(raw);
@@ -223,7 +270,7 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
       }
 
       const metric = metrics.value.find((m) => m.id === scm.metricId);
-      const isRegularHours = metric?.unitOfMeasure === 'hours' && !metric.name.toLowerCase().includes('overtime');
+      const isRegularHours = metric?.unitOfMeasure === 'hours' && !metric.name?.toLowerCase().includes('overtime');
       if (isRegularHours) {
         if (periodType.value === 'Daily' && val > 7) {
           errors[`assignment_${i}_metric_${scm.id}`] = 'Daily hours cannot exceed 7';
@@ -244,14 +291,15 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
   for (const assignment of assignments.value) {
     const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
     for (const scm of scms) {
-      const raw = assignment.metricValues[scm.id];
+      const raw = assignment.metricValues[scm.id!];
       if (!raw || raw.trim() === '') continue;
       records.push({
+        userId: resolvedUserId!,
         dateFrom: dateFromVal,
         dateTo: dateToVal,
         periodType: periodType.value,
         locationId: selectedLocationId.value!,
-        subCategoryMetricId: scm.id,
+        subCategoryMetricId: scm.id!,
         value: parseFloat(raw),
         comment: assignment.comment || undefined,
         status,
@@ -342,6 +390,19 @@ const handleSave = async (status: string) => {
               :label="periodType === 'Monthly' ? 'Month' : 'Date'"
               v-model="anchorDate"
               :type="periodType === 'Monthly' ? 'month' : 'date'"
+            />
+          </template>
+
+          <template v-if="hasPermission(Permissions.StatsRecordsEnterForOthers)">
+            <label class="ua-form-label" for="user-select">Employee</label>
+            <UaSelect
+              id="user-select"
+              label="Select Employee"
+              :items="userOptions"
+              :model-value="selectedUserId"
+              :disabled="!selectedLocationId"
+              :error-messages="formErrors['user']"
+              @update:model-value="(v) => (selectedUserId = v ? String(v) : null)"
             />
           </template>
         </UaFormGrid>

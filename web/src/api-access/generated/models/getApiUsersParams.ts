@@ -9,6 +9,7 @@ import type { MaybeRef } from 'vue';
 export type OriginalGetApiUsersParams = {
   Search?: string;
   IsEnabled?: boolean;
+  LocationId?: number;
 };
 
 export type GetApiUsersParams = MaybeRef<OriginalGetApiUsersParams>;

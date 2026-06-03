@@ -29,6 +29,11 @@ public class StatRecordRequestValidator : AbstractValidator<StatRecordRequest>
             .WithErrorCode(ApiValidationErrorCodes.TooLong)
             .WithMessage(ApiValidationErrorCodes.TooLong);
 
+        RuleFor(x => x.UserId)
+            .NotEmpty()
+            .WithErrorCode(ApiValidationErrorCodes.Required)
+            .WithMessage(ApiValidationErrorCodes.Required);
+
         RuleFor(x => x.LocationId)
             .GreaterThan(0)
             .WithErrorCode(ApiValidationErrorCodes.Required)

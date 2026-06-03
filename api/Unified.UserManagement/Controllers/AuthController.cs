@@ -49,7 +49,6 @@ public class AuthController : ControllerBase
     {
         var claims = User.Claims.Select(c => new UserClaim(c.Type, c.Value)).ToList();
 
-        // Extract permission claims
         var permissions = claims
             .Where(c => c.Type == UnifiedClaimTypes.Permission)
             .Select(c => Enum.TryParse<Permissions>(c.Value, out var parsed) ? parsed : (Permissions?)null)
@@ -57,12 +56,16 @@ public class AuthController : ControllerBase
             .Select(p => p!.Value)
             .ToList();
 
+        var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
+        var userId = Guid.TryParse(userIdValue, out var parsed) ? parsed : (Guid?)null;
+
         var user = new UserInfo(
             User.Identity?.IsAuthenticated ?? false,
             User.Identity?.Name,
             User.Identity?.AuthenticationType,
             claims,
-            permissions
+            permissions,
+            userId
         );
 
         return Ok(user);

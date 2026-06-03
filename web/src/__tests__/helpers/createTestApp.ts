@@ -39,6 +39,7 @@ export async function createTestApp(options: CreateTestAppOptions = {}) {
     authenticationType: 'test',
     claims: [],
     permissions: options.permissions ?? [],
+    userId: null,
   });
 
   if (options.loadConfig !== false) {
