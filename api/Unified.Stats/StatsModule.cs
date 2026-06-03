@@ -34,10 +34,7 @@ public static class StatsModule
         s.AddSingleton(StatsPermissionSeedData.Configuration);
 
         // Register permission policies owned by this module
-        s
-            .AddAuthorizationBuilder()
-            // Stats
-            .AddPermissionPolicy(Permissions.StatsRecordsEnterForOthers);
+        s.AddAuthorizationBuilder().AddPermissionPolicy(Permissions.StatsRecordsEnterForOthers);
 
         return s;
     }

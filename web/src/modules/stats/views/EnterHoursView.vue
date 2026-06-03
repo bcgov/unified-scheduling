@@ -260,7 +260,7 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
 
     const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
     for (const scm of scms) {
-      const raw = assignment.metricValues[scm.id];
+      const raw = assignment.metricValues[scm.id!];
       if (!raw || raw.trim() === '') continue;
 
       const val = parseFloat(raw);
@@ -270,7 +270,7 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
       }
 
       const metric = metrics.value.find((m) => m.id === scm.metricId);
-      const isRegularHours = metric?.unitOfMeasure === 'hours' && !metric.name.toLowerCase().includes('overtime');
+      const isRegularHours = metric?.unitOfMeasure === 'hours' && !metric.name?.toLowerCase().includes('overtime');
       if (isRegularHours) {
         if (periodType.value === 'Daily' && val > 7) {
           errors[`assignment_${i}_metric_${scm.id}`] = 'Daily hours cannot exceed 7';
@@ -291,7 +291,7 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
   for (const assignment of assignments.value) {
     const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
     for (const scm of scms) {
-      const raw = assignment.metricValues[scm.id];
+      const raw = assignment.metricValues[scm.id!];
       if (!raw || raw.trim() === '') continue;
       records.push({
         userId: resolvedUserId!,
@@ -299,7 +299,7 @@ const buildRecords = (status: string): StatRecordRequest[] | null => {
         dateTo: dateToVal,
         periodType: periodType.value,
         locationId: selectedLocationId.value!,
-        subCategoryMetricId: scm.id,
+        subCategoryMetricId: scm.id!,
         value: parseFloat(raw),
         comment: assignment.comment || undefined,
         status,
