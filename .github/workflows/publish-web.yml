@@ -80,9 +80,13 @@ jobs:
             WEB_SRC=./web
 
   update-gitops-dev:
-    name: Update GitOps Dev
+    name: Update GitOps Dev (${{ matrix.license_plate }})
     needs: build
     runs-on: ubuntu-latest
+    environment: ${{ matrix.license_plate }}
+    strategy:
+      matrix:
+        license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
     permissions:
       contents: read
 
@@ -90,7 +94,7 @@ jobs:
       - name: Checkout GitOps repository
         uses: actions/checkout@v6
         with:
-          repository: bcgov-c/tenant-gitops-a94b15
+          repository: bcgov-c/tenant-gitops-${{ matrix.license_plate }}
           ref: develop
           token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
           path: gitops
