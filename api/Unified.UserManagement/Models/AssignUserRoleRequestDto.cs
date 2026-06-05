@@ -7,4 +7,6 @@ public sealed record AssignUserRoleRequestDto
     public required DateTimeOffset EffectiveDate { get; init; }
 
     public DateTimeOffset? ExpiryDate { get; init; }
+
+    public string? ExpiryReason { get; init; }
 }

@@ -160,6 +160,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
                 RoleId = request.RoleId,
                 EffectiveDate = request.EffectiveDate,
                 ExpiryDate = request.ExpiryDate,
+                ExpiryReason = request.ExpiryDate is null ? null : request.ExpiryReason,
             };
 
             DB.UserRoles.Add(assignedUserRole);
@@ -168,10 +169,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         {
             userRole.EffectiveDate = request.EffectiveDate;
             userRole.ExpiryDate = request.ExpiryDate;
-            if (request.ExpiryDate is null)
-            {
-                userRole.ExpiryReason = null;
-            }
+            userRole.ExpiryReason = request.ExpiryDate is null ? null : request.ExpiryReason;
 
             assignedUserRole = userRole;
         }

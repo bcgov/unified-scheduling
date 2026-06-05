@@ -8,6 +8,7 @@ import UaModal from '@/shared/components/UaModal.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import type { SelectOption } from '@/types/select';
+import { getTodayDateInputValue, toApiDate, toDateInputValue } from '@/utils/date';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -52,41 +53,6 @@ const roleOptions = computed<SelectOption[]>(() =>
 );
 
 const modalTitle = computed(() => (isEditMode.value ? 'Edit Role Assignment' : 'Assign Role'));
-
-function toDateInputValue(value?: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const dateOnlyMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (dateOnlyMatch) {
-    return dateOnlyMatch[1];
-  }
-
-  const parsedDate = new Date(value);
-  if (Number.isNaN(parsedDate.getTime())) {
-    return null;
-  }
-
-  const year = parsedDate.getFullYear();
-  const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-  const day = String(parsedDate.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-}
-
-function getTodayDateInputValue(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-}
-
-function toApiDate(value: string): string {
-  return new Date(`${value}T00:00:00.000Z`).toISOString();
-}
 
 function validateForm(): boolean {
   formError.value = '';
@@ -161,7 +127,6 @@ const handleSave = async () => {
         :error-messages="formError.includes('Role') ? formError : ''"
       />
 
-      <label class="ua-form-label" for="effective-date">Effective Date</label>
       <UaTextField
         id="effective-date"
         v-model="effectiveDate"
@@ -170,7 +135,6 @@ const handleSave = async () => {
         :error-messages="formError.includes('Effective date') ? formError : ''"
       />
 
-      <label class="ua-form-label" for="expiry-date">Expiry Date</label>
       <UaTextField
         id="expiry-date"
         v-model="expiryDate"
