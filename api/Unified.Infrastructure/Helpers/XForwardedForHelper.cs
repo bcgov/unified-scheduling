@@ -161,9 +161,11 @@ namespace Unified.Infrastructure.Helpers
             port = 0;
 
             var lastColonIndex = value.LastIndexOf(':');
-            if (lastColonIndex <= 0 || value.Contains(']'))
+            if (lastColonIndex <= 0
+                || value.Contains(']')
+                || value.Contains('[')
+                || value.IndexOf(':') != lastColonIndex)
                 return false;
-
             var hostPart = value[..lastColonIndex];
             var portPart = value[(lastColonIndex + 1)..];
             if (!int.TryParse(portPart, out port) || port <= 0)
