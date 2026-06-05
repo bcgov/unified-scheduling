@@ -1,0 +1,210 @@
+# Release workflow: builds versioned API and Web images from a GitHub Release tag,
+# then promotes them through dev -> test environments via ArgoCD/Kustomize
+# and opens a GitOps pull request for prod promotion.
+#
+# Prerequisites - GitHub Environments must be configured in repo Settings -> Environments:
+#   - "dev"  : no approval gates required (auto-deploys on release publish)
+#   - "test" : configure required reviewers for manual approval before promotion
+#   - "prod" : configure required reviewers for manual approval before opening the prod GitOps PR
+#
+# Prerequisites - GitHub Variables must be configured in repo Settings -> Variables:
+#   - GITOPS_LICENSE_PLATES : JSON array of licence plates, e.g. ["ac1cc8","cb6495"]
+
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v1.2.3"
+        required: true
+        type: string
+
+env:
+  GITHUB_IMAGE_REPO: ghcr.io/bcgov/unified-scheduling
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.event.release.tag_name || github.event.inputs.tag || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    name: Resolve Image Tag
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.resolve.outputs.IMAGE_TAG }}
+      release_ref: ${{ steps.resolve.outputs.RELEASE_REF }}
+    steps:
+      - name: Resolve tag
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "release" ]; then
+            RAW_TAG="${RELEASE_TAG}"
+          else
+            RAW_TAG="${INPUT_TAG}"
+          fi
+
+          if [[ ! "${RAW_TAG}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "Release tag must match vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-prerelease, for example v1.2.3 or v1.2.3-rc1."
+            exit 1
+          fi
+
+          IMAGE_TAG="${RAW_TAG#v}"
+          {
+            printf 'IMAGE_TAG=%s\n' "${IMAGE_TAG}"
+            printf 'RELEASE_REF=%s\n' "${RAW_TAG}"
+          } >> "$GITHUB_OUTPUT"
+
+  build-images:
+    name: Build and Push ${{ matrix.name }} Image
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: API
+            image: api
+            dockerfile: ./docker/api/Dockerfile.release
+            build_args: ""
+          - name: Web
+            image: web
+            dockerfile: ./docker/web/Dockerfile.release
+            build_args: |
+              NODE_VERSION=22
+              WEB_BASE_HREF=/unified-scheduling/
+              NGINX_RUNTIME_SRC=./docker/nginx-runtime
+              VUE_ON_NGINX_SRC=./docker/vue-on-nginx
+              WEB_SRC=./web
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.setup.outputs.release_ref }}
+
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get short SHA
+        id: short_sha
+        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ${{ env.GITHUB_IMAGE_REPO }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=${{ needs.setup.outputs.image_tag }}
+            type=raw,value=${{ steps.short_sha.outputs.SHORT_SHA }}
+
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          push: true
+          context: .
+          file: ${{ matrix.dockerfile }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.build_args }}
+
+  deploy-dev:
+    name: Deploy to Dev (${{ matrix.license_plate }})
+    needs: [setup, build-images]
+    runs-on: ubuntu-latest
+    environment: dev
+    strategy:
+      matrix:
+        license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Update images in dev
+        uses: ./.github/actions/update-argo-kustomize
+        with:
+          licence_plate: ${{ matrix.license_plate }}
+          gitops_branch: develop
+          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          image_name: unified-scheduling-api
+          new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
+          image_name_2: unified-scheduling-web
+          new_image_2: ${{ env.GITHUB_IMAGE_REPO }}/web:${{ needs.setup.outputs.image_tag }}
+          kustomize_path: services/unified-scheduling/overlays/dev
+
+  deploy-test:
+    name: Deploy to Test (${{ matrix.license_plate }})
+    needs: [setup, build-images, deploy-dev]
+    runs-on: ubuntu-latest
+    environment: test
+    strategy:
+      matrix:
+        license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Update images in test
+        uses: ./.github/actions/update-argo-kustomize
+        with:
+          licence_plate: ${{ matrix.license_plate }}
+          gitops_branch: test
+          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          image_name: unified-scheduling-api
+          new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
+          image_name_2: unified-scheduling-web
+          new_image_2: ${{ env.GITHUB_IMAGE_REPO }}/web:${{ needs.setup.outputs.image_tag }}
+          kustomize_path: services/unified-scheduling/overlays/test
+
+  deploy-prod:
+    name: Deploy to Prod (${{ matrix.license_plate }})
+    needs: [setup, build-images, deploy-test]
+    runs-on: ubuntu-latest
+    environment: prod
+    strategy:
+      matrix:
+        license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Update images in prod
+        uses: ./.github/actions/update-argo-kustomize
+        with:
+          licence_plate: ${{ matrix.license_plate }}
+          gitops_branch: main
+          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          image_name: unified-scheduling-api
+          new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
+          image_name_2: unified-scheduling-web
+          new_image_2: ${{ env.GITHUB_IMAGE_REPO }}/web:${{ needs.setup.outputs.image_tag }}
+          kustomize_path: services/unified-scheduling/overlays/prod
+          create_pull_request: 'true'
+          pull_request_branch: release/promote-${{ needs.setup.outputs.release_ref }}-to-prod
+          pull_request_base: main
+          pull_request_title: Promote unified-scheduling ${{ needs.setup.outputs.release_ref }} to prod
+          pull_request_body: |
+            Automated prod promotion PR for unified-scheduling release ${{ needs.setup.outputs.release_ref }}.
+
+            Images:
+            - ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
+            - ${{ env.GITHUB_IMAGE_REPO }}/web:${{ needs.setup.outputs.image_tag }}
