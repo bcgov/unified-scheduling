@@ -90,6 +90,20 @@ export const PutApiUsersIdResponse = zod.object({
   lastLogin: zod.iso.datetime({ offset: true }).nullable(),
 });
 
+export const GetApiUsersIdRolesParams = zod.strictObject({
+  id: zod.uuid(),
+});
+
+export const GetApiUsersIdRolesResponseItem = zod.object({
+  id: zod.number().optional(),
+  userId: zod.uuid().optional(),
+  roleId: zod.number().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+  expiryReason: zod.string().nullish(),
+});
+export const GetApiUsersIdRolesResponse = zod.array(GetApiUsersIdRolesResponseItem);
+
 export const PostApiUsersIdRolesParams = zod.strictObject({
   id: zod.uuid(),
 });

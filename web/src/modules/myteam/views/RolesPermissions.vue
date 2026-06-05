@@ -105,23 +105,23 @@ const handleRoleUpdated = async () => {
 
     <!-- Roles Table -->
     <UaCard v-else-if="roles && roles.length > 0" title="Available Roles">
-      <div class="roles-table">
-        <div class="table-header">
-          <div class="col-name">Name</div>
-          <div class="col-description">Description</div>
-          <div class="col-actions">Actions</div>
-        </div>
+      <UaDataTable :headers="roleHeaders" :items="roles" :items-per-page="-1" density="comfortable" hide-default-footer>
+        <template #[`item.name`]="{ item }">
+          <span class="col-name">{{ item.name || '-' }}</span>
+        </template>
 
-        <div v-for="role in roles" :key="role.id" class="table-row">
-          <div class="col-name">{{ role.name }}</div>
-          <div class="col-description">{{ role.description }}</div>
+        <template #[`item.description`]="{ item }">
+          {{ item.description || '-' }}
+        </template>
+
+        <template #[`item.actions`]="{ item }">
           <div class="col-actions">
             <UaBtn
               v-if="accessControl.hasPermission(Permissions.RolesEdit)"
               icon
               variant="text"
               size="small"
-              @click="handleEditRole(role)"
+              @click="handleEditRole(item)"
               title="Edit role"
             >
               <v-icon :icon="mdiPencil" />
@@ -132,14 +132,14 @@ const handleRoleUpdated = async () => {
               variant="text"
               size="small"
               color="error"
-              @click="handleDeleteRole(role)"
+              @click="handleDeleteRole(item)"
               title="Delete role"
             >
               <v-icon :icon="mdiDelete" />
             </UaBtn>
           </div>
-        </div>
-      </div>
+        </template>
+      </UaDataTable>
     </UaCard>
 
     <!-- Empty State -->
@@ -200,52 +200,15 @@ const handleRoleUpdated = async () => {
   color: var(--ua-text-secondary);
 }
 
-.roles-table {
+.col-actions {
   display: flex;
-  flex-direction: column;
-  border: 1px solid var(--ua-border-color);
-  border-radius: var(--ua-border-radius);
-  overflow: hidden;
-}
-
-.table-header {
-  display: grid;
-  grid-template-columns: 150px 1fr 100px;
-  gap: var(--ua-spacing-md);
-  padding: var(--ua-spacing-md) var(--ua-spacing-lg);
-  background-color: rgb(var(--v-theme-surface-variant));
-  font-weight: var(--ua-font-weight-bold);
-  font-size: var(--ua-font-size-sm);
-}
-
-.table-row {
-  display: grid;
-  grid-template-columns: 150px 1fr 100px;
-  gap: var(--ua-spacing-md);
-  align-items: center;
-  padding: var(--ua-spacing-md) var(--ua-spacing-lg);
-  border-top: 1px solid var(--ua-border-color);
-
-  &:hover {
-    background-color: rgba(var(--v-theme-primary), 0.05);
-  }
+  gap: var(--ua-spacing-sm);
+  justify-content: flex-end;
 }
 
 .col-name {
   font-weight: var(--ua-font-weight-semibold);
   word-break: break-word;
-}
-
-.col-description {
-  color: var(--ua-text-secondary);
-  font-size: var(--ua-font-size-sm);
-  word-break: break-word;
-}
-
-.col-actions {
-  display: flex;
-  gap: var(--ua-spacing-sm);
-  justify-content: flex-end;
 }
 
 .delete-confirmation {

@@ -5,6 +5,7 @@ import { postApiRoles, putApiRolesId } from '@/api-access/generated/roles/roles'
 import { PostApiRolesBody } from '@/api-access/generated/roles/roles.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
+import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
@@ -319,7 +320,7 @@ const handleSave = async () => {
             No permissions available.
           </div>
 
-          <v-data-table
+          <UaDataTable
             v-else
             :headers="permissionTableHeaders"
             :items="permissionTableItems"
@@ -369,7 +370,7 @@ const handleSave = async () => {
                 />
               </div>
             </template>
-          </v-data-table>
+          </UaDataTable>
         </div>
         <div v-if="formErrors.permissions" class="error-message">{{ formErrors.permissions }}</div>
       </div>
@@ -414,11 +415,6 @@ const handleSave = async () => {
   font-size: var(--ua-font-size-sm);
   text-align: center;
   padding: var(--ua-spacing-md);
-}
-
-.permission-table {
-  border: 1px solid var(--ua-border-color);
-  border-radius: var(--ua-border-radius-sm);
 }
 
 .permission-group-header-cell {

@@ -44,6 +44,12 @@ export const putApiUsersId = (
     options,
   );
 };
+export const getApiUsersIdRoles = (
+  id: string,
+  options?: SecondParameter<typeof useFetchAPI<UserRoleResponseDto[]>>,
+) => {
+  return useFetchAPI<UserRoleResponseDto[]>({ url: `/api/users/${id}/roles`, method: 'GET' }, options);
+};
 export const postApiUsersIdRoles = (
   id: string,
   assignUserRoleRequestDto: AssignUserRoleRequestDto,
@@ -63,4 +69,5 @@ export type GetApiUsersResult = NonNullable<Awaited<ReturnType<typeof getApiUser
 export type PostApiUsersResult = NonNullable<Awaited<ReturnType<typeof postApiUsers>>>;
 export type GetApiUsersIdResult = NonNullable<Awaited<ReturnType<typeof getApiUsersId>>>;
 export type PutApiUsersIdResult = NonNullable<Awaited<ReturnType<typeof putApiUsersId>>>;
+export type GetApiUsersIdRolesResult = NonNullable<Awaited<ReturnType<typeof getApiUsersIdRoles>>>;
 export type PostApiUsersIdRolesResult = NonNullable<Awaited<ReturnType<typeof postApiUsersIdRoles>>>;

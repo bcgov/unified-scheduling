@@ -36,6 +36,14 @@ const myTeamRoutes: RouteRecordRaw[] = [
               title: 'User Identification',
             },
           },
+          {
+            path: 'assignRoles',
+            name: 'UserAssignRoles',
+            component: () => import('./views/AssignRoles.vue'),
+            meta: {
+              title: 'Assign Roles',
+            },
+          },
         ],
       },
     ],
