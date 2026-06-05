@@ -440,6 +440,7 @@ public class UserServiceTests : IAsyncLifetime
             RoleId = 100,
             EffectiveDate = effectiveDate,
             ExpiryDate = expiryDate,
+            ExpiryReason = "Cover Operational Demands",
         };
 
         // Act
@@ -452,6 +453,7 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal(100, result.RoleId);
         Assert.Equal(effectiveDate, result.EffectiveDate);
         Assert.Equal(expiryDate, result.ExpiryDate);
+        Assert.Equal("Cover Operational Demands", result.ExpiryReason);
 
         var userRole = await _dbContext.UserRoles.SingleOrDefaultAsync(
             x => x.UserId == user.Id && x.RoleId == 100,
@@ -460,6 +462,7 @@ public class UserServiceTests : IAsyncLifetime
         Assert.NotNull(userRole);
         Assert.Equal(effectiveDate, userRole.EffectiveDate);
         Assert.Equal(expiryDate, userRole.ExpiryDate);
+        Assert.Equal("Cover Operational Demands", userRole.ExpiryReason);
     }
 
     [Fact]

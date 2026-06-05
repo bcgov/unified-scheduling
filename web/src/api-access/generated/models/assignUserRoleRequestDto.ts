@@ -10,4 +10,6 @@ export interface AssignUserRoleRequestDto {
   effectiveDate: string;
   /** @nullable */
   expiryDate?: string | null;
+  /** @nullable */
+  expiryReason?: string | null;
 }
