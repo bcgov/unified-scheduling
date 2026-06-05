@@ -63,7 +63,10 @@ public class UsersController(
     [HttpGet("{id:guid}/roles")]
     [ProducesResponseType(typeof(IEnumerable<UserRoleResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IEnumerable<UserRoleResponseDto>>> GetRoles(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<UserRoleResponseDto>>> GetRoles(
+        Guid id,
+        CancellationToken cancellationToken
+    )
     {
         var userRoles = await userService.GetRolesAsync(id, cancellationToken);
         return Ok(userRoles);
