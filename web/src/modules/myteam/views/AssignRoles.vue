@@ -221,54 +221,54 @@ const handleExpireAssignment = async () => {
       <UaSelect v-model="selectedRoleFilter" label="View" :items="roleFilterOptions" />
     </div>
 
-      <UaDataTable
-        v-if="!isFetchingRoles && !isFetchingAssignedRoles && filteredUserRoleRows.length"
-        :headers="userRoleHeaders"
-        :items="filteredUserRoleRows"
-        :items-per-page="-1"
-        density="comfortable"
-        hide-default-footer
-      >
-        <template #[`item.roleName`]="{ item }">
-          {{ resolveRoleName(item.roleId) }}
-        </template>
+    <UaDataTable
+      v-if="!isFetchingRoles && !isFetchingAssignedRoles && filteredUserRoleRows.length"
+      :headers="userRoleHeaders"
+      :items="filteredUserRoleRows"
+      :items-per-page="-1"
+      density="comfortable"
+      hide-default-footer
+    >
+      <template #[`item.roleName`]="{ item }">
+        {{ resolveRoleName(item.roleId) }}
+      </template>
 
-        <template #[`item.effectiveDate`]="{ item }">
-          {{ formatDate(item.effectiveDate) }}
-        </template>
+      <template #[`item.effectiveDate`]="{ item }">
+        {{ formatDate(item.effectiveDate) }}
+      </template>
 
-        <template #[`item.expiryDate`]="{ item }">
-          {{ formatDate(item.expiryDate) }}
-        </template>
+      <template #[`item.expiryDate`]="{ item }">
+        {{ formatDate(item.expiryDate) }}
+      </template>
 
-        <template #[`item.actions`]="{ item }">
-          <div class="col-actions">
-            <UaBtn
-              v-if="accessControl.hasPermission(Permissions.UserRoleAssign) && !isHistoricalRole(item)"
-              icon
-              variant="text"
-              size="small"
-              aria-label="Edit role assignment"
-              title="Edit role assignment"
-              @click="handleOpenEditModal(item)"
-            >
-              <v-icon :icon="mdiPencil" />
-            </UaBtn>
-            <UaBtn
-              v-if="accessControl.hasPermission(Permissions.UserRoleAssign) && !isHistoricalRole(item)"
-              icon
-              variant="text"
-              size="small"
-              color="error"
-              aria-label="Expire role assignment"
-              title="Expire role assignment"
-              @click="handleOpenExpiryConfirm(item)"
-            >
-              <v-icon :icon="mdiClockRemove" />
-            </UaBtn>
-          </div>
-        </template>
-      </UaDataTable>
+      <template #[`item.actions`]="{ item }">
+        <div class="col-actions">
+          <UaBtn
+            v-if="accessControl.hasPermission(Permissions.UserRoleAssign) && !isHistoricalRole(item)"
+            icon
+            variant="text"
+            size="small"
+            aria-label="Edit role assignment"
+            title="Edit role assignment"
+            @click="handleOpenEditModal(item)"
+          >
+            <v-icon :icon="mdiPencil" />
+          </UaBtn>
+          <UaBtn
+            v-if="accessControl.hasPermission(Permissions.UserRoleAssign) && !isHistoricalRole(item)"
+            icon
+            variant="text"
+            size="small"
+            color="error"
+            aria-label="Expire role assignment"
+            title="Expire role assignment"
+            @click="handleOpenExpiryConfirm(item)"
+          >
+            <v-icon :icon="mdiClockRemove" />
+          </UaBtn>
+        </div>
+      </template>
+    </UaDataTable>
 
     <UaPlaceholderPage
       v-else-if="!isFetchingRoles && !isFetchingAssignedRoles"
