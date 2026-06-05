@@ -16,16 +16,25 @@ namespace Unified.Infrastructure.Helpers
             string query = ""
         )
         {
-            // Default: Assume the code is running locally, unless specified.
+            var hasExplicitForwardedPort = !string.IsNullOrWhiteSpace(forwardedPort);
+
             forwardedProto = NormalizeForwardedProto(forwardedProto);
             forwardedHost = NormalizeForwardedValue(forwardedHost, DefaultLocalhost);
-            forwardedPort = NormalizeForwardedPort(forwardedPort, "8080");
-            baseUrl = string.IsNullOrEmpty(baseUrl) ? "/" : baseUrl;
 
-            forwardedHost = NormalizeHostAndPort(forwardedProto, forwardedHost, ref forwardedPort);
+            var normalizedPort = hasExplicitForwardedPort
+                ? NormalizeForwardedPort(forwardedPort, "")
+                : "";
+
+            forwardedHost = NormalizeHostAndPort(
+                forwardedProto,
+                forwardedHost,
+                ref normalizedPort
+            );
+
+            forwardedPort = string.IsNullOrWhiteSpace(normalizedPort) ? "8080" : normalizedPort;
 
             var sanitizedPath = baseUrl;
-            var isLocalhost = forwardedHost.Contains("localhost");
+            var isLocalhost = IsLocalHost(forwardedHost);
             if (!string.IsNullOrEmpty(remainingPath))
             {
                 sanitizedPath = string.Format("{0}/{1}", baseUrl.TrimEnd('/'), remainingPath.TrimStart('/'));
@@ -74,6 +83,19 @@ namespace Unified.Infrastructure.Helpers
 
                 return fallbackUriBuilder.Uri.AbsoluteUri;
             }
+        }
+
+        private static bool IsLocalHost(string? host)
+        {
+            if (string.IsNullOrWhiteSpace(host))
+                return false;
+
+            var normalizedHost = host.Trim();
+
+            return string.Equals(normalizedHost, "localhost", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalizedHost, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalizedHost, "::1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalizedHost, "[::1]", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string NormalizeForwardedValue(string value, string fallback)
