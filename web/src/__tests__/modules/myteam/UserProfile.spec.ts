@@ -11,6 +11,7 @@ describe('UserProfile', () => {
     const app = await createTestApp({
       featureFlags: {
         userBadgeNumber: true,
+        myTeamsModule: true,
       },
     });
 
@@ -52,6 +53,7 @@ describe('UserProfile', () => {
     const app = await createTestApp({
       featureFlags: {
         userBadgeNumber: false,
+        myTeamsModule: true,
       },
     });
 
