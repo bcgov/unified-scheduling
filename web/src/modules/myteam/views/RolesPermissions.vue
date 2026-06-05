@@ -4,6 +4,7 @@ import { getApiRoles, deleteApiRolesId } from '@/api-access/generated/roles/role
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
+import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
@@ -25,6 +26,12 @@ const selectedRole = ref<RoleDto | null>(null);
 const roleToDelete = ref<RoleDto | null>(null);
 const isDeleting = ref(false);
 const deleteError = ref('');
+
+const roleHeaders = [
+  { title: 'Name', key: 'name', sortable: false },
+  { title: 'Description', key: 'description', sortable: false },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 120 },
+];
 
 // Form handlers
 const handleAddRole = () => {

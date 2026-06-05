@@ -15,7 +15,10 @@ public interface IUserService
 
     Task<UserResponse?> UpdateAsync(Guid id, UserRequestDto request, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyCollection<UserRoleResponseDto>> GetRolesAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<UserRoleResponseDto>> GetRolesAsync(
+        Guid id,
+        CancellationToken cancellationToken = default
+    );
 
     Task<UserRoleResponseDto> AssignRoleAsync(
         Guid id,
