@@ -8,6 +8,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
+import AssignRoleModal from '../components/AssignRoleModal.vue';
 import { mdiPencil, mdiPlus } from '@mdi/js';
 import { computed, ref } from 'vue';
 
@@ -138,6 +139,7 @@ const formatDate = (value?: string | null): string => {
               icon
               variant="text"
               size="small"
+              aria-label="Edit role assignment"
               title="Edit role assignment"
               @click="handleOpenEditModal(item)"
             >

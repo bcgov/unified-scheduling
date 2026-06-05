@@ -61,6 +61,7 @@ public class UsersController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The list of assigned roles for the user.</returns>
     [HttpGet("{id:guid}/roles")]
+    [Authorize(Policy = UserManagementPolicies.UserRoleAssign)]
     [ProducesResponseType(typeof(IEnumerable<UserRoleResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IEnumerable<UserRoleResponseDto>>> GetRoles(

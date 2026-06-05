@@ -58,16 +58,30 @@ function toDateInputValue(value?: string | null): string | null {
     return null;
   }
 
+  const dateOnlyMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (dateOnlyMatch) {
+    return dateOnlyMatch[1];
+  }
+
   const parsedDate = new Date(value);
   if (Number.isNaN(parsedDate.getTime())) {
     return null;
   }
 
-  return parsedDate.toISOString().slice(0, 10);
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+  const day = String(parsedDate.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function getTodayDateInputValue(): string {
-  return new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function toApiDate(value: string): string {
