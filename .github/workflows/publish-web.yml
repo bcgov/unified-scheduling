@@ -91,57 +91,15 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout GitOps repository
+      - name: Checkout repository
         uses: actions/checkout@v6
+
+      - name: Update Argo CD Kustomize
+        uses: ./.github/actions/update-argo-kustomize
         with:
-          repository: bcgov-c/tenant-gitops-${{ matrix.license_plate }}
-          ref: develop
-          token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
-          path: gitops
-
-      - name: Update Web image tag
-        working-directory: gitops/services/unified-scheduling
-        run: |
-          TAG="${{ needs.build.outputs.short_sha }}"
-          
-          # Update kustomization.yaml with new Web image tag
-          sed -i "/name: unified-scheduling-web/,/newTag:/ s|newTag:.*|newTag: ${TAG}|" kustomization.yaml
-          
-          echo "Updated Web image tag to: ${TAG}"
-          cat kustomization.yaml
-
-      - name: Commit and push changes
-        working-directory: gitops
-        run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
-          
-          git add services/unified-scheduling/kustomization.yaml
-          
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "🚀 Deploy unified-scheduling Web to dev - SHA: ${{ needs.build.outputs.short_sha }}"
-            
-            # Pull with rebase and retry push logic
-            max_retries=3
-            retry_count=0
-            
-            while [ $retry_count -lt $max_retries ]; do
-              git pull --rebase origin develop
-              
-              if git push origin develop; then
-                echo "GitOps repository updated successfully!"
-                break
-              else
-                retry_count=$((retry_count + 1))
-                echo "Push failed, retry $retry_count/$max_retries"
-                sleep 2
-              fi
-              
-              if [ $retry_count -eq $max_retries ]; then
-                echo "Failed to push after $max_retries attempts"
-                exit 1
-              fi
-            done
-          fi
+          licence_plate: ${{ matrix.license_plate }}
+          gitops_branch: develop
+          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          image_name: unified-scheduling-web
+          new_image: ${{ env.GITHUB_IMAGE_REPO }}/${{ env.WEB_IMAGE_NAME }}:${{ needs.build.outputs.short_sha }}
+          kustomize_path: services/unified-scheduling

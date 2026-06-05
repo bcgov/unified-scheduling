@@ -37,7 +37,7 @@ jobs:
 
       - name: Building Web codebase
         if: steps.filter.outputs.web == 'true'
-        uses: ./.github/workflows/actions/build-web
+        uses: ./.github/actions/build-web
         with:
           working_directory: ${{ env.WORKING_DIRECTORY }}
           node_version: 22
