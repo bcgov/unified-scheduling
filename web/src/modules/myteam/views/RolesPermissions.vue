@@ -128,6 +128,7 @@ const handleRoleUpdated = async () => {
               icon
               variant="text"
               size="small"
+              aria-label="Edit role"
               @click="handleEditRole(item)"
               title="Edit role"
             >
@@ -139,6 +140,7 @@ const handleRoleUpdated = async () => {
               variant="text"
               size="small"
               color="error"
+              aria-label="Delete role"
               @click="handleDeleteRole(item)"
               title="Delete role"
             >

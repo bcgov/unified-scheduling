@@ -106,6 +106,23 @@ public class UsersControllerTests
     }
 
     [Fact]
+    public async Task GetRoles_Should_Throw_When_User_Missing()
+    {
+        // Arrange
+        var fakeService = new FakeUserService { GetRolesException = new KeyNotFoundException("User not found.") };
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
+
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            controller.GetRoles(Guid.NewGuid(), TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public async Task Create_Should_Return_Created_With_Location_And_Body()
     {
         // Arrange
@@ -296,6 +313,8 @@ public class UsersControllerTests
 
         public IReadOnlyCollection<UserRoleResponseDto> GetRolesResult { get; init; } = [];
 
+        public Exception? GetRolesException { get; init; }
+
         public UserRoleResponseDto AssignRoleResult { get; init; } =
             new UserRoleResponseDto
             {
@@ -344,6 +363,11 @@ public class UsersControllerTests
             CancellationToken cancellationToken = default
         )
         {
+            if (GetRolesException is not null)
+            {
+                return Task.FromException<IReadOnlyCollection<UserRoleResponseDto>>(GetRolesException);
+            }
+
             return Task.FromResult(GetRolesResult);
         }
 
