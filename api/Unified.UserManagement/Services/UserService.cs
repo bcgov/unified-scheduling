@@ -107,6 +107,26 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         return userEntity.Adapt<UserResponse>();
     }
 
+    public async Task<IReadOnlyCollection<UserRoleResponseDto>> GetRolesAsync(
+        Guid id,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var userExists = await DB.Users.AnyAsync(x => x.Id == id, cancellationToken);
+        if (!userExists)
+        {
+            throw new KeyNotFoundException($"User {id} not found.");
+        }
+
+        return await DB
+            .UserRoles.AsNoTracking()
+            .Where(x => x.UserId == id)
+            .OrderByDescending(x => x.EffectiveDate)
+            .ThenBy(x => x.RoleId)
+            .ProjectToType<UserRoleResponseDto>()
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<UserRoleResponseDto> AssignRoleAsync(
         Guid id,
         AssignUserRoleRequestDto request,

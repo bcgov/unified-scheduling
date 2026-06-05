@@ -74,6 +74,38 @@ public class UsersControllerTests
     }
 
     [Fact]
+    public async Task GetRoles_Should_Return_Ok_With_User_Roles()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var expectedRoles = new List<UserRoleResponseDto>
+        {
+            new()
+            {
+                Id = 9001,
+                UserId = userId,
+                RoleId = 2,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-10),
+                ExpiryDate = null,
+            },
+        };
+        var fakeService = new FakeUserService { GetRolesResult = expectedRoles };
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator()
+        );
+
+        // Act
+        var result = await controller.GetRoles(userId, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var roles = Assert.IsAssignableFrom<IEnumerable<UserRoleResponseDto>>(okResult.Value);
+        Assert.Single(roles);
+    }
+
+    [Fact]
     public async Task Create_Should_Return_Created_With_Location_And_Body()
     {
         // Arrange
@@ -262,6 +294,8 @@ public class UsersControllerTests
 
         public UserResponse? UpdateResult { get; init; } = CreateUserResponse("Updated", "User");
 
+        public IReadOnlyCollection<UserRoleResponseDto> GetRolesResult { get; init; } = [];
+
         public UserRoleResponseDto AssignRoleResult { get; init; } =
             new UserRoleResponseDto
             {
@@ -303,6 +337,14 @@ public class UsersControllerTests
         )
         {
             return Task.FromResult(UpdateResult);
+        }
+
+        public Task<IReadOnlyCollection<UserRoleResponseDto>> GetRolesAsync(
+            Guid id,
+            CancellationToken cancellationToken = default
+        )
+        {
+            return Task.FromResult(GetRolesResult);
         }
 
         public Task<UserRoleResponseDto> AssignRoleAsync(

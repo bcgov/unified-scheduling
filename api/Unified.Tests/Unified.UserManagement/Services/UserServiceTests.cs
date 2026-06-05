@@ -512,4 +512,48 @@ public class UserServiceTests : IAsyncLifetime
             )
         );
     }
+
+    [Fact]
+    public async Task GetRolesAsync_Should_Return_Assigned_Roles_For_User()
+    {
+        // Arrange
+        await SeedTestData();
+        var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        _dbContext.Roles.Add(
+            new Role
+            {
+                Id = 200,
+                Name = "Court Lead",
+                Description = "Court Lead role",
+            }
+        );
+        _dbContext.UserRoles.Add(
+            new UserRole
+            {
+                UserId = user.Id,
+                RoleId = 200,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-5),
+                ExpiryDate = DateTimeOffset.UtcNow.AddDays(20),
+            }
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _userService.GetRolesAsync(user.Id, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Single(result);
+        var role = result.Single();
+        Assert.Equal(user.Id, role.UserId);
+        Assert.Equal(200, role.RoleId);
+    }
+
+    [Fact]
+    public async Task GetRolesAsync_Should_Throw_When_User_Does_Not_Exist()
+    {
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _userService.GetRolesAsync(Guid.NewGuid(), TestContext.Current.CancellationToken)
+        );
+    }
 }

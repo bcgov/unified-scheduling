@@ -55,6 +55,21 @@ public class UsersController(
     }
 
     /// <summary>
+    /// Returns role assignments for a user.
+    /// </summary>
+    /// <param name="id">The user identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The list of assigned roles for the user.</returns>
+    [HttpGet("{id:guid}/roles")]
+    [ProducesResponseType(typeof(IEnumerable<UserRoleResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IEnumerable<UserRoleResponseDto>>> GetRoles(Guid id, CancellationToken cancellationToken)
+    {
+        var userRoles = await userService.GetRolesAsync(id, cancellationToken);
+        return Ok(userRoles);
+    }
+
+    /// <summary>
     /// Creates a new user.
     /// </summary>
     /// <param name="request">The user payload.</param>
