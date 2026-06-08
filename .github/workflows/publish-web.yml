@@ -10,18 +10,16 @@ on:
       - "docker/nginx-runtime/**"
       - "docker/vue-on-nginx/**"
       - ".github/workflows/publish-web.yml"
+      - ".github/actions/update-argo-kustomize/**"
 
   workflow_dispatch:
 
 env:
   WEB_IMAGE_NAME: web
-  WEB_RUNTIME_IMAGE_NAME: web-runtime
-  WEB_ARTIFACTS_IMAGE_NAME: web-artifacts
   GITHUB_IMAGE_REPO: ghcr.io/bcgov/unified-scheduling
   WEB_BASE_HREF: /unified-scheduling/
 
 permissions:
-  id-token: write
   packages: write
 
 jobs:

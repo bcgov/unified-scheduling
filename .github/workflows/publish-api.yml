@@ -9,6 +9,7 @@ on:
       - "db/**"
       - "docker/api/**"
       - ".github/workflows/publish-api.yml"
+      - ".github/actions/update-argo-kustomize/**"
 
   workflow_dispatch:
 
@@ -17,7 +18,6 @@ env:
   GITHUB_IMAGE_REPO: ghcr.io/bcgov/unified-scheduling
 
 permissions:
-  id-token: write
   packages: write
 
 jobs:
