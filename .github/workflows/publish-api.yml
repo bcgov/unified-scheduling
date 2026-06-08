@@ -73,6 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ matrix.license_plate }}
     strategy:
+      fail-fast: false
       matrix:
         license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
     permissions:
@@ -90,4 +91,4 @@ jobs:
           gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
           image_name: unified-scheduling-api
           new_image: ${{ env.GITHUB_IMAGE_REPO }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.short_sha }}
-          kustomize_path: services/unified-scheduling
+          kustomize_path: services/unified-scheduling/overlays/dev

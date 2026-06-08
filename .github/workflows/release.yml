@@ -130,6 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     strategy:
+      fail-fast: false
       matrix:
         license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
     permissions:
@@ -155,6 +156,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: test
     strategy:
+      fail-fast: false
       matrix:
         license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
     permissions:
@@ -180,6 +182,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
     strategy:
+      fail-fast: false
       matrix:
         license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
     permissions:

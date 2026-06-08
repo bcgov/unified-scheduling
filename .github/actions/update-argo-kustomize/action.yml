@@ -168,6 +168,12 @@ runs:
       shell: bash
       env:
         GITOPS_BRANCH: ${{ inputs.gitops_branch }}
+        IMAGE_NAME: ${{ inputs.image_name }}
+        NEW_IMAGE: ${{ inputs.new_image }}
+        IMAGE_NAME_2: ${{ inputs.image_name_2 }}
+        NEW_IMAGE_2: ${{ inputs.new_image_2 }}
+        KUSTOMIZE_PATH: ${{ inputs.kustomize_path }}
+        COMMIT_SUBJECT: ${{ steps.commit.outputs.commit_subject }}
       run: |
         set -euo pipefail
 
@@ -190,16 +196,33 @@ runs:
             exit 1
           fi
 
-          echo "Push to origin ${GITOPS_BRANCH} failed (attempt $attempt); fetching latest remote changes."
+          echo "Push to origin ${GITOPS_BRANCH} failed (attempt $attempt); resetting to latest remote state."
+
+          # Fetch and reset to clean base — avoids rebase conflicts from concurrent kustomize updates
           git fetch origin "$GITOPS_BRANCH"
-          if ! git rebase "origin/${GITOPS_BRANCH}"; then
-            echo "Rebase failed; likely due to conflicting image updates in ${GITOPS_BRANCH}."
-            git rebase --abort
-            echo "Retrying in ${RETRY_DELAY} seconds..."
-            sleep "$RETRY_DELAY"
-            attempt=$((attempt + 1))
-            continue
+          git reset --hard "origin/${GITOPS_BRANCH}"
+
+          # Re-apply our desired image update on top of the fresh remote state
+          image_updates=("$IMAGE_NAME=$NEW_IMAGE")
+          if [ -n "$IMAGE_NAME_2" ]; then
+            image_updates+=("$IMAGE_NAME_2=$NEW_IMAGE_2")
           fi
+
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/gitops/$KUSTOMIZE_PATH:/workspace" \
+            -w /workspace \
+            registry.k8s.io/kustomize/kustomize:v5.6.0@sha256:b5f56e6becd1ba93a1a775a149763e3841a177beb10191624100bed81b44d297 \
+            edit set image "${image_updates[@]}"
+
+          git add -- "$KUSTOMIZE_PATH/kustomization.yaml"
+
+          if git diff --cached --quiet; then
+            echo "Image already up to date in ${GITOPS_BRANCH} — another workflow applied the same update; no push needed."
+            break
+          fi
+
+          DATETIME=$(date +'%Y-%m-%d %H:%M:%S')
+          git commit -m "${COMMIT_SUBJECT}" -m "Updated on $DATETIME"
 
           echo "Retrying in ${RETRY_DELAY} seconds..."
           sleep "$RETRY_DELAY"
