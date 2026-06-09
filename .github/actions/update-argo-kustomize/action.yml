@@ -4,7 +4,7 @@ description: Update the gitops tenant repository image using Kustomize CLI
 outputs:
   has_changes:
     description: Whether the kustomization update produced a commit
-    value: ${{ steps.commit.outputs.has_changes }}
+    value: ${{ steps.apply.outputs.has_changes }}
   pull_request_url:
     description: Pull request URL when create_pull_request is true
     value: ${{ steps.create_pr.outputs.pull_request_url }}
@@ -94,7 +94,7 @@ runs:
           exit 1
         fi
 
-    - name: Checkout ArgoCD Repo
+    - name: Checkout gitops repo
       id: gitops
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
@@ -103,8 +103,8 @@ runs:
         token: ${{ inputs.gitops_gh_token }}
         path: gitops
 
-    - name: Update Image with Kustomize
-      id: kustomize
+    - name: Apply kustomize and commit
+      id: apply
       if: steps.gitops.outcome == 'success'
       shell: bash
       env:
@@ -117,9 +117,7 @@ runs:
         set -euo pipefail
 
         image_updates=("$IMAGE_NAME=$NEW_IMAGE")
-        if [ -n "$IMAGE_NAME_2" ]; then
-          image_updates+=("$IMAGE_NAME_2=$NEW_IMAGE_2")
-        fi
+        [ -n "$IMAGE_NAME_2" ] && image_updates+=("$IMAGE_NAME_2=$NEW_IMAGE_2")
 
         docker run --rm \
           -v "$GITHUB_WORKSPACE/gitops/$KUSTOMIZE_PATH:/workspace" \
@@ -127,23 +125,9 @@ runs:
           registry.k8s.io/kustomize/kustomize:v5.6.0@sha256:b5f56e6becd1ba93a1a775a149763e3841a177beb10191624100bed81b44d297 \
           edit set image "${image_updates[@]}"
 
-    - name: Commit Changes
-      id: commit
-      if: steps.kustomize.outcome == 'success'
-      shell: bash
-      env:
-        IMAGE_NAME: ${{ inputs.image_name }}
-        NEW_IMAGE: ${{ inputs.new_image }}
-        IMAGE_NAME_2: ${{ inputs.image_name_2 }}
-        KUSTOMIZE_PATH: ${{ inputs.kustomize_path }}
-      run: |
-        set -euo pipefail
-
         cd gitops
-
         git config user.email "actions@github.com"
         git config user.name "GitHub Actions"
-
         git add -- "$KUSTOMIZE_PATH/kustomization.yaml"
 
         if git diff --cached --quiet; then
@@ -152,19 +136,16 @@ runs:
         else
           DATETIME=$(date +'%Y-%m-%d %H:%M:%S')
           COMMIT_SUBJECT="Update image $IMAGE_NAME to $NEW_IMAGE"
-          if [ -n "$IMAGE_NAME_2" ]; then
-            COMMIT_SUBJECT="Update images in $KUSTOMIZE_PATH"
-          fi
+          [ -n "$IMAGE_NAME_2" ] && COMMIT_SUBJECT="Update images in $KUSTOMIZE_PATH"
           git commit -m "${COMMIT_SUBJECT}" -m "Updated on $DATETIME"
-
           {
             echo "has_changes=true"
             printf 'commit_subject=%s\n' "$COMMIT_SUBJECT"
           } >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Push Direct Changes
-      if: inputs.create_pull_request != 'true' && steps.commit.outputs.has_changes == 'true'
+    - name: Push directly to branch
+      if: inputs.create_pull_request != 'true' && steps.apply.outputs.has_changes == 'true'
       shell: bash
       env:
         GITOPS_BRANCH: ${{ inputs.gitops_branch }}
@@ -173,70 +154,63 @@ runs:
         IMAGE_NAME_2: ${{ inputs.image_name_2 }}
         NEW_IMAGE_2: ${{ inputs.new_image_2 }}
         KUSTOMIZE_PATH: ${{ inputs.kustomize_path }}
-        COMMIT_SUBJECT: ${{ steps.commit.outputs.commit_subject }}
+        COMMIT_SUBJECT: ${{ steps.apply.outputs.commit_subject }}
       run: |
         set -euo pipefail
-
         cd gitops
+
+        run_kustomize() {
+          local -a image_updates=("$IMAGE_NAME=$NEW_IMAGE")
+          [ -n "$IMAGE_NAME_2" ] && image_updates+=("$IMAGE_NAME_2=$NEW_IMAGE_2")
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE/gitops/$KUSTOMIZE_PATH:/workspace" \
+            -w /workspace \
+            registry.k8s.io/kustomize/kustomize:v5.6.0@sha256:b5f56e6becd1ba93a1a775a149763e3841a177beb10191624100bed81b44d297 \
+            edit set image "${image_updates[@]}"
+        }
 
         MAX_RETRIES=3
         RETRY_DELAY=5
 
         attempt=1
         while [ "$attempt" -le "$MAX_RETRIES" ]; do
-          echo "Attempt $attempt of $MAX_RETRIES to push changes to ${GITOPS_BRANCH}..."
+          echo "Attempt $attempt of $MAX_RETRIES to push to ${GITOPS_BRANCH}..."
 
           if git push origin "$GITOPS_BRANCH"; then
-            echo "Push to origin ${GITOPS_BRANCH} succeeded."
+            echo "Push succeeded."
             break
           fi
 
           if [ "$attempt" -ge "$MAX_RETRIES" ]; then
-            echo "Push to origin ${GITOPS_BRANCH} failed after ${MAX_RETRIES} attempts; exiting with error."
+            echo "Push failed after ${MAX_RETRIES} attempts."
             exit 1
           fi
 
-          echo "Push to origin ${GITOPS_BRANCH} failed (attempt $attempt); resetting to latest remote state."
-
-          # Fetch and reset to clean base — avoids rebase conflicts from concurrent kustomize updates
+          echo "Push failed (attempt $attempt); resetting to latest remote state and re-applying changes."
           git fetch origin "$GITOPS_BRANCH"
           git reset --hard "origin/${GITOPS_BRANCH}"
 
-          # Re-apply our desired image update on top of the fresh remote state
-          image_updates=("$IMAGE_NAME=$NEW_IMAGE")
-          if [ -n "$IMAGE_NAME_2" ]; then
-            image_updates+=("$IMAGE_NAME_2=$NEW_IMAGE_2")
-          fi
-
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE/gitops/$KUSTOMIZE_PATH:/workspace" \
-            -w /workspace \
-            registry.k8s.io/kustomize/kustomize:v5.6.0@sha256:b5f56e6becd1ba93a1a775a149763e3841a177beb10191624100bed81b44d297 \
-            edit set image "${image_updates[@]}"
-
+          run_kustomize
           git add -- "$KUSTOMIZE_PATH/kustomization.yaml"
 
           if git diff --cached --quiet; then
-            echo "Image already up to date in ${GITOPS_BRANCH} — another workflow applied the same update; no push needed."
+            echo "Image already up to date — another workflow applied the same update; no push needed."
             break
           fi
 
-          DATETIME=$(date +'%Y-%m-%d %H:%M:%S')
-          git commit -m "${COMMIT_SUBJECT}" -m "Updated on $DATETIME"
+          git commit -m "${COMMIT_SUBJECT}" -m "Updated on $(date +'%Y-%m-%d %H:%M:%S')"
 
-          echo "Retrying in ${RETRY_DELAY} seconds..."
           sleep "$RETRY_DELAY"
           attempt=$((attempt + 1))
         done
 
-    - name: Push Pull Request Branch
-      if: inputs.create_pull_request == 'true' && steps.commit.outputs.has_changes == 'true'
+    - name: Push pull request branch
+      if: inputs.create_pull_request == 'true' && steps.apply.outputs.has_changes == 'true'
       shell: bash
       env:
         PULL_REQUEST_BRANCH: ${{ inputs.pull_request_branch }}
       run: |
         set -euo pipefail
-
         cd gitops
 
         git checkout -B "$PULL_REQUEST_BRANCH"
@@ -247,9 +221,9 @@ runs:
           git push origin "HEAD:refs/heads/${PULL_REQUEST_BRANCH}"
         fi
 
-    - name: Create Pull Request
+    - name: Create or update pull request
       id: create_pr
-      if: inputs.create_pull_request == 'true' && steps.commit.outputs.has_changes == 'true'
+      if: inputs.create_pull_request == 'true' && steps.apply.outputs.has_changes == 'true'
       shell: bash
       env:
         GITOPS_GH_TOKEN: ${{ inputs.gitops_gh_token }}
@@ -259,7 +233,7 @@ runs:
         PULL_REQUEST_BASE: ${{ inputs.pull_request_base }}
         PULL_REQUEST_TITLE: ${{ inputs.pull_request_title }}
         PULL_REQUEST_BODY: ${{ inputs.pull_request_body }}
-        COMMIT_SUBJECT: ${{ steps.commit.outputs.commit_subject }}
+        COMMIT_SUBJECT: ${{ steps.apply.outputs.commit_subject }}
       run: |
         set -euo pipefail
 
