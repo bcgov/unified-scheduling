@@ -67,7 +67,7 @@ public class GlobalExceptionHandler : IExceptionHandler
 
     private ValidationProblemDetails HandleValidationException(ValidationException ex, HttpContext httpContext)
     {
-        _logger.LogInformation(ex, "Validation failed: {Message}", ex.Message);
+        _logger.LogError(ex, "Validation failed: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
 
         var errors = ex
@@ -84,7 +84,7 @@ public class GlobalExceptionHandler : IExceptionHandler
 
     private ProblemDetails HandleForbiddenException(ForbiddenException ex, HttpContext httpContext)
     {
-        _logger.LogInformation(ex, "Access denied: {Message}", ex.Message);
+        _logger.LogError(ex, "Access denied: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
 
         return new ProblemDetails
@@ -98,7 +98,7 @@ public class GlobalExceptionHandler : IExceptionHandler
 
     private ProblemDetails HandleKeyNotFoundException(KeyNotFoundException ex, HttpContext httpContext)
     {
-        _logger.LogInformation(ex, "Resource not found: {Message}", ex.Message);
+        _logger.LogError(ex, "Resource not found: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
 
         return new ProblemDetails
@@ -112,7 +112,7 @@ public class GlobalExceptionHandler : IExceptionHandler
 
     private ProblemDetails HandleInvalidOperationException(InvalidOperationException ex, HttpContext httpContext)
     {
-        _logger.LogInformation(ex, "Invalid operation: {Message}", ex.Message);
+        _logger.LogError(ex, "Invalid operation: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
 
         return new ProblemDetails

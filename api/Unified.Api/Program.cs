@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Unified.Api.Services;
 using Unified.Authorization;
@@ -35,6 +36,9 @@ var featureFlagsOptions =
         });
 
     builder.Services.AddControllers();
+
+    // Logging
+    builder.Services.AddHttpLogging(logging => {}); // defaults to logging request/response properties and headers, but not body.
 
     // Modules
     builder

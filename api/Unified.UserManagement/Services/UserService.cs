@@ -1,5 +1,6 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.FeatureFlags;
@@ -7,7 +8,7 @@ using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Services;
 
-public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags) : IUserService
+public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags, ILogger<IUserService> logger) : IUserService
 {
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,
@@ -113,6 +114,13 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogInformation(
+            "Assigning role {RoleId} to user {UserId} with effective date {EffectiveDate} and expiry date {ExpiryDate}",
+            request.RoleId,
+            id,
+            request.EffectiveDate,
+            request.ExpiryDate
+        );
         var userExists = await DB.Users.AnyAsync(x => x.Id == id, cancellationToken);
         if (!userExists)
         {
@@ -134,6 +142,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
         if (userRole is null)
         {
+            logger.LogDebug("Creating new user role for user {UserId} and role {RoleId}", id, request.RoleId);
             assignedUserRole = new UserRole
             {
                 UserId = id,
@@ -146,6 +155,12 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         }
         else
         {
+            logger.LogDebug(
+                "Updating existing user role (ID {UserRoleId}) for user {UserId} and role {RoleId}",
+                userRole.Id,
+                id,
+                request.RoleId
+            );
             userRole.EffectiveDate = request.EffectiveDate;
             userRole.ExpiryDate = request.ExpiryDate;
             if (request.ExpiryDate is null)
