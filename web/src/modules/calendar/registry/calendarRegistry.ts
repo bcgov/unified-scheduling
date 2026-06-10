@@ -1,16 +1,9 @@
-import type {
-  CalendarModuleContribution,
-  CalendarToolbarAction,
-  CalendarViewDetailActionContext,
-  CalendarViewDetailAction,
-  CalendarViewDefinition,
-} from './calendarRegistryTypes';
+import type { CalendarModuleContribution, CalendarViewDefinition } from './calendarRegistryTypes';
 import type { CalendarQueryContext, CalendarRuntimeContext } from '../calendarTypes';
 
 export class CalendarRegistry {
   private readonly views = new Map<string, CalendarViewDefinition>();
   private readonly contributions = new Map<string, CalendarModuleContribution>();
-  private readonly viewDetailActions = new Map<string, CalendarViewDetailAction[]>();
 
   registerView(view: CalendarViewDefinition) {
     if (this.views.has(view.id)) {
@@ -38,30 +31,6 @@ export class CalendarRegistry {
     return [...this.contributions.values()].filter(
       (contribution) => contribution.isAvailable?.(runtimeContext, queryContext) ?? true,
     );
-  }
-
-  getToolbarActionsForView(viewId: string, _context?: CalendarQueryContext): CalendarToolbarAction[] {
-    return this.views.get(viewId)?.toolbarActions ?? [];
-  }
-
-  registerViewDetailAction(viewId: string, action: CalendarViewDetailAction) {
-    const existingActions = this.viewDetailActions.get(viewId) ?? [];
-
-    if (existingActions.some((candidate) => candidate.id === action.id)) {
-      throw new Error(`Calendar detail action '${action.id}' is already registered for view '${viewId}'.`);
-    }
-
-    this.viewDetailActions.set(viewId, [...existingActions, action]);
-  }
-
-  getViewDetailActions(viewId: string, context?: CalendarViewDetailActionContext) {
-    const actions = this.viewDetailActions.get(viewId) ?? [];
-
-    if (!context) {
-      return actions;
-    }
-
-    return actions.filter((action) => action.isAvailable?.(context) ?? true);
   }
 }
 

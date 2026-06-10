@@ -25,7 +25,7 @@ const events = computed<EventInput[]>(() =>
       sourceModule: event.sourceModule,
       description: event.description,
       eventTypeCode: event.eventTypeCode,
-      status: event.status,
+      statusTypeCode: event.statusTypeCode,
     },
   })),
 );

@@ -1,4 +1,4 @@
-import type { CalendarRuntimeContext } from '../calendarTypes';
+import type { CalendarQueryContext, CalendarRuntimeContext, CalendarEventBase } from '../calendarTypes';
 
 export interface CalendarCreateContext {
   startDate: string;
@@ -14,4 +14,26 @@ export interface CalendarCreateAction {
   disabled?: boolean;
   run?: (context: CalendarCreateContext) => void | Promise<void>;
   isAvailable?: (createContext: CalendarCreateContext, runtimeContext: CalendarRuntimeContext) => boolean;
+}
+
+export interface CalendarToolbarAction {
+  id: string;
+  label: string;
+  disabled?: boolean;
+  variant?: 'text' | 'outlined' | 'flat';
+  onClick?: () => void | Promise<void>;
+}
+
+export interface CalendarViewDetailActionContext {
+  event: CalendarEventBase;
+  viewId: string;
+  queryContext: CalendarQueryContext;
+  runtimeContext: CalendarRuntimeContext;
+}
+
+export interface CalendarViewDetailAction {
+  id: string;
+  moduleId: string;
+  isAvailable?: (context: CalendarViewDetailActionContext) => boolean;
+  run: (context: CalendarViewDetailActionContext) => void | Promise<void>;
 }

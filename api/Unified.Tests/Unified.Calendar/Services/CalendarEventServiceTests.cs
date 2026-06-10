@@ -25,14 +25,15 @@ public class CalendarEventServiceTests : IAsyncLifetime
         _connection.CreateFunction("now", () => DateTimeOffset.UtcNow.ToString("O"));
         await _connection.OpenAsync(TestContext.Current.CancellationToken);
 
-        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
-            .UseSqlite(_connection)
-            .Options;
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options;
 
         _dbContext = new SqliteTestUnifiedDbContext(options);
         await _dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         await SeedLookupDataAsync();
-        _service = new CalendarEventService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarEventService>.Instance, _dbContext);
+        _service = new CalendarEventService(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarEventService>.Instance,
+            _dbContext
+        );
     }
 
     public async ValueTask DisposeAsync()
@@ -45,68 +46,40 @@ public class CalendarEventServiceTests : IAsyncLifetime
     public async Task GetEventsAsync_WhenNoLocationFilter_UsesStartEndExclusiveOverlapBoundaries()
     {
         // Arrange
-        var request = new CalendarEventsRequest
-        {
-            StartDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero),
-        };
+        var request = CreateRequest(
+            new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero)
+        );
 
         _dbContext.Events.AddRange(
-            new Event
-            {
-                Id = 5,
-                Title = "Ends at request start",
-                StartAtUtc = request.StartDate.AddHours(-2),
-                EndAtUtc = request.StartDate,
-                SourceModule = ApiCalendarConstants.SourceModule,
-            },
-            new Event
-            {
-                Id = 4,
-                Title = "Starts at request end",
-                StartAtUtc = request.EndDate,
-                EndAtUtc = request.EndDate.AddHours(1),
-                SourceModule = ApiCalendarConstants.SourceModule,
-            },
-            new Event
-            {
-                Id = 3,
-                Title = "Open ended on range start",
-                StartAtUtc = request.StartDate,
-                EndAtUtc = null,
-                SourceModule = ApiCalendarConstants.SourceModule,
-                LocationId = null,
-            },
-            new Event
-            {
-                Id = 2,
-                Title = "Non-calendar",
-                StartAtUtc = request.StartDate.AddHours(2),
-                EndAtUtc = request.StartDate.AddHours(3),
-                SourceModule = "other",
-            },
-            new Event
-            {
-                Id = 1,
-                Title = "Overlapping event",
-                Description = "Description",
-                Notes = "Notes",
-                Color = "calendar.deadline",
-                StartAtUtc = request.StartDate.AddHours(1),
-                EndAtUtc = request.StartDate.AddHours(2),
-                SeriesStartAtUtc = request.StartDate,
-                SeriesEndAtUtc = request.EndDate,
-                TimeZoneId = "America/Vancouver",
-                AllDay = false,
-                IsException = true,
-                EventTypeCode = ApiCalendarEventTypeCodes.Deadline,
-                StatusTypeCode = ApiCalendarEventStatusTypeCodes.Active,
-                CancelledAt = request.StartDate.AddHours(3),
-                CancellationReason = "Reason",
-                SourceModule = ApiCalendarConstants.SourceModule,
-                Status = "published",
-                LocationId = 8,
-            }
+            CreateEvent(5, "Ends at request start", request.StartDate.AddHours(-2), request.StartDate),
+            CreateEvent(4, "Starts at request end", request.EndDate, request.EndDate.AddHours(1)),
+            CreateEvent(3, "Open ended on range start", request.StartDate, endAtUtc: null),
+            CreateEvent(
+                2,
+                "Non-calendar",
+                request.StartDate.AddHours(2),
+                request.StartDate.AddHours(3),
+                sourceModule: "other"
+            ),
+            CreateEvent(
+                1,
+                "Overlapping event",
+                request.StartDate.AddHours(1),
+                request.StartDate.AddHours(2),
+                description: "Description",
+                notes: "Notes",
+                color: "calendar.deadline",
+                seriesStartAtUtc: request.StartDate,
+                seriesEndAtUtc: request.EndDate,
+                timeZoneId: "America/Vancouver",
+                isException: true,
+                eventTypeCode: ApiCalendarEventTypeCodes.Deadline,
+                statusTypeCode: ApiCalendarEventStatusTypeCodes.Active,
+                cancelledAt: request.StartDate.AddHours(3),
+                cancellationReason: "Reason",
+                locationId: 8
+            )
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -134,7 +107,6 @@ public class CalendarEventServiceTests : IAsyncLifetime
                 Assert.Equal(ApiCalendarEventTypeCodes.Deadline, second.EventTypeCode);
                 Assert.Equal(ApiCalendarEventStatusTypeCodes.Active, second.StatusTypeCode);
                 Assert.Equal("Reason", second.CancellationReason);
-                Assert.Equal("published", second.Status);
                 Assert.Equal(8, second.LocationId);
             }
         );
@@ -144,41 +116,16 @@ public class CalendarEventServiceTests : IAsyncLifetime
     public async Task GetEventsAsync_WhenLocationFilterProvided_ReturnsSharedAndMatchingLocationsOnly()
     {
         // Arrange
-        var request = new CalendarEventsRequest
-        {
-            StartDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero),
-            LocationId = 5,
-        };
+        var request = CreateRequest(
+            new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero),
+            locationId: 5
+        );
 
         _dbContext.Events.AddRange(
-            new Event
-            {
-                Id = 1,
-                Title = "Shared",
-                StartAtUtc = request.StartDate,
-                EndAtUtc = request.StartDate.AddHours(1),
-                SourceModule = ApiCalendarConstants.SourceModule,
-                LocationId = null,
-            },
-            new Event
-            {
-                Id = 2,
-                Title = "Matching",
-                StartAtUtc = request.StartDate.AddHours(1),
-                EndAtUtc = request.StartDate.AddHours(2),
-                SourceModule = ApiCalendarConstants.SourceModule,
-                LocationId = 5,
-            },
-            new Event
-            {
-                Id = 3,
-                Title = "Different",
-                StartAtUtc = request.StartDate.AddHours(2),
-                EndAtUtc = request.StartDate.AddHours(3),
-                SourceModule = ApiCalendarConstants.SourceModule,
-                LocationId = 9,
-            }
+            CreateEvent(1, "Shared", request.StartDate, request.StartDate.AddHours(1), locationId: null),
+            CreateEvent(2, "Matching", request.StartDate.AddHours(1), request.StartDate.AddHours(2), locationId: 5),
+            CreateEvent(3, "Different", request.StartDate.AddHours(2), request.StartDate.AddHours(3), locationId: 9)
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -189,24 +136,126 @@ public class CalendarEventServiceTests : IAsyncLifetime
         Assert.Equal([1, 2], result.Select(x => x.Id).ToArray());
     }
 
+    private static CalendarEventsRequest CreateRequest(
+        DateTimeOffset startDate,
+        DateTimeOffset endDate,
+        int? locationId = null
+    ) =>
+        new()
+        {
+            StartDate = startDate,
+            EndDate = endDate,
+            LocationId = locationId,
+        };
+
+    private static Event CreateEvent(
+        int id,
+        string title,
+        DateTimeOffset startAtUtc,
+        DateTimeOffset? endAtUtc,
+        string sourceModule = ApiCalendarConstants.SourceModule,
+        string? description = null,
+        string? notes = null,
+        string? color = null,
+        DateTimeOffset? seriesStartAtUtc = null,
+        DateTimeOffset? seriesEndAtUtc = null,
+        string? timeZoneId = null,
+        bool allDay = false,
+        bool isException = false,
+        string eventTypeCode = ApiCalendarEventTypeCodes.General,
+        string statusTypeCode = ApiCalendarEventStatusTypeCodes.Draft,
+        DateTimeOffset? cancelledAt = null,
+        string? cancellationReason = null,
+        int? locationId = null
+    ) =>
+        new()
+        {
+            Id = id,
+            Title = title,
+            Description = description,
+            Notes = notes,
+            Color = color,
+            StartAtUtc = startAtUtc,
+            EndAtUtc = endAtUtc,
+            SeriesStartAtUtc = seriesStartAtUtc,
+            SeriesEndAtUtc = seriesEndAtUtc,
+            TimeZoneId = timeZoneId,
+            AllDay = allDay,
+            IsException = isException,
+            EventTypeCode = eventTypeCode,
+            StatusTypeCode = statusTypeCode,
+            CancelledAt = cancelledAt,
+            CancellationReason = cancellationReason,
+            SourceModule = sourceModule,
+            LocationId = locationId,
+        };
+
     private async Task SeedLookupDataAsync()
     {
         _dbContext.EventTypes.AddRange(
-            new EventType { Code = ApiCalendarEventTypeCodes.General, Description = "General", EffectiveDate = requestDate() },
-            new EventType { Code = ApiCalendarEventTypeCodes.Holiday, Description = "Holiday", EffectiveDate = requestDate() },
-            new EventType { Code = ApiCalendarEventTypeCodes.Deadline, Description = "Deadline", EffectiveDate = requestDate() }
+            new EventType
+            {
+                Code = ApiCalendarEventTypeCodes.General,
+                Description = "General",
+                EffectiveDate = requestDate(),
+            },
+            new EventType
+            {
+                Code = ApiCalendarEventTypeCodes.Holiday,
+                Description = "Holiday",
+                EffectiveDate = requestDate(),
+            },
+            new EventType
+            {
+                Code = ApiCalendarEventTypeCodes.Deadline,
+                Description = "Deadline",
+                EffectiveDate = requestDate(),
+            }
         );
 
         _dbContext.EventStatusTypes.AddRange(
-            new EventStatusType { Code = ApiCalendarEventStatusTypeCodes.Draft, Description = "Draft", EffectiveDate = requestDate() },
-            new EventStatusType { Code = ApiCalendarEventStatusTypeCodes.Active, Description = "Active", EffectiveDate = requestDate() },
-            new EventStatusType { Code = ApiCalendarEventStatusTypeCodes.Cancelled, Description = "Cancelled", EffectiveDate = requestDate() }
+            new EventStatusType
+            {
+                Code = ApiCalendarEventStatusTypeCodes.Draft,
+                Description = "Draft",
+                EffectiveDate = requestDate(),
+            },
+            new EventStatusType
+            {
+                Code = ApiCalendarEventStatusTypeCodes.Active,
+                Description = "Active",
+                EffectiveDate = requestDate(),
+            },
+            new EventStatusType
+            {
+                Code = ApiCalendarEventStatusTypeCodes.Cancelled,
+                Description = "Cancelled",
+                EffectiveDate = requestDate(),
+            }
         );
 
         _dbContext.Locations.AddRange(
-            new Location { Id = 5, AgencyId = "A5", Name = "Location 5", Timezone = "America/Vancouver" },
-            new Location { Id = 8, AgencyId = "A8", Name = "Location 8", Timezone = "America/Vancouver" },
-            new Location { Id = 9, AgencyId = "A9", Name = "Location 9", Timezone = "America/Vancouver" }
+            new Location
+            {
+                Id = 5,
+                AgencyId = "A5",
+                Name = "Location 5",
+                Timezone = "America/Vancouver",
+            },
+            new Location
+            {
+                Id = 8,
+                AgencyId = "A8",
+                Name = "Location 8",
+                Timezone = "America/Vancouver",
+            },
+            new Location
+            {
+                Id = 9,
+                AgencyId = "A9",
+                Name = "Location 9",
+                Timezone = "America/Vancouver",
+            }
         );
 
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);

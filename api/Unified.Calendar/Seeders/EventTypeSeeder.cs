@@ -8,13 +8,28 @@ namespace Unified.Calendar.Seeders;
 
 public sealed class EventTypeSeeder(ILogger<EventTypeSeeder> logger) : SeederBase<UnifiedDbContext>(logger)
 {
-    private static readonly DateTimeOffset SeedEffectiveDate = new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset SeedEffectiveDate = new(2020, 6, 10, 0, 0, 0, TimeSpan.Zero);
 
     private static readonly EventType[] SeedEventTypes =
     [
-        new() { Code = CalendarEventTypeCodes.General, Description = "General", EffectiveDate = SeedEffectiveDate },
-        new() { Code = CalendarEventTypeCodes.Holiday, Description = "Holiday", EffectiveDate = SeedEffectiveDate },
-        new() { Code = CalendarEventTypeCodes.Deadline, Description = "Deadline", EffectiveDate = SeedEffectiveDate },
+        new()
+        {
+            Code = CalendarEventTypeCodes.General,
+            Description = "General",
+            EffectiveDate = SeedEffectiveDate,
+        },
+        new()
+        {
+            Code = CalendarEventTypeCodes.Holiday,
+            Description = "Holiday",
+            EffectiveDate = SeedEffectiveDate,
+        },
+        new()
+        {
+            Code = CalendarEventTypeCodes.Deadline,
+            Description = "Deadline",
+            EffectiveDate = SeedEffectiveDate,
+        },
     ];
 
     public override int Order => 10;

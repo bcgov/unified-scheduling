@@ -1,4 +1,4 @@
-import type { CalendarViewDetailAction } from '../registry/calendarRegistryTypes';
+import type { CalendarViewDetailAction } from '../registry/calendarActionRegistryTypes';
 import { useCalendarStore } from '../calendarStore';
 
 export const calendarEventDetailModalAction: CalendarViewDetailAction = {

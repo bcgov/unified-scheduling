@@ -3,13 +3,17 @@ import { createPinia, setActivePinia } from 'pinia';
 
 import { calendarEventDetailModalAction } from '@/modules/calendar/actions/calendarEventDetailModalAction';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import { CalendarActionRegistry } from '@/modules/calendar/registry/calendarActionRegistry';
 import { CalendarRegistry } from '@/modules/calendar/registry/calendarRegistry';
 import type {
   CalendarModuleContribution,
   CalendarViewDefinition,
-  CalendarViewDetailAction,
 } from '@/modules/calendar/registry/calendarRegistryTypes';
-import type { CalendarCreateAction } from '@/modules/calendar/registry/calendarActionRegistryTypes';
+import type {
+  CalendarCreateAction,
+  CalendarToolbarAction,
+  CalendarViewDetailAction,
+} from '@/modules/calendar/registry/calendarActionRegistryTypes';
 import type { CalendarQueryContext, CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
 
 describe('calendar registries and store', () => {
@@ -20,6 +24,7 @@ describe('calendar registries and store', () => {
 
   it('registers views, contributions, actions and filters by availability', () => {
     const registry = new CalendarRegistry();
+    const actionRegistry = new CalendarActionRegistry();
     const runtimeContext: CalendarRuntimeContext = { featureFlags: {} };
     const queryContext: CalendarQueryContext = { startDate: '2025-01-01', endDate: '2025-01-02', filters: {} };
 
@@ -37,7 +42,6 @@ describe('calendar registries and store', () => {
       component: {} as never,
       buildModel: () => ({}),
       isAvailable: () => true,
-      toolbarActions: [{ id: 'refresh', label: 'Refresh' }],
     };
     const hiddenView: CalendarViewDefinition = {
       id: 'hidden',
@@ -52,8 +56,11 @@ describe('calendar registries and store', () => {
     registry.registerView(hiddenView);
 
     expect(registry.getAvailableViews(runtimeContext).map((view) => view.id)).toEqual(['fast', 'slow']);
-    expect(registry.getToolbarActionsForView('fast')).toEqual([{ id: 'refresh', label: 'Refresh' }]);
-    expect(registry.getToolbarActionsForView('missing')).toEqual([]);
+
+    const toolbarAction: CalendarToolbarAction = { id: 'refresh', label: 'Refresh' };
+    actionRegistry.registerToolbarAction('fast', toolbarAction);
+    expect(actionRegistry.getToolbarActionsForView('fast')).toEqual([toolbarAction]);
+    expect(actionRegistry.getToolbarActionsForView('missing')).toEqual([]);
 
     const visibleContribution: CalendarModuleContribution = {
       moduleId: 'calendar',
@@ -84,12 +91,12 @@ describe('calendar registries and store', () => {
       run: () => {},
     };
 
-    registry.registerViewDetailAction('fast', visibleAction);
-    registry.registerViewDetailAction('fast', hiddenAction);
+    actionRegistry.registerViewDetailAction('fast', visibleAction);
+    actionRegistry.registerViewDetailAction('fast', hiddenAction);
 
-    expect(registry.getViewDetailActions('fast')).toEqual([visibleAction, hiddenAction]);
+    expect(actionRegistry.getViewDetailActions('fast')).toEqual([visibleAction, hiddenAction]);
     expect(
-      registry.getViewDetailActions('fast', {
+      actionRegistry.getViewDetailActions('fast', {
         event: { id: '1', type: 'calendar.general', sourceModule: 'calendar', title: 'Event', start: '2025-01-01' },
         viewId: 'fast',
         queryContext,
@@ -99,8 +106,8 @@ describe('calendar registries and store', () => {
   });
 
   it('rejects duplicate registry entries and create actions', async () => {
-    const { calendarActionRegistry } = await import('@/modules/calendar/registry/calendarActionRegistry');
     const registry = new CalendarRegistry();
+    const actionRegistry = new CalendarActionRegistry();
     const view: CalendarViewDefinition = {
       id: 'default',
       label: 'Default',
@@ -125,20 +132,26 @@ describe('calendar registries and store', () => {
       moduleId: 'calendar',
       run: () => {},
     };
-    registry.registerViewDetailAction('default', detailAction);
-    expect(() => registry.registerViewDetailAction('default', detailAction)).toThrow(
+    actionRegistry.registerViewDetailAction('default', detailAction);
+    expect(() => actionRegistry.registerViewDetailAction('default', detailAction)).toThrow(
       "Calendar detail action 'open' is already registered for view 'default'.",
     );
 
+    const toolbarAction: CalendarToolbarAction = { id: 'refresh', label: 'Refresh' };
+    actionRegistry.registerToolbarAction('default', toolbarAction);
+    expect(() => actionRegistry.registerToolbarAction('default', toolbarAction)).toThrow(
+      "Calendar toolbar action 'refresh' is already registered for view 'default'.",
+    );
+
     const createAction: CalendarCreateAction = { id: 'create', label: 'Create', moduleId: 'calendar' };
-    calendarActionRegistry.registerCreateAction(createAction);
-    expect(() => calendarActionRegistry.registerCreateAction(createAction)).toThrow(
+    actionRegistry.registerCreateAction(createAction);
+    expect(() => actionRegistry.registerCreateAction(createAction)).toThrow(
       "Calendar create action 'create' is already registered.",
     );
   });
 
-  it('filters create actions and updates the calendar store state', async () => {
-    const { calendarActionRegistry } = await import('@/modules/calendar/registry/calendarActionRegistry');
+  it('filters create actions and updates the calendar store state', () => {
+    const actionRegistry = new CalendarActionRegistry();
     const runtimeContext: CalendarRuntimeContext = { featureFlags: {} };
     const createContext = { startDate: '2025-01-01', endDate: '2025-01-02', filters: {} };
 
@@ -152,14 +165,14 @@ describe('calendar registries and store', () => {
 
     const actionRegistryModule = new (class {
       register(action: CalendarCreateAction) {
-        calendarActionRegistry.registerCreateAction(action);
+        actionRegistry.registerCreateAction(action);
       }
     })();
 
     actionRegistryModule.register(availableAction);
     actionRegistryModule.register(hiddenAction);
 
-    expect(calendarActionRegistry.getCreateActions(createContext, runtimeContext)).toEqual([availableAction]);
+    expect(actionRegistry.getCreateActions(createContext, runtimeContext)).toEqual([availableAction]);
 
     const store = useCalendarStore();
     store.setActiveView('calendar-default');

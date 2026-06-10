@@ -29,7 +29,6 @@ public class EventConfiguration : BaseEntityConfiguration<Event>
             .IsRequired();
         builder.Property(b => b.CancellationReason).HasMaxLength(2000);
         builder.Property(b => b.SourceModule).HasMaxLength(50).IsRequired();
-        builder.Property(b => b.Status).HasMaxLength(50);
 
         builder
             .HasOne(b => b.EventSeries)
@@ -73,12 +72,12 @@ public class EventConfiguration : BaseEntityConfiguration<Event>
         builder.ToTable(
             "Events",
             table =>
-                {
-                    table.HasCheckConstraint(
-                        "CK_Events_EndAfterStart",
-                        "\"EndAtUtc\" IS NULL OR \"EndAtUtc\" > \"StartAtUtc\""
-                    );
-                }
+            {
+                table.HasCheckConstraint(
+                    "CK_Events_EndAfterStart",
+                    "\"EndAtUtc\" IS NULL OR \"EndAtUtc\" > \"StartAtUtc\""
+                );
+            }
         );
 
         base.Configure(builder);

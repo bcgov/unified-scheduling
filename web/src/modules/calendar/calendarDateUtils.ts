@@ -1,3 +1,5 @@
+import { DateTime, type DateTimeFormatOptions } from 'luxon';
+
 type CalendarPeriodValue = 'day' | 'week' | 'work-week' | 'month';
 
 export type CalendarDateRange = {
@@ -5,58 +7,65 @@ export type CalendarDateRange = {
   endDate: string;
 };
 
-type DateParts = {
-  year: number;
-  month: number;
-  day: number;
-};
+const calendarDateOnlyFormat = {
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+} as const satisfies DateTimeFormatOptions;
 
-function padDatePart(value: number) {
-  return String(value).padStart(2, '0');
+const calendarMonthFormat = {
+  month: 'long',
+  year: 'numeric',
+} as const satisfies DateTimeFormatOptions;
+
+const calendarTimeFormat = {
+  hour: 'numeric',
+  minute: '2-digit',
+} as const satisfies DateTimeFormatOptions;
+
+function parseLocalDateTime(value: string) {
+  return DateTime.fromISO(value, { zone: 'local' }).startOf('day');
 }
 
-function parseDateParts(value: string): DateParts {
-  const [year, month, day] = value.split('-').map(Number);
-  return { year, month, day };
+function toDateTime(value: string | Date, timeZone?: string) {
+  const dateTime =
+    value instanceof Date
+      ? DateTime.fromJSDate(value, timeZone ? { zone: timeZone } : undefined)
+      : DateTime.fromISO(value, { setZone: true });
+
+  return timeZone ? dateTime.setZone(timeZone) : dateTime;
+}
+
+function formatDateTime(value: DateTime, locale: string, format: DateTimeFormatOptions) {
+  return value.setLocale(locale).toLocaleString(format);
 }
 
 export function parseLocalDateOnly(value: string) {
-  const { year, month, day } = parseDateParts(value);
-  return new Date(year, month - 1, day);
+  return parseLocalDateTime(value).toJSDate();
 }
 
 export function formatLocalDateOnly(value: Date) {
-  return `${value.getFullYear()}-${padDatePart(value.getMonth() + 1)}-${padDatePart(value.getDate())}`;
+  return DateTime.fromJSDate(value).toISODate() ?? '';
 }
 
 export function getTodayDateOnly() {
-  return formatLocalDateOnly(new Date());
+  return DateTime.local().toISODate() ?? '';
 }
 
 export function addDays(value: string, days: number) {
-  const date = parseLocalDateOnly(value);
-  date.setDate(date.getDate() + days);
-  return formatLocalDateOnly(date);
+  return parseLocalDateTime(value).plus({ days }).toISODate() ?? value;
 }
 
 export function addMonths(value: string, months: number) {
-  const date = parseLocalDateOnly(value);
-  date.setMonth(date.getMonth() + months);
-  return formatLocalDateOnly(date);
+  return parseLocalDateTime(value).plus({ months }).toISODate() ?? value;
 }
 
 export function startOfWeek(value: string) {
-  const date = parseLocalDateOnly(value);
-  const dayOfWeek = date.getDay();
-  const offset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  date.setDate(date.getDate() + offset);
-  return formatLocalDateOnly(date);
+  return parseLocalDateTime(value).startOf('week').toISODate() ?? value;
 }
 
 export function startOfMonth(value: string) {
-  const date = parseLocalDateOnly(value);
-  date.setDate(1);
-  return formatLocalDateOnly(date);
+  return parseLocalDateTime(value).startOf('month').toISODate() ?? value;
 }
 
 export function buildDateRangeForPeriod(anchorDate: string, currentPeriod: CalendarPeriodValue): CalendarDateRange {
@@ -108,30 +117,21 @@ export function getInitialCalendarDateRange(): CalendarDateRange {
 }
 
 export function formatRangeLabel(startDate: string, endDate: string, currentPeriod: CalendarPeriodValue) {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  const monthFormatter = new Intl.DateTimeFormat('en-CA', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const start = parseLocalDateTime(startDate);
 
   if (currentPeriod === 'month') {
-    return monthFormatter.format(parseLocalDateOnly(startDate));
+    return formatDateTime(start, 'en-CA', calendarMonthFormat);
   }
 
   if (currentPeriod === 'day') {
-    return formatter.format(parseLocalDateOnly(startDate));
+    return formatDateTime(start, 'en-CA', calendarDateOnlyFormat);
   }
 
-  return `${formatter.format(parseLocalDateOnly(startDate))} - ${formatter.format(parseLocalDateOnly(addDays(endDate, -1)))}`;
+  return `${formatDateTime(start, 'en-CA', calendarDateOnlyFormat)} - ${formatDateTime(parseLocalDateTime(addDays(endDate, -1)), 'en-CA', calendarDateOnlyFormat)}`;
 }
 
 export function localDateOnlyToUtcInstant(value: string) {
-  const { year, month, day } = parseDateParts(value);
-  return new Date(Date.UTC(year, month - 1, day)).toISOString();
+  return DateTime.fromISO(value, { zone: 'utc' }).startOf('day').toISO() ?? '';
 }
 
 export function toCalendarDateOnly(value?: string | null) {
@@ -139,14 +139,17 @@ export function toCalendarDateOnly(value?: string | null) {
     return undefined;
   }
 
-  const [dateOnly] = value.split('T');
-  return dateOnly;
+  return DateTime.fromISO(value, { setZone: true }).toISODate() ?? undefined;
 }
 
 export function formatCalendarDateOnly(value: string, locale = 'en-CA') {
-  return new Intl.DateTimeFormat(locale, {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(parseLocalDateOnly(value));
+  return formatDateTime(parseLocalDateTime(value), locale, calendarDateOnlyFormat);
+}
+
+export function formatCalendarDateTimeDate(value: string | Date, timeZone = 'UTC', locale = 'en-CA') {
+  return formatDateTime(toDateTime(value, timeZone), locale, calendarDateOnlyFormat);
+}
+
+export function formatCalendarTime(value: string | Date, timeZone = 'UTC', locale = 'en-CA') {
+  return formatDateTime(toDateTime(value, timeZone), locale, calendarTimeFormat);
 }

@@ -7,8 +7,7 @@ using Unified.Db.Models.Abstract;
 
 namespace Unified.Tests.Calendar;
 
-internal sealed class SqliteTestUnifiedDbContext(DbContextOptions<UnifiedDbContext> options)
-    : UnifiedDbContext(options)
+internal sealed class SqliteTestUnifiedDbContext(DbContextOptions<UnifiedDbContext> options) : UnifiedDbContext(options)
 {
     private static readonly ValueConverter<DateTimeOffset, string> DateTimeOffsetConverter = new(
         value => value.ToString("O"),
@@ -17,9 +16,10 @@ internal sealed class SqliteTestUnifiedDbContext(DbContextOptions<UnifiedDbConte
 
     private static readonly ValueConverter<DateTimeOffset?, string?> NullableDateTimeOffsetConverter = new(
         value => value.HasValue ? value.Value.ToString("O") : null,
-        value => value == null
-            ? null
-            : DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
+        value =>
+            value == null
+                ? null
+                : DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind)
     );
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

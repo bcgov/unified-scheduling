@@ -2,15 +2,15 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using ApiCalendarConstants = Unified.Calendar.CalendarConstants;
-using ApiCalendarEventStatusTypeCodes = Unified.Calendar.CalendarEventStatusTypeCodes;
-using ApiCalendarEventTypeCodes = Unified.Calendar.CalendarEventTypeCodes;
 using Unified.Calendar;
 using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Lookup;
+using ApiCalendarConstants = Unified.Calendar.CalendarConstants;
+using ApiCalendarEventStatusTypeCodes = Unified.Calendar.CalendarEventStatusTypeCodes;
+using ApiCalendarEventTypeCodes = Unified.Calendar.CalendarEventTypeCodes;
 
 namespace Unified.Tests.Calendar.Seeders;
 
@@ -25,9 +25,7 @@ public sealed class CalendarSeedersTests : IAsyncLifetime
         _connection.CreateFunction("now", () => DateTimeOffset.UtcNow.ToString("O"));
         await _connection.OpenAsync(TestContext.Current.CancellationToken);
 
-        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
-            .UseSqlite(_connection)
-            .Options;
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options;
 
         _dbContext = new SqliteTestUnifiedDbContext(options);
         await _dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
@@ -60,7 +58,9 @@ public sealed class CalendarSeedersTests : IAsyncLifetime
         await seeder.SeedAsync(_dbContext, TestContext.Current.CancellationToken);
 
         // Assert
-        var eventTypes = await _dbContext.EventTypes.OrderBy(x => x.Code).ToListAsync(TestContext.Current.CancellationToken);
+        var eventTypes = await _dbContext
+            .EventTypes.OrderBy(x => x.Code)
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(
             [ApiCalendarEventTypeCodes.Deadline, ApiCalendarEventTypeCodes.General, ApiCalendarEventTypeCodes.Holiday],
             eventTypes.Select(x => x.Code)
@@ -80,7 +80,9 @@ public sealed class CalendarSeedersTests : IAsyncLifetime
         await seeder.SeedAsync(_dbContext, TestContext.Current.CancellationToken);
         await seeder.SeedAsync(_dbContext, TestContext.Current.CancellationToken);
 
-        var eventTypes = await _dbContext.EventTypes.OrderBy(x => x.Code).ToListAsync(TestContext.Current.CancellationToken);
+        var eventTypes = await _dbContext
+            .EventTypes.OrderBy(x => x.Code)
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, eventTypes.Count);
         Assert.Equal(3, eventTypes.Select(x => x.Code).Distinct().Count());
     }
@@ -106,9 +108,15 @@ public sealed class CalendarSeedersTests : IAsyncLifetime
         await seeder.SeedAsync(_dbContext, TestContext.Current.CancellationToken);
 
         // Assert
-        var statuses = await _dbContext.EventStatusTypes.OrderBy(x => x.Code).ToListAsync(TestContext.Current.CancellationToken);
+        var statuses = await _dbContext
+            .EventStatusTypes.OrderBy(x => x.Code)
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(
-            [ApiCalendarEventStatusTypeCodes.Active, ApiCalendarEventStatusTypeCodes.Cancelled, ApiCalendarEventStatusTypeCodes.Draft],
+            [
+                ApiCalendarEventStatusTypeCodes.Active,
+                ApiCalendarEventStatusTypeCodes.Cancelled,
+                ApiCalendarEventStatusTypeCodes.Draft,
+            ],
             statuses.Select(x => x.Code)
         );
 
@@ -126,7 +134,9 @@ public sealed class CalendarSeedersTests : IAsyncLifetime
         await seeder.SeedAsync(_dbContext, TestContext.Current.CancellationToken);
         await seeder.SeedAsync(_dbContext, TestContext.Current.CancellationToken);
 
-        var statuses = await _dbContext.EventStatusTypes.OrderBy(x => x.Code).ToListAsync(TestContext.Current.CancellationToken);
+        var statuses = await _dbContext
+            .EventStatusTypes.OrderBy(x => x.Code)
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, statuses.Count);
         Assert.Equal(3, statuses.Select(x => x.Code).Distinct().Count());
     }
@@ -301,15 +311,45 @@ public sealed class CalendarSeedersTests : IAsyncLifetime
         }
 
         _dbContext.EventTypes.AddRange(
-            new EventType { Code = ApiCalendarEventTypeCodes.General, Description = "General", EffectiveDate = SeedEffectiveDate },
-            new EventType { Code = ApiCalendarEventTypeCodes.Holiday, Description = "Holiday", EffectiveDate = SeedEffectiveDate },
-            new EventType { Code = ApiCalendarEventTypeCodes.Deadline, Description = "Deadline", EffectiveDate = SeedEffectiveDate }
+            new EventType
+            {
+                Code = ApiCalendarEventTypeCodes.General,
+                Description = "General",
+                EffectiveDate = SeedEffectiveDate,
+            },
+            new EventType
+            {
+                Code = ApiCalendarEventTypeCodes.Holiday,
+                Description = "Holiday",
+                EffectiveDate = SeedEffectiveDate,
+            },
+            new EventType
+            {
+                Code = ApiCalendarEventTypeCodes.Deadline,
+                Description = "Deadline",
+                EffectiveDate = SeedEffectiveDate,
+            }
         );
 
         _dbContext.EventStatusTypes.AddRange(
-            new EventStatusType { Code = ApiCalendarEventStatusTypeCodes.Draft, Description = "Draft", EffectiveDate = SeedEffectiveDate },
-            new EventStatusType { Code = ApiCalendarEventStatusTypeCodes.Active, Description = "Active", EffectiveDate = SeedEffectiveDate },
-            new EventStatusType { Code = ApiCalendarEventStatusTypeCodes.Cancelled, Description = "Cancelled", EffectiveDate = SeedEffectiveDate }
+            new EventStatusType
+            {
+                Code = ApiCalendarEventStatusTypeCodes.Draft,
+                Description = "Draft",
+                EffectiveDate = SeedEffectiveDate,
+            },
+            new EventStatusType
+            {
+                Code = ApiCalendarEventStatusTypeCodes.Active,
+                Description = "Active",
+                EffectiveDate = SeedEffectiveDate,
+            },
+            new EventStatusType
+            {
+                Code = ApiCalendarEventStatusTypeCodes.Cancelled,
+                Description = "Cancelled",
+                EffectiveDate = SeedEffectiveDate,
+            }
         );
 
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);

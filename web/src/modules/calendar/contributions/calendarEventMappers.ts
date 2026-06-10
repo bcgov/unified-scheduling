@@ -29,7 +29,6 @@ export function mapApiCalendarEventToCalendarEventBase(apiEvent: ApiCalendarEven
     cancelledByUserId: apiEvent.cancelledByUserId,
     cancellationReason: apiEvent.cancellationReason,
     timeZoneId: apiEvent.timeZoneId,
-    status: apiEvent.status,
     locationId: apiEvent.locationId,
   };
 }

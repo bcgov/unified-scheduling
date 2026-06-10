@@ -6,14 +6,15 @@ using Unified.Db;
 
 namespace Unified.Calendar.Services;
 
-public sealed class CalendarEventService(ILogger<CalendarEventService> logger, UnifiedDbContext db) : ICalendarEventService
+public sealed class CalendarEventService(ILogger<CalendarEventService> logger, UnifiedDbContext db)
+    : ICalendarEventService
 {
     public async Task<IReadOnlyCollection<CalendarEventResponse>> GetEventsAsync(
         CalendarEventsRequest request,
         CancellationToken cancellationToken = default
     )
     {
-        logger.LogDebug(
+        logger.LogInformation(
             "Querying calendar events for range {StartDate} to {EndDate} with location filter {LocationId}.",
             request.StartDate,
             request.EndDate,

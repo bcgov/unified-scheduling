@@ -58,12 +58,7 @@ var featureFlagsOptions =
     {
         options.AddPolicy(
             "UnifiedCorsPolicy",
-            policy =>
-                policy
-                    .WithOrigins(allowedOrigins)
-                    .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .AllowCredentials()
+            policy => policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()
         );
     });
 

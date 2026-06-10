@@ -9,9 +9,9 @@ import type { SelectOption, SelectValue } from '@/types/select';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
 import { calendarDataService } from './calendarDataService';
 import { buildDateRangeForPeriod, formatRangeLabel, getTodayDateOnly, shiftDateRange } from './calendarDateUtils';
-import { calendarRegistry } from './registry/calendarRegistry';
 import { calendarActionRegistry } from './registry/calendarActionRegistry';
-import type { CalendarToolbarAction } from './registry/calendarRegistryTypes';
+import { calendarRegistry } from './registry/calendarRegistry';
+import type { CalendarToolbarAction } from './registry/calendarActionRegistryTypes';
 import { type CalendarPeriod, useCalendarStore } from './calendarStore';
 import type {
   CalendarDataResponse,
@@ -106,7 +106,9 @@ const locationValue = computed<SelectValue>({
 });
 
 const toolbarActions = computed<CalendarToolbarAction[]>(() => {
-  return activeView.value ? calendarRegistry.getToolbarActionsForView(activeView.value.id, queryContext.value) : [];
+  return activeView.value
+    ? calendarActionRegistry.getToolbarActionsForView(activeView.value.id, queryContext.value)
+    : [];
 });
 
 const createActions = computed<CalendarToolbarAction[]>(() => {
@@ -149,7 +151,7 @@ const loadData = async () => {
     }
 
     if (requestId === latestRequestId) {
-      errorMessage.value = error instanceof Error ? error.message : 'Failed to load calendar data.';
+      errorMessage.value = 'Failed to retrieve calendar data.';
     }
   } finally {
     if (requestId === latestRequestId) {
@@ -234,7 +236,7 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
     queryContext: queryContext.value,
     runtimeContext: runtimeContext.value,
   };
-  const actions = calendarRegistry.getViewDetailActions(activeView.value.id, actionContext);
+  const actions = calendarActionRegistry.getViewDetailActions(activeView.value.id, actionContext);
 
   if (actions.length === 0) {
     return;
@@ -296,6 +298,14 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
 .calendar-page__panel {
   background: var(--ua-calendar-panel-bg);
   border-radius: 0;
+  max-height: calc(100vh - var(--ua-appbar-height) - var(--ua-spacing-md) - var(--ua-spacing-xl));
+  overflow: auto;
+}
+
+.calendar-page__panel :deep(.calendar-toolbar-shell) {
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 .calendar-page__state {

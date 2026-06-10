@@ -66,6 +66,16 @@ describe('calendar workflow', () => {
     vi.doMock('@/modules/calendar/registry/calendarActionRegistry', () => ({
       calendarActionRegistry: {
         getCreateActions: vi.fn(() => []),
+        getToolbarActionsForView: vi.fn(() => []),
+        getViewDetailActions: vi.fn(() => [
+          {
+            id: 'detail',
+            moduleId: 'calendar',
+            run: ({ event }: { event: { id: string } }) => {
+              selectEventById?.(event.id);
+            },
+          },
+        ]),
       },
     }));
 
@@ -79,16 +89,6 @@ describe('calendar workflow', () => {
             buildModel: (dataResponse: { contributions: Record<string, { events: unknown[] }> }) => ({
               events: Object.values(dataResponse.contributions).flatMap((contribution) => contribution.events),
             }),
-          },
-        ]),
-        getToolbarActionsForView: vi.fn(() => []),
-        getViewDetailActions: vi.fn(() => [
-          {
-            id: 'detail',
-            moduleId: 'calendar',
-            run: ({ event }: { event: { id: string } }) => {
-              selectEventById?.(event.id);
-            },
           },
         ]),
       },

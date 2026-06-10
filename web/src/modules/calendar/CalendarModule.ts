@@ -23,9 +23,9 @@ export function registerModule(routes: RouteRecordRaw[]) {
 
   calendarRegistry.registerView(calendarDefaultViewContribution);
   calendarRegistry.registerModuleContribution(calendarEventsContribution);
-  calendarRegistry.registerViewDetailAction(calendarDefaultViewContribution.id, calendarEventDetailModalAction);
 
   calendarActionRegistry.registerCreateAction(calendarCreateAction);
+  calendarActionRegistry.registerViewDetailAction(calendarDefaultViewContribution.id, calendarEventDetailModalAction);
 
   isRegistered = true;
 }

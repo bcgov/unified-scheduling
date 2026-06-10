@@ -29,7 +29,6 @@ export interface ApiCalendarEventResponse {
   cancelledByUserId?: string;
   cancellationReason?: string;
   sourceModule: string;
-  status?: string;
   locationId?: number;
 }
 

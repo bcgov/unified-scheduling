@@ -16,7 +16,9 @@ public static class CalendarModule
     {
         var calendarAssembly = typeof(CalendarController).Assembly;
 
-        mvcBuilder.ConfigureApplicationPartManager(manager => ConfigureCalendarApplicationParts(manager, calendarAssembly, isEnabled));
+        mvcBuilder.ConfigureApplicationPartManager(manager =>
+            ConfigureCalendarApplicationParts(manager, calendarAssembly, isEnabled)
+        );
 
         return mvcBuilder;
     }

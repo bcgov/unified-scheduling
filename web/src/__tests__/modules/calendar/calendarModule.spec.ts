@@ -39,7 +39,7 @@ describe('calendar module integration', () => {
         .map((contribution) => contribution.contributionId),
     ).toEqual(['calendar.events']);
     expect(
-      calendarRegistry.getViewDetailActions('calendar-default', {
+      calendarActionRegistry.getViewDetailActions('calendar-default', {
         event: { id: '1', type: 'calendar.general', sourceModule: 'calendar', title: 'Event', start: '2025-01-01' },
         viewId: 'calendar-default',
         queryContext: { startDate: '2025-01-01', endDate: '2025-01-02', filters: {} },

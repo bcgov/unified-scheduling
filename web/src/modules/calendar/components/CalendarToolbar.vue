@@ -4,7 +4,8 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import type { SelectOption, SelectValue } from '@/types/select';
 import CalendarViewTabs from './CalendarViewTabs.vue';
-import type { CalendarToolbarAction, CalendarViewDefinition } from '../registry/calendarRegistryTypes';
+import type { CalendarToolbarAction } from '../registry/calendarActionRegistryTypes';
+import type { CalendarViewDefinition } from '../registry/calendarRegistryTypes';
 import type { CalendarPeriod } from '../calendarStore';
 
 defineProps<{

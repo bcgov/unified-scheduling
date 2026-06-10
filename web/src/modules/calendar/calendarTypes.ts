@@ -20,7 +20,6 @@ export interface CalendarEventBase {
   cancelledByUserId?: string;
   cancellationReason?: string;
   timeZoneId?: string;
-  status?: string;
   locationId?: number;
   resourceIds?: string[];
 }

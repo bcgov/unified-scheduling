@@ -10,8 +10,10 @@ using Unified.Db.Models.Calendar;
 
 namespace Unified.Calendar.Seeders;
 
-public sealed class HolidayEventSeeder(ILogger<HolidayEventSeeder> logger, IOptions<CalendarSeedDataOptions> seedDataOptions)
-    : SeederBase<UnifiedDbContext>(logger)
+public sealed class HolidayEventSeeder(
+    ILogger<HolidayEventSeeder> logger,
+    IOptions<CalendarSeedDataOptions> seedDataOptions
+) : SeederBase<UnifiedDbContext>(logger)
 {
     private readonly CalendarSeedDataOptions _seedDataOptions = seedDataOptions.Value;
 
@@ -31,7 +33,10 @@ public sealed class HolidayEventSeeder(ILogger<HolidayEventSeeder> logger, IOpti
         }
 
         await using var seedStream = File.OpenRead(seedFilePath);
-        var seedDocument = await JsonSerializer.DeserializeAsync<HolidaySeedDocument>(seedStream, cancellationToken: cancellationToken);
+        var seedDocument = await JsonSerializer.DeserializeAsync<HolidaySeedDocument>(
+            seedStream,
+            cancellationToken: cancellationToken
+        );
 
         if (seedDocument?.Holidays is null || seedDocument.Holidays.Count == 0)
         {
@@ -50,24 +55,21 @@ public sealed class HolidayEventSeeder(ILogger<HolidayEventSeeder> logger, IOpti
             if (string.IsNullOrWhiteSpace(holiday.Name) || string.IsNullOrWhiteSpace(holiday.ActualDate))
             {
                 skippedCount++;
-                Logger.LogWarning(
-                    "Skipping holiday seed row {RowIndex} due to missing required values.",
-                    index
-                );
+                Logger.LogWarning("Skipping holiday seed row {RowIndex} due to missing required values.", index);
                 continue;
             }
 
             var startAtUtc = ParseHolidayStartAtUtc(holiday.ActualDate);
             var endAtUtc = startAtUtc.AddDays(1);
 
-            var existingEvent = await dbContext
-                .Events.FirstOrDefaultAsync(
-                    eventEntity => eventEntity.SourceModule == CalendarConstants.SourceModule
-                        && eventEntity.EventTypeCode == CalendarEventTypeCodes.Holiday
-                        && eventEntity.Title == holiday.Name
-                        && eventEntity.StartAtUtc == startAtUtc,
-                    cancellationToken
-                );
+            var existingEvent = await dbContext.Events.FirstOrDefaultAsync(
+                eventEntity =>
+                    eventEntity.SourceModule == CalendarConstants.SourceModule
+                    && eventEntity.EventTypeCode == CalendarEventTypeCodes.Holiday
+                    && eventEntity.Title == holiday.Name
+                    && eventEntity.StartAtUtc == startAtUtc,
+                cancellationToken
+            );
 
             if (existingEvent is null)
             {
@@ -125,7 +127,11 @@ public sealed class HolidayEventSeeder(ILogger<HolidayEventSeeder> logger, IOpti
         return new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
     }
 
-    private sealed record HolidaySeedDocument(string? Source, string? SourceUrl, IReadOnlyList<HolidaySeedRow> Holidays);
+    private sealed record HolidaySeedDocument(
+        string? Source,
+        string? SourceUrl,
+        IReadOnlyList<HolidaySeedRow> Holidays
+    );
 
     private sealed record HolidaySeedRow(string? Name, string? ActualDate);
 }

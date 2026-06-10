@@ -69,8 +69,8 @@ public class CalendarControllerTests
         );
 
         // Act / Assert
-        await Assert.ThrowsAsync<ValidationException>(
-            () => controller.GetEvents(request, TestContext.Current.CancellationToken)
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            controller.GetEvents(request, TestContext.Current.CancellationToken)
         );
     }
 

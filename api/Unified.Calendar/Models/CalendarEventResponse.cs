@@ -12,7 +12,7 @@ public sealed class CalendarEventResponse
 
     public string? Notes { get; init; }
 
-    public string? Color { get; init; }
+    public string? Color { get; init; } // Not a hex code, but a unique color name or identifier (e.g., "blue", "red", "green"). The client can map this to a hex code as needed.
 
     public required DateTimeOffset StartAtUtc { get; init; }
 
@@ -39,8 +39,6 @@ public sealed class CalendarEventResponse
     public string? CancellationReason { get; init; }
 
     public required string SourceModule { get; init; }
-
-    public string? Status { get; init; }
 
     public int? LocationId { get; init; }
 }

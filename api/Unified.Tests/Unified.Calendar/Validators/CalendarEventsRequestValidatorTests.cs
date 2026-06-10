@@ -20,7 +20,10 @@ public class CalendarEventsRequestValidatorTests
         };
 
         // Act
-        var result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         result.ShouldNotHaveAnyValidationErrors();
@@ -37,7 +40,10 @@ public class CalendarEventsRequestValidatorTests
         };
 
         // Act
-        var result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.StartDate);
@@ -54,7 +60,10 @@ public class CalendarEventsRequestValidatorTests
         };
 
         // Act
-        var result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.EndDate);
@@ -71,7 +80,10 @@ public class CalendarEventsRequestValidatorTests
         };
 
         // Act
-        var result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.StartDate);
@@ -88,7 +100,10 @@ public class CalendarEventsRequestValidatorTests
         };
 
         // Act
-        var result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.EndDate);
@@ -106,7 +121,10 @@ public class CalendarEventsRequestValidatorTests
         };
 
         // Act
-        var result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.LocationId);

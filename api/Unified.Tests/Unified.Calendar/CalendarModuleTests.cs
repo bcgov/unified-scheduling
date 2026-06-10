@@ -62,7 +62,8 @@ public sealed class CalendarModuleTests
     {
         Assert.Contains(
             services,
-            descriptor => descriptor.Lifetime == ServiceLifetime.Scoped
+            descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Scoped
                 && descriptor.ServiceType == typeof(TService)
                 && descriptor.ImplementationType == typeof(TImplementation)
         );
@@ -73,7 +74,8 @@ public sealed class CalendarModuleTests
     {
         Assert.Contains(
             services,
-            descriptor => descriptor.Lifetime == ServiceLifetime.Scoped
+            descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Scoped
                 && descriptor.ServiceType == typeof(TService)
                 && descriptor.ImplementationType == typeof(TService)
         );

@@ -4,7 +4,7 @@ import UaDisplayField from '@/shared/components/UaDisplayField.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { addDays, formatCalendarDateOnly } from '../calendarDateUtils';
+import { addDays, formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarTime } from '../calendarDateUtils';
 import type { CalendarEventBase } from '../calendarTypes';
 
 const props = defineProps<{
@@ -55,22 +55,11 @@ function formatEventDate(value: string) {
     return formatCalendarDateOnly(value);
   }
 
-  const date = new Date(value);
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: eventTimeZone.value,
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
+  return formatCalendarDateTimeDate(value, eventTimeZone.value);
 }
 
 function formatTime(value: string | Date) {
-  const date = value instanceof Date ? value : new Date(value);
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: eventTimeZone.value,
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
+  return formatCalendarTime(value, eventTimeZone.value);
 }
 </script>
 

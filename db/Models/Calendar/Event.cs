@@ -54,8 +54,6 @@ public class Event : BaseEntity
 
     public string SourceModule { get; set; } = string.Empty;
 
-    public string? Status { get; set; }
-
     public int? LocationId { get; set; }
 
     public Location? Location { get; set; }
