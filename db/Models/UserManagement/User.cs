@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Unified.Db.Models.Abstract;
+using Unified.Db.Models;
 
 namespace Unified.Db.Models.UserManagement;
 
@@ -19,6 +20,7 @@ public class User : BaseEntity
     public string Email { get; set; } = string.Empty;
     public Gender Gender { get; set; }
     public int? HomeLocationId { get; set; }
+    public virtual Location? HomeLocation { get; set; }
     public string? BadgeNumber { get; set; }
     public string? Rank { get; set; }
     public DateTimeOffset? LastLogin { get; set; }

@@ -25,4 +25,10 @@ public interface IUserService
         AssignUserRoleRequestDto request,
         CancellationToken cancellationToken = default
     );
+
+    Task<UserRoleResponseDto> ExpireRoleAsync(
+        Guid id,
+        ExpireUserRoleRequestDto request,
+        CancellationToken cancellationToken = default
+    );
 }
