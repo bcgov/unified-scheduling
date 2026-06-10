@@ -14,7 +14,8 @@ namespace Unified.UserManagement.Controllers;
 public class UsersController(
     IUserService userService,
     UserRequestValidator userRequestValidator,
-    AssignUserRoleRequestValidator assignUserRoleRequestValidator
+    AssignUserRoleRequestValidator assignUserRoleRequestValidator,
+    ExpireUserRoleRequestValidator expireUserRoleRequestValidator
 ) : ControllerBase
 {
     /// <summary>
@@ -144,6 +145,30 @@ public class UsersController(
         await assignUserRoleRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var userRole = await userService.AssignRoleAsync(id, request, cancellationToken);
+        return Ok(userRole);
+    }
+
+    /// <summary>
+    /// Expires a role assignment for a user.
+    /// </summary>
+    /// <param name="id">The user identifier.</param>
+    /// <param name="request">The role expiry payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated user role assignment.</returns>
+    [HttpPost("{id:guid}/roles/expire")]
+    [Authorize(Policy = UserManagementPolicies.UserRoleAssign)]
+    [ProducesResponseType(typeof(UserRoleResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserRoleResponseDto>> ExpireRole(
+        Guid id,
+        [FromBody] ExpireUserRoleRequestDto request,
+        CancellationToken cancellationToken
+    )
+    {
+        await expireUserRoleRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+
+        var userRole = await userService.ExpireRoleAsync(id, request, cancellationToken);
         return Ok(userRole);
     }
 }

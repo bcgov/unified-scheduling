@@ -2,6 +2,7 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
+using Unified.Common.Helpers.Extensions;
 using Unified.FeatureFlags;
 using Unified.UserManagement.Models;
 
@@ -133,11 +134,20 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         CancellationToken cancellationToken = default
     )
     {
-        var userExists = await DB.Users.AnyAsync(x => x.Id == id, cancellationToken);
-        if (!userExists)
+        var user = await DB
+            .Users.AsNoTracking()
+            .Include(x => x.HomeLocation)
+            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (user is null)
         {
             throw new KeyNotFoundException($"User {id} not found.");
         }
+
+        var effectiveDateUtc = request.EffectiveDate.ToStartOfDayUtcInTimeZone(user.HomeLocation?.Timezone);
+        DateTimeOffset? expiryDateUtc = request.ExpiryDate.HasValue
+            ? request.ExpiryDate.Value.ToEndOfDayUtcInTimeZone(user.HomeLocation?.Timezone)
+            : null;
 
         var roleExists = await DB.Roles.AnyAsync(r => r.Id == request.RoleId, cancellationToken);
         if (!roleExists)
@@ -158,18 +168,18 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             {
                 UserId = id,
                 RoleId = request.RoleId,
-                EffectiveDate = request.EffectiveDate,
-                ExpiryDate = request.ExpiryDate,
-                ExpiryReason = request.ExpiryDate is null ? null : request.ExpiryReason,
+                EffectiveDate = effectiveDateUtc,
+                ExpiryDate = expiryDateUtc,
+                ExpiryReason = null,
             };
 
             DB.UserRoles.Add(assignedUserRole);
         }
         else
         {
-            userRole.EffectiveDate = request.EffectiveDate;
-            userRole.ExpiryDate = request.ExpiryDate;
-            userRole.ExpiryReason = request.ExpiryDate is null ? null : request.ExpiryReason;
+            userRole.EffectiveDate = effectiveDateUtc;
+            userRole.ExpiryDate = expiryDateUtc;
+            userRole.ExpiryReason = null;
 
             assignedUserRole = userRole;
         }
@@ -177,5 +187,34 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         await DB.SaveChangesAsync(cancellationToken);
 
         return assignedUserRole.Adapt<UserRoleResponseDto>();
+    }
+    public async Task<UserRoleResponseDto> ExpireRoleAsync(
+        Guid id,
+        ExpireUserRoleRequestDto request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var userExists = await DB.Users.AnyAsync(x => x.Id == id, cancellationToken);
+        if (!userExists)
+        {
+            throw new KeyNotFoundException($"User {id} not found.");
+        }
+
+        var userRole = await DB.UserRoles.SingleOrDefaultAsync(
+            ur => ur.UserId == id && ur.RoleId == request.RoleId,
+            cancellationToken
+        );
+
+        if (userRole is null)
+        {
+            throw new KeyNotFoundException($"Role assignment for user {id} and role {request.RoleId} not found.");
+        }
+
+        userRole.ExpiryDate = DateTimeOffset.UtcNow;
+        userRole.ExpiryReason = request.ExpiryReason;
+
+        await DB.SaveChangesAsync(cancellationToken);
+
+        return userRole.Adapt<UserRoleResponseDto>();
     }
 }

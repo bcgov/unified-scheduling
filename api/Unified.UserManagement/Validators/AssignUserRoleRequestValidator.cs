@@ -19,8 +19,14 @@ public class AssignUserRoleRequestValidator : AbstractValidator<AssignUserRoleRe
             .WithMessage(ApiValidationErrorCodes.Required);
 
         RuleFor(x => x.ExpiryDate)
-            .GreaterThan(x => x.EffectiveDate)
+            .NotEqual(default(DateTimeOffset))
             .When(x => x.ExpiryDate.HasValue)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage(ApiValidationErrorCodes.Invalid);
+
+        RuleFor(x => x)
+            .Must(x => !x.ExpiryDate.HasValue || x.ExpiryDate.Value >= x.EffectiveDate)
+            .WithName(nameof(AssignUserRoleRequestDto.ExpiryDate))
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage(ApiValidationErrorCodes.Invalid);
     }

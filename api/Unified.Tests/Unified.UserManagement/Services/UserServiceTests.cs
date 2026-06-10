@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
+using Unified.Db.Models;
 using Unified.Db.Models.UserManagement;
 using Unified.FeatureFlags;
 using Unified.UserManagement.Models;
@@ -46,6 +47,24 @@ public class UserServiceTests : IAsyncLifetime
 
     private async Task SeedTestData()
     {
+        var locations = new[]
+        {
+            new Location
+            {
+                Id = 1,
+                AgencyId = "LOC-001",
+                Name = "Vancouver Court",
+                Timezone = "America/Vancouver",
+            },
+            new Location
+            {
+                Id = 2,
+                AgencyId = "LOC-002",
+                Name = "Surrey Court",
+                Timezone = "America/Vancouver",
+            },
+        };
+
         var users = new[]
         {
             new User
@@ -106,6 +125,7 @@ public class UserServiceTests : IAsyncLifetime
             },
         };
 
+        _dbContext.Locations.AddRange(locations);
         _dbContext.Users.AddRange(users);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
@@ -433,14 +453,18 @@ public class UserServiceTests : IAsyncLifetime
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var effectiveDate = DateTimeOffset.UtcNow.AddDays(-1);
-        var expiryDate = DateTimeOffset.UtcNow.AddDays(10);
+        // Incoming payload date-only marker from frontend.
+        var requestEffectiveDate = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero);
+        var requestExpiryDate = new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero);
+        // Vancouver start-of-day 2026-01-10 => 2026-01-10T08:00:00Z
+        var expectedEffectiveDate = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero);
+        // Vancouver end-of-day 2026-01-20 => 2026-01-21T07:59:59.999Z
+        var expectedExpiryDate = new DateTimeOffset(2026, 1, 21, 7, 59, 59, 999, TimeSpan.Zero);
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 100,
-            EffectiveDate = effectiveDate,
-            ExpiryDate = expiryDate,
-            ExpiryReason = "Cover Operational Demands",
+            EffectiveDate = requestEffectiveDate,
+            ExpiryDate = requestExpiryDate,
         };
 
         // Act
@@ -451,18 +475,77 @@ public class UserServiceTests : IAsyncLifetime
         Assert.True(result.Id > 0);
         Assert.Equal(user.Id, result.UserId);
         Assert.Equal(100, result.RoleId);
-        Assert.Equal(effectiveDate, result.EffectiveDate);
-        Assert.Equal(expiryDate, result.ExpiryDate);
-        Assert.Equal("Cover Operational Demands", result.ExpiryReason);
+        Assert.Equal(expectedEffectiveDate, result.EffectiveDate);
+        Assert.Equal(expectedExpiryDate, result.ExpiryDate);
+        Assert.Null(result.ExpiryReason);
 
-        var userRole = await _dbContext.UserRoles.SingleOrDefaultAsync(
+        var userRole = await _dbContext.UserRoles.SingleAsync(
             x => x.UserId == user.Id && x.RoleId == 100,
             TestContext.Current.CancellationToken
         );
-        Assert.NotNull(userRole);
-        Assert.Equal(effectiveDate, userRole.EffectiveDate);
-        Assert.Equal(expiryDate, userRole.ExpiryDate);
-        Assert.Equal("Cover Operational Demands", userRole.ExpiryReason);
+        Assert.Equal(expectedEffectiveDate, userRole.EffectiveDate);
+        Assert.Equal(expectedExpiryDate, userRole.ExpiryDate);
+        Assert.Null(userRole.ExpiryReason);
+    }
+
+    [Fact]
+    public async Task AssignRoleAsync_Should_Update_Existing_UserRole_And_Clear_ExpiryReason()
+    {
+        // Arrange
+        await SeedTestData();
+        var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        _dbContext.Roles.Add(
+            new Role
+            {
+                Id = 101,
+                Name = "Court Lead",
+                Description = "Court Lead role",
+            }
+        );
+
+        var existingEffectiveDate = DateTimeOffset.UtcNow.AddDays(-20);
+        var existingExpiryDate = DateTimeOffset.UtcNow.AddDays(10);
+        _dbContext.UserRoles.Add(
+            new UserRole
+            {
+                UserId = user.Id,
+                RoleId = 101,
+                EffectiveDate = existingEffectiveDate,
+                ExpiryDate = existingExpiryDate,
+                ExpiryReason = UserRoleExpiryReasonCodes.PersonalDecision,
+            }
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Incoming payload date-only marker from frontend.
+        var updatedRequestEffectiveDate = new DateTimeOffset(2026, 2, 10, 0, 0, 0, TimeSpan.Zero);
+        var updatedRequestExpiryDate = new DateTimeOffset(2026, 2, 15, 0, 0, 0, TimeSpan.Zero);
+        // Vancouver start-of-day 2026-02-10 => 2026-02-10T08:00:00Z
+        var expectedUpdatedEffectiveDate = new DateTimeOffset(2026, 2, 10, 8, 0, 0, TimeSpan.Zero);
+        // Vancouver end-of-day 2026-02-15 => 2026-02-16T07:59:59.999Z
+        var expectedUpdatedExpiryDate = new DateTimeOffset(2026, 2, 16, 7, 59, 59, 999, TimeSpan.Zero);
+        var request = new AssignUserRoleRequestDto
+        {
+            RoleId = 101,
+            EffectiveDate = updatedRequestEffectiveDate,
+            ExpiryDate = updatedRequestExpiryDate,
+        };
+
+        // Act
+        var result = await _userService.AssignRoleAsync(user.Id, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(expectedUpdatedEffectiveDate, result.EffectiveDate);
+        Assert.Equal(expectedUpdatedExpiryDate, result.ExpiryDate);
+        Assert.Null(result.ExpiryReason);
+
+        var userRole = await _dbContext.UserRoles.SingleAsync(
+            x => x.UserId == user.Id && x.RoleId == 101,
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(expectedUpdatedEffectiveDate, userRole.EffectiveDate);
+        Assert.Equal(expectedUpdatedExpiryDate, userRole.ExpiryDate);
+        Assert.Null(userRole.ExpiryReason);
     }
 
     [Fact]
@@ -487,7 +570,6 @@ public class UserServiceTests : IAsyncLifetime
                 {
                     RoleId = 100,
                     EffectiveDate = DateTimeOffset.UtcNow,
-                    ExpiryDate = null,
                 },
                 TestContext.Current.CancellationToken
             )
@@ -509,7 +591,6 @@ public class UserServiceTests : IAsyncLifetime
                 {
                     RoleId = 9999,
                     EffectiveDate = DateTimeOffset.UtcNow,
-                    ExpiryDate = null,
                 },
                 TestContext.Current.CancellationToken
             )
@@ -557,6 +638,96 @@ public class UserServiceTests : IAsyncLifetime
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             _userService.GetRolesAsync(Guid.NewGuid(), TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task ExpireRoleAsync_Should_Expire_UserRole_When_Assignment_Exists()
+    {
+        // Arrange
+        await SeedTestData();
+        var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        _dbContext.Roles.Add(
+            new Role
+            {
+                Id = 201,
+                Name = "Court Lead",
+                Description = "Court Lead role",
+            }
+        );
+        _dbContext.UserRoles.Add(
+            new UserRole
+            {
+                UserId = user.Id,
+                RoleId = 201,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-5),
+                ExpiryDate = null,
+                ExpiryReason = null,
+            }
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var beforeExpire = DateTimeOffset.UtcNow;
+        var request = new ExpireUserRoleRequestDto
+        {
+            RoleId = 201,
+            ExpiryReason = UserRoleExpiryReasonCodes.EntryError,
+        };
+
+        // Act
+        var result = await _userService.ExpireRoleAsync(user.Id, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(user.Id, result.UserId);
+        Assert.Equal(201, result.RoleId);
+        Assert.NotNull(result.ExpiryDate);
+        Assert.True(result.ExpiryDate >= beforeExpire);
+        Assert.Equal(UserRoleExpiryReasonCodes.EntryError, result.ExpiryReason);
+
+        var userRole = await _dbContext.UserRoles.SingleAsync(
+            x => x.UserId == user.Id && x.RoleId == 201,
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(userRole.ExpiryDate);
+        Assert.True(userRole.ExpiryDate >= beforeExpire);
+        Assert.Equal(UserRoleExpiryReasonCodes.EntryError, userRole.ExpiryReason);
+    }
+
+    [Fact]
+    public async Task ExpireRoleAsync_Should_Throw_When_User_Does_Not_Exist()
+    {
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _userService.ExpireRoleAsync(
+                Guid.NewGuid(),
+                new ExpireUserRoleRequestDto
+                {
+                    RoleId = 100,
+                    ExpiryReason = UserRoleExpiryReasonCodes.PersonalDecision,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task ExpireRoleAsync_Should_Throw_When_Role_Assignment_Does_Not_Exist()
+    {
+        // Arrange
+        await SeedTestData();
+        var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _userService.ExpireRoleAsync(
+                user.Id,
+                new ExpireUserRoleRequestDto
+                {
+                    RoleId = 9999,
+                    ExpiryReason = UserRoleExpiryReasonCodes.PersonalDecision,
+                },
+                TestContext.Current.CancellationToken
+            )
         );
     }
 }
