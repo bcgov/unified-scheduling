@@ -282,11 +282,7 @@ public class UsersControllerTests
             new AssignUserRoleRequestValidator(),
             new ExpireUserRoleRequestValidator()
         );
-        var request = new AssignUserRoleRequestDto
-        {
-            RoleId = 5,
-            EffectiveDate = DateTimeOffset.UtcNow,
-        };
+        var request = new AssignUserRoleRequestDto { RoleId = 5, EffectiveDate = DateTimeOffset.UtcNow };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -342,11 +338,7 @@ public class UsersControllerTests
             new AssignUserRoleRequestValidator(),
             new ExpireUserRoleRequestValidator()
         );
-        var request = new ExpireUserRoleRequestDto
-        {
-            RoleId = 5,
-            ExpiryReason = UserRoleExpiryReasonCodes.EntryError,
-        };
+        var request = new ExpireUserRoleRequestDto { RoleId = 5, ExpiryReason = UserRoleExpiryReasonCodes.EntryError };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>

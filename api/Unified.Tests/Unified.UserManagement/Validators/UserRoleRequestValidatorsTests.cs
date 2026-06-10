@@ -32,11 +32,7 @@ public class UserRoleRequestValidatorsTests
     public void AssignValidator_When_RoleId_Is_Invalid_Should_Fail()
     {
         // Arrange
-        var request = new AssignUserRoleRequestDto
-        {
-            RoleId = 0,
-            EffectiveDate = DateTimeOffset.UtcNow,
-        };
+        var request = new AssignUserRoleRequestDto { RoleId = 0, EffectiveDate = DateTimeOffset.UtcNow };
 
         // Act
         var result = _assignValidator.TestValidate(request);
@@ -67,11 +63,7 @@ public class UserRoleRequestValidatorsTests
     public void ExpireValidator_When_ExpiryReason_Is_Missing_Should_Fail()
     {
         // Arrange
-        var request = new ExpireUserRoleRequestDto
-        {
-            RoleId = 10,
-            ExpiryReason = string.Empty,
-        };
+        var request = new ExpireUserRoleRequestDto { RoleId = 10, ExpiryReason = string.Empty };
 
         // Act
         var result = _expireValidator.TestValidate(request);
@@ -84,11 +76,7 @@ public class UserRoleRequestValidatorsTests
     public void ExpireValidator_When_ExpiryReason_Is_Invalid_Code_Should_Fail()
     {
         // Arrange
-        var request = new ExpireUserRoleRequestDto
-        {
-            RoleId = 10,
-            ExpiryReason = "INVALID",
-        };
+        var request = new ExpireUserRoleRequestDto { RoleId = 10, ExpiryReason = "INVALID" };
 
         // Act
         var result = _expireValidator.TestValidate(request);
