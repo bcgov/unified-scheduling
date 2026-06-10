@@ -566,11 +566,7 @@ public class UserServiceTests : IAsyncLifetime
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             _userService.AssignRoleAsync(
                 Guid.NewGuid(),
-                new AssignUserRoleRequestDto
-                {
-                    RoleId = 100,
-                    EffectiveDate = DateTimeOffset.UtcNow,
-                },
+                new AssignUserRoleRequestDto { RoleId = 100, EffectiveDate = DateTimeOffset.UtcNow },
                 TestContext.Current.CancellationToken
             )
         );
@@ -587,11 +583,7 @@ public class UserServiceTests : IAsyncLifetime
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             _userService.AssignRoleAsync(
                 user.Id,
-                new AssignUserRoleRequestDto
-                {
-                    RoleId = 9999,
-                    EffectiveDate = DateTimeOffset.UtcNow,
-                },
+                new AssignUserRoleRequestDto { RoleId = 9999, EffectiveDate = DateTimeOffset.UtcNow },
                 TestContext.Current.CancellationToken
             )
         );

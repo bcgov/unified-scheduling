@@ -1,8 +1,8 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using Unified.Common.Helpers.Extensions;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
-using Unified.Common.Helpers.Extensions;
 using Unified.FeatureFlags;
 using Unified.UserManagement.Models;
 
@@ -188,6 +188,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
         return assignedUserRole.Adapt<UserRoleResponseDto>();
     }
+
     public async Task<UserRoleResponseDto> ExpireRoleAsync(
         Guid id,
         ExpireUserRoleRequestDto request,
