@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Unified.Db.Models.Abstract;
 using Unified.Db.Models;
+using Unified.Db.Models.Abstract;
 
 namespace Unified.Db.Models.UserManagement;
 
