@@ -3,6 +3,7 @@ import { initializeRouter } from '../../router/index';
 import { createVuetify } from 'vuetify';
 import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
+import LuxonAdapter from '@date-io/luxon';
 import { getGetApiConfigMockHandler, getGetApiConfigResponseMock } from '@/api-access/generated/config/config.msw';
 import type { FeatureFlags, Permissions } from '@/api-access/generated/models';
 import { useConfigStore } from '@/stores/config';
@@ -26,6 +27,9 @@ export async function createTestApp(options: CreateTestAppOptions = {}) {
   const vuetify = createVuetify({
     components,
     directives,
+    date: {
+      adapter: LuxonAdapter,
+    },
   });
 
   // Generate default config response, then override with any specified in createTestApp options.

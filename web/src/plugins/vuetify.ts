@@ -1,6 +1,7 @@
 import { createVuetify, type ThemeDefinition } from 'vuetify';
 import { aliases, mdi } from 'vuetify/iconsets/mdi-svg';
 import 'vuetify/styles';
+import LuxonAdapter from '@date-io/luxon';
 
 const uaLightTheme: ThemeDefinition = {
   dark: false,
@@ -37,6 +38,9 @@ export default createVuetify({
     sets: {
       mdi,
     },
+  },
+  date: {
+    adapter: LuxonAdapter,
   },
   defaults: {
     global: {
