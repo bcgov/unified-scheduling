@@ -13,6 +13,8 @@ public static class CoreModule
     {
         services.AddScoped<ILookupService, LookupService>();
         services.AddScoped<ILookupStrategy, PositionTypeLookupStrategy>();
+        services.AddScoped<ILookupStrategy, EventTypeLookupStrategy>();
+        services.AddScoped<ILookupStrategy, EventStatusTypeLookupStrategy>();
         services.AddScoped<PositionTypeSeeder>();
 
         return services;

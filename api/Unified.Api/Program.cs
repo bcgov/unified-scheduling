@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Unified.Api.Services;
 using Unified.Authorization;
+using Unified.Calendar;
 using Unified.Core;
 using Unified.Db;
 using Unified.FeatureFlags;
@@ -34,7 +35,8 @@ var featureFlagsOptions =
             options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
         });
 
-    builder.Services.AddControllers();
+    var mvcBuilder = builder.Services.AddControllers();
+    mvcBuilder.AddCalendarApplicationPart(featureFlagsOptions.CalendarModule);
 
     // Modules
     builder
@@ -48,8 +50,9 @@ var featureFlagsOptions =
 
     builder.Services.AddUnifiedOpenApi();
 
-    // CORS — mirrors the Probate pattern; origins are comma-separated in config
+    // CORS mirrors the Probate pattern; origins are comma-separated in config
     var corsOptions = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>();
+    var allowedOrigins = corsOptions?.AllowedOrigins?.Split(',') ?? [];
 
     builder.Services.AddCors(options =>
     {
@@ -57,12 +60,17 @@ var featureFlagsOptions =
             "UnifiedCorsPolicy",
             policy =>
                 policy
-                    .WithOrigins(corsOptions.AllowedOrigins.Split(','))
+                    .WithOrigins(allowedOrigins)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials()
         );
     });
+
+    if (featureFlagsOptions.CalendarModule)
+    {
+        builder.Services.AddCalendarModule(builder.Configuration);
+    }
 
     // Authentication & Authorization
     builder.Services.AddAuthorizationModule();

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Unified.Db.Models.Calendar;
 using Unified.Db.Models;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Stats;
@@ -20,7 +21,11 @@ public class UnifiedDbContext : DbContext
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
+    public DbSet<EventStatusType> EventStatusTypes { get; set; }
+    public DbSet<EventType> EventTypes { get; set; }
     public DbSet<PositionType> PositionTypes { get; set; }
+    public DbSet<EventSeries> EventSeries { get; set; }
+    public DbSet<Event> Events { get; set; }
 
     // Stats
     public DbSet<StatGroup> StatGroups { get; set; }

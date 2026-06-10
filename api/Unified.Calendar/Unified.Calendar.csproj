@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Mapster" Version="10.0.4" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\db\db.csproj" />
+        <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
+        <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="SeedData\bc-holidays.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+</Project>

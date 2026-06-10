@@ -25,6 +25,12 @@
   },
   "dependencies": {
     "@bcgov/design-tokens": "^4.0.0",
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/list": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
+    "@fullcalendar/vue3": "^6.1.20",
     "@vueuse/core": "^14.2.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.33",
