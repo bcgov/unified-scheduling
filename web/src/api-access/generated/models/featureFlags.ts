@@ -6,6 +6,7 @@
  */
 
 export interface FeatureFlags {
+  calendarModule: boolean;
   schedulingModule: boolean;
   statsModule: boolean;
   trainingModule: boolean;
