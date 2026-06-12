@@ -527,7 +527,16 @@ public class UserServiceTests : IAsyncLifetime
         var expectedStoredUpdatedExpiryDateUtc = new DateTimeOffset(2026, 2, 16, 7, 59, 59, 999, TimeSpan.Zero);
         // API response should be converted back to user's home-location timezone.
         var expectedResponseUpdatedEffectiveDate = new DateTimeOffset(2026, 2, 10, 0, 0, 0, TimeSpan.FromHours(-8));
-        var expectedResponseUpdatedExpiryDate = new DateTimeOffset(2026, 2, 15, 23, 59, 59, 999, TimeSpan.FromHours(-8));
+        var expectedResponseUpdatedExpiryDate = new DateTimeOffset(
+            2026,
+            2,
+            15,
+            23,
+            59,
+            59,
+            999,
+            TimeSpan.FromHours(-8)
+        );
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 101,
@@ -666,11 +675,7 @@ public class UserServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var beforeExpire = DateTimeOffset.UtcNow;
-        var request = new ExpireUserRoleRequestDto
-        {
-            RoleId = 201,
-            ExpiryReason = "ENTRYERR",
-        };
+        var request = new ExpireUserRoleRequestDto { RoleId = 201, ExpiryReason = "ENTRYERR" };
 
         // Act
         var result = await _userService.ExpireRoleAsync(user.Id, request, TestContext.Current.CancellationToken);
@@ -698,11 +703,7 @@ public class UserServiceTests : IAsyncLifetime
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             _userService.ExpireRoleAsync(
                 Guid.NewGuid(),
-                new ExpireUserRoleRequestDto
-                {
-                    RoleId = 100,
-                    ExpiryReason = "PERSONAL",
-                },
+                new ExpireUserRoleRequestDto { RoleId = 100, ExpiryReason = "PERSONAL" },
                 TestContext.Current.CancellationToken
             )
         );
@@ -719,11 +720,7 @@ public class UserServiceTests : IAsyncLifetime
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             _userService.ExpireRoleAsync(
                 user.Id,
-                new ExpireUserRoleRequestDto
-                {
-                    RoleId = 9999,
-                    ExpiryReason = "PERSONAL",
-                },
+                new ExpireUserRoleRequestDto { RoleId = 9999, ExpiryReason = "PERSONAL" },
                 TestContext.Current.CancellationToken
             )
         );
