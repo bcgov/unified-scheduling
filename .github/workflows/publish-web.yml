@@ -10,18 +10,16 @@ on:
       - "docker/nginx-runtime/**"
       - "docker/vue-on-nginx/**"
       - ".github/workflows/publish-web.yml"
+      - ".github/actions/update-argo-kustomize/**"
 
   workflow_dispatch:
 
 env:
   WEB_IMAGE_NAME: web
-  WEB_RUNTIME_IMAGE_NAME: web-runtime
-  WEB_ARTIFACTS_IMAGE_NAME: web-artifacts
   GITHUB_IMAGE_REPO: ghcr.io/bcgov/unified-scheduling
   WEB_BASE_HREF: /unified-scheduling/
 
 permissions:
-  id-token: write
   packages: write
 
 jobs:
@@ -80,64 +78,27 @@ jobs:
             WEB_SRC=./web
 
   update-gitops-dev:
-    name: Update GitOps Dev
+    name: Update GitOps Dev (${{ matrix.license_plate }})
     needs: build
     runs-on: ubuntu-latest
+    environment: ${{ matrix.license_plate }}
+    strategy:
+      fail-fast: false
+      matrix:
+        license_plate: ${{ fromJson(vars.GITOPS_LICENSE_PLATES) }}
     permissions:
       contents: read
 
     steps:
-      - name: Checkout GitOps repository
+      - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+
+      - name: Update Argo CD Kustomize
+        uses: ./.github/actions/update-argo-kustomize
         with:
-          repository: bcgov-c/tenant-gitops-a94b15
-          ref: develop
-          token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
-          path: gitops
-
-      - name: Update Web image tag
-        working-directory: gitops/services/unified-scheduling
-        run: |
-          TAG="${{ needs.build.outputs.short_sha }}"
-
-          # Update kustomization.yaml with new Web image tag
-          sed -i "/name: unified-scheduling-web/,/newTag:/ s|newTag:.*|newTag: ${TAG}|" kustomization.yaml
-
-          echo "Updated Web image tag to: ${TAG}"
-          cat kustomization.yaml
-
-      - name: Commit and push changes
-        working-directory: gitops
-        run: |
-          git config user.name "GitHub Actions Bot"
-          git config user.email "actions@github.com"
-
-          git add services/unified-scheduling/kustomization.yaml
-
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "🚀 Deploy unified-scheduling Web to dev - SHA: ${{ needs.build.outputs.short_sha }}"
-            
-            # Pull with rebase and retry push logic
-            max_retries=3
-            retry_count=0
-            
-            while [ $retry_count -lt $max_retries ]; do
-              git pull --rebase origin develop
-              
-              if git push origin develop; then
-                echo "GitOps repository updated successfully!"
-                break
-              else
-                retry_count=$((retry_count + 1))
-                echo "Push failed, retry $retry_count/$max_retries"
-                sleep 2
-              fi
-              
-              if [ $retry_count -eq $max_retries ]; then
-                echo "Failed to push after $max_retries attempts"
-                exit 1
-              fi
-            done
-          fi
+          licence_plate: ${{ matrix.license_plate }}
+          gitops_branch: develop
+          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          image_name: unified-scheduling-web
+          new_image: ${{ env.GITHUB_IMAGE_REPO }}/${{ env.WEB_IMAGE_NAME }}:${{ needs.build.outputs.short_sha }}
+          kustomize_path: services/unified-scheduling/overlays/dev

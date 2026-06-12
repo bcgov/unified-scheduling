@@ -11,6 +11,11 @@ on:
     paths:
       - "api/**"
       - "db/**"
+      - "unified.slnx"
+      - "global.json"
+      - ".config/dotnet-tools.json"
+      - ".github/workflows/build-and-test-api.yml"
+      - ".github/actions/build-api/**"
 
   workflow_dispatch:
 
@@ -23,7 +28,9 @@ jobs:
     name: Build and Test API
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: read
+      pull-requests: read
 
     steps:
       - name: Checkout repository
@@ -37,6 +44,11 @@ jobs:
             api:
               - 'api/**'
               - 'db/**'
+              - 'unified.slnx'
+              - 'global.json'
+              - '.config/dotnet-tools.json'
+              - '.github/workflows/build-and-test-api.yml'
+              - '.github/actions/build-api/**'
 
       - name: Get changed files
         if: steps.filter.outputs.api == 'true'
@@ -76,11 +88,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Install CSharpier
+      - name: Restore dotnet tools
         if: steps.filter.outputs.api == 'true'
-        run: |
-          dotnet new tool-manifest --force
-          dotnet tool install csharpier
+        run: dotnet tool restore
 
       - name: Check CSharpier Formatting
         if: steps.filter.outputs.api == 'true' && steps.find-csproj.outputs.csproj_files != ''
@@ -109,10 +119,15 @@ jobs:
 
       - name: Build API codebase
         if: steps.filter.outputs.api == 'true'
-        uses: ./.github/workflows/actions/build-api
+        uses: ./.github/actions/build-api
         with:
           working_directory: ${{ env.WORKING_DIRECTORY }}
           dotnet_version: 10.0
+
+      - name: Run tests
+        if: steps.filter.outputs.api == 'true'
+        run: dotnet test --no-build --configuration Release
+        working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Summary
         run: |

@@ -1,0 +1,270 @@
+name: Update Argo CD Kustomize gitops repo
+description: Update the gitops tenant repository image using Kustomize CLI
+
+outputs:
+  has_changes:
+    description: Whether the kustomization update produced a commit
+    value: ${{ steps.apply.outputs.has_changes }}
+  pull_request_url:
+    description: Pull request URL when create_pull_request is true
+    value: ${{ steps.create_pr.outputs.pull_request_url }}
+
+inputs:
+  licence_plate:
+    description: The OpenShift licence plate
+    required: true
+  gitops_branch:
+    description: The branch to update standard branches for tenant-gitops (develop, test, main)
+    required: true
+  gitops_gh_token:
+    description: The token to use to access the gitops repository
+    required: true
+  image_name:
+    description: The current image name to update in kustomization.yaml
+    required: true
+  new_image:
+    description: The new full image reference (e.g., ghcr.io/org/repo:tag)
+    required: true
+  image_name_2:
+    description: Optional second current image name to update in kustomization.yaml
+    required: false
+    default: ''
+  new_image_2:
+    description: Optional second new full image reference
+    required: false
+    default: ''
+  kustomize_path:
+    description: Path to the directory containing kustomization.yaml
+    required: true
+  create_pull_request:
+    description: Create a pull request instead of pushing directly to gitops_branch
+    required: false
+    default: 'false'
+  pull_request_branch:
+    description: Branch to push when create_pull_request is true
+    required: false
+    default: ''
+  pull_request_base:
+    description: Base branch for the pull request; defaults to gitops_branch
+    required: false
+    default: ''
+  pull_request_title:
+    description: Pull request title when create_pull_request is true
+    required: false
+    default: ''
+  pull_request_body:
+    description: Pull request body when create_pull_request is true
+    required: false
+    default: ''
+
+runs:
+  using: composite
+
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        CREATE_PULL_REQUEST: ${{ inputs.create_pull_request }}
+        GITOPS_BRANCH: ${{ inputs.gitops_branch }}
+        IMAGE_NAME_2: ${{ inputs.image_name_2 }}
+        NEW_IMAGE_2: ${{ inputs.new_image_2 }}
+        PULL_REQUEST_BRANCH: ${{ inputs.pull_request_branch }}
+        PULL_REQUEST_BASE: ${{ inputs.pull_request_base }}
+      run: |
+        set -euo pipefail
+
+        if [ "$CREATE_PULL_REQUEST" != "true" ] && [ "$CREATE_PULL_REQUEST" != "false" ]; then
+          echo "create_pull_request must be either 'true' or 'false'."
+          exit 1
+        fi
+        if [ -n "$IMAGE_NAME_2" ] && [ -z "$NEW_IMAGE_2" ]; then
+          echo "new_image_2 is required when image_name_2 is provided."
+          exit 1
+        fi
+        if [ -z "$IMAGE_NAME_2" ] && [ -n "$NEW_IMAGE_2" ]; then
+          echo "image_name_2 is required when new_image_2 is provided."
+          exit 1
+        fi
+        if [ "$CREATE_PULL_REQUEST" = "true" ] && [ -z "$PULL_REQUEST_BRANCH" ]; then
+          echo "pull_request_branch is required when create_pull_request is true."
+          exit 1
+        fi
+        if [ "$CREATE_PULL_REQUEST" = "true" ] && [ "$PULL_REQUEST_BRANCH" = "${PULL_REQUEST_BASE:-$GITOPS_BRANCH}" ]; then
+          echo "pull_request_branch must be different from the pull request base branch."
+          exit 1
+        fi
+
+    - name: Checkout gitops repo
+      id: gitops
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      with:
+        repository: bcgov-c/tenant-gitops-${{ inputs.licence_plate }}
+        ref: ${{ inputs.gitops_branch }}
+        token: ${{ inputs.gitops_gh_token }}
+        path: gitops
+
+    - name: Create kustomize helper
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        cat > "$RUNNER_TEMP/update-kustomize-images.sh" <<'SCRIPT'
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        image_updates=("$IMAGE_NAME=$NEW_IMAGE")
+        [ -n "${IMAGE_NAME_2:-}" ] && image_updates+=("$IMAGE_NAME_2=$NEW_IMAGE_2")
+
+        docker run --rm \
+          -v "$GITHUB_WORKSPACE/gitops/$KUSTOMIZE_PATH:/workspace" \
+          -w /workspace \
+          registry.k8s.io/kustomize/kustomize:v5.6.0@sha256:b5f56e6becd1ba93a1a775a149763e3841a177beb10191624100bed81b44d297 \
+          edit set image "${image_updates[@]}"
+        SCRIPT
+
+        chmod +x "$RUNNER_TEMP/update-kustomize-images.sh"
+
+    - name: Apply kustomize and commit
+      id: apply
+      if: steps.gitops.outcome == 'success'
+      shell: bash
+      env:
+        IMAGE_NAME: ${{ inputs.image_name }}
+        NEW_IMAGE: ${{ inputs.new_image }}
+        IMAGE_NAME_2: ${{ inputs.image_name_2 }}
+        NEW_IMAGE_2: ${{ inputs.new_image_2 }}
+        KUSTOMIZE_PATH: ${{ inputs.kustomize_path }}
+      run: |
+        set -euo pipefail
+
+        "$RUNNER_TEMP/update-kustomize-images.sh"
+
+        cd gitops
+        git config user.email "actions@github.com"
+        git config user.name "GitHub Actions"
+        git add -- "$KUSTOMIZE_PATH/kustomization.yaml"
+
+        if git diff --cached --quiet; then
+          echo "No changes to commit."
+          echo "has_changes=false" >> "$GITHUB_OUTPUT"
+        else
+          DATETIME=$(date +'%Y-%m-%d %H:%M:%S')
+          COMMIT_SUBJECT="Update image $IMAGE_NAME to $NEW_IMAGE"
+          [ -n "$IMAGE_NAME_2" ] && COMMIT_SUBJECT="Update images in $KUSTOMIZE_PATH"
+          git commit -m "${COMMIT_SUBJECT}" -m "Updated on $DATETIME"
+          {
+            echo "has_changes=true"
+            printf 'commit_subject=%s\n' "$COMMIT_SUBJECT"
+          } >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Push directly to branch
+      if: inputs.create_pull_request != 'true' && steps.apply.outputs.has_changes == 'true'
+      shell: bash
+      env:
+        GITOPS_BRANCH: ${{ inputs.gitops_branch }}
+        IMAGE_NAME: ${{ inputs.image_name }}
+        NEW_IMAGE: ${{ inputs.new_image }}
+        IMAGE_NAME_2: ${{ inputs.image_name_2 }}
+        NEW_IMAGE_2: ${{ inputs.new_image_2 }}
+        KUSTOMIZE_PATH: ${{ inputs.kustomize_path }}
+        COMMIT_SUBJECT: ${{ steps.apply.outputs.commit_subject }}
+      run: |
+        set -euo pipefail
+        cd gitops
+
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        attempt=1
+        while [ "$attempt" -le "$MAX_RETRIES" ]; do
+          echo "Attempt $attempt of $MAX_RETRIES to update ${GITOPS_BRANCH}..."
+
+          git fetch origin "$GITOPS_BRANCH"
+          git reset --hard "origin/${GITOPS_BRANCH}"
+
+          "$RUNNER_TEMP/update-kustomize-images.sh"
+          git add -- "$KUSTOMIZE_PATH/kustomization.yaml"
+
+          if git diff --cached --quiet; then
+            echo "Image already up to date; no push needed."
+            break
+          fi
+
+          git commit -m "${COMMIT_SUBJECT}" -m "Updated on $(date +'%Y-%m-%d %H:%M:%S')"
+
+          if git push origin "$GITOPS_BRANCH"; then
+            echo "Push succeeded."
+            break
+          fi
+
+          if [ "$attempt" -ge "$MAX_RETRIES" ]; then
+            echo "Push failed after ${MAX_RETRIES} attempts."
+            exit 1
+          fi
+
+          echo "Push failed (attempt $attempt); retrying from latest remote state."
+          sleep "$RETRY_DELAY"
+          attempt=$((attempt + 1))
+        done
+
+    - name: Push pull request branch
+      if: inputs.create_pull_request == 'true' && steps.apply.outputs.has_changes == 'true'
+      shell: bash
+      env:
+        PULL_REQUEST_BRANCH: ${{ inputs.pull_request_branch }}
+      run: |
+        set -euo pipefail
+        cd gitops
+
+        git checkout -B "$PULL_REQUEST_BRANCH"
+        if git ls-remote --exit-code --heads origin "$PULL_REQUEST_BRANCH" >/dev/null; then
+          git fetch origin "refs/heads/${PULL_REQUEST_BRANCH}:refs/remotes/origin/${PULL_REQUEST_BRANCH}"
+          git push --force-with-lease="refs/heads/${PULL_REQUEST_BRANCH}" origin "HEAD:refs/heads/${PULL_REQUEST_BRANCH}"
+        else
+          git push origin "HEAD:refs/heads/${PULL_REQUEST_BRANCH}"
+        fi
+
+    - name: Create or update pull request
+      id: create_pr
+      if: inputs.create_pull_request == 'true' && steps.apply.outputs.has_changes == 'true'
+      shell: bash
+      env:
+        GITOPS_GH_TOKEN: ${{ inputs.gitops_gh_token }}
+        GITOPS_BRANCH: ${{ inputs.gitops_branch }}
+        LICENCE_PLATE: ${{ inputs.licence_plate }}
+        PULL_REQUEST_BRANCH: ${{ inputs.pull_request_branch }}
+        PULL_REQUEST_BASE: ${{ inputs.pull_request_base }}
+        PULL_REQUEST_TITLE: ${{ inputs.pull_request_title }}
+        PULL_REQUEST_BODY: ${{ inputs.pull_request_body }}
+        COMMIT_SUBJECT: ${{ steps.apply.outputs.commit_subject }}
+      run: |
+        set -euo pipefail
+
+        BASE_BRANCH="${PULL_REQUEST_BASE:-$GITOPS_BRANCH}"
+        PR_TITLE="${PULL_REQUEST_TITLE:-$COMMIT_SUBJECT}"
+        PR_BODY="${PULL_REQUEST_BODY:-Automated GitOps promotion from GitHub Actions.}"
+        REPO="bcgov-c/tenant-gitops-${LICENCE_PLATE}"
+
+        export GH_TOKEN="$GITOPS_GH_TOKEN"
+        EXISTING_PR_URL=$(gh pr list \
+          --repo "$REPO" \
+          --head "$PULL_REQUEST_BRANCH" \
+          --base "$BASE_BRANCH" \
+          --state open \
+          --json url \
+          --jq '.[0].url // empty')
+
+        if [ -n "$EXISTING_PR_URL" ]; then
+          echo "Pull request already exists: $EXISTING_PR_URL"
+          printf 'pull_request_url=%s\n' "$EXISTING_PR_URL" >> "$GITHUB_OUTPUT"
+        else
+          PR_URL=$(gh pr create \
+            --repo "$REPO" \
+            --head "$PULL_REQUEST_BRANCH" \
+            --base "$BASE_BRANCH" \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY")
+          echo "Pull request created: $PR_URL"
+          printf 'pull_request_url=%s\n' "$PR_URL" >> "$GITHUB_OUTPUT"
+        fi
