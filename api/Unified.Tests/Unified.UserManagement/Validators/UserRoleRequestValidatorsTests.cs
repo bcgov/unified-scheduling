@@ -13,12 +13,11 @@ public class UserRoleRequestValidatorsTests
     public void AssignValidator_When_Request_Is_Valid_Should_Pass()
     {
         // Arrange
-        // Vancouver effective date 2026-01-10 start-of-day and expiry 2026-01-20 end-of-day, converted to UTC.
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 10,
-            EffectiveDate = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero),
-            ExpiryDate = new DateTimeOffset(2026, 1, 21, 7, 59, 59, 999, TimeSpan.Zero),
+            EffectiveDate = "2026-01-10",
+            ExpiryDate = "2026-01-20",
         };
 
         // Act
@@ -32,7 +31,7 @@ public class UserRoleRequestValidatorsTests
     public void AssignValidator_When_RoleId_Is_Invalid_Should_Fail()
     {
         // Arrange
-        var request = new AssignUserRoleRequestDto { RoleId = 0, EffectiveDate = DateTimeOffset.UtcNow };
+        var request = new AssignUserRoleRequestDto { RoleId = 0, EffectiveDate = "2026-01-10" };
 
         // Act
         var result = _assignValidator.TestValidate(request);
@@ -48,8 +47,8 @@ public class UserRoleRequestValidatorsTests
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 10,
-            EffectiveDate = DateTimeOffset.UtcNow,
-            ExpiryDate = DateTimeOffset.UtcNow.AddDays(-1),
+            EffectiveDate = "2026-01-10",
+            ExpiryDate = "2026-01-09",
         };
 
         // Act

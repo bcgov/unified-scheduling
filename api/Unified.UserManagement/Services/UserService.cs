@@ -113,19 +113,36 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         CancellationToken cancellationToken = default
     )
     {
-        var userExists = await DB.Users.AnyAsync(x => x.Id == id, cancellationToken);
-        if (!userExists)
+        var user = await DB
+            .Users.AsNoTracking()
+            .Include(x => x.HomeLocation)
+            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (user is null)
         {
             throw new KeyNotFoundException($"User {id} not found.");
         }
 
-        return await DB
+        var timezoneId = user.HomeLocation?.Timezone;
+
+        var userRoles = await DB
             .UserRoles.AsNoTracking()
             .Where(x => x.UserId == id)
             .OrderByDescending(x => x.EffectiveDate)
             .ThenBy(x => x.RoleId)
-            .ProjectToType<UserRoleResponseDto>()
             .ToListAsync(cancellationToken);
+
+        return userRoles
+            .Select(x => new UserRoleResponseDto
+            {
+                Id = x.Id,
+                UserId = x.UserId,
+                RoleId = x.RoleId,
+                EffectiveDate = x.EffectiveDate.ToTimeZone(timezoneId),
+                ExpiryDate = x.ExpiryDate?.ToTimeZone(timezoneId),
+                ExpiryReason = x.ExpiryReason,
+            })
+            .ToList();
     }
 
     public async Task<UserRoleResponseDto> AssignRoleAsync(
@@ -144,9 +161,12 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             throw new KeyNotFoundException($"User {id} not found.");
         }
 
-        var effectiveDateUtc = request.EffectiveDate.ToStartOfDayUtcInTimeZone(user.HomeLocation?.Timezone);
-        DateTimeOffset? expiryDateUtc = request.ExpiryDate.HasValue
-            ? request.ExpiryDate.Value.ToEndOfDayUtcInTimeZone(user.HomeLocation?.Timezone)
+        var effectiveDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
+            request.EffectiveDate,
+            user.HomeLocation?.Timezone
+        );
+        DateTimeOffset? expiryDateUtc = !string.IsNullOrEmpty(request.ExpiryDate)
+            ? DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(request.ExpiryDate, user.HomeLocation?.Timezone)
             : null;
 
         var roleExists = await DB.Roles.AnyAsync(r => r.Id == request.RoleId, cancellationToken);
@@ -186,7 +206,17 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
         await DB.SaveChangesAsync(cancellationToken);
 
-        return assignedUserRole.Adapt<UserRoleResponseDto>();
+        var timezoneId = user.HomeLocation?.Timezone;
+
+        return new UserRoleResponseDto
+        {
+            Id = assignedUserRole.Id,
+            UserId = assignedUserRole.UserId,
+            RoleId = assignedUserRole.RoleId,
+            EffectiveDate = assignedUserRole.EffectiveDate.ToTimeZone(timezoneId),
+            ExpiryDate = assignedUserRole.ExpiryDate?.ToTimeZone(timezoneId),
+            ExpiryReason = assignedUserRole.ExpiryReason,
+        };
     }
 
     public async Task<UserRoleResponseDto> ExpireRoleAsync(

@@ -453,13 +453,15 @@ public class UserServiceTests : IAsyncLifetime
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        // Incoming payload date-only marker from frontend.
-        var requestEffectiveDate = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.Zero);
-        var requestExpiryDate = new DateTimeOffset(2026, 1, 20, 0, 0, 0, TimeSpan.Zero);
-        // Vancouver start-of-day 2026-01-10 => 2026-01-10T08:00:00Z
-        var expectedEffectiveDate = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero);
-        // Vancouver end-of-day 2026-01-20 => 2026-01-21T07:59:59.999Z
-        var expectedExpiryDate = new DateTimeOffset(2026, 1, 21, 7, 59, 59, 999, TimeSpan.Zero);
+        // Frontend sends date strings only (yyyy-MM-dd format).
+        var requestEffectiveDate = "2026-01-10";
+        var requestExpiryDate = "2026-01-20";
+        // DB stores UTC instants.
+        var expectedStoredEffectiveDateUtc = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero);
+        var expectedStoredExpiryDateUtc = new DateTimeOffset(2026, 1, 21, 7, 59, 59, 999, TimeSpan.Zero);
+        // API response should be converted back to user's home-location timezone.
+        var expectedResponseEffectiveDate = new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.FromHours(-8));
+        var expectedResponseExpiryDate = new DateTimeOffset(2026, 1, 20, 23, 59, 59, 999, TimeSpan.FromHours(-8));
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 100,
@@ -475,16 +477,16 @@ public class UserServiceTests : IAsyncLifetime
         Assert.True(result.Id > 0);
         Assert.Equal(user.Id, result.UserId);
         Assert.Equal(100, result.RoleId);
-        Assert.Equal(expectedEffectiveDate, result.EffectiveDate);
-        Assert.Equal(expectedExpiryDate, result.ExpiryDate);
+        Assert.Equal(expectedResponseEffectiveDate, result.EffectiveDate);
+        Assert.Equal(expectedResponseExpiryDate, result.ExpiryDate);
         Assert.Null(result.ExpiryReason);
 
         var userRole = await _dbContext.UserRoles.SingleAsync(
             x => x.UserId == user.Id && x.RoleId == 100,
             TestContext.Current.CancellationToken
         );
-        Assert.Equal(expectedEffectiveDate, userRole.EffectiveDate);
-        Assert.Equal(expectedExpiryDate, userRole.ExpiryDate);
+        Assert.Equal(expectedStoredEffectiveDateUtc, userRole.EffectiveDate);
+        Assert.Equal(expectedStoredExpiryDateUtc, userRole.ExpiryDate);
         Assert.Null(userRole.ExpiryReason);
     }
 
@@ -517,13 +519,15 @@ public class UserServiceTests : IAsyncLifetime
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        // Incoming payload date-only marker from frontend.
-        var updatedRequestEffectiveDate = new DateTimeOffset(2026, 2, 10, 0, 0, 0, TimeSpan.Zero);
-        var updatedRequestExpiryDate = new DateTimeOffset(2026, 2, 15, 0, 0, 0, TimeSpan.Zero);
-        // Vancouver start-of-day 2026-02-10 => 2026-02-10T08:00:00Z
-        var expectedUpdatedEffectiveDate = new DateTimeOffset(2026, 2, 10, 8, 0, 0, TimeSpan.Zero);
-        // Vancouver end-of-day 2026-02-15 => 2026-02-16T07:59:59.999Z
-        var expectedUpdatedExpiryDate = new DateTimeOffset(2026, 2, 16, 7, 59, 59, 999, TimeSpan.Zero);
+        // Frontend sends date strings only (yyyy-MM-dd format).
+        var updatedRequestEffectiveDate = "2026-02-10";
+        var updatedRequestExpiryDate = "2026-02-15";
+        // DB stores UTC instants.
+        var expectedStoredUpdatedEffectiveDateUtc = new DateTimeOffset(2026, 2, 10, 8, 0, 0, TimeSpan.Zero);
+        var expectedStoredUpdatedExpiryDateUtc = new DateTimeOffset(2026, 2, 16, 7, 59, 59, 999, TimeSpan.Zero);
+        // API response should be converted back to user's home-location timezone.
+        var expectedResponseUpdatedEffectiveDate = new DateTimeOffset(2026, 2, 10, 0, 0, 0, TimeSpan.FromHours(-8));
+        var expectedResponseUpdatedExpiryDate = new DateTimeOffset(2026, 2, 15, 23, 59, 59, 999, TimeSpan.FromHours(-8));
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 101,
@@ -535,16 +539,16 @@ public class UserServiceTests : IAsyncLifetime
         var result = await _userService.AssignRoleAsync(user.Id, request, TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(expectedUpdatedEffectiveDate, result.EffectiveDate);
-        Assert.Equal(expectedUpdatedExpiryDate, result.ExpiryDate);
+        Assert.Equal(expectedResponseUpdatedEffectiveDate, result.EffectiveDate);
+        Assert.Equal(expectedResponseUpdatedExpiryDate, result.ExpiryDate);
         Assert.Null(result.ExpiryReason);
 
         var userRole = await _dbContext.UserRoles.SingleAsync(
             x => x.UserId == user.Id && x.RoleId == 101,
             TestContext.Current.CancellationToken
         );
-        Assert.Equal(expectedUpdatedEffectiveDate, userRole.EffectiveDate);
-        Assert.Equal(expectedUpdatedExpiryDate, userRole.ExpiryDate);
+        Assert.Equal(expectedStoredUpdatedEffectiveDateUtc, userRole.EffectiveDate);
+        Assert.Equal(expectedStoredUpdatedExpiryDateUtc, userRole.ExpiryDate);
         Assert.Null(userRole.ExpiryReason);
     }
 
@@ -566,7 +570,7 @@ public class UserServiceTests : IAsyncLifetime
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             _userService.AssignRoleAsync(
                 Guid.NewGuid(),
-                new AssignUserRoleRequestDto { RoleId = 100, EffectiveDate = DateTimeOffset.UtcNow },
+                new AssignUserRoleRequestDto { RoleId = 100, EffectiveDate = "2026-01-10" },
                 TestContext.Current.CancellationToken
             )
         );
@@ -583,7 +587,7 @@ public class UserServiceTests : IAsyncLifetime
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             _userService.AssignRoleAsync(
                 user.Id,
-                new AssignUserRoleRequestDto { RoleId = 9999, EffectiveDate = DateTimeOffset.UtcNow },
+                new AssignUserRoleRequestDto { RoleId = 9999, EffectiveDate = "2026-01-10" },
                 TestContext.Current.CancellationToken
             )
         );
@@ -608,8 +612,8 @@ public class UserServiceTests : IAsyncLifetime
             {
                 UserId = user.Id,
                 RoleId = 200,
-                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-5),
-                ExpiryDate = DateTimeOffset.UtcNow.AddDays(20),
+                EffectiveDate = new DateTimeOffset(2026, 1, 10, 8, 0, 0, TimeSpan.Zero),
+                ExpiryDate = new DateTimeOffset(2026, 1, 21, 7, 59, 59, 999, TimeSpan.Zero),
             }
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -622,6 +626,8 @@ public class UserServiceTests : IAsyncLifetime
         var role = result.Single();
         Assert.Equal(user.Id, role.UserId);
         Assert.Equal(200, role.RoleId);
+        Assert.Equal(new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.FromHours(-8)), role.EffectiveDate);
+        Assert.Equal(new DateTimeOffset(2026, 1, 20, 23, 59, 59, 999, TimeSpan.FromHours(-8)), role.ExpiryDate);
     }
 
     [Fact]

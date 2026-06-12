@@ -255,8 +255,8 @@ public class UsersControllerTests
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 5,
-            EffectiveDate = DateTimeOffset.UtcNow,
-            ExpiryDate = DateTimeOffset.UtcNow.AddDays(30),
+            EffectiveDate = "2026-01-10",
+            ExpiryDate = "2026-02-10",
         };
 
         // Act
@@ -282,7 +282,7 @@ public class UsersControllerTests
             new AssignUserRoleRequestValidator(),
             new ExpireUserRoleRequestValidator()
         );
-        var request = new AssignUserRoleRequestDto { RoleId = 5, EffectiveDate = DateTimeOffset.UtcNow };
+        var request = new AssignUserRoleRequestDto { RoleId = 5, EffectiveDate = "2026-01-10" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
