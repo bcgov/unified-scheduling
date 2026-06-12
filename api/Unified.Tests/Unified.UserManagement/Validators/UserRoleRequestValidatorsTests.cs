@@ -71,16 +71,11 @@ public class UserRoleRequestValidatorsTests
         result.ShouldHaveValidationErrorFor(x => x.ExpiryReason);
     }
 
-
     [Fact]
     public void ExpireValidator_When_Request_Is_Valid_Should_Pass()
     {
         // Arrange
-        var request = new ExpireUserRoleRequestDto
-        {
-            RoleId = 10,
-            ExpiryReason = "OPERDEMAND",
-        };
+        var request = new ExpireUserRoleRequestDto { RoleId = 10, ExpiryReason = "OPERDEMAND" };
 
         // Act
         var result = _expireValidator.TestValidate(request);

@@ -166,7 +166,10 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             user.HomeLocation?.Timezone
         );
         DateTimeOffset? expiryDateUtc = !string.IsNullOrEmpty(request.ExpiryDate)
-            ? DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(request.ExpiryDate, user.HomeLocation?.Timezone)
+            ? DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(
+                request.ExpiryDate,
+                user.HomeLocation?.Timezone
+            )
             : null;
 
         var roleExists = await DB.Roles.AnyAsync(r => r.Id == request.RoleId, cancellationToken);

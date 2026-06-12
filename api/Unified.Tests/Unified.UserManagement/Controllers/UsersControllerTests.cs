@@ -311,11 +311,7 @@ public class UsersControllerTests
             new AssignUserRoleRequestValidator(),
             new ExpireUserRoleRequestValidator()
         );
-        var request = new ExpireUserRoleRequestDto
-        {
-            RoleId = 5,
-            ExpiryReason = "PERSONAL",
-        };
+        var request = new ExpireUserRoleRequestDto { RoleId = 5, ExpiryReason = "PERSONAL" };
 
         // Act
         var result = await controller.ExpireRole(userId, request, TestContext.Current.CancellationToken);

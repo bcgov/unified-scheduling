@@ -19,7 +19,15 @@ public static class DateTimeOffsetExtensions
     /// </summary>
     public static DateTimeOffset FromDateStringToStartOfDayInTimeZone(string dateString, string? timezoneId)
     {
-        if (!DateTime.TryParseExact(dateString, DateFormat, null, System.Globalization.DateTimeStyles.None, out var date))
+        if (
+            !DateTime.TryParseExact(
+                dateString,
+                DateFormat,
+                null,
+                System.Globalization.DateTimeStyles.None,
+                out var date
+            )
+        )
         {
             throw new ArgumentException($"Invalid date format. Expected {DateFormat}, got {dateString}");
         }
@@ -35,7 +43,15 @@ public static class DateTimeOffsetExtensions
     /// </summary>
     public static DateTimeOffset FromDateStringToEndOfDayInTimeZone(string dateString, string? timezoneId)
     {
-        if (!DateTime.TryParseExact(dateString, DateFormat, null, System.Globalization.DateTimeStyles.None, out var date))
+        if (
+            !DateTime.TryParseExact(
+                dateString,
+                DateFormat,
+                null,
+                System.Globalization.DateTimeStyles.None,
+                out var date
+            )
+        )
         {
             throw new ArgumentException($"Invalid date format. Expected {DateFormat}, got {dateString}");
         }
