@@ -58,8 +58,8 @@ describe('AssignRoleModal', () => {
       id: 7001,
       userId: 'test-user-id',
       roleId: 7,
-      effectiveDate: '2026-01-10T08:00:00.000Z',
-      expiryDate: '2026-01-21T07:59:59.999Z',
+      effectiveDate: '2026-01-10T00:00:00.000-08:00',
+      expiryDate: '2026-01-21T23:59:59.999-08:00',
       expiryReason: null,
     };
 
@@ -71,8 +71,8 @@ describe('AssignRoleModal', () => {
         return getPostApiUsersIdRolesResponseMock({
           roleId: 7,
           userId: 'test-user-id',
-          effectiveDate: '2026-01-10T08:00:00.000Z',
-          expiryDate: '2026-01-21T07:59:59.999Z',
+          effectiveDate: '2026-01-10T00:00:00.000-08:00',
+          expiryDate: '2026-01-21T23:59:59.999-08:00',
           expiryReason: null,
         });
       }),
@@ -100,8 +100,8 @@ describe('AssignRoleModal', () => {
 
     expect(requestBody).toEqual({
       roleId: 7,
-      effectiveDate: '2026-01-10T00:00:00.000Z',
-      expiryDate: '2026-01-20T00:00:00.000Z',
+      effectiveDate: '2026-01-10',
+      expiryDate: '2026-01-21',
     });
 
     expect(requestBody).not.toHaveProperty('expiryReason');
