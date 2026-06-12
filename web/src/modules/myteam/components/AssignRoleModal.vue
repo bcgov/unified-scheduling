@@ -8,7 +8,7 @@ import UaModal from '@/shared/components/UaModal.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import type { SelectOption } from '@/types/select';
-import { getTodayDateInputValue, toApiDate, toDateInputValue } from '@/utils/date';
+import { getTodayDateInputValue, isDateInputBefore, toApiDateString, toDateInputValue } from '@/utils/date';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -25,11 +25,25 @@ const emit = defineEmits<{
 const isEditMode = computed(() => !!props.assignment);
 const isSaving = ref(false);
 const apiError = ref('');
-const formError = ref('');
+const formErrors = ref({
+  role: '',
+  effectiveDate: '',
+  expiryDate: '',
+});
 
 const selectedRoleId = ref<number | null>(props.assignment?.roleId ?? null);
 const effectiveDate = ref(toDateInputValue(props.assignment?.effectiveDate) ?? getTodayDateInputValue());
 const expiryDate = ref(toDateInputValue(props.assignment?.expiryDate) ?? '');
+
+const formError = computed(() => Object.values(formErrors.value).find((message) => message.length > 0) ?? '');
+
+function clearFormErrors(): void {
+  formErrors.value = {
+    role: '',
+    effectiveDate: '',
+    expiryDate: '',
+  };
+}
 
 watch(
   () => props.assignment,
@@ -38,7 +52,7 @@ watch(
     effectiveDate.value = toDateInputValue(assignment?.effectiveDate) ?? getTodayDateInputValue();
     expiryDate.value = toDateInputValue(assignment?.expiryDate) ?? '';
     apiError.value = '';
-    formError.value = '';
+    clearFormErrors();
   },
   { immediate: true },
 );
@@ -55,20 +69,20 @@ const roleOptions = computed<SelectOption[]>(() =>
 const modalTitle = computed(() => (isEditMode.value ? 'Edit Role Assignment' : 'Assign Role'));
 
 function validateForm(): boolean {
-  formError.value = '';
+  clearFormErrors();
 
   if (!selectedRoleId.value) {
-    formError.value = 'Role is required.';
+    formErrors.value.role = 'Role is required.';
     return false;
   }
 
   if (!effectiveDate.value) {
-    formError.value = 'Effective date is required.';
+    formErrors.value.effectiveDate = 'Effective date is required.';
     return false;
   }
 
-  if (expiryDate.value && expiryDate.value < effectiveDate.value) {
-    formError.value = 'Expiry date cannot be earlier than effective date.';
+  if (expiryDate.value && isDateInputBefore(expiryDate.value, effectiveDate.value)) {
+    formErrors.value.expiryDate = 'Expiry date cannot be earlier than effective date.';
     return false;
   }
 
@@ -86,8 +100,8 @@ const handleSave = async () => {
   try {
     const { error } = await postApiUsersIdRoles(props.userId, {
       roleId: selectedRoleId.value!,
-      effectiveDate: toApiDate(effectiveDate.value),
-      expiryDate: expiryDate.value ? toApiDate(expiryDate.value) : null,
+      effectiveDate: toApiDateString(effectiveDate.value),
+      expiryDate: expiryDate.value ? toApiDateString(expiryDate.value) : null,
     });
 
     if (error.value) {
@@ -111,7 +125,7 @@ const handleSave = async () => {
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>
-      <UaAlert v-if="formError" type="error" @close="formError = ''">
+      <UaAlert v-if="formError" type="error" @close="clearFormErrors()">
         {{ formError }}
       </UaAlert>
     </template>
@@ -124,7 +138,7 @@ const handleSave = async () => {
         label="Role"
         :items="roleOptions"
         :disabled="isEditMode"
-        :error-messages="formError.includes('Role') ? formError : ''"
+        :error-messages="formErrors.role"
       />
 
       <UaTextField
@@ -132,7 +146,7 @@ const handleSave = async () => {
         v-model="effectiveDate"
         type="date"
         label="Effective Date"
-        :error-messages="formError.includes('Effective date') ? formError : ''"
+        :error-messages="formErrors.effectiveDate"
       />
 
       <UaTextField
@@ -140,7 +154,7 @@ const handleSave = async () => {
         v-model="expiryDate"
         type="date"
         label="Expiry Date"
-        :error-messages="formError.includes('Expiry date') ? formError : ''"
+        :error-messages="formErrors.expiryDate"
       />
     </UaFormGrid>
 

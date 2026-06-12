@@ -4,7 +4,13 @@ public sealed record AssignUserRoleRequestDto
 {
     public required int RoleId { get; init; }
 
-    public required DateTimeOffset EffectiveDate { get; init; }
+    /// <summary>
+    /// Date in yyyy-MM-dd format. Backend will convert to user's timezone start-of-day.
+    /// </summary>
+    public required string EffectiveDate { get; init; }
 
-    public DateTimeOffset? ExpiryDate { get; init; }
+    /// <summary>
+    /// Date in yyyy-MM-dd format. Backend will convert to user's timezone end-of-day.
+    /// </summary>
+    public string? ExpiryDate { get; init; }
 }

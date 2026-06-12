@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { Permissions, type RoleDto, type UserResponse, type UserRoleResponseDto } from '@/api-access/generated/models';
 import { getApiRoles } from '@/api-access/generated/roles/roles';
-import { getApiUsersIdRoles, postApiUsersIdRoles } from '@/api-access/generated/users/users';
+import { getApiUsersIdRoles } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
-import UaModal from '@/shared/components/UaModal.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import AssignRoleModal from '../components/AssignRoleModal.vue';
+import ExpireRoleModal from '../components/ExpireRoleModal.vue';
 import { mdiClockRemove, mdiPencil, mdiPlus } from '@mdi/js';
+import { isDateInputHistorical, toCalendarDateString } from '@/utils/date';
 import { computed, ref } from 'vue';
 import type { SelectOption } from '@/types/select';
 
@@ -31,22 +32,13 @@ const {
 
 const showAssignRoleModal = ref(false);
 const selectedAssignment = ref<UserRoleResponseDto | null>(null);
-const showExpiryConfirm = ref(false);
-const assignmentToDelete = ref<UserRoleResponseDto | null>(null);
-const isExpiringRole = ref(false);
-const deleteError = ref('');
-const selectedExpiryReason = ref('');
+const showExpireRoleModal = ref(false);
+const selectedExpiryAssignment = ref<UserRoleResponseDto | null>(null);
 const selectedRoleFilter = ref<'active' | 'historical'>('active');
 
 const roleFilterOptions: SelectOption[] = [
   { code: 'active', description: 'Active' },
   { code: 'historical', description: 'Historical' },
-];
-
-const expireReasonOptions: SelectOption[] = [
-  { code: 'OPERDEMAND', description: 'Cover Operational Demands' },
-  { code: 'PERSONAL', description: 'Personal Decision' },
-  { code: 'ENTRYERR', description: 'Entry Error' },
 ];
 
 const roleNameById = computed(() => {
@@ -64,12 +56,8 @@ const roleList = computed<RoleDto[]>(() => roles.value ?? []);
 const userRoleRows = computed(() => assignedRoles.value ?? []);
 
 const filteredUserRoleRows = computed(() => {
-  const now = Date.now();
-
   return userRoleRows.value.filter((assignment) => {
-    const expiry = assignment.expiryDate;
-    const expiryTimestamp = expiry ? new Date(expiry).getTime() : Number.NaN;
-    const isHistorical = Number.isFinite(expiryTimestamp) && expiryTimestamp <= now;
+    const isHistorical = isDateInputHistorical(assignment.expiryDate);
 
     if (selectedRoleFilter.value === 'historical') {
       return isHistorical;
@@ -108,17 +96,13 @@ const handleModalClose = () => {
 };
 
 const handleOpenExpiryConfirm = (assignment: UserRoleResponseDto) => {
-  assignmentToDelete.value = assignment;
-  selectedExpiryReason.value = '';
-  deleteError.value = '';
-  showExpiryConfirm.value = true;
+  selectedExpiryAssignment.value = assignment;
+  showExpireRoleModal.value = true;
 };
 
-const handleExpireConfirmClose = () => {
-  showExpiryConfirm.value = false;
-  assignmentToDelete.value = null;
-  selectedExpiryReason.value = '';
-  deleteError.value = '';
+const handleExpireModalClose = () => {
+  showExpireRoleModal.value = false;
+  selectedExpiryAssignment.value = null;
 };
 
 const handleAssignmentSaved = async () => {
@@ -133,67 +117,8 @@ const resolveRoleName = (roleId?: number): string => {
   return roleNameById.value.get(roleId) ?? `Role ${roleId}`;
 };
 
-const formatDate = (value?: string | null): string => {
-  if (!value) {
-    return '-';
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return '-';
-  }
-
-  return parsed.toLocaleDateString('en-CA');
-};
-
 const isHistoricalRole = (assignment: UserRoleResponseDto): boolean => {
-  const expiry = assignment.expiryDate;
-  if (!expiry) {
-    return false;
-  }
-
-  const expiryTimestamp = new Date(expiry).getTime();
-  return Number.isFinite(expiryTimestamp) && expiryTimestamp <= Date.now();
-};
-
-const handleExpireAssignment = async () => {
-  if (!assignmentToDelete.value) {
-    return;
-  }
-
-  const roleId = assignmentToDelete.value.roleId;
-  const effectiveDate = assignmentToDelete.value.effectiveDate;
-
-  if (!roleId || !effectiveDate) {
-    deleteError.value = 'Unable to expire this assignment due to missing role details.';
-    return;
-  }
-
-  isExpiringRole.value = true;
-  deleteError.value = '';
-
-  try {
-    const requestPayload = {
-      roleId,
-      effectiveDate,
-      expiryDate: new Date().toISOString(),
-      ...(selectedExpiryReason.value ? { expiryReason: selectedExpiryReason.value } : {}),
-    };
-
-    const { error } = await postApiUsersIdRoles(props.user.id, requestPayload);
-
-    if (error.value) {
-      deleteError.value = error.value.message || 'Failed to expire role assignment.';
-      return;
-    }
-
-    handleExpireConfirmClose();
-    await fetchAssignedRoles();
-  } catch (err: unknown) {
-    deleteError.value = err instanceof Error ? err.message : 'Failed to expire role assignment.';
-  } finally {
-    isExpiringRole.value = false;
-  }
+  return isDateInputHistorical(assignment.expiryDate);
 };
 </script>
 
@@ -234,11 +159,11 @@ const handleExpireAssignment = async () => {
       </template>
 
       <template #[`item.effectiveDate`]="{ item }">
-        {{ formatDate(item.effectiveDate) }}
+        {{ toCalendarDateString(item.effectiveDate) ?? '-' }}
       </template>
 
       <template #[`item.expiryDate`]="{ item }">
-        {{ formatDate(item.expiryDate) }}
+        {{ toCalendarDateString(item.expiryDate) ?? '-' }}
       </template>
 
       <template #[`item.actions`]="{ item }">
@@ -285,34 +210,14 @@ const handleExpireAssignment = async () => {
       @saved="handleAssignmentSaved"
     />
 
-    <UaModal
-      v-if="showExpiryConfirm"
-      title="Expire Role Assignment"
-      tone="error"
-      :loading="isExpiringRole"
-      @close="handleExpireConfirmClose"
-    >
-      <template #alerts>
-        <UaAlert v-if="deleteError" type="error" @close="deleteError = ''">
-          {{ deleteError }}
-        </UaAlert>
-      </template>
-
-      <p class="expire-message">
-        Are you sure you want to expire the role assignment
-        <strong>{{ resolveRoleName(assignmentToDelete?.roleId) }}</strong
-        >?
-      </p>
-
-      <div class="expire-reason-field">
-        <UaSelect v-model="selectedExpiryReason" label="Reason for Expiry" :items="expireReasonOptions" />
-      </div>
-
-      <template #actions>
-        <UaBtn variant="outlined" :disabled="isExpiringRole" @click="handleExpireConfirmClose">Cancel</UaBtn>
-        <UaBtn color="error" :loading="isExpiringRole" @click="handleExpireAssignment">Expire</UaBtn>
-      </template>
-    </UaModal>
+    <ExpireRoleModal
+      v-if="showExpireRoleModal && selectedExpiryAssignment"
+      :user-id="props.user.id"
+      :assignment="selectedExpiryAssignment"
+      :role-name="resolveRoleName(selectedExpiryAssignment.roleId)"
+      @close="handleExpireModalClose"
+      @saved="handleAssignmentSaved"
+    />
   </div>
 </template>
 
@@ -344,14 +249,6 @@ const handleExpireAssignment = async () => {
   display: flex;
   justify-content: flex-end;
   gap: var(--ua-spacing-xs);
-}
-
-.expire-message {
-  margin: 0;
-}
-
-.expire-reason-field {
-  margin-top: var(--ua-spacing-md);
 }
 
 @media (max-width: 768px) {
