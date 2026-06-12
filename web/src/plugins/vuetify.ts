@@ -1,7 +1,7 @@
 import { createVuetify, type ThemeDefinition } from 'vuetify';
+import LuxonAdapter from '@date-io/luxon';
 import { aliases, mdi } from 'vuetify/iconsets/mdi-svg';
 import 'vuetify/styles';
-import LuxonAdapter from '@date-io/luxon';
 
 const uaLightTheme: ThemeDefinition = {
   dark: false,
