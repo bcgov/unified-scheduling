@@ -6,6 +6,7 @@
  */
 import type {
   AssignUserRoleRequestDto,
+  ExpireUserRoleRequestDto,
   GetApiUsersParams,
   UserRequestDto,
   UserResponse,
@@ -65,9 +66,25 @@ export const postApiUsersIdRoles = (
     options,
   );
 };
+export const postApiUsersIdRolesExpire = (
+  id: string,
+  expireUserRoleRequestDto: ExpireUserRoleRequestDto,
+  options?: SecondParameter<typeof useFetchAPI<UserRoleResponseDto>>,
+) => {
+  return useFetchAPI<UserRoleResponseDto>(
+    {
+      url: `/api/users/${id}/roles/expire`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: expireUserRoleRequestDto,
+    },
+    options,
+  );
+};
 export type GetApiUsersResult = NonNullable<Awaited<ReturnType<typeof getApiUsers>>>;
 export type PostApiUsersResult = NonNullable<Awaited<ReturnType<typeof postApiUsers>>>;
 export type GetApiUsersIdResult = NonNullable<Awaited<ReturnType<typeof getApiUsersId>>>;
 export type PutApiUsersIdResult = NonNullable<Awaited<ReturnType<typeof putApiUsersId>>>;
 export type GetApiUsersIdRolesResult = NonNullable<Awaited<ReturnType<typeof getApiUsersIdRoles>>>;
 export type PostApiUsersIdRolesResult = NonNullable<Awaited<ReturnType<typeof postApiUsersIdRoles>>>;
+export type PostApiUsersIdRolesExpireResult = NonNullable<Awaited<ReturnType<typeof postApiUsersIdRolesExpire>>>;

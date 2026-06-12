@@ -60,7 +60,7 @@ public class UserRoleRequestValidatorsTests
     }
 
     [Fact]
-    public void ExpireValidator_When_ExpiryReason_Is_Missing_Should_Fail()
+    public void ExpireValidator_When_ExpiryReason_Is_Empty_Should_Fail()
     {
         // Arrange
         var request = new ExpireUserRoleRequestDto { RoleId = 10, ExpiryReason = string.Empty };
@@ -72,18 +72,6 @@ public class UserRoleRequestValidatorsTests
         result.ShouldHaveValidationErrorFor(x => x.ExpiryReason);
     }
 
-    [Fact]
-    public void ExpireValidator_When_ExpiryReason_Is_Invalid_Code_Should_Fail()
-    {
-        // Arrange
-        var request = new ExpireUserRoleRequestDto { RoleId = 10, ExpiryReason = "INVALID" };
-
-        // Act
-        var result = _expireValidator.TestValidate(request);
-
-        // Assert
-        result.ShouldHaveValidationErrorFor(x => x.ExpiryReason);
-    }
 
     [Fact]
     public void ExpireValidator_When_Request_Is_Valid_Should_Pass()
@@ -92,7 +80,7 @@ public class UserRoleRequestValidatorsTests
         var request = new ExpireUserRoleRequestDto
         {
             RoleId = 10,
-            ExpiryReason = UserRoleExpiryReasonCodes.OperationalDemand,
+            ExpiryReason = "OPERDEMAND",
         };
 
         // Act

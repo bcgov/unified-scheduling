@@ -302,7 +302,7 @@ public class UsersControllerTests
             RoleId = 5,
             EffectiveDate = DateTimeOffset.UtcNow.AddDays(-30),
             ExpiryDate = DateTimeOffset.UtcNow,
-            ExpiryReason = UserRoleExpiryReasonCodes.PersonalDecision,
+            ExpiryReason = "PERSONAL",
         };
         var fakeService = new FakeUserService { ExpireRoleResult = expiredUserRole };
         var controller = new UsersController(
@@ -314,7 +314,7 @@ public class UsersControllerTests
         var request = new ExpireUserRoleRequestDto
         {
             RoleId = 5,
-            ExpiryReason = UserRoleExpiryReasonCodes.PersonalDecision,
+            ExpiryReason = "PERSONAL",
         };
 
         // Act
@@ -338,7 +338,7 @@ public class UsersControllerTests
             new AssignUserRoleRequestValidator(),
             new ExpireUserRoleRequestValidator()
         );
-        var request = new ExpireUserRoleRequestDto { RoleId = 5, ExpiryReason = UserRoleExpiryReasonCodes.EntryError };
+        var request = new ExpireUserRoleRequestDto { RoleId = 5, ExpiryReason = "ENTRYERR" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -399,7 +399,7 @@ public class UsersControllerTests
                 RoleId = 1,
                 EffectiveDate = DateTimeOffset.UtcNow.AddDays(-30),
                 ExpiryDate = DateTimeOffset.UtcNow,
-                ExpiryReason = UserRoleExpiryReasonCodes.EntryError,
+                ExpiryReason = "ENTRYERR",
             };
 
         public Exception? ExpireRoleException { get; init; }
