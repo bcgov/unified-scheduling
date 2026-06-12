@@ -1,4 +1,5 @@
 import { createVuetify, type ThemeDefinition } from 'vuetify';
+import LuxonAdapter from '@date-io/luxon';
 import { aliases, mdi } from 'vuetify/iconsets/mdi-svg';
 import 'vuetify/styles';
 
@@ -37,6 +38,9 @@ export default createVuetify({
     sets: {
       mdi,
     },
+  },
+  date: {
+    adapter: LuxonAdapter,
   },
   defaults: {
     global: {

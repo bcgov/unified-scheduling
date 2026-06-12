@@ -33,6 +33,7 @@ public static class UserManagementModule
 
         services.AddScoped<UserRequestValidator>();
         services.AddScoped<AssignUserRoleRequestValidator>();
+        services.AddScoped<ExpireUserRoleRequestValidator>();
         services.AddScoped<RoleRequestValidator>();
         services.AddScoped<UpdateRoleRequestValidator>();
 

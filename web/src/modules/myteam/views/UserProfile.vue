@@ -60,12 +60,20 @@ const handleEditModalClose = () => {
       </div>
 
       <div class="profile-subnav">
-        <UaBtn variant="outlined">Identification</UaBtn>
-        <UaBtn variant="outlined">Acting rank</UaBtn>
-        <UaBtn variant="outlined">Schedule</UaBtn>
-        <UaBtn variant="outlined">Work History</UaBtn>
-        <UaBtn variant="outlined">Schedule</UaBtn>
-        <UaBtn variant="outlined">Deactivate</UaBtn>
+        <UaBtn variant="outlined" :to="{ name: 'UserIdentification', params: { userId: props.userId } }">
+          Identification
+        </UaBtn>
+        <UaBtn
+          v-if="accessControl.hasPermission(Permissions.UserRoleAssign)"
+          variant="outlined"
+          :to="{ name: 'UserAssignRoles', params: { userId: props.userId } }"
+        >
+          Assign Roles
+        </UaBtn>
+        <UaBtn variant="outlined" disabled>Acting rank</UaBtn>
+        <UaBtn variant="outlined" disabled>Schedule</UaBtn>
+        <UaBtn variant="outlined" disabled>Work History</UaBtn>
+        <UaBtn variant="outlined" disabled>Deactivate</UaBtn>
       </div>
     </div>
     <!-- Right Panel -->

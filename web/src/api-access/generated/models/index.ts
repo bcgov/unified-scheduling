@@ -7,6 +7,7 @@
 
 export * from './assignUserRoleRequestDto';
 export * from './configResponse';
+export * from './expireUserRoleRequestDto';
 export * from './featureFlags';
 export * from './gender';
 export * from './getApiAuthLoginParams';
