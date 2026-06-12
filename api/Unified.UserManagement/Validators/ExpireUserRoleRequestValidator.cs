@@ -17,11 +17,5 @@ public class ExpireUserRoleRequestValidator : AbstractValidator<ExpireUserRoleRe
             .NotEmpty()
             .WithErrorCode(ApiValidationErrorCodes.Required)
             .WithMessage(ApiValidationErrorCodes.Required);
-
-        RuleFor(x => x.ExpiryReason)
-            .Must(reason => UserRoleExpiryReasonCodes.All.Contains(reason))
-            .When(x => !string.IsNullOrWhiteSpace(x.ExpiryReason))
-            .WithErrorCode(ApiValidationErrorCodes.Invalid)
-            .WithMessage(ApiValidationErrorCodes.Invalid);
     }
 }

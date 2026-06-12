@@ -512,7 +512,7 @@ public class UserServiceTests : IAsyncLifetime
                 RoleId = 101,
                 EffectiveDate = existingEffectiveDate,
                 ExpiryDate = existingExpiryDate,
-                ExpiryReason = UserRoleExpiryReasonCodes.PersonalDecision,
+                ExpiryReason = "PERSONAL",
             }
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -663,7 +663,7 @@ public class UserServiceTests : IAsyncLifetime
         var request = new ExpireUserRoleRequestDto
         {
             RoleId = 201,
-            ExpiryReason = UserRoleExpiryReasonCodes.EntryError,
+            ExpiryReason = "ENTRYERR",
         };
 
         // Act
@@ -674,7 +674,7 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal(201, result.RoleId);
         Assert.NotNull(result.ExpiryDate);
         Assert.True(result.ExpiryDate >= beforeExpire);
-        Assert.Equal(UserRoleExpiryReasonCodes.EntryError, result.ExpiryReason);
+        Assert.Equal("ENTRYERR", result.ExpiryReason);
 
         var userRole = await _dbContext.UserRoles.SingleAsync(
             x => x.UserId == user.Id && x.RoleId == 201,
@@ -682,7 +682,7 @@ public class UserServiceTests : IAsyncLifetime
         );
         Assert.NotNull(userRole.ExpiryDate);
         Assert.True(userRole.ExpiryDate >= beforeExpire);
-        Assert.Equal(UserRoleExpiryReasonCodes.EntryError, userRole.ExpiryReason);
+        Assert.Equal("ENTRYERR", userRole.ExpiryReason);
     }
 
     [Fact]
@@ -695,7 +695,7 @@ public class UserServiceTests : IAsyncLifetime
                 new ExpireUserRoleRequestDto
                 {
                     RoleId = 100,
-                    ExpiryReason = UserRoleExpiryReasonCodes.PersonalDecision,
+                    ExpiryReason = "PERSONAL",
                 },
                 TestContext.Current.CancellationToken
             )
@@ -716,7 +716,7 @@ public class UserServiceTests : IAsyncLifetime
                 new ExpireUserRoleRequestDto
                 {
                     RoleId = 9999,
-                    ExpiryReason = UserRoleExpiryReasonCodes.PersonalDecision,
+                    ExpiryReason = "PERSONAL",
                 },
                 TestContext.Current.CancellationToken
             )

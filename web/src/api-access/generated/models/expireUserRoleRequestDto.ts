@@ -5,9 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface AssignUserRoleRequestDto {
+export interface ExpireUserRoleRequestDto {
   roleId: number;
-  effectiveDate: string;
-  /** @nullable */
-  expiryDate?: string | null;
+  expiryReason: string;
 }
