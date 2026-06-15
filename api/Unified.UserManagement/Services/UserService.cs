@@ -133,15 +133,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             .ToListAsync(cancellationToken);
 
         return userRoles
-            .Select(x => new UserRoleResponseDto
-            {
-                Id = x.Id,
-                UserId = x.UserId,
-                RoleId = x.RoleId,
-                EffectiveDate = x.EffectiveDate.ToTimeZone(timezoneId),
-                ExpiryDate = x.ExpiryDate?.ToTimeZone(timezoneId),
-                ExpiryReason = x.ExpiryReason,
-            })
+            .Select(x => MapUserRoleResponse(x, timezoneId))
             .ToList();
     }
 
@@ -211,15 +203,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
         var timezoneId = user.HomeLocation?.Timezone;
 
-        return new UserRoleResponseDto
-        {
-            Id = assignedUserRole.Id,
-            UserId = assignedUserRole.UserId,
-            RoleId = assignedUserRole.RoleId,
-            EffectiveDate = assignedUserRole.EffectiveDate.ToTimeZone(timezoneId),
-            ExpiryDate = assignedUserRole.ExpiryDate?.ToTimeZone(timezoneId),
-            ExpiryReason = assignedUserRole.ExpiryReason,
-        };
+        return MapUserRoleResponse(assignedUserRole, timezoneId);
     }
 
     public async Task<UserRoleResponseDto> ExpireRoleAsync(
@@ -228,8 +212,11 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         CancellationToken cancellationToken = default
     )
     {
-        var userExists = await DB.Users.AnyAsync(x => x.Id == id, cancellationToken);
-        if (!userExists)
+        var user = await DB
+            .Users.AsNoTracking()
+            .Include(x => x.HomeLocation)
+            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (user is null)
         {
             throw new KeyNotFoundException($"User {id} not found.");
         }
@@ -249,6 +236,19 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
         await DB.SaveChangesAsync(cancellationToken);
 
-        return userRole.Adapt<UserRoleResponseDto>();
+        return MapUserRoleResponse(userRole, user.HomeLocation?.Timezone);
+    }
+
+    private static UserRoleResponseDto MapUserRoleResponse(UserRole userRole, string? timezoneId)
+    {
+        return new UserRoleResponseDto
+        {
+            Id = userRole.Id,
+            UserId = userRole.UserId,
+            RoleId = userRole.RoleId,
+            EffectiveDate = userRole.EffectiveDate.ToTimeZone(timezoneId),
+            ExpiryDate = userRole.ExpiryDate?.ToTimeZone(timezoneId),
+            ExpiryReason = userRole.ExpiryReason,
+        };
     }
 }
