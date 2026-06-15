@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { Permissions, type RoleDto } from '@/api-access/generated/models';
-import { getApiRoles, deleteApiRolesId } from '@/api-access/generated/roles/roles';
+import { getApiRoles } from '@/api-access/generated/roles/roles';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
-import UaModal from '@/shared/components/UaModal.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { mdiDelete, mdiPencil, mdiPlus } from '@mdi/js';
 import { ref } from 'vue';
+import RoleDeleteModal from '../components/RoleDeleteModal.vue';
 import RoleFormModal from '../components/RoleFormModal.vue';
 
 // Access control
@@ -24,8 +24,6 @@ const showCreateEditModal = ref(false);
 const showDeleteConfirm = ref(false);
 const selectedRole = ref<RoleDto | null>(null);
 const roleToDelete = ref<RoleDto | null>(null);
-const isDeleting = ref(false);
-const deleteError = ref('');
 
 const roleHeaders = [
   { title: 'Name', key: 'name', sortable: false },
@@ -44,32 +42,19 @@ const handleEditRole = (role: RoleDto) => {
   showCreateEditModal.value = true;
 };
 
+const resetDeleteModalState = () => {
+  showDeleteConfirm.value = false;
+  roleToDelete.value = null;
+};
+
 const handleDeleteRole = (role: RoleDto) => {
   roleToDelete.value = role;
   showDeleteConfirm.value = true;
 };
 
-const handleConfirmDelete = async () => {
-  if (!roleToDelete.value) return;
-
-  isDeleting.value = true;
-  deleteError.value = '';
-
-  try {
-    const { error } = await deleteApiRolesId(roleToDelete.value.id!);
-
-    if (error.value) {
-      deleteError.value =
-        error.value instanceof Error ? error.value.message : 'An error occurred while deleting the role';
-      return;
-    }
-
-    showDeleteConfirm.value = false;
-    roleToDelete.value = null;
-    await fetchRoles();
-  } finally {
-    isDeleting.value = false;
-  }
+const handleRoleDeleted = async () => {
+  resetDeleteModalState();
+  await fetchRoles();
 };
 
 const handleRoleFormClose = () => {
@@ -168,26 +153,12 @@ const handleRoleUpdated = async () => {
     />
 
     <!-- Delete Confirmation Modal -->
-    <UaModal v-if="showDeleteConfirm" title="Delete Role" :loading="isDeleting" @close="showDeleteConfirm = false">
-      <template #alerts>
-        <UaAlert v-if="deleteError" type="error" @close="deleteError = ''">
-          {{ deleteError }}
-        </UaAlert>
-      </template>
-
-      <div class="delete-confirmation">
-        <p>
-          Are you sure you want to delete the role <strong>{{ roleToDelete?.name }}</strong
-          >?
-        </p>
-        <p class="warning-text">This action cannot be undone.</p>
-      </div>
-
-      <template #actions>
-        <UaBtn variant="outlined" @click="showDeleteConfirm = false" :disabled="isDeleting"> Cancel </UaBtn>
-        <UaBtn color="error" variant="flat" @click="handleConfirmDelete" :loading="isDeleting"> Delete </UaBtn>
-      </template>
-    </UaModal>
+    <RoleDeleteModal
+      v-if="showDeleteConfirm && roleToDelete"
+      :role="roleToDelete"
+      @close="resetDeleteModalState"
+      @deleted="handleRoleDeleted"
+    />
   </div>
 </template>
 
@@ -218,24 +189,6 @@ const handleRoleUpdated = async () => {
 .col-name {
   font-weight: var(--ua-font-weight-semibold);
   word-break: break-word;
-}
-
-.delete-confirmation {
-  padding: var(--ua-spacing-md) 0;
-
-  p {
-    margin: var(--ua-spacing-md) 0;
-    color: var(--ua-text-primary);
-  }
-
-  strong {
-    color: rgb(var(--v-theme-primary));
-  }
-}
-
-.warning-text {
-  color: rgb(var(--v-theme-warning));
-  font-size: var(--ua-font-size-sm);
 }
 
 @media (max-width: 768px) {

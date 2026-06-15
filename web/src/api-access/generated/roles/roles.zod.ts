@@ -30,6 +30,19 @@ export const PostApiRolesBody = zod.strictObject({
   permissionIds: zod.array(zod.string()).optional(),
 });
 
+export const GetApiRolesIdUsersParams = zod.strictObject({
+  id: zod.number(),
+});
+
+export const GetApiRolesIdUsersResponseItem = zod.object({
+  userId: zod.uuid().optional(),
+  isEnabled: zod.boolean().optional(),
+  firstName: zod.string().optional(),
+  lastName: zod.string().optional(),
+  email: zod.string().optional(),
+});
+export const GetApiRolesIdUsersResponse = zod.array(GetApiRolesIdUsersResponseItem);
+
 export const PutApiRolesIdParams = zod.strictObject({
   id: zod.number(),
 });

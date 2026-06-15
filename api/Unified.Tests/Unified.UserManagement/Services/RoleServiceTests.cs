@@ -122,6 +122,70 @@ public class RoleServiceTests : IAsyncLifetime
         Assert.Equal("ShiftsView", dto.Permissions[0].Id);
     }
 
+    [Fact]
+    public async Task GetAssignedUsersAsync_Should_Return_Only_Active_Users_For_Role()
+    {
+        // Arrange
+        var role = new Role { Id = 10, Name = "Manager", Description = "Manager role" };
+        var activeUser = new User
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "Alice",
+            LastName = "Brown",
+            Email = "alice.brown@example.com",
+            IdirName = "ABROWN",
+            IsEnabled = true,
+        };
+        var expiredUser = new User
+        {
+            Id = Guid.NewGuid(),
+            FirstName = "Bob",
+            LastName = "Clark",
+            Email = "bob.clark@example.com",
+            IdirName = "BCLARK",
+            IsEnabled = true,
+        };
+        var now = DateTimeOffset.UtcNow;
+
+        _dbContext.Roles.Add(role);
+        _dbContext.Users.AddRange(activeUser, expiredUser);
+        _dbContext.UserRoles.AddRange(
+            new UserRole
+            {
+                UserId = activeUser.Id,
+                RoleId = role.Id,
+                EffectiveDate = now.AddDays(-2),
+                ExpiryDate = null,
+            },
+            new UserRole
+            {
+                UserId = expiredUser.Id,
+                RoleId = role.Id,
+                EffectiveDate = now.AddDays(-5),
+                ExpiryDate = now.AddDays(-1),
+            }
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _roleService.GetAssignedUsersAsync(role.Id, TestContext.Current.CancellationToken);
+
+        // Assert
+        var users = result.ToList();
+        Assert.Single(users);
+        Assert.Equal(activeUser.Id, users[0].UserId);
+        Assert.Equal("Alice", users[0].FirstName);
+        Assert.Equal("Brown", users[0].LastName);
+    }
+
+    [Fact]
+    public async Task GetAssignedUsersAsync_When_Role_Not_Found_Throws_KeyNotFoundException()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _roleService.GetAssignedUsersAsync(9999, TestContext.Current.CancellationToken)
+        );
+    }
+
     // ── CreateAsync ──────────────────────────────────────────────────────────
 
     [Fact]

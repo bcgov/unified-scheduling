@@ -32,6 +32,25 @@ public class RolesController(
     }
 
     /// <summary>
+    /// Returns active users currently assigned to the specified role.
+    /// </summary>
+    /// <param name="id">The role ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of active users assigned to the role.</returns>
+    [HttpGet("{id:int}/users")]
+    [Authorize(Policy = UserManagementPolicies.RolesView)]
+    [ProducesResponseType(typeof(IEnumerable<RoleAssignedUserDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IEnumerable<RoleAssignedUserDto>>> GetAssignedUsers(
+        int id,
+        CancellationToken cancellationToken
+    )
+    {
+        var users = await roleService.GetAssignedUsersAsync(id, cancellationToken);
+        return Ok(users);
+    }
+
+    /// <summary>
     /// Creates a new role, optionally assigning permissions.
     /// </summary>
     /// <param name="request">The role payload including optional permission IDs.</param>

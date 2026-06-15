@@ -44,6 +44,38 @@ public class RolesControllerTests
         Assert.Equal(2, roles.Count());
     }
 
+    [Fact]
+    public async Task GetAssignedUsers_Should_Return_Ok_With_Users()
+    {
+        // Arrange
+        var expectedUsers = new List<RoleAssignedUserDto>
+        {
+            new()
+            {
+                UserId = Guid.NewGuid(),
+                FirstName = "Jane",
+                LastName = "Doe",
+                Email = "jane.doe@example.com",
+            },
+            new()
+            {
+                UserId = Guid.NewGuid(),
+                FirstName = "John",
+                LastName = "Smith",
+                Email = "john.smith@example.com",
+            },
+        };
+        var controller = BuildController(new FakeRoleService { GetAssignedUsersResult = expectedUsers });
+
+        // Act
+        var result = await controller.GetAssignedUsers(7, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var users = Assert.IsAssignableFrom<IEnumerable<RoleAssignedUserDto>>(okResult.Value);
+        Assert.Equal(2, users.Count());
+    }
+
     // ── Create ───────────────────────────────────────────────────────────────
 
     [Fact]
@@ -176,6 +208,7 @@ public class RolesControllerTests
         public IReadOnlyCollection<RoleDto>? GetAllResult { get; set; }
         public RoleDto? CreateResult { get; set; }
         public RoleDto? UpdateResult { get; set; }
+        public IReadOnlyCollection<RoleAssignedUserDto>? GetAssignedUsersResult { get; set; }
         public int? DeletedRoleId { get; private set; }
 
         public Task<IReadOnlyCollection<RoleDto>> GetAllAsync(CancellationToken cancellationToken = default) =>
@@ -183,6 +216,11 @@ public class RolesControllerTests
 
         public Task<RoleDto> CreateAsync(RoleRequestDto request, CancellationToken cancellationToken = default) =>
             Task.FromResult(CreateResult ?? new RoleDto());
+
+        public Task<IReadOnlyCollection<RoleAssignedUserDto>> GetAssignedUsersAsync(
+            int roleId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(GetAssignedUsersResult ?? (IReadOnlyCollection<RoleAssignedUserDto>)new List<RoleAssignedUserDto>());
 
         public Task<RoleDto> UpdateAsync(UpdateRoleRequestDto request, CancellationToken cancellationToken = default) =>
             Task.FromResult(UpdateResult ?? new RoleDto());

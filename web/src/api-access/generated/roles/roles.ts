@@ -4,7 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { RoleDto, RoleRequestDto, UpdateRoleRequestDto } from '../models';
+import type { RoleAssignedUserDto, RoleDto, RoleRequestDto, UpdateRoleRequestDto } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI';
 
@@ -21,6 +21,12 @@ export const postApiRoles = (
     { url: `/api/roles`, method: 'POST', headers: { 'Content-Type': 'application/json' }, data: roleRequestDto },
     options,
   );
+};
+export const getApiRolesIdUsers = (
+  id: number,
+  options?: SecondParameter<typeof useFetchAPI<RoleAssignedUserDto[]>>,
+) => {
+  return useFetchAPI<RoleAssignedUserDto[]>({ url: `/api/roles/${id}/users`, method: 'GET' }, options);
 };
 export const putApiRolesId = (
   id: number,
@@ -42,5 +48,6 @@ export const deleteApiRolesId = (id: number, options?: SecondParameter<typeof us
 };
 export type GetApiRolesResult = NonNullable<Awaited<ReturnType<typeof getApiRoles>>>;
 export type PostApiRolesResult = NonNullable<Awaited<ReturnType<typeof postApiRoles>>>;
+export type GetApiRolesIdUsersResult = NonNullable<Awaited<ReturnType<typeof getApiRolesIdUsers>>>;
 export type PutApiRolesIdResult = NonNullable<Awaited<ReturnType<typeof putApiRolesId>>>;
 export type DeleteApiRolesIdResult = NonNullable<Awaited<ReturnType<typeof deleteApiRolesId>>>;

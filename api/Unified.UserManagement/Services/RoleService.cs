@@ -20,6 +20,35 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
         return roles.Select(MapToDto).ToList();
     }
 
+    public async Task<IReadOnlyCollection<RoleAssignedUserDto>> GetAssignedUsersAsync(
+        int roleId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var roleExists = await DB.Roles.AnyAsync(r => r.Id == roleId, cancellationToken);
+        if (!roleExists)
+            throw new KeyNotFoundException($"Role {roleId} not found.");
+
+        var now = DateTimeOffset.UtcNow;
+
+        return await DB
+            .UserRoles.AsNoTracking()
+            .Where(ur =>
+                ur.RoleId == roleId && (ur.ExpiryDate == null || ur.ExpiryDate > now)
+            )
+            .Select(ur => new RoleAssignedUserDto
+            {
+                UserId = ur.UserId,
+                IsEnabled = ur.User.IsEnabled,
+                FirstName = ur.User.FirstName,
+                LastName = ur.User.LastName,
+                Email = ur.User.Email,
+            })
+            .OrderBy(x => x.LastName)
+            .ThenBy(x => x.FirstName)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<RoleDto> CreateAsync(RoleRequestDto request, CancellationToken cancellationToken = default)
     {
         if (await DB.Roles.AnyAsync(r => r.Name.ToLower() == request.Name.ToLower(), cancellationToken))

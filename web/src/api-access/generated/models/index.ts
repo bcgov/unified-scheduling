@@ -24,6 +24,7 @@ export * from './permissionDto';
 export * from './permissions';
 export * from './problemDetails';
 export * from './regionDto';
+export * from './roleAssignedUserDto';
 export * from './roleDto';
 export * from './roleRequestDto';
 export * from './saveDayRecordItem';
