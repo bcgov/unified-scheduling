@@ -132,9 +132,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
             .ThenBy(x => x.RoleId)
             .ToListAsync(cancellationToken);
 
-        return userRoles
-            .Select(x => MapUserRoleResponse(x, timezoneId))
-            .ToList();
+        return userRoles.Select(x => MapUserRoleResponse(x, timezoneId)).ToList();
     }
 
     public async Task<UserRoleResponseDto> AssignRoleAsync(
