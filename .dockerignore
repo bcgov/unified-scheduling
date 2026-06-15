@@ -46,11 +46,9 @@ api/**/obj
 db/bin
 db/obj
 
-# ─── Docker folder – exclude everything except what Dockerfile.dev copies ───
-# docker/web/dev-entrypoint.sh is referenced by COPY in web/Dockerfile.dev
+# ─── Docker folder ───────────────────────────────────────────────────────────
+# Keep release image inputs available when GitHub Actions builds with context: .
 docker/api
-docker/nginx-runtime
-docker/vue-on-nginx
 docker/manage
 docker/README.md
 docker/.env

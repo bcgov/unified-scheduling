@@ -1,0 +1,1 @@
+docker/**/s2i/bin/* text eol=lf
