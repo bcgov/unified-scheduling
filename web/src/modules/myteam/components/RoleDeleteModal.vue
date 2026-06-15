@@ -17,14 +17,28 @@ const emit = defineEmits<{
 }>();
 
 // Fetch assigned users
-const { data: assignedRoleUsers, error: assignedRoleUsersError, isFetching: isFetchingAssignedRoleUsers } = getApiRolesIdUsers(props.role.id!);
+const {
+  data: assignedRoleUsers,
+  error: assignedRoleUsersError,
+  isFetching: isFetchingAssignedRoleUsers,
+} = getApiRolesIdUsers(props.role.id!);
 
 const isDeleting = ref(false);
 const deleteError = ref('');
 
 const assignedUserHeaders = [
-  { title: 'User', key: 'fullName', sortable: false, value: (item: RoleAssignedUserDto) => `${item.firstName} ${item.lastName}` },
-  { title: 'Is Active', key: 'isEnabled', sortable: false, value: (item: RoleAssignedUserDto) => (item.isEnabled ? 'Yes' : 'No') },
+  {
+    title: 'User',
+    key: 'fullName',
+    sortable: false,
+    value: (item: RoleAssignedUserDto) => `${item.firstName} ${item.lastName}`,
+  },
+  {
+    title: 'Is Active',
+    key: 'isEnabled',
+    sortable: false,
+    value: (item: RoleAssignedUserDto) => (item.isEnabled ? 'Yes' : 'No'),
+  },
 ];
 
 const handleClose = () => {
@@ -56,7 +70,6 @@ const handleConfirmDelete = async () => {
     isDeleting.value = false;
   }
 };
-
 </script>
 
 <template>
