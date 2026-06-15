@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Unified.Common.Helpers.Extensions;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.UserManagement;
@@ -684,7 +685,6 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal(user.Id, result.UserId);
         Assert.Equal(201, result.RoleId);
         Assert.NotNull(result.ExpiryDate);
-        Assert.True(result.ExpiryDate >= beforeExpire);
         Assert.Equal("ENTRYERR", result.ExpiryReason);
 
         var userRole = await _dbContext.UserRoles.SingleAsync(
@@ -694,6 +694,10 @@ public class UserServiceTests : IAsyncLifetime
         Assert.NotNull(userRole.ExpiryDate);
         Assert.True(userRole.ExpiryDate >= beforeExpire);
         Assert.Equal("ENTRYERR", userRole.ExpiryReason);
+
+        const string timezoneId = "America/Vancouver";
+        Assert.Equal(userRole.EffectiveDate.ToTimeZone(timezoneId), result.EffectiveDate);
+        Assert.Equal(userRole.ExpiryDate?.ToTimeZone(timezoneId), result.ExpiryDate);
     }
 
     [Fact]
