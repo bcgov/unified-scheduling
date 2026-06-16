@@ -156,6 +156,7 @@ const handleRoleUpdated = async () => {
     <RoleDeleteModal
       v-if="showDeleteConfirm && roleToDelete"
       :role="roleToDelete"
+      :all-roles="roles ?? []"
       @close="resetDeleteModalState"
       @deleted="handleRoleDeleted"
     />
