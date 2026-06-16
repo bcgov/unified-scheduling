@@ -8,4 +8,13 @@ export interface AssignmentData {
   comment: string;
 }
 
-export type PeriodType = 'Daily' | 'Weekly' | 'Monthly';
+export interface DayAssignment extends AssignmentData {
+  /** subCategoryMetricId → existing server record ID (for PUT/DELETE) */
+  existingRecordIds: Record<number, number>;
+}
+
+export interface DaySummary {
+  regularHours: number;
+  overtimeHours: number;
+  assignmentCount: number;
+}

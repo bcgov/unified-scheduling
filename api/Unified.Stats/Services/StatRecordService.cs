@@ -34,6 +34,9 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         if (queryParams?.Status is { Length: > 0 } status)
             query = query.Where(r => r.Status == status);
 
+        if (queryParams?.UserId is Guid userId)
+            query = query.Where(r => r.UserId == userId);
+
         return await query
             .OrderByDescending(r => r.DateFrom)
             .ProjectToType<StatRecordResponse>()

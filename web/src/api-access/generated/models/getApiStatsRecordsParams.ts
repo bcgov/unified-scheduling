@@ -13,6 +13,7 @@ export type OriginalGetApiStatsRecordsParams = {
   FromDate?: string;
   ToDate?: string;
   Status?: string;
+  UserId?: string;
 };
 
 export type GetApiStatsRecordsParams = MaybeRef<OriginalGetApiStatsRecordsParams>;
