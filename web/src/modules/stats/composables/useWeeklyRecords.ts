@@ -4,9 +4,16 @@ import {
   postApiStatsRecordsBatch,
   putApiStatsRecordsId,
 } from '@/api-access/generated/stat-records/stat-records';
-import type { StatRecordResponse, SubCategoryMetricResponse, StatMetricResponse } from '@/api-access/generated/models';
-import { computed, ref, type Ref } from 'vue';
+import type {
+  StatCategoryResponse,
+  StatMetricResponse,
+  StatRecordResponse,
+  SubCategoryMetricResponse,
+  SubCategoryResponse,
+} from '@/api-access/generated/models';
+import { computed, ref, watch, type Ref } from 'vue';
 import type { DayAssignment, DaySummary } from '../types';
+import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 
 // Returns "YYYY-MM-DD" for a Date
 function toISO(date: Date): string {
@@ -23,26 +30,23 @@ export function getMondayOfWeek(date: Date): Date {
   return d;
 }
 
-function isOvertimeMetric(metric: StatMetricResponse): boolean {
-  return metric.unitOfMeasure === 'hours' && (metric.name?.toLowerCase().includes('overtime') ?? false);
-}
-
-function isRegularMetric(metric: StatMetricResponse): boolean {
-  return metric.unitOfMeasure === 'hours' && !(metric.name?.toLowerCase().includes('overtime') ?? false);
-}
-
-let nextId = 1;
-function newAssignmentId(): string {
-  return String(nextId++);
-}
-
 export function useWeeklyRecords(
-  weekStart: Ref<string>, // ISO Monday date string
+  initialWeekStart: string, // ISO Monday date string
   locationId: Ref<number | null>,
   userId: Ref<string | null>,
+  subCategories: Ref<SubCategoryResponse[]>,
+  categories: Ref<StatCategoryResponse[]>,
   subCategoryMetrics: Ref<SubCategoryMetricResponse[]>,
   metrics: Ref<StatMetricResponse[]>,
 ) {
+  // nextId scoped per composable instance to avoid cross-instance leaks
+  let nextId = 1;
+  function newAssignmentId(): string {
+    return String(nextId++);
+  }
+
+  const weekStart = ref(initialWeekStart);
+
   // date string → DayAssignment[]
   const dayAssignmentsMap = ref<Record<string, DayAssignment[]>>({});
   const isLoading = ref(false);
@@ -105,27 +109,53 @@ export function useWeeklyRecords(
     return daily >= 7 || weeklyRegularTotal.value >= 35;
   }
 
-  // Reconstruct DayAssignment[] from StatRecordResponse[] for one date
+  // Reconstruct DayAssignment[] from StatRecordResponse[] for one date.
+  // Records are grouped by subCategoryId + comment. If two records would land
+  // in the same group but share the same subCategoryMetricId (duplicate metric),
+  // the second record starts a new group to avoid silently merging distinct assignments.
   function reconstructAssignments(records: StatRecordResponse[]): DayAssignment[] {
-    // Group records by subCategoryId + comment (each group = one row)
-    const groups = new Map<string, StatRecordResponse[]>();
-    for (const r of records) {
+    // Sort by id for stable, deterministic grouping across reloads
+    const sorted = [...records].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+
+    type Group = {
+      subCatId: number;
+      comment: string;
+      usedScmIds: Set<number>;
+      records: StatRecordResponse[];
+    };
+    const groups: Group[] = [];
+
+    for (const r of sorted) {
       const scm = subCategoryMetrics.value.find((s) => s.id === r.subCategoryMetricId);
       const subCatId = scm?.subCategoryId ?? 0;
-      const key = `${subCatId}::${r.comment ?? ''}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(r);
+      const comment = r.comment ?? '';
+      const scmId = r.subCategoryMetricId ?? -1;
+
+      // Find an existing group with the same subCatId + comment that does not
+      // already contain this metric (prevents collision on duplicate assignments)
+      const target = groups.find((g) => g.subCatId === subCatId && g.comment === comment && !g.usedScmIds.has(scmId));
+
+      if (target) {
+        target.records.push(r);
+        target.usedScmIds.add(scmId);
+      } else {
+        groups.push({ subCatId, comment, usedScmIds: new Set([scmId]), records: [r] });
+      }
     }
 
-    const assignments: DayAssignment[] = [];
-    for (const groupRecords of groups.values()) {
-      const firstRecord = groupRecords[0];
-      const scm = subCategoryMetrics.value.find((s) => s.id === firstRecord.subCategoryMetricId);
+    return groups.map((group) => {
+      const firstRecord = group.records[0];
+
+      // Reverse-lookup categoryId and groupId so reconstructed assignments pass validation
+      const subCat = subCategories.value.find((sc) => sc.id === group.subCatId);
+      const categoryId = subCat?.categoryId ?? null;
+      const category = categories.value.find((c) => c.id === categoryId);
+      const groupId = category?.groupId ?? null;
 
       const metricValues: Record<number, string> = {};
       const existingRecordIds: Record<number, number> = {};
 
-      for (const r of groupRecords) {
+      for (const r of group.records) {
         if (r.subCategoryMetricId != null && r.value != null) {
           metricValues[r.subCategoryMetricId] = String(r.value);
         }
@@ -134,17 +164,16 @@ export function useWeeklyRecords(
         }
       }
 
-      assignments.push({
+      return {
         id: newAssignmentId(),
-        groupId: null, // resolved via category in UI
-        categoryId: null, // would need a reverse-lookup; populated by subCategoryId
-        subCategoryId: scm?.subCategoryId ?? null,
+        groupId,
+        categoryId,
+        subCategoryId: group.subCatId || null,
         metricValues,
         existingRecordIds,
         comment: firstRecord.comment ?? '',
-      });
-    }
-    return assignments;
+      };
+    });
   }
 
   async function loadWeek(): Promise<void> {
@@ -166,6 +195,7 @@ export function useWeeklyRecords(
 
       if (apiError.value) {
         error.value = apiError.value.message ?? 'Failed to load records.';
+        dayAssignmentsMap.value = {};
         return;
       }
 
@@ -186,10 +216,16 @@ export function useWeeklyRecords(
         newMap[date] = reconstructAssignments(byDate[date]);
       }
       dayAssignmentsMap.value = newMap;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to load records.';
+      dayAssignmentsMap.value = {};
     } finally {
       isLoading.value = false;
     }
   }
+
+  // Reload whenever the displayed week changes (driven by navigateWeek)
+  watch(weekStart, () => loadWeek());
 
   async function saveDay(date: string, assignments: DayAssignment[], status: string): Promise<string | null> {
     if (!locationId.value || !userId.value) return 'Missing location or user.';
@@ -250,11 +286,11 @@ export function useWeeklyRecords(
     }
 
     try {
-      await Promise.all([
-        ...(toCreate.length > 0 ? [Promise.resolve(postApiStatsRecordsBatch(toCreate))] : []),
-        ...toUpdate.map(({ id, request }) => Promise.resolve(putApiStatsRecordsId(id, request))),
-        ...toDelete.map((id) => Promise.resolve(deleteApiStatsRecordsId(id))),
-      ]);
+      // Sequential to avoid partial-failure inconsistency:
+      // if creates fail, updates/deletes are never attempted.
+      if (toCreate.length > 0) await postApiStatsRecordsBatch(toCreate);
+      for (const { id, request } of toUpdate) await putApiStatsRecordsId(id, request);
+      for (const id of toDelete) await deleteApiStatsRecordsId(id);
       await loadWeek();
       return null;
     } catch (e) {
@@ -281,6 +317,7 @@ export function useWeeklyRecords(
   }
 
   return {
+    weekStart,
     weekDates,
     dayAssignmentsMap,
     daySummaryMap,

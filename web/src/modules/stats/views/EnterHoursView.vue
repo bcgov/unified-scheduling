@@ -17,6 +17,7 @@ import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
+import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import type { SelectValue } from '@/types/select';
@@ -36,8 +37,12 @@ const GROUP_HEADER_COLORS: Record<number, string> = {
   1: '#42814A',
   2: '#CE3E39',
 };
-const cardHeaderColor = computed(() => GROUP_HEADER_COLORS[props.groupId]);
-const formTitle = computed(() => (props.groupId === 1 ? 'Enter Non-Supervision Hours' : 'Enter Supervision Hours'));
+const cardHeaderColor = computed<string | undefined>(() => GROUP_HEADER_COLORS[props.groupId]);
+const formTitle = computed(() => {
+  if (props.groupId === 1) return 'Enter Non-Supervision Hours';
+  if (props.groupId === 2) return 'Enter Supervision Hours';
+  return 'Enter Hours Worked';
+});
 
 // ── Auth ──────────────────────────────────────────────────────────────────
 const authStore = useAuthStore();
@@ -107,13 +112,6 @@ watch(selectedLocationId, async (locId) => {
 });
 
 // ── Week navigation ───────────────────────────────────────────────────────
-const weekStart = ref(
-  (() => {
-    const m = getMondayOfWeek(new Date());
-    return m.toISOString().slice(0, 10);
-  })(),
-);
-
 const weekRangeLabel = computed(() => {
   const dates = weekDates.value;
   if (dates.length < 7) return '';
@@ -133,13 +131,20 @@ const {
   weeklyOvertimeTotal,
   isOvertimeEnabled,
   isLoading,
+  error: loadError,
   loadWeek,
   saveDay,
   navigateWeek,
   createEmptyAssignment,
-} = useWeeklyRecords(weekStart, selectedLocationId, selectedUserId, subCategoryMetrics, metrics);
-
-watch(weekStart, () => loadWeek());
+} = useWeeklyRecords(
+  getMondayOfWeek(new Date()).toISOString().slice(0, 10),
+  selectedLocationId,
+  selectedUserId,
+  subCategories,
+  categories,
+  subCategoryMetrics,
+  metrics,
+);
 
 // ── Selected day ──────────────────────────────────────────────────────────
 const selectedDate = ref<string | null>(null);
@@ -299,6 +304,9 @@ async function handleSave(status: string) {
 
     <!-- Loading state -->
     <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
+
+    <!-- Week load error -->
+    <UaAlert v-if="loadError" type="error">{{ loadError }}</UaAlert>
 
     <template v-else>
       <!-- Main two-panel layout -->

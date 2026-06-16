@@ -11,6 +11,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import { mdiLockOutline, mdiPlus } from '@mdi/js';
 import { computed } from 'vue';
 import type { DayAssignment } from '../types';
+import { isRegularMetric } from '../utils/metricHelpers';
 import AssignmentRow from './AssignmentRow.vue';
 
 const props = defineProps<{
@@ -51,7 +52,7 @@ const dailyRegularTotal = computed(() => {
       if (isNaN(val) || val <= 0) continue;
       const scm = props.subCategoryMetrics.find((s) => s.id === Number(scmIdStr));
       const metric = props.metrics.find((m) => m.id === scm?.metricId);
-      if (metric?.unitOfMeasure === 'hours' && !metric.name?.toLowerCase().includes('overtime')) {
+      if (metric && isRegularMetric(metric)) {
         total += val;
       }
     }

@@ -15,6 +15,7 @@ import type { SelectValue } from '@/types/select';
 import { mdiLockOutline } from '@mdi/js';
 import { computed } from 'vue';
 import type { AssignmentData } from '../types';
+import { isOvertimeMetric } from '../utils/metricHelpers';
 
 const props = defineProps<{
   groups: StatGroupResponse[];
@@ -74,8 +75,7 @@ const metricDetails = computed(() => {
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     .map((scm) => {
       const metric = props.metrics.find((m) => m.id === scm.metricId);
-      const isOvertime =
-        metric?.unitOfMeasure === 'hours' && (metric.name?.toLowerCase().includes('overtime') ?? false);
+      const isOvertime = metric ? isOvertimeMetric(metric) : false;
       return {
         id: scm.id!,
         name: metric?.name ?? '',
