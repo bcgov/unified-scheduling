@@ -120,6 +120,96 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
         await DB.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task DeleteWithReassignmentAsync(
+        int roleIdToDelete,
+        DeleteRoleWithReassignmentRequestDto request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var roleToDelete =
+            await DB.Roles.FindAsync([roleIdToDelete], cancellationToken: cancellationToken)
+            ?? throw new KeyNotFoundException($"Role {roleIdToDelete} not found.");
+
+        var now = DateTimeOffset.UtcNow;
+        var activeAssignments = await DB.UserRoles.Where(ur =>
+            ur.RoleId == roleIdToDelete && (ur.ExpiryDate == null || ur.ExpiryDate > now)
+        ).ToListAsync(cancellationToken);
+
+        var activeAssignmentCount = activeAssignments.Count;
+
+        if (activeAssignmentCount > 0)
+        {
+            if (!request.NewRoleId.HasValue)
+                throw new InvalidOperationException(
+                    $"Cannot delete role {roleIdToDelete} with {activeAssignmentCount} assigned user(s) without specifying a new role."
+                );
+
+            if (request.NewRoleId.Value == roleIdToDelete)
+                throw new InvalidOperationException("The new role cannot be the same as the role being deleted.");
+
+            var newRoleExists = await DB.Roles.AnyAsync(r => r.Id == request.NewRoleId.Value, cancellationToken);
+            if (!newRoleExists)
+                throw new KeyNotFoundException($"New role {request.NewRoleId} not found.");
+
+            if (
+                string.IsNullOrWhiteSpace(request.NewRoleEffectiveDate)
+                || !DateTimeOffset.TryParse(request.NewRoleEffectiveDate, out var effectiveDate)
+            )
+                throw new InvalidOperationException("A valid effective date is required when reassigning users.");
+
+            DateTimeOffset? expiryDate = null;
+            if (!string.IsNullOrWhiteSpace(request.NewRoleExpiryDate))
+            {
+                if (!DateTimeOffset.TryParse(request.NewRoleExpiryDate, out var parsedExpiry))
+                    throw new InvalidOperationException("Invalid expiry date format.");
+                if (parsedExpiry <= effectiveDate)
+                    throw new InvalidOperationException("Expiry date must be after the effective date.");
+
+                expiryDate = parsedExpiry;
+            }
+
+            await using var transaction = await DB.Database.BeginTransactionAsync(cancellationToken);
+
+            var userIds = activeAssignments.Select(ur => ur.UserId).ToList();
+
+            var existingNewRoleAssignments = await DB
+                .UserRoles.Where(ur => ur.RoleId == request.NewRoleId.Value && userIds.Contains(ur.UserId))
+                .ToDictionaryAsync(ur => ur.UserId, cancellationToken);
+
+            foreach (var assignment in activeAssignments)
+            {
+                if (existingNewRoleAssignments.TryGetValue(assignment.UserId, out var existingAssignment))
+                {
+                    existingAssignment.EffectiveDate = effectiveDate;
+                    existingAssignment.ExpiryDate = expiryDate;
+                    existingAssignment.ExpiryReason = null;
+                    continue;
+                }
+
+                DB.UserRoles.Add(
+                    new UserRole
+                    {
+                        UserId = assignment.UserId,
+                        RoleId = request.NewRoleId.Value,
+                        EffectiveDate = effectiveDate,
+                        ExpiryDate = expiryDate,
+                        ExpiryReason = null,
+                    }
+                );
+            }
+
+            DB.UserRoles.RemoveRange(activeAssignments);
+
+            DB.Roles.Remove(roleToDelete);
+            await DB.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return;
+        }
+
+        DB.Roles.Remove(roleToDelete);
+        await DB.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task AddPermissionsAsync(
         Role role,
         IEnumerable<string> permissionIds,

@@ -14,7 +14,8 @@ namespace Unified.UserManagement.Controllers;
 public class RolesController(
     IRoleService roleService,
     RoleRequestValidator roleRequestValidator,
-    UpdateRoleRequestValidator updateRoleRequestValidator
+    UpdateRoleRequestValidator updateRoleRequestValidator,
+    DeleteRoleWithReassignmentRequestDtoValidator deleteRoleValidator
 ) : ControllerBase
 {
     /// <summary>
@@ -107,14 +108,22 @@ public class RolesController(
     /// </summary>
     /// <param name="id">The role ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="request">Optional reassignment payload. Required when active users are assigned to the role.</param>
     /// <returns>No content.</returns>
     [HttpDelete("{id:int}")]
     [Authorize(Policy = UserManagementPolicies.RolesExpire)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(
+        int id,
+        CancellationToken cancellationToken,
+        [FromBody] DeleteRoleWithReassignmentRequestDto? request = null
+    )
     {
-        await roleService.DeleteAsync(id, cancellationToken);
+        request ??= new DeleteRoleWithReassignmentRequestDto();
+        await deleteRoleValidator.ValidateAndThrowAsync(request, cancellationToken);
+        await roleService.DeleteWithReassignmentAsync(id, request, cancellationToken);
 
         return NoContent();
     }

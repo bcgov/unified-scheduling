@@ -10,7 +10,12 @@ namespace Unified.Tests.UserManagement.Controllers;
 public class RolesControllerTests
 {
     private static RolesController BuildController(FakeRoleService? service = null) =>
-        new(service ?? new FakeRoleService(), new RoleRequestValidator(), new UpdateRoleRequestValidator());
+        new(
+            service ?? new FakeRoleService(),
+            new RoleRequestValidator(),
+            new UpdateRoleRequestValidator(),
+            new DeleteRoleWithReassignmentRequestDtoValidator()
+        );
 
     // ── Get ──────────────────────────────────────────────────────────────────
 
@@ -228,6 +233,16 @@ public class RolesControllerTests
         public Task DeleteAsync(int id, CancellationToken cancellationToken = default)
         {
             DeletedRoleId = id;
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteWithReassignmentAsync(
+            int roleIdToDelete,
+            DeleteRoleWithReassignmentRequestDto request,
+            CancellationToken cancellationToken = default
+        )
+        {
+            DeletedRoleId = roleIdToDelete;
             return Task.CompletedTask;
         }
     }
