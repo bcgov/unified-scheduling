@@ -17,7 +17,6 @@ import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import type { SelectValue } from '@/types/select';
@@ -80,7 +79,7 @@ const onLocationChange = (value: SelectValue | undefined) => {
 
 // ── Supervisor user picker ────────────────────────────────────────────────
 const locationUsers = ref<UserResponse[]>([]);
-const selectedUserId = ref<string | null>(authStore.currentUserId);
+const selectedUserId = ref<string | null>(canEnterForOthers.value ? null : authStore.currentUserId);
 let activeLocationId: number | null = null;
 
 const userOptions = computed(() =>
@@ -134,7 +133,6 @@ const {
   weeklyOvertimeTotal,
   isOvertimeEnabled,
   isLoading,
-  error: weekError,
   loadWeek,
   saveDay,
   navigateWeek,

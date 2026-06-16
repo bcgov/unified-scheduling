@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DaySummary } from '../types';
 
-const props = defineProps<{
+defineProps<{
   date: string;
   dayName: string;
   dayNumber: number;

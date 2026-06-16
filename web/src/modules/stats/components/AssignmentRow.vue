@@ -11,7 +11,6 @@ import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
-import UaTextField from '@/shared/components/UaTextField.vue';
 import type { SelectValue } from '@/types/select';
 import { mdiLockOutline } from '@mdi/js';
 import { computed } from 'vue';
