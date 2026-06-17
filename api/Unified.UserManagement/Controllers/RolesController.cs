@@ -104,26 +104,45 @@ public class RolesController(
     }
 
     /// <summary>
-    /// Deletes a role and its related user-role and role-permission assignments.
+    /// Deletes a role when no reassignment operation is required.
     /// </summary>
     /// <param name="id">The role ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <param name="request">Optional reassignment payload. Required when active users are assigned to the role.</param>
     /// <returns>No content.</returns>
     [HttpDelete("{id:int}")]
     [Authorize(Policy = UserManagementPolicies.RolesExpire)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(
         int id,
-        CancellationToken cancellationToken,
-        [FromBody] DeleteRoleWithReassignmentRequestDto? request = null
+        CancellationToken cancellationToken
     )
     {
-        request ??= new DeleteRoleWithReassignmentRequestDto();
+        await roleService.DeleteAsync(id, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Reassigns active users to a new role and then deletes the source role.
+    /// </summary>
+    /// <param name="id">The role ID to delete.</param>
+    /// <param name="request">Required reassignment payload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>No content.</returns>
+    [HttpPost("{id:int}/reassing-and-delete")]
+    [Authorize(Policy = UserManagementPolicies.RolesExpire)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReassingAndDelete(
+        int id,
+        [FromBody] DeleteRoleWithReassignmentRequestDto request,
+        CancellationToken cancellationToken
+    )
+    {
         await deleteRoleValidator.ValidateAndThrowAsync(request, cancellationToken);
-        await roleService.DeleteWithReassignmentAsync(id, request, cancellationToken);
+        await roleService.ReassingAndDeleteAsync(id, request, cancellationToken);
 
         return NoContent();
     }

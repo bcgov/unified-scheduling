@@ -1,17 +1,20 @@
 using Mapster;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Unified.Authorization.Claims;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Services;
 
-public sealed class RoleService(UnifiedDbContext DB) : IRoleService
+public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpContextAccessor) : IRoleService
 {
     public async Task<IReadOnlyCollection<RoleDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var roles = await DB
             .Roles.AsNoTracking()
+            .Where(r => r.DeletedById == null)
             .Include(r => r.RolePermissions)
                 .ThenInclude(rp => rp.Permission)
             .OrderBy(x => x.Name)
@@ -25,7 +28,7 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
         CancellationToken cancellationToken = default
     )
     {
-        var roleExists = await DB.Roles.AnyAsync(r => r.Id == roleId, cancellationToken);
+        var roleExists = await DB.Roles.AnyAsync(r => r.Id == roleId && r.DeletedById == null, cancellationToken);
         if (!roleExists)
             throw new KeyNotFoundException($"Role {roleId} not found.");
 
@@ -51,7 +54,12 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
 
     public async Task<RoleDto> CreateAsync(RoleRequestDto request, CancellationToken cancellationToken = default)
     {
-        if (await DB.Roles.AnyAsync(r => r.Name.ToLower() == request.Name.ToLower(), cancellationToken))
+        if (
+            await DB.Roles.AnyAsync(
+                r => r.DeletedById == null && r.Name.ToLower() == request.Name.ToLower(),
+                cancellationToken
+            )
+        )
             throw new InvalidOperationException($"A role with name '{request.Name}' already exists.");
 
         var role = new Role { Name = request.Name, Description = request.Description };
@@ -75,7 +83,7 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
         var role =
             await DB
                 .Roles.Include(r => r.RolePermissions)
-                .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken)
+                .FirstOrDefaultAsync(r => r.Id == request.Id && r.DeletedById == null, cancellationToken)
             ?? throw new KeyNotFoundException($"Role {request.Id} not found.");
 
         if (role.ConcurrencyToken != request.ConcurrencyToken)
@@ -84,7 +92,7 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
         if (
             !string.Equals(role.Name, request.Name, StringComparison.OrdinalIgnoreCase)
             && await DB.Roles.AnyAsync(
-                r => r.Id != request.Id && r.Name.ToLower() == request.Name.ToLower(),
+                r => r.Id != request.Id && r.DeletedById == null && r.Name.ToLower() == request.Name.ToLower(),
                 cancellationToken
             )
         )
@@ -113,21 +121,28 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         var role =
-            await DB.Roles.FindAsync([id], cancellationToken: cancellationToken)
+            await DB.Roles.FirstOrDefaultAsync(r => r.Id == id && r.DeletedById == null, cancellationToken)
             ?? throw new KeyNotFoundException($"Role {id} not found.");
+        var currentUserId = httpContextAccessor.HttpContext!.User.CurrentUserId();
 
-        DB.Roles.Remove(role);
+        role.DeletedOn = DateTimeOffset.UtcNow;
+        role.DeletedById = currentUserId;
         await DB.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task DeleteWithReassignmentAsync(
+    public async Task ReassingAndDeleteAsync(
         int roleIdToDelete,
         DeleteRoleWithReassignmentRequestDto request,
         CancellationToken cancellationToken = default
     )
     {
+        var currentUserId = httpContextAccessor.HttpContext!.User.CurrentUserId();
+        
         var roleToDelete =
-            await DB.Roles.FindAsync([roleIdToDelete], cancellationToken: cancellationToken)
+            await DB.Roles.FirstOrDefaultAsync(
+                r => r.Id == roleIdToDelete && r.DeletedById == null,
+                cancellationToken
+            )
             ?? throw new KeyNotFoundException($"Role {roleIdToDelete} not found.");
 
         var now = DateTimeOffset.UtcNow;
@@ -139,15 +154,18 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
 
         if (activeAssignmentCount > 0)
         {
-            if (!request.NewRoleId.HasValue)
+            if (request.NewRoleId == null)
                 throw new InvalidOperationException(
                     $"Cannot delete role {roleIdToDelete} with {activeAssignmentCount} assigned user(s) without specifying a new role."
                 );
 
-            if (request.NewRoleId.Value == roleIdToDelete)
+            if (request.NewRoleId == roleIdToDelete)
                 throw new InvalidOperationException("The new role cannot be the same as the role being deleted.");
 
-            var newRoleExists = await DB.Roles.AnyAsync(r => r.Id == request.NewRoleId.Value, cancellationToken);
+            var newRoleExists = await DB.Roles.AnyAsync(
+                r => r.Id == request.NewRoleId && r.DeletedById == null,
+                cancellationToken
+            );
             if (!newRoleExists)
                 throw new KeyNotFoundException($"New role {request.NewRoleId} not found.");
 
@@ -173,7 +191,7 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
             var userIds = activeAssignments.Select(ur => ur.UserId).ToList();
 
             var existingNewRoleAssignments = await DB
-                .UserRoles.Where(ur => ur.RoleId == request.NewRoleId.Value && userIds.Contains(ur.UserId))
+                .UserRoles.Where(ur => ur.RoleId == request.NewRoleId && userIds.Contains(ur.UserId))
                 .ToDictionaryAsync(ur => ur.UserId, cancellationToken);
 
             foreach (var assignment in activeAssignments)
@@ -190,7 +208,7 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
                     new UserRole
                     {
                         UserId = assignment.UserId,
-                        RoleId = request.NewRoleId.Value,
+                        RoleId = request.NewRoleId,
                         EffectiveDate = effectiveDate,
                         ExpiryDate = expiryDate,
                         ExpiryReason = null,
@@ -200,13 +218,15 @@ public sealed class RoleService(UnifiedDbContext DB) : IRoleService
 
             DB.UserRoles.RemoveRange(activeAssignments);
 
-            DB.Roles.Remove(roleToDelete);
+            roleToDelete.DeletedOn = now;
+            roleToDelete.DeletedById = currentUserId;
             await DB.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return;
         }
 
-        DB.Roles.Remove(roleToDelete);
+        roleToDelete.DeletedOn = now;
+        roleToDelete.DeletedById = currentUserId;
         await DB.SaveChangesAsync(cancellationToken);
     }
 
