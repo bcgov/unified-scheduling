@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { RoleAssignedUserDto, RoleDto } from '@/api-access/generated/models';
-import { getApiRolesIdUsers } from '@/api-access/generated/roles/roles';
-import { useFetchAPI } from '@/api-access/useFetchAPI';
+import {
+  deleteApiRolesId,
+  getApiRolesIdUsers,
+  postApiRolesIdReassingAndDelete,
+} from '@/api-access/generated/roles/roles';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
@@ -51,15 +54,13 @@ const assignedUserHeaders = [
 ];
 
 // Computed properties
-const availableRoles = computed(() =>
-  props.allRoles.filter((r) => typeof r.id === 'number' && r.id !== props.role.id)
-);
+const availableRoles = computed(() => props.allRoles.filter((r) => typeof r.id === 'number' && r.id !== props.role.id));
 
 const availableRoleOptions = computed<SelectOption[]>(() =>
   availableRoles.value.map((r) => ({
     code: r.id!,
     description: r.name ?? `Role ${r.id}`,
-  }))
+  })),
 );
 
 const hasAssignedUsers = computed(() => (assignedRoleUsers.value ?? []).length > 0);
@@ -84,7 +85,7 @@ const deleteButtonDisabled = computed(
     !!assignedRoleUsersError.value ||
     !isReassignmentComplete.value ||
     hasInvalidDateRange.value ||
-    (hasAssignedUsers.value && availableRoleOptions.value.length === 0)
+    (hasAssignedUsers.value && availableRoleOptions.value.length === 0),
 );
 
 const handleClose = () => {
@@ -102,20 +103,13 @@ const handleConfirmDelete = async () => {
   deleteError.value = '';
 
   try {
-    const payload = {
-      newRoleId: hasAssignedUsers.value ? newRoleId.value : null,
-      newRoleEffectiveDate: hasAssignedUsers.value ? effectiveDate.value : null,
-      newRoleExpiryDate: hasAssignedUsers.value ? expiryDate.value : null,
-    };
-
-    const { error } = await useFetchAPI<void>(
-      {
-        url: `/api/roles/${props.role.id}`,
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        data: payload,
-      }
-    );
+    const { error } = hasAssignedUsers.value
+      ? await postApiRolesIdReassingAndDelete(props.role.id!, {
+          newRoleId: newRoleId.value ?? undefined,
+          newRoleEffectiveDate: effectiveDate.value,
+          newRoleExpiryDate: expiryDate.value,
+        })
+      : await deleteApiRolesId(props.role.id!);
 
     if (error.value) {
       const problemDetail = (error.value as { detail?: string } | null | undefined)?.detail;
@@ -165,12 +159,7 @@ const handleConfirmDelete = async () => {
         <div class="reassignment-form">
           <p class="form-label">Reassign users to:</p>
 
-          <UaSelect
-            v-model="newRoleId"
-            label="New Role"
-            :items="availableRoleOptions"
-            :disabled="isDeleting"
-          />
+          <UaSelect v-model="newRoleId" label="New Role" :items="availableRoleOptions" :disabled="isDeleting" />
 
           <UaTextField
             id="reassignment-effective-date"
