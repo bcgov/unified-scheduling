@@ -18,6 +18,8 @@ afterEach(() => {
 });
 
 describe('RoleDeleteModal', () => {
+  const getDocumentText = () => document.body.textContent ?? '';
+
   const setDateInputValue = (selector: string, value: string) => {
     const input = document.querySelector(selector) as HTMLInputElement | null;
     expect(input).not.toBeNull();
@@ -176,7 +178,7 @@ describe('RoleDeleteModal', () => {
       button.textContent?.includes('Reassign and Delete'),
     ) as HTMLButtonElement | undefined;
 
-    expect(wrapper.text()).toContain('Expiry date must be after effective date.');
+    expect(getDocumentText()).toContain('Expiry date must be after effective date.');
     expect(reassignButton).toBeDefined();
     expect(reassignButton?.disabled).toBe(true);
 
@@ -210,7 +212,7 @@ describe('RoleDeleteModal', () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Role cannot be deleted while dependencies exist.');
+    expect(getDocumentText()).toContain('Role cannot be deleted while dependencies exist.');
     expect(wrapper.emitted('deleted')).toBeFalsy();
 
     wrapper.unmount();
