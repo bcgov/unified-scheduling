@@ -215,10 +215,7 @@ public class RolesControllerTests
     [Fact]
     public async Task Delete_Should_Propagate_Service_Exception_When_Delete_Fails()
     {
-        var service = new FakeRoleService
-        {
-            DeleteException = new KeyNotFoundException("Role not found."),
-        };
+        var service = new FakeRoleService { DeleteException = new KeyNotFoundException("Role not found.") };
         var controller = BuildController(service);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -303,7 +300,10 @@ public class RolesControllerTests
         public Task<IReadOnlyCollection<RoleAssignedUserDto>> GetAssignedUsersAsync(
             int roleId,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(GetAssignedUsersResult ?? (IReadOnlyCollection<RoleAssignedUserDto>)new List<RoleAssignedUserDto>());
+        ) =>
+            Task.FromResult(
+                GetAssignedUsersResult ?? (IReadOnlyCollection<RoleAssignedUserDto>)new List<RoleAssignedUserDto>()
+            );
 
         public Task<RoleDto> UpdateAsync(UpdateRoleRequestDto request, CancellationToken cancellationToken = default) =>
             Task.FromResult(UpdateResult ?? new RoleDto());
@@ -347,4 +347,3 @@ public class RolesControllerTests
         }
     }
 }
-

@@ -18,14 +18,11 @@ public class RoleServiceTests : IAsyncLifetime
     private IHttpContextAccessor CreateHttpContextAccessor(Guid? userId = null)
     {
         var actualUserId = userId ?? _testUserId;
-        var claims = new List<Claim>
-        {
-            new(UnifiedClaimTypes.UserId, actualUserId.ToString()),
-        };
+        var claims = new List<Claim> { new(UnifiedClaimTypes.UserId, actualUserId.ToString()) };
         var identity = new ClaimsIdentity(claims, "TestAuth");
         var principal = new ClaimsPrincipal(identity);
         var httpContext = new DefaultHttpContext { User = principal };
-        
+
         return new TestHttpContextAccessor { HttpContext = httpContext };
     }
 
@@ -120,10 +117,7 @@ public class RoleServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedRoles();
-        var deletedRole = await _dbContext.Roles.FirstAsync(
-            r => r.Id == 2,
-            TestContext.Current.CancellationToken
-        );
+        var deletedRole = await _dbContext.Roles.FirstAsync(r => r.Id == 2, TestContext.Current.CancellationToken);
         deletedRole.DeletedOn = DateTimeOffset.UtcNow;
         deletedRole.DeletedById = User.SystemUser;
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -165,7 +159,12 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task GetAssignedUsersAsync_Should_Return_Only_Active_Users_For_Role()
     {
         // Arrange
-        var role = new Role { Id = 10, Name = "Manager", Description = "Manager role" };
+        var role = new Role
+        {
+            Id = 10,
+            Name = "Manager",
+            Description = "Manager role",
+        };
         var activeUser = new User
         {
             Id = Guid.NewGuid(),
@@ -493,10 +492,7 @@ public class RoleServiceTests : IAsyncLifetime
         var result = await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
-        var role = await _dbContext.Roles.FirstOrDefaultAsync(
-            r => r.Id == 1,
-            TestContext.Current.CancellationToken
-        );
+        var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.Id == 1, TestContext.Current.CancellationToken);
         Assert.NotNull(role);
         Assert.Equal(1, result.Id);
         Assert.Equal(role.DeletedById, result.DeletedBy);
@@ -524,10 +520,7 @@ public class RoleServiceTests : IAsyncLifetime
         var result = await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
-        var role = await _dbContext.Roles.FirstOrDefaultAsync(
-            r => r.Id == 1,
-            TestContext.Current.CancellationToken
-        );
+        var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.Id == 1, TestContext.Current.CancellationToken);
         Assert.NotNull(role);
         Assert.Equal(_testUserId, role.DeletedById);
         Assert.NotNull(role.DeletedOn);
@@ -543,20 +536,13 @@ public class RoleServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedRoles();
-        var request = new DeleteRoleWithReassignmentRequestDto
-        {
-            NewRoleId = 0,
-            NewRoleEffectiveDate = "2026-01-10",
-        };
+        var request = new DeleteRoleWithReassignmentRequestDto { NewRoleId = 0, NewRoleEffectiveDate = "2026-01-10" };
 
         // Act
         var result = await _roleService.ReassingAndDeleteAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
-        var role = await _dbContext.Roles.FirstOrDefaultAsync(
-            r => r.Id == 1,
-            TestContext.Current.CancellationToken
-        );
+        var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.Id == 1, TestContext.Current.CancellationToken);
         Assert.NotNull(role);
         Assert.Equal(1, result.Id);
         Assert.Equal(role.DeletedById, result.DeletedBy);
@@ -568,8 +554,18 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task ReassingAndDeleteAsync_Should_Reassign_And_Delete_When_Active_Assignments_Exist()
     {
         // Arrange
-        var roleToDelete = new Role { Id = 100, Name = "Manager", Description = "Manager role" };
-        var newRole = new Role { Id = 101, Name = "Senior Manager", Description = "Senior role" };
+        var roleToDelete = new Role
+        {
+            Id = 100,
+            Name = "Manager",
+            Description = "Manager role",
+        };
+        var newRole = new Role
+        {
+            Id = 101,
+            Name = "Senior Manager",
+            Description = "Senior role",
+        };
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -638,8 +634,18 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task ReassingAndDeleteAsync_Should_Only_Reassign_Active_Assignments()
     {
         // Arrange
-        var roleToDelete = new Role { Id = 102, Name = "Viewer", Description = "Viewer role" };
-        var newRole = new Role { Id = 103, Name = "Editor", Description = "Editor role" };
+        var roleToDelete = new Role
+        {
+            Id = 102,
+            Name = "Viewer",
+            Description = "Viewer role",
+        };
+        var newRole = new Role
+        {
+            Id = 103,
+            Name = "Editor",
+            Description = "Editor role",
+        };
         var activeUser = new User
         {
             Id = Guid.NewGuid(),
@@ -680,11 +686,7 @@ public class RoleServiceTests : IAsyncLifetime
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var request = new DeleteRoleWithReassignmentRequestDto
-        {
-            NewRoleId = 103,
-            NewRoleEffectiveDate = "2026-01-10",
-        };
+        var request = new DeleteRoleWithReassignmentRequestDto { NewRoleId = 103, NewRoleEffectiveDate = "2026-01-10" };
 
         // Act
         try
@@ -715,11 +717,7 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task ReassingAndDeleteAsync_Should_Throw_When_RoleToDelete_Not_Found()
     {
         // Arrange
-        var request = new DeleteRoleWithReassignmentRequestDto
-        {
-            NewRoleId = 1,
-            NewRoleEffectiveDate = "2026-01-10",
-        };
+        var request = new DeleteRoleWithReassignmentRequestDto { NewRoleId = 1, NewRoleEffectiveDate = "2026-01-10" };
 
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -731,7 +729,12 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task ReassingAndDeleteAsync_Should_Throw_When_NewRoleId_SameAs_RoleToDelete()
     {
         // Arrange
-        var role = new Role { Id = 50, Name = "Test", Description = "Test role" };
+        var role = new Role
+        {
+            Id = 50,
+            Name = "Test",
+            Description = "Test role",
+        };
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -771,7 +774,12 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task ReassingAndDeleteAsync_Should_Throw_When_NewRole_Not_Found()
     {
         // Arrange
-        var role = new Role { Id = 51, Name = "Source", Description = "Source role" };
+        var role = new Role
+        {
+            Id = 51,
+            Name = "Source",
+            Description = "Source role",
+        };
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -810,7 +818,12 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task ReassingAndDeleteAsync_Should_Throw_When_NewRoleId_Null_And_Active_Assignments_Exist()
     {
         // Arrange
-        var role = new Role { Id = 52, Name = "Source", Description = "Source role" };
+        var role = new Role
+        {
+            Id = 52,
+            Name = "Source",
+            Description = "Source role",
+        };
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -850,8 +863,18 @@ public class RoleServiceTests : IAsyncLifetime
     public async Task ReassingAndDeleteAsync_Should_Not_Update_Existing_EffectiveDate_When_It_Is_In_The_Past()
     {
         // Arrange
-        var roleToDelete = new Role { Id = 53, Name = "Old", Description = "Old role" };
-        var newRole = new Role { Id = 54, Name = "New", Description = "New role" };
+        var roleToDelete = new Role
+        {
+            Id = 53,
+            Name = "Old",
+            Description = "Old role",
+        };
+        var newRole = new Role
+        {
+            Id = 54,
+            Name = "New",
+            Description = "New role",
+        };
         var existingNewRoleEffectiveDate = DateTimeOffset.UtcNow.AddDays(-1);
         var user = new User
         {
@@ -922,4 +945,3 @@ internal class TestHttpContextAccessor : IHttpContextAccessor
 {
     public HttpContext? HttpContext { get; set; }
 }
-

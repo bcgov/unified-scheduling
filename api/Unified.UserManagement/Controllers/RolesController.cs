@@ -113,10 +113,7 @@ public class RolesController(
     [Authorize(Policy = UserManagementPolicies.RolesExpire)]
     [ProducesResponseType(typeof(DeletedRoleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DeletedRoleDto>> Delete(
-        int id,
-        CancellationToken cancellationToken
-    )
+    public async Task<ActionResult<DeletedRoleDto>> Delete(int id, CancellationToken cancellationToken)
     {
         var result = await roleService.DeleteAsync(id, cancellationToken);
 

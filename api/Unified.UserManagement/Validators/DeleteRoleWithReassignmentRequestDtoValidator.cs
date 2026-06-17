@@ -20,25 +20,25 @@ public sealed class DeleteRoleWithReassignmentRequestDtoValidator
             .WithMessage("Effective date is required when reassigning to a new role");
 
         // NewRoleId must be greater than 0 if provided
-        RuleFor(x => x.NewRoleId)
-            .GreaterThan(0)
-            .WithMessage("New role ID must be valid");
+        RuleFor(x => x.NewRoleId).GreaterThan(0).WithMessage("New role ID must be valid");
 
         // ExpiryDate must be after EffectiveDate if both provided
         RuleFor(x => x.NewRoleExpiryDate)
-            .Must((req, expiryDate) =>
-            {
-                if (string.IsNullOrEmpty(expiryDate))
-                    return true;
+            .Must(
+                (req, expiryDate) =>
+                {
+                    if (string.IsNullOrEmpty(expiryDate))
+                        return true;
 
-                if (!DateTimeOffset.TryParse(req.NewRoleEffectiveDate, out var effectiveDate))
-                    return false;
+                    if (!DateTimeOffset.TryParse(req.NewRoleEffectiveDate, out var effectiveDate))
+                        return false;
 
-                if (!DateTimeOffset.TryParse(expiryDate, out var expiry))
-                    return false;
+                    if (!DateTimeOffset.TryParse(expiryDate, out var expiry))
+                        return false;
 
-                return expiry > effectiveDate;
-            })
+                    return expiry > effectiveDate;
+                }
+            )
             .WithMessage("Expiry date must be after the effective date");
     }
 }

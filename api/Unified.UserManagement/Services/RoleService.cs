@@ -37,9 +37,7 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
 
         return await DB
             .UserRoles.AsNoTracking()
-            .Where(ur =>
-                ur.RoleId == roleId && (ur.ExpiryDate == null || ur.ExpiryDate > now)
-            )
+            .Where(ur => ur.RoleId == roleId && (ur.ExpiryDate == null || ur.ExpiryDate > now))
             .Select(ur => new RoleAssignedUserDto
             {
                 UserId = ur.UserId,
@@ -147,16 +145,13 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
     {
         var currentUserId = httpContextAccessor.HttpContext!.User.CurrentUserId();
         var now = DateTimeOffset.UtcNow;
-        
+
         var roleToDelete =
-            await DB.Roles.FirstOrDefaultAsync(
-                r => r.Id == roleIdToDelete && r.DeletedById == null,
-                cancellationToken
-            )
+            await DB.Roles.FirstOrDefaultAsync(r => r.Id == roleIdToDelete && r.DeletedById == null, cancellationToken)
             ?? throw new KeyNotFoundException($"Role {roleIdToDelete} not found.");
-        var activeAssignments = await DB.UserRoles.Where(ur =>
-            ur.RoleId == roleIdToDelete && (ur.ExpiryDate == null || ur.ExpiryDate > now)
-        ).ToListAsync(cancellationToken);
+        var activeAssignments = await DB
+            .UserRoles.Where(ur => ur.RoleId == roleIdToDelete && (ur.ExpiryDate == null || ur.ExpiryDate > now))
+            .ToListAsync(cancellationToken);
 
         var activeAssignmentCount = activeAssignments.Count;
 
