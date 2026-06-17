@@ -108,19 +108,19 @@ public class RolesController(
     /// </summary>
     /// <param name="id">The role ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>No content.</returns>
+    /// <returns>Deleted role metadata.</returns>
     [HttpDelete("{id:int}")]
     [Authorize(Policy = UserManagementPolicies.RolesExpire)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(DeletedRoleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(
+    public async Task<ActionResult<DeletedRoleDto>> Delete(
         int id,
         CancellationToken cancellationToken
     )
     {
-        await roleService.DeleteAsync(id, cancellationToken);
+        var result = await roleService.DeleteAsync(id, cancellationToken);
 
-        return NoContent();
+        return Ok(result);
     }
 
     /// <summary>
@@ -129,21 +129,21 @@ public class RolesController(
     /// <param name="id">The role ID to delete.</param>
     /// <param name="request">Required reassignment payload.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>No content.</returns>
+    /// <returns>Deleted role metadata.</returns>
     [HttpPost("{id:int}/reassing-and-delete")]
     [Authorize(Policy = UserManagementPolicies.RolesExpire)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(DeletedRoleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ReassingAndDelete(
+    public async Task<ActionResult<DeletedRoleDto>> ReassingAndDelete(
         int id,
         [FromBody] DeleteRoleWithReassignmentRequestDto request,
         CancellationToken cancellationToken
     )
     {
         await deleteRoleValidator.ValidateAndThrowAsync(request, cancellationToken);
-        await roleService.ReassingAndDeleteAsync(id, request, cancellationToken);
+        var result = await roleService.ReassingAndDeleteAsync(id, request, cancellationToken);
 
-        return NoContent();
+        return Ok(result);
     }
 }

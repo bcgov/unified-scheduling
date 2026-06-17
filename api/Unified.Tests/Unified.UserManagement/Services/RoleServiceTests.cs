@@ -490,7 +490,7 @@ public class RoleServiceTests : IAsyncLifetime
         await SeedRoles();
 
         // Act
-        await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
+        var result = await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         var role = await _dbContext.Roles.FirstOrDefaultAsync(
@@ -498,6 +498,9 @@ public class RoleServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         Assert.NotNull(role);
+        Assert.Equal(1, result.Id);
+        Assert.Equal(role.DeletedById, result.DeletedBy);
+        Assert.Equal(role.DeletedOn, result.DeletedOn);
         Assert.NotNull(role.DeletedById);
         Assert.NotNull(role.DeletedOn);
     }
@@ -518,7 +521,7 @@ public class RoleServiceTests : IAsyncLifetime
         var beforeDelete = DateTimeOffset.UtcNow;
 
         // Act
-        await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
+        var result = await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
 
         // Assert
         var role = await _dbContext.Roles.FirstOrDefaultAsync(
@@ -529,6 +532,8 @@ public class RoleServiceTests : IAsyncLifetime
         Assert.Equal(_testUserId, role.DeletedById);
         Assert.NotNull(role.DeletedOn);
         Assert.True(role.DeletedOn >= beforeDelete);
+        Assert.Equal(_testUserId, result.DeletedBy);
+        Assert.Equal(role.DeletedOn, result.DeletedOn);
     }
 
     // ── ReassingAndDeleteAsync ──────────────────────────────────────────
@@ -541,11 +546,11 @@ public class RoleServiceTests : IAsyncLifetime
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 0,
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
+            NewRoleEffectiveDate = "2026-01-10",
         };
 
         // Act
-        await _roleService.ReassingAndDeleteAsync(1, request, TestContext.Current.CancellationToken);
+        var result = await _roleService.ReassingAndDeleteAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var role = await _dbContext.Roles.FirstOrDefaultAsync(
@@ -553,6 +558,9 @@ public class RoleServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         Assert.NotNull(role);
+        Assert.Equal(1, result.Id);
+        Assert.Equal(role.DeletedById, result.DeletedBy);
+        Assert.Equal(role.DeletedOn, result.DeletedOn);
         Assert.NotNull(role.DeletedById);
     }
 
@@ -589,14 +597,15 @@ public class RoleServiceTests : IAsyncLifetime
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 101,
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
-            NewRoleExpiryDate = "2026-01-20T00:00:00Z",
+            NewRoleEffectiveDate = "2026-01-10",
+            NewRoleExpiryDate = "2026-01-20",
         };
 
         // Act
+        DeletedRoleDto? result = null;
         try
         {
-            await _roleService.ReassingAndDeleteAsync(100, request, TestContext.Current.CancellationToken);
+            result = await _roleService.ReassingAndDeleteAsync(100, request, TestContext.Current.CancellationToken);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("Transactions are not supported"))
         {
@@ -605,12 +614,17 @@ public class RoleServiceTests : IAsyncLifetime
         }
 
         // Assert
+        Assert.NotNull(result);
+        Assert.Equal(100, result.Id);
+        Assert.Equal(_testUserId, result.DeletedBy);
+
         var deletedRole = await _dbContext.Roles.FirstOrDefaultAsync(
             r => r.Id == 100,
             TestContext.Current.CancellationToken
         );
         Assert.NotNull(deletedRole);
         Assert.NotNull(deletedRole.DeletedById);
+        Assert.Equal(result.DeletedOn, deletedRole.DeletedOn);
 
         var userRole = await _dbContext.UserRoles.FirstOrDefaultAsync(
             ur => ur.UserId == user.Id && ur.RoleId == 101,
@@ -669,7 +683,7 @@ public class RoleServiceTests : IAsyncLifetime
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 103,
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
+            NewRoleEffectiveDate = "2026-01-10",
         };
 
         // Act
@@ -704,7 +718,7 @@ public class RoleServiceTests : IAsyncLifetime
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 1,
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
+            NewRoleEffectiveDate = "2026-01-10",
         };
 
         // Act & Assert
@@ -743,7 +757,7 @@ public class RoleServiceTests : IAsyncLifetime
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 50, // Same as role to delete
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
+            NewRoleEffectiveDate = "2026-01-10",
         };
 
         // Act & Assert
@@ -783,7 +797,7 @@ public class RoleServiceTests : IAsyncLifetime
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 9999, // Non-existent role
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
+            NewRoleEffectiveDate = "2026-01-10",
         };
 
         // Act & Assert
@@ -822,7 +836,7 @@ public class RoleServiceTests : IAsyncLifetime
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 0, // No new role specified
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
+            NewRoleEffectiveDate = "2026-01-10",
         };
 
         // Act & Assert
@@ -833,11 +847,12 @@ public class RoleServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Update_Existing_User_Role_Assignment()
+    public async Task ReassingAndDeleteAsync_Should_Not_Update_Existing_EffectiveDate_When_It_Is_In_The_Past()
     {
         // Arrange
         var roleToDelete = new Role { Id = 53, Name = "Old", Description = "Old role" };
         var newRole = new Role { Id = 54, Name = "New", Description = "New role" };
+        var existingNewRoleEffectiveDate = DateTimeOffset.UtcNow.AddDays(-1);
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -861,7 +876,7 @@ public class RoleServiceTests : IAsyncLifetime
             {
                 UserId = user.Id,
                 RoleId = 54,
-                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-1),
+                EffectiveDate = existingNewRoleEffectiveDate,
                 ExpiryDate = DateTimeOffset.UtcNow.AddDays(1),
                 ExpiryReason = "PERSONAL",
             }
@@ -871,8 +886,8 @@ public class RoleServiceTests : IAsyncLifetime
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 54,
-            NewRoleEffectiveDate = "2026-02-01T00:00:00Z",
-            NewRoleExpiryDate = "2026-02-15T00:00:00Z",
+            NewRoleEffectiveDate = "2026-02-01",
+            NewRoleExpiryDate = "2026-02-15",
         };
 
         // Act
@@ -896,7 +911,7 @@ public class RoleServiceTests : IAsyncLifetime
         );
         Assert.NotNull(existingAssignment);
         Assert.Null(existingAssignment.ExpiryReason);
-        Assert.Equal(new DateTimeOffset(2026, 2, 1, 8, 0, 0, TimeSpan.Zero), existingAssignment.EffectiveDate);
+        Assert.Equal(existingNewRoleEffectiveDate, existingAssignment.EffectiveDate);
     }
 }
 

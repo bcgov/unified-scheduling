@@ -213,7 +213,7 @@ const handleConfirmDelete = async () => {
         :loading="isDeleting"
         :disabled="deleteButtonDisabled"
       >
-        Reassign and Delete
+        {{ (assignedRoleUsers?.length ?? 0) > 0 ? 'Reassign and Delete' : 'Delete' }}
       </UaBtn>
     </template>
   </UaModal>

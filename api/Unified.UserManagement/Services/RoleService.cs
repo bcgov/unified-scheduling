@@ -2,6 +2,7 @@ using Mapster;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Unified.Authorization.Claims;
+using Unified.Common.Helpers.Extensions;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
@@ -118,25 +119,34 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
         return MapToDto(role);
     }
 
-    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<DeletedRoleDto> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
         var role =
             await DB.Roles.FirstOrDefaultAsync(r => r.Id == id && r.DeletedById == null, cancellationToken)
             ?? throw new KeyNotFoundException($"Role {id} not found.");
         var currentUserId = httpContextAccessor.HttpContext!.User.CurrentUserId();
+        var deletedOn = DateTimeOffset.UtcNow;
 
-        role.DeletedOn = DateTimeOffset.UtcNow;
+        role.DeletedOn = deletedOn;
         role.DeletedById = currentUserId;
         await DB.SaveChangesAsync(cancellationToken);
+
+        return new DeletedRoleDto
+        {
+            Id = role.Id,
+            DeletedBy = currentUserId,
+            DeletedOn = deletedOn,
+        };
     }
 
-    public async Task ReassingAndDeleteAsync(
+    public async Task<DeletedRoleDto> ReassingAndDeleteAsync(
         int roleIdToDelete,
         DeleteRoleWithReassignmentRequestDto request,
         CancellationToken cancellationToken = default
     )
     {
         var currentUserId = httpContextAccessor.HttpContext!.User.CurrentUserId();
+        var now = DateTimeOffset.UtcNow;
         
         var roleToDelete =
             await DB.Roles.FirstOrDefaultAsync(
@@ -144,8 +154,6 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
                 cancellationToken
             )
             ?? throw new KeyNotFoundException($"Role {roleIdToDelete} not found.");
-
-        var now = DateTimeOffset.UtcNow;
         var activeAssignments = await DB.UserRoles.Where(ur =>
             ur.RoleId == roleIdToDelete && (ur.ExpiryDate == null || ur.ExpiryDate > now)
         ).ToListAsync(cancellationToken);
@@ -171,19 +179,29 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
 
             if (
                 string.IsNullOrWhiteSpace(request.NewRoleEffectiveDate)
-                || !DateTimeOffset.TryParse(request.NewRoleEffectiveDate, out var effectiveDate)
+                || !DateTimeOffsetExtensions.IsValidDateFormat(request.NewRoleEffectiveDate)
             )
                 throw new InvalidOperationException("A valid effective date is required when reassigning users.");
+
+            var timezoneId = httpContextAccessor.HttpContext!.User.HomeLocationTimezone();
+            var effectiveDate = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
+                request.NewRoleEffectiveDate,
+                timezoneId
+            );
 
             DateTimeOffset? expiryDate = null;
             if (!string.IsNullOrWhiteSpace(request.NewRoleExpiryDate))
             {
-                if (!DateTimeOffset.TryParse(request.NewRoleExpiryDate, out var parsedExpiry))
+                if (!DateTimeOffsetExtensions.IsValidDateFormat(request.NewRoleExpiryDate))
                     throw new InvalidOperationException("Invalid expiry date format.");
-                if (parsedExpiry <= effectiveDate)
-                    throw new InvalidOperationException("Expiry date must be after the effective date.");
 
-                expiryDate = parsedExpiry;
+                expiryDate = DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(
+                    request.NewRoleExpiryDate,
+                    timezoneId
+                );
+
+                if (expiryDate <= effectiveDate)
+                    throw new InvalidOperationException("Expiry date must be after the effective date.");
             }
 
             await using var transaction = await DB.Database.BeginTransactionAsync(cancellationToken);
@@ -198,7 +216,9 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
             {
                 if (existingNewRoleAssignments.TryGetValue(assignment.UserId, out var existingAssignment))
                 {
-                    existingAssignment.EffectiveDate = effectiveDate;
+                    if (existingAssignment.EffectiveDate > now && existingAssignment.EffectiveDate != effectiveDate)
+                        existingAssignment.EffectiveDate = effectiveDate;
+
                     existingAssignment.ExpiryDate = expiryDate;
                     existingAssignment.ExpiryReason = null;
                     continue;
@@ -222,12 +242,25 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
             roleToDelete.DeletedById = currentUserId;
             await DB.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return;
+
+            return new DeletedRoleDto
+            {
+                Id = roleToDelete.Id,
+                DeletedBy = currentUserId,
+                DeletedOn = now,
+            };
         }
 
         roleToDelete.DeletedOn = now;
         roleToDelete.DeletedById = currentUserId;
         await DB.SaveChangesAsync(cancellationToken);
+
+        return new DeletedRoleDto
+        {
+            Id = roleToDelete.Id,
+            DeletedBy = currentUserId,
+            DeletedOn = now,
+        };
     }
 
     private async Task AddPermissionsAsync(

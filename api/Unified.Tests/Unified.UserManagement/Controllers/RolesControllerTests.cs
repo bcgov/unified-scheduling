@@ -195,14 +195,18 @@ public class RolesControllerTests
     // ── Delete ───────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Delete_Should_Return_NoContent_And_Call_DeleteAsync()
+    public async Task Delete_Should_Return_Ok_With_Delete_Metadata_And_Call_DeleteAsync()
     {
         var service = new FakeRoleService();
         var controller = BuildController(service);
 
         var result = await controller.Delete(7, TestContext.Current.CancellationToken);
 
-        Assert.IsType<NoContentResult>(result);
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<DeletedRoleDto>(okResult.Value);
+        Assert.Equal(7, payload.Id);
+        Assert.Equal(service.DeletedBy, payload.DeletedBy);
+        Assert.Equal(service.DeletedOn, payload.DeletedOn);
         Assert.Equal(7, service.DeletedRoleId);
         Assert.Equal(1, service.DeleteCallCount);
         Assert.Equal(0, service.ReassingAndDeleteCallCount);
@@ -223,7 +227,7 @@ public class RolesControllerTests
     }
 
     [Fact]
-    public async Task ReassingAndDelete_Should_Return_NoContent_And_Call_ReassingAndDeleteAsync()
+    public async Task ReassingAndDelete_Should_Return_Ok_With_Delete_Metadata_And_Call_ReassingAndDeleteAsync()
     {
         var service = new FakeRoleService();
         var controller = BuildController(service);
@@ -236,7 +240,11 @@ public class RolesControllerTests
 
         var result = await controller.ReassingAndDelete(7, request, TestContext.Current.CancellationToken);
 
-        Assert.IsType<NoContentResult>(result);
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<DeletedRoleDto>(okResult.Value);
+        Assert.Equal(7, payload.Id);
+        Assert.Equal(service.DeletedBy, payload.DeletedBy);
+        Assert.Equal(service.DeletedOn, payload.DeletedOn);
         Assert.Equal(7, service.DeletedRoleId);
         Assert.Equal(0, service.DeleteCallCount);
         Assert.Equal(1, service.ReassingAndDeleteCallCount);
@@ -283,6 +291,8 @@ public class RolesControllerTests
         public int ReassingAndDeleteCallCount { get; private set; }
         public DeleteRoleWithReassignmentRequestDto? LastReassingAndDeleteRequest { get; private set; }
         public Exception? DeleteException { get; set; }
+        public Guid DeletedBy { get; } = Guid.NewGuid();
+        public DateTimeOffset DeletedOn { get; } = DateTimeOffset.UtcNow;
 
         public Task<IReadOnlyCollection<RoleDto>> GetAllAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(GetAllResult ?? (IReadOnlyCollection<RoleDto>)new List<RoleDto>());
@@ -298,17 +308,25 @@ public class RolesControllerTests
         public Task<RoleDto> UpdateAsync(UpdateRoleRequestDto request, CancellationToken cancellationToken = default) =>
             Task.FromResult(UpdateResult ?? new RoleDto());
 
-        public Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+        public Task<DeletedRoleDto> DeleteAsync(int id, CancellationToken cancellationToken = default)
         {
             if (DeleteException is not null)
                 throw DeleteException;
 
             DeletedRoleId = id;
             DeleteCallCount++;
-            return Task.CompletedTask;
+
+            return Task.FromResult(
+                new DeletedRoleDto
+                {
+                    Id = id,
+                    DeletedBy = DeletedBy,
+                    DeletedOn = DeletedOn,
+                }
+            );
         }
 
-        public Task ReassingAndDeleteAsync(
+        public Task<DeletedRoleDto> ReassingAndDeleteAsync(
             int roleIdToDelete,
             DeleteRoleWithReassignmentRequestDto request,
             CancellationToken cancellationToken = default
@@ -317,7 +335,15 @@ public class RolesControllerTests
             DeletedRoleId = roleIdToDelete;
             ReassingAndDeleteCallCount++;
             LastReassingAndDeleteRequest = request;
-            return Task.CompletedTask;
+
+            return Task.FromResult(
+                new DeletedRoleDto
+                {
+                    Id = roleIdToDelete,
+                    DeletedBy = DeletedBy,
+                    DeletedOn = DeletedOn,
+                }
+            );
         }
     }
 }
