@@ -7,9 +7,7 @@ public class ExpireActingPositionRequestValidator : AbstractValidator<ExpireActi
 {
     public ExpireActingPositionRequestValidator()
     {
-        RuleFor(x => x.ActingPositionId)
-            .GreaterThan(0)
-            .WithMessage("ActingPositionId is required.");
+        RuleFor(x => x.ActingPositionId).GreaterThan(0).WithMessage("ActingPositionId is required.");
 
         RuleFor(x => x.ExpiryReason)
             .NotEmpty()

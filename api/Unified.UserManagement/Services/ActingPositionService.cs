@@ -106,10 +106,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
 
         var actingPosition = await db
             .UserActingPositions.Include(x => x.PositionType)
-            .SingleOrDefaultAsync(
-                x => x.Id == actingPositionId && x.UserId == userId,
-                cancellationToken
-            );
+            .SingleOrDefaultAsync(x => x.Id == actingPositionId && x.UserId == userId, cancellationToken);
 
         if (actingPosition is null)
         {
@@ -165,16 +162,11 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
 
         var actingPosition = await db
             .UserActingPositions.Include(x => x.PositionType)
-            .SingleOrDefaultAsync(
-                x => x.Id == request.ActingPositionId && x.UserId == userId,
-                cancellationToken
-            );
+            .SingleOrDefaultAsync(x => x.Id == request.ActingPositionId && x.UserId == userId, cancellationToken);
 
         if (actingPosition is null)
         {
-            throw new KeyNotFoundException(
-                $"Acting position {request.ActingPositionId} not found for user {userId}."
-            );
+            throw new KeyNotFoundException($"Acting position {request.ActingPositionId} not found for user {userId}.");
         }
 
         actingPosition.ExpiryDate = DateTimeOffset.UtcNow;

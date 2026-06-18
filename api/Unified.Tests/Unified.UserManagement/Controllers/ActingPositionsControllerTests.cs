@@ -187,7 +187,11 @@ public class ActingPositionsControllerTests
         var fakeService = new FakeActingPositionService { ExpireResult = expiredPosition };
         var controller = CreateController(fakeService);
 
-        var request = new ExpireActingPositionRequestDto { ActingPositionId = expiredPosition.Id, ExpiryReason = "ENTRYERR" };
+        var request = new ExpireActingPositionRequestDto
+        {
+            ActingPositionId = expiredPosition.Id,
+            ExpiryReason = "ENTRYERR",
+        };
 
         // Act
         var result = await controller.Expire(userId, request, TestContext.Current.CancellationToken);

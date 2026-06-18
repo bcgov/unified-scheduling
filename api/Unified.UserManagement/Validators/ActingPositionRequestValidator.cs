@@ -14,9 +14,7 @@ public class ActingPositionRequestValidator : AbstractValidator<ActingPositionRe
             .MaximumLength(50)
             .WithMessage("PositionTypeCode must not exceed 50 characters.");
 
-        RuleFor(x => x.EffectiveDate)
-            .NotEmpty()
-            .WithMessage("EffectiveDate is required.");
+        RuleFor(x => x.EffectiveDate).NotEmpty().WithMessage("EffectiveDate is required.");
 
         RuleFor(x => x.EffectiveDate)
             .Must(x => DateTimeOffsetExtensions.IsValidDateFormat(x, DateTimeOffsetExtensions.DateFormat))
