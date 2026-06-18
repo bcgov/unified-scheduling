@@ -11,6 +11,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import { mdiLockOutline, mdiPlus } from '@mdi/js';
 import { computed } from 'vue';
 import type { DayAssignment } from '../types';
+import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
 import { isRegularMetric } from '../utils/metricHelpers';
 import AssignmentRow from './AssignmentRow.vue';
 
@@ -62,7 +63,7 @@ const dailyRegularTotal = computed(() => {
 
 const overtimeLockReason = computed(() => {
   if (props.overtimeEnabled) return '';
-  return `Enter 7h regular today (${dailyRegularTotal.value}h / 7h) or 35h for the week to unlock overtime.`;
+  return `Enter ${DAILY_REGULAR_TARGET_HOURS}h regular today (${dailyRegularTotal.value}h / ${DAILY_REGULAR_TARGET_HOURS}h) or ${WEEKLY_REGULAR_TARGET_HOURS}h for the week to unlock overtime.`;
 });
 </script>
 
@@ -73,7 +74,7 @@ const overtimeLockReason = computed(() => {
       <div>
         <h2 class="day-detail-panel__date">{{ formattedDate }}</h2>
         <p class="day-detail-panel__total">
-          Regular: <strong>{{ dailyRegularTotal }}h</strong> / 7h
+          Regular: <strong>{{ dailyRegularTotal }}h</strong> / {{ DAILY_REGULAR_TARGET_HOURS }}h
         </p>
       </div>
       <div v-if="!overtimeEnabled" class="overtime-locked-badge">

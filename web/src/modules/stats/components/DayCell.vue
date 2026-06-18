@@ -68,9 +68,9 @@ function formatHours(h: number): string {
 }
 
 .day-cell--selected {
-  border-color: #fcba19;
+  border-color: var(--ua-stats-color-selected);
   background: rgb(var(--v-theme-surface));
-  box-shadow: 0 0 0 2px #fcba19;
+  box-shadow: 0 0 0 2px var(--ua-stats-color-selected);
 }
 
 .day-cell--today .day-cell__number {
@@ -115,12 +115,12 @@ function formatHours(h: number): string {
 
 .day-cell__hours--regular {
   background: rgba(66, 129, 74, 0.15);
-  color: #42814a;
+  color: var(--ua-stats-color-regular);
 }
 
 .day-cell__hours--overtime {
   background: rgba(206, 62, 57, 0.12);
-  color: #ce3e39;
+  color: var(--ua-stats-color-overtime);
 }
 
 .day-cell__empty {

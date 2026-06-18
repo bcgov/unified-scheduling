@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { DaySummary } from '../types';
+import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
 import DayCell from './DayCell.vue';
 
 const props = defineProps<{
@@ -42,7 +43,7 @@ const gridColumns = computed(() => `repeat(${dayInfos.value.length}, 1fr)`);
 
 function regularBar(date: string): number {
   const h = props.daySummaryMap[date]?.regularHours ?? 0;
-  return Math.min((h / 7) * 100, 100);
+  return Math.min((h / DAILY_REGULAR_TARGET_HOURS) * 100, 100);
 }
 </script>
 
@@ -53,8 +54,8 @@ function regularBar(date: string): number {
       <div class="weekly-grid__week-summary">
         <span>
           Regular:
-          <strong :class="{ 'text-success': weeklyRegularTotal >= 35 }"> {{ weeklyRegularTotal }}h </strong>
-          / 35h
+          <strong :class="{ 'text-success': weeklyRegularTotal >= WEEKLY_REGULAR_TARGET_HOURS }"> {{ weeklyRegularTotal }}h </strong>
+          / {{ WEEKLY_REGULAR_TARGET_HOURS }}h
         </span>
         <span v-if="weeklyOvertimeTotal > 0" class="overtime-total">
           Overtime: <strong>{{ weeklyOvertimeTotal }}h</strong>
@@ -91,7 +92,7 @@ function regularBar(date: string): number {
           <div
             class="daily-bar__fill"
             :style="{ width: regularBar(info.date) + '%' }"
-            :class="{ 'daily-bar__fill--full': (daySummaryMap[info.date]?.regularHours ?? 0) >= 7 }"
+            :class="{ 'daily-bar__fill--full': (daySummaryMap[info.date]?.regularHours ?? 0) >= DAILY_REGULAR_TARGET_HOURS }"
           />
         </div>
         <span class="daily-bar__label">
@@ -181,7 +182,7 @@ function regularBar(date: string): number {
 }
 
 .daily-bar__fill--full {
-  background: #42814a;
+  background: var(--ua-stats-color-regular);
 }
 
 .daily-bar__label {
@@ -190,11 +191,11 @@ function regularBar(date: string): number {
 }
 
 .text-success {
-  color: #42814a;
+  color: var(--ua-stats-color-regular);
 }
 
 .overtime-total {
-  color: #ce3e39;
+  color: var(--ua-stats-color-overtime);
 }
 
 /* Mobile: horizontal scroll */

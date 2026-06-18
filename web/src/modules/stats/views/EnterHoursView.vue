@@ -25,6 +25,7 @@ import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
 import { computed, onMounted, ref, watch } from 'vue';
 import type { DayAssignment } from '../types';
 import { getMondayOfWeek, useWeeklyRecords } from '../composables/useWeeklyRecords';
+import { DAILY_REGULAR_TARGET_HOURS } from '../constants';
 import DayDetailPanel from '../components/DayDetailPanel.vue';
 import WeeklyGrid from '../components/WeeklyGrid.vue';
 
@@ -105,10 +106,11 @@ watch(selectedLocationId, async (locId) => {
     locationUsers.value = [];
     selectedUserId.value = null;
     await loadUsersForLocation(locId);
+    // userId change triggers loadWeek reactively via useWeeklyRecords
   } else {
     selectedUserId.value = authStore.currentUserId;
+    // locationId change triggers loadWeek reactively via useWeeklyRecords
   }
-  await loadWeek();
 });
 
 // ── Week navigation ───────────────────────────────────────────────────────
@@ -225,8 +227,8 @@ function validate(assignments: DayAssignment[]): boolean {
       const metric = metrics.value.find((m) => m.id === scm.metricId);
       const isRegular = metric?.unitOfMeasure === 'hours' && !metric.name?.toLowerCase().includes('overtime');
 
-      if (isRegular && val > 7) {
-        errors[`assignment_${i}_metric_${scm.id}`] = 'Regular hours cannot exceed 7 per day';
+      if (isRegular && val > DAILY_REGULAR_TARGET_HOURS) {
+        errors[`assignment_${i}_metric_${scm.id}`] = `Regular hours cannot exceed ${DAILY_REGULAR_TARGET_HOURS} per day`;
       }
 
       if (metric?.unitOfMeasure === 'hours') dayTotalHours += val;

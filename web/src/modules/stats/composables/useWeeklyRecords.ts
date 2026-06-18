@@ -1,8 +1,6 @@
 import {
-  deleteApiStatsRecordsId,
   getApiStatsRecords,
-  postApiStatsRecordsBatch,
-  putApiStatsRecordsId,
+  putApiStatsRecordsDay,
 } from '@/api-access/generated/stat-records/stat-records';
 import type {
   StatCategoryResponse,
@@ -13,6 +11,7 @@ import type {
 } from '@/api-access/generated/models';
 import { computed, ref, watch, type Ref } from 'vue';
 import type { DayAssignment, DaySummary } from '../types';
+import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 
 // Returns "YYYY-MM-DD" for a Date
@@ -106,7 +105,7 @@ export function useWeeklyRecords(
 
   function isOvertimeEnabled(date: string): boolean {
     const daily = daySummaryMap.value[date]?.regularHours ?? 0;
-    return daily >= 7 || weeklyRegularTotal.value >= 35;
+    return daily >= DAILY_REGULAR_TARGET_HOURS || weeklyRegularTotal.value >= WEEKLY_REGULAR_TARGET_HOURS;
   }
 
   // Reconstruct DayAssignment[] from StatRecordResponse[] for one date.
@@ -181,6 +180,7 @@ export function useWeeklyRecords(
 
     isLoading.value = true;
     error.value = '';
+    dayAssignmentsMap.value = {};
     try {
       const from = weekDates.value[0];
       const to = weekDates.value[6];
@@ -224,78 +224,46 @@ export function useWeeklyRecords(
     }
   }
 
-  // Reload whenever the displayed week changes (driven by navigateWeek)
-  watch(weekStart, () => loadWeek());
+  // Reload whenever the week, location, or user changes
+  watch([weekStart, locationId, userId], () => loadWeek());
 
   async function saveDay(date: string, assignments: DayAssignment[], status: string): Promise<string | null> {
     if (!locationId.value || !userId.value) return 'Missing location or user.';
 
-    // Collect all existing record IDs currently on server for this day
-    const existing = dayAssignmentsMap.value[date] ?? [];
-    const allExistingIds = new Set<number>();
-    for (const a of existing) {
-      for (const id of Object.values(a.existingRecordIds)) allExistingIds.add(id);
-    }
-
-    const toCreate: Parameters<typeof postApiStatsRecordsBatch>[0] = [];
-    const toUpdate: Array<{ id: number; request: Parameters<typeof putApiStatsRecordsId>[1] }> = [];
-    const toDelete: number[] = [];
-
-    const seenIds = new Set<number>();
-
-    for (const assignment of assignments) {
+    // Build the desired final state for the day. The backend applies all
+    // creates/updates/deletes in a single transaction.
+    const records = assignments.flatMap((assignment) => {
       const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
-
-      for (const scm of scms) {
-        if (!scm.id) continue;
+      return scms.flatMap((scm) => {
+        if (!scm.id) return [];
         const raw = assignment.metricValues[scm.id];
         const val = raw ? parseFloat(raw) : NaN;
-        const existingId = assignment.existingRecordIds[scm.id];
+        if (!raw || raw.trim() === '' || isNaN(val)) return [];
+        return [
+          {
+            id: assignment.existingRecordIds[scm.id] ?? null,
+            subCategoryMetricId: scm.id,
+            value: val,
+            comment: assignment.comment || null,
+          },
+        ];
+      });
+    });
 
-        if (existingId != null) seenIds.add(existingId);
+    const { error: apiError } = await putApiStatsRecordsDay({
+      date,
+      locationId: locationId.value,
+      userId: userId.value,
+      status,
+      records,
+    });
 
-        if (!raw || raw.trim() === '' || isNaN(val)) {
-          // Empty — delete if existed
-          if (existingId != null) toDelete.push(existingId);
-          continue;
-        }
-
-        const base = {
-          dateFrom: date,
-          dateTo: date,
-          periodType: 'Daily',
-          userId: userId.value!,
-          locationId: locationId.value!,
-          subCategoryMetricId: scm.id,
-          value: val,
-          comment: assignment.comment || null,
-          status,
-        };
-
-        if (existingId != null) {
-          toUpdate.push({ id: existingId, request: base });
-        } else {
-          toCreate.push(base);
-        }
-      }
+    if (apiError.value) {
+      return apiError.value.message ?? 'Failed to save.';
     }
 
-    // Delete records that existed but are no longer in any assignment
-    for (const id of allExistingIds) {
-      if (!seenIds.has(id)) toDelete.push(id);
-    }
-
-    try {
-      // Sequential to avoid partial-failure inconsistency:
-      // if creates fail, updates/deletes are never attempted.
-      if (toCreate.length > 0) await postApiStatsRecordsBatch(toCreate);
-      for (const { id, request } of toUpdate) await putApiStatsRecordsId(id, request);
-      for (const id of toDelete) await deleteApiStatsRecordsId(id);
-      await loadWeek();
-      return null;
-    } catch (e) {
-      return e instanceof Error ? e.message : 'Failed to save.';
-    }
+    await loadWeek();
+    return null;
   }
 
   function navigateWeek(direction: -1 | 1): void {
@@ -304,7 +272,7 @@ export function useWeeklyRecords(
     weekStart.value = toISO(d);
   }
 
-  function createEmptyAssignment(groupId: number | null): DayAssignment {
+  function createEmptyAssignment(groupId: number): DayAssignment {
     return {
       id: newAssignmentId(),
       groupId,
