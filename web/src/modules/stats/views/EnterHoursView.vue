@@ -252,9 +252,12 @@ async function handleSave(status: string) {
 
   isSaving.value = true;
   apiError.value = '';
-  const err = await saveDay(selectedDate.value, selectedAssignments.value, status);
-  isSaving.value = false;
-  if (err) apiError.value = err;
+  try {
+    const err = await saveDay(selectedDate.value, selectedAssignments.value, status);
+    if (err) apiError.value = err;
+  } finally {
+    isSaving.value = false;
+  }
 }
 </script>
 
