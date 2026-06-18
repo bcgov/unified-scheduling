@@ -54,7 +54,7 @@
   --ua-field-bg: var(--bcds-surface-color-forms-default);
 
   /* ── Stats module colors ─────────────────────────────────────── */
-  --ua-stats-color-regular: #42814a;  /* BC Gov green — non-supervision / regular hours */
+  --ua-stats-color-regular: #42814a; /* BC Gov green — non-supervision / regular hours */
   --ua-stats-color-overtime: #ce3e39; /* BC Gov red — supervision / overtime hours */
   --ua-stats-color-selected: #fcba19; /* BC Gov gold — selected day highlight */
 

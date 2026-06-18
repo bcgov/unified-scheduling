@@ -22,6 +22,7 @@ import UaCard from '@/shared/components/UaCard.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import type { SelectValue } from '@/types/select';
 import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
+import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
 import type { DayAssignment } from '../types';
 import { getMondayOfWeek, useWeeklyRecords } from '../composables/useWeeklyRecords';
@@ -117,11 +118,9 @@ watch(selectedLocationId, async (locId) => {
 const weekRangeLabel = computed(() => {
   const dates = weekDates.value;
   if (dates.length < 7) return '';
-  const from = new Date(dates[0] + 'T00:00:00');
-  const to = new Date(dates[6] + 'T00:00:00');
-  const fmt = (d: Date) => d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
-  const year = to.getFullYear();
-  return `${fmt(from)} – ${fmt(to)}, ${year}`;
+  const from = DateTime.fromISO(dates[0]);
+  const to = DateTime.fromISO(dates[6]);
+  return `${from.toFormat('MMM d')} – ${to.toFormat('MMM d')}, ${to.year}`;
 });
 
 // ── Weekly records composable ─────────────────────────────────────────────
@@ -139,7 +138,7 @@ const {
   navigateWeek,
   createEmptyAssignment,
 } = useWeeklyRecords(
-  getMondayOfWeek(new Date()).toISOString().slice(0, 10),
+  getMondayOfWeek(DateTime.now()),
   selectedLocationId,
   selectedUserId,
   subCategories,
@@ -228,7 +227,8 @@ function validate(assignments: DayAssignment[]): boolean {
       const isRegular = metric?.unitOfMeasure === 'hours' && !metric.name?.toLowerCase().includes('overtime');
 
       if (isRegular && val > DAILY_REGULAR_TARGET_HOURS) {
-        errors[`assignment_${i}_metric_${scm.id}`] = `Regular hours cannot exceed ${DAILY_REGULAR_TARGET_HOURS} per day`;
+        errors[`assignment_${i}_metric_${scm.id}`] =
+          `Regular hours cannot exceed ${DAILY_REGULAR_TARGET_HOURS} per day`;
       }
 
       if (metric?.unitOfMeasure === 'hours') dayTotalHours += val;

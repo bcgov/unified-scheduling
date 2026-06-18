@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
 import type { DaySummary } from '../types';
 import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
@@ -19,17 +20,17 @@ const emit = defineEmits<{
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const WEEKEND_INDICES = new Set([5, 6]);
 
-const today = new Date().toISOString().slice(0, 10);
+const today = DateTime.now().toISODate();
 const showWeekends = ref(false);
 
 const dayInfos = computed(() =>
   props.weekDates
     .map((date, i) => {
-      const d = new Date(date + 'T00:00:00');
+      const d = DateTime.fromISO(date);
       return {
         date,
         dayName: DAY_NAMES[i],
-        dayNumber: d.getDate(),
+        dayNumber: d.day,
         isWeekend: WEEKEND_INDICES.has(i),
         summary: props.daySummaryMap[date] ?? { regularHours: 0, overtimeHours: 0, assignmentCount: 0 },
         isSelected: date === props.selectedDate,
@@ -54,7 +55,9 @@ function regularBar(date: string): number {
       <div class="weekly-grid__week-summary">
         <span>
           Regular:
-          <strong :class="{ 'text-success': weeklyRegularTotal >= WEEKLY_REGULAR_TARGET_HOURS }"> {{ weeklyRegularTotal }}h </strong>
+          <strong :class="{ 'text-success': weeklyRegularTotal >= WEEKLY_REGULAR_TARGET_HOURS }">
+            {{ weeklyRegularTotal }}h
+          </strong>
           / {{ WEEKLY_REGULAR_TARGET_HOURS }}h
         </span>
         <span v-if="weeklyOvertimeTotal > 0" class="overtime-total">
@@ -92,7 +95,9 @@ function regularBar(date: string): number {
           <div
             class="daily-bar__fill"
             :style="{ width: regularBar(info.date) + '%' }"
-            :class="{ 'daily-bar__fill--full': (daySummaryMap[info.date]?.regularHours ?? 0) >= DAILY_REGULAR_TARGET_HOURS }"
+            :class="{
+              'daily-bar__fill--full': (daySummaryMap[info.date]?.regularHours ?? 0) >= DAILY_REGULAR_TARGET_HOURS,
+            }"
           />
         </div>
         <span class="daily-bar__label">

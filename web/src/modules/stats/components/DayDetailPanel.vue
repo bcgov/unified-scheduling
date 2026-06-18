@@ -9,6 +9,7 @@ import type {
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import { mdiLockOutline, mdiPlus } from '@mdi/js';
+import { DateTime } from 'luxon';
 import { computed } from 'vue';
 import type { DayAssignment } from '../types';
 import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
@@ -40,10 +41,7 @@ const emit = defineEmits<{
   'clear-error': [];
 }>();
 
-const formattedDate = computed(() => {
-  const d = new Date(props.date + 'T00:00:00');
-  return d.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
-});
+const formattedDate = computed(() => DateTime.fromISO(props.date).toFormat('EEEE, MMMM d'));
 
 const dailyRegularTotal = computed(() => {
   let total = 0;

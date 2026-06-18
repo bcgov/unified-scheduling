@@ -1,7 +1,4 @@
-import {
-  getApiStatsRecords,
-  putApiStatsRecordsDay,
-} from '@/api-access/generated/stat-records/stat-records';
+import { getApiStatsRecords, putApiStatsRecordsDay } from '@/api-access/generated/stat-records/stat-records';
 import type {
   StatCategoryResponse,
   StatMetricResponse,
@@ -9,24 +6,15 @@ import type {
   SubCategoryMetricResponse,
   SubCategoryResponse,
 } from '@/api-access/generated/models';
+import { DateTime } from 'luxon';
 import { computed, ref, watch, type Ref } from 'vue';
 import type { DayAssignment, DaySummary } from '../types';
 import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 
-// Returns "YYYY-MM-DD" for a Date
-function toISO(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-// Returns the Monday of the week containing the given date
-export function getMondayOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun, 1=Mon, ...
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+// Returns the ISO Monday date string (yyyy-MM-dd) for the week containing the given date
+export function getMondayOfWeek(date: DateTime): string {
+  return date.startOf('week').toISODate()!;
 }
 
 export function useWeeklyRecords(
@@ -53,12 +41,8 @@ export function useWeeklyRecords(
 
   // 7 ISO date strings Mon–Sun
   const weekDates = computed<string[]>(() => {
-    const monday = new Date(weekStart.value + 'T00:00:00');
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(d.getDate() + i);
-      return toISO(d);
-    });
+    const monday = DateTime.fromISO(weekStart.value);
+    return Array.from({ length: 7 }, (_, i) => monday.plus({ days: i }).toISODate()!);
   });
 
   // Helper: get metric by subCategoryMetricId
@@ -267,9 +251,7 @@ export function useWeeklyRecords(
   }
 
   function navigateWeek(direction: -1 | 1): void {
-    const d = new Date(weekStart.value + 'T00:00:00');
-    d.setDate(d.getDate() + direction * 7);
-    weekStart.value = toISO(d);
+    weekStart.value = DateTime.fromISO(weekStart.value).plus({ weeks: direction }).toISODate()!;
   }
 
   function createEmptyAssignment(groupId: number): DayAssignment {

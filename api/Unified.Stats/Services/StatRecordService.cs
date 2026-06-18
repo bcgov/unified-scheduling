@@ -141,18 +141,16 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         // Load all existing records for this user/location/date so we can diff within one transaction
-        var existingRecords = await db.StatRecords
-            .Where(r =>
-                r.UserId == request.UserId &&
-                r.LocationId == request.LocationId &&
-                r.DateFrom == request.Date &&
-                r.DateTo == request.Date)
+        var existingRecords = await db
+            .StatRecords.Where(r =>
+                r.UserId == request.UserId
+                && r.LocationId == request.LocationId
+                && r.DateFrom == request.Date
+                && r.DateTo == request.Date
+            )
             .ToListAsync(cancellationToken);
 
-        var incomingIds = request.Records
-            .Where(r => r.Id.HasValue)
-            .Select(r => r.Id!.Value)
-            .ToHashSet();
+        var incomingIds = request.Records.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).ToHashSet();
 
         // Delete records no longer present in the incoming set
         var toDelete = existingRecords.Where(r => !incomingIds.Contains(r.Id)).ToList();
