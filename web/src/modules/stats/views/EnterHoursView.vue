@@ -1,34 +1,34 @@
 <script setup lang="ts">
-import type { UserResponse } from '@/api-access/generated/models';
-import { getApiUsers } from '@/api-access/generated/users/users';
-import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
-import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
-import { getApiStatsMetrics } from '@/api-access/generated/stat-metrics/stat-metrics';
-import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
-import { getApiStatsSubCategoryMetrics } from '@/api-access/generated/sub-category-metrics/sub-category-metrics';
 import type {
   StatCategoryResponse,
   StatGroupResponse,
   StatMetricResponse,
   SubCategoryMetricResponse,
   SubCategoryResponse,
+  UserResponse,
 } from '@/api-access/generated/models';
 import { Permissions } from '@/api-access/generated/models';
+import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
+import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
+import { getApiStatsMetrics } from '@/api-access/generated/stat-metrics/stat-metrics';
+import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
+import { getApiStatsSubCategoryMetrics } from '@/api-access/generated/sub-category-metrics/sub-category-metrics';
+import { getApiUsers } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
-import { useAuthStore } from '@/stores/auth';
-import { useLocationsStore } from '@/stores/LocationsStore';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
+import { useAuthStore } from '@/stores/auth';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
 import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
-import type { DayAssignment } from '../types';
-import { getMondayOfWeek, useWeeklyRecords } from '../composables/useWeeklyRecords';
-import { DAILY_REGULAR_TARGET_HOURS } from '../constants';
 import DayDetailPanel from '../components/DayDetailPanel.vue';
 import WeeklyGrid from '../components/WeeklyGrid.vue';
+import { getMondayOfWeek, useWeeklyRecords } from '../composables/useWeeklyRecords';
+import { DAILY_REGULAR_TARGET_HOURS } from '../constants';
+import type { DayAssignment } from '../types';
 
 const props = defineProps<{
   /** 1 = Non-Supervision, 2 = Supervision. Locks all assignments to that group. */
@@ -133,7 +133,6 @@ const {
   isOvertimeEnabled,
   isLoading,
   error: loadError,
-  loadWeek,
   saveDay,
   navigateWeek,
   createEmptyAssignment,
