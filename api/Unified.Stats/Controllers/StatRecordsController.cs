@@ -17,11 +17,19 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<StatRecordResponse>>> GetAll(
         [FromQuery] StatRecordQueryParams? queryParams,
         CancellationToken cancellationToken
     )
     {
+        if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
+            return Unauthorized();
+
+        // Non-supervisors may only query their own records regardless of what UserId is passed
+        if (!callerCanEnterForOthers)
+            queryParams = (queryParams ?? new()) with { UserId = callerUserId };
+
         return Ok(await service.GetAllAsync(queryParams, cancellationToken));
     }
 
@@ -89,6 +97,22 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
 
         var result = await service.UpdateAsync(id, request, callerUserId, callerCanEnterForOthers, cancellationToken);
         return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPut("day")]
+    [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<StatRecordResponse>>> SaveDay(
+        [FromBody] SaveDayRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
+            return Unauthorized();
+
+        var result = await service.SaveDayAsync(request, callerUserId, callerCanEnterForOthers, cancellationToken);
+        return Ok(result);
     }
 
     [HttpDelete("{id:int}")]

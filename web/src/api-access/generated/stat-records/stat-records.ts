@@ -4,7 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { GetApiStatsRecordsParams, StatRecordRequest, StatRecordResponse } from '../models';
+import type { GetApiStatsRecordsParams, SaveDayRequest, StatRecordRequest, StatRecordResponse } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI';
 
@@ -61,6 +61,20 @@ export const postApiStatsRecordsBatch = (
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       data: statRecordRequest,
+    },
+    options,
+  );
+};
+export const putApiStatsRecordsDay = (
+  saveDayRequest: SaveDayRequest,
+  options?: SecondParameter<typeof useFetchAPI<StatRecordResponse[]>>,
+) => {
+  return useFetchAPI<StatRecordResponse[]>(
+    {
+      url: `/api/stats/records/day`,
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      data: saveDayRequest,
     },
     options,
   );

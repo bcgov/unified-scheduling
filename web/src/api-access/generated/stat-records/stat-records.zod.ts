@@ -13,6 +13,7 @@ export const GetApiStatsRecordsQueryParams = zod.strictObject({
   FromDate: zod.iso.date().optional(),
   ToDate: zod.iso.date().optional(),
   Status: zod.string().optional(),
+  UserId: zod.uuid().optional(),
 });
 
 export const GetApiStatsRecordsResponseItem = zod.object({

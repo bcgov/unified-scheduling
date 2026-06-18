@@ -24,6 +24,7 @@ export * from './problemDetails';
 export * from './regionDto';
 export * from './roleDto';
 export * from './roleRequestDto';
+export * from './saveDayRequest';
 export * from './statCategoryResponse';
 export * from './statGroupResponse';
 export * from './statMetricResponse';

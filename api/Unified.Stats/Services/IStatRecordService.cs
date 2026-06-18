@@ -34,4 +34,10 @@ public interface IStatRecordService
         bool callerCanEnterForOthers,
         CancellationToken cancellationToken = default
     );
+    Task<IReadOnlyCollection<StatRecordResponse>> SaveDayAsync(
+        SaveDayRequest request,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
+        CancellationToken cancellationToken = default
+    );
 }

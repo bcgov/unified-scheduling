@@ -8,4 +8,5 @@ public sealed record StatRecordQueryParams
     public DateOnly? FromDate { get; init; }
     public DateOnly? ToDate { get; init; }
     public string? Status { get; init; }
+    public Guid? UserId { get; init; }
 }
