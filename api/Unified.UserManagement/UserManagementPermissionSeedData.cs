@@ -10,6 +10,7 @@ public static class UserManagementPermissionSeedData
 {
     private const string PermissionGroupUsers = "Users";
     private const string PermissionGroupRoles = "Roles";
+    private const string PermissionGroupActingPositions = "ActingPositions";
     public static PermissionSeedConfiguration Configuration { get; } =
         new()
         {
@@ -76,6 +77,31 @@ public static class UserManagementPermissionSeedData
                     Group = PermissionGroupRoles,
                     Id = nameof(Permissions.RolesExpire),
                     Description = "Expire roles",
+                },
+                // Acting Positions
+                new()
+                {
+                    Group = PermissionGroupActingPositions,
+                    Id = nameof(Permissions.ActingPositionsView),
+                    Description = "View acting positions",
+                },
+                new()
+                {
+                    Group = PermissionGroupActingPositions,
+                    Id = nameof(Permissions.ActingPositionsCreate),
+                    Description = "Create acting positions",
+                },
+                new()
+                {
+                    Group = PermissionGroupActingPositions,
+                    Id = nameof(Permissions.ActingPositionsEdit),
+                    Description = "Edit acting positions",
+                },
+                new()
+                {
+                    Group = PermissionGroupActingPositions,
+                    Id = nameof(Permissions.ActingPositionsExpire),
+                    Description = "Expire acting positions",
                 },
             ],
         };

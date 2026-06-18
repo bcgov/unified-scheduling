@@ -20,6 +20,7 @@ public class UnifiedDbContext : DbContext
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
+    public DbSet<UserActingPosition> UserActingPositions { get; set; }
     public DbSet<PositionType> PositionTypes { get; set; }
 
     // Stats
