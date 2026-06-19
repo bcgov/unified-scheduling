@@ -76,7 +76,10 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
                     r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
                         ? r.SubCategoryMetric.Metric.UnitOfMeasure
                         : string.Empty,
-                IsOvertime = r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null && r.SubCategoryMetric.Metric.IsOvertime,
+                IsOvertime =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.Metric != null
+                    && r.SubCategoryMetric.Metric.IsOvertime,
                 Value = r.Value,
                 Status = r.Status,
             })
