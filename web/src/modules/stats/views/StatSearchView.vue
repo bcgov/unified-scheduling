@@ -5,7 +5,7 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import DashboardFilters from '../components/DashboardFilters.vue';
 import { EntryStatus } from '../constants';
 import { useStatSearch } from '../composables/useStatSearch';
@@ -26,9 +26,20 @@ const {
   categoryId,
   subCategoryId,
   status,
+  fromDate,
+  toDate,
   error,
+  regularHours,
+  overtimeHours,
+  submittedCount,
+  loadReferenceData,
   loadEntries,
 } = useStatSearch();
+
+onMounted(async () => {
+  if (!canViewDashboard.value) return;
+  await Promise.all([loadReferenceData(), loadEntries()]);
+});
 
 const columns = [
   { title: 'Employee', key: 'employeeName', sortable: true },
@@ -56,6 +67,26 @@ function statusColor(s: string | undefined) {
     <h2 class="page-title">Search / View / Edit Data</h2>
 
     <UaAlert v-if="error" type="error">{{ error }}</UaAlert>
+
+    <!-- Summary cards -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <span class="summary-value">{{ regularHours }}</span>
+        <span class="summary-label">Regular Hours</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-value">{{ overtimeHours }}</span>
+        <span class="summary-label">Overtime Hours</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-value">{{ submittedCount }}</span>
+        <span class="summary-label">Submitted</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-value">{{ entries.length }}</span>
+        <span class="summary-label">Total Entries</span>
+      </div>
+    </div>
 
     <!-- Main layout -->
     <div class="search-layout">
@@ -86,6 +117,8 @@ function statusColor(s: string | undefined) {
         v-model:category-id="categoryId"
         v-model:sub-category-id="subCategoryId"
         v-model:status="status"
+        v-model:from-date="fromDate"
+        v-model:to-date="toDate"
         :locations="locationsStore.entities"
         :employees="employees"
         :categories="categories"
@@ -110,6 +143,35 @@ function statusColor(s: string | undefined) {
   font-weight: var(--ua-font-weight-bold);
   color: var(--ua-text-primary);
   margin: 0;
+}
+
+/* ── Summary cards ─────────────────────────────────────────────────── */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--ua-spacing-md);
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ua-spacing-xs);
+  padding: var(--ua-spacing-lg);
+  border: 1px solid var(--ua-border-color);
+  border-radius: var(--ua-border-radius);
+  background: rgb(var(--v-theme-surface));
+}
+
+.summary-value {
+  font-size: var(--ua-font-size-2xl);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-primary);
+  line-height: 1;
+}
+
+.summary-label {
+  font-size: var(--ua-font-size-sm);
+  color: var(--ua-text-secondary);
 }
 
 /* ── Main layout ───────────────────────────────────────────────────── */

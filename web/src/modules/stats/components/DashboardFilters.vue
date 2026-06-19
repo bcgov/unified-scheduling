@@ -19,6 +19,8 @@ const employeeId = defineModel<string | null>('employeeId', { default: null });
 const categoryId = defineModel<number | null>('categoryId', { default: null });
 const subCategoryId = defineModel<number | null>('subCategoryId', { default: null });
 const status = defineModel<string | null>('status', { default: null });
+const fromDate = defineModel<string | null>('fromDate', { default: null });
+const toDate = defineModel<string | null>('toDate', { default: null });
 
 const employeeItems = computed(() =>
   props.employees
@@ -27,12 +29,20 @@ const employeeItems = computed(() =>
     .sort((a, b) => a.title.localeCompare(b.title)),
 );
 
-const categoryItems = computed(() =>
-  props.categories
-    .filter((c) => c.id != null)
+const categoryItems = computed(() => {
+  // Categories share names across groups (Non-Supervision / Supervision) — dedup by name
+  const seen = new Set<string>();
+  return props.categories
+    .filter((c) => {
+      if (c.id == null) return false;
+      const name = c.name ?? '';
+      if (seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    })
     .map((c) => ({ title: c.name ?? '', value: c.id! }))
-    .sort((a, b) => a.title.localeCompare(b.title)),
-);
+    .sort((a, b) => a.title.localeCompare(b.title));
+});
 
 const filteredSubCategoryItems = computed(() => {
   const subs = categoryId.value
@@ -54,6 +64,8 @@ function clearAll() {
   categoryId.value = null;
   subCategoryId.value = null;
   status.value = null;
+  fromDate.value = null;
+  toDate.value = null;
   emit('apply');
 }
 </script>
@@ -103,6 +115,16 @@ function clearAll() {
         hide-details
         density="compact"
       />
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">From Date</label>
+      <v-text-field v-model="fromDate" type="date" clearable hide-details density="compact" />
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">To Date</label>
+      <v-text-field v-model="toDate" type="date" clearable hide-details density="compact" />
     </div>
 
     <div class="filter-group">

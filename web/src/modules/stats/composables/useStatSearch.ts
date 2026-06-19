@@ -8,7 +8,9 @@ import { getApiStatsDashboardEntries } from '@/api-access/generated/dashboard/da
 import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
 import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
 import { getApiUsers } from '@/api-access/generated/users/users';
-import { onMounted, ref } from 'vue';
+import { DateTime } from 'luxon';
+import { computed, ref } from 'vue';
+import { EntryStatus } from '../constants';
 
 export function useStatSearch() {
   // ── Reference data ──────────────────────────────────────────────────────
@@ -23,11 +25,33 @@ export function useStatSearch() {
   const categoryId = ref<number | null>(null);
   const subCategoryId = ref<number | null>(null);
   const status = ref<string | null>(null);
+  const monday = DateTime.now().startOf('week');
+  const sunday = monday.plus({ days: 6 });
+  const fromDate = ref<string | null>(monday.toISODate());
+  const toDate = ref<string | null>(sunday.toISODate());
 
   // ── Table data ──────────────────────────────────────────────────────────
   const entries = ref<DashboardEntryResponse[]>([]);
   const isLoadingEntries = ref(false);
   const error = ref('');
+
+  // ── Summary stats (client-side, placeholder until SS-956 adds a backend endpoint) ──
+  const regularHours = computed(() =>
+    entries.value
+      .filter((e) => {
+        const m = e.metric?.toLowerCase() ?? '';
+        return m.includes('hours') && !m.includes('overtime');
+      })
+      .reduce((sum, e) => sum + (e.value ?? 0), 0),
+  );
+
+  const overtimeHours = computed(() =>
+    entries.value
+      .filter((e) => e.metric?.toLowerCase().includes('overtime'))
+      .reduce((sum, e) => sum + (e.value ?? 0), 0),
+  );
+
+  const submittedCount = computed(() => entries.value.filter((e) => e.status === EntryStatus.Submitted).length);
 
   async function loadReferenceData() {
     isLoadingReference.value = true;
@@ -56,6 +80,8 @@ export function useStatSearch() {
         CategoryId: categoryId.value ?? undefined,
         SubCategoryId: subCategoryId.value ?? undefined,
         Status: status.value ?? undefined,
+        FromDate: fromDate.value ?? undefined,
+        ToDate: toDate.value ?? undefined,
       });
       if (res.error.value) {
         error.value = res.error.value.message ?? 'Failed to load entries.';
@@ -69,10 +95,6 @@ export function useStatSearch() {
     }
   }
 
-  onMounted(async () => {
-    await Promise.all([loadReferenceData(), loadEntries()]);
-  });
-
   return {
     employees,
     categories,
@@ -83,9 +105,15 @@ export function useStatSearch() {
     categoryId,
     subCategoryId,
     status,
+    fromDate,
+    toDate,
     entries,
     isLoadingEntries,
     error,
+    regularHours,
+    overtimeHours,
+    submittedCount,
+    loadReferenceData,
     loadEntries,
   };
 }

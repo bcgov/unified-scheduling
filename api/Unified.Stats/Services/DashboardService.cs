@@ -38,7 +38,7 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         if (queryParams?.ToDate is DateOnly toDate)
             query = query.Where(r => r.DateTo <= toDate);
 
-        if (queryParams?.Search is { Length: > 0 } search)
+        if (queryParams?.NameSearch is { Length: > 0 } search)
         {
             var lower = search.ToLower();
             query = query.Where(r =>

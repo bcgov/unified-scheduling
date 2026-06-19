@@ -11,7 +11,7 @@ export type OriginalGetApiStatsDashboardEntriesParams = {
   CategoryId?: number;
   SubCategoryId?: number;
   Status?: string;
-  Search?: string;
+  NameSearch?: string;
   FromDate?: string;
   ToDate?: string;
 };

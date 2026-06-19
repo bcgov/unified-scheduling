@@ -11,7 +11,7 @@ export const GetApiStatsDashboardEntriesQueryParams = zod.strictObject({
   CategoryId: zod.number().optional(),
   SubCategoryId: zod.number().optional(),
   Status: zod.string().optional(),
-  Search: zod.string().optional(),
+  NameSearch: zod.string().optional(),
   FromDate: zod.iso.date().optional(),
   ToDate: zod.iso.date().optional(),
 });
