@@ -46,6 +46,7 @@ describe('useAccessControl', () => {
       claims: [],
       permissions: [Permissions.RolesEdit],
       userId: null,
+      homeLocationId: null,
     };
     expect(hasPermission(Permissions.RolesEdit)).toBe(true);
   });
@@ -60,6 +61,7 @@ describe('useAccessControl', () => {
       claims: [],
       permissions: [Permissions.RolesEdit],
       userId: null,
+      homeLocationId: null,
     };
     expect(hasPermission(Permissions.UsersCreate)).toBe(false);
   });
@@ -74,6 +76,7 @@ describe('useAccessControl', () => {
       claims: [],
       permissions: [Permissions.RolesEdit],
       userId: null,
+      homeLocationId: null,
     };
     expect(hasAnyPermission(Permissions.UsersCreate, Permissions.RolesEdit)).toBe(true);
   });
@@ -88,6 +91,7 @@ describe('useAccessControl', () => {
       claims: [],
       permissions: [Permissions.RolesEdit],
       userId: null,
+      homeLocationId: null,
     };
     expect(hasAnyPermission(Permissions.UsersCreate, Permissions.UsersEdit)).toBe(false);
   });
@@ -102,6 +106,7 @@ describe('useAccessControl', () => {
       claims: [],
       permissions: [Permissions.RolesEdit, Permissions.UsersCreate],
       userId: null,
+      homeLocationId: null,
     };
     expect(hasAllPermissions(Permissions.RolesEdit, Permissions.UsersCreate)).toBe(true);
   });
@@ -116,6 +121,7 @@ describe('useAccessControl', () => {
       claims: [],
       permissions: [Permissions.RolesEdit],
       userId: null,
+      homeLocationId: null,
     };
     expect(hasAllPermissions(Permissions.RolesEdit, Permissions.UsersCreate)).toBe(false);
   });

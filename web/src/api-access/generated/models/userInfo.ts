@@ -17,4 +17,6 @@ export interface UserInfo {
   permissions: Permissions[];
   /** @nullable */
   userId: string | null;
+  /** @nullable */
+  homeLocationId: number | null;
 }

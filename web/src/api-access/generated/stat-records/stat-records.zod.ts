@@ -113,3 +113,35 @@ export const PostApiStatsRecordsBatchBodyItem = zod.strictObject({
   status: zod.string().optional(),
 });
 export const PostApiStatsRecordsBatchBody = zod.array(PostApiStatsRecordsBatchBodyItem);
+
+export const PutApiStatsRecordsDayBody = zod.strictObject({
+  date: zod.iso.date(),
+  locationId: zod.number(),
+  userId: zod.uuid(),
+  status: zod.string(),
+  records: zod.array(
+    zod.strictObject({
+      id: zod.number().nullish(),
+      subCategoryMetricId: zod.number(),
+      value: zod.number(),
+      comment: zod.string().nullish(),
+    }),
+  ),
+});
+
+export const PutApiStatsRecordsDayResponseItem = zod.object({
+  id: zod.number().optional(),
+  dateFrom: zod.iso.date().optional(),
+  dateTo: zod.iso.date().optional(),
+  periodType: zod.string().optional(),
+  userId: zod.uuid().optional(),
+  locationId: zod.number().optional(),
+  subCategoryMetricId: zod.number().optional(),
+  value: zod.number().optional(),
+  comment: zod.string().nullish(),
+  status: zod.string().optional(),
+  createdOn: zod.iso.datetime({ offset: true }).optional(),
+  createdById: zod.uuid().nullish(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+});
+export const PutApiStatsRecordsDayResponse = zod.array(PutApiStatsRecordsDayResponseItem);

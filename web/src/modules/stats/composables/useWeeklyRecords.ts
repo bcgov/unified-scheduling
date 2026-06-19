@@ -8,8 +8,12 @@ import type {
 } from '@/api-access/generated/models';
 import { DateTime } from 'luxon';
 import { computed, ref, watch, type Ref } from 'vue';
-import type { DayAssignment, DaySummary } from '../types';
-import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
+import type { DayAssignment, DaySummary, EntryStatus } from '../types';
+import {
+  DAILY_REGULAR_TARGET_HOURS,
+  EntryStatus as EntryStatusValues,
+  WEEKLY_REGULAR_TARGET_HOURS,
+} from '../constants';
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 
 // Returns the ISO Monday date string (yyyy-MM-dd) for the week containing the given date
@@ -36,6 +40,9 @@ export function useWeeklyRecords(
 
   // date string → DayAssignment[]
   const dayAssignmentsMap = ref<Record<string, DayAssignment[]>>({});
+  // date string → status ('Draft', 'Submitted', or '' if no records for that date)
+  // All records within a day share the same status (enforced by the backend PUT endpoint).
+  const dayStatusMap = ref<Record<string, EntryStatus>>({});
   const isLoading = ref(false);
   const error = ref('');
 
@@ -165,6 +172,7 @@ export function useWeeklyRecords(
     isLoading.value = true;
     error.value = '';
     dayAssignmentsMap.value = {};
+    dayStatusMap.value = {};
     try {
       const from = weekDates.value[0];
       const to = weekDates.value[6];
@@ -194,12 +202,16 @@ export function useWeeklyRecords(
         }
       }
 
-      // Reconstruct assignments per date
+      // Reconstruct assignments and status per date
       const newMap: Record<string, DayAssignment[]> = {};
+      const newStatusMap: Record<string, EntryStatus> = {};
       for (const date of weekDates.value) {
         newMap[date] = reconstructAssignments(byDate[date]);
+        const s = byDate[date][0]?.status;
+        newStatusMap[date] = s === EntryStatusValues.Draft || s === EntryStatusValues.Submitted ? s : '';
       }
       dayAssignmentsMap.value = newMap;
+      dayStatusMap.value = newStatusMap;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load records.';
       dayAssignmentsMap.value = {};
@@ -270,6 +282,7 @@ export function useWeeklyRecords(
     weekStart,
     weekDates,
     dayAssignmentsMap,
+    dayStatusMap,
     daySummaryMap,
     weeklyRegularTotal,
     weeklyOvertimeTotal,

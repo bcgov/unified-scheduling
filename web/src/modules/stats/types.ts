@@ -18,3 +18,5 @@ export interface DaySummary {
   overtimeHours: number;
   assignmentCount: number;
 }
+
+export type EntryStatus = 'Draft' | 'Submitted' | '';
