@@ -7,10 +7,12 @@
 
 export * from './assignUserRoleRequestDto';
 export * from './configResponse';
+export * from './dashboardEntryResponse';
 export * from './expireUserRoleRequestDto';
 export * from './featureFlags';
 export * from './gender';
 export * from './getApiAuthLoginParams';
+export * from './getApiStatsDashboardEntriesParams';
 export * from './getApiStatsRecordsParams';
 export * from './getApiStatsSubCategoriesParams';
 export * from './getApiStatsSubCategoryMetricsParams';
@@ -24,6 +26,7 @@ export * from './problemDetails';
 export * from './regionDto';
 export * from './roleDto';
 export * from './roleRequestDto';
+export * from './saveDayRecordItem';
 export * from './saveDayRequest';
 export * from './statCategoryResponse';
 export * from './statGroupResponse';

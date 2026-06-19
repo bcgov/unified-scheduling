@@ -110,8 +110,8 @@ export const PostApiUsersIdRolesParams = zod.strictObject({
 
 export const PostApiUsersIdRolesBody = zod.strictObject({
   roleId: zod.number(),
-  effectiveDate: zod.iso.datetime({ offset: true }),
-  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+  effectiveDate: zod.string(),
+  expiryDate: zod.string().nullish(),
 });
 
 export const PostApiUsersIdRolesResponse = zod.object({

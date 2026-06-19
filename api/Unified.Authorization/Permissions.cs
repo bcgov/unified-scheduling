@@ -78,4 +78,9 @@ public enum Permissions
 
     // --- Stats ---
     StatsRecordsEnterForOthers,
+
+    // --- Dashboard ---
+    DashboardView,
+    DashboardSignOff,
+    DashboardSubmit,
 }

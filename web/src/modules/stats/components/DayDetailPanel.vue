@@ -8,7 +8,7 @@ import type {
 } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
-import { mdiLockOutline, mdiPlus } from '@mdi/js';
+import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiPlus } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
 import type { DayAssignment } from '../types';
@@ -30,6 +30,7 @@ const props = defineProps<{
   errors: Record<string, string>;
   apiError: string;
   headerColor?: string;
+  dayStatus?: string;
 }>();
 
 const emit = defineEmits<{
@@ -75,9 +76,19 @@ const overtimeLockReason = computed(() => {
           Regular: <strong>{{ dailyRegularTotal }}h</strong> / {{ DAILY_REGULAR_TARGET_HOURS }}h
         </p>
       </div>
-      <div v-if="!overtimeEnabled" class="overtime-locked-badge">
-        <v-icon :icon="mdiLockOutline" size="14" />
-        Overtime locked
+      <div class="header-badges">
+        <div v-if="dayStatus === 'Draft'" class="status-badge status-badge--draft">
+          <v-icon :icon="mdiPencilOutline" size="14" />
+          Draft
+        </div>
+        <div v-else-if="dayStatus === 'Submitted'" class="status-badge status-badge--submitted">
+          <v-icon :icon="mdiCheckCircleOutline" size="14" />
+          Submitted
+        </div>
+        <div v-if="!overtimeEnabled" class="overtime-locked-badge">
+          <v-icon :icon="mdiLockOutline" size="14" />
+          Overtime locked
+        </div>
       </div>
     </div>
 
@@ -155,6 +166,13 @@ const overtimeLockReason = computed(() => {
   margin: 0;
 }
 
+.header-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
 .overtime-locked-badge {
   display: flex;
   align-items: center;
@@ -166,6 +184,29 @@ const overtimeLockReason = computed(() => {
   border-radius: var(--ua-border-radius);
   padding: 4px 8px;
   white-space: nowrap;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--ua-font-size-xs);
+  font-weight: var(--ua-font-weight-semibold);
+  border-radius: var(--ua-border-radius);
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.status-badge--draft {
+  color: rgb(var(--v-theme-warning));
+  background: rgba(var(--v-theme-warning), 0.12);
+  border: 1px solid rgba(var(--v-theme-warning), 0.3);
+}
+
+.status-badge--submitted {
+  color: rgb(var(--v-theme-success));
+  background: rgba(var(--v-theme-success), 0.12);
+  border: 1px solid rgba(var(--v-theme-success), 0.3);
 }
 
 .day-detail-panel__assignments {

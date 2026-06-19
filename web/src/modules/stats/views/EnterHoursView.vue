@@ -127,6 +127,7 @@ const weekRangeLabel = computed(() => {
 const {
   weekDates,
   dayAssignmentsMap,
+  dayStatusMap,
   daySummaryMap,
   weeklyRegularTotal,
   weeklyOvertimeTotal,
@@ -351,6 +352,7 @@ async function handleSave(status: string) {
             :errors="dayErrors"
             :api-error="apiError"
             :header-color="cardHeaderColor"
+            :day-status="dayStatusMap[selectedDate]"
             @add-assignment="addAssignment"
             @remove-assignment="removeAssignment"
             @update-assignment="updateAssignment"

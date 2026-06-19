@@ -85,3 +85,4 @@ export type GetApiStatsRecordsIdResult = NonNullable<Awaited<ReturnType<typeof g
 export type PutApiStatsRecordsIdResult = NonNullable<Awaited<ReturnType<typeof putApiStatsRecordsId>>>;
 export type DeleteApiStatsRecordsIdResult = NonNullable<Awaited<ReturnType<typeof deleteApiStatsRecordsId>>>;
 export type PostApiStatsRecordsBatchResult = NonNullable<Awaited<ReturnType<typeof postApiStatsRecordsBatch>>>;
+export type PutApiStatsRecordsDayResult = NonNullable<Awaited<ReturnType<typeof putApiStatsRecordsDay>>>;
