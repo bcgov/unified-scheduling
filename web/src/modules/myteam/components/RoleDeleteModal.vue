@@ -73,10 +73,9 @@ const reassignSchema = PostApiRolesIdReassingAndDeleteBody.extend({
   newRoleId: PostApiRolesIdReassingAndDeleteBody.shape.newRoleId.refine((v) => v !== undefined, {
     message: validationMessages.required,
   }),
-  newRoleEffectiveDate: PostApiRolesIdReassingAndDeleteBody.shape.newRoleEffectiveDate.refine(
-    (v) => !!v,
-    { message: validationMessages.required },
-  ),
+  newRoleEffectiveDate: PostApiRolesIdReassingAndDeleteBody.shape.newRoleEffectiveDate.refine((v) => !!v, {
+    message: validationMessages.required,
+  }),
 }).superRefine((data, ctx) => {
   if (data.newRoleExpiryDate && data.newRoleEffectiveDate && data.newRoleExpiryDate <= data.newRoleEffectiveDate) {
     ctx.addIssue({
@@ -243,7 +242,8 @@ const handleConfirmDelete = async () => {
 
       <template v-else-if="!assignedRoleUsersError">
         <p>
-          Are you sure you want to delete the role <strong>{{ role.name }}</strong>?
+          Are you sure you want to delete the role <strong>{{ role.name }}</strong
+          >?
         </p>
         <p class="warning-text">This action cannot be undone.</p>
       </template>
