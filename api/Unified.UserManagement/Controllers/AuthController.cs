@@ -59,13 +59,17 @@ public class AuthController : ControllerBase
         var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
         var userId = Guid.TryParse(userIdValue, out var parsed) ? parsed : (Guid?)null;
 
+        var homeLocationIdValue = User.FindFirst(UnifiedClaimTypes.HomeLocationId)?.Value;
+        var homeLocationId = int.TryParse(homeLocationIdValue, out var parsedLocationId) ? parsedLocationId : (int?)null;
+
         var user = new UserInfo(
             User.Identity?.IsAuthenticated ?? false,
             User.Identity?.Name,
             User.Identity?.AuthenticationType,
             claims,
             permissions,
-            userId
+            userId,
+            homeLocationId
         );
 
         return Ok(user);

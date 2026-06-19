@@ -9,7 +9,9 @@ public sealed record DashboardEntryResponse
     public DateOnly Date { get; init; }
     public string WorkArea { get; init; } = string.Empty;
     public string Subcategory { get; init; } = string.Empty;
-    public string Metric { get; init; } = string.Empty;
+    public string MetricName { get; init; } = string.Empty;
+    public string MetricUnit { get; init; } = string.Empty;
+    public bool IsOvertime { get; init; }
     public decimal Value { get; init; }
     public string Status { get; init; } = string.Empty;
 }

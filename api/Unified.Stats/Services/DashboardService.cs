@@ -19,11 +19,12 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         if (queryParams?.EmployeeId is Guid employeeId)
             query = query.Where(r => r.UserId == employeeId);
 
-        if (queryParams?.CategoryId is int categoryId)
+        if (queryParams?.CategoryName is { Length: > 0 } categoryName)
             query = query.Where(r =>
                 r.SubCategoryMetric != null
                 && r.SubCategoryMetric.SubCategory != null
-                && r.SubCategoryMetric.SubCategory.CategoryId == categoryId
+                && r.SubCategoryMetric.SubCategory.Category != null
+                && r.SubCategoryMetric.SubCategory.Category.Name == categoryName
             );
 
         if (queryParams?.SubCategoryId is int subCategoryId)
@@ -32,18 +33,19 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         if (queryParams?.Status is { Length: > 0 } status)
             query = query.Where(r => r.Status == status);
 
-        if (queryParams?.FromDate is DateOnly fromDate)
-            query = query.Where(r => r.DateFrom >= fromDate);
-
-        if (queryParams?.ToDate is DateOnly toDate)
-            query = query.Where(r => r.DateTo <= toDate);
+        if (queryParams?.FromDate is DateOnly fromDate && queryParams?.ToDate is DateOnly toDate)
+            query = query.Where(r => r.DateFrom <= toDate && r.DateTo >= fromDate);
+        else if (queryParams?.FromDate is DateOnly fromOnly)
+            query = query.Where(r => r.DateTo >= fromOnly);
+        else if (queryParams?.ToDate is DateOnly toOnly)
+            query = query.Where(r => r.DateFrom <= toOnly);
 
         if (queryParams?.NameSearch is { Length: > 0 } search)
         {
-            var lower = search.ToLower();
+            var pattern = $"%{search}%";
             query = query.Where(r =>
                 r.User != null
-                && (r.User.FirstName.ToLower().Contains(lower) || r.User.LastName.ToLower().Contains(lower))
+                && (EF.Functions.ILike(r.User.FirstName, pattern) || EF.Functions.ILike(r.User.LastName, pattern))
             );
         }
 
@@ -66,10 +68,15 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
                     r.SubCategoryMetric != null && r.SubCategoryMetric.SubCategory != null
                         ? r.SubCategoryMetric.SubCategory.Name
                         : string.Empty,
-                Metric =
+                MetricName =
                     r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
-                        ? $"{r.SubCategoryMetric.Metric.Name} ({r.SubCategoryMetric.Metric.UnitOfMeasure})"
+                        ? r.SubCategoryMetric.Metric.Name
                         : string.Empty,
+                MetricUnit =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
+                        ? r.SubCategoryMetric.Metric.UnitOfMeasure
+                        : string.Empty,
+                IsOvertime = r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null && r.SubCategoryMetric.Metric.IsOvertime,
                 Value = r.Value,
                 Status = r.Status,
             })

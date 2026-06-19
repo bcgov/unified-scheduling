@@ -4,7 +4,6 @@ import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
-import { useLocationsStore } from '@/stores/LocationsStore';
 import { computed, onMounted } from 'vue';
 import DashboardFilters from '../components/DashboardFilters.vue';
 import { EntryStatus } from '../constants';
@@ -14,8 +13,6 @@ const { hasPermission } = useAccessControl();
 const canViewDashboard = computed(() => hasPermission(Permissions.DashboardView));
 const canSubmit = computed(() => hasPermission(Permissions.DashboardSubmit));
 
-const locationsStore = useLocationsStore();
-
 const {
   employees,
   categories,
@@ -23,7 +20,7 @@ const {
   isLoadingEntries,
   entries,
   employeeId,
-  categoryId,
+  categoryName,
   subCategoryId,
   status,
   fromDate,
@@ -46,7 +43,8 @@ const columns = [
   { title: 'Date', key: 'date', sortable: true },
   { title: 'Work Area', key: 'workArea', sortable: true },
   { title: 'Subcategory', key: 'subcategory', sortable: true },
-  { title: 'Metric', key: 'metric', sortable: true },
+  { title: 'Metric', key: 'metricName', sortable: true },
+  { title: 'Unit', key: 'metricUnit', sortable: true },
   { title: 'Value', key: 'value', sortable: true },
   { title: 'Status', key: 'status', sortable: true },
 ];
@@ -114,12 +112,11 @@ function statusColor(s: string | undefined) {
       <!-- Filters panel -->
       <DashboardFilters
         v-model:employee-id="employeeId"
-        v-model:category-id="categoryId"
+        v-model:category-name="categoryName"
         v-model:sub-category-id="subCategoryId"
         v-model:status="status"
         v-model:from-date="fromDate"
         v-model:to-date="toDate"
-        :locations="locationsStore.entities"
         :employees="employees"
         :categories="categories"
         :sub-categories="subCategories"

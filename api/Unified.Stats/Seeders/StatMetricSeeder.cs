@@ -26,6 +26,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 2,
             Name = "Overtime Hours",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -38,6 +39,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 4,
             Name = "Overtime Regular Security Hours",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -50,6 +52,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 6,
             Name = "Overtime High Security Hours",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -62,6 +65,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 8,
             Name = "Instructor Overtime",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -74,6 +78,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 10,
             Name = "PTO Overtime",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -86,6 +91,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 12,
             Name = "Branch Directed Overtime",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -104,6 +110,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 15,
             Name = "Overtime Staff Hours",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -128,6 +135,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 19,
             Name = "Level 1 Overtime Hours",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -140,6 +148,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 21,
             Name = "Level 2 Overtime Hours",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         new()
         {
@@ -152,6 +161,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Id = 23,
             Name = "Level 3 Overtime Hours",
             UnitOfMeasure = "hours",
+            IsOvertime = true,
         },
         // Count (IDs 24-42)
         new()
@@ -337,6 +347,7 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Logger.LogInformation("Updating fields for StatMetric with Id {Id}...", seed.Id);
             existing.Name = seed.Name;
             existing.UnitOfMeasure = seed.UnitOfMeasure;
+            existing.IsOvertime = seed.IsOvertime;
             updatedCount++;
         }
 

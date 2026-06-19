@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { StatCategoryResponse, SubCategoryResponse, UserResponse } from '@/api-access/generated/models';
+import type { StatCategoryResponse, SubCategoryResponse } from '@/api-access/generated/models';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import { computed } from 'vue';
 import { EntryStatus } from '../constants';
 
 const props = defineProps<{
-  employees: UserResponse[];
+  employees: { id: string; name: string }[];
   categories: StatCategoryResponse[];
   subCategories: SubCategoryResponse[];
   loading?: boolean;
@@ -16,38 +16,41 @@ const emit = defineEmits<{
 }>();
 
 const employeeId = defineModel<string | null>('employeeId', { default: null });
-const categoryId = defineModel<number | null>('categoryId', { default: null });
+const categoryName = defineModel<string | null>('categoryName', { default: null });
 const subCategoryId = defineModel<number | null>('subCategoryId', { default: null });
 const status = defineModel<string | null>('status', { default: null });
 const fromDate = defineModel<string | null>('fromDate', { default: null });
 const toDate = defineModel<string | null>('toDate', { default: null });
 
 const employeeItems = computed(() =>
-  props.employees
-    .filter((u) => u.id != null)
-    .map((u) => ({ title: `${u.firstName} ${u.lastName}`.trim(), value: u.id! }))
-    .sort((a, b) => a.title.localeCompare(b.title)),
+  props.employees.map((u) => ({ title: u.name, value: u.id })).sort((a, b) => a.title.localeCompare(b.title)),
 );
 
+// Dedup by name — filtering is now by name on the backend so both group IDs are matched
 const categoryItems = computed(() => {
-  // Categories share names across groups (Non-Supervision / Supervision) — dedup by name
   const seen = new Set<string>();
   return props.categories
     .filter((c) => {
-      if (c.id == null) return false;
       const name = c.name ?? '';
       if (seen.has(name)) return false;
       seen.add(name);
       return true;
     })
-    .map((c) => ({ title: c.name ?? '', value: c.id! }))
+    .map((c) => ({ title: c.name ?? '', value: c.name ?? '' }))
     .sort((a, b) => a.title.localeCompare(b.title));
 });
 
+// Cascade subcategories across all categories that share the selected name
+const matchingCategoryIds = computed(() => {
+  if (!categoryName.value) return [];
+  return props.categories.filter((c) => c.name === categoryName.value && c.id != null).map((c) => c.id!);
+});
+
 const filteredSubCategoryItems = computed(() => {
-  const subs = categoryId.value
-    ? props.subCategories.filter((sc) => sc.categoryId === categoryId.value)
-    : props.subCategories;
+  const subs =
+    matchingCategoryIds.value.length > 0
+      ? props.subCategories.filter((sc) => sc.categoryId != null && matchingCategoryIds.value.includes(sc.categoryId))
+      : props.subCategories;
   return subs
     .filter((sc) => sc.id != null)
     .map((sc) => ({ title: sc.name ?? '', value: sc.id! }))
@@ -61,7 +64,7 @@ const statusItems = [
 
 function clearAll() {
   employeeId.value = null;
-  categoryId.value = null;
+  categoryName.value = null;
   subCategoryId.value = null;
   status.value = null;
   fromDate.value = null;
@@ -91,7 +94,7 @@ function clearAll() {
     <div class="filter-group">
       <label class="filter-label">Work Area</label>
       <v-select
-        v-model="categoryId"
+        v-model="categoryName"
         :items="categoryItems"
         item-title="title"
         item-value="value"

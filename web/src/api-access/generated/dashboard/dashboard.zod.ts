@@ -8,12 +8,12 @@ import * as zod from 'zod';
 
 export const GetApiStatsDashboardEntriesQueryParams = zod.strictObject({
   EmployeeId: zod.uuid().optional(),
-  CategoryId: zod.number().optional(),
   SubCategoryId: zod.number().optional(),
   Status: zod.string().optional(),
-  NameSearch: zod.string().optional(),
   FromDate: zod.iso.date().optional(),
   ToDate: zod.iso.date().optional(),
+  NameSearch: zod.string().optional(),
+  CategoryName: zod.string().optional(),
 });
 
 export const GetApiStatsDashboardEntriesResponseItem = zod.object({
@@ -24,8 +24,10 @@ export const GetApiStatsDashboardEntriesResponseItem = zod.object({
   date: zod.iso.date().optional(),
   workArea: zod.string().optional(),
   subcategory: zod.string().optional(),
-  metric: zod.string().optional(),
   value: zod.number().optional(),
   status: zod.string().optional(),
+  metricName: zod.string().optional(),
+  metricUnit: zod.string().optional(),
+  isOvertime: zod.boolean().optional(),
 });
 export const GetApiStatsDashboardEntriesResponse = zod.array(GetApiStatsDashboardEntriesResponseItem);
