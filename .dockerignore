@@ -46,9 +46,7 @@ api/**/obj
 db/bin
 db/obj
 
-# ─── Docker folder ───────────────────────────────────────────────────────────
-# Keep release image inputs available when GitHub Actions builds with context: .
-docker/api
+# ─── Docker folder – local tooling and metadata ──────────────────────────────
 docker/manage
 docker/README.md
 docker/.env
