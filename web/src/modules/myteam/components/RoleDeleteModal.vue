@@ -3,9 +3,9 @@ import type { RoleAssignedUserDto, RoleDto } from '@/api-access/generated/models
 import {
   deleteApiRolesId,
   getApiRolesIdUsers,
-  postApiRolesIdReassingAndDelete,
+  postApiRolesIdReassignAndDelete,
 } from '@/api-access/generated/roles/roles';
-import { PostApiRolesIdReassingAndDeleteBody } from '@/api-access/generated/roles/roles.zod';
+import { PostApiRolesIdReassignAndDeleteBody } from '@/api-access/generated/roles/roles.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
@@ -38,7 +38,7 @@ const isDeleting = ref(false);
 const apiError = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-type ReassignFormData = Partial<zod.infer<typeof PostApiRolesIdReassingAndDeleteBody>>;
+type ReassignFormData = Partial<zod.infer<typeof PostApiRolesIdReassignAndDeleteBody>>;
 
 const formData = ref<ReassignFormData>({
   newRoleId: undefined,
@@ -69,11 +69,11 @@ const availableRoleOptions = computed<SelectOption[]>(() =>
 
 const hasAssignedUsers = computed(() => (assignedRoleUsers.value ?? []).length > 0);
 
-const reassignSchema = PostApiRolesIdReassingAndDeleteBody.extend({
-  newRoleId: PostApiRolesIdReassingAndDeleteBody.shape.newRoleId.refine((v) => v !== undefined, {
+const reassignSchema = PostApiRolesIdReassignAndDeleteBody.extend({
+  newRoleId: PostApiRolesIdReassignAndDeleteBody.shape.newRoleId.refine((v) => v !== undefined, {
     message: validationMessages.required,
   }),
-  newRoleEffectiveDate: PostApiRolesIdReassingAndDeleteBody.shape.newRoleEffectiveDate.refine((v) => !!v, {
+  newRoleEffectiveDate: PostApiRolesIdReassignAndDeleteBody.shape.newRoleEffectiveDate.refine((v) => !!v, {
     message: validationMessages.required,
   }),
 }).superRefine((data, ctx) => {
@@ -133,7 +133,7 @@ const handleConfirmDelete = async () => {
     apiError.value = '';
 
     try {
-      const { error } = await postApiRolesIdReassingAndDelete(props.role.id!, {
+      const { error } = await postApiRolesIdReassignAndDelete(props.role.id!, {
         newRoleId: payload.newRoleId,
         newRoleEffectiveDate: toApiDateString(payload.newRoleEffectiveDate!),
         newRoleExpiryDate: payload.newRoleExpiryDate ? toApiDateString(payload.newRoleExpiryDate) : null,

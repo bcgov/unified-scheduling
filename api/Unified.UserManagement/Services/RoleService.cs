@@ -137,7 +137,7 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
         };
     }
 
-    public async Task<DeletedRoleDto> ReassingAndDeleteAsync(
+    public async Task<DeletedRoleDto> ReassignAndDeleteAsync(
         int roleIdToDelete,
         DeleteRoleWithReassignmentRequestDto request,
         CancellationToken cancellationToken = default

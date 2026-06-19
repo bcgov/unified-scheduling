@@ -5,7 +5,7 @@ import type { RoleAssignedUserDto, RoleDto } from '@/api-access/generated/models
 import {
   getDeleteApiRolesIdMockHandler,
   getGetApiRolesIdUsersMockHandler,
-  getPostApiRolesIdReassingAndDeleteMockHandler,
+  getPostApiRolesIdReassignAndDeleteMockHandler,
 } from '@/api-access/generated/roles/roles.msw';
 import RoleDeleteModal from '@/modules/myteam/components/RoleDeleteModal.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
@@ -105,7 +105,7 @@ describe('RoleDeleteModal', () => {
 
     server.use(
       getGetApiRolesIdUsersMockHandler(() => assignedUsers),
-      getPostApiRolesIdReassingAndDeleteMockHandler(async ({ request, params }) => {
+      getPostApiRolesIdReassignAndDeleteMockHandler(async ({ request, params }) => {
         expect(params.id).toBe(String(role.id));
         requestBody = (await request.json()) as Record<string, unknown>;
 

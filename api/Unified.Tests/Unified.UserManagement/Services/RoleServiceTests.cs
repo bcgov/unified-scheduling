@@ -529,17 +529,17 @@ public class RoleServiceTests : IAsyncLifetime
         Assert.Equal(role.DeletedOn, result.DeletedOn);
     }
 
-    // ── ReassingAndDeleteAsync ──────────────────────────────────────────
+    // ── ReassignAndDeleteAsync ──────────────────────────────────────────
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Delete_Role_When_No_Active_Assignments()
+    public async Task ReassignAndDeleteAsync_Should_Delete_Role_When_No_Active_Assignments()
     {
         // Arrange
         await SeedRoles();
         var request = new DeleteRoleWithReassignmentRequestDto { NewRoleId = 0, NewRoleEffectiveDate = "2026-01-10" };
 
         // Act
-        var result = await _roleService.ReassingAndDeleteAsync(1, request, TestContext.Current.CancellationToken);
+        var result = await _roleService.ReassignAndDeleteAsync(1, request, TestContext.Current.CancellationToken);
 
         // Assert
         var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.Id == 1, TestContext.Current.CancellationToken);
@@ -551,7 +551,7 @@ public class RoleServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Reassign_And_Delete_When_Active_Assignments_Exist()
+    public async Task ReassignAndDeleteAsync_Should_Reassign_And_Delete_When_Active_Assignments_Exist()
     {
         // Arrange
         var roleToDelete = new Role
@@ -601,7 +601,7 @@ public class RoleServiceTests : IAsyncLifetime
         DeletedRoleDto? result = null;
         try
         {
-            result = await _roleService.ReassingAndDeleteAsync(100, request, TestContext.Current.CancellationToken);
+            result = await _roleService.ReassignAndDeleteAsync(100, request, TestContext.Current.CancellationToken);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("Transactions are not supported"))
         {
@@ -631,7 +631,7 @@ public class RoleServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Only_Reassign_Active_Assignments()
+    public async Task ReassignAndDeleteAsync_Should_Only_Reassign_Active_Assignments()
     {
         // Arrange
         var roleToDelete = new Role
@@ -691,7 +691,7 @@ public class RoleServiceTests : IAsyncLifetime
         // Act
         try
         {
-            await _roleService.ReassingAndDeleteAsync(102, request, TestContext.Current.CancellationToken);
+            await _roleService.ReassignAndDeleteAsync(102, request, TestContext.Current.CancellationToken);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("Transactions are not supported"))
         {
@@ -714,19 +714,19 @@ public class RoleServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Throw_When_RoleToDelete_Not_Found()
+    public async Task ReassignAndDeleteAsync_Should_Throw_When_RoleToDelete_Not_Found()
     {
         // Arrange
         var request = new DeleteRoleWithReassignmentRequestDto { NewRoleId = 1, NewRoleEffectiveDate = "2026-01-10" };
 
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            _roleService.ReassingAndDeleteAsync(9999, request, TestContext.Current.CancellationToken)
+            _roleService.ReassignAndDeleteAsync(9999, request, TestContext.Current.CancellationToken)
         );
     }
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Throw_When_NewRoleId_SameAs_RoleToDelete()
+    public async Task ReassignAndDeleteAsync_Should_Throw_When_NewRoleId_SameAs_RoleToDelete()
     {
         // Arrange
         var role = new Role
@@ -765,13 +765,13 @@ public class RoleServiceTests : IAsyncLifetime
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _roleService.ReassingAndDeleteAsync(50, request, TestContext.Current.CancellationToken)
+            _roleService.ReassignAndDeleteAsync(50, request, TestContext.Current.CancellationToken)
         );
         Assert.Contains("The new role cannot be the same", exception.Message);
     }
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Throw_When_NewRole_Not_Found()
+    public async Task ReassignAndDeleteAsync_Should_Throw_When_NewRole_Not_Found()
     {
         // Arrange
         var role = new Role
@@ -810,12 +810,12 @@ public class RoleServiceTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            _roleService.ReassingAndDeleteAsync(51, request, TestContext.Current.CancellationToken)
+            _roleService.ReassignAndDeleteAsync(51, request, TestContext.Current.CancellationToken)
         );
     }
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Throw_When_NewRoleId_Null_And_Active_Assignments_Exist()
+    public async Task ReassignAndDeleteAsync_Should_Throw_When_NewRoleId_Null_And_Active_Assignments_Exist()
     {
         // Arrange
         var role = new Role
@@ -855,12 +855,12 @@ public class RoleServiceTests : IAsyncLifetime
         // Act & Assert
         // When NewRoleId is 0, service tries to find role 0 and throws KeyNotFoundException
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            _roleService.ReassingAndDeleteAsync(52, request, TestContext.Current.CancellationToken)
+            _roleService.ReassignAndDeleteAsync(52, request, TestContext.Current.CancellationToken)
         );
     }
 
     [Fact]
-    public async Task ReassingAndDeleteAsync_Should_Not_Update_Existing_EffectiveDate_When_It_Is_In_The_Past()
+    public async Task ReassignAndDeleteAsync_Should_Not_Update_Existing_EffectiveDate_When_It_Is_In_The_Past()
     {
         // Arrange
         var roleToDelete = new Role
@@ -919,7 +919,7 @@ public class RoleServiceTests : IAsyncLifetime
         // In production, the transaction ensures atomicity.
         try
         {
-            await _roleService.ReassingAndDeleteAsync(53, request, TestContext.Current.CancellationToken);
+            await _roleService.ReassignAndDeleteAsync(53, request, TestContext.Current.CancellationToken);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("Transactions are not supported"))
         {

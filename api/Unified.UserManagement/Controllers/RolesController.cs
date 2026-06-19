@@ -127,19 +127,19 @@ public class RolesController(
     /// <param name="request">Required reassignment payload.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Deleted role metadata.</returns>
-    [HttpPost("{id:int}/reassing-and-delete")]
+    [HttpPost("{id:int}/reassign-and-delete")]
     [Authorize(Policy = UserManagementPolicies.RolesExpire)]
     [ProducesResponseType(typeof(DeletedRoleDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DeletedRoleDto>> ReassingAndDelete(
+    public async Task<ActionResult<DeletedRoleDto>> ReassignAndDelete(
         int id,
         [FromBody] DeleteRoleWithReassignmentRequestDto request,
         CancellationToken cancellationToken
     )
     {
         await deleteRoleValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await roleService.ReassingAndDeleteAsync(id, request, cancellationToken);
+        var result = await roleService.ReassignAndDeleteAsync(id, request, cancellationToken);
 
         return Ok(result);
     }

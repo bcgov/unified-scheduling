@@ -213,7 +213,7 @@ export const getDeleteApiRolesIdResponseMock = (
     },
   ]);
 
-export const getPostApiRolesIdReassingAndDeleteResponseMock = (
+export const getPostApiRolesIdReassignAndDeleteResponseMock = (
   overrideResponse: Partial<Extract<DeletedRoleDto, object>> = {},
 ): DeletedRoleDto =>
   faker.helpers.arrayElement([
@@ -343,7 +343,7 @@ export const getDeleteApiRolesIdMockHandler = (
   );
 };
 
-export const getPostApiRolesIdReassingAndDeleteMockHandler = (
+export const getPostApiRolesIdReassignAndDeleteMockHandler = (
   overrideResponse?:
     | DeletedRoleDto
     | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<DeletedRoleDto> | DeletedRoleDto),
@@ -357,7 +357,7 @@ export const getPostApiRolesIdReassingAndDeleteMockHandler = (
           ? typeof overrideResponse === 'function'
             ? await overrideResponse(info)
             : overrideResponse
-          : getPostApiRolesIdReassingAndDeleteResponseMock(),
+          : getPostApiRolesIdReassignAndDeleteResponseMock(),
         { status: 200 },
       );
     },
@@ -370,5 +370,5 @@ export const getRolesMock = () => [
   getGetApiRolesIdUsersMockHandler(),
   getPutApiRolesIdMockHandler(),
   getDeleteApiRolesIdMockHandler(),
-  getPostApiRolesIdReassingAndDeleteMockHandler(),
+  getPostApiRolesIdReassignAndDeleteMockHandler(),
 ];
