@@ -153,7 +153,7 @@ describe('RoleDeleteModal', () => {
     wrapper.unmount();
   });
 
-  it('disables reassignment when expiry date is not after effective date', async () => {
+  it('shows error when expiry date is not after effective date', async () => {
     const app = await createTestApp();
 
     server.use(getGetApiRolesIdUsersMockHandler(() => assignedUsers));
@@ -178,9 +178,12 @@ describe('RoleDeleteModal', () => {
       button.textContent?.includes('Reassign and Delete'),
     ) as HTMLButtonElement | undefined;
 
-    expect(getDocumentText()).toContain('Expiry date must be after effective date.');
     expect(reassignButton).toBeDefined();
-    expect(reassignButton?.disabled).toBe(true);
+    reassignButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(getDocumentText()).toContain('Expiry date must be after effective date.');
 
     wrapper.unmount();
   });
