@@ -168,7 +168,7 @@ jobs:
         with:
           licence_plate: ${{ matrix.license_plate }}
           gitops_branch: develop
-          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          gitops_gh_token: ${{ secrets.GITOPS_GH_TOKEN }}
           image_name: unified-scheduling-api
           new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
           image_name_2: unified-scheduling-web
@@ -194,7 +194,7 @@ jobs:
         with:
           licence_plate: ${{ matrix.license_plate }}
           gitops_branch: test
-          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          gitops_gh_token: ${{ secrets.GITOPS_GH_TOKEN }}
           image_name: unified-scheduling-api
           new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
           image_name_2: unified-scheduling-web
@@ -221,7 +221,7 @@ jobs:
         with:
           licence_plate: ${{ matrix.license_plate }}
           gitops_branch: main
-          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          gitops_gh_token: ${{ secrets.GITOPS_GH_TOKEN }}
           image_name: unified-scheduling-api
           new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
           image_name_2: unified-scheduling-web
