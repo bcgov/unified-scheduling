@@ -1,6 +1,6 @@
 {
   "name": "Unified Scheduling Dev Container",
-  "runArgs": ["--name", "unified-scheduling-devcontainer"],
+  "runArgs": ["--name", "unified-scheduling-devcontainer-${devcontainerId}"],
   "build": {
     "dockerfile": "Dockerfile",
     "context": "."
@@ -15,7 +15,9 @@
     "ghcr.io/devcontainers/features/node:1": {
       "version": "22"
     },
-    "ghcr.io/devcontainers/features/docker-from-docker:1.6.5": {}
+    "ghcr.io/devcontainers/features/docker-from-docker:1.6.5": {
+      "moby": false
+    }
   },
   "customizations": {
     "vscode": {
@@ -51,7 +53,7 @@
         "[javascript]": {
           "editor.defaultFormatter": "esbenp.prettier-vscode"
         },
-        "dotnet.defaultSolution": "/workspaces/api/unified.sln"
+        "dotnet.defaultSolution": "/workspaces/unified-scheduling/unified.slnx"
       }
     }
   },
