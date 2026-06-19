@@ -1,1 +1,2 @@
 docker/**/s2i/bin/* text eol=lf
+*.sh text eol=lf
