@@ -27,7 +27,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import DayDetailPanel from '../components/DayDetailPanel.vue';
 import WeeklyGrid from '../components/WeeklyGrid.vue';
 import { getMondayOfWeek, useWeeklyRecords } from '../composables/useWeeklyRecords';
-import { DAILY_REGULAR_TARGET_HOURS } from '../constants';
+import { DAILY_REGULAR_TARGET_HOURS, EntryStatus } from '../constants';
 import type { DayAssignment } from '../types';
 
 const props = defineProps<{
@@ -356,8 +356,8 @@ async function handleSave(status: string) {
             @add-assignment="addAssignment"
             @remove-assignment="removeAssignment"
             @update-assignment="updateAssignment"
-            @save-draft="handleSave('Draft')"
-            @submit-day="handleSave('Submitted')"
+            @save-draft="handleSave(EntryStatus.Draft)"
+            @submit-day="handleSave(EntryStatus.Submitted)"
             @clear-error="apiError = ''"
           />
         </div>

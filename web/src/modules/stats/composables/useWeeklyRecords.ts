@@ -8,8 +8,8 @@ import type {
 } from '@/api-access/generated/models';
 import { DateTime } from 'luxon';
 import { computed, ref, watch, type Ref } from 'vue';
-import type { DayAssignment, DaySummary } from '../types';
-import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
+import type { DayAssignment, DaySummary, EntryStatus } from '../types';
+import { DAILY_REGULAR_TARGET_HOURS, EntryStatus as EntryStatusValues, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 
 // Returns the ISO Monday date string (yyyy-MM-dd) for the week containing the given date
@@ -38,7 +38,7 @@ export function useWeeklyRecords(
   const dayAssignmentsMap = ref<Record<string, DayAssignment[]>>({});
   // date string → status ('Draft', 'Submitted', or '' if no records for that date)
   // All records within a day share the same status (enforced by the backend PUT endpoint).
-  const dayStatusMap = ref<Record<string, 'Draft' | 'Submitted' | ''>>({});
+  const dayStatusMap = ref<Record<string, EntryStatus>>({});
   const isLoading = ref(false);
   const error = ref('');
 
@@ -200,11 +200,11 @@ export function useWeeklyRecords(
 
       // Reconstruct assignments and status per date
       const newMap: Record<string, DayAssignment[]> = {};
-      const newStatusMap: Record<string, string> = {};
+      const newStatusMap: Record<string, EntryStatus> = {};
       for (const date of weekDates.value) {
         newMap[date] = reconstructAssignments(byDate[date]);
         const s = byDate[date][0]?.status;
-        newStatusMap[date] = s === 'Draft' || s === 'Submitted' ? s : '';
+        newStatusMap[date] = s === EntryStatusValues.Draft || s === EntryStatusValues.Submitted ? s : '';
       }
       dayAssignmentsMap.value = newMap;
       dayStatusMap.value = newStatusMap;

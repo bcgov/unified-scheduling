@@ -7,6 +7,7 @@ import UaDataTable from '@/shared/components/UaDataTable.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { computed } from 'vue';
 import DashboardFilters from '../components/DashboardFilters.vue';
+import { EntryStatus } from '../constants';
 import { useStatSearch } from '../composables/useStatSearch';
 
 const { hasPermission } = useAccessControl();
@@ -40,8 +41,8 @@ const columns = [
 ];
 
 function statusColor(s: string | undefined) {
-  if (s === 'Submitted') return 'success';
-  if (s === 'Draft') return 'warning';
+  if (s === EntryStatus.Submitted) return 'success';
+  if (s === EntryStatus.Draft) return 'warning';
   return 'default';
 }
 </script>

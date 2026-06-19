@@ -2,6 +2,7 @@
 import type { StatCategoryResponse, SubCategoryResponse, UserResponse } from '@/api-access/generated/models';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import { computed } from 'vue';
+import { EntryStatus } from '../constants';
 
 const props = defineProps<{
   employees: UserResponse[];
@@ -44,8 +45,8 @@ const filteredSubCategoryItems = computed(() => {
 });
 
 const statusItems = [
-  { title: 'Draft', value: 'Draft' },
-  { title: 'Submitted', value: 'Submitted' },
+  { title: 'Draft', value: EntryStatus.Draft },
+  { title: 'Submitted', value: EntryStatus.Submitted },
 ];
 
 function clearAll() {

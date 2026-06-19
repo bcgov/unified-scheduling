@@ -11,7 +11,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiPlus } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
-import type { DayAssignment } from '../types';
+import type { DayAssignment, EntryStatus } from '../types';
 import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
 import { isRegularMetric } from '../utils/metricHelpers';
 import AssignmentRow from './AssignmentRow.vue';
@@ -30,7 +30,7 @@ const props = defineProps<{
   errors: Record<string, string>;
   apiError: string;
   headerColor?: string;
-  dayStatus?: 'Draft' | 'Submitted' | '';
+  dayStatus?: EntryStatus;
 }>();
 
 const emit = defineEmits<{
