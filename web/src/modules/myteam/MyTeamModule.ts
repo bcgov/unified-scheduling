@@ -44,6 +44,14 @@ const myTeamRoutes: RouteRecordRaw[] = [
               title: 'Assign Roles',
             },
           },
+          {
+            path: 'acting-positions',
+            name: 'UserActingPositions',
+            component: () => import('./views/ActingPositions.vue'),
+            meta: {
+              title: 'Acting Positions',
+            },
+          },
         ],
       },
     ],
