@@ -46,6 +46,7 @@ export async function createTestApp(options: CreateTestAppOptions = {}) {
     claims: [],
     permissions: options.permissions ?? [],
     userId: null,
+    homeLocationId: null,
   });
 
   if (options.loadConfig !== false) {
