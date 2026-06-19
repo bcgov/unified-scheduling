@@ -9,7 +9,11 @@ import type {
 import { DateTime } from 'luxon';
 import { computed, ref, watch, type Ref } from 'vue';
 import type { DayAssignment, DaySummary, EntryStatus } from '../types';
-import { DAILY_REGULAR_TARGET_HOURS, EntryStatus as EntryStatusValues, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
+import {
+  DAILY_REGULAR_TARGET_HOURS,
+  EntryStatus as EntryStatusValues,
+  WEEKLY_REGULAR_TARGET_HOURS,
+} from '../constants';
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 
 // Returns the ISO Monday date string (yyyy-MM-dd) for the week containing the given date
