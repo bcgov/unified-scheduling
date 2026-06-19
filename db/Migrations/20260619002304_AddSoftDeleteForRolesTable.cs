@@ -15,25 +15,29 @@ namespace Unified.Db.Migrations
                 name: "DeletedById",
                 table: "Roles",
                 type: "uuid",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<DateTimeOffset>(
                 name: "DeletedOn",
                 table: "Roles",
                 type: "timestamp with time zone",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_HomeLocationId",
                 table: "Users",
-                column: "HomeLocationId");
+                column: "HomeLocationId"
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Users_Locations_HomeLocationId",
                 table: "Users",
                 column: "HomeLocationId",
                 principalTable: "Locations",
-                principalColumn: "Id");
+                principalColumn: "Id"
+            );
         }
 
         /// <inheritdoc />
@@ -41,19 +45,14 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_Users_Locations_HomeLocationId",
-                table: "Users");
+                table: "Users"
+            );
 
-            migrationBuilder.DropIndex(
-                name: "IX_Users_HomeLocationId",
-                table: "Users");
+            migrationBuilder.DropIndex(name: "IX_Users_HomeLocationId", table: "Users");
 
-            migrationBuilder.DropColumn(
-                name: "DeletedById",
-                table: "Roles");
+            migrationBuilder.DropColumn(name: "DeletedById", table: "Roles");
 
-            migrationBuilder.DropColumn(
-                name: "DeletedOn",
-                table: "Roles");
+            migrationBuilder.DropColumn(name: "DeletedOn", table: "Roles");
         }
     }
 }
