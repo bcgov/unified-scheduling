@@ -22,7 +22,7 @@ on:
         required: true
         type: string
       prerelease:
-        description: "Append -rc to the tag and prevent prod promotion"
+        description: "Require an -rc tag and prevent prod promotion"
         required: false
         default: false
         type: boolean
@@ -66,10 +66,10 @@ jobs:
             fi
           else
             RAW_TAG="${INPUT_TAG}"
-            # For manual workflow_dispatch, allow users to set prerelease=true to automatically append -rc suffix if not already present
             PRERELEASE="${INPUT_PRERELEASE}"
             if [ "${PRERELEASE}" = "true" ] && [[ ! "${RAW_TAG}" =~ -rc([.-]?[A-Za-z0-9]+)?$ ]]; then
-              RAW_TAG="${RAW_TAG}-rc"
+              echo "Pre-release tags must include an -rc suffix, for example v1.2.3-rc."
+              exit 1
             fi
           fi
 
