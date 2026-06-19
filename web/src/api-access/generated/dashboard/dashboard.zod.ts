@@ -24,7 +24,8 @@ export const GetApiStatsDashboardEntriesResponseItem = zod.object({
   date: zod.iso.date().optional(),
   workArea: zod.string().optional(),
   subcategory: zod.string().optional(),
-  regularHours: zod.number().optional(),
+  metric: zod.string().optional(),
+  value: zod.number().optional(),
   status: zod.string().optional(),
 });
 export const GetApiStatsDashboardEntriesResponse = zod.array(GetApiStatsDashboardEntriesResponseItem);

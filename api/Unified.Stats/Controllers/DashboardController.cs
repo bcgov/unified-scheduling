@@ -26,8 +26,6 @@ public class DashboardController(IDashboardService service) : ControllerBase
         if (!int.TryParse(locationIdValue, out var homeLocationId))
             return Forbid();
 
-        var effectiveLocationId = queryParams?.LocationId ?? homeLocationId;
-
-        return Ok(await service.GetEntriesAsync(effectiveLocationId, queryParams, cancellationToken));
+        return Ok(await service.GetEntriesAsync(homeLocationId, queryParams, cancellationToken));
     }
 }

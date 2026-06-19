@@ -24,7 +24,8 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      regularHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      metric: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 5, max: 20 } }), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -38,7 +39,8 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      regularHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      metric: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 5, max: 20 } }), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -52,7 +54,8 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      regularHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      metric: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 5, max: 20 } }), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
     })),
   ]);

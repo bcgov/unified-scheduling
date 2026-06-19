@@ -7,7 +7,6 @@
 import type { MaybeRef } from 'vue';
 
 export type OriginalGetApiStatsDashboardEntriesParams = {
-  LocationId?: number;
   EmployeeId?: string;
   CategoryId?: number;
   SubCategoryId?: number;

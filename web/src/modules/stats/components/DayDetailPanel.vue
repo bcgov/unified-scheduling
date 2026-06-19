@@ -30,7 +30,7 @@ const props = defineProps<{
   errors: Record<string, string>;
   apiError: string;
   headerColor?: string;
-  dayStatus?: string;
+  dayStatus?: 'Draft' | 'Submitted' | '';
 }>();
 
 const emit = defineEmits<{
@@ -170,30 +170,30 @@ const overtimeLockReason = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: var(--ua-spacing-xs);
 }
 
 .overtime-locked-badge {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--ua-spacing-xs);
   font-size: var(--ua-font-size-xs);
   color: var(--ua-text-muted);
   background: var(--ua-card-body-bg);
   border: 1px solid var(--ua-border-color);
   border-radius: var(--ua-border-radius);
-  padding: 4px 8px;
+  padding: var(--ua-spacing-xs) var(--ua-spacing-sm);
   white-space: nowrap;
 }
 
 .status-badge {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--ua-spacing-xs);
   font-size: var(--ua-font-size-xs);
   font-weight: var(--ua-font-weight-semibold);
   border-radius: var(--ua-border-radius);
-  padding: 4px 8px;
+  padding: var(--ua-spacing-xs) var(--ua-spacing-sm);
   white-space: nowrap;
 }
 

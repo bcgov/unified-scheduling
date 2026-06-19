@@ -2,7 +2,6 @@ namespace Unified.Stats.Models;
 
 public sealed record DashboardEntriesQueryParams
 {
-    public int? LocationId { get; init; }
     public Guid? EmployeeId { get; init; }
     public int? CategoryId { get; init; }
     public int? SubCategoryId { get; init; }

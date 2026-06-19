@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
+import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -10,7 +11,6 @@ import { useStatSearch } from '../composables/useStatSearch';
 
 const { hasPermission } = useAccessControl();
 const canViewDashboard = computed(() => hasPermission(Permissions.DashboardView));
-const canSignOff = computed(() => hasPermission(Permissions.DashboardSignOff));
 const canSubmit = computed(() => hasPermission(Permissions.DashboardSubmit));
 
 const locationsStore = useLocationsStore();
@@ -21,11 +21,11 @@ const {
   subCategories,
   isLoadingEntries,
   entries,
-  locationId,
   employeeId,
   categoryId,
   subCategoryId,
   status,
+  error,
   loadEntries,
 } = useStatSearch();
 
@@ -39,8 +39,10 @@ const columns = [
   { title: 'Status', key: 'status', sortable: true },
 ];
 
-function statusColor(s: string) {
-  return s === 'Submitted' ? 'success' : 'warning';
+function statusColor(s: string | undefined) {
+  if (s === 'Submitted') return 'success';
+  if (s === 'Draft') return 'warning';
+  return 'default';
 }
 </script>
 
@@ -52,6 +54,8 @@ function statusColor(s: string) {
   <div v-else class="search-view">
     <h2 class="page-title">Search / View / Edit Data</h2>
 
+    <UaAlert v-if="error" type="error">{{ error }}</UaAlert>
+
     <!-- Main layout -->
     <div class="search-layout">
       <!-- Entries panel -->
@@ -59,7 +63,7 @@ function statusColor(s: string) {
         <h3 class="panel-title">Entries</h3>
 
         <UaDataTable :headers="columns" :items="entries" :loading="isLoadingEntries" item-value="id" hover>
-          <template #item.status="{ item }">
+          <template #[`item.status`]="{ item }">
             <v-chip :color="statusColor(item.status)" size="small" variant="tonal">
               {{ item.status }}
             </v-chip>
@@ -70,15 +74,13 @@ function statusColor(s: string) {
           </template>
         </UaDataTable>
 
-        <div v-if="canSignOff || canSubmit" class="entries-actions">
-          <UaBtn v-if="canSignOff" variant="outlined">Sign Off</UaBtn>
-          <UaBtn v-if="canSubmit" color="primary" variant="flat">Submit</UaBtn>
+        <div v-if="canSubmit" class="entries-actions">
+          <UaBtn color="primary" variant="flat">Submit</UaBtn>
         </div>
       </div>
 
       <!-- Filters panel -->
       <DashboardFilters
-        v-model:location-id="locationId"
         v-model:employee-id="employeeId"
         v-model:category-id="categoryId"
         v-model:sub-category-id="subCategoryId"
@@ -138,7 +140,8 @@ function statusColor(s: string) {
 
 .entries-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: var(--ua-spacing-sm);
   padding-top: var(--ua-spacing-sm);
   border-top: 1px solid var(--ua-border-color);
 }

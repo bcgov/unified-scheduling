@@ -36,8 +36,9 @@ export function useWeeklyRecords(
 
   // date string → DayAssignment[]
   const dayAssignmentsMap = ref<Record<string, DayAssignment[]>>({});
-  // date string → status string ('Draft', 'Submitted', or '' if no records)
-  const dayStatusMap = ref<Record<string, string>>({});
+  // date string → status ('Draft', 'Submitted', or '' if no records for that date)
+  // All records within a day share the same status (enforced by the backend PUT endpoint).
+  const dayStatusMap = ref<Record<string, 'Draft' | 'Submitted' | ''>>({});
   const isLoading = ref(false);
   const error = ref('');
 
@@ -202,7 +203,8 @@ export function useWeeklyRecords(
       const newStatusMap: Record<string, string> = {};
       for (const date of weekDates.value) {
         newMap[date] = reconstructAssignments(byDate[date]);
-        newStatusMap[date] = byDate[date][0]?.status ?? '';
+        const s = byDate[date][0]?.status;
+        newStatusMap[date] = s === 'Draft' || s === 'Submitted' ? s : '';
       }
       dayAssignmentsMap.value = newMap;
       dayStatusMap.value = newStatusMap;

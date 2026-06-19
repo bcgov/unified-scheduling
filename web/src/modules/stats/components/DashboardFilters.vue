@@ -1,15 +1,9 @@
 <script setup lang="ts">
-import type {
-  LocationDto,
-  StatCategoryResponse,
-  SubCategoryResponse,
-  UserResponse,
-} from '@/api-access/generated/models';
+import type { StatCategoryResponse, SubCategoryResponse, UserResponse } from '@/api-access/generated/models';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import { computed } from 'vue';
 
 const props = defineProps<{
-  locations: LocationDto[];
   employees: UserResponse[];
   categories: StatCategoryResponse[];
   subCategories: SubCategoryResponse[];
@@ -20,42 +14,33 @@ const emit = defineEmits<{
   apply: [];
 }>();
 
-const locationId = defineModel<number | null>('locationId', { default: null });
 const employeeId = defineModel<string | null>('employeeId', { default: null });
 const categoryId = defineModel<number | null>('categoryId', { default: null });
 const subCategoryId = defineModel<number | null>('subCategoryId', { default: null });
 const status = defineModel<string | null>('status', { default: null });
 
-const locationItems = computed(() =>
-  props.locations
-    .map((l) => ({ title: l.name ?? '', value: l.id ?? 0 }))
-    .sort((a, b) => a.title.localeCompare(b.title)),
-);
-
 const employeeItems = computed(() =>
   props.employees
-    .map((u) => ({ title: `${u.firstName} ${u.lastName}`.trim(), value: u.id }))
+    .filter((u) => u.id != null)
+    .map((u) => ({ title: `${u.firstName} ${u.lastName}`.trim(), value: u.id! }))
     .sort((a, b) => a.title.localeCompare(b.title)),
 );
 
-const categoryItems = computed(() => {
-  const seen = new Set<string>();
-  return props.categories
-    .filter((c) => {
-      const name = c.name ?? '';
-      if (seen.has(name)) return false;
-      seen.add(name);
-      return true;
-    })
-    .map((c) => ({ title: c.name ?? '', value: c.id ?? 0 }))
-    .sort((a, b) => a.title.localeCompare(b.title));
-});
+const categoryItems = computed(() =>
+  props.categories
+    .filter((c) => c.id != null)
+    .map((c) => ({ title: c.name ?? '', value: c.id! }))
+    .sort((a, b) => a.title.localeCompare(b.title)),
+);
 
 const filteredSubCategoryItems = computed(() => {
   const subs = categoryId.value
     ? props.subCategories.filter((sc) => sc.categoryId === categoryId.value)
     : props.subCategories;
-  return subs.map((sc) => ({ title: sc.name ?? '', value: sc.id ?? 0 })).sort((a, b) => a.title.localeCompare(b.title));
+  return subs
+    .filter((sc) => sc.id != null)
+    .map((sc) => ({ title: sc.name ?? '', value: sc.id! }))
+    .sort((a, b) => a.title.localeCompare(b.title));
 });
 
 const statusItems = [
@@ -64,7 +49,6 @@ const statusItems = [
 ];
 
 function clearAll() {
-  locationId.value = null;
   employeeId.value = null;
   categoryId.value = null;
   subCategoryId.value = null;
@@ -76,20 +60,6 @@ function clearAll() {
 <template>
   <div class="filters-panel">
     <h3 class="filters-title">Filters</h3>
-
-    <div class="filter-group">
-      <label class="filter-label">Location</label>
-      <v-select
-        v-model="locationId"
-        :items="locationItems"
-        item-title="title"
-        item-value="value"
-        placeholder="Select an option"
-        clearable
-        hide-details
-        density="compact"
-      />
-    </div>
 
     <div class="filter-group">
       <label class="filter-label">Employee</label>

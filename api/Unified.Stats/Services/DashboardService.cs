@@ -12,8 +12,8 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         CancellationToken cancellationToken = default
     )
     {
-        var query = db.StatRecords
-            .AsNoTracking()
+        var query = db
+            .StatRecords.AsNoTracking()
             .Where(r => r.User != null && r.User.HomeLocationId == callerHomeLocationId);
 
         if (queryParams?.EmployeeId is Guid employeeId)
@@ -23,12 +23,11 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
             query = query.Where(r =>
                 r.SubCategoryMetric != null
                 && r.SubCategoryMetric.SubCategory != null
-                && r.SubCategoryMetric.SubCategory.CategoryId == categoryId);
+                && r.SubCategoryMetric.SubCategory.CategoryId == categoryId
+            );
 
         if (queryParams?.SubCategoryId is int subCategoryId)
-            query = query.Where(r =>
-                r.SubCategoryMetric != null
-                && r.SubCategoryMetric.SubCategoryId == subCategoryId);
+            query = query.Where(r => r.SubCategoryMetric != null && r.SubCategoryMetric.SubCategoryId == subCategoryId);
 
         if (queryParams?.Status is { Length: > 0 } status)
             query = query.Where(r => r.Status == status);
@@ -44,7 +43,8 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
             var lower = search.ToLower();
             query = query.Where(r =>
                 r.User != null
-                && (r.User.FirstName.ToLower().Contains(lower) || r.User.LastName.ToLower().Contains(lower)));
+                && (r.User.FirstName.ToLower().Contains(lower) || r.User.LastName.ToLower().Contains(lower))
+            );
         }
 
         return await query
@@ -53,22 +53,23 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
             {
                 Id = r.Id,
                 UserId = r.UserId ?? Guid.Empty,
-                EmployeeName = r.User != null
-                    ? $"{r.User.FirstName} {r.User.LastName}".Trim()
-                    : string.Empty,
+                EmployeeName = r.User != null ? $"{r.User.FirstName} {r.User.LastName}".Trim() : string.Empty,
                 BadgeNumber = r.User != null ? r.User.BadgeNumber : null,
                 Date = r.DateFrom,
-                WorkArea = r.SubCategoryMetric != null
+                WorkArea =
+                    r.SubCategoryMetric != null
                     && r.SubCategoryMetric.SubCategory != null
                     && r.SubCategoryMetric.SubCategory.Category != null
                         ? r.SubCategoryMetric.SubCategory.Category.Name
                         : string.Empty,
-                Subcategory = r.SubCategoryMetric != null && r.SubCategoryMetric.SubCategory != null
-                    ? r.SubCategoryMetric.SubCategory.Name
-                    : string.Empty,
-                Metric = r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
-                    ? $"{r.SubCategoryMetric.Metric.Name} ({r.SubCategoryMetric.Metric.UnitOfMeasure})"
-                    : string.Empty,
+                Subcategory =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.SubCategory != null
+                        ? r.SubCategoryMetric.SubCategory.Name
+                        : string.Empty,
+                Metric =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
+                        ? $"{r.SubCategoryMetric.Metric.Name} ({r.SubCategoryMetric.Metric.UnitOfMeasure})"
+                        : string.Empty,
                 Value = r.Value,
                 Status = r.Status,
             })

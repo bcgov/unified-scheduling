@@ -27,6 +27,7 @@ export function useStatSearch() {
   // ── Table data ──────────────────────────────────────────────────────────
   const entries = ref<DashboardEntryResponse[]>([]);
   const isLoadingEntries = ref(false);
+  const error = ref('');
 
   async function loadReferenceData() {
     isLoadingReference.value = true;
@@ -34,11 +35,13 @@ export function useStatSearch() {
       const [catsRes, subCatsRes, usersRes] = await Promise.all([
         getApiStatsCategories(),
         getApiStatsSubCategories(),
-        getApiUsers(),
+        getApiUsers({ IsEnabled: true }),
       ]);
       categories.value = catsRes.data.value ?? [];
       subCategories.value = subCatsRes.data.value ?? [];
       employees.value = usersRes.data.value ?? [];
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to load reference data.';
     } finally {
       isLoadingReference.value = false;
     }
@@ -46,15 +49,21 @@ export function useStatSearch() {
 
   async function loadEntries() {
     isLoadingEntries.value = true;
+    error.value = '';
     try {
       const res = await getApiStatsDashboardEntries({
-        LocationId: locationId.value ?? undefined,
         EmployeeId: employeeId.value ?? undefined,
         CategoryId: categoryId.value ?? undefined,
         SubCategoryId: subCategoryId.value ?? undefined,
         Status: status.value ?? undefined,
       });
+      if (res.error.value) {
+        error.value = res.error.value.message ?? 'Failed to load entries.';
+        return;
+      }
       entries.value = res.data.value ?? [];
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to load entries.';
     } finally {
       isLoadingEntries.value = false;
     }
@@ -76,6 +85,7 @@ export function useStatSearch() {
     status,
     entries,
     isLoadingEntries,
+    error,
     loadEntries,
   };
 }
