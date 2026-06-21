@@ -59,12 +59,10 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         var records = await BuildQuery(callerHomeLocationId, queryParams)
             .Select(r => new
             {
-                IsOvertime =
-                    r.SubCategoryMetric != null
+                IsOvertime = r.SubCategoryMetric != null
                     && r.SubCategoryMetric.Metric != null
                     && r.SubCategoryMetric.Metric.IsOvertime,
-                IsHoursUnit =
-                    r.SubCategoryMetric != null
+                IsHoursUnit = r.SubCategoryMetric != null
                     && r.SubCategoryMetric.Metric != null
                     && r.SubCategoryMetric.Metric.UnitOfMeasure == "hours",
                 r.Value,
