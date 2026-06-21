@@ -56,26 +56,36 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         CancellationToken cancellationToken = default
     )
     {
-        var records = await BuildQuery(callerHomeLocationId, queryParams)
-            .Select(r => new
-            {
-                IsOvertime = r.SubCategoryMetric != null
-                    && r.SubCategoryMetric.Metric != null
-                    && r.SubCategoryMetric.Metric.IsOvertime,
-                IsHoursUnit = r.SubCategoryMetric != null
-                    && r.SubCategoryMetric.Metric != null
-                    && r.SubCategoryMetric.Metric.UnitOfMeasure == "hours",
-                r.Value,
-                r.Status,
-            })
-            .ToListAsync(cancellationToken);
+        var baseQuery = BuildQuery(callerHomeLocationId, queryParams);
+
+        var regularHours = await baseQuery
+            .Where(r =>
+                r.SubCategoryMetric != null
+                && r.SubCategoryMetric.Metric != null
+                && !r.SubCategoryMetric.Metric.IsOvertime
+                && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours
+            )
+            .SumAsync(r => r.Value, cancellationToken);
+
+        var overtimeHours = await baseQuery
+            .Where(r =>
+                r.SubCategoryMetric != null
+                && r.SubCategoryMetric.Metric != null
+                && r.SubCategoryMetric.Metric.IsOvertime
+                && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours
+            )
+            .SumAsync(r => r.Value, cancellationToken);
+
+        var submittedCount = await baseQuery.CountAsync(r => r.Status == StatRecordStatus.Submitted, cancellationToken);
+
+        var totalEntries = await baseQuery.CountAsync(cancellationToken);
 
         return new DashboardSummaryResponse
         {
-            RegularHours = records.Where(r => !r.IsOvertime && r.IsHoursUnit).Sum(r => r.Value),
-            OvertimeHours = records.Where(r => r.IsOvertime).Sum(r => r.Value),
-            SubmittedCount = records.Count(r => r.Status == "Submitted"),
-            TotalEntries = records.Count,
+            RegularHours = regularHours,
+            OvertimeHours = overtimeHours,
+            SubmittedCount = submittedCount,
+            TotalEntries = totalEntries,
         };
     }
 
