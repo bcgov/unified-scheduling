@@ -350,7 +350,7 @@ export const getPostApiRolesIdReassignAndDeleteMockHandler = (
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
-    '*/api/roles/:id/reassing-and-delete',
+    '*/api/roles/:id/reassign-and-delete',
     async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined

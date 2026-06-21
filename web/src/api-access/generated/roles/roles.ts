@@ -60,7 +60,7 @@ export const postApiRolesIdReassignAndDelete = (
 ) => {
   return useFetchAPI<DeletedRoleDto>(
     {
-      url: `/api/roles/${id}/reassing-and-delete`,
+      url: `/api/roles/${id}/reassign-and-delete`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       data: deleteRoleWithReassignmentRequestDto,
