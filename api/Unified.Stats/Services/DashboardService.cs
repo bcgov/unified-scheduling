@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
+using Unified.Db.Models.Stats;
 using Unified.Stats.Models;
 
 namespace Unified.Stats.Services;
@@ -11,6 +12,76 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         DashboardEntriesQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
     )
+    {
+        return await BuildQuery(callerHomeLocationId, queryParams)
+            .OrderByDescending(r => r.DateFrom)
+            .Select(r => new DashboardEntryResponse
+            {
+                Id = r.Id,
+                UserId = r.UserId ?? Guid.Empty,
+                EmployeeName = r.User != null ? $"{r.User.FirstName} {r.User.LastName}".Trim() : string.Empty,
+                BadgeNumber = r.User != null ? r.User.BadgeNumber : null,
+                Date = r.DateFrom,
+                WorkArea =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.SubCategory != null
+                    && r.SubCategoryMetric.SubCategory.Category != null
+                        ? r.SubCategoryMetric.SubCategory.Category.Name
+                        : string.Empty,
+                Subcategory =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.SubCategory != null
+                        ? r.SubCategoryMetric.SubCategory.Name
+                        : string.Empty,
+                MetricName =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
+                        ? r.SubCategoryMetric.Metric.Name
+                        : string.Empty,
+                MetricUnit =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
+                        ? r.SubCategoryMetric.Metric.UnitOfMeasure
+                        : string.Empty,
+                IsOvertime =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.Metric != null
+                    && r.SubCategoryMetric.Metric.IsOvertime,
+                Value = r.Value,
+                Status = r.Status,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<DashboardSummaryResponse> GetSummaryAsync(
+        int callerHomeLocationId,
+        DashboardEntriesQueryParams? queryParams = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var records = await BuildQuery(callerHomeLocationId, queryParams)
+            .Select(r => new
+            {
+                IsOvertime =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.Metric != null
+                    && r.SubCategoryMetric.Metric.IsOvertime,
+                IsHoursUnit =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.Metric != null
+                    && r.SubCategoryMetric.Metric.UnitOfMeasure == "hours",
+                r.Value,
+                r.Status,
+            })
+            .ToListAsync(cancellationToken);
+
+        return new DashboardSummaryResponse
+        {
+            RegularHours = records.Where(r => !r.IsOvertime && r.IsHoursUnit).Sum(r => r.Value),
+            OvertimeHours = records.Where(r => r.IsOvertime).Sum(r => r.Value),
+            SubmittedCount = records.Count(r => r.Status == "Submitted"),
+            TotalEntries = records.Count,
+        };
+    }
+
+    private IQueryable<StatRecord> BuildQuery(int callerHomeLocationId, DashboardEntriesQueryParams? queryParams)
     {
         var query = db
             .StatRecords.AsNoTracking()
@@ -49,40 +120,6 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
             );
         }
 
-        return await query
-            .OrderByDescending(r => r.DateFrom)
-            .Select(r => new DashboardEntryResponse
-            {
-                Id = r.Id,
-                UserId = r.UserId ?? Guid.Empty,
-                EmployeeName = r.User != null ? $"{r.User.FirstName} {r.User.LastName}".Trim() : string.Empty,
-                BadgeNumber = r.User != null ? r.User.BadgeNumber : null,
-                Date = r.DateFrom,
-                WorkArea =
-                    r.SubCategoryMetric != null
-                    && r.SubCategoryMetric.SubCategory != null
-                    && r.SubCategoryMetric.SubCategory.Category != null
-                        ? r.SubCategoryMetric.SubCategory.Category.Name
-                        : string.Empty,
-                Subcategory =
-                    r.SubCategoryMetric != null && r.SubCategoryMetric.SubCategory != null
-                        ? r.SubCategoryMetric.SubCategory.Name
-                        : string.Empty,
-                MetricName =
-                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
-                        ? r.SubCategoryMetric.Metric.Name
-                        : string.Empty,
-                MetricUnit =
-                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
-                        ? r.SubCategoryMetric.Metric.UnitOfMeasure
-                        : string.Empty,
-                IsOvertime =
-                    r.SubCategoryMetric != null
-                    && r.SubCategoryMetric.Metric != null
-                    && r.SubCategoryMetric.Metric.IsOvertime,
-                Value = r.Value,
-                Status = r.Status,
-            })
-            .ToListAsync(cancellationToken);
+        return query;
     }
 }
