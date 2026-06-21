@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Unified.Authorization.Claims;
@@ -6,6 +7,7 @@ using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
+using Unified.UserManagement.Validators;
 
 namespace Unified.Tests.UserManagement.Services;
 
@@ -33,7 +35,7 @@ public class RoleServiceTests : IAsyncLifetime
             .Options;
 
         _dbContext = new UnifiedDbContext(options);
-        _roleService = new RoleService(_dbContext, CreateHttpContextAccessor());
+        _roleService = new RoleService(_dbContext, CreateHttpContextAccessor(), new DeleteRoleWithReassignmentRequestDtoValidator());
 
         return ValueTask.CompletedTask;
     }
@@ -480,63 +482,14 @@ public class RoleServiceTests : IAsyncLifetime
         );
     }
 
-    // ── DeleteAsync ──────────────────────────────────────────────────────────
-
-    [Fact]
-    public async Task DeleteAsync_Should_Soft_Delete_Role()
-    {
-        // Arrange
-        await SeedRoles();
-
-        // Act
-        var result = await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
-
-        // Assert
-        var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.Id == 1, TestContext.Current.CancellationToken);
-        Assert.NotNull(role);
-        Assert.Equal(1, result.Id);
-        Assert.Equal(role.DeletedById, result.DeletedBy);
-        Assert.Equal(role.DeletedOn, result.DeletedOn);
-        Assert.NotNull(role.DeletedById);
-        Assert.NotNull(role.DeletedOn);
-    }
-
-    [Fact]
-    public async Task DeleteAsync_WhenRoleNotFound_ThrowsKeyNotFoundException()
-    {
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            _roleService.DeleteAsync(9999, TestContext.Current.CancellationToken)
-        );
-    }
-
-    [Fact]
-    public async Task DeleteAsync_Should_Set_DeletedOn_And_DeletedById()
-    {
-        // Arrange
-        await SeedRoles();
-        var beforeDelete = DateTimeOffset.UtcNow;
-
-        // Act
-        var result = await _roleService.DeleteAsync(1, TestContext.Current.CancellationToken);
-
-        // Assert
-        var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.Id == 1, TestContext.Current.CancellationToken);
-        Assert.NotNull(role);
-        Assert.Equal(_testUserId, role.DeletedById);
-        Assert.NotNull(role.DeletedOn);
-        Assert.True(role.DeletedOn >= beforeDelete);
-        Assert.Equal(_testUserId, result.DeletedBy);
-        Assert.Equal(role.DeletedOn, result.DeletedOn);
-    }
-
     // ── ReassignAndDeleteAsync ──────────────────────────────────────────
 
     [Fact]
     public async Task ReassignAndDeleteAsync_Should_Delete_Role_When_No_Active_Assignments()
     {
-        // Arrange
+        // Arrange — no reassignment info needed when no users are assigned
         await SeedRoles();
-        var request = new DeleteRoleWithReassignmentRequestDto { NewRoleId = 0, NewRoleEffectiveDate = "2026-01-10" };
+        var request = new DeleteRoleWithReassignmentRequestDto();
 
         // Act
         var result = await _roleService.ReassignAndDeleteAsync(1, request, TestContext.Current.CancellationToken);
@@ -848,13 +801,12 @@ public class RoleServiceTests : IAsyncLifetime
 
         var request = new DeleteRoleWithReassignmentRequestDto
         {
-            NewRoleId = 0, // No new role specified
+            NewRoleId = null, // No new role specified
             NewRoleEffectiveDate = "2026-01-10",
         };
 
-        // Act & Assert
-        // When NewRoleId is 0, service tries to find role 0 and throws KeyNotFoundException
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        // Act & Assert — validator throws because NewRoleId is required when there are active assignments
+        await Assert.ThrowsAsync<ValidationException>(() =>
             _roleService.ReassignAndDeleteAsync(52, request, TestContext.Current.CancellationToken)
         );
     }

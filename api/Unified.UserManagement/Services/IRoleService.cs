@@ -15,8 +15,6 @@ public interface IRoleService
 
     Task<RoleDto> UpdateAsync(UpdateRoleRequestDto request, CancellationToken cancellationToken = default);
 
-    Task<DeletedRoleDto> DeleteAsync(int id, CancellationToken cancellationToken = default);
-
     Task<DeletedRoleDto> ReassignAndDeleteAsync(
         int roleIdToDelete,
         DeleteRoleWithReassignmentRequestDto request,

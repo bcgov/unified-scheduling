@@ -18,7 +18,6 @@ const accessControl = useAccessControl();
 
 // Data state
 const { data: roles, error: rolesError, isFetching: isFetchingRoles, execute: fetchRoles } = getApiRoles();
-
 // Modal states
 const showCreateEditModal = ref(false);
 const showDeleteConfirm = ref(false);

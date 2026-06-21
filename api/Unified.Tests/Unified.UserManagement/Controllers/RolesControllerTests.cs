@@ -1,4 +1,3 @@
-using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.Models;
@@ -13,8 +12,7 @@ public class RolesControllerTests
         new(
             service ?? new FakeRoleService(),
             new RoleRequestValidator(),
-            new UpdateRoleRequestValidator(),
-            new DeleteRoleWithReassignmentRequestDtoValidator()
+            new UpdateRoleRequestValidator()
         );
 
     // ── Get ──────────────────────────────────────────────────────────────────
@@ -192,36 +190,7 @@ public class RolesControllerTests
         );
     }
 
-    // ── Delete ───────────────────────────────────────────────────────────────
-
-    [Fact]
-    public async Task Delete_Should_Return_Ok_With_Delete_Metadata_And_Call_DeleteAsync()
-    {
-        var service = new FakeRoleService();
-        var controller = BuildController(service);
-
-        var result = await controller.Delete(7, TestContext.Current.CancellationToken);
-
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var payload = Assert.IsType<DeletedRoleDto>(okResult.Value);
-        Assert.Equal(7, payload.Id);
-        Assert.Equal(service.DeletedBy, payload.DeletedBy);
-        Assert.Equal(service.DeletedOn, payload.DeletedOn);
-        Assert.Equal(7, service.DeletedRoleId);
-        Assert.Equal(1, service.DeleteCallCount);
-        Assert.Equal(0, service.ReassignAndDeleteCallCount);
-    }
-
-    [Fact]
-    public async Task Delete_Should_Propagate_Service_Exception_When_Delete_Fails()
-    {
-        var service = new FakeRoleService { DeleteException = new KeyNotFoundException("Role not found.") };
-        var controller = BuildController(service);
-
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            controller.Delete(99, TestContext.Current.CancellationToken)
-        );
-    }
+    // ── ReassignAndDelete ────────────────────────────────────────────────────
 
     [Fact]
     public async Task ReassignAndDelete_Should_Return_Ok_With_Delete_Metadata_And_Call_ReassignAndDeleteAsync()
@@ -231,8 +200,8 @@ public class RolesControllerTests
         var request = new DeleteRoleWithReassignmentRequestDto
         {
             NewRoleId = 8,
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
-            NewRoleExpiryDate = "2026-01-20T00:00:00Z",
+            NewRoleEffectiveDate = "2026-01-10",
+            NewRoleExpiryDate = "2026-01-20",
         };
 
         var result = await controller.ReassignAndDelete(7, request, TestContext.Current.CancellationToken);
@@ -243,36 +212,24 @@ public class RolesControllerTests
         Assert.Equal(service.DeletedBy, payload.DeletedBy);
         Assert.Equal(service.DeletedOn, payload.DeletedOn);
         Assert.Equal(7, service.DeletedRoleId);
-        Assert.Equal(0, service.DeleteCallCount);
         Assert.Equal(1, service.ReassignAndDeleteCallCount);
         Assert.NotNull(service.LastReassignAndDeleteRequest);
         Assert.Equal(8, service.LastReassignAndDeleteRequest!.NewRoleId);
     }
 
     [Fact]
-    public async Task ReassignAndDelete_Should_Throw_ValidationException_When_NewRoleId_Invalid()
+    public async Task ReassignAndDelete_Should_Return_Ok_When_No_Reassignment_Info_Provided()
     {
-        var controller = BuildController();
-        var request = new DeleteRoleWithReassignmentRequestDto
-        {
-            NewRoleId = 0,
-            NewRoleEffectiveDate = "2026-01-10T00:00:00Z",
-        };
+        // No reassignment fields needed when the role has no assigned users —
+        // that validation is handled at service level, not controller level.
+        var service = new FakeRoleService();
+        var controller = BuildController(service);
+        var request = new DeleteRoleWithReassignmentRequestDto();
 
-        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
-            controller.ReassignAndDelete(7, request, TestContext.Current.CancellationToken)
-        );
-    }
+        var result = await controller.ReassignAndDelete(7, request, TestContext.Current.CancellationToken);
 
-    [Fact]
-    public async Task ReassignAndDelete_Should_Throw_ValidationException_When_EffectiveDate_Missing()
-    {
-        var controller = BuildController();
-        var request = new DeleteRoleWithReassignmentRequestDto { NewRoleId = 8, NewRoleEffectiveDate = "" };
-
-        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
-            controller.ReassignAndDelete(7, request, TestContext.Current.CancellationToken)
-        );
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal(1, service.ReassignAndDeleteCallCount);
     }
 
     // ── Fake ─────────────────────────────────────────────────────────────────
@@ -284,10 +241,8 @@ public class RolesControllerTests
         public RoleDto? UpdateResult { get; set; }
         public IReadOnlyCollection<RoleAssignedUserDto>? GetAssignedUsersResult { get; set; }
         public int? DeletedRoleId { get; private set; }
-        public int DeleteCallCount { get; private set; }
         public int ReassignAndDeleteCallCount { get; private set; }
         public DeleteRoleWithReassignmentRequestDto? LastReassignAndDeleteRequest { get; private set; }
-        public Exception? DeleteException { get; set; }
         public Guid DeletedBy { get; } = Guid.NewGuid();
         public DateTimeOffset DeletedOn { get; } = DateTimeOffset.UtcNow;
 
@@ -307,24 +262,6 @@ public class RolesControllerTests
 
         public Task<RoleDto> UpdateAsync(UpdateRoleRequestDto request, CancellationToken cancellationToken = default) =>
             Task.FromResult(UpdateResult ?? new RoleDto());
-
-        public Task<DeletedRoleDto> DeleteAsync(int id, CancellationToken cancellationToken = default)
-        {
-            if (DeleteException is not null)
-                throw DeleteException;
-
-            DeletedRoleId = id;
-            DeleteCallCount++;
-
-            return Task.FromResult(
-                new DeletedRoleDto
-                {
-                    Id = id,
-                    DeletedBy = DeletedBy,
-                    DeletedOn = DeletedOn,
-                }
-            );
-        }
 
         public Task<DeletedRoleDto> ReassignAndDeleteAsync(
             int roleIdToDelete,

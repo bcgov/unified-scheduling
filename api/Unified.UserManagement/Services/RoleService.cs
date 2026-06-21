@@ -1,3 +1,4 @@
+using FluentValidation;
 using Mapster;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -6,10 +7,15 @@ using Unified.Common.Helpers.Extensions;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
+using Unified.UserManagement.Validators;
 
 namespace Unified.UserManagement.Services;
 
-public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpContextAccessor) : IRoleService
+public sealed class RoleService(
+    UnifiedDbContext DB,
+    IHttpContextAccessor httpContextAccessor,
+    DeleteRoleWithReassignmentRequestDtoValidator deleteRoleValidator
+) : IRoleService
 {
     public async Task<IReadOnlyCollection<RoleDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -117,26 +123,6 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
         return MapToDto(role);
     }
 
-    public async Task<DeletedRoleDto> DeleteAsync(int id, CancellationToken cancellationToken = default)
-    {
-        var role =
-            await DB.Roles.FirstOrDefaultAsync(r => r.Id == id && r.DeletedById == null, cancellationToken)
-            ?? throw new KeyNotFoundException($"Role {id} not found.");
-        var currentUserId = httpContextAccessor.HttpContext!.User.CurrentUserId();
-        var deletedOn = DateTimeOffset.UtcNow;
-
-        role.DeletedOn = deletedOn;
-        role.DeletedById = currentUserId;
-        await DB.SaveChangesAsync(cancellationToken);
-
-        return new DeletedRoleDto
-        {
-            Id = role.Id,
-            DeletedBy = currentUserId,
-            DeletedOn = deletedOn,
-        };
-    }
-
     public async Task<DeletedRoleDto> ReassignAndDeleteAsync(
         int roleIdToDelete,
         DeleteRoleWithReassignmentRequestDto request,
@@ -157,10 +143,7 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
 
         if (activeAssignmentCount > 0)
         {
-            if (request.NewRoleId == null)
-                throw new InvalidOperationException(
-                    $"Cannot delete role {roleIdToDelete} with {activeAssignmentCount} assigned user(s) without specifying a new role."
-                );
+            await deleteRoleValidator.ValidateAndThrowAsync(request, cancellationToken);
 
             if (request.NewRoleId == roleIdToDelete)
                 throw new InvalidOperationException("The new role cannot be the same as the role being deleted.");
@@ -172,31 +155,19 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
             if (!newRoleExists)
                 throw new KeyNotFoundException($"New role {request.NewRoleId} not found.");
 
-            if (
-                string.IsNullOrWhiteSpace(request.NewRoleEffectiveDate)
-                || !DateTimeOffsetExtensions.IsValidDateFormat(request.NewRoleEffectiveDate)
-            )
-                throw new InvalidOperationException("A valid effective date is required when reassigning users.");
-
             var timezoneId = httpContextAccessor.HttpContext!.User.HomeLocationTimezone();
             var effectiveDate = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
-                request.NewRoleEffectiveDate,
+                request.NewRoleEffectiveDate!,
                 timezoneId
             );
 
             DateTimeOffset? expiryDate = null;
             if (!string.IsNullOrWhiteSpace(request.NewRoleExpiryDate))
             {
-                if (!DateTimeOffsetExtensions.IsValidDateFormat(request.NewRoleExpiryDate))
-                    throw new InvalidOperationException("Invalid expiry date format.");
-
                 expiryDate = DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(
                     request.NewRoleExpiryDate,
                     timezoneId
                 );
-
-                if (expiryDate <= effectiveDate)
-                    throw new InvalidOperationException("Expiry date must be after the effective date.");
             }
 
             await using var transaction = await DB.Database.BeginTransactionAsync(cancellationToken);
@@ -223,7 +194,7 @@ public sealed class RoleService(UnifiedDbContext DB, IHttpContextAccessor httpCo
                     new UserRole
                     {
                         UserId = assignment.UserId,
-                        RoleId = request.NewRoleId,
+                        RoleId = request.NewRoleId!.Value,
                         EffectiveDate = effectiveDate,
                         ExpiryDate = expiryDate,
                         ExpiryReason = null,

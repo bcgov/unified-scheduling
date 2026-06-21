@@ -14,8 +14,7 @@ namespace Unified.UserManagement.Controllers;
 public class RolesController(
     IRoleService roleService,
     RoleRequestValidator roleRequestValidator,
-    UpdateRoleRequestValidator updateRoleRequestValidator,
-    DeleteRoleWithReassignmentRequestDtoValidator deleteRoleValidator
+    UpdateRoleRequestValidator updateRoleRequestValidator
 ) : ControllerBase
 {
     /// <summary>
@@ -104,23 +103,6 @@ public class RolesController(
     }
 
     /// <summary>
-    /// Deletes a role when no reassignment operation is required.
-    /// </summary>
-    /// <param name="id">The role ID.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Deleted role metadata.</returns>
-    [HttpDelete("{id:int}")]
-    [Authorize(Policy = UserManagementPolicies.RolesExpire)]
-    [ProducesResponseType(typeof(DeletedRoleDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DeletedRoleDto>> Delete(int id, CancellationToken cancellationToken)
-    {
-        var result = await roleService.DeleteAsync(id, cancellationToken);
-
-        return Ok(result);
-    }
-
-    /// <summary>
     /// Reassigns active users to a new role and then deletes the source role.
     /// </summary>
     /// <param name="id">The role ID to delete.</param>
@@ -138,7 +120,6 @@ public class RolesController(
         CancellationToken cancellationToken
     )
     {
-        await deleteRoleValidator.ValidateAndThrowAsync(request, cancellationToken);
         var result = await roleService.ReassignAndDeleteAsync(id, request, cancellationToken);
 
         return Ok(result);

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { RoleAssignedUserDto, RoleDto } from '@/api-access/generated/models';
 import {
-  deleteApiRolesId,
   getApiRolesIdUsers,
   postApiRolesIdReassignAndDelete,
 } from '@/api-access/generated/roles/roles';
@@ -32,6 +31,7 @@ const {
   data: assignedRoleUsers,
   error: assignedRoleUsersError,
   isFetching: isFetchingAssignedRoleUsers,
+  execute: refetchAssignedRoleUsers,
 } = getApiRolesIdUsers(props.role.id!);
 
 const isDeleting = ref(false);
@@ -142,10 +142,12 @@ const handleConfirmDelete = async () => {
       if (error.value) {
         const problemDetail = (error.value as { detail?: string } | null | undefined)?.detail;
         apiError.value = problemDetail || error.value.message || 'An error occurred while deleting the role';
+        await refetchAssignedRoleUsers();
         return;
       }
     } catch (err) {
       apiError.value = err instanceof Error ? err.message : 'An error occurred while deleting the role';
+      await refetchAssignedRoleUsers();
       return;
     } finally {
       isDeleting.value = false;
@@ -155,14 +157,16 @@ const handleConfirmDelete = async () => {
     apiError.value = '';
 
     try {
-      const { error } = await deleteApiRolesId(props.role.id!);
+      const { error } = await postApiRolesIdReassignAndDelete(props.role.id!, {});
       if (error.value) {
         const problemDetail = (error.value as { detail?: string } | null | undefined)?.detail;
         apiError.value = problemDetail || error.value.message || 'An error occurred while deleting the role';
+        await refetchAssignedRoleUsers();
         return;
       }
     } catch (err) {
       apiError.value = err instanceof Error ? err.message : 'An error occurred while deleting the role';
+      await refetchAssignedRoleUsers();
       return;
     } finally {
       isDeleting.value = false;

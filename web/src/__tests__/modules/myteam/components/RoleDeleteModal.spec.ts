@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import { HttpResponse, http } from 'msw';
+import { HttpResponse } from 'msw';
 import type { RoleAssignedUserDto, RoleDto } from '@/api-access/generated/models';
 import {
-  getDeleteApiRolesIdMockHandler,
   getGetApiRolesIdUsersMockHandler,
   getPostApiRolesIdReassignAndDeleteMockHandler,
 } from '@/api-access/generated/roles/roles.msw';
@@ -57,15 +56,15 @@ describe('RoleDeleteModal', () => {
     },
   ];
 
-  it('calls the delete endpoint and emits deleted + close when no users are assigned', async () => {
+  it('calls the reassign-and-delete endpoint and emits deleted + close when no users are assigned', async () => {
     const app = await createTestApp();
-    let deleteCalled = false;
+    let requestBody: Record<string, unknown> | null = null;
 
     server.use(
       getGetApiRolesIdUsersMockHandler(() => []),
-      getDeleteApiRolesIdMockHandler(({ params }) => {
-        deleteCalled = true;
+      getPostApiRolesIdReassignAndDeleteMockHandler(async ({ request, params }) => {
         expect(params.id).toBe(String(role.id));
+        requestBody = (await request.json()) as Record<string, unknown>;
 
         return {
           id: role.id,
@@ -92,7 +91,7 @@ describe('RoleDeleteModal', () => {
 
     await flushPromises();
 
-    expect(deleteCalled).toBe(true);
+    expect(requestBody).toEqual({});
     expect(wrapper.emitted('deleted')).toBeTruthy();
     expect(wrapper.emitted('close')).toBeTruthy();
 
@@ -188,12 +187,16 @@ describe('RoleDeleteModal', () => {
     wrapper.unmount();
   });
 
-  it('shows API problem details when deletion fails', async () => {
+  it('shows API problem details when deletion fails and re-fetches assigned users', async () => {
     const app = await createTestApp();
+    let usersFetchCount = 0;
 
     server.use(
-      getGetApiRolesIdUsersMockHandler(() => []),
-      http.delete('*/api/roles/:id', () => {
+      getGetApiRolesIdUsersMockHandler(() => {
+        usersFetchCount++;
+        return [];
+      }),
+      getPostApiRolesIdReassignAndDeleteMockHandler(() => {
         return HttpResponse.json({ detail: 'Role cannot be deleted while dependencies exist.' }, { status: 400 });
       }),
     );
@@ -217,6 +220,8 @@ describe('RoleDeleteModal', () => {
 
     expect(getDocumentText()).toContain('Role cannot be deleted while dependencies exist.');
     expect(wrapper.emitted('deleted')).toBeFalsy();
+    // users endpoint should be re-fetched after the error to reflect latest state
+    expect(usersFetchCount).toBeGreaterThanOrEqual(2);
 
     wrapper.unmount();
   });
