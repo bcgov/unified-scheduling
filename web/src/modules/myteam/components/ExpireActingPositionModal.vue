@@ -30,10 +30,7 @@ type ExpireFormData = Partial<zod.infer<typeof PostApiUsersUserIdActingPositions
 const formData = ref<ExpireFormData>({ expiryReason: '' });
 
 const expireSchema = PostApiUsersUserIdActingPositionsExpireBody.extend({
-  expiryReason: PostApiUsersUserIdActingPositionsExpireBody.shape.expiryReason.min(
-    1,
-    validationMessages.required,
-  ),
+  expiryReason: PostApiUsersUserIdActingPositionsExpireBody.shape.expiryReason.min(1, validationMessages.required),
 });
 
 const validateForm = (): Pick<zod.infer<typeof expireSchema>, 'expiryReason'> | null => {
