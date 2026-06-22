@@ -26,16 +26,14 @@ const {
   fromDate,
   toDate,
   error,
-  regularHours,
-  overtimeHours,
-  submittedCount,
+  summary,
   loadReferenceData,
-  loadEntries,
+  applyFilters,
 } = useStatSearch();
 
 onMounted(async () => {
   if (!canViewDashboard.value) return;
-  await Promise.all([loadReferenceData(), loadEntries()]);
+  await Promise.all([loadReferenceData(), applyFilters()]);
 });
 
 const columns = [
@@ -69,19 +67,19 @@ function statusColor(s: string | undefined) {
     <!-- Summary cards -->
     <div class="summary-grid">
       <div class="summary-card">
-        <span class="summary-value">{{ regularHours }}</span>
+        <span class="summary-value">{{ summary.regularHours ?? 0 }}</span>
         <span class="summary-label">Regular Hours</span>
       </div>
       <div class="summary-card">
-        <span class="summary-value">{{ overtimeHours }}</span>
+        <span class="summary-value">{{ summary.overtimeHours ?? 0 }}</span>
         <span class="summary-label">Overtime Hours</span>
       </div>
       <div class="summary-card">
-        <span class="summary-value">{{ submittedCount }}</span>
+        <span class="summary-value">{{ summary.submittedCount ?? 0 }}</span>
         <span class="summary-label">Submitted</span>
       </div>
       <div class="summary-card">
-        <span class="summary-value">{{ entries.length }}</span>
+        <span class="summary-value">{{ summary.totalEntries ?? 0 }}</span>
         <span class="summary-label">Total Entries</span>
       </div>
     </div>
@@ -121,7 +119,7 @@ function statusColor(s: string | undefined) {
         :categories="categories"
         :sub-categories="subCategories"
         :loading="isLoadingEntries"
-        @apply="loadEntries"
+        @apply="applyFilters"
       />
     </div>
   </div>

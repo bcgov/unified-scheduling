@@ -1,12 +1,16 @@
-import type { DashboardEntryResponse, StatCategoryResponse, SubCategoryResponse } from '@/api-access/generated/models';
-import { getApiStatsDashboardEntries } from '@/api-access/generated/dashboard/dashboard';
+import type {
+  DashboardEntryResponse,
+  DashboardSummaryResponse,
+  StatCategoryResponse,
+  SubCategoryResponse,
+} from '@/api-access/generated/models';
+import { getApiStatsDashboardEntries, getApiStatsDashboardSummary } from '@/api-access/generated/dashboard/dashboard';
 import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
 import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
 import { getApiUsers } from '@/api-access/generated/users/users';
 import { useAuthStore } from '@/stores/auth';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
-import { EntryStatus } from '../constants';
 
 export function useStatSearch() {
   const authStore = useAuthStore();
@@ -30,20 +34,17 @@ export function useStatSearch() {
   // ── Table data ──────────────────────────────────────────────────────────
   const entries = ref<DashboardEntryResponse[]>([]);
   const isLoadingEntries = ref(false);
+
+  // ── Summary stats ───────────────────────────────────────────────────────
+  const summary = ref<DashboardSummaryResponse>({
+    regularHours: 0,
+    overtimeHours: 0,
+    submittedCount: 0,
+    totalEntries: 0,
+  });
+  const isLoadingSummary = ref(false);
+
   const error = ref('');
-
-  // ── Summary stats (client-side, placeholder until SS-956 adds a backend endpoint) ──
-  const regularHours = computed(() =>
-    entries.value
-      .filter((e) => e.metricUnit?.toLowerCase() === 'hours' && !e.isOvertime)
-      .reduce((sum, e) => sum + (e.value ?? 0), 0),
-  );
-
-  const overtimeHours = computed(() =>
-    entries.value.filter((e) => e.isOvertime).reduce((sum, e) => sum + (e.value ?? 0), 0),
-  );
-
-  const submittedCount = computed(() => entries.value.filter((e) => e.status === EntryStatus.Submitted).length);
 
   // Merge location users with any additional employees found in entries (e.g. loaned staff)
   const employees = computed(() => {
@@ -91,18 +92,22 @@ export function useStatSearch() {
     }
   }
 
+  function buildQueryParams() {
+    return {
+      EmployeeId: employeeId.value ?? undefined,
+      CategoryName: categoryName.value ?? undefined,
+      SubCategoryId: subCategoryId.value ?? undefined,
+      Status: status.value ?? undefined,
+      FromDate: fromDate.value ?? undefined,
+      ToDate: toDate.value ?? undefined,
+    };
+  }
+
   async function loadEntries() {
     isLoadingEntries.value = true;
     error.value = '';
     try {
-      const res = await getApiStatsDashboardEntries({
-        EmployeeId: employeeId.value ?? undefined,
-        CategoryName: categoryName.value ?? undefined,
-        SubCategoryId: subCategoryId.value ?? undefined,
-        Status: status.value ?? undefined,
-        FromDate: fromDate.value ?? undefined,
-        ToDate: toDate.value ?? undefined,
-      });
+      const res = await getApiStatsDashboardEntries(buildQueryParams());
       if (res.error.value) {
         error.value = res.error.value.message ?? 'Failed to load entries.';
         return;
@@ -112,6 +117,26 @@ export function useStatSearch() {
       error.value = e instanceof Error ? e.message : 'Failed to load entries.';
     } finally {
       isLoadingEntries.value = false;
+    }
+  }
+
+  async function applyFilters() {
+    await Promise.all([loadEntries(), loadSummary()]);
+  }
+
+  async function loadSummary() {
+    isLoadingSummary.value = true;
+    try {
+      const res = await getApiStatsDashboardSummary(buildQueryParams());
+      if (res.error.value) {
+        error.value = res.error.value.message ?? 'Failed to load summary.';
+        return;
+      }
+      summary.value = res.data.value ?? summary.value;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to load summary.';
+    } finally {
+      isLoadingSummary.value = false;
     }
   }
 
@@ -128,11 +153,10 @@ export function useStatSearch() {
     toDate,
     entries,
     isLoadingEntries,
+    summary,
+    isLoadingSummary,
     error,
-    regularHours,
-    overtimeHours,
-    submittedCount,
     loadReferenceData,
-    loadEntries,
+    applyFilters,
   };
 }

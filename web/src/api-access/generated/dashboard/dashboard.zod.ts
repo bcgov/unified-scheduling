@@ -8,12 +8,12 @@ import * as zod from 'zod';
 
 export const GetApiStatsDashboardEntriesQueryParams = zod.strictObject({
   EmployeeId: zod.uuid().optional(),
+  CategoryName: zod.string().optional(),
   SubCategoryId: zod.number().optional(),
   Status: zod.string().optional(),
+  NameSearch: zod.string().optional(),
   FromDate: zod.iso.date().optional(),
   ToDate: zod.iso.date().optional(),
-  NameSearch: zod.string().optional(),
-  CategoryName: zod.string().optional(),
 });
 
 export const GetApiStatsDashboardEntriesResponseItem = zod.object({
@@ -24,10 +24,27 @@ export const GetApiStatsDashboardEntriesResponseItem = zod.object({
   date: zod.iso.date().optional(),
   workArea: zod.string().optional(),
   subcategory: zod.string().optional(),
-  value: zod.number().optional(),
-  status: zod.string().optional(),
   metricName: zod.string().optional(),
   metricUnit: zod.string().optional(),
   isOvertime: zod.boolean().optional(),
+  value: zod.number().optional(),
+  status: zod.string().optional(),
 });
 export const GetApiStatsDashboardEntriesResponse = zod.array(GetApiStatsDashboardEntriesResponseItem);
+
+export const GetApiStatsDashboardSummaryQueryParams = zod.strictObject({
+  EmployeeId: zod.uuid().optional(),
+  CategoryName: zod.string().optional(),
+  SubCategoryId: zod.number().optional(),
+  Status: zod.string().optional(),
+  NameSearch: zod.string().optional(),
+  FromDate: zod.iso.date().optional(),
+  ToDate: zod.iso.date().optional(),
+});
+
+export const GetApiStatsDashboardSummaryResponse = zod.object({
+  regularHours: zod.number().optional(),
+  overtimeHours: zod.number().optional(),
+  submittedCount: zod.number().optional(),
+  totalEntries: zod.number().optional(),
+});

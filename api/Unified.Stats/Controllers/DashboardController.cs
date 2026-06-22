@@ -22,10 +22,30 @@ public class DashboardController(IDashboardService service) : ControllerBase
         CancellationToken cancellationToken
     )
     {
-        var locationIdValue = User.FindFirst(UnifiedClaimTypes.HomeLocationId)?.Value;
-        if (!int.TryParse(locationIdValue, out var homeLocationId))
+        if (!TryGetHomeLocationId(out var homeLocationId))
             return Forbid();
 
         return Ok(await service.GetEntriesAsync(homeLocationId, queryParams, cancellationToken));
+    }
+
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(DashboardSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<DashboardSummaryResponse>> GetSummary(
+        [FromQuery] DashboardEntriesQueryParams? queryParams,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!TryGetHomeLocationId(out var homeLocationId))
+            return Forbid();
+
+        return Ok(await service.GetSummaryAsync(homeLocationId, queryParams, cancellationToken));
+    }
+
+    private bool TryGetHomeLocationId(out int homeLocationId)
+    {
+        var value = User.FindFirst(UnifiedClaimTypes.HomeLocationId)?.Value;
+        return int.TryParse(value, out homeLocationId);
     }
 }

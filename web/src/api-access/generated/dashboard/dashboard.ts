@@ -4,7 +4,12 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { DashboardEntryResponse, GetApiStatsDashboardEntriesParams } from '../models';
+import type {
+  DashboardEntryResponse,
+  DashboardSummaryResponse,
+  GetApiStatsDashboardEntriesParams,
+  GetApiStatsDashboardSummaryParams,
+} from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI';
 
@@ -16,4 +21,11 @@ export const getApiStatsDashboardEntries = (
 ) => {
   return useFetchAPI<DashboardEntryResponse[]>({ url: `/api/stats/dashboard/entries`, method: 'GET', params }, options);
 };
+export const getApiStatsDashboardSummary = (
+  params?: GetApiStatsDashboardSummaryParams,
+  options?: SecondParameter<typeof useFetchAPI<DashboardSummaryResponse>>,
+) => {
+  return useFetchAPI<DashboardSummaryResponse>({ url: `/api/stats/dashboard/summary`, method: 'GET', params }, options);
+};
 export type GetApiStatsDashboardEntriesResult = NonNullable<Awaited<ReturnType<typeof getApiStatsDashboardEntries>>>;
+export type GetApiStatsDashboardSummaryResult = NonNullable<Awaited<ReturnType<typeof getApiStatsDashboardSummary>>>;
