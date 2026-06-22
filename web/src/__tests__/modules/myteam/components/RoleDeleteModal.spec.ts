@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import { HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw';
 import type { RoleAssignedUserDto, RoleDto } from '@/api-access/generated/models';
 import {
   getGetApiRolesIdUsersMockHandler,
@@ -196,9 +196,9 @@ describe('RoleDeleteModal', () => {
         usersFetchCount++;
         return [];
       }),
-      getPostApiRolesIdReassignAndDeleteMockHandler(() => {
-        return HttpResponse.json({ detail: 'Role cannot be deleted while dependencies exist.' }, { status: 400 });
-      }),
+      http.post('*/api/roles/:id/reassign-and-delete', () =>
+        HttpResponse.json({ detail: 'Role cannot be deleted while dependencies exist.' }, { status: 400 }),
+      ),
     );
 
     const wrapper = mount(RoleDeleteModal, {
