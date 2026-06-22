@@ -14,9 +14,9 @@ export interface DashboardEntryResponse {
   date?: string;
   workArea?: string;
   subcategory?: string;
-  value?: number;
-  status?: string;
   metricName?: string;
   metricUnit?: string;
   isOvertime?: boolean;
+  value?: number;
+  status?: string;
 }

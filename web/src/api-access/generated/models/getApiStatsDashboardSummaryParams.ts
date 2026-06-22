@@ -6,7 +6,7 @@
  */
 import type { MaybeRef } from 'vue';
 
-export type OriginalGetApiStatsDashboardEntriesParams = {
+export type OriginalGetApiStatsDashboardSummaryParams = {
   EmployeeId?: string;
   CategoryName?: string;
   SubCategoryId?: number;
@@ -16,4 +16,4 @@ export type OriginalGetApiStatsDashboardEntriesParams = {
   ToDate?: string;
 };
 
-export type GetApiStatsDashboardEntriesParams = MaybeRef<OriginalGetApiStatsDashboardEntriesParams>;
+export type GetApiStatsDashboardSummaryParams = MaybeRef<OriginalGetApiStatsDashboardSummaryParams>;

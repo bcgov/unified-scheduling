@@ -9,7 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { DashboardEntryResponse } from '../models';
+import type { DashboardEntryResponse, DashboardSummaryResponse } from '../models';
 
 export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResponse[] =>
   faker.helpers.arrayElement([
@@ -24,11 +24,11 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
-      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricUnit: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -41,11 +41,11 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
-      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricUnit: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -58,12 +58,39 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
-      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricUnit: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
     })),
+  ]);
+
+export const getGetApiStatsDashboardSummaryResponseMock = (
+  overrideResponse: Partial<Extract<DashboardSummaryResponse, object>> = {},
+): DashboardSummaryResponse =>
+  faker.helpers.arrayElement([
+    {
+      regularHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      overtimeHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      submittedCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      totalEntries: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      ...overrideResponse,
+    },
+    {
+      regularHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      overtimeHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      submittedCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      totalEntries: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      ...overrideResponse,
+    },
+    {
+      regularHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      overtimeHours: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      submittedCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      totalEntries: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      ...overrideResponse,
+    },
   ]);
 
 export const getGetApiStatsDashboardEntriesMockHandler = (
@@ -89,4 +116,31 @@ export const getGetApiStatsDashboardEntriesMockHandler = (
     options,
   );
 };
-export const getDashboardMock = () => [getGetApiStatsDashboardEntriesMockHandler()];
+
+export const getGetApiStatsDashboardSummaryMockHandler = (
+  overrideResponse?:
+    | DashboardSummaryResponse
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<DashboardSummaryResponse> | DashboardSummaryResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/stats/dashboard/summary',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiStatsDashboardSummaryResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+export const getDashboardMock = () => [
+  getGetApiStatsDashboardEntriesMockHandler(),
+  getGetApiStatsDashboardSummaryMockHandler(),
+];

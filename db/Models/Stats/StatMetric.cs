@@ -16,3 +16,8 @@ public class StatMetric : BaseEntity
 
     public bool IsOvertime { get; set; }
 }
+
+public static class StatMetricUnitOfMeasure
+{
+    public const string Hours = "hours";
+}
