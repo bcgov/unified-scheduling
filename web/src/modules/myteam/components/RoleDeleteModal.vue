@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import type { RoleAssignedUserDto, RoleDto } from '@/api-access/generated/models';
-import {
-  getApiRolesIdUsers,
-  postApiRolesIdReassignAndDelete,
-} from '@/api-access/generated/roles/roles';
+import { getApiRolesIdUsers, postApiRolesIdReassignAndDelete } from '@/api-access/generated/roles/roles';
 import { PostApiRolesIdReassignAndDeleteBody } from '@/api-access/generated/roles/roles.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';

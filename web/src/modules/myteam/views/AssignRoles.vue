@@ -21,7 +21,7 @@ const props = defineProps<{
 
 const accessControl = useAccessControl();
 
-const { data: roles, error: rolesError, isFetching: isFetchingRoles, } = getApiRoles();
+const { data: roles, error: rolesError, isFetching: isFetchingRoles } = getApiRoles();
 
 const {
   data: assignedRoles,
