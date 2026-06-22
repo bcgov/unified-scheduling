@@ -16,20 +16,48 @@ namespace Unified.Db.Migrations
                 name: "UserActingPositions",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:IdentitySequenceOptions", "'1000', '1', '', '', 'False', '1'")
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:IdentitySequenceOptions",
+                            "'1000', '1', '', '', 'False', '1'"
+                        )
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     PositionTypeId = table.Column<int>(type: "integer", nullable: false),
-                    EffectiveDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ExpiryDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    ExpiryReason = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    Comment = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    EffectiveDate = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ExpiryDate = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    ExpiryReason = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: true
+                    ),
+                    Comment = table.Column<string>(
+                        type: "character varying(500)",
+                        maxLength: 500,
+                        nullable: true
+                    ),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    CreatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
+                    CreatedOn = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "now()"
+                    ),
                     UpdatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    UpdatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
+                    UpdatedOn = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
                 },
                 constraints: table =>
                 {
@@ -39,53 +67,61 @@ namespace Unified.Db.Migrations
                         column: x => x.PositionTypeId,
                         principalTable: "PositionTypes",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Restrict
+                    );
                     table.ForeignKey(
                         name: "FK_UserActingPositions_Users_CreatedById",
                         column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.SetNull
+                    );
                     table.ForeignKey(
                         name: "FK_UserActingPositions_Users_UpdatedById",
                         column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.SetNull
+                    );
                     table.ForeignKey(
                         name: "FK_UserActingPositions_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserActingPositions_CreatedById",
                 table: "UserActingPositions",
-                column: "CreatedById");
+                column: "CreatedById"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserActingPositions_PositionTypeId",
                 table: "UserActingPositions",
-                column: "PositionTypeId");
+                column: "PositionTypeId"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserActingPositions_UpdatedById",
                 table: "UserActingPositions",
-                column: "UpdatedById");
+                column: "UpdatedById"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserActingPositions_UserId",
                 table: "UserActingPositions",
-                column: "UserId");
+                column: "UserId"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "UserActingPositions");
+            migrationBuilder.DropTable(name: "UserActingPositions");
         }
     }
 }
