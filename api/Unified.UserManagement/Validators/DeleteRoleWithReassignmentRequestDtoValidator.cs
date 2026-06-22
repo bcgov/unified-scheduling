@@ -10,10 +10,7 @@ public sealed class DeleteRoleWithReassignmentRequestDtoValidator
     public DeleteRoleWithReassignmentRequestDtoValidator()
     {
         // NewRoleId is required and must be a positive integer
-        RuleFor(x => x.NewRoleId)
-            .NotNull()
-            .GreaterThan(0)
-            .WithMessage("New role ID must be valid");
+        RuleFor(x => x.NewRoleId).NotNull().GreaterThan(0).WithMessage("New role ID must be valid");
 
         // NewRoleEffectiveDate is required and must be yyyy-MM-dd
         RuleFor(x => x.NewRoleEffectiveDate)

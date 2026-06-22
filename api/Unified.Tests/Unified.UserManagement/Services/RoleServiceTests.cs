@@ -35,7 +35,11 @@ public class RoleServiceTests : IAsyncLifetime
             .Options;
 
         _dbContext = new UnifiedDbContext(options);
-        _roleService = new RoleService(_dbContext, CreateHttpContextAccessor(), new DeleteRoleWithReassignmentRequestDtoValidator());
+        _roleService = new RoleService(
+            _dbContext,
+            CreateHttpContextAccessor(),
+            new DeleteRoleWithReassignmentRequestDtoValidator()
+        );
 
         return ValueTask.CompletedTask;
     }

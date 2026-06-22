@@ -9,11 +9,7 @@ namespace Unified.Tests.UserManagement.Controllers;
 public class RolesControllerTests
 {
     private static RolesController BuildController(FakeRoleService? service = null) =>
-        new(
-            service ?? new FakeRoleService(),
-            new RoleRequestValidator(),
-            new UpdateRoleRequestValidator()
-        );
+        new(service ?? new FakeRoleService(), new RoleRequestValidator(), new UpdateRoleRequestValidator());
 
     // ── Get ──────────────────────────────────────────────────────────────────
 
