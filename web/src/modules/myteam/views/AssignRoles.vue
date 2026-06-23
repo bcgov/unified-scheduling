@@ -19,8 +19,6 @@ const props = defineProps<{
   user: UserResponse;
 }>();
 
-console.log('AssignRoles.vue - user:', props.user);
-
 const accessControl = useAccessControl();
 
 const { data: roles, error: rolesError, isFetching: isFetchingRoles } = getApiRoles();
