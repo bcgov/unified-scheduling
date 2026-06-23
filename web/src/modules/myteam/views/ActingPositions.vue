@@ -96,9 +96,9 @@ const handleExpired = async () => {
       </UaBtn>
     </div>
 
-    <UaAlert v-if="actingPositionsError" type="error" @close="() => {}">
-      Failed to load acting positions: {{ actingPositionsError.message }}
-    </UaAlert>
+<UaAlert v-if="actingPositionsError" type="error" :closable="false">
+  Failed to load acting positions: {{ actingPositionsError.message }}
+</UaAlert>
 
     <div v-if="isFetchingPositions" class="loading-state">Loading acting positions...</div>
 
