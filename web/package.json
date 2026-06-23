@@ -43,7 +43,7 @@
   "devDependencies": {
     "@faker-js/faker": "^10.4.0",
     "@mdi/js": "^7.4.47",
-    "@playwright/test": "^1.59.1",
+    "@playwright/test": "^1.60.0",
     "@tsconfig/node24": "^24.0.4",
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.10.9",
