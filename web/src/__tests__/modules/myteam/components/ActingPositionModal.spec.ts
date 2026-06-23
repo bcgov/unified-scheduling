@@ -87,11 +87,8 @@ describe('ActingPositionModal', () => {
   it('submits create request and emits saved + close', async () => {
     const app = await createTestApp();
 
-    let requestBody: Record<string, unknown> | null = null;
-
     server.use(
-      getPostApiUsersUserIdActingPositionsMockHandler(async (info) => {
-        requestBody = (await info.request.json()) as Record<string, unknown>;
+      getPostApiUsersUserIdActingPositionsMockHandler(async () => {
         return getPostApiUsersUserIdActingPositionsResponseMock({
           id: 1001,
           userId: 'test-user-id',
