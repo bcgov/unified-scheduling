@@ -1,19 +1,20 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw, RouteLocationNormalized, RouteLocationNormalizedLoaded } from 'vue-router';
 import type { createPinia } from 'pinia';
-import { useAccessControl } from '@/composables/useAccessControl';
+import { type AppFeatureFlagKey, useAccessControl } from '@/composables/useAccessControl';
+import * as calendarModule from '@/modules/calendar/CalendarModule';
 import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
 import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import * as statsModule from '@/modules/stats/StatsModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
-import type { FeatureFlags } from '@/api-access/generated/models';
 
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string;
-    module?: keyof FeatureFlags;
+    module?: AppFeatureFlagKey;
     requiresAuth?: boolean;
+    fullScreen?: boolean;
   }
 }
 
@@ -81,6 +82,10 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
   if (accessControl.isFeatureFlagEnabled('statsModule')) {
     statsModule.registerModule(routes);
+  }
+
+  if (accessControl.isFeatureFlagEnabled('calendarModule')) {
+    calendarModule.registerModule(routes);
   }
 
   const router = createRouter({
