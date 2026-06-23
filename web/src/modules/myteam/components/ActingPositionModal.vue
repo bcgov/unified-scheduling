@@ -175,7 +175,12 @@ const handleSave = async () => {
         :error-messages="formErrors.expiryDate"
       />
 
-      <UaTextarea id="acting-position-comment" v-model="formData.comment as string" label="Comment (optional)" />
+<UaTextarea
+  id="acting-position-comment"
+  label="Comment (optional)"
+  :model-value="formData.comment ?? ''"
+  @update:model-value="(v: string) => (formData.comment = v)"
+/>
     </UaFormGrid>
 
     <template #actions>
