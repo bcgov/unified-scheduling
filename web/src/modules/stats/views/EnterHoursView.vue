@@ -82,9 +82,6 @@ onMounted(async () => {
   metrics.value = metricsRes.data.value ?? [];
   subCategoryMetrics.value = scmRes.data.value ?? [];
 
-  // When deep-linking with a pre-seeded location, load users so the Employee
-  // dropdown shows names instead of raw IDs. Don't reset selectedUserId —
-  // it is already seeded from the query param.
   if (seedLocationId) {
     const { data } = await getApiUsers({ LocationId: seedLocationId, IsEnabled: true });
     locationUsers.value = data.value ?? [];
@@ -93,8 +90,6 @@ onMounted(async () => {
   isLoadingReference.value = false;
 
   if (seedDate && seedLocationId && seedUserId) {
-    // Reference data is now populated, so reconstructAssignments will have
-    // the lookups it needs. Load the week then select the day.
     await loadWeek();
     onSelectDay(seedDate);
   }
