@@ -7,7 +7,6 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
-import { validationMessages } from '@/shared/validation/validationErrors';
 import { ref } from 'vue';
 import * as zod from 'zod';
 
@@ -30,7 +29,7 @@ type ExpireFormData = Partial<zod.infer<typeof PostApiUsersUserIdActingPositions
 const formData = ref<ExpireFormData>({ expiryReason: '' });
 
 const expireSchema = PostApiUsersUserIdActingPositionsExpireBody.extend({
-  expiryReason: PostApiUsersUserIdActingPositionsExpireBody.shape.expiryReason.min(1, validationMessages.required),
+  expiryReason: PostApiUsersUserIdActingPositionsExpireBody.shape.expiryReason.min(1, 'Reason for expiry is required.'),
 });
 
 const validateForm = (): Pick<zod.infer<typeof expireSchema>, 'expiryReason'> | null => {
@@ -65,7 +64,7 @@ const handleExpire = async () => {
   try {
     const { error } = await postApiUsersIdActingPositionsExpire(props.userId, {
       actingPositionId: props.position.id,
-      expiryReason: payload.expiryReason,
+      expiryReason: formData.value.expiryReason ?? '',
     });
 
     if (error.value) {

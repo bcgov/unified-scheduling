@@ -68,8 +68,8 @@ describe('ExpireActingPositionModal', () => {
 
     await flushPromises();
 
-    const vm = wrapper.vm as unknown as { selectedReason: string };
-    vm.selectedReason = 'ENTRYERR';
+    const vm = wrapper.vm as unknown as { formData: { expiryReason: string } };
+    vm.formData.expiryReason = 'ENTRYERR';
 
     await flushPromises();
 

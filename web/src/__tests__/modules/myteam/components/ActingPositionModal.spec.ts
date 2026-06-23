@@ -118,9 +118,9 @@ describe('ActingPositionModal', () => {
     await flushPromises();
 
     // Select position type via select component
-    const vm = wrapper.vm as unknown as { selectedPositionTypeCode: string; effectiveDate: string };
-    vm.selectedPositionTypeCode = 'SGT';
-    vm.effectiveDate = '2026-01-10';
+    const vm = wrapper.vm as unknown as { formData: { positionTypeCode: string; effectiveDate: string } };
+    vm.formData.positionTypeCode = 'SGT';
+    vm.formData.effectiveDate = '2026-01-10';
 
     await flushPromises();
 

@@ -54,7 +54,7 @@ const formData = ref<ActingPositionFormData>(
 );
 
 const actingPositionSchema = PostApiUsersUserIdActingPositionsBody.extend({
-  positionTypeCode: PostApiUsersUserIdActingPositionsBody.shape.positionTypeCode.min(1, validationMessages.required),
+  positionTypeCode: zod.string({ error: validationMessages.required }).min(1, validationMessages.required),
   effectiveDate: PostApiUsersUserIdActingPositionsBody.shape.effectiveDate.min(1, validationMessages.required),
 }).superRefine((data, ctx) => {
   if (data.expiryDate && data.effectiveDate && isDateInputBefore(data.expiryDate, data.effectiveDate)) {
