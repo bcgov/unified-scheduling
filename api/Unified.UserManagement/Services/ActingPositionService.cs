@@ -26,7 +26,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         var positions = await db
             .UserActingPositions.AsNoTracking()
             .Include(x => x.PositionType)
-            .Where(x => x.UserId == userId && x.ExpiryDate == null)
+            .Where(x => x.UserId == userId && (x.ExpiryDate == null || x.ExpiryDate > DateTimeOffset.UtcNow))
             .OrderByDescending(x => x.EffectiveDate)
             .ThenBy(x => x.PositionTypeId)
             .ToListAsync(cancellationToken);
