@@ -19,7 +19,8 @@ public static class TrainingModule
     {
         var grpBuilder = app.MapGroup("/api/training").WithTags("Training");
 
-        grpBuilder.MapGet(
+        grpBuilder
+            .MapGet(
                 "/health",
                 (ITrainingService trainingService) =>
                 {
