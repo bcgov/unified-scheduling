@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { ActingPositionRequestDto, ActingPositionResponseDto } from '@/api-access/generated/models';
-import { postApiUsersUserIdActingPositions, putApiUsersUserIdActingPositionsActingPositionId } from '@/api-access/generated/acting-positions/acting-positions';
+import {
+  postApiUsersUserIdActingPositions,
+  putApiUsersUserIdActingPositionsActingPositionId,
+} from '@/api-access/generated/acting-positions/acting-positions';
 import { PostApiUsersUserIdActingPositionsBody } from '@/api-access/generated/acting-positions/acting-positions.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -116,7 +119,11 @@ const handleSave = async () => {
 
   try {
     if (isEditMode.value && props.position) {
-      const { error } = await putApiUsersUserIdActingPositionsActingPositionId(props.userId, props.position.id!, request);
+      const { error } = await putApiUsersUserIdActingPositionsActingPositionId(
+        props.userId,
+        props.position.id!,
+        request,
+      );
 
       if (error.value) {
         apiError.value = error.value.message || 'Failed to save acting position.';
@@ -175,12 +182,12 @@ const handleSave = async () => {
         :error-messages="formErrors.expiryDate"
       />
 
-<UaTextarea
-  id="acting-position-comment"
-  label="Comment (optional)"
-  :model-value="formData.comment ?? ''"
-  @update:model-value="(v: string) => (formData.comment = v)"
-/>
+      <UaTextarea
+        id="acting-position-comment"
+        label="Comment (optional)"
+        :model-value="formData.comment ?? ''"
+        @update:model-value="(v: string) => (formData.comment = v)"
+      />
     </UaFormGrid>
 
     <template #actions>

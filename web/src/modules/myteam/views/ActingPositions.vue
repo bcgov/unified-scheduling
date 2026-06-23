@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { getApiUsersUserIdActingPositions } from '@/api-access/generated/acting-positions/acting-positions';
-import { LookupCodeTypes, Permissions, type UserResponse, type ActingPositionResponseDto } from '@/api-access/generated/models';
+import {
+  LookupCodeTypes,
+  Permissions,
+  type UserResponse,
+  type ActingPositionResponseDto,
+} from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -96,9 +101,9 @@ const handleExpired = async () => {
       </UaBtn>
     </div>
 
-<UaAlert v-if="actingPositionsError" type="error" :closable="false">
-  Failed to load acting positions: {{ actingPositionsError.message }}
-</UaAlert>
+    <UaAlert v-if="actingPositionsError" type="error" :closable="false">
+      Failed to load acting positions: {{ actingPositionsError.message }}
+    </UaAlert>
 
     <div v-if="isFetchingPositions" class="loading-state">Loading acting positions...</div>
 
@@ -151,11 +156,11 @@ const handleExpired = async () => {
       </template>
     </UaDataTable>
 
-<UaPlaceholderPage
-  v-else-if="!isFetchingPositions && !actingPositionsError"
-  title="No acting positions"
-  description="No acting positions have been assigned."
-/>
+    <UaPlaceholderPage
+      v-else-if="!isFetchingPositions && !actingPositionsError"
+      title="No acting positions"
+      description="No acting positions have been assigned."
+    />
 
     <ActingPositionModal
       v-if="showActingPositionModal"
