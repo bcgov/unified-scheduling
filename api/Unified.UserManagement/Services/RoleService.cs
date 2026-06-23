@@ -21,6 +21,8 @@ public sealed class RoleService(
 {
     public async Task<IReadOnlyCollection<RoleDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("Retrieving roles");
+
         var roles = await DB
             .Roles.AsNoTracking()
             .Where(r => r.DeletedById == null)
@@ -37,6 +39,8 @@ public sealed class RoleService(
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogDebug("Retrieving active users assigned to role {RoleId}", roleId);
+
         var roleExists = await DB.Roles.AnyAsync(r => r.Id == roleId && r.DeletedById == null, cancellationToken);
         if (!roleExists)
             throw new KeyNotFoundException($"Role {roleId} not found.");
@@ -61,6 +65,11 @@ public sealed class RoleService(
 
     public async Task<RoleDto> CreateAsync(RoleRequestDto request, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation(
+            "Creating role with {PermissionCount} permissions",
+            request.PermissionIds.Count
+        );
+
         if (
             await DB.Roles.AnyAsync(
                 r => r.DeletedById == null && r.Name.ToLower() == request.Name.ToLower(),
@@ -82,11 +91,19 @@ public sealed class RoleService(
             .Include(rp => rp.Permission)
             .LoadAsync(cancellationToken);
 
+        logger.LogInformation("Created role {RoleId}", role.Id);
+
         return MapToDto(role);
     }
 
     public async Task<RoleDto> UpdateAsync(UpdateRoleRequestDto request, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation(
+            "Updating role {RoleId} with {PermissionCount} permissions",
+            request.Id,
+            request.PermissionIds.Count
+        );
+
         var role =
             await DB
                 .Roles.Include(r => r.RolePermissions)
@@ -125,6 +142,12 @@ public sealed class RoleService(
         foreach (var rp in toRemove)
             role.RolePermissions.Remove(rp);
 
+        logger.LogDebug(
+            "Role {RoleId} permission changes: adding {AddedCount}, removing {RemovedCount}",
+            role.Id,
+            toAdd.Count,
+            existingIds.Except(requestedIds).Count()
+        );
         await AddPermissionsAsync(role, toAdd, cancellationToken);
         await DB.SaveChangesAsync(cancellationToken);
 
@@ -133,6 +156,8 @@ public sealed class RoleService(
             .Query()
             .Include(rp => rp.Permission)
             .LoadAsync(cancellationToken);
+
+        logger.LogInformation("Updated role {RoleId}", role.Id);
 
         return MapToDto(role);
     }
@@ -146,6 +171,8 @@ public sealed class RoleService(
         var currentUserId = httpContextAccessor.HttpContext!.User.CurrentUserId();
         var now = DateTimeOffset.UtcNow;
 
+        logger.LogInformation("Deleting role {RoleId}", roleIdToDelete);
+
         var roleToDelete =
             await DB.Roles.FirstOrDefaultAsync(r => r.Id == roleIdToDelete && r.DeletedById == null, cancellationToken)
             ?? throw new KeyNotFoundException($"Role {roleIdToDelete} not found.");
@@ -157,6 +184,13 @@ public sealed class RoleService(
 
         if (activeAssignmentCount > 0)
         {
+            logger.LogInformation(
+                "Reassigning {AssignmentCount} active assignments from role {OldRoleId} to role {NewRoleId}",
+                activeAssignmentCount,
+                roleIdToDelete,
+                request.NewRoleId
+            );
+
             await deleteRoleValidator.ValidateAndThrowAsync(request, cancellationToken);
 
             if (request.NewRoleId == roleIdToDelete)
@@ -196,6 +230,12 @@ public sealed class RoleService(
             {
                 if (existingNewRoleAssignments.TryGetValue(assignment.UserId, out var existingAssignment))
                 {
+                    logger.LogDebug(
+                        "Updating existing role assignment for user {UserId} and role {RoleId}",
+                        assignment.UserId,
+                        request.NewRoleId
+                    );
+
                     if (existingAssignment.EffectiveDate > now && existingAssignment.EffectiveDate != effectiveDate)
                         existingAssignment.EffectiveDate = effectiveDate;
 
@@ -214,6 +254,12 @@ public sealed class RoleService(
                         ExpiryReason = null,
                     }
                 );
+
+                logger.LogDebug(
+                    "Creating replacement role assignment for user {UserId} and role {RoleId}",
+                    assignment.UserId,
+                    request.NewRoleId
+                );
             }
 
             DB.UserRoles.RemoveRange(activeAssignments);
@@ -222,6 +268,12 @@ public sealed class RoleService(
             roleToDelete.DeletedById = currentUserId;
             await DB.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Deleted role {RoleId} after reassigning {AssignmentCount} active assignments",
+                roleToDelete.Id,
+                activeAssignmentCount
+            );
 
             return new DeletedRoleDto
             {
@@ -234,6 +286,8 @@ public sealed class RoleService(
         roleToDelete.DeletedOn = now;
         roleToDelete.DeletedById = currentUserId;
         await DB.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Deleted role {RoleId} with no active assignments", roleToDelete.Id);
 
         return new DeletedRoleDto
         {

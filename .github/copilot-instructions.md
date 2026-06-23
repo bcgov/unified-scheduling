@@ -54,7 +54,7 @@ dotnet format analyzers --verify-no-changes
 **Auto-fix formatting:**
 
 ```bash
-dotnet csharpier .
+dotnet csharpier format .
 dotnet format style
 ```
 

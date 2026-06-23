@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Common.Helpers.Extensions;
 using Unified.Db;
 using Unified.Db.Models;
@@ -37,7 +38,8 @@ public class UserServiceTests : IAsyncLifetime
             _dbContext,
             new TestFeatureFlags(
                 new FeatureFlags.FeatureFlags { StatsModule = true, UserBadgeNumber = userBadgeNumberEnabled }
-            )
+            ),
+            NullLogger<UserService>.Instance
         );
     }
 
