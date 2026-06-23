@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { type RoleDto, type UserRoleResponseDto } from '@/api-access/generated/models';
 import { postApiUsersIdRoles } from '@/api-access/generated/users/users';
+import { PostApiUsersIdRolesBody } from '@/api-access/generated/users/users.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -8,8 +9,10 @@ import UaModal from '@/shared/components/UaModal.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import type { SelectOption } from '@/types/select';
+import { validationMessages } from '@/shared/validation/validationErrors';
 import { getTodayDateInputValue, isDateInputBefore, toApiDateString, toDateInputValue } from '@/utils/date';
 import { computed, ref, watch } from 'vue';
+import * as zod from 'zod';
 
 const props = defineProps<{
   userId: string;
@@ -25,36 +28,63 @@ const emit = defineEmits<{
 const isEditMode = computed(() => !!props.assignment);
 const isSaving = ref(false);
 const apiError = ref('');
-const formErrors = ref({
-  role: '',
-  effectiveDate: '',
-  expiryDate: '',
+const formErrors = ref<Record<string, string>>({});
+
+type AssignRoleFormData = Partial<zod.infer<typeof PostApiUsersIdRolesBody>>;
+
+const createInitialFormData = (): AssignRoleFormData => ({
+  roleId: undefined,
+  effectiveDate: getTodayDateInputValue(),
+  expiryDate: null,
 });
 
-const selectedRoleId = ref<number | null>(props.assignment?.roleId ?? null);
-const effectiveDate = ref(toDateInputValue(props.assignment?.effectiveDate) ?? getTodayDateInputValue());
-const expiryDate = ref(toDateInputValue(props.assignment?.expiryDate) ?? '');
+const populateFromAssignment = (a: UserRoleResponseDto): AssignRoleFormData => ({
+  roleId: a.roleId ?? undefined,
+  effectiveDate: toDateInputValue(a.effectiveDate) ?? getTodayDateInputValue(),
+  expiryDate: toDateInputValue(a.expiryDate) ?? null,
+});
 
-const formError = computed(() => Object.values(formErrors.value).find((message) => message.length > 0) ?? '');
+const formData = ref<AssignRoleFormData>(
+  props.assignment ? populateFromAssignment(props.assignment) : createInitialFormData(),
+);
 
-function clearFormErrors(): void {
-  formErrors.value = {
-    role: '',
-    effectiveDate: '',
-    expiryDate: '',
-  };
-}
+const assignRoleSchema = PostApiUsersIdRolesBody.extend({
+  roleId: PostApiUsersIdRolesBody.shape.roleId.refine((v) => v !== undefined && v !== null, {
+    message: validationMessages.required,
+  }),
+  effectiveDate: PostApiUsersIdRolesBody.shape.effectiveDate.min(1, validationMessages.required),
+}).superRefine((data, ctx) => {
+  if (data.expiryDate && data.effectiveDate && isDateInputBefore(data.expiryDate, data.effectiveDate)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['expiryDate'],
+      message: 'Expiry date cannot be earlier than effective date.',
+    });
+  }
+});
+
+const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
+  const errors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const fieldName = issue.path[0];
+    if (typeof fieldName === 'string' && !errors[fieldName]) {
+      if (issue.code === 'invalid_type' || issue.code === 'invalid_value') {
+        errors[fieldName] = validationMessages.required;
+        continue;
+      }
+      errors[fieldName] = issue.message;
+    }
+  }
+  return errors;
+};
 
 watch(
   () => props.assignment,
   (assignment) => {
-    selectedRoleId.value = assignment?.roleId ?? null;
-    effectiveDate.value = toDateInputValue(assignment?.effectiveDate) ?? getTodayDateInputValue();
-    expiryDate.value = toDateInputValue(assignment?.expiryDate) ?? '';
+    formData.value = assignment ? populateFromAssignment(assignment) : createInitialFormData();
     apiError.value = '';
-    clearFormErrors();
+    formErrors.value = {};
   },
-  { immediate: true },
 );
 
 const roleOptions = computed<SelectOption[]>(() =>
@@ -68,40 +98,31 @@ const roleOptions = computed<SelectOption[]>(() =>
 
 const modalTitle = computed(() => (isEditMode.value ? 'Edit Role Assignment' : 'Assign Role'));
 
-function validateForm(): boolean {
-  clearFormErrors();
-
-  if (!selectedRoleId.value) {
-    formErrors.value.role = 'Role is required.';
-    return false;
+function validateForm(): zod.infer<typeof assignRoleSchema> | null {
+  formErrors.value = {};
+  const result = assignRoleSchema.safeParse({
+    ...formData.value,
+    expiryDate: formData.value.expiryDate || null,
+  });
+  if (!result.success) {
+    formErrors.value = getFieldErrors(result.error);
+    return null;
   }
-
-  if (!effectiveDate.value) {
-    formErrors.value.effectiveDate = 'Effective date is required.';
-    return false;
-  }
-
-  if (expiryDate.value && isDateInputBefore(expiryDate.value, effectiveDate.value)) {
-    formErrors.value.expiryDate = 'Expiry date cannot be earlier than effective date.';
-    return false;
-  }
-
-  return true;
+  return result.data;
 }
 
 const handleSave = async () => {
-  if (!validateForm()) {
-    return;
-  }
+  const payload = validateForm();
+  if (!payload) return;
 
   isSaving.value = true;
   apiError.value = '';
 
   try {
     const { error } = await postApiUsersIdRoles(props.userId, {
-      roleId: selectedRoleId.value!,
-      effectiveDate: toApiDateString(effectiveDate.value),
-      expiryDate: expiryDate.value ? toApiDateString(expiryDate.value) : null,
+      roleId: payload.roleId,
+      effectiveDate: toApiDateString(payload.effectiveDate),
+      expiryDate: payload.expiryDate ? toApiDateString(payload.expiryDate) : null,
     });
 
     if (error.value) {
@@ -125,25 +146,22 @@ const handleSave = async () => {
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>
-      <UaAlert v-if="formError" type="error" @close="clearFormErrors()">
-        {{ formError }}
-      </UaAlert>
     </template>
 
     <UaFormGrid>
       <label class="ua-form-label" for="assign-role">Role</label>
       <UaSelect
         id="assign-role"
-        v-model="selectedRoleId"
+        v-model="formData.roleId"
         label="Role"
         :items="roleOptions"
         :disabled="isEditMode"
-        :error-messages="formErrors.role"
+        :error-messages="formErrors.roleId"
       />
 
       <UaTextField
         id="effective-date"
-        v-model="effectiveDate"
+        v-model="formData.effectiveDate"
         type="date"
         label="Effective Date"
         :error-messages="formErrors.effectiveDate"
@@ -151,7 +169,7 @@ const handleSave = async () => {
 
       <UaTextField
         id="expiry-date"
-        v-model="expiryDate"
+        v-model="formData.expiryDate as string"
         type="date"
         label="Expiry Date"
         :error-messages="formErrors.expiryDate"

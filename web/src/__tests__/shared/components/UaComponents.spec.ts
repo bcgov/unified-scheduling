@@ -1,5 +1,6 @@
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
+import UaDisplayField from '@/shared/components/UaDisplayField.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
@@ -50,6 +51,25 @@ describe('UaFormGrid', () => {
     });
     expect(wrapper.find('.ua-form-grid').exists()).toBe(true);
     expect(wrapper.text()).toContain('Name');
+  });
+});
+
+describe('UaDisplayField', () => {
+  it('renders label and value text', () => {
+    const wrapper = mount(UaDisplayField, {
+      props: { label: 'Location', value: 'Headquarters' },
+    });
+
+    expect(wrapper.find('.ua-form-label').text()).toBe('Location');
+    expect(wrapper.find('.ua-display-field__value').text()).toBe('Headquarters');
+  });
+
+  it('renders the empty fallback when value is blank', () => {
+    const wrapper = mount(UaDisplayField, {
+      props: { label: 'Notes', value: '', emptyText: 'None' },
+    });
+
+    expect(wrapper.find('.ua-display-field__value').text()).toBe('None');
   });
 });
 
