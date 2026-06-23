@@ -36,6 +36,7 @@ public static class UserManagementModule
         services.AddScoped<ExpireUserRoleRequestValidator>();
         services.AddScoped<RoleRequestValidator>();
         services.AddScoped<UpdateRoleRequestValidator>();
+        services.AddScoped<DeleteRoleWithReassignmentRequestDtoValidator>();
 
         // Register permission policies owned by this module
         services
