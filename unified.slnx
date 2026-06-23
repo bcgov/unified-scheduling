@@ -6,6 +6,7 @@
   <Project Path="api/Unified.Core/Unified.Core.csproj" />
   <Project Path="api/Unified.Infrastructure/Unified.Infrastructure.csproj" />
   <Project Path="api/Unified.Stats/Unified.Stats.csproj" />
+  <Project Path="api/Unified.Training/Unified.Training.csproj" />
   <Project Path="api/Unified.Tests/Unified.Tests.csproj" />
   <Project Path="api/Unified.UserManagement/Unified.UserManagement.csproj" />
 </Solution>
