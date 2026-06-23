@@ -1,6 +1,6 @@
 namespace Unified.Training.Services;
 
-internal class TrainingService : ITrainingService
+public class TrainingService : ITrainingService
 {
     public string ModuleName => "Training";
 

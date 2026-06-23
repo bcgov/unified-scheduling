@@ -1,6 +1,6 @@
 namespace Unified.Training.Services;
 
-internal interface ITrainingService
+public interface ITrainingService
 {
     string ModuleName { get; }
 
