@@ -51,12 +51,20 @@ const groupOptions = computed(() =>
 
 const effectiveGroupId = computed(() => props.fixedGroupId ?? model.value.groupId);
 
-const categoryOptions = computed(() =>
-  props.categories
+const categoryOptions = computed(() => {
+  const filtered = props.categories
     .filter((c) => !c.isArchived && (effectiveGroupId.value === null || c.groupId === effectiveGroupId.value))
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
-    .map((c) => ({ code: c.id!, description: c.name! })),
-);
+    .map((c) => ({ code: c.id!, description: c.name! }));
+
+  const selectedId = model.value.categoryId;
+  if (selectedId && !filtered.some((o) => o.code === selectedId)) {
+    const match = props.categories.find((c) => c.id === selectedId);
+    if (match) filtered.unshift({ code: match.id!, description: match.name! });
+  }
+
+  return filtered;
+});
 
 const subCategoryOptions = computed(() => {
   if (!model.value.categoryId) return [];

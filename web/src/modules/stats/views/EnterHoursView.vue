@@ -24,6 +24,7 @@ import type { SelectValue } from '@/types/select';
 import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import DayDetailPanel from '../components/DayDetailPanel.vue';
 import WeeklyGrid from '../components/WeeklyGrid.vue';
 import { getMondayOfWeek, useWeeklyRecords } from '../composables/useWeeklyRecords';
@@ -51,6 +52,14 @@ const authStore = useAuthStore();
 const { hasPermission } = useAccessControl();
 const canEnterForOthers = computed(() => hasPermission(Permissions.StatsRecordsEnterForOthers));
 
+// ── Deep-link query params (optional pre-seed from dashboard edit) ─────────
+const route = useRoute();
+const seedUserId = route.query.userId as string | undefined;
+const parsedLocationId = Number(route.query.locationId);
+const seedLocationId = Number.isFinite(parsedLocationId) ? parsedLocationId : undefined;
+const rawDate = route.query.date as string | undefined;
+const seedDate = rawDate && DateTime.fromISO(rawDate).isValid ? rawDate : undefined;
+
 // ── Reference data ────────────────────────────────────────────────────────
 const isLoadingReference = ref(true);
 const groups = ref<StatGroupResponse[]>([]);
@@ -72,13 +81,24 @@ onMounted(async () => {
   subCategories.value = subCatsRes.data.value ?? [];
   metrics.value = metricsRes.data.value ?? [];
   subCategoryMetrics.value = scmRes.data.value ?? [];
+
+  if (seedLocationId) {
+    const { data } = await getApiUsers({ LocationId: seedLocationId, IsEnabled: true });
+    locationUsers.value = data.value ?? [];
+  }
+
   isLoadingReference.value = false;
+
+  if (seedDate && seedLocationId && seedUserId) {
+    await loadWeek();
+    onSelectDay(seedDate);
+  }
 });
 
 // ── Location ──────────────────────────────────────────────────────────────
 const locationsStore = useLocationsStore();
 const locationOptions = computed(() => locationsStore.getSelectOptions());
-const selectedLocationId = ref<number | null>(null);
+const selectedLocationId = ref<number | null>(seedLocationId ?? null);
 
 const onLocationChange = (value: SelectValue | undefined) => {
   selectedLocationId.value = value != null ? Number(value) : null;
@@ -86,7 +106,7 @@ const onLocationChange = (value: SelectValue | undefined) => {
 
 // ── Supervisor user picker ────────────────────────────────────────────────
 const locationUsers = ref<UserResponse[]>([]);
-const selectedUserId = ref<string | null>(canEnterForOthers.value ? null : authStore.currentUserId);
+const selectedUserId = ref<string | null>(seedUserId ?? (canEnterForOthers.value ? null : authStore.currentUserId));
 let activeLocationId: number | null = null;
 
 const userOptions = computed(() =>
@@ -134,11 +154,12 @@ const {
   isOvertimeEnabled,
   isLoading,
   error: loadError,
+  loadWeek,
   saveDay,
   navigateWeek,
   createEmptyAssignment,
 } = useWeeklyRecords(
-  getMondayOfWeek(DateTime.now()),
+  getMondayOfWeek(seedDate ? DateTime.fromISO(seedDate) : DateTime.now()),
   selectedLocationId,
   selectedUserId,
   subCategories,
@@ -278,6 +299,7 @@ async function handleSave(status: string) {
             label="Select Location"
             :items="locationOptions"
             :model-value="selectedLocationId"
+            :disabled="!!seedLocationId"
             @update:model-value="onLocationChange"
           />
         </div>
@@ -289,7 +311,7 @@ async function handleSave(status: string) {
             label="Select Employee"
             :items="userOptions"
             :model-value="selectedUserId"
-            :disabled="!selectedLocationId"
+            :disabled="!!seedUserId || !selectedLocationId"
             @update:model-value="(v) => (selectedUserId = v ? String(v) : null)"
           />
         </div>
