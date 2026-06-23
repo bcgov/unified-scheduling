@@ -151,11 +151,11 @@ const handleExpired = async () => {
       </template>
     </UaDataTable>
 
-    <UaPlaceholderPage
-      v-else-if="!isFetchingPositions"
-      title="No acting positions"
-      description="No acting positions have been assigned."
-    />
+<UaPlaceholderPage
+  v-else-if="!isFetchingPositions && !actingPositionsError"
+  title="No acting positions"
+  description="No acting positions have been assigned."
+/>
 
     <ActingPositionModal
       v-if="showActingPositionModal"
