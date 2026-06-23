@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ActingPositionRequestDto, ActingPositionResponseDto } from '@/api-access/acting-positions';
-import { postApiUsersIdActingPositions, putApiUsersIdActingPositionsId } from '@/api-access/acting-positions';
+import type { ActingPositionRequestDto, ActingPositionResponseDto } from '@/api-access/generated/models';
+import { postApiUsersUserIdActingPositions, putApiUsersUserIdActingPositionsActingPositionId } from '@/api-access/generated/acting-positions/acting-positions';
 import { PostApiUsersUserIdActingPositionsBody } from '@/api-access/generated/acting-positions/acting-positions.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -116,13 +116,14 @@ const handleSave = async () => {
 
   try {
     if (isEditMode.value && props.position) {
-      const { error } = await putApiUsersIdActingPositionsId(props.userId, props.position.id, request);
+      const { error } = await putApiUsersUserIdActingPositionsActingPositionId(props.userId, props.position.id!, request);
+
       if (error.value) {
         apiError.value = error.value.message || 'Failed to save acting position.';
         return;
       }
     } else {
-      const { error } = await postApiUsersIdActingPositions(props.userId, request);
+      const { error } = await postApiUsersUserIdActingPositions(props.userId, request);
       if (error.value) {
         apiError.value = error.value.message || 'Failed to save acting position.';
         return;

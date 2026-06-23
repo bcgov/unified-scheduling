@@ -7,7 +7,7 @@ import {
 } from '@/api-access/generated/acting-positions/acting-positions.msw';
 import { server } from '../../../mocks/server';
 import { createTestApp } from '../../../helpers/createTestApp';
-import type { ActingPositionResponseDto } from '@/api-access/acting-positions';
+import type { ActingPositionResponseDto } from '@/api-access/generated/models';
 
 afterEach(() => {
   document.body.innerHTML = '';

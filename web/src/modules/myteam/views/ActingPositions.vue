@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import type { ActingPositionResponseDto } from '@/api-access/acting-positions';
-import { getApiUsersIdActingPositions } from '@/api-access/acting-positions';
-import { LookupCodeTypes, Permissions, type UserResponse } from '@/api-access/generated/models';
+import { getApiUsersUserIdActingPositions } from '@/api-access/generated/acting-positions/acting-positions';
+import { LookupCodeTypes, Permissions, type UserResponse, type ActingPositionResponseDto } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -30,7 +29,7 @@ const {
   error: actingPositionsError,
   isFetching: isFetchingPositions,
   execute: fetchActingPositions,
-} = getApiUsersIdActingPositions(props.user.id);
+} = getApiUsersUserIdActingPositions(props.user.id);
 
 const showActingPositionModal = ref(false);
 const selectedPosition = ref<ActingPositionResponseDto | null>(null);

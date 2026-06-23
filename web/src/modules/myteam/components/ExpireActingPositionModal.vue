@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ActingPositionResponseDto } from '@/api-access/acting-positions';
-import { postApiUsersIdActingPositionsExpire } from '@/api-access/acting-positions';
+import { postApiUsersUserIdActingPositionsExpire } from '@/api-access/generated/acting-positions/acting-positions';
 import { PostApiUsersUserIdActingPositionsExpireBody } from '@/api-access/generated/acting-positions/acting-positions.zod';
+import type { ActingPositionResponseDto } from '@/api-access/generated/models';
 import { USER_ROLE_EXPIRY_REASON_OPTIONS } from '@/constants/ExpiryReasons';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -62,8 +62,8 @@ const handleExpire = async () => {
   apiError.value = '';
 
   try {
-    const { error } = await postApiUsersIdActingPositionsExpire(props.userId, {
-      actingPositionId: props.position.id,
+    const { error } = await postApiUsersUserIdActingPositionsExpire(props.userId, {
+      actingPositionId: props.position.id!,
       expiryReason: formData.value.expiryReason ?? '',
     });
 
