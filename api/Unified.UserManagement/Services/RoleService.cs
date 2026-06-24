@@ -65,10 +65,7 @@ public sealed class RoleService(
 
     public async Task<RoleDto> CreateAsync(RoleRequestDto request, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation(
-            "Creating role with {PermissionCount} permissions",
-            request.PermissionIds.Count
-        );
+        logger.LogInformation("Creating role with {PermissionCount} permissions", request.PermissionIds.Count);
 
         if (
             await DB.Roles.AnyAsync(
