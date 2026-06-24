@@ -9,6 +9,7 @@ using Unified.FeatureFlags;
 using Unified.Infrastructure;
 using Unified.Infrastructure.Options;
 using Unified.Stats;
+using Unified.Training;
 using Unified.UserManagement;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -74,6 +75,11 @@ var featureFlagsOptions =
     {
         builder.Services.AddStatsModule();
     }
+
+    if (featureFlagsOptions.TrainingModule)
+    {
+        builder.Services.AddTrainingModule();
+    }
 }
 
 var app = builder.Build();
@@ -116,6 +122,11 @@ var app = builder.Build();
     if (featureFlagsOptions.StatsModule)
     {
         app.MapStatsEndpoints();
+    }
+
+    if (featureFlagsOptions.TrainingModule)
+    {
+        app.MapTrainingEndpoints();
     }
 }
 
