@@ -44,7 +44,9 @@ defineProps<{
 
 .calendar-matrix-header__primary {
   border-bottom: 1px solid var(--ua-border-color);
+  left: 0;
   position: sticky;
+  z-index: 3;
 }
 
 .calendar-matrix-header__day {
