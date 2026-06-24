@@ -4,7 +4,7 @@ import UaDisplayField from '@/shared/components/UaDisplayField.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { addDays, formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarTime } from '../calendarDateUtils';
+import { addDays, formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarTime } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 
 const props = defineProps<{

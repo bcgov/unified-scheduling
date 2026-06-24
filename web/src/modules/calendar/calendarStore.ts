@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { getInitialCalendarDateRange, type CalendarDateRange } from './calendarDateUtils';
+import { getInitialCalendarDateRange, type CalendarDateRange } from '@/utils/date';
 
 export type CalendarPeriod = 'day' | 'week' | 'work-week' | 'month';
 

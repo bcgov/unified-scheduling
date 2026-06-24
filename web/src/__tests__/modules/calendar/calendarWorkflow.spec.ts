@@ -103,7 +103,7 @@ describe('calendar workflow', () => {
       import('@/modules/calendar/Calendar.vue'),
       import('@/modules/calendar/calendarStore'),
       import('@/stores/LocationsStore'),
-      import('@/modules/calendar/calendarDateUtils'),
+      import('@/utils/date'),
     ]);
 
     const { mountPlugins, pinia } = await createTestApp({ featureFlags: { calendarModule: true } });
@@ -177,6 +177,75 @@ describe('calendar workflow', () => {
       expect(calendarStore.selectedEventId).toBe('evt-1');
       expect(document.body.textContent).toContain('Event Details');
       expect(document.body.textContent).toContain('Main Hall');
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it.each([
+    [undefined, 'week'],
+    [['week', 'day', 'work-week', 'month'] as const, 'month'],
+  ] as const)('uses month only when the active view supports it', async (supportedPeriods, expectedPeriod) => {
+    const loadData = vi.fn().mockResolvedValue({ contributions: {} });
+    const cancel = vi.fn();
+    const TestView = defineComponent({ template: '<div data-testid="calendar-view" />' });
+
+    vi.doMock('@/modules/calendar/calendarDataService', () => ({
+      calendarDataService: { loadData, cancel },
+    }));
+
+    vi.doMock('@/modules/calendar/registry/calendarActionRegistry', () => ({
+      calendarActionRegistry: {
+        getCreateActions: vi.fn(() => []),
+        getToolbarActionsForView: vi.fn(() => []),
+        getViewDetailActions: vi.fn(() => []),
+      },
+    }));
+
+    vi.doMock('@/modules/calendar/registry/calendarRegistry', () => ({
+      calendarRegistry: {
+        getAvailableViews: vi.fn(() => [
+          {
+            id: 'period-view',
+            label: 'Period View',
+            component: TestView,
+            supportedPeriods,
+            buildModel: () => ({}),
+          },
+        ]),
+      },
+    }));
+
+    const [{ default: Calendar }, { useCalendarStore }, { buildDateRangeForPeriod }] = await Promise.all([
+      import('@/modules/calendar/Calendar.vue'),
+      import('@/modules/calendar/calendarStore'),
+      import('@/utils/date'),
+    ]);
+
+    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { calendarModule: true } });
+    const calendarStore = useCalendarStore(pinia);
+    calendarStore.setPeriod('month');
+    calendarStore.setDateRange('2025-04-01', '2025-05-01');
+
+    const wrapper = mount(Calendar, {
+      attachTo: document.body,
+      global: {
+        plugins: mountPlugins,
+      },
+    });
+
+    try {
+      await flushPromises();
+
+      const expectedRange = buildDateRangeForPeriod('2025-04-01', expectedPeriod);
+      expect(calendarStore.period).toBe(expectedPeriod);
+      expect(loadData).toHaveBeenLastCalledWith(
+        {
+          featureFlags: expect.objectContaining({ calendarModule: true }),
+        },
+        { startDate: expectedRange.startDate, endDate: expectedRange.endDate, locationId: undefined, filters: {} },
+        expect.any(Object),
+      );
     } finally {
       wrapper.unmount();
     }
