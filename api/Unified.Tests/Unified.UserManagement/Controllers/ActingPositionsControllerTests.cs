@@ -62,6 +62,7 @@ public class ActingPositionsControllerTests
         {
             PositionTypeCode = "CPL",
             StartDate = "2026-01-10",
+            EndDate = "2026-06-30",
             Comment = "Acting due to vacancy",
         };
 
@@ -87,7 +88,7 @@ public class ActingPositionsControllerTests
             CreateException = new KeyNotFoundException("User not found."),
         };
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10" };
+        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10", EndDate = "2026-06-30" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -101,7 +102,7 @@ public class ActingPositionsControllerTests
         // Arrange
         var fakeService = new FakeActingPositionService();
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "", StartDate = "2026-01-10" };
+        var request = new ActingPositionRequestDto { PositionTypeCode = "", StartDate = "2026-01-10", EndDate = "2026-06-30" };
 
         // Act + Assert
         await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
@@ -122,6 +123,7 @@ public class ActingPositionsControllerTests
         {
             PositionTypeCode = "SGT",
             StartDate = "2026-02-01",
+            EndDate = "2026-08-01",
             Comment = "Updated comment",
         };
 
@@ -146,12 +148,65 @@ public class ActingPositionsControllerTests
             UpdateException = new KeyNotFoundException("Acting position not found."),
         };
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10" };
+        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10", EndDate = "2026-06-30" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             controller.Update(Guid.NewGuid(), 9999, request, TestContext.Current.CancellationToken)
         );
+    }
+
+    [Fact]
+    public async Task Create_Should_Throw_Validation_Error_When_EndDate_Empty()
+    {
+        // Arrange
+        var fakeService = new FakeActingPositionService();
+        var controller = CreateController(fakeService);
+        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10", EndDate = "" };
+
+        // Act + Assert
+        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+            controller.Create(Guid.NewGuid(), request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task Create_Should_Throw_Validation_Error_When_EndDate_Before_StartDate()
+    {
+        // Arrange
+        var fakeService = new FakeActingPositionService();
+        var controller = CreateController(fakeService);
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "SGT",
+            StartDate = "2026-06-01",
+            EndDate = "2026-01-01",
+        };
+
+        // Act + Assert
+        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+            controller.Create(Guid.NewGuid(), request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task Create_Should_Not_Throw_When_EndDate_Equals_StartDate()
+    {
+        // Arrange
+        var fakeService = new FakeActingPositionService();
+        var controller = CreateController(fakeService);
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "SGT",
+            StartDate = "2026-06-01",
+            EndDate = "2026-06-01",
+        };
+
+        // Act
+        var result = await controller.Create(Guid.NewGuid(), request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.IsType<CreatedResult>(result.Result);
     }
 
     [Fact]

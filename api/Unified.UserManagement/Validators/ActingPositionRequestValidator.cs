@@ -21,6 +21,30 @@ public class ActingPositionRequestValidator : AbstractValidator<ActingPositionRe
             .When(x => !string.IsNullOrEmpty(x.StartDate))
             .WithMessage($"StartDate must be in {DateTimeOffsetExtensions.DateFormat} format.");
 
+        RuleFor(x => x.EndDate).NotEmpty().WithMessage("EndDate is required.");
+
+        RuleFor(x => x.EndDate)
+            .Must(x => DateTimeOffsetExtensions.IsValidDateFormat(x, DateTimeOffsetExtensions.DateFormat))
+            .When(x => !string.IsNullOrEmpty(x.EndDate))
+            .WithMessage($"EndDate must be in {DateTimeOffsetExtensions.DateFormat} format.");
+
+        RuleFor(x => x)
+            .Must(x =>
+            {
+                if (
+                    string.IsNullOrEmpty(x.StartDate)
+                    || string.IsNullOrEmpty(x.EndDate)
+                    || !DateTimeOffsetExtensions.IsValidDateFormat(x.StartDate, DateTimeOffsetExtensions.DateFormat)
+                    || !DateTimeOffsetExtensions.IsValidDateFormat(x.EndDate, DateTimeOffsetExtensions.DateFormat)
+                )
+                {
+                    return true;
+                }
+
+                return DateOnly.Parse(x.EndDate) >= DateOnly.Parse(x.StartDate);
+            })
+            .WithMessage("EndDate must be on or after StartDate.");
+
         RuleFor(x => x.Comment)
             .MaximumLength(500)
             .WithMessage("Comment must not exceed 500 characters.")
