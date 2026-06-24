@@ -5,14 +5,16 @@ public sealed record ActingPositionRequestDto
     public required string PositionTypeCode { get; init; }
 
     /// <summary>
-    /// Date in yyyy-MM-dd format. Backend will convert to user's timezone start-of-day.
+    /// Local datetime in yyyy-MM-ddTHH:mm format. Backend converts to UTC using the user's home timezone.
+    /// Use midnight (T00:00) for full-day acting positions.
     /// </summary>
-    public required string StartDate { get; init; }
+    public required string StartDateTime { get; init; }
 
     /// <summary>
-    /// Date in yyyy-MM-dd format. Must be on or after StartDate.
+    /// Local datetime in yyyy-MM-ddTHH:mm format. Must be after StartDateTime.
+    /// Use midnight (T00:00) for full-day acting positions.
     /// </summary>
-    public required string EndDate { get; init; }
+    public required string EndDateTime { get; init; }
 
     public string? Comment { get; init; }
 }

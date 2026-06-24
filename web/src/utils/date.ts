@@ -65,6 +65,81 @@ export function toApiDateString(dateInput: string): string {
 }
 
 /**
+ * Extracts HH:mm time from an ISO datetime string, preserving source zone/offset.
+ * Returns null for full-day (midnight, 00:00) times or if the input is invalid.
+ * Pass { setZone: false } to derive time in local zone.
+ */
+export function toTimeInputValue(isoDateString?: string | null, options?: CalendarDateOptions): string | null {
+  if (!isoDateString) return null;
+
+  const parsed = DateTime.fromISO(isoDateString, { setZone: options?.setZone ?? true });
+  if (!parsed.isValid) return null;
+
+  const hh = String(parsed.hour).padStart(2, '0');
+  const mm = String(parsed.minute).padStart(2, '0');
+  const time = `${hh}:${mm}`;
+
+  // Treat midnight (00:00) as full-day — no time component
+  return time === '00:00' ? null : time;
+}
+
+/**
+ * Determines if a datetime range represents a full-day entry.
+ *
+ * Mirrors the isDateFullday filter from sheriff-scheduling:
+ * - Both times at midnight (00:00) → full day
+ * - OR the range spans ≥ 1439 minutes (~24 h) in either direction → full day
+ *
+ * Returns true when either value is absent (treat unknown as full-day).
+ */
+export function isDateTimeFullDay(startIso?: string | null, endIso?: string | null): boolean {
+  if (toTimeInputValue(startIso) === null && toTimeInputValue(endIso) === null) {
+    return true;
+  }
+
+  if (startIso && endIso) {
+    const start = DateTime.fromISO(startIso, { setZone: true });
+    const end = DateTime.fromISO(endIso, { setZone: true });
+    if (start.isValid && end.isValid) {
+      const durationMinutes = Math.abs(end.diff(start, 'minutes').minutes);
+      if (durationMinutes >= 1439) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Combines a date input (yyyy-MM-dd) and an optional time input (HH:mm) into a
+ * local datetime string (yyyy-MM-ddTHH:mm) suitable for the API.
+ *
+ * When no time is supplied, midnight (T00:00) is used — representing a full-day entry.
+ *
+ * Examples:
+ * - ('2026-01-10', '08:30') => '2026-01-10T08:30'
+ * - ('2026-01-10', '')      => '2026-01-10T00:00'
+ * - ('2026-01-10')          => '2026-01-10T00:00'
+ */
+export function toLocalDateTimeString(date: string, time?: string): string {
+  const d = DateTime.fromFormat(date, DATE_FORMAT);
+  if (!d.isValid) {
+    throw new Error(`Invalid date: ${date}`);
+  }
+
+  if (time) {
+    const t = DateTime.fromFormat(time, 'HH:mm');
+    if (!t.isValid) {
+      throw new Error(`Invalid time: ${time}`);
+    }
+    return d.set({ hour: t.hour, minute: t.minute }).toFormat(`${DATE_FORMAT}'T'HH:mm`);
+  }
+
+  return d.toFormat(`${DATE_FORMAT}'T'HH:mm`);
+}
+
+/**
  * Compare two date inputs (yyyy-MM-dd format).
  * Returns true if left date is before right date.
  */

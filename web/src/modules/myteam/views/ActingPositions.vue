@@ -12,7 +12,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { useLookupStore } from '@/stores/LookupStore';
-import { toCalendarDateString } from '@/utils/date';
+import { toCalendarDateString, toTimeInputValue } from '@/utils/date';
 import { mdiClockRemove, mdiPencil, mdiPlus } from '@mdi/js';
 import { computed, onMounted, ref } from 'vue';
 import ActingPositionModal from '../components/ActingPositionModal.vue';
@@ -41,13 +41,15 @@ const selectedPosition = ref<ActingPositionResponseDto | null>(null);
 const showExpireModal = ref(false);
 const selectedExpirePosition = ref<ActingPositionResponseDto | null>(null);
 
-const tableHeaders = [
+const tableHeaders = computed(() => [
   { title: 'Position Type', key: 'positionTypeDescription', sortable: true },
   { title: 'Start Date', key: 'startAtUtc', sortable: true },
+  { title: 'Start Time', key: 'startTime', sortable: false },
   { title: 'End Date', key: 'endAtUtc', sortable: false },
+  { title: 'End Time', key: 'endTime', sortable: false },
   { title: 'Comment', key: 'comment', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 140 },
-];
+]);
 
 const isExpired = (position: ActingPositionResponseDto): boolean => {
   if (!position.expiryAtUtc) return false;
@@ -119,8 +121,16 @@ const handleExpired = async () => {
         {{ toCalendarDateString(item.startAtUtc) ?? '-' }}
       </template>
 
+      <template #[`item.startTime`]="{ item }">
+        {{ toTimeInputValue(item.startAtUtc) ?? '-' }}
+      </template>
+
       <template #[`item.endAtUtc`]="{ item }">
         {{ toCalendarDateString(item.endAtUtc) ?? '-' }}
+      </template>
+
+      <template #[`item.endTime`]="{ item }">
+        {{ toTimeInputValue(item.endAtUtc) ?? '-' }}
       </template>
 
       <template #[`item.comment`]="{ item }">

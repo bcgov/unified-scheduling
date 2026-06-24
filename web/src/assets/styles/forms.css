@@ -1,0 +1,5 @@
+.ua-form-label {
+  font-size: var(--ua-font-size-lg);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-primary);
+}

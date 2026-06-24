@@ -3,6 +3,13 @@
 public static class DateTimeOffsetExtensions
 {
     public const string DateFormat = "yyyy-MM-dd";
+    public const string TimeFormat = "HH:mm";
+
+    /// <summary>
+    /// Local datetime format without timezone: yyyy-MM-ddTHH:mm.
+    /// Backend converts to UTC using the user's home timezone.
+    /// </summary>
+    public const string LocalDateTimeFormat = "yyyy-MM-ddTHH:mm";
 
     public static bool IsValidDateFormat(string? dateString, string format = DateFormat)
     {
@@ -12,6 +19,57 @@ public static class DateTimeOffsetExtensions
         }
 
         return DateOnly.TryParseExact(dateString, format, null, System.Globalization.DateTimeStyles.None, out _);
+    }
+
+    public static bool IsValidTimeFormat(string? timeString)
+    {
+        if (string.IsNullOrEmpty(timeString))
+        {
+            return true;
+        }
+
+        return TimeOnly.TryParseExact(timeString, TimeFormat, null, System.Globalization.DateTimeStyles.None, out _);
+    }
+
+    public static bool IsValidLocalDateTimeFormat(string? dateTimeString)
+    {
+        if (string.IsNullOrEmpty(dateTimeString))
+        {
+            return true;
+        }
+
+        return DateTime.TryParseExact(
+            dateTimeString,
+            LocalDateTimeFormat,
+            null,
+            System.Globalization.DateTimeStyles.None,
+            out _
+        );
+    }
+
+    /// <summary>
+    /// Converts a local datetime string (yyyy-MM-ddTHH:mm) to DateTimeOffset in the given timezone.
+    /// </summary>
+    public static DateTimeOffset FromLocalDateTimeStringToTimeZone(string dateTimeString, string? timezoneId)
+    {
+        if (
+            !DateTime.TryParseExact(
+                dateTimeString,
+                LocalDateTimeFormat,
+                null,
+                System.Globalization.DateTimeStyles.None,
+                out var dt
+            )
+        )
+        {
+            throw new ArgumentException(
+                $"Invalid datetime format. Expected {LocalDateTimeFormat}, got {dateTimeString}"
+            );
+        }
+
+        var timezone = ResolveTimeZone(timezoneId);
+        var offset = timezone.GetUtcOffset(dt);
+        return new DateTimeOffset(dt, offset).ToUniversalTime();
     }
 
     /// <summary>

@@ -23,7 +23,7 @@ const updateModelValue = (value: string) => {
 </script>
 
 <template>
-  <label class="ua-form-label" :for="id"
+  <label v-if="label" class="ua-form-label" :for="id"
     ><slot name="label">{{ label }}</slot></label
   >
   <v-text-field

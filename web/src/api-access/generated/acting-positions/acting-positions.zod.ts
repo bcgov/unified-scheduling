@@ -29,9 +29,9 @@ export const PostApiUsersUserIdActingPositionsParams = zod.strictObject({
 
 export const PostApiUsersUserIdActingPositionsBody = zod.strictObject({
   positionTypeCode: zod.string(),
-  startDate: zod.string(),
+  startDateTime: zod.string(),
+  endDateTime: zod.string(),
   comment: zod.string().nullish(),
-  endDate: zod.string(),
 });
 
 export const PutApiUsersUserIdActingPositionsActingPositionIdParams = zod.strictObject({
@@ -41,9 +41,9 @@ export const PutApiUsersUserIdActingPositionsActingPositionIdParams = zod.strict
 
 export const PutApiUsersUserIdActingPositionsActingPositionIdBody = zod.strictObject({
   positionTypeCode: zod.string(),
-  startDate: zod.string(),
+  startDateTime: zod.string(),
+  endDateTime: zod.string(),
   comment: zod.string().nullish(),
-  endDate: zod.string(),
 });
 
 export const PutApiUsersUserIdActingPositionsActingPositionIdResponse = zod.object({

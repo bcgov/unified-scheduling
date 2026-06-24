@@ -61,8 +61,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "CPL",
-            StartDate = "2026-01-10",
-            EndDate = "2026-06-30",
+            StartDateTime = "2026-01-10T00:00",
+            EndDateTime = "2026-06-30T00:00",
             Comment = "Acting due to vacancy",
         };
 
@@ -91,8 +91,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDate = "2026-01-10",
-            EndDate = "2026-06-30",
+            StartDateTime = "2026-01-10T00:00",
+            EndDateTime = "2026-06-30T00:00",
         };
 
         // Act + Assert
@@ -110,8 +110,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "",
-            StartDate = "2026-01-10",
-            EndDate = "2026-06-30",
+            StartDateTime = "2026-01-10T00:00",
+            EndDateTime = "2026-06-30T00:00",
         };
 
         // Act + Assert
@@ -132,8 +132,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDate = "2026-02-01",
-            EndDate = "2026-08-01",
+            StartDateTime = "2026-02-01T00:00",
+            EndDateTime = "2026-08-01T00:00",
             Comment = "Updated comment",
         };
 
@@ -161,8 +161,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDate = "2026-01-10",
-            EndDate = "2026-06-30",
+            StartDateTime = "2026-01-10T00:00",
+            EndDateTime = "2026-06-30T00:00",
         };
 
         // Act + Assert
@@ -172,7 +172,7 @@ public class ActingPositionsControllerTests
     }
 
     [Fact]
-    public async Task Create_Should_Throw_Validation_Error_When_EndDate_Empty()
+    public async Task Create_Should_Throw_Validation_Error_When_EndDateTime_Empty()
     {
         // Arrange
         var fakeService = new FakeActingPositionService();
@@ -180,8 +180,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDate = "2026-01-10",
-            EndDate = "",
+            StartDateTime = "2026-01-10T00:00",
+            EndDateTime = "",
         };
 
         // Act + Assert
@@ -191,7 +191,7 @@ public class ActingPositionsControllerTests
     }
 
     [Fact]
-    public async Task Create_Should_Throw_Validation_Error_When_EndDate_Before_StartDate()
+    public async Task Create_Should_Throw_Validation_Error_When_EndDateTime_Before_StartDateTime()
     {
         // Arrange
         var fakeService = new FakeActingPositionService();
@@ -199,8 +199,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDate = "2026-06-01",
-            EndDate = "2026-01-01",
+            StartDateTime = "2026-06-01T00:00",
+            EndDateTime = "2026-01-01T00:00",
         };
 
         // Act + Assert
@@ -210,7 +210,7 @@ public class ActingPositionsControllerTests
     }
 
     [Fact]
-    public async Task Create_Should_Not_Throw_When_EndDate_Equals_StartDate()
+    public async Task Create_Should_Not_Throw_When_StartDateTime_And_EndDateTime_Include_Time()
     {
         // Arrange
         var fakeService = new FakeActingPositionService();
@@ -218,8 +218,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDate = "2026-06-01",
-            EndDate = "2026-06-01",
+            StartDateTime = "2026-01-10T08:30",
+            EndDateTime = "2026-01-10T17:00",
         };
 
         // Act
@@ -227,6 +227,44 @@ public class ActingPositionsControllerTests
 
         // Assert
         Assert.IsType<CreatedResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task Create_Should_Throw_Validation_Error_When_DateTime_Invalid_Format()
+    {
+        // Arrange
+        var fakeService = new FakeActingPositionService();
+        var controller = CreateController(fakeService);
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "SGT",
+            StartDateTime = "2026-01-10",
+            EndDateTime = "2026-06-30",
+        };
+
+        // Act + Assert
+        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+            controller.Create(Guid.NewGuid(), request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task Create_Should_Throw_Validation_Error_When_EndDateTime_Equal_To_StartDateTime()
+    {
+        // Arrange
+        var fakeService = new FakeActingPositionService();
+        var controller = CreateController(fakeService);
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "SGT",
+            StartDateTime = "2026-01-10T08:30",
+            EndDateTime = "2026-01-10T08:30",
+        };
+
+        // Act + Assert
+        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+            controller.Create(Guid.NewGuid(), request, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]

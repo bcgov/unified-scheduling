@@ -60,13 +60,13 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             throw new KeyNotFoundException($"PositionType '{request.PositionTypeCode}' not found.");
         }
 
-        var effectiveDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
-            request.StartDate,
+        var effectiveDateUtc = DateTimeOffsetExtensions.FromLocalDateTimeStringToTimeZone(
+            request.StartDateTime,
             user.HomeLocation?.Timezone
         );
 
-        var endDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
-            request.EndDate,
+        var endDateUtc = DateTimeOffsetExtensions.FromLocalDateTimeStringToTimeZone(
+            request.EndDateTime,
             user.HomeLocation?.Timezone
         );
 
@@ -121,13 +121,13 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             throw new KeyNotFoundException($"PositionType '{request.PositionTypeCode}' not found.");
         }
 
-        var effectiveDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
-            request.StartDate,
+        var effectiveDateUtc = DateTimeOffsetExtensions.FromLocalDateTimeStringToTimeZone(
+            request.StartDateTime,
             user.HomeLocation?.Timezone
         );
 
-        var endDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
-            request.EndDate,
+        var endDateUtc = DateTimeOffsetExtensions.FromLocalDateTimeStringToTimeZone(
+            request.EndDateTime,
             user.HomeLocation?.Timezone
         );
 
