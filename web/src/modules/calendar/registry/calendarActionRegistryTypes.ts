@@ -3,7 +3,6 @@ import type {
   CalendarMatrixCellHeader,
   CalendarMatrixDragPayload,
   CalendarMatrixCellDropContext,
-  CalendarMatrixEventBlockActionEvent,
   CalendarMatrixResource,
   CalendarMatrixSidePanel,
   CalendarMatrixViewModel,
