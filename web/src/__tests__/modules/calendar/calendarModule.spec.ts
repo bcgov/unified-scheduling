@@ -76,7 +76,7 @@ describe('calendar module integration', () => {
 
     const [{ calendarEventsContribution }, { localDateOnlyToUtcInstant }] = await Promise.all([
       import('@/modules/calendar/contributions/calendarEventsContribution'),
-      import('@/modules/calendar/calendarDateUtils'),
+      import('@/utils/date'),
     ]);
 
     const isAvailable = calendarEventsContribution.isAvailable;

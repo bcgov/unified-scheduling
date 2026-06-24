@@ -6,9 +6,10 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectOption, SelectValue } from '@/types/select';
+import { buildDateRangeForPeriod, formatRangeLabel, getTodayDateOnly, shiftDateRange } from '@/utils/date';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
 import { calendarDataService } from './calendarDataService';
-import { buildDateRangeForPeriod, formatRangeLabel, getTodayDateOnly, shiftDateRange } from './calendarDateUtils';
+import { DEFAULT_CALENDAR_PERIODS } from './calendarPeriodOptions';
 import { calendarActionRegistry } from './registry/calendarActionRegistry';
 import { calendarRegistry } from './registry/calendarRegistry';
 import type { CalendarToolbarAction } from './registry/calendarActionRegistryTypes';
@@ -53,6 +54,32 @@ watch(
 const activeView = computed(() => {
   return views.value.find((view) => view.id === activeViewId.value) ?? views.value[0];
 });
+
+const activePeriods = computed<readonly CalendarPeriod[]>(() => {
+  const supportedPeriods = activeView.value?.supportedPeriods;
+
+  return supportedPeriods?.length ? supportedPeriods : DEFAULT_CALENDAR_PERIODS;
+});
+
+const setPeriodAndDateRange = (nextPeriod: CalendarPeriod) => {
+  calendarStore.setPeriod(nextPeriod);
+
+  const anchorDate = dateRange.value.startDate;
+  const nextRange = buildDateRangeForPeriod(anchorDate, nextPeriod);
+  calendarStore.setDateRange(nextRange.startDate, nextRange.endDate);
+};
+
+watch(
+  activePeriods,
+  (periods) => {
+    const fallbackPeriod = periods[0] ?? DEFAULT_CALENDAR_PERIODS[0];
+
+    if (!periods.includes(period.value)) {
+      setPeriodAndDateRange(fallbackPeriod);
+    }
+  },
+  { immediate: true },
+);
 
 const queryContext = computed<CalendarQueryContext>(() => {
   return {
@@ -188,11 +215,7 @@ const handleToday = () => {
 };
 
 const handlePeriodChange = (nextPeriod: CalendarPeriod) => {
-  calendarStore.setPeriod(nextPeriod);
-
-  const anchorDate = dateRange.value.startDate;
-  const nextRange = buildDateRangeForPeriod(anchorDate, nextPeriod);
-  calendarStore.setDateRange(nextRange.startDate, nextRange.endDate);
+  setPeriodAndDateRange(nextPeriod);
 };
 
 const handleToolbarAction = async (actionId: string) => {
@@ -258,6 +281,7 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
         :range-label="rangeLabel"
         :toolbar-actions="toolbarActions"
         :active-period="period"
+        :periods="activePeriods"
         :is-loading="loading"
         @update:active-view-id="handleActiveViewChange"
         @update:location-value="locationValue = $event ?? 'all'"
@@ -271,7 +295,12 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
 
       <div v-if="loading" class="calendar-page__state">Loading calendar…</div>
       <div v-else-if="activeView && activeViewModel" class="calendar-page__view">
-        <component :is="activeView.component" :model="activeViewModel" @event-click="handleViewEventClick" />
+        <component
+          :is="activeView.component"
+          :model="activeViewModel"
+          :runtime-context="runtimeContext"
+          @event-click="handleViewEventClick"
+        />
       </div>
       <div v-else class="calendar-page__state">No calendar views are registered.</div>
     </UaCard>

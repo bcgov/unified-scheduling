@@ -126,4 +126,6 @@ coverage/
 tmp/
 temp/
 *.tmp
+*.orig
+*.diff
 

@@ -1,7 +1,7 @@
 import { postApiCalendarEvents } from '@/api-access/calendar';
+import { localDateOnlyToUtcInstant } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 import type { CalendarModuleContribution } from '../registry/calendarRegistryTypes';
-import { localDateOnlyToUtcInstant } from '../calendarDateUtils';
 import { mapApiCalendarEventToCalendarEventBase } from './calendarEventMappers';
 
 export const calendarEventsContribution: CalendarModuleContribution = {
