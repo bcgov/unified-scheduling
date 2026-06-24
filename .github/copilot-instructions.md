@@ -101,6 +101,8 @@ Database is **PostgreSQL** via EF Core (Npgsql). Model-to-table configuration li
 
 Each domain module registers its own seeders (e.g., `UserSeeder`, `RegionSeeder`) via `SeederFactory<T>` and they are executed at startup alongside migrations.
 
+For backend logging changes, load `.github/skills/backend-service-logging/SKILL.md` and follow its service logging pattern.
+
 ### Frontend — Feature Module System
 
 Each feature lives in `src/modules/<name>/` with a `*Module.ts` that exports `registerModule(routes)`. The router (`src/router/index.ts`) calls `registerModule` per module and optionally gates registration behind feature flags from the API config:
