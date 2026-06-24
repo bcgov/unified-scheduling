@@ -14,36 +14,39 @@ namespace Unified.Db.Migrations
             migrationBuilder.RenameColumn(
                 name: "ExpiryDate",
                 table: "UserActingPositions",
-                newName: "ExpiryAtUtc");
+                newName: "ExpiryAtUtc"
+            );
 
             migrationBuilder.RenameColumn(
                 name: "EffectiveDate",
                 table: "UserActingPositions",
-                newName: "StartAtUtc");
+                newName: "StartAtUtc"
+            );
 
             migrationBuilder.AddColumn<DateTimeOffset>(
                 name: "EndAtUtc",
                 table: "UserActingPositions",
                 type: "timestamp with time zone",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "EndAtUtc",
-                table: "UserActingPositions");
+            migrationBuilder.DropColumn(name: "EndAtUtc", table: "UserActingPositions");
 
             migrationBuilder.RenameColumn(
                 name: "StartAtUtc",
                 table: "UserActingPositions",
-                newName: "EffectiveDate");
+                newName: "EffectiveDate"
+            );
 
             migrationBuilder.RenameColumn(
                 name: "ExpiryAtUtc",
                 table: "UserActingPositions",
-                newName: "ExpiryDate");
+                newName: "ExpiryDate"
+            );
         }
     }
 }

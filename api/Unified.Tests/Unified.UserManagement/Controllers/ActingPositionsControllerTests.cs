@@ -88,7 +88,12 @@ public class ActingPositionsControllerTests
             CreateException = new KeyNotFoundException("User not found."),
         };
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10", EndDate = "2026-06-30" };
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "SGT",
+            StartDate = "2026-01-10",
+            EndDate = "2026-06-30",
+        };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -102,7 +107,12 @@ public class ActingPositionsControllerTests
         // Arrange
         var fakeService = new FakeActingPositionService();
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "", StartDate = "2026-01-10", EndDate = "2026-06-30" };
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "",
+            StartDate = "2026-01-10",
+            EndDate = "2026-06-30",
+        };
 
         // Act + Assert
         await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
@@ -148,7 +158,12 @@ public class ActingPositionsControllerTests
             UpdateException = new KeyNotFoundException("Acting position not found."),
         };
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10", EndDate = "2026-06-30" };
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "SGT",
+            StartDate = "2026-01-10",
+            EndDate = "2026-06-30",
+        };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -162,7 +177,12 @@ public class ActingPositionsControllerTests
         // Arrange
         var fakeService = new FakeActingPositionService();
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10", EndDate = "" };
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "SGT",
+            StartDate = "2026-01-10",
+            EndDate = "",
+        };
 
         // Act + Assert
         await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
