@@ -6,8 +6,8 @@ public sealed record ActingPositionResponseDto
     public Guid UserId { get; init; }
     public string PositionTypeCode { get; init; } = string.Empty;
     public string PositionTypeDescription { get; init; } = string.Empty;
-    public DateTimeOffset EffectiveDate { get; init; }
-    public DateTimeOffset? ExpiryDate { get; init; }
+    public DateTimeOffset StartAtUtc { get; init; }
+    public DateTimeOffset? ExpiryAtUtc { get; init; }
     public string? ExpiryReason { get; init; }
     public string? Comment { get; init; }
 }

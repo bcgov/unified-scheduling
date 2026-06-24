@@ -61,8 +61,7 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "CPL",
-            EffectiveDate = "2026-01-10",
-            ExpiryDate = "2026-06-30",
+            StartDate = "2026-01-10",
             Comment = "Acting due to vacancy",
         };
 
@@ -88,7 +87,7 @@ public class ActingPositionsControllerTests
             CreateException = new KeyNotFoundException("User not found."),
         };
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", EffectiveDate = "2026-01-10" };
+        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -102,26 +101,7 @@ public class ActingPositionsControllerTests
         // Arrange
         var fakeService = new FakeActingPositionService();
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "", EffectiveDate = "2026-01-10" };
-
-        // Act + Assert
-        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
-            controller.Create(Guid.NewGuid(), request, TestContext.Current.CancellationToken)
-        );
-    }
-
-    [Fact]
-    public async Task Create_Should_Throw_Validation_Error_When_ExpiryDate_Before_EffectiveDate()
-    {
-        // Arrange
-        var fakeService = new FakeActingPositionService();
-        var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto
-        {
-            PositionTypeCode = "SGT",
-            EffectiveDate = "2026-06-01",
-            ExpiryDate = "2026-01-01",
-        };
+        var request = new ActingPositionRequestDto { PositionTypeCode = "", StartDate = "2026-01-10" };
 
         // Act + Assert
         await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
@@ -141,7 +121,7 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            EffectiveDate = "2026-02-01",
+            StartDate = "2026-02-01",
             Comment = "Updated comment",
         };
 
@@ -166,7 +146,7 @@ public class ActingPositionsControllerTests
             UpdateException = new KeyNotFoundException("Acting position not found."),
         };
         var controller = CreateController(fakeService);
-        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", EffectiveDate = "2026-01-10" };
+        var request = new ActingPositionRequestDto { PositionTypeCode = "SGT", StartDate = "2026-01-10" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -181,7 +161,7 @@ public class ActingPositionsControllerTests
         var userId = Guid.NewGuid();
         var expiredPosition = CreateActingPositionResponse(userId, "SGT", "Sergeant") with
         {
-            ExpiryDate = DateTimeOffset.UtcNow,
+            ExpiryAtUtc = DateTimeOffset.UtcNow,
             ExpiryReason = "ENTRYERR",
         };
         var fakeService = new FakeActingPositionService { ExpireResult = expiredPosition };
@@ -200,7 +180,7 @@ public class ActingPositionsControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var position = Assert.IsType<ActingPositionResponseDto>(okResult.Value);
         Assert.Equal("ENTRYERR", position.ExpiryReason);
-        Assert.NotNull(position.ExpiryDate);
+        Assert.NotNull(position.ExpiryAtUtc);
     }
 
     [Fact]
@@ -245,8 +225,8 @@ public class ActingPositionsControllerTests
             UserId = userId,
             PositionTypeCode = code,
             PositionTypeDescription = description,
-            EffectiveDate = DateTimeOffset.UtcNow.AddDays(-10),
-            ExpiryDate = null,
+            StartAtUtc = DateTimeOffset.UtcNow.AddDays(-10),
+            ExpiryAtUtc = null,
             ExpiryReason = null,
             Comment = null,
         };
@@ -264,8 +244,8 @@ public class ActingPositionsControllerTests
                 UserId = Guid.NewGuid(),
                 PositionTypeCode = "SGT",
                 PositionTypeDescription = "Sergeant",
-                EffectiveDate = DateTimeOffset.UtcNow,
-                ExpiryDate = null,
+                StartAtUtc = DateTimeOffset.UtcNow,
+                ExpiryAtUtc = null,
                 ExpiryReason = null,
                 Comment = null,
             };
@@ -280,8 +260,8 @@ public class ActingPositionsControllerTests
                 UserId = Guid.NewGuid(),
                 PositionTypeCode = "CPL",
                 PositionTypeDescription = "Corporal",
-                EffectiveDate = DateTimeOffset.UtcNow,
-                ExpiryDate = null,
+                StartAtUtc = DateTimeOffset.UtcNow,
+                ExpiryAtUtc = null,
                 ExpiryReason = null,
                 Comment = null,
             };
@@ -297,8 +277,8 @@ public class ActingPositionsControllerTests
                 UserId = Guid.NewGuid(),
                 PositionTypeCode = "SGT",
                 PositionTypeDescription = "Sergeant",
-                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-30),
-                ExpiryDate = DateTimeOffset.UtcNow,
+                StartAtUtc = DateTimeOffset.UtcNow.AddDays(-30),
+                ExpiryAtUtc = DateTimeOffset.UtcNow,
                 ExpiryReason = "ENTRYERR",
                 Comment = null,
             };

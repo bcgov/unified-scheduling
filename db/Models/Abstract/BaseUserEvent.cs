@@ -1,0 +1,34 @@
+using System.ComponentModel.DataAnnotations;
+using Unified.Db.Models.UserManagement;
+
+namespace Unified.Db.Models.Abstract;
+
+/// <summary>
+/// Abstract base for user-scoped calendar events (away locations, leave, training, etc.).
+/// All dates are stored as UTC <see cref="DateTimeOffset"/> values.
+/// </summary>
+public abstract class BaseUserEvent : BaseEntity
+{
+    [Key]
+    public int Id { get; set; }
+
+    [Required]
+    public Guid UserId { get; set; }
+
+    public virtual User User { get; set; } = null!;
+
+    [Required]
+    public DateTimeOffset StartAtUtc { get; set; }
+
+    /// <summary>
+    /// Optional end date. Null for open-ended events such as acting positions.
+    /// </summary>
+    public DateTimeOffset? EndAtUtc { get; set; }
+
+    public DateTimeOffset? ExpiryAtUtc { get; set; }
+
+    public string? ExpiryReason { get; set; }
+
+    [MaxLength(500)]
+    public string? Comment { get; set; }
+}

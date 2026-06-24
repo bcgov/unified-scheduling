@@ -26,8 +26,8 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         var positions = await db
             .UserActingPositions.AsNoTracking()
             .Include(x => x.PositionType)
-            .Where(x => x.UserId == userId && (x.ExpiryDate == null || x.ExpiryDate > DateTimeOffset.UtcNow))
-            .OrderByDescending(x => x.EffectiveDate)
+            .Where(x => x.UserId == userId && (x.ExpiryAtUtc == null || x.ExpiryAtUtc > DateTimeOffset.UtcNow))
+            .OrderByDescending(x => x.StartAtUtc)
             .ThenBy(x => x.PositionTypeId)
             .ToListAsync(cancellationToken);
 
@@ -61,22 +61,15 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         }
 
         var effectiveDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
-            request.EffectiveDate,
+            request.StartDate,
             user.HomeLocation?.Timezone
         );
-        DateTimeOffset? expiryDateUtc = !string.IsNullOrEmpty(request.ExpiryDate)
-            ? DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(
-                request.ExpiryDate,
-                user.HomeLocation?.Timezone
-            )
-            : null;
 
         var actingPosition = new UserActingPosition
         {
             UserId = userId,
             PositionTypeId = positionType.Id,
-            EffectiveDate = effectiveDateUtc,
-            ExpiryDate = expiryDateUtc,
+            StartAtUtc = effectiveDateUtc,
             Comment = request.Comment?.Trim(),
         };
 
@@ -123,19 +116,12 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         }
 
         var effectiveDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
-            request.EffectiveDate,
+            request.StartDate,
             user.HomeLocation?.Timezone
         );
-        DateTimeOffset? expiryDateUtc = !string.IsNullOrEmpty(request.ExpiryDate)
-            ? DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(
-                request.ExpiryDate,
-                user.HomeLocation?.Timezone
-            )
-            : null;
 
         actingPosition.PositionTypeId = positionType.Id;
-        actingPosition.EffectiveDate = effectiveDateUtc;
-        actingPosition.ExpiryDate = expiryDateUtc;
+        actingPosition.StartAtUtc = effectiveDateUtc;
         actingPosition.Comment = request.Comment?.Trim();
         actingPosition.PositionType = positionType;
 
@@ -169,7 +155,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             throw new KeyNotFoundException($"Acting position {request.ActingPositionId} not found for user {userId}.");
         }
 
-        actingPosition.ExpiryDate = DateTimeOffset.UtcNow;
+        actingPosition.ExpiryAtUtc = DateTimeOffset.UtcNow;
         actingPosition.ExpiryReason = request.ExpiryReason.Trim();
 
         await db.SaveChangesAsync(cancellationToken);
@@ -184,8 +170,8 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             UserId = position.UserId,
             PositionTypeCode = position.PositionType?.Code ?? string.Empty,
             PositionTypeDescription = position.PositionType?.Description ?? string.Empty,
-            EffectiveDate = position.EffectiveDate.ToTimeZone(timezoneId),
-            ExpiryDate = position.ExpiryDate?.ToTimeZone(timezoneId),
+            StartAtUtc = position.StartAtUtc.ToTimeZone(timezoneId),
+            ExpiryAtUtc = position.ExpiryAtUtc?.ToTimeZone(timezoneId),
             ExpiryReason = position.ExpiryReason,
             Comment = position.Comment,
         };
