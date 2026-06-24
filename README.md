@@ -47,11 +47,11 @@ cd docker
 
 Once running:
 
-| URL | Description |
-|-----|-------------|
-| http://localhost:8080/ | Frontend |
+| URL                        | Description        |
+| -------------------------- | ------------------ |
+| http://localhost:8080/     | Frontend           |
 | http://localhost:8080/api/ | Swagger / API docs |
-| http://localhost:5000/api/ | API direct |
+| http://localhost:5000/api/ | API direct         |
 
 ---
 
@@ -74,15 +74,30 @@ npm run dev
 
 ### Other commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run build` | Type-check and build for production |
-| `npm run test` | Run unit tests (Vitest) |
-| `npm run test:e2e` | Run end-to-end tests (Playwright) |
-| `npm run lint` | Lint with oxlint + ESLint |
-| `npm run format` | Format with Prettier |
-| `npm run gen:api` | Regenerate API client from OpenAPI spec (Orval) |
-| `npm run pre:push` | Lint, format, build, and test before pushing |
+| Command            | Description                                                       |
+| ------------------ | ----------------------------------------------------------------- |
+| `npm run build`    | Type-check and build for production                               |
+| `npm run test`     | Run unit tests (Vitest)                                           |
+| `npm run test:e2e` | Run end-to-end tests (Playwright)                                 |
+| `npm run lint`     | Lint with oxlint + ESLint                                         |
+| `npm run format`   | Format with Prettier                                              |
+| `npm run gen:api`  | Regenerate API client from OpenAPI spec (Orval)                   |
+| `npm run pre:push` | Run lightweight frontend pre-push checks: lint and prettier check |
+
+### Git hooks
+
+The repository includes a committed pre-push hook at `.githooks/pre-push`.
+
+Configure Git once per clone to use the repo-managed hooks:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The pre-push hook runs these checks:
+
+- `cd web && npm run pre:push`
+- `dotnet csharpier check ./api ./db`
 
 ### IDE Setup
 
@@ -96,14 +111,14 @@ Built with **ASP.NET Core** using a modular monolith architecture.
 
 ### Project Structure
 
-| Project | Description |
-|---------|-------------|
-| `Unified.Api` | Entry point — wires up modules, middleware, and routing |
-| `Unified.Core` | Shared core services |
+| Project                  | Description                                               |
+| ------------------------ | --------------------------------------------------------- |
+| `Unified.Api`            | Entry point — wires up modules, middleware, and routing   |
+| `Unified.Core`           | Shared core services                                      |
 | `Unified.Infrastructure` | Cross-cutting concerns (error handling, OpenAPI, options) |
-| `Unified.UserManagement` | User CRUD domain |
-| `Unified.Stats` | Optional stats module (feature flag controlled) |
-| `Unified.Tests` | Unit and integration tests |
+| `Unified.UserManagement` | User CRUD domain                                          |
+| `Unified.Stats`          | Optional stats module (feature flag controlled)           |
+| `Unified.Tests`          | Unit and integration tests                                |
 
 ### Feature Flags
 

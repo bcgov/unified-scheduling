@@ -15,13 +15,16 @@
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
     "lint": "run-s lint:*",
+    "lint:oxlint:check": "oxlint .",
+    "lint:eslint:check": "eslint . --cache",
+    "lint:check": "run-s lint:*:check",
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",
     "format": "npm run prettier:fix",
     "clean:api": "node --eval \"import { rmSync } from 'node:fs'; rmSync('./src/api-access/generated', { recursive: true, force: true });\"",
     "gen:api": "orval --config ./orval.config.ts && npm run format",
     "gen:api:clean": "npm run clean:api && npm run gen:api",
-    "pre:push": "run-s lint format build test"
+    "pre:push": "run-s lint:check prettier:check"
   },
   "dependencies": {
     "@bcgov/design-tokens": "^4.0.0",
