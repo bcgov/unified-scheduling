@@ -23,7 +23,7 @@ resolve_dotnet_cmd() {
 }
 
 cd "$repo_root/web"
-npm run pre:push
+npm run pre:check
 
 cd "$repo_root"
 dotnet_cmd="$(resolve_dotnet_cmd)"
@@ -32,4 +32,5 @@ if [ -z "$dotnet_cmd" ]; then
 	exit 1
 fi
 
-"$dotnet_cmd" csharpier check ./api ./db
+"$dotnet_cmd" tool restore
+"$dotnet_cmd" tool run csharpier check ./api ./db

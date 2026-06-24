@@ -74,15 +74,16 @@ npm run dev
 
 ### Other commands
 
-| Command            | Description                                                       |
-| ------------------ | ----------------------------------------------------------------- |
-| `npm run build`    | Type-check and build for production                               |
-| `npm run test`     | Run unit tests (Vitest)                                           |
-| `npm run test:e2e` | Run end-to-end tests (Playwright)                                 |
-| `npm run lint`     | Lint with oxlint + ESLint                                         |
-| `npm run format`   | Format with Prettier                                              |
-| `npm run gen:api`  | Regenerate API client from OpenAPI spec (Orval)                   |
-| `npm run pre:push` | Run lightweight frontend pre-push checks: lint and prettier check |
+| Command             | Description                                                            |
+| ------------------- | ---------------------------------------------------------------------- |
+| `npm run build`     | Type-check and build for production                                    |
+| `npm run test`      | Run unit tests (Vitest)                                                |
+| `npm run test:e2e`  | Run end-to-end tests (Playwright)                                      |
+| `npm run lint`      | Lint with oxlint + ESLint                                              |
+| `npm run format`    | Format with Prettier                                                   |
+| `npm run gen:api`   | Regenerate API client from OpenAPI spec (Orval)                        |
+| `npm run pre:push`  | Run frontend lint, format, build, and test checks                      |
+| `npm run pre:check` | Run lightweight frontend pre-push checks: oxlint, eslint, and prettier |
 
 ### Git hooks
 
@@ -96,8 +97,9 @@ git config core.hooksPath .githooks
 
 The pre-push hook runs these checks:
 
-- `cd web && npm run pre:push`
-- `dotnet csharpier check ./api ./db`
+- `cd web && npm run pre:check`
+- `dotnet tool restore`
+- `dotnet tool run csharpier check ./api ./db`
 
 ### IDE Setup
 

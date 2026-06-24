@@ -24,7 +24,8 @@
     "clean:api": "node --eval \"import { rmSync } from 'node:fs'; rmSync('./src/api-access/generated', { recursive: true, force: true });\"",
     "gen:api": "orval --config ./orval.config.ts && npm run format",
     "gen:api:clean": "npm run clean:api && npm run gen:api",
-    "pre:push": "run-s lint:check prettier:check"
+    "pre:push": "run-s lint format build test",
+    "pre:check": "run-s lint:check prettier:check"
   },
   "dependencies": {
     "@bcgov/design-tokens": "^4.0.0",
