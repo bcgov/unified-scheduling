@@ -5,7 +5,10 @@ import {
   sanitizeMatrixClassToken,
   toRgba,
 } from '@/modules/calendar/components/matrix/calendarMatrixDisplayUtils';
-import { CalendarMatrixActionType, CalendarMatrixEventGroupVariant } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import {
+  CalendarMatrixActionType,
+  CalendarMatrixEventGroupVariant,
+} from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 
 describe('calendarMatrixTypes', () => {
   it('exports the supported matrix action types', () => {

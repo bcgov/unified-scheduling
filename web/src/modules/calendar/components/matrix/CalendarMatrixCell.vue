@@ -46,7 +46,10 @@ const cellAriaLabel = computed(() => {
   const resourceTitle = props.resource?.title ?? props.cell.resourceId;
   const eventCount = props.cell.groups.reduce((total, group) => total + group.events.length, 0);
   const headerCount = headers.value.length;
-  const summary = [headerCount ? `${headerCount} header${headerCount === 1 ? '' : 's'}` : undefined, `${eventCount} event${eventCount === 1 ? '' : 's'}`]
+  const summary = [
+    headerCount ? `${headerCount} header${headerCount === 1 ? '' : 's'}` : undefined,
+    `${eventCount} event${eventCount === 1 ? '' : 's'}`,
+  ]
     .filter(Boolean)
     .join(', ');
 
