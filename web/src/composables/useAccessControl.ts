@@ -3,6 +3,8 @@ import { useConfigStore } from '@/stores/config';
 import { useAuthStore } from '@/stores/auth';
 import type { FeatureFlags, Permissions } from '@/api-access/generated/models';
 
+export type AppFeatureFlagKey = keyof FeatureFlags;
+
 /**
  * Composable for access control including feature flags and permissions.
  *
@@ -102,12 +104,8 @@ export const useAccessControl = (pinia?: Pinia) => {
    * }
    * ```
    */
-  const isFeatureFlagEnabled = (moduleKey: keyof FeatureFlags): boolean => {
-    if (configStore.config?.featureFlags?.[`${moduleKey}`]) {
-      return true;
-    }
-
-    return false;
+  const isFeatureFlagEnabled = (moduleKey: AppFeatureFlagKey): boolean => {
+    return configStore.config?.featureFlags?.[moduleKey] ?? false;
   };
 
   return {

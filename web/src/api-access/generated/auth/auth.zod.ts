@@ -75,4 +75,5 @@ export const GetApiAuthUserResponse = zod.object({
     ]),
   ),
   userId: zod.uuid().nullable(),
+  homeLocationId: zod.number().nullable(),
 });

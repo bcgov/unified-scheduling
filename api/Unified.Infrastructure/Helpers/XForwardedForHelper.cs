@@ -21,15 +21,9 @@ namespace Unified.Infrastructure.Helpers
             forwardedProto = NormalizeForwardedProto(forwardedProto);
             forwardedHost = NormalizeForwardedValue(forwardedHost, DefaultLocalhost);
 
-            var normalizedPort = hasExplicitForwardedPort
-                ? NormalizeForwardedPort(forwardedPort, "")
-                : "";
+            var normalizedPort = hasExplicitForwardedPort ? NormalizeForwardedPort(forwardedPort, "") : "";
 
-            forwardedHost = NormalizeHostAndPort(
-                forwardedProto,
-                forwardedHost,
-                ref normalizedPort
-            );
+            forwardedHost = NormalizeHostAndPort(forwardedProto, forwardedHost, ref normalizedPort);
 
             forwardedPort = string.IsNullOrWhiteSpace(normalizedPort) ? "8080" : normalizedPort;
 
@@ -103,7 +97,8 @@ namespace Unified.Infrastructure.Helpers
             if (string.IsNullOrWhiteSpace(value))
                 return fallback;
 
-            var normalized = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            var normalized = value
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(normalized))
@@ -124,7 +119,11 @@ namespace Unified.Infrastructure.Helpers
             return int.TryParse(normalized, out var port) && port > 0 ? port.ToString() : fallback;
         }
 
-        private static string NormalizeHostAndPort(string forwardedProto, string forwardedHost, ref string forwardedPort)
+        private static string NormalizeHostAndPort(
+            string forwardedProto,
+            string forwardedHost,
+            ref string forwardedPort
+        )
         {
             forwardedHost = forwardedHost.Trim().Trim('\'', '"');
 
@@ -161,10 +160,12 @@ namespace Unified.Infrastructure.Helpers
             port = 0;
 
             var lastColonIndex = value.LastIndexOf(':');
-            if (lastColonIndex <= 0
+            if (
+                lastColonIndex <= 0
                 || value.Contains(']')
                 || value.Contains('[')
-                || value.IndexOf(':') != lastColonIndex)
+                || value.IndexOf(':') != lastColonIndex
+            )
                 return false;
             var hostPart = value[..lastColonIndex];
             var portPart = value[(lastColonIndex + 1)..];
