@@ -65,7 +65,6 @@ function handleActionClick() {
     actionType: action.type,
   });
 }
-
 </script>
 
 <template>

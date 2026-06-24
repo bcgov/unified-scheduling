@@ -69,13 +69,16 @@ const iconStub = {
 async function mountWithApp(component: unknown, options: Record<string, unknown> = {}) {
   const { mountPlugins } = await createTestApp({ loadConfig: false });
 
-  return mount(component as never, {
-    ...options,
-    global: {
-      ...(options.global as Record<string, unknown> | undefined),
-      plugins: mountPlugins,
-    },
-  } as never);
+  return mount(
+    component as never,
+    {
+      ...options,
+      global: {
+        ...(options.global as Record<string, unknown> | undefined),
+        plugins: mountPlugins,
+      },
+    } as never,
+  );
 }
 
 afterEach(() => {
@@ -222,9 +225,7 @@ describe('CalendarMatrixEventBlock', () => {
     expect(wrapper.emitted('dragStart')?.[0]?.[0]).toMatchObject({ itemId: 'event-1', source: 'event-block' });
     expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'event-1');
     expect(wrapper.attributes('role')).toBeUndefined();
-    expect(wrapper.get('button.calendar-matrix-event-block__main').attributes('aria-label')).toContain(
-      'Morning Event',
-    );
+    expect(wrapper.get('button.calendar-matrix-event-block__main').attributes('aria-label')).toContain('Morning Event');
     expect(wrapper.classes()).toEqual(
       expect.arrayContaining([
         'is-selected',

@@ -102,13 +102,16 @@ async function mountWithApp(component: unknown, options: Record<string, unknown>
 
   return {
     pinia,
-    wrapper: mount(component as never, {
-      ...options,
-      global: {
-        ...(options.global as Record<string, unknown> | undefined),
-        plugins: mountPlugins,
-      },
-    } as never),
+    wrapper: mount(
+      component as never,
+      {
+        ...options,
+        global: {
+          ...(options.global as Record<string, unknown> | undefined),
+          plugins: mountPlugins,
+        },
+      } as never,
+    ),
   };
 }
 
