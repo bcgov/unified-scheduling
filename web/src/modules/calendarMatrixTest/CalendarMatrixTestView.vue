@@ -545,9 +545,10 @@ function formatAssignedUserName(user: CalendarMatrixTestUser) {
   font-size: var(--ua-font-size-xs);
   gap: 0.3625rem;
   line-height: 1.2;
-  ::before {
-    content: '- ';
-  }
+}
+
+.calendar-matrix-test-assigned-users::before {
+  content: '- ';
 }
 
 .calendar-matrix-test-assigned-users__name,
