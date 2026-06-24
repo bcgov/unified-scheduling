@@ -12,9 +12,11 @@ import {
   startOfMonth,
   startOfWeek,
   toCalendarDateOnly,
-} from '@/modules/calendar/calendarDateUtils';
+} from '@/utils/date';
+import { getCalendarEventDateKey } from '@/modules/calendarMatrixTest/calendarMatrixTestMappers';
 import { selectCalendarEvents, selectContribution } from '@/modules/calendar/calendarSelectors';
 import { mapApiCalendarEventToCalendarEventBase } from '@/modules/calendar/contributions/calendarEventMappers';
+import { buildCalendarPeriodSelectOptions, DEFAULT_CALENDAR_PERIODS } from '@/modules/calendar/calendarPeriodOptions';
 import { buildCalendarDefaultViewModel } from '@/modules/calendar/views/calendarViewModels';
 import type {
   CalendarDataResponse,
@@ -22,7 +24,7 @@ import type {
   CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
 
-describe('calendarDateUtils', () => {
+describe('shared calendar date helpers', () => {
   it('builds ranges for every period and shifts them correctly', () => {
     expect(buildDateRangeForPeriod('2025-01-15', 'day')).toEqual({
       startDate: '2025-01-15',
@@ -80,6 +82,14 @@ describe('calendarDateUtils', () => {
     expect(formatCalendarDateOnly('2025-01-15')).toContain('2025');
     expect(addDays('2025-01-31', 1)).toBe('2025-02-01');
   });
+
+  it('resolves event date keys safely for timezone-aware matrix grouping', () => {
+    expect(getCalendarEventDateKey('2025-01-14T07:30:00Z', 'America/Vancouver')).toBe('2025-01-13');
+    expect(getCalendarEventDateKey('2025-01-13T23:30:00-08:00', 'America/Vancouver')).toBe('2025-01-13');
+    expect(getCalendarEventDateKey('2025-01-13T09:00:00', 'America/Vancouver')).toBe('2025-01-13');
+    expect(getCalendarEventDateKey('invalid', 'America/Vancouver')).toBeUndefined();
+    expect(getCalendarEventDateKey(undefined, 'America/Vancouver')).toBeUndefined();
+  });
 });
 
 describe('calendar selectors and view models', () => {
@@ -127,6 +137,21 @@ describe('calendar selectors and view models', () => {
       initialDate: '2025-01-13',
       events: selectCalendarEvents(response),
       weekends,
+    });
+  });
+});
+
+describe('calendar period options', () => {
+  it('excludes month by default and allows views to opt in', () => {
+    expect(buildCalendarPeriodSelectOptions(DEFAULT_CALENDAR_PERIODS)).toEqual([
+      { code: 'week', description: 'Week' },
+      { code: 'day', description: 'Day' },
+      { code: 'work-week', description: 'Work week' },
+    ]);
+
+    expect(buildCalendarPeriodSelectOptions([...DEFAULT_CALENDAR_PERIODS, 'month'])).toContainEqual({
+      code: 'month',
+      description: 'Month',
     });
   });
 });

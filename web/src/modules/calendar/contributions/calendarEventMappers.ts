@@ -1,5 +1,5 @@
 import type { ApiCalendarEventResponse } from '@/api-access/calendar';
-import { toCalendarDateOnly } from '../calendarDateUtils';
+import { toCalendarDateOnly } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 
 export function mapApiCalendarEventToCalendarEventBase(apiEvent: ApiCalendarEventResponse): CalendarEventBase {
