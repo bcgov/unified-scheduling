@@ -14,7 +14,7 @@ import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import type { SelectOption } from '@/types/select';
 import { validationMessages } from '@/shared/validation/validationErrors';
-import { getTodayDateInputValue, isDateInputBefore, toApiDateString, toDateInputValue } from '@/utils/date';
+import { getTodayDateInputValue, toApiDateString, toDateInputValue } from '@/utils/date';
 import { computed, ref, watch } from 'vue';
 import * as zod from 'zod';
 
@@ -40,15 +40,15 @@ type ActingPositionFormData = Partial<zod.infer<typeof PostApiUsersUserIdActingP
 
 const createInitialFormData = (): ActingPositionFormData => ({
   positionTypeCode: undefined,
-  effectiveDate: getTodayDateInputValue(),
-  expiryDate: null,
+  startDate: getTodayDateInputValue(),
+  endDate: '',
   comment: null,
 });
 
 const populateFromPosition = (pos: ActingPositionResponseDto): ActingPositionFormData => ({
   positionTypeCode: pos.positionTypeCode,
-  effectiveDate: toDateInputValue(pos.effectiveDate) ?? getTodayDateInputValue(),
-  expiryDate: toDateInputValue(pos.expiryDate) ?? null,
+  startDate: toDateInputValue(pos.startAtUtc) ?? getTodayDateInputValue(),
+  endDate: toDateInputValue(pos.endAtUtc ?? undefined) ?? '',
   comment: pos.comment ?? null,
 });
 
@@ -58,15 +58,11 @@ const formData = ref<ActingPositionFormData>(
 
 const actingPositionSchema = PostApiUsersUserIdActingPositionsBody.extend({
   positionTypeCode: zod.string({ error: validationMessages.required }).min(1, validationMessages.required),
-  effectiveDate: PostApiUsersUserIdActingPositionsBody.shape.effectiveDate.min(1, validationMessages.required),
-}).superRefine((data, ctx) => {
-  if (data.expiryDate && data.effectiveDate && isDateInputBefore(data.expiryDate, data.effectiveDate)) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['expiryDate'],
-      message: 'Expiry date cannot be earlier than effective date.',
-    });
-  }
+  startDate: PostApiUsersUserIdActingPositionsBody.shape.startDate.min(1, validationMessages.required),
+  endDate: PostApiUsersUserIdActingPositionsBody.shape.endDate.min(1, validationMessages.required),
+}).refine((x) => !x.startDate || !x.endDate || x.endDate >= x.startDate, {
+  message: 'End Date must be on or after Start Date.',
+  path: ['endDate'],
 });
 
 const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
@@ -93,7 +89,6 @@ function validateForm(): ActingPositionRequestDto | null {
   formErrors.value = {};
   const result = actingPositionSchema.safeParse({
     ...formData.value,
-    expiryDate: formData.value.expiryDate || null,
     comment: formData.value.comment?.trim() || null,
   });
 
@@ -104,8 +99,8 @@ function validateForm(): ActingPositionRequestDto | null {
 
   return {
     positionTypeCode: result.data.positionTypeCode,
-    effectiveDate: toApiDateString(result.data.effectiveDate),
-    expiryDate: result.data.expiryDate ? toApiDateString(result.data.expiryDate) : null,
+    startDate: toApiDateString(result.data.startDate),
+    endDate: toApiDateString(result.data.endDate),
     comment: result.data.comment ?? null,
   };
 }
@@ -167,19 +162,19 @@ const handleSave = async () => {
       />
 
       <UaTextField
-        id="acting-position-effective-date"
-        v-model="formData.effectiveDate"
-        label="Effective Date"
+        id="acting-position-start-date"
+        v-model="formData.startDate"
+        label="Start Date"
         type="date"
-        :error-messages="formErrors.effectiveDate"
+        :error-messages="formErrors.startDate"
       />
 
       <UaTextField
-        id="acting-position-expiry-date"
-        v-model="formData.expiryDate"
-        label="Expiry Date (optional)"
+        id="acting-position-end-date"
+        v-model="formData.endDate"
+        label="End Date"
         type="date"
-        :error-messages="formErrors.expiryDate"
+        :error-messages="formErrors.endDate"
       />
 
       <UaTextarea

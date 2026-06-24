@@ -18,8 +18,8 @@ const position: ActingPositionResponseDto = {
   userId: 'test-user-id',
   positionTypeCode: 'SGT',
   positionTypeDescription: 'Sergeant',
-  effectiveDate: '2026-01-10T08:00:00Z',
-  expiryDate: null,
+  startAtUtc: '2026-01-10T08:00:00Z',
+  expiryAtUtc: null,
   expiryReason: null,
   comment: null,
 };
@@ -54,7 +54,7 @@ describe('ExpireActingPositionModal', () => {
       getPostApiUsersUserIdActingPositionsExpireMockHandler(() =>
         getPostApiUsersUserIdActingPositionsExpireResponseMock({
           ...position,
-          expiryDate: new Date().toISOString(),
+          expiryAtUtc: new Date().toISOString(),
           expiryReason: 'ENTRYERR',
         }),
       ),

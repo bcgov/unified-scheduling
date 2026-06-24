@@ -189,30 +189,6 @@ export const getPutApiRolesIdResponseMock = (overrideResponse: Partial<Extract<R
     },
   ]);
 
-export const getDeleteApiRolesIdResponseMock = (
-  overrideResponse: Partial<Extract<DeletedRoleDto, object>> = {},
-): DeletedRoleDto =>
-  faker.helpers.arrayElement([
-    {
-      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
-      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      ...overrideResponse,
-    },
-    {
-      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
-      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      ...overrideResponse,
-    },
-    {
-      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
-      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      ...overrideResponse,
-    },
-  ]);
-
 export const getPostApiRolesIdReassignAndDeleteResponseMock = (
   overrideResponse: Partial<Extract<DeletedRoleDto, object>> = {},
 ): DeletedRoleDto =>
@@ -321,28 +297,6 @@ export const getPutApiRolesIdMockHandler = (
   );
 };
 
-export const getDeleteApiRolesIdMockHandler = (
-  overrideResponse?:
-    | DeletedRoleDto
-    | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<DeletedRoleDto> | DeletedRoleDto),
-  options?: RequestHandlerOptions,
-) => {
-  return http.delete(
-    '*/api/roles/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getDeleteApiRolesIdResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
 export const getPostApiRolesIdReassignAndDeleteMockHandler = (
   overrideResponse?:
     | DeletedRoleDto
@@ -369,6 +323,5 @@ export const getRolesMock = () => [
   getPostApiRolesMockHandler(),
   getGetApiRolesIdUsersMockHandler(),
   getPutApiRolesIdMockHandler(),
-  getDeleteApiRolesIdMockHandler(),
   getPostApiRolesIdReassignAndDeleteMockHandler(),
 ];

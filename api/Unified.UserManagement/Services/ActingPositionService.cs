@@ -65,11 +65,17 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             user.HomeLocation?.Timezone
         );
 
+        var endDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
+            request.EndDate,
+            user.HomeLocation?.Timezone
+        );
+
         var actingPosition = new UserActingPosition
         {
             UserId = userId,
             PositionTypeId = positionType.Id,
             StartAtUtc = effectiveDateUtc,
+            EndAtUtc = endDateUtc,
             Comment = request.Comment?.Trim(),
         };
 
@@ -120,8 +126,14 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             user.HomeLocation?.Timezone
         );
 
+        var endDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
+            request.EndDate,
+            user.HomeLocation?.Timezone
+        );
+
         actingPosition.PositionTypeId = positionType.Id;
         actingPosition.StartAtUtc = effectiveDateUtc;
+        actingPosition.EndAtUtc = endDateUtc;
         actingPosition.Comment = request.Comment?.Trim();
         actingPosition.PositionType = positionType;
 
@@ -171,6 +183,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             PositionTypeCode = position.PositionType?.Code ?? string.Empty,
             PositionTypeDescription = position.PositionType?.Description ?? string.Empty,
             StartAtUtc = position.StartAtUtc.ToTimeZone(timezoneId),
+            EndAtUtc = position.EndAtUtc?.ToTimeZone(timezoneId),
             ExpiryAtUtc = position.ExpiryAtUtc?.ToTimeZone(timezoneId),
             ExpiryReason = position.ExpiryReason,
             Comment = position.Comment,

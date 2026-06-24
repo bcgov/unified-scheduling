@@ -15,8 +15,9 @@ export const GetApiUsersUserIdActingPositionsResponseItem = zod.object({
   userId: zod.uuid().optional(),
   positionTypeCode: zod.string().optional(),
   positionTypeDescription: zod.string().optional(),
-  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
-  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
 });
@@ -28,9 +29,9 @@ export const PostApiUsersUserIdActingPositionsParams = zod.strictObject({
 
 export const PostApiUsersUserIdActingPositionsBody = zod.strictObject({
   positionTypeCode: zod.string(),
-  effectiveDate: zod.string(),
-  expiryDate: zod.string().nullish(),
+  startDate: zod.string(),
   comment: zod.string().nullish(),
+  endDate: zod.string(),
 });
 
 export const PutApiUsersUserIdActingPositionsActingPositionIdParams = zod.strictObject({
@@ -40,9 +41,9 @@ export const PutApiUsersUserIdActingPositionsActingPositionIdParams = zod.strict
 
 export const PutApiUsersUserIdActingPositionsActingPositionIdBody = zod.strictObject({
   positionTypeCode: zod.string(),
-  effectiveDate: zod.string(),
-  expiryDate: zod.string().nullish(),
+  startDate: zod.string(),
   comment: zod.string().nullish(),
+  endDate: zod.string(),
 });
 
 export const PutApiUsersUserIdActingPositionsActingPositionIdResponse = zod.object({
@@ -50,8 +51,9 @@ export const PutApiUsersUserIdActingPositionsActingPositionIdResponse = zod.obje
   userId: zod.uuid().optional(),
   positionTypeCode: zod.string().optional(),
   positionTypeDescription: zod.string().optional(),
-  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
-  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
 });
@@ -70,8 +72,9 @@ export const PostApiUsersUserIdActingPositionsExpireResponse = zod.object({
   userId: zod.uuid().optional(),
   positionTypeCode: zod.string().optional(),
   positionTypeDescription: zod.string().optional(),
-  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
-  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
 });

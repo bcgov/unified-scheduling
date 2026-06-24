@@ -7,9 +7,8 @@
 
 export interface ActingPositionRequestDto {
   positionTypeCode: string;
-  effectiveDate: string;
-  /** @nullable */
-  expiryDate?: string | null;
+  startDate: string;
   /** @nullable */
   comment?: string | null;
+  endDate: string;
 }

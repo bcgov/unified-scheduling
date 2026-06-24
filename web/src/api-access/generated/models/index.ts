@@ -10,7 +10,6 @@ export * from './actingPositionResponseDto';
 export * from './assignUserRoleRequestDto';
 export * from './configResponse';
 export * from './dashboardEntryResponse';
-export * from './dashboardSummaryResponse';
 export * from './deletedRoleDto';
 export * from './deleteRoleWithReassignmentRequestDto';
 export * from './expireActingPositionRequestDto';

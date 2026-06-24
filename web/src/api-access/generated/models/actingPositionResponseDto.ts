@@ -10,9 +10,11 @@ export interface ActingPositionResponseDto {
   userId?: string;
   positionTypeCode?: string;
   positionTypeDescription?: string;
-  effectiveDate?: string;
+  startAtUtc?: string;
   /** @nullable */
-  expiryDate?: string | null;
+  endAtUtc?: string | null;
+  /** @nullable */
+  expiryAtUtc?: string | null;
   /** @nullable */
   expiryReason?: string | null;
   /** @nullable */

@@ -50,9 +50,6 @@ export const putApiRolesId = (
     options,
   );
 };
-export const deleteApiRolesId = (id: number, options?: SecondParameter<typeof useFetchAPI<DeletedRoleDto>>) => {
-  return useFetchAPI<DeletedRoleDto>({ url: `/api/roles/${id}`, method: 'DELETE' }, options);
-};
 export const postApiRolesIdReassignAndDelete = (
   id: number,
   deleteRoleWithReassignmentRequestDto: DeleteRoleWithReassignmentRequestDto,
@@ -72,7 +69,6 @@ export type GetApiRolesResult = NonNullable<Awaited<ReturnType<typeof getApiRole
 export type PostApiRolesResult = NonNullable<Awaited<ReturnType<typeof postApiRoles>>>;
 export type GetApiRolesIdUsersResult = NonNullable<Awaited<ReturnType<typeof getApiRolesIdUsers>>>;
 export type PutApiRolesIdResult = NonNullable<Awaited<ReturnType<typeof putApiRolesId>>>;
-export type DeleteApiRolesIdResult = NonNullable<Awaited<ReturnType<typeof deleteApiRolesId>>>;
 export type PostApiRolesIdReassignAndDeleteResult = NonNullable<
   Awaited<ReturnType<typeof postApiRolesIdReassignAndDelete>>
 >;

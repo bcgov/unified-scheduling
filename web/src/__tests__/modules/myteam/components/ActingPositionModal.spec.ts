@@ -48,42 +48,6 @@ describe('ActingPositionModal', () => {
     wrapper.unmount();
   });
 
-  it('shows validation error when expiry date is before effective date', async () => {
-    const app = await createTestApp();
-
-    const wrapper = mount(ActingPositionModal, {
-      props: {
-        userId: 'test-user-id',
-        positionTypes,
-        position: {
-          id: 1001,
-          userId: 'test-user-id',
-          positionTypeCode: 'SGT',
-          positionTypeDescription: 'Sergeant',
-          effectiveDate: '2026-06-01T00:00:00Z',
-          expiryDate: '2026-01-01T00:00:00Z',
-          expiryReason: null,
-          comment: null,
-        } satisfies ActingPositionResponseDto,
-      },
-      global: { plugins: app.mountPlugins },
-      attachTo: document.body,
-    });
-
-    await flushPromises();
-
-    const saveButton = Array.from(document.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Save'),
-    );
-    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
-
-    await flushPromises();
-
-    expect(document.body.textContent ?? '').toContain('Expiry date cannot be earlier than effective date.');
-
-    wrapper.unmount();
-  });
-
   it('submits create request and emits saved + close', async () => {
     const app = await createTestApp();
 
@@ -94,8 +58,9 @@ describe('ActingPositionModal', () => {
           userId: 'test-user-id',
           positionTypeCode: 'SGT',
           positionTypeDescription: 'Sergeant',
-          effectiveDate: '2026-01-10T08:00:00Z',
-          expiryDate: null,
+          startAtUtc: '2026-01-10T08:00:00Z',
+          endAtUtc: '2026-06-30T08:00:00Z',
+          expiryAtUtc: null,
           expiryReason: null,
           comment: null,
         });
@@ -115,9 +80,10 @@ describe('ActingPositionModal', () => {
     await flushPromises();
 
     // Select position type via select component
-    const vm = wrapper.vm as unknown as { formData: { positionTypeCode: string; effectiveDate: string } };
+    const vm = wrapper.vm as unknown as { formData: { positionTypeCode: string; startDate: string; endDate: string } };
     vm.formData.positionTypeCode = 'SGT';
-    vm.formData.effectiveDate = '2026-01-10';
+    vm.formData.startDate = '2026-01-10';
+    vm.formData.endDate = '2026-06-30';
 
     await flushPromises();
 
@@ -134,6 +100,74 @@ describe('ActingPositionModal', () => {
     wrapper.unmount();
   });
 
+  it('shows validation error when end date is empty', async () => {
+    const app = await createTestApp();
+
+    const wrapper = mount(ActingPositionModal, {
+      props: {
+        userId: 'test-user-id',
+        positionTypes,
+        position: null,
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { formData: { positionTypeCode: string; startDate: string; endDate: string } };
+    vm.formData.positionTypeCode = 'SGT';
+    vm.formData.startDate = '2026-01-10';
+    vm.formData.endDate = '';
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Save'),
+    );
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(document.body.textContent ?? '').toContain('Required');
+
+    wrapper.unmount();
+  });
+
+  it('shows validation error when end date is before start date', async () => {
+    const app = await createTestApp();
+
+    const wrapper = mount(ActingPositionModal, {
+      props: {
+        userId: 'test-user-id',
+        positionTypes,
+        position: null,
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { formData: { positionTypeCode: string; startDate: string; endDate: string } };
+    vm.formData.positionTypeCode = 'SGT';
+    vm.formData.startDate = '2026-06-01';
+    vm.formData.endDate = '2026-01-01';
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Save'),
+    );
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(document.body.textContent ?? '').toContain('End Date must be on or after Start Date.');
+
+    wrapper.unmount();
+  });
+
   it('shows modal title "Edit Acting Position" in edit mode', async () => {
     const app = await createTestApp();
 
@@ -142,8 +176,9 @@ describe('ActingPositionModal', () => {
       userId: 'test-user-id',
       positionTypeCode: 'SGT',
       positionTypeDescription: 'Sergeant',
-      effectiveDate: '2026-01-10T08:00:00Z',
-      expiryDate: null,
+      startAtUtc: '2026-01-10T08:00:00Z',
+      endAtUtc: '2026-06-30T08:00:00Z',
+      expiryAtUtc: null,
       expiryReason: null,
       comment: null,
     };

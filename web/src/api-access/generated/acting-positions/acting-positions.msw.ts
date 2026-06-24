@@ -21,8 +21,8 @@ export const getGetApiUsersUserIdActingPositionsResponseMock = (): ActingPositio
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -43,8 +43,8 @@ export const getGetApiUsersUserIdActingPositionsResponseMock = (): ActingPositio
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -65,8 +65,8 @@ export const getGetApiUsersUserIdActingPositionsResponseMock = (): ActingPositio
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -93,8 +93,8 @@ export const getPostApiUsersUserIdActingPositionsResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -116,8 +116,8 @@ export const getPostApiUsersUserIdActingPositionsResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -139,8 +139,8 @@ export const getPostApiUsersUserIdActingPositionsResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -168,8 +168,8 @@ export const getPutApiUsersUserIdActingPositionsActingPositionIdResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -191,8 +191,8 @@ export const getPutApiUsersUserIdActingPositionsActingPositionIdResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -214,8 +214,8 @@ export const getPutApiUsersUserIdActingPositionsActingPositionIdResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -243,8 +243,8 @@ export const getPostApiUsersUserIdActingPositionsExpireResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -266,8 +266,8 @@ export const getPostApiUsersUserIdActingPositionsExpireResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -289,8 +289,8 @@ export const getPostApiUsersUserIdActingPositionsExpireResponseMock = (
         faker.string.alpha({ length: { min: 10, max: 20 } }),
         undefined,
       ]),
-      effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
+      startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),

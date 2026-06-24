@@ -43,15 +43,15 @@ const selectedExpirePosition = ref<ActingPositionResponseDto | null>(null);
 
 const tableHeaders = [
   { title: 'Position Type', key: 'positionTypeDescription', sortable: true },
-  { title: 'Effective Date', key: 'effectiveDate', sortable: true },
-  { title: 'Expiry Date', key: 'expiryDate', sortable: false },
+  { title: 'Start Date', key: 'startAtUtc', sortable: true },
+  { title: 'End Date', key: 'endAtUtc', sortable: false },
   { title: 'Comment', key: 'comment', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 140 },
 ];
 
 const isExpired = (position: ActingPositionResponseDto): boolean => {
-  if (!position.expiryDate) return false;
-  return new Date(position.expiryDate) < new Date();
+  if (!position.expiryAtUtc) return false;
+  return new Date(position.expiryAtUtc) < new Date();
 };
 
 const handleOpenAddModal = () => {
@@ -115,12 +115,12 @@ const handleExpired = async () => {
       density="comfortable"
       hide-default-footer
     >
-      <template #[`item.effectiveDate`]="{ item }">
-        {{ toCalendarDateString(item.effectiveDate) ?? '-' }}
+      <template #[`item.startAtUtc`]="{ item }">
+        {{ toCalendarDateString(item.startAtUtc) ?? '-' }}
       </template>
 
-      <template #[`item.expiryDate`]="{ item }">
-        {{ toCalendarDateString(item.expiryDate) ?? '-' }}
+      <template #[`item.endAtUtc`]="{ item }">
+        {{ toCalendarDateString(item.endAtUtc) ?? '-' }}
       </template>
 
       <template #[`item.comment`]="{ item }">
