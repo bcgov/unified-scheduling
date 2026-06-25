@@ -48,7 +48,7 @@
     "@types/luxon": "^3.7.1",
     "@types/node": "^24.10.9",
     "@vitejs/plugin-vue": "^6.0.6",
-    "@vitest/eslint-plugin": "^1.6.16",
+    "@vitest/eslint-plugin": "^1.6.18",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.9",
     "@vue/tsconfig": "^0.9.1",
