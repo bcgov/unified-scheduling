@@ -19,4 +19,6 @@ export interface ActingPositionResponseDto {
   expiryReason?: string | null;
   /** @nullable */
   comment?: string | null;
+  /** @nullable */
+  timezone?: string | null;
 }

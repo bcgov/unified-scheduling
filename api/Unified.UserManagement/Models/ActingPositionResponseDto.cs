@@ -11,4 +11,9 @@ public sealed record ActingPositionResponseDto
     public DateTimeOffset? ExpiryAtUtc { get; init; }
     public string? ExpiryReason { get; init; }
     public string? Comment { get; init; }
+
+    /// <summary>
+    /// The timezone used when interpreting the stored UTC datetimes (user's home location timezone).
+    /// </summary>
+    public string? Timezone { get; init; }
 }

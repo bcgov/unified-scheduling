@@ -31,4 +31,11 @@ public abstract class BaseUserEvent : BaseEntity
 
     [MaxLength(500)]
     public string? Comment { get; set; }
+
+    /// <summary>
+    /// IANA timezone ID used when the event was created (e.g. "America/Vancouver").
+    /// Stored for display/conversion purposes; all dates are stored as UTC.
+    /// </summary>
+    [MaxLength(100)]
+    public string? Timezone { get; set; }
 }

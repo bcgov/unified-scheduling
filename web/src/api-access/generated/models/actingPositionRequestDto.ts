@@ -10,5 +10,7 @@ export interface ActingPositionRequestDto {
   startDateTime: string;
   endDateTime: string;
   /** @nullable */
+  timezone?: string | null;
+  /** @nullable */
   comment?: string | null;
 }

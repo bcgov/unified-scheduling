@@ -18,6 +18,7 @@ import {
   isDateTimeFullDay,
   toDateInputValue,
   toLocalDateTimeString,
+  toOffsetDateTimeString,
   toTimeInputValue,
 } from '@/utils/date';
 import { computed, ref, watch } from 'vue';
@@ -78,6 +79,7 @@ const populateFromPosition = (pos: ActingPositionResponseDto): FormData => {
   const startTime = toTimeInputValue(pos.startAtUtc) ?? '';
   const endTime = toTimeInputValue(pos.endAtUtc) ?? '';
   addTime.value = !isDateTimeFullDay(pos.startAtUtc, pos.endAtUtc);
+
   return {
     positionTypeCode: pos.positionTypeCode,
     startDate: toDateInputValue(pos.startAtUtc) ?? getTodayDateInputValue(),
@@ -162,8 +164,9 @@ function validateForm(): ActingPositionRequestDto | null {
 
   return {
     positionTypeCode: parsed.data.positionTypeCode,
-    startDateTime: toLocalDateTimeString(parsed.data.startDate, addTime.value ? parsed.data.startTime : ''),
-    endDateTime: toLocalDateTimeString(parsed.data.endDate, addTime.value ? parsed.data.endTime : ''),
+    startDateTime: toOffsetDateTimeString(parsed.data.startDate, addTime.value ? parsed.data.startTime : '', timezone.value),
+    endDateTime: toOffsetDateTimeString(parsed.data.endDate, addTime.value ? parsed.data.endTime : '23:59', timezone.value),
+    timezone: timezone.value ?? null,
     comment: parsed.data.comment ?? null,
   };
 }

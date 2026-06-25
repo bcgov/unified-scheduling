@@ -61,8 +61,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "CPL",
-            StartDateTime = "2026-01-10T00:00",
-            EndDateTime = "2026-06-30T00:00",
+            StartDateTime = "2026-01-10T00:00:00.000-08:00",
+            EndDateTime = "2026-06-30T00:00:00.000-07:00",
             Comment = "Acting due to vacancy",
         };
 
@@ -91,8 +91,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDateTime = "2026-01-10T00:00",
-            EndDateTime = "2026-06-30T00:00",
+            StartDateTime = "2026-01-10T00:00:00.000-08:00",
+            EndDateTime = "2026-06-30T00:00:00.000-07:00",
         };
 
         // Act + Assert
@@ -110,8 +110,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "",
-            StartDateTime = "2026-01-10T00:00",
-            EndDateTime = "2026-06-30T00:00",
+            StartDateTime = "2026-01-10T00:00:00.000-08:00",
+            EndDateTime = "2026-06-30T00:00:00.000-07:00",
         };
 
         // Act + Assert
@@ -132,8 +132,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDateTime = "2026-02-01T00:00",
-            EndDateTime = "2026-08-01T00:00",
+            StartDateTime = "2026-02-01T00:00:00.000-08:00",
+            EndDateTime = "2026-08-01T00:00:00.000-07:00",
             Comment = "Updated comment",
         };
 
@@ -161,8 +161,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDateTime = "2026-01-10T00:00",
-            EndDateTime = "2026-06-30T00:00",
+            StartDateTime = "2026-01-10T00:00:00.000-08:00",
+            EndDateTime = "2026-06-30T00:00:00.000-07:00",
         };
 
         // Act + Assert
@@ -180,7 +180,7 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDateTime = "2026-01-10T00:00",
+            StartDateTime = "2026-01-10T00:00:00.000-08:00",
             EndDateTime = "",
         };
 
@@ -199,8 +199,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDateTime = "2026-06-01T00:00",
-            EndDateTime = "2026-01-01T00:00",
+            StartDateTime = "2026-06-01T00:00:00.000-07:00",
+            EndDateTime = "2026-01-01T00:00:00.000-08:00",
         };
 
         // Act + Assert
@@ -218,8 +218,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDateTime = "2026-01-10T08:30",
-            EndDateTime = "2026-01-10T17:00",
+            StartDateTime = "2026-01-10T08:30:00.000-08:00",
+            EndDateTime = "2026-01-10T17:00:00.000-08:00",
         };
 
         // Act
@@ -227,6 +227,28 @@ public class ActingPositionsControllerTests
 
         // Assert
         Assert.IsType<CreatedResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task Create_Should_Pass_Timezone_Through_To_Service()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var fakeService = new FakeActingPositionService();
+        var controller = CreateController(fakeService);
+        var request = new ActingPositionRequestDto
+        {
+            PositionTypeCode = "SGT",
+            StartDateTime = "2026-01-10T08:30:00.000-08:00",
+            EndDateTime = "2026-01-10T17:00:00.000-08:00",
+            Timezone = "America/Vancouver",
+        };
+
+        // Act
+        await controller.Create(userId, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal("America/Vancouver", fakeService.LastCreateRequest?.Timezone);
     }
 
     [Fact]
@@ -257,8 +279,8 @@ public class ActingPositionsControllerTests
         var request = new ActingPositionRequestDto
         {
             PositionTypeCode = "SGT",
-            StartDateTime = "2026-01-10T08:30",
-            EndDateTime = "2026-01-10T08:30",
+            StartDateTime = "2026-01-10T08:30:00.000-08:00",
+            EndDateTime = "2026-01-10T08:30:00.000-08:00",
         };
 
         // Act + Assert
@@ -460,3 +482,4 @@ public class ActingPositionsControllerTests
         }
     }
 }
+

@@ -20,6 +20,7 @@ export const GetApiUsersUserIdActingPositionsResponseItem = zod.object({
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
+  timezone: zod.string().nullish(),
 });
 export const GetApiUsersUserIdActingPositionsResponse = zod.array(GetApiUsersUserIdActingPositionsResponseItem);
 
@@ -31,6 +32,7 @@ export const PostApiUsersUserIdActingPositionsBody = zod.strictObject({
   positionTypeCode: zod.string(),
   startDateTime: zod.string(),
   endDateTime: zod.string(),
+  timezone: zod.string().nullish(),
   comment: zod.string().nullish(),
 });
 
@@ -43,6 +45,7 @@ export const PutApiUsersUserIdActingPositionsActingPositionIdBody = zod.strictOb
   positionTypeCode: zod.string(),
   startDateTime: zod.string(),
   endDateTime: zod.string(),
+  timezone: zod.string().nullish(),
   comment: zod.string().nullish(),
 });
 
@@ -56,6 +59,7 @@ export const PutApiUsersUserIdActingPositionsActingPositionIdResponse = zod.obje
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
+  timezone: zod.string().nullish(),
 });
 
 export const PostApiUsersUserIdActingPositionsExpireParams = zod.strictObject({
@@ -77,4 +81,5 @@ export const PostApiUsersUserIdActingPositionsExpireResponse = zod.object({
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
+  timezone: zod.string().nullish(),
 });

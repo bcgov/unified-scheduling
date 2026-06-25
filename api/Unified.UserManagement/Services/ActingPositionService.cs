@@ -32,7 +32,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             .ToListAsync(cancellationToken);
 
         var timezoneId = user.HomeLocation?.Timezone;
-        return positions.Select(p => MapResponse(p, timezoneId)).ToList();
+        return positions.Select(p => MapResponse(p, p.Timezone ?? timezoneId)).ToList();
     }
 
     public async Task<ActingPositionResponseDto> CreateAsync(
@@ -60,15 +60,10 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             throw new KeyNotFoundException($"PositionType '{request.PositionTypeCode}' not found.");
         }
 
-        var effectiveDateUtc = DateTimeOffsetExtensions.FromLocalDateTimeStringToTimeZone(
-            request.StartDateTime,
-            user.HomeLocation?.Timezone
-        );
+        var timezoneId = request.Timezone ?? user.HomeLocation?.Timezone;
 
-        var endDateUtc = DateTimeOffsetExtensions.FromLocalDateTimeStringToTimeZone(
-            request.EndDateTime,
-            user.HomeLocation?.Timezone
-        );
+        var effectiveDateUtc = DateTimeOffset.Parse(request.StartDateTime).ToUniversalTime();
+        var endDateUtc = DateTimeOffset.Parse(request.EndDateTime).ToUniversalTime();
 
         var actingPosition = new UserActingPosition
         {
@@ -76,6 +71,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             PositionTypeId = positionType.Id,
             StartAtUtc = effectiveDateUtc,
             EndAtUtc = endDateUtc,
+            Timezone = timezoneId,
             Comment = request.Comment?.Trim(),
         };
 
@@ -83,7 +79,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         await db.SaveChangesAsync(cancellationToken);
 
         actingPosition.PositionType = positionType;
-        return MapResponse(actingPosition, user.HomeLocation?.Timezone);
+        return MapResponse(actingPosition, timezoneId);
     }
 
     public async Task<ActingPositionResponseDto> UpdateAsync(
@@ -121,25 +117,21 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             throw new KeyNotFoundException($"PositionType '{request.PositionTypeCode}' not found.");
         }
 
-        var effectiveDateUtc = DateTimeOffsetExtensions.FromLocalDateTimeStringToTimeZone(
-            request.StartDateTime,
-            user.HomeLocation?.Timezone
-        );
+        var timezoneId = request.Timezone ?? user.HomeLocation?.Timezone;
 
-        var endDateUtc = DateTimeOffsetExtensions.FromLocalDateTimeStringToTimeZone(
-            request.EndDateTime,
-            user.HomeLocation?.Timezone
-        );
+        var effectiveDateUtc = DateTimeOffset.Parse(request.StartDateTime).ToUniversalTime();
+        var endDateUtc = DateTimeOffset.Parse(request.EndDateTime).ToUniversalTime();
 
         actingPosition.PositionTypeId = positionType.Id;
         actingPosition.StartAtUtc = effectiveDateUtc;
         actingPosition.EndAtUtc = endDateUtc;
+        actingPosition.Timezone = timezoneId;
         actingPosition.Comment = request.Comment?.Trim();
         actingPosition.PositionType = positionType;
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return MapResponse(actingPosition, user.HomeLocation?.Timezone);
+        return MapResponse(actingPosition, timezoneId);
     }
 
     public async Task<ActingPositionResponseDto> ExpireAsync(
@@ -172,7 +164,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return MapResponse(actingPosition, user.HomeLocation?.Timezone);
+        return MapResponse(actingPosition, actingPosition.Timezone ?? user.HomeLocation?.Timezone);
     }
 
     private static ActingPositionResponseDto MapResponse(UserActingPosition position, string? timezoneId) =>
@@ -187,5 +179,6 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             ExpiryAtUtc = position.ExpiryAtUtc?.ToTimeZone(timezoneId),
             ExpiryReason = position.ExpiryReason,
             Comment = position.Comment,
+            Timezone = timezoneId,
         };
 }
