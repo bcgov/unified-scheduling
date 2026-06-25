@@ -28,7 +28,8 @@ public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTrans
         var idir = Guid.Parse(nameIdentifier.Replace("@idir", ""));
 
         var user = await db
-            .Users.Include(u => u.UserRoles)
+            .Users.Include(u => u.HomeLocation)
+            .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
                     .ThenInclude(r => r.RolePermissions)
             .Where(u => u.IdirId == idir && u.IsEnabled)
@@ -52,7 +53,12 @@ public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTrans
         identity.AddClaim(new Claim(UnifiedClaimTypes.FirstName, user.FirstName));
         identity.AddClaim(new Claim(UnifiedClaimTypes.LastName, user.LastName));
         if (user.HomeLocationId.HasValue)
+        {
             identity.AddClaim(new Claim(UnifiedClaimTypes.HomeLocationId, user.HomeLocationId.Value.ToString()));
+
+            if (!string.IsNullOrWhiteSpace(user.HomeLocation?.Timezone))
+                identity.AddClaim(new Claim(UnifiedClaimTypes.HomeLocationTimezone, user.HomeLocation.Timezone));
+        }
         identity.AddClaims(roles.Select(r => new Claim(ClaimTypes.Role, r)));
         identity.AddClaims(permissions.Select(p => new Claim(UnifiedClaimTypes.Permission, p)));
 

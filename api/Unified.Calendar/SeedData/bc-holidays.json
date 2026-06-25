@@ -1,0 +1,94 @@
+{
+  "Source": "Province of British Columbia statutory holidays",
+  "SourceUrl": "https://www2.gov.bc.ca/gov/content/employment-business/employment-standards-advice/employment-standards/statutory-holidays",
+  "Holidays": [
+    {
+      "Name": "New Year's Day",
+      "ActualDate": "2026-01-01"
+    },
+    {
+      "Name": "Family Day",
+      "ActualDate": "2026-02-16"
+    },
+    {
+      "Name": "Good Friday",
+      "ActualDate": "2026-04-03"
+    },
+    {
+      "Name": "Victoria Day",
+      "ActualDate": "2026-05-18"
+    },
+    {
+      "Name": "Canada Day",
+      "ActualDate": "2026-07-01"
+    },
+    {
+      "Name": "B.C. Day",
+      "ActualDate": "2026-08-03"
+    },
+    {
+      "Name": "Labour Day",
+      "ActualDate": "2026-09-07"
+    },
+    {
+      "Name": "National Day for Truth and Reconciliation",
+      "ActualDate": "2026-09-30"
+    },
+    {
+      "Name": "Thanksgiving Day",
+      "ActualDate": "2026-10-12"
+    },
+    {
+      "Name": "Remembrance Day",
+      "ActualDate": "2026-11-11"
+    },
+    {
+      "Name": "Christmas Day",
+      "ActualDate": "2026-12-25"
+    },
+    {
+      "Name": "New Year's Day",
+      "ActualDate": "2027-01-01"
+    },
+    {
+      "Name": "Family Day",
+      "ActualDate": "2027-02-15"
+    },
+    {
+      "Name": "Good Friday",
+      "ActualDate": "2027-03-26"
+    },
+    {
+      "Name": "Victoria Day",
+      "ActualDate": "2027-05-24"
+    },
+    {
+      "Name": "Canada Day",
+      "ActualDate": "2027-07-01"
+    },
+    {
+      "Name": "B.C. Day",
+      "ActualDate": "2027-08-02"
+    },
+    {
+      "Name": "Labour Day",
+      "ActualDate": "2027-09-06"
+    },
+    {
+      "Name": "National Day for Truth and Reconciliation",
+      "ActualDate": "2027-09-30"
+    },
+    {
+      "Name": "Thanksgiving Day",
+      "ActualDate": "2027-10-11"
+    },
+    {
+      "Name": "Remembrance Day",
+      "ActualDate": "2027-11-11"
+    },
+    {
+      "Name": "Christmas Day",
+      "ActualDate": "2027-12-25"
+    }
+  ]
+}

@@ -4,7 +4,14 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { RoleDto, RoleRequestDto, UpdateRoleRequestDto } from '../models';
+import type {
+  DeleteRoleWithReassignmentRequestDto,
+  DeletedRoleDto,
+  RoleAssignedUserDto,
+  RoleDto,
+  RoleRequestDto,
+  UpdateRoleRequestDto,
+} from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI';
 
@@ -22,6 +29,12 @@ export const postApiRoles = (
     options,
   );
 };
+export const getApiRolesIdUsers = (
+  id: number,
+  options?: SecondParameter<typeof useFetchAPI<RoleAssignedUserDto[]>>,
+) => {
+  return useFetchAPI<RoleAssignedUserDto[]>({ url: `/api/roles/${id}/users`, method: 'GET' }, options);
+};
 export const putApiRolesId = (
   id: number,
   updateRoleRequestDto: UpdateRoleRequestDto,
@@ -37,10 +50,29 @@ export const putApiRolesId = (
     options,
   );
 };
-export const deleteApiRolesId = (id: number, options?: SecondParameter<typeof useFetchAPI<void>>) => {
-  return useFetchAPI<void>({ url: `/api/roles/${id}`, method: 'DELETE' }, options);
+export const deleteApiRolesId = (id: number, options?: SecondParameter<typeof useFetchAPI<DeletedRoleDto>>) => {
+  return useFetchAPI<DeletedRoleDto>({ url: `/api/roles/${id}`, method: 'DELETE' }, options);
+};
+export const postApiRolesIdReassignAndDelete = (
+  id: number,
+  deleteRoleWithReassignmentRequestDto: DeleteRoleWithReassignmentRequestDto,
+  options?: SecondParameter<typeof useFetchAPI<DeletedRoleDto>>,
+) => {
+  return useFetchAPI<DeletedRoleDto>(
+    {
+      url: `/api/roles/${id}/reassign-and-delete`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: deleteRoleWithReassignmentRequestDto,
+    },
+    options,
+  );
 };
 export type GetApiRolesResult = NonNullable<Awaited<ReturnType<typeof getApiRoles>>>;
 export type PostApiRolesResult = NonNullable<Awaited<ReturnType<typeof postApiRoles>>>;
+export type GetApiRolesIdUsersResult = NonNullable<Awaited<ReturnType<typeof getApiRolesIdUsers>>>;
 export type PutApiRolesIdResult = NonNullable<Awaited<ReturnType<typeof putApiRolesId>>>;
 export type DeleteApiRolesIdResult = NonNullable<Awaited<ReturnType<typeof deleteApiRolesId>>>;
+export type PostApiRolesIdReassignAndDeleteResult = NonNullable<
+  Awaited<ReturnType<typeof postApiRolesIdReassignAndDelete>>
+>;

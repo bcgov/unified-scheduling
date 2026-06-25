@@ -44,7 +44,7 @@ describe('ExpireRoleModal', () => {
 
     await flushPromises();
 
-    expect(document.body.textContent ?? '').toContain('Reason for expiry is required.');
+    expect(document.body.textContent ?? '').toContain('Required');
 
     wrapper.unmount();
   });

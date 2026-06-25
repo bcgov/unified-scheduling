@@ -9,7 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { RoleDto } from '../models';
+import type { DeletedRoleDto, RoleAssignedUserDto, RoleDto } from '../models';
 
 export const getGetApiRolesResponseMock = (): RoleDto[] =>
   faker.helpers.arrayElement([
@@ -112,6 +112,31 @@ export const getPostApiRolesResponseMock = (overrideResponse: Partial<Extract<Ro
     },
   ]);
 
+export const getGetApiRolesIdUsersResponseMock = (): RoleAssignedUserDto[] =>
+  faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      isEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      isEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      isEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+    })),
+  ]);
+
 export const getPutApiRolesIdResponseMock = (overrideResponse: Partial<Extract<RoleDto, object>> = {}): RoleDto =>
   faker.helpers.arrayElement([
     {
@@ -164,6 +189,54 @@ export const getPutApiRolesIdResponseMock = (overrideResponse: Partial<Extract<R
     },
   ]);
 
+export const getDeleteApiRolesIdResponseMock = (
+  overrideResponse: Partial<Extract<DeletedRoleDto, object>> = {},
+): DeletedRoleDto =>
+  faker.helpers.arrayElement([
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      ...overrideResponse,
+    },
+  ]);
+
+export const getPostApiRolesIdReassignAndDeleteResponseMock = (
+  overrideResponse: Partial<Extract<DeletedRoleDto, object>> = {},
+): DeletedRoleDto =>
+  faker.helpers.arrayElement([
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      deletedBy: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      deletedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      ...overrideResponse,
+    },
+  ]);
+
 export const getGetApiRolesMockHandler = (
   overrideResponse?:
     | RoleDto[]
@@ -206,6 +279,28 @@ export const getPostApiRolesMockHandler = (
   );
 };
 
+export const getGetApiRolesIdUsersMockHandler = (
+  overrideResponse?:
+    | RoleAssignedUserDto[]
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<RoleAssignedUserDto[]> | RoleAssignedUserDto[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/roles/:id/users',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiRolesIdUsersResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
 export const getPutApiRolesIdMockHandler = (
   overrideResponse?: RoleDto | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<RoleDto> | RoleDto),
   options?: RequestHandlerOptions,
@@ -227,17 +322,44 @@ export const getPutApiRolesIdMockHandler = (
 };
 
 export const getDeleteApiRolesIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  overrideResponse?:
+    | DeletedRoleDto
+    | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<DeletedRoleDto> | DeletedRoleDto),
   options?: RequestHandlerOptions,
 ) => {
   return http.delete(
     '*/api/roles/:id',
     async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
-      if (typeof overrideResponse === 'function') {
-        await overrideResponse(info);
-      }
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getDeleteApiRolesIdResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 
-      return new HttpResponse(null, { status: 204 });
+export const getPostApiRolesIdReassignAndDeleteMockHandler = (
+  overrideResponse?:
+    | DeletedRoleDto
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<DeletedRoleDto> | DeletedRoleDto),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    '*/api/roles/:id/reassign-and-delete',
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPostApiRolesIdReassignAndDeleteResponseMock(),
+        { status: 200 },
+      );
     },
     options,
   );
@@ -245,6 +367,8 @@ export const getDeleteApiRolesIdMockHandler = (
 export const getRolesMock = () => [
   getGetApiRolesMockHandler(),
   getPostApiRolesMockHandler(),
+  getGetApiRolesIdUsersMockHandler(),
   getPutApiRolesIdMockHandler(),
   getDeleteApiRolesIdMockHandler(),
+  getPostApiRolesIdReassignAndDeleteMockHandler(),
 ];

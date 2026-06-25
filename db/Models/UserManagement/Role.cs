@@ -14,6 +14,10 @@ public class Role : BaseEntity
 
     public string Description { get; set; } = string.Empty;
 
+    public Guid? DeletedById { get; set; } = null;
+
+    public DateTimeOffset? DeletedOn { get; set; } = null;
+
     public virtual ICollection<UserRole> UserRoles { get; set; } = [];
 
     public virtual ICollection<RolePermission> RolePermissions { get; set; } = [];

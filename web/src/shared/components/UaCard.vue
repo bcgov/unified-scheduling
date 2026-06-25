@@ -5,16 +5,25 @@ withDefaults(
     title?: string;
     /** Override the header background color. Defaults to the theme header-green. */
     headerColor?: string;
+    /** Controls padding inside the card body. */
+    bodyPadding?: 'default' | 'none';
   }>(),
   {
     title: undefined,
     headerColor: undefined,
+    bodyPadding: 'default',
   },
 );
 </script>
 
 <template>
-  <div class="ua-card" :class="{ 'ua-card--has-header': !!title || $slots.header }">
+  <div
+    class="ua-card"
+    :class="{
+      'ua-card--has-header': !!title || $slots.header,
+      'ua-card--body-padding-none': bodyPadding === 'none',
+    }"
+  >
     <div
       v-if="title || $slots.header"
       class="ua-card__header"
@@ -65,6 +74,10 @@ withDefaults(
 
 .ua-card__body {
   padding: var(--ua-spacing-lg);
+}
+
+.ua-card--body-padding-none .ua-card__body {
+  padding: 0;
 }
 
 .ua-card__actions {

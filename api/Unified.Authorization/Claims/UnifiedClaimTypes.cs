@@ -37,4 +37,9 @@ public static class UnifiedClaimTypes
     /// The user's home location ID.
     /// </summary>
     public const string HomeLocationId = Prefix + nameof(HomeLocationId);
+
+    /// <summary>
+    /// The timezone for the user's home location.
+    /// </summary>
+    public const string HomeLocationTimezone = Prefix + nameof(HomeLocationTimezone);
 }

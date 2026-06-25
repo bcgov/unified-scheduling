@@ -6,10 +6,17 @@
  */
 
 export * from './assignUserRoleRequestDto';
+export * from './calendarEventResponse';
+export * from './calendarEventsRequest';
+export * from './calendarEventsRequestFilters';
+export * from './calendarEventStatusTypeCode';
+export * from './calendarEventTypeCode';
 export * from './configResponse';
 export * from './dashboardEntryResponse';
 export * from './dashboardSignOffRequest';
 export * from './dashboardSignOffResponse';
+export * from './deletedRoleDto';
+export * from './deleteRoleWithReassignmentRequestDto';
 export * from './dashboardSummaryResponse';
 export * from './expireUserRoleRequestDto';
 export * from './featureFlags';
@@ -28,6 +35,7 @@ export * from './permissionDto';
 export * from './permissions';
 export * from './problemDetails';
 export * from './regionDto';
+export * from './roleAssignedUserDto';
 export * from './roleDto';
 export * from './roleRequestDto';
 export * from './saveDayRecordItem';

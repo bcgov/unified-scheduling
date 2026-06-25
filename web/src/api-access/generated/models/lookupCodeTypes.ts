@@ -9,4 +9,6 @@ export type LookupCodeTypes = (typeof LookupCodeTypes)[keyof typeof LookupCodeTy
 
 export const LookupCodeTypes = {
   PositionTypes: 'PositionTypes',
+  EventTypes: 'EventTypes',
+  EventStatusTypes: 'EventStatusTypes',
 } as const;

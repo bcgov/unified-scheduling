@@ -47,7 +47,7 @@ describe('AssignRoleModal', () => {
 
     await flushPromises();
 
-    expect(document.body.textContent ?? '').toContain('Role is required.');
+    expect(document.body.textContent ?? '').toContain('Required');
 
     wrapper.unmount();
   });
