@@ -22,6 +22,13 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
                 EmployeeName = r.User != null ? $"{r.User.FirstName} {r.User.LastName}".Trim() : string.Empty,
                 BadgeNumber = r.User != null ? r.User.BadgeNumber : null,
                 Date = r.DateFrom,
+                GroupId =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.SubCategory != null
+                    && r.SubCategoryMetric.SubCategory.Category != null
+                        ? r.SubCategoryMetric.SubCategory.Category.GroupId
+                        : 0,
+                LocationId = r.LocationId,
                 WorkArea =
                     r.SubCategoryMetric != null
                     && r.SubCategoryMetric.SubCategory != null
@@ -89,6 +96,38 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         };
     }
 
+    public async Task<DashboardSignOffResponse> SignOffAsync(
+        int callerHomeLocationId,
+        Guid callerUserId,
+        DashboardSignOffRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Load only the requested entries, scoped to the caller's location for security.
+        // Only Draft or Submitted entries can be signed off.
+        var toSignOff = await db
+            .StatRecords.Where(r =>
+                r.User != null
+                && r.User.HomeLocationId == callerHomeLocationId
+                && request.EntryIds.Contains(r.Id)
+                && (r.Status == StatRecordStatus.Draft || r.Status == StatRecordStatus.Submitted)
+            )
+            .ToListAsync(cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var record in toSignOff)
+        {
+            record.Status = StatRecordStatus.SignedOff;
+            record.SignedOffByUserId = callerUserId;
+            record.SignedOffAt = now;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new DashboardSignOffResponse { SignedOffCount = toSignOff.Count };
+    }
+
     private IQueryable<StatRecord> BuildQuery(int callerHomeLocationId, DashboardEntriesQueryParams? queryParams)
     {
         var query = db
@@ -97,6 +136,14 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
 
         if (queryParams?.EmployeeId is Guid employeeId)
             query = query.Where(r => r.UserId == employeeId);
+
+        if (queryParams?.GroupId is int groupId)
+            query = query.Where(r =>
+                r.SubCategoryMetric != null
+                && r.SubCategoryMetric.SubCategory != null
+                && r.SubCategoryMetric.SubCategory.Category != null
+                && r.SubCategoryMetric.SubCategory.Category.GroupId == groupId
+            );
 
         if (queryParams?.CategoryName is { Length: > 0 } categoryName)
             query = query.Where(r =>
@@ -127,6 +174,9 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
                 && (EF.Functions.ILike(r.User.FirstName, pattern) || EF.Functions.ILike(r.User.LastName, pattern))
             );
         }
+
+        if (queryParams?.LocationId is int locationId)
+            query = query.Where(r => r.LocationId == locationId);
 
         return query;
     }

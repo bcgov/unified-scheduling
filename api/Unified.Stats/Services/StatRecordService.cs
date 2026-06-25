@@ -140,13 +140,15 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
     {
         EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
-        // Load all existing records for this user/location/date so we can diff within one transaction
+        // Load existing records for this user/location/date scoped to the same group so we can
+        // diff within one transaction without touching records that belong to other group forms.
         var existingRecords = await db
             .StatRecords.Where(r =>
                 r.UserId == request.UserId
                 && r.LocationId == request.LocationId
                 && r.DateFrom == request.Date
                 && r.DateTo == request.Date
+                && r.SubCategoryMetric!.SubCategory!.Category!.GroupId == request.GroupId
             )
             .ToListAsync(cancellationToken);
 

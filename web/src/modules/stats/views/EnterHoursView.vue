@@ -59,6 +59,7 @@ const parsedLocationId = Number(route.query.locationId);
 const seedLocationId = Number.isFinite(parsedLocationId) ? parsedLocationId : undefined;
 const rawDate = route.query.date as string | undefined;
 const seedDate = rawDate && DateTime.fromISO(rawDate).isValid ? rawDate : undefined;
+const seedEmployeeName = (route.query.employeeName as string | undefined) || undefined;
 
 // ── Reference data ────────────────────────────────────────────────────────
 const isLoadingReference = ref(true);
@@ -85,6 +86,15 @@ onMounted(async () => {
   if (seedLocationId) {
     const { data } = await getApiUsers({ LocationId: seedLocationId, IsEnabled: true });
     locationUsers.value = data.value ?? [];
+
+    // If the seeded user isn't in this location's list, inject them so the dropdown shows their name.
+    if (seedUserId && seedEmployeeName && !locationUsers.value.some((u) => u.id === seedUserId)) {
+      const [firstName, ...rest] = seedEmployeeName.split(' ');
+      locationUsers.value = [
+        { id: seedUserId, firstName: firstName ?? '', lastName: rest.join(' ') },
+        ...locationUsers.value,
+      ];
+    }
   }
 
   isLoadingReference.value = false;
@@ -275,7 +285,7 @@ async function handleSave(status: string) {
   isSaving.value = true;
   apiError.value = '';
   try {
-    const err = await saveDay(selectedDate.value, selectedAssignments.value, status);
+    const err = await saveDay(selectedDate.value, selectedAssignments.value, status, props.groupId);
     if (err) apiError.value = err;
   } finally {
     isSaving.value = false;
