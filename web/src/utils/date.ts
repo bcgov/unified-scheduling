@@ -132,7 +132,11 @@ export function toLocalDateTimeString(date: string, time?: string): string {
  * - ('2026-01-10', '08:30', 'America/Vancouver') => '2026-01-10T08:30:00.000-08:00'
  * - ('2026-01-10', '',      'America/Vancouver') => '2026-01-10T00:00:00.000-08:00'
  */
-export function toOffsetDateTimeString(date: string, time: string | undefined, timezone: string | null | undefined): string {
+export function toOffsetDateTimeString(
+  date: string,
+  time: string | undefined,
+  timezone: string | null | undefined,
+): string {
   const zone = timezone || 'UTC';
   const d = DateTime.fromFormat(date, DATE_FORMAT, { zone });
   if (!d.isValid) {

@@ -40,7 +40,11 @@ const emit = defineEmits<{
 const authStore = useAuthStore();
 const locationsStore = useLocationsStore();
 
-const timezone = computed(() =>  authStore.userInfo?.homeLocationId ? locationsStore.entitiesMap[authStore.userInfo.homeLocationId]?.timezone : 'America/Vancouver');
+const timezone = computed(() =>
+  authStore.userInfo?.homeLocationId
+    ? locationsStore.entitiesMap[authStore.userInfo.homeLocationId]?.timezone
+    : 'America/Vancouver',
+);
 
 const isEditMode = computed(() => !!props.position);
 const isSaving = ref(false);
@@ -164,8 +168,16 @@ function validateForm(): ActingPositionRequestDto | null {
 
   return {
     positionTypeCode: parsed.data.positionTypeCode,
-    startDateTime: toOffsetDateTimeString(parsed.data.startDate, addTime.value ? parsed.data.startTime : '', timezone.value),
-    endDateTime: toOffsetDateTimeString(parsed.data.endDate, addTime.value ? parsed.data.endTime : '23:59', timezone.value),
+    startDateTime: toOffsetDateTimeString(
+      parsed.data.startDate,
+      addTime.value ? parsed.data.startTime : '',
+      timezone.value,
+    ),
+    endDateTime: toOffsetDateTimeString(
+      parsed.data.endDate,
+      addTime.value ? parsed.data.endTime : '23:59',
+      timezone.value,
+    ),
     timezone: timezone.value ?? null,
     comment: parsed.data.comment ?? null,
   };
@@ -255,7 +267,9 @@ const handleSave = async () => {
         />
       </div>
 
-      <label class="ua-form-label" for="acting-position-end-date">{{ addTime || formData.endTime ? 'End Date & Time' : 'End Date' }}</label>
+      <label class="ua-form-label" for="acting-position-end-date">{{
+        addTime || formData.endTime ? 'End Date & Time' : 'End Date'
+      }}</label>
       <div class="ua-date-time-row">
         <UaTextField
           id="acting-position-end-date"
