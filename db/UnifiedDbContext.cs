@@ -3,6 +3,7 @@ using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Stats;
+using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db;
@@ -26,6 +27,9 @@ public class UnifiedDbContext : DbContext
     public DbSet<PositionType> PositionTypes { get; set; }
     public DbSet<EventSeries> EventSeries { get; set; }
     public DbSet<Event> Events { get; set; }
+    public DbSet<TrainingCategory> TrainingCategories { get; set; }
+    public DbSet<Training> Trainings { get; set; }
+    public DbSet<UserTraining> UserTrainings { get; set; }
 
     // Stats
     public DbSet<StatGroup> StatGroups { get; set; }
