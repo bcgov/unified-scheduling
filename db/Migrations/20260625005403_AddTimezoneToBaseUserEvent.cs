@@ -15,15 +15,14 @@ namespace Unified.Db.Migrations
                 table: "UserActingPositions",
                 type: "character varying(100)",
                 maxLength: 100,
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Timezone",
-                table: "UserActingPositions");
+            migrationBuilder.DropColumn(name: "Timezone", table: "UserActingPositions");
         }
     }
 }
