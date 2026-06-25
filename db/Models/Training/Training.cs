@@ -14,7 +14,7 @@ public class Training : BaseEntity
     public string Description { get; set; } = string.Empty;
 
     public bool Mandatory { get; set; }
-    
+
     // Signifies how long the training is valid for in days. If null, always valid.
     public int? ValidityDays { get; set; }
 

@@ -28,7 +28,12 @@ public class UserTrainingConfiguration : BaseEntityConfiguration<UserTraining>
         builder.HasIndex(b => b.UserId);
         builder.HasIndex(b => b.TrainingId);
         builder.HasIndex(b => b.ExpiryDate);
-        builder.HasIndex(b => new { b.UserId, b.TrainingId, b.AwardedOn });
+        builder.HasIndex(b => new
+        {
+            b.UserId,
+            b.TrainingId,
+            b.AwardedOn,
+        });
 
         base.Configure(builder);
     }

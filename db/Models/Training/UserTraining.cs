@@ -12,7 +12,6 @@ public class UserTraining : BaseEntity
     [Required]
     public Guid UserId { get; set; }
 
-
     [Required]
     public int TrainingId { get; set; }
 
@@ -29,9 +28,8 @@ public class UserTraining : BaseEntity
     public string? Notes { get; set; }
 
     public virtual User User { get; set; } = null!;
-    
-    public virtual Training Training { get; set; } = null!;
 
+    public virtual Training Training { get; set; } = null!;
 }
 
 public static class UserTrainingNoticeStates
