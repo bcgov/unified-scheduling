@@ -107,7 +107,6 @@ function clearAll() {
   fromDate.value = null;
   toDate.value = null;
   groupError.value = false;
-  emit('apply');
 }
 </script>
 

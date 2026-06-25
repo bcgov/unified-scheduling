@@ -1,35 +1,13 @@
 <script setup lang="ts">
-import type {
-  StatCategoryResponse,
-  StatGroupResponse,
-  StatMetricResponse,
-  SubCategoryMetricResponse,
-  SubCategoryResponse,
-  UserResponse,
-} from '@/api-access/generated/models';
-import { Permissions } from '@/api-access/generated/models';
-import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
-import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
-import { getApiStatsMetrics } from '@/api-access/generated/stat-metrics/stat-metrics';
-import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
-import { getApiStatsSubCategoryMetrics } from '@/api-access/generated/sub-category-metrics/sub-category-metrics';
-import { getApiUsers } from '@/api-access/generated/users/users';
-import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
-import { useAuthStore } from '@/stores/auth';
-import { useLocationsStore } from '@/stores/LocationsStore';
-import type { SelectValue } from '@/types/select';
 import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
-import { DateTime } from 'luxon';
-import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed } from 'vue';
 import DayDetailPanel from '../components/DayDetailPanel.vue';
 import WeeklyGrid from '../components/WeeklyGrid.vue';
-import { getMondayOfWeek, useWeeklyRecords } from '../composables/useWeeklyRecords';
-import { DAILY_REGULAR_TARGET_HOURS, EntryStatus } from '../constants';
-import type { DayAssignment } from '../types';
+import { useEnterHours } from '../composables/useEnterHours';
+import { EntryStatus } from '../constants';
 
 const props = defineProps<{
   /** 1 = Non-Supervision, 2 = Supervision. Locks all assignments to that group. */
@@ -47,250 +25,42 @@ const formTitle = computed(() => {
   return 'Enter Hours Worked';
 });
 
-// ── Auth ──────────────────────────────────────────────────────────────────
-const authStore = useAuthStore();
-const { hasPermission } = useAccessControl();
-const canEnterForOthers = computed(() => hasPermission(Permissions.StatsRecordsEnterForOthers));
-
-// ── Deep-link query params (optional pre-seed from dashboard edit) ─────────
-const route = useRoute();
-const seedUserId = route.query.userId as string | undefined;
-const parsedLocationId = Number(route.query.locationId);
-const seedLocationId = Number.isFinite(parsedLocationId) ? parsedLocationId : undefined;
-const rawDate = route.query.date as string | undefined;
-const seedDate = rawDate && DateTime.fromISO(rawDate).isValid ? rawDate : undefined;
-const seedEmployeeName = (route.query.employeeName as string | undefined) || undefined;
-
-// ── Reference data ────────────────────────────────────────────────────────
-const isLoadingReference = ref(true);
-const groups = ref<StatGroupResponse[]>([]);
-const categories = ref<StatCategoryResponse[]>([]);
-const subCategories = ref<SubCategoryResponse[]>([]);
-const metrics = ref<StatMetricResponse[]>([]);
-const subCategoryMetrics = ref<SubCategoryMetricResponse[]>([]);
-
-onMounted(async () => {
-  const [groupsRes, catsRes, subCatsRes, metricsRes, scmRes] = await Promise.all([
-    getApiStatsGroups(),
-    getApiStatsCategories(),
-    getApiStatsSubCategories(),
-    getApiStatsMetrics(),
-    getApiStatsSubCategoryMetrics(),
-  ]);
-  groups.value = groupsRes.data.value ?? [];
-  categories.value = catsRes.data.value ?? [];
-  subCategories.value = subCatsRes.data.value ?? [];
-  metrics.value = metricsRes.data.value ?? [];
-  subCategoryMetrics.value = scmRes.data.value ?? [];
-
-  if (seedLocationId) {
-    const { data } = await getApiUsers({ LocationId: seedLocationId, IsEnabled: true });
-    locationUsers.value = data.value ?? [];
-
-    // If the seeded user isn't in this location's list, inject them so the dropdown shows their name.
-    if (seedUserId && seedEmployeeName && !locationUsers.value.some((u) => u.id === seedUserId)) {
-      const [firstName, ...rest] = seedEmployeeName.split(' ');
-      locationUsers.value = [
-        { id: seedUserId, firstName: firstName ?? '', lastName: rest.join(' ') },
-        ...locationUsers.value,
-      ];
-    }
-  }
-
-  isLoadingReference.value = false;
-
-  if (seedDate && seedLocationId && seedUserId) {
-    await loadWeek();
-    onSelectDay(seedDate);
-  }
-});
-
-// ── Location ──────────────────────────────────────────────────────────────
-const locationsStore = useLocationsStore();
-const locationOptions = computed(() => locationsStore.getSelectOptions());
-const selectedLocationId = ref<number | null>(seedLocationId ?? null);
-
-const onLocationChange = (value: SelectValue | undefined) => {
-  selectedLocationId.value = value != null ? Number(value) : null;
-};
-
-// ── Supervisor user picker ────────────────────────────────────────────────
-const locationUsers = ref<UserResponse[]>([]);
-const selectedUserId = ref<string | null>(seedUserId ?? (canEnterForOthers.value ? null : authStore.currentUserId));
-let activeLocationId: number | null = null;
-
-const userOptions = computed(() =>
-  locationUsers.value.map((u) => ({ code: u.id, description: `${u.firstName} ${u.lastName}` })),
-);
-
-async function loadUsersForLocation(locationId: number) {
-  activeLocationId = locationId;
-  const { data } = await getApiUsers({ LocationId: locationId, IsEnabled: true });
-  if (activeLocationId !== locationId) return;
-  locationUsers.value = data.value ?? [];
-  const currentAtLocation = locationUsers.value.some((u) => u.id === authStore.currentUserId);
-  selectedUserId.value = currentAtLocation ? (authStore.currentUserId ?? null) : null;
-}
-
-watch(selectedLocationId, async (locId) => {
-  if (canEnterForOthers.value && locId) {
-    locationUsers.value = [];
-    selectedUserId.value = null;
-    await loadUsersForLocation(locId);
-    // userId change triggers loadWeek reactively via useWeeklyRecords
-  } else {
-    selectedUserId.value = authStore.currentUserId;
-    // locationId change triggers loadWeek reactively via useWeeklyRecords
-  }
-});
-
-// ── Week navigation ───────────────────────────────────────────────────────
-const weekRangeLabel = computed(() => {
-  const dates = weekDates.value;
-  if (dates.length < 7) return '';
-  const from = DateTime.fromISO(dates[0]);
-  const to = DateTime.fromISO(dates[6]);
-  return `${from.toFormat('MMM d')} – ${to.toFormat('MMM d')}, ${to.year}`;
-});
-
-// ── Weekly records composable ─────────────────────────────────────────────
 const {
+  canEnterForOthers,
+  seedLocationId,
+  seedUserId,
+  isLoadingReference,
+  groups,
+  categories,
+  subCategories,
+  metrics,
+  subCategoryMetrics,
+  locationOptions,
+  selectedLocationId,
+  onLocationChange,
+  selectedUserId,
+  userOptions,
   weekDates,
-  dayAssignmentsMap,
   dayStatusMap,
   daySummaryMap,
   weeklyRegularTotal,
   weeklyOvertimeTotal,
   isOvertimeEnabled,
   isLoading,
-  error: loadError,
-  loadWeek,
-  saveDay,
+  loadError,
   navigateWeek,
-  createEmptyAssignment,
-} = useWeeklyRecords(
-  getMondayOfWeek(seedDate ? DateTime.fromISO(seedDate) : DateTime.now()),
-  selectedLocationId,
-  selectedUserId,
-  subCategories,
-  categories,
-  subCategoryMetrics,
-  metrics,
-);
-
-// ── Selected day ──────────────────────────────────────────────────────────
-const selectedDate = ref<string | null>(null);
-
-const selectedAssignments = computed({
-  get: () => {
-    if (!selectedDate.value) return [];
-    return dayAssignmentsMap.value[selectedDate.value] ?? [];
-  },
-  set: (val: DayAssignment[]) => {
-    if (selectedDate.value) dayAssignmentsMap.value[selectedDate.value] = val;
-  },
-});
-
-function onSelectDay(date: string) {
-  selectedDate.value = date;
-  // Ensure at least one empty assignment row for the selected day
-  if (!dayAssignmentsMap.value[date] || dayAssignmentsMap.value[date].length === 0) {
-    dayAssignmentsMap.value[date] = [createEmptyAssignment(props.groupId)];
-  }
-  dayErrors.value = {};
-  apiError.value = '';
-}
-
-// ── Day detail mutations ──────────────────────────────────────────────────
-function addAssignment() {
-  if (!selectedDate.value) return;
-  dayAssignmentsMap.value[selectedDate.value] = [...selectedAssignments.value, createEmptyAssignment(props.groupId)];
-}
-
-function removeAssignment(id: string) {
-  if (!selectedDate.value) return;
-  const remaining = selectedAssignments.value.filter((a) => a.id !== id);
-  dayAssignmentsMap.value[selectedDate.value] =
-    remaining.length > 0 ? remaining : [createEmptyAssignment(props.groupId)];
-}
-
-function updateAssignment(updated: DayAssignment) {
-  if (!selectedDate.value) return;
-  dayAssignmentsMap.value[selectedDate.value] = selectedAssignments.value.map((a) =>
-    a.id === updated.id ? updated : a,
-  );
-}
-
-// ── Validation ────────────────────────────────────────────────────────────
-const dayErrors = ref<Record<string, string>>({});
-const apiError = ref('');
-const isSaving = ref(false);
-
-function validate(assignments: DayAssignment[]): boolean {
-  const errors: Record<string, string> = {};
-
-  let dayTotalHours = 0;
-
-  for (const [i, assignment] of assignments.entries()) {
-    if (!assignment.categoryId) {
-      errors[`assignment_${i}_category`] = 'Work Area is required';
-    }
-    if (!assignment.subCategoryId) {
-      errors[`assignment_${i}_subCategory`] = 'Subcategory is required';
-    }
-
-    const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
-    let hasValue = false;
-
-    for (const scm of scms) {
-      if (!scm.id) continue;
-      const raw = assignment.metricValues[scm.id];
-      if (!raw || raw.trim() === '') continue;
-
-      const val = parseFloat(raw);
-      if (isNaN(val)) {
-        errors[`assignment_${i}_metric_${scm.id}`] = 'Must be a valid number';
-        continue;
-      }
-
-      hasValue = true;
-      const metric = metrics.value.find((m) => m.id === scm.metricId);
-      const isRegular = metric?.unitOfMeasure === 'hours' && !metric.name?.toLowerCase().includes('overtime');
-
-      if (isRegular && val > DAILY_REGULAR_TARGET_HOURS) {
-        errors[`assignment_${i}_metric_${scm.id}`] =
-          `Regular hours cannot exceed ${DAILY_REGULAR_TARGET_HOURS} per day`;
-      }
-
-      if (metric?.unitOfMeasure === 'hours') dayTotalHours += val;
-    }
-
-    if (!hasValue && assignment.subCategoryId) {
-      errors[`assignment_${i}`] = 'Enter at least one metric value';
-    }
-  }
-
-  if (dayTotalHours > 24) {
-    errors['day'] = `Total hours (${dayTotalHours}h) cannot exceed 24h per day`;
-  }
-
-  dayErrors.value = errors;
-  return Object.keys(errors).length === 0;
-}
-
-async function handleSave(status: string) {
-  if (!selectedDate.value) return;
-  if (!validate(selectedAssignments.value)) return;
-
-  isSaving.value = true;
-  apiError.value = '';
-  try {
-    const err = await saveDay(selectedDate.value, selectedAssignments.value, status, props.groupId);
-    if (err) apiError.value = err;
-  } finally {
-    isSaving.value = false;
-  }
-}
+  weekRangeLabel,
+  selectedDate,
+  selectedAssignments,
+  onSelectDay,
+  addAssignment,
+  removeAssignment,
+  updateAssignment,
+  dayErrors,
+  apiError,
+  isSaving,
+  handleSave,
+} = useEnterHours(props.groupId);
 </script>
 
 <template>
@@ -314,7 +84,7 @@ async function handleSave(status: string) {
           />
         </div>
 
-        <!-- Supervisor user picker -->
+        <!-- Employee picker (supervisors only) -->
         <div v-if="canEnterForOthers" class="header-field">
           <label class="field-label">Employee</label>
           <UaSelect

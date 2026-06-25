@@ -6,3 +6,10 @@ export const EntryStatus = {
   Submitted: 'Submitted',
   SignedOff: 'SignedOff',
 } as const;
+
+// Maps stat group DB IDs to their entry form route names.
+// Group 1 = Non-Supervision, Group 2 = Supervision (see StatsModule.ts route definitions).
+export const GROUP_ROUTE: Record<number, string> = {
+  1: 'NonSupervisionForm',
+  2: 'SupervisionForm',
+};

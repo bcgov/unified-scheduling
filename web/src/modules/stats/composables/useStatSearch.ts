@@ -18,6 +18,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
+import type { SelectOption } from '@/types/select';
 
 export function useStatSearch() {
   const authStore = useAuthStore();
@@ -56,6 +57,8 @@ export function useStatSearch() {
   const isLoadingSummary = ref(false);
 
   const error = ref('');
+
+  const locationOptions = computed<SelectOption[]>(() => locationsStore.getSelectOptions());
 
   // Merge location users with any additional employees found in entries (e.g. loaned staff)
   const employees = computed(() => {
@@ -192,9 +195,9 @@ export function useStatSearch() {
     summary,
     isLoadingSummary,
     error,
+    locationOptions,
     loadReferenceData,
     applyFilters,
     signOff,
-    locationsStore,
   };
 }

@@ -15,37 +15,29 @@ namespace Unified.Db.Migrations
                 name: "SignedOffAt",
                 table: "StatRecords",
                 type: "timestamp with time zone",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<Guid>(
                 name: "SignedOffByUserId",
                 table: "StatRecords",
                 type: "uuid",
-                nullable: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_HomeLocationId",
-                table: "Users",
-                column: "HomeLocationId");
+                nullable: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_StatRecords_SignedOffByUserId",
                 table: "StatRecords",
-                column: "SignedOffByUserId");
+                column: "SignedOffByUserId"
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_StatRecords_Users_SignedOffByUserId",
                 table: "StatRecords",
                 column: "SignedOffByUserId",
                 principalTable: "Users",
-                principalColumn: "Id");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_Users_Locations_HomeLocationId",
-                table: "Users",
-                column: "HomeLocationId",
-                principalTable: "Locations",
-                principalColumn: "Id");
+                principalColumn: "Id"
+            );
         }
 
         /// <inheritdoc />
@@ -53,27 +45,17 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_StatRecords_Users_SignedOffByUserId",
-                table: "StatRecords");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_Users_Locations_HomeLocationId",
-                table: "Users");
-
-            migrationBuilder.DropIndex(
-                name: "IX_Users_HomeLocationId",
-                table: "Users");
+                table: "StatRecords"
+            );
 
             migrationBuilder.DropIndex(
                 name: "IX_StatRecords_SignedOffByUserId",
-                table: "StatRecords");
+                table: "StatRecords"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "SignedOffAt",
-                table: "StatRecords");
+            migrationBuilder.DropColumn(name: "SignedOffAt", table: "StatRecords");
 
-            migrationBuilder.DropColumn(
-                name: "SignedOffByUserId",
-                table: "StatRecords");
+            migrationBuilder.DropColumn(name: "SignedOffByUserId", table: "StatRecords");
         }
     }
 }

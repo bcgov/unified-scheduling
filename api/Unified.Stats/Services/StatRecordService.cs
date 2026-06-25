@@ -154,8 +154,10 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
 
         var incomingIds = request.Records.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).ToHashSet();
 
-        // Delete records no longer present in the incoming set
-        var toDelete = existingRecords.Where(r => !incomingIds.Contains(r.Id)).ToList();
+        // Delete records no longer present in the incoming set; signed-off records are immutable.
+        var toDelete = existingRecords
+            .Where(r => !incomingIds.Contains(r.Id) && r.Status != StatRecordStatus.SignedOff)
+            .ToList();
         db.StatRecords.RemoveRange(toDelete);
 
         var results = new List<StatRecord>();
@@ -166,8 +168,8 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
             {
                 // Update existing record
                 var entity = existingRecords.FirstOrDefault(r => r.Id == item.Id.Value);
-                if (entity is null)
-                    continue; // stale ID — skip rather than error
+                if (entity is null || entity.Status == StatRecordStatus.SignedOff)
+                    continue; // stale ID or signed-off — skip
 
                 entity.SubCategoryMetricId = item.SubCategoryMetricId;
                 entity.Value = item.Value;

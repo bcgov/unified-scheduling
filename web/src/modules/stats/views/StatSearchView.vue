@@ -9,7 +9,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import DashboardFilters from '../components/DashboardFilters.vue';
 import SignOffConfirmModal from '../components/SignOffConfirmModal.vue';
-import { EntryStatus } from '../constants';
+import { EntryStatus, GROUP_ROUTE } from '../constants';
 import { useStatSearch } from '../composables/useStatSearch';
 import type { DashboardEntryResponse } from '@/api-access/generated/models';
 
@@ -36,10 +36,10 @@ const {
   toDate,
   error,
   summary,
+  locationOptions,
   loadReferenceData,
   applyFilters,
   signOff,
-  locationsStore,
 } = useStatSearch();
 
 onMounted(async () => {
@@ -70,8 +70,6 @@ function statusColor(s: string | undefined) {
 }
 
 // ── Edit: open in new tab pre-seeded with the entry's user/date/location ───
-const GROUP_ROUTE: Record<number, string> = { 1: 'NonSupervisionForm', 2: 'SupervisionForm' };
-
 function openEdit(item: (typeof entries.value)[number]) {
   const itemGroupId = item.groupId;
   const locationId = item.locationId;
@@ -182,7 +180,13 @@ async function onSignOffConfirm(entryIds: number[]) {
           </template>
 
           <template v-if="canEditEntries" #[`item.actions`]="{ item }">
-            <v-btn icon variant="text" size="small" @click="openEdit(item)">
+            <v-btn
+              v-if="item.status !== EntryStatus.SignedOff"
+              icon
+              variant="text"
+              size="small"
+              @click="openEdit(item)"
+            >
               <v-icon :icon="mdiPencil" />
             </v-btn>
           </template>
@@ -220,7 +224,7 @@ async function onSignOffConfirm(entryIds: number[]) {
         v-model:to-date="toDate"
         :groups="groups"
         :employees="employees"
-        :locations="locationsStore.getSelectOptions()"
+        :locations="locationOptions"
         :categories="categories"
         :sub-categories="subCategories"
         :loading="isLoadingEntries"
