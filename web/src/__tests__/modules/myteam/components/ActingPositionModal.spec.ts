@@ -283,7 +283,10 @@ describe('ActingPositionModal', () => {
     await flushPromises();
 
     expect(wrapper.emitted('saved')).toBeTruthy();
-    expect(capturedBody).toMatchObject({ startDateTime: '2026-01-10T08:30:00.000-08:00', endDateTime: '2026-01-10T17:00:00.000-08:00' });
+    expect(capturedBody).toMatchObject({
+      startDateTime: '2026-01-10T08:30:00.000-08:00',
+      endDateTime: '2026-01-10T17:00:00.000-08:00',
+    });
 
     wrapper.unmount();
   });

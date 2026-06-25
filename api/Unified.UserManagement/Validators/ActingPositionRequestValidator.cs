@@ -1,4 +1,5 @@
 using FluentValidation;
+using Unified.Common.Helpers.Extensions;
 using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Validators;
@@ -16,14 +17,14 @@ public class ActingPositionRequestValidator : AbstractValidator<ActingPositionRe
         RuleFor(x => x.StartDateTime).NotEmpty().WithMessage("StartDateTime is required.");
 
         RuleFor(x => x.StartDateTime)
-            .Must(x => DateTimeOffset.TryParse(x, out _))
+            .Must(x => DateTimeOffsetExtensions.IsValidIsoDateTimeWithOffset(x))
             .When(x => !string.IsNullOrEmpty(x.StartDateTime))
             .WithMessage("StartDateTime must be a valid ISO 8601 datetime with UTC offset.");
 
         RuleFor(x => x.EndDateTime).NotEmpty().WithMessage("EndDateTime is required.");
 
         RuleFor(x => x.EndDateTime)
-            .Must(x => DateTimeOffset.TryParse(x, out _))
+            .Must(x => DateTimeOffsetExtensions.IsValidIsoDateTimeWithOffset(x))
             .When(x => !string.IsNullOrEmpty(x.EndDateTime))
             .WithMessage("EndDateTime must be a valid ISO 8601 datetime with UTC offset.");
 
@@ -33,6 +34,8 @@ public class ActingPositionRequestValidator : AbstractValidator<ActingPositionRe
                 if (
                     string.IsNullOrEmpty(x.StartDateTime)
                     || string.IsNullOrEmpty(x.EndDateTime)
+                    || !DateTimeOffsetExtensions.IsValidIsoDateTimeWithOffset(x.StartDateTime)
+                    || !DateTimeOffsetExtensions.IsValidIsoDateTimeWithOffset(x.EndDateTime)
                     || !DateTimeOffset.TryParse(x.StartDateTime, out var start)
                     || !DateTimeOffset.TryParse(x.EndDateTime, out var end)
                 )
