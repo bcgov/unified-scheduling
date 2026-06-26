@@ -493,7 +493,7 @@ function projectShiftEvent(event: CalendarMatrixTestShiftEntry, days: string[]):
       title: event.title,
       start: `${date}T${event.startTime}`,
       end: `${date}T${event.endTime}`,
-      status: event.status,
+      statusTypeCode: event.status,
       resourceIds: [event.userId],
       matrixTest: {
         dayIndex: event.dayIndex,
@@ -546,7 +546,7 @@ function projectAssignmentEvent(
       title: event.title,
       start: `${date}T${event.startTime}`,
       end: `${date}T${event.endTime}`,
-      status: event.status,
+      statusTypeCode: event.status,
       color: calendarMatrixTestColorMap[event.colorId],
       resourceIds: [event.assignmentId],
       matrixTest: {
