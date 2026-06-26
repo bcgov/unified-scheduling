@@ -9,7 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { DashboardEntryResponse, DashboardSummaryResponse } from '../models';
+import type { DashboardEntryResponse, DashboardSignOffResponse, DashboardSummaryResponse } from '../models';
 
 export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResponse[] =>
   faker.helpers.arrayElement([
@@ -22,6 +22,8 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
         undefined,
       ]),
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
@@ -39,6 +41,8 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
         undefined,
       ]),
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
@@ -56,6 +60,8 @@ export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResp
         undefined,
       ]),
       date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       workArea: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       subcategory: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       metricName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
@@ -91,6 +97,15 @@ export const getGetApiStatsDashboardSummaryResponseMock = (
       totalEntries: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
+  ]);
+
+export const getPostApiStatsDashboardSignOffResponseMock = (
+  overrideResponse: Partial<Extract<DashboardSignOffResponse, object>> = {},
+): DashboardSignOffResponse =>
+  faker.helpers.arrayElement([
+    { signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
+    { signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
+    { signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
   ]);
 
 export const getGetApiStatsDashboardEntriesMockHandler = (
@@ -140,7 +155,32 @@ export const getGetApiStatsDashboardSummaryMockHandler = (
     options,
   );
 };
+
+export const getPostApiStatsDashboardSignOffMockHandler = (
+  overrideResponse?:
+    | DashboardSignOffResponse
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<DashboardSignOffResponse> | DashboardSignOffResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    '*/api/stats/dashboard/sign-off',
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPostApiStatsDashboardSignOffResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 export const getDashboardMock = () => [
   getGetApiStatsDashboardEntriesMockHandler(),
   getGetApiStatsDashboardSummaryMockHandler(),
+  getPostApiStatsDashboardSignOffMockHandler(),
 ];

@@ -2,27 +2,39 @@ import type {
   DashboardEntryResponse,
   DashboardSummaryResponse,
   StatCategoryResponse,
+  StatGroupResponse,
   SubCategoryResponse,
 } from '@/api-access/generated/models';
-import { getApiStatsDashboardEntries, getApiStatsDashboardSummary } from '@/api-access/generated/dashboard/dashboard';
+import {
+  getApiStatsDashboardEntries,
+  getApiStatsDashboardSummary,
+  postApiStatsDashboardSignOff,
+} from '@/api-access/generated/dashboard/dashboard';
 import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
+import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
 import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
 import { getApiUsers } from '@/api-access/generated/users/users';
 import { useAuthStore } from '@/stores/auth';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
+import type { SelectOption } from '@/types/select';
 
 export function useStatSearch() {
   const authStore = useAuthStore();
+  const locationsStore = useLocationsStore();
 
   // ── Reference data ──────────────────────────────────────────────────────
   const locationUsers = ref<{ id: string; name: string }[]>([]);
+  const groups = ref<StatGroupResponse[]>([]);
   const categories = ref<StatCategoryResponse[]>([]);
   const subCategories = ref<SubCategoryResponse[]>([]);
   const isLoadingReference = ref(false);
 
   // ── Filter state ────────────────────────────────────────────────────────
+  const groupId = ref<number | null>(null);
   const employeeId = ref<string | null>(null);
+  const locationId = ref<number | null>(null);
   const categoryName = ref<string | null>(null);
   const subCategoryId = ref<number | null>(null);
   const status = ref<string | null>(null);
@@ -46,6 +58,8 @@ export function useStatSearch() {
 
   const error = ref('');
 
+  const locationOptions = computed<SelectOption[]>(() => locationsStore.getSelectOptions());
+
   // Merge location users with any additional employees found in entries (e.g. loaned staff)
   const employees = computed(() => {
     const map = new Map<string, string>();
@@ -63,11 +77,17 @@ export function useStatSearch() {
   async function loadReferenceData() {
     isLoadingReference.value = true;
     try {
-      const [catsRes, subCatsRes, usersRes] = await Promise.all([
+      const [groupsRes, catsRes, subCatsRes, usersRes] = await Promise.all([
+        getApiStatsGroups(),
         getApiStatsCategories(),
         getApiStatsSubCategories(),
         getApiUsers({ LocationId: authStore.homeLocationId ?? undefined, IsEnabled: true }),
+        locationsStore.getEntities(),
       ]);
+      if (groupsRes.error.value) {
+        error.value = groupsRes.error.value.message ?? 'Failed to load groups.';
+        return;
+      }
       if (catsRes.error.value) {
         error.value = catsRes.error.value.message ?? 'Failed to load categories.';
         return;
@@ -80,6 +100,7 @@ export function useStatSearch() {
         error.value = usersRes.error.value.message ?? 'Failed to load users.';
         return;
       }
+      groups.value = groupsRes.data.value ?? [];
       categories.value = catsRes.data.value ?? [];
       subCategories.value = subCatsRes.data.value ?? [];
       locationUsers.value = (usersRes.data.value ?? [])
@@ -94,7 +115,9 @@ export function useStatSearch() {
 
   function buildQueryParams() {
     return {
+      GroupId: groupId.value ?? undefined,
       EmployeeId: employeeId.value ?? undefined,
+      LocationId: locationId.value ?? undefined,
       CategoryName: categoryName.value ?? undefined,
       SubCategoryId: subCategoryId.value ?? undefined,
       Status: status.value ?? undefined,
@@ -120,10 +143,6 @@ export function useStatSearch() {
     }
   }
 
-  async function applyFilters() {
-    await Promise.all([loadEntries(), loadSummary()]);
-  }
-
   async function loadSummary() {
     isLoadingSummary.value = true;
     try {
@@ -140,12 +159,32 @@ export function useStatSearch() {
     }
   }
 
+  async function applyFilters() {
+    await Promise.all([loadEntries(), loadSummary()]);
+  }
+
+  async function signOff(entryIds: number[]): Promise<string | null> {
+    error.value = '';
+    try {
+      const res = await postApiStatsDashboardSignOff({ entryIds });
+      if (res.error.value) {
+        return res.error.value.message ?? 'Sign-off failed.';
+      }
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : 'Sign-off failed.';
+    }
+  }
+
   return {
+    groups,
     employees,
     categories,
     subCategories,
     isLoadingReference,
+    groupId,
     employeeId,
+    locationId,
     categoryName,
     subCategoryId,
     status,
@@ -156,7 +195,9 @@ export function useStatSearch() {
     summary,
     isLoadingSummary,
     error,
+    locationOptions,
     loadReferenceData,
     applyFilters,
+    signOff,
   };
 }
