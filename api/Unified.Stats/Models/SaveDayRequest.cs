@@ -6,6 +6,7 @@ public sealed record SaveDayRequest
     public required int LocationId { get; init; }
     public required Guid UserId { get; init; }
     public required string Status { get; init; }
+    public required int GroupId { get; init; }
     public required IReadOnlyList<SaveDayRecordItem> Records { get; init; }
 }
 

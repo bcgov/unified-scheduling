@@ -15,4 +15,11 @@ public interface IDashboardService
         DashboardEntriesQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
     );
+
+    Task<DashboardSignOffResponse> SignOffAsync(
+        int callerHomeLocationId,
+        Guid callerUserId,
+        DashboardSignOffRequest request,
+        CancellationToken cancellationToken = default
+    );
 }

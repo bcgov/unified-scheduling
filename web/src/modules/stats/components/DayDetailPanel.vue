@@ -8,7 +8,7 @@ import type {
 } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
-import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiPlus } from '@mdi/js';
+import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiCheckAll, mdiPlus } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
 import type { DayAssignment, EntryStatus } from '../types';
@@ -84,6 +84,10 @@ const overtimeLockReason = computed(() => {
         <div v-else-if="dayStatus === 'Submitted'" class="status-badge status-badge--submitted">
           <v-icon :icon="mdiCheckCircleOutline" size="14" />
           Submitted
+        </div>
+        <div v-else-if="dayStatus === 'SignedOff'" class="status-badge status-badge--signed-off">
+          <v-icon :icon="mdiCheckAll" size="14" />
+          Signed Off
         </div>
         <div v-if="!overtimeEnabled" class="overtime-locked-badge">
           <v-icon :icon="mdiLockOutline" size="14" />
@@ -207,6 +211,12 @@ const overtimeLockReason = computed(() => {
   color: rgb(var(--v-theme-success));
   background: rgba(var(--v-theme-success), 0.12);
   border: 1px solid rgba(var(--v-theme-success), 0.3);
+}
+
+.status-badge--signed-off {
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
+  border: 1px solid rgba(var(--v-theme-primary), 0.3);
 }
 
 .day-detail-panel__assignments {

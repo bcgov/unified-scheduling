@@ -207,8 +207,14 @@ export function useWeeklyRecords(
       const newStatusMap: Record<string, EntryStatus> = {};
       for (const date of weekDates.value) {
         newMap[date] = reconstructAssignments(byDate[date]);
-        const s = byDate[date][0]?.status;
-        newStatusMap[date] = s === EntryStatusValues.Draft || s === EntryStatusValues.Submitted ? s : '';
+        const statuses = (byDate[date] ?? []).map((r) => r.status);
+        newStatusMap[date] = statuses.includes(EntryStatusValues.Draft)
+          ? EntryStatusValues.Draft
+          : statuses.includes(EntryStatusValues.Submitted)
+            ? EntryStatusValues.Submitted
+            : statuses.includes(EntryStatusValues.SignedOff)
+              ? EntryStatusValues.SignedOff
+              : '';
       }
       dayAssignmentsMap.value = newMap;
       dayStatusMap.value = newStatusMap;
@@ -223,11 +229,16 @@ export function useWeeklyRecords(
   // Reload whenever the week, location, or user changes
   watch([weekStart, locationId, userId], () => loadWeek());
 
-  async function saveDay(date: string, assignments: DayAssignment[], status: string): Promise<string | null> {
+  async function saveDay(
+    date: string,
+    assignments: DayAssignment[],
+    status: string,
+    groupId: number,
+  ): Promise<string | null> {
     if (!locationId.value || !userId.value) return 'Missing location or user.';
 
     // Build the desired final state for the day. The backend applies all
-    // creates/updates/deletes in a single transaction.
+    // creates/updates/deletes in a single transaction, scoped to this group.
     const records = assignments.flatMap((assignment) => {
       const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
       return scms.flatMap((scm) => {
@@ -251,6 +262,7 @@ export function useWeeklyRecords(
       locationId: locationId.value,
       userId: userId.value,
       status,
+      groupId,
       records,
     });
 
