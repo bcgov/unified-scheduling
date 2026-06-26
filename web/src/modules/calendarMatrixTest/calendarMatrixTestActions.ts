@@ -5,8 +5,8 @@ import type {
   CalendarMatrixEventBlockAction,
   CalendarMatrixResourceAction,
   CalendarMatrixSidePanelAction,
+  CalendarViewDetailAction,
 } from '@/modules/calendar/registry/calendarActionRegistryTypes';
-import type { CalendarViewDetailAction } from '@/modules/calendar/registry/calendarRegistryTypes';
 import { calendarMatrixTestActionIds } from './calendarMatrixTestActionIds';
 import {
   closeCalendarMatrixTestConflict,
