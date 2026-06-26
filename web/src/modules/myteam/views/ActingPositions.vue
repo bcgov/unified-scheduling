@@ -51,11 +51,6 @@ const tableHeaders = computed(() => [
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 140 },
 ]);
 
-const isExpired = (position: ActingPositionResponseDto): boolean => {
-  if (!position.expiryAtUtc) return false;
-  return new Date(position.expiryAtUtc) < new Date();
-};
-
 const handleOpenAddModal = () => {
   selectedPosition.value = null;
   showActingPositionModal.value = true;
@@ -140,7 +135,7 @@ const handleExpired = async () => {
       <template #[`item.actions`]="{ item }">
         <div class="col-actions">
           <UaBtn
-            v-if="accessControl.hasPermission(Permissions.ActingPositionsEdit) && !isExpired(item)"
+            v-if="accessControl.hasPermission(Permissions.ActingPositionsEdit)"
             icon
             variant="text"
             size="small"
@@ -151,7 +146,7 @@ const handleExpired = async () => {
             <v-icon :icon="mdiPencil" />
           </UaBtn>
           <UaBtn
-            v-if="accessControl.hasPermission(Permissions.ActingPositionsExpire) && !isExpired(item)"
+            v-if="accessControl.hasPermission(Permissions.ActingPositionsExpire)"
             icon
             variant="text"
             size="small"

@@ -20,10 +20,8 @@ public abstract class BaseUserEvent : BaseEntity
     [Required]
     public DateTimeOffset StartAtUtc { get; set; }
 
-    /// <summary>
-    /// Optional end date. Null for open-ended events such as acting positions.
-    /// </summary>
-    public DateTimeOffset? EndAtUtc { get; set; }
+    [Required]
+    public DateTimeOffset EndAtUtc { get; set; }
 
     public DateTimeOffset? ExpiryAtUtc { get; set; }
 

@@ -159,8 +159,6 @@ function validateForm(): ActingPositionRequestDto | null {
     comment: formData.value.comment?.trim() || null,
   });
 
-  console.log('validateForm parsed:', parsed);
-
   if (!parsed.success) {
     formErrors.value = getFieldErrors(parsed.error);
     return null;

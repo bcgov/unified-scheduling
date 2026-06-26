@@ -19,7 +19,7 @@ Use this project for EF Core migrations.
    ```
    Container command (run from `docker` folder) - example:
    ```bash
-   docker compose exec api bash -lc "dotnet ef migrations add AddTimezoneToBaseUserEvent --project db --startup-project api/Unified.Api --context UnifiedDbContext"
+   docker compose exec api bash -lc "dotnet ef migrations add AddUsersTable --project db --startup-project api/Unified.Api --context UnifiedDbContext"
    ```
 
 3. Apply migrations:

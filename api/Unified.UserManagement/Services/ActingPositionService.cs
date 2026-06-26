@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Common.Helpers.Extensions;
 using Unified.Db;
+using Unified.Db.Models.Lookup;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
 
@@ -13,15 +14,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         CancellationToken cancellationToken = default
     )
     {
-        var user = await db
-            .Users.AsNoTracking()
-            .Include(x => x.HomeLocation)
-            .SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
-
-        if (user is null)
-        {
-            throw new KeyNotFoundException($"User {userId} not found.");
-        }
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
 
         var positions = await db
             .UserActingPositions.AsNoTracking()
@@ -41,24 +34,9 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         CancellationToken cancellationToken = default
     )
     {
-        var user = await db
-            .Users.AsNoTracking()
-            .Include(x => x.HomeLocation)
-            .SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
 
-        if (user is null)
-        {
-            throw new KeyNotFoundException($"User {userId} not found.");
-        }
-
-        var positionType = await db.PositionTypes.SingleOrDefaultAsync(
-            pt => pt.Code == request.PositionTypeCode,
-            cancellationToken
-        );
-        if (positionType is null)
-        {
-            throw new KeyNotFoundException($"PositionType '{request.PositionTypeCode}' not found.");
-        }
+        var positionType = await GetPositionTypeOrThrowAsync(request.PositionTypeCode, cancellationToken);
 
         var timezoneId = request.Timezone ?? user.HomeLocation?.Timezone;
 
@@ -89,15 +67,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         CancellationToken cancellationToken = default
     )
     {
-        var user = await db
-            .Users.AsNoTracking()
-            .Include(x => x.HomeLocation)
-            .SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
-
-        if (user is null)
-        {
-            throw new KeyNotFoundException($"User {userId} not found.");
-        }
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
 
         var actingPosition = await db
             .UserActingPositions.Include(x => x.PositionType)
@@ -108,14 +78,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             throw new KeyNotFoundException($"Acting position {actingPositionId} not found for user {userId}.");
         }
 
-        var positionType = await db.PositionTypes.SingleOrDefaultAsync(
-            pt => pt.Code == request.PositionTypeCode,
-            cancellationToken
-        );
-        if (positionType is null)
-        {
-            throw new KeyNotFoundException($"PositionType '{request.PositionTypeCode}' not found.");
-        }
+        var positionType = await GetPositionTypeOrThrowAsync(request.PositionTypeCode, cancellationToken);
 
         var timezoneId = request.Timezone ?? user.HomeLocation?.Timezone;
 
@@ -140,15 +103,7 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         CancellationToken cancellationToken = default
     )
     {
-        var user = await db
-            .Users.AsNoTracking()
-            .Include(x => x.HomeLocation)
-            .SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
-
-        if (user is null)
-        {
-            throw new KeyNotFoundException($"User {userId} not found.");
-        }
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
 
         var actingPosition = await db
             .UserActingPositions.Include(x => x.PositionType)
@@ -167,6 +122,38 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
         return MapResponse(actingPosition, actingPosition.Timezone ?? user.HomeLocation?.Timezone);
     }
 
+    private async Task<User> GetUserOrThrowAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await db
+            .Users.AsNoTracking()
+            .Include(x => x.HomeLocation)
+            .SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+
+        if (user is null)
+        {
+            throw new KeyNotFoundException($"User {userId} not found.");
+        }
+
+        return user;
+    }
+
+    private async Task<PositionType> GetPositionTypeOrThrowAsync(
+        string positionTypeCode,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var positionType = await db.PositionTypes.SingleOrDefaultAsync(
+            pt => pt.Code == positionTypeCode,
+            cancellationToken
+        );
+        if (positionType is null)
+        {
+            throw new KeyNotFoundException($"PositionType '{positionTypeCode}' not found.");
+        }
+
+        return positionType;
+    }
+
     private static ActingPositionResponseDto MapResponse(UserActingPosition position, string? timezoneId) =>
         new()
         {
@@ -174,9 +161,9 @@ public sealed class ActingPositionService(UnifiedDbContext db) : IActingPosition
             UserId = position.UserId,
             PositionTypeCode = position.PositionType?.Code ?? string.Empty,
             PositionTypeDescription = position.PositionType?.Description ?? string.Empty,
-            StartAtUtc = position.StartAtUtc.ToTimeZone(timezoneId),
-            EndAtUtc = position.EndAtUtc?.ToTimeZone(timezoneId),
-            ExpiryAtUtc = position.ExpiryAtUtc?.ToTimeZone(timezoneId),
+            StartAtUtc = position.StartAtUtc,
+            EndAtUtc = position.EndAtUtc,
+            ExpiryAtUtc = position.ExpiryAtUtc,
             ExpiryReason = position.ExpiryReason,
             Comment = position.Comment,
             Timezone = timezoneId,
