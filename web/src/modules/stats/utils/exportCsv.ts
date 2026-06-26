@@ -9,10 +9,7 @@ export function exportToCsv(filename: string, headers: string[], rows: string[][
     return field;
   };
 
-  const csvLines = [
-    headers.map(escapeCsvField).join(','),
-    ...rows.map((row) => row.map(escapeCsvField).join(',')),
-  ];
+  const csvLines = [headers.map(escapeCsvField).join(','), ...rows.map((row) => row.map(escapeCsvField).join(','))];
   const csvContent = csvLines.join('\n');
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
