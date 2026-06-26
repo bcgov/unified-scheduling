@@ -30,6 +30,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
       })),
       permissions: faker.helpers.arrayElements(Object.values(Permissions)),
       userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
       ...overrideResponse,
     },
     {
@@ -48,6 +49,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
       })),
       permissions: faker.helpers.arrayElements(Object.values(Permissions)),
       userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
       ...overrideResponse,
     },
     {
@@ -66,6 +68,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
       })),
       permissions: faker.helpers.arrayElements(Object.values(Permissions)),
       userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
       ...overrideResponse,
     },
   ]);

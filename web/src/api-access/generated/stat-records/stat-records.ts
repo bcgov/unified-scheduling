@@ -4,7 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { GetApiStatsRecordsParams, StatRecordRequest, StatRecordResponse } from '../models';
+import type { GetApiStatsRecordsParams, SaveDayRequest, StatRecordRequest, StatRecordResponse } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI';
 
@@ -65,9 +65,24 @@ export const postApiStatsRecordsBatch = (
     options,
   );
 };
+export const putApiStatsRecordsDay = (
+  saveDayRequest: SaveDayRequest,
+  options?: SecondParameter<typeof useFetchAPI<StatRecordResponse[]>>,
+) => {
+  return useFetchAPI<StatRecordResponse[]>(
+    {
+      url: `/api/stats/records/day`,
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      data: saveDayRequest,
+    },
+    options,
+  );
+};
 export type GetApiStatsRecordsResult = NonNullable<Awaited<ReturnType<typeof getApiStatsRecords>>>;
 export type PostApiStatsRecordsResult = NonNullable<Awaited<ReturnType<typeof postApiStatsRecords>>>;
 export type GetApiStatsRecordsIdResult = NonNullable<Awaited<ReturnType<typeof getApiStatsRecordsId>>>;
 export type PutApiStatsRecordsIdResult = NonNullable<Awaited<ReturnType<typeof putApiStatsRecordsId>>>;
 export type DeleteApiStatsRecordsIdResult = NonNullable<Awaited<ReturnType<typeof deleteApiStatsRecordsId>>>;
 export type PostApiStatsRecordsBatchResult = NonNullable<Awaited<ReturnType<typeof postApiStatsRecordsBatch>>>;
+export type PutApiStatsRecordsDayResult = NonNullable<Awaited<ReturnType<typeof putApiStatsRecordsDay>>>;

@@ -9,4 +9,6 @@ namespace Unified.Core.Models;
 public enum LookupCodeTypes
 {
     PositionTypes,
+    EventTypes,
+    EventStatusTypes,
 }

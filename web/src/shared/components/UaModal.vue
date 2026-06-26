@@ -11,11 +11,14 @@ const props = withDefaults(
     width?: string | number;
     /** Disables the close button when true. */
     loading?: boolean;
+    /** Optional visual tone for the header strip. */
+    tone?: 'default' | 'error';
   }>(),
   {
     persistent: true,
     width: 660,
     loading: false,
+    tone: 'default',
   },
 );
 
@@ -45,14 +48,14 @@ const handleDialogVisibility = (isVisible: boolean) => {
     :persistent="persistent"
   >
     <div class="ua-modal">
-      <div class="ua-modal__header">
+      <div class="ua-modal__header" :class="`ua-modal__header--${tone}`">
         <span class="ua-modal__title">{{ title }}</span>
         <v-btn class="ua-modal__close-btn" variant="text" @click="handleClose" :disabled="loading">
           <v-icon :icon="mdiClose" size="20" class="mr-1" />
           Close
         </v-btn>
       </div>
-      <div class="ua-modal__header-strip" />
+      <div class="ua-modal__header-strip" :class="`ua-modal__header-strip--${tone}`" />
 
       <slot name="alerts" />
 
@@ -87,6 +90,11 @@ const handleDialogVisibility = (isVisible: boolean) => {
   color: var(--ua-card-header-color);
 }
 
+.ua-modal__header--error {
+  background: rgb(var(--v-theme-error));
+  color: rgb(var(--v-theme-on-error));
+}
+
 .ua-modal__title {
   font-size: var(--ua-font-size-lg);
   font-weight: var(--ua-font-weight-bold);
@@ -101,6 +109,10 @@ const handleDialogVisibility = (isVisible: boolean) => {
 .ua-modal__header-strip {
   background: var(--ua-border-color);
   height: 4px;
+}
+
+.ua-modal__header-strip--error {
+  background: rgb(var(--v-theme-error));
 }
 
 .ua-modal__body {

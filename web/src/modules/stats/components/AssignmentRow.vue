@@ -11,10 +11,11 @@ import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
-import UaTextField from '@/shared/components/UaTextField.vue';
 import type { SelectValue } from '@/types/select';
+import { mdiLockOutline } from '@mdi/js';
 import { computed } from 'vue';
 import type { AssignmentData } from '../types';
+import { isOvertimeMetric } from '../utils/metricHelpers';
 
 const props = defineProps<{
   groups: StatGroupResponse[];
@@ -28,6 +29,10 @@ const props = defineProps<{
   fixedGroupId?: number | null;
   /** Override the header background colour. Falls back to --ua-card-header-bg. */
   headerColor?: string;
+  /** When true, overtime metric inputs are disabled. */
+  overtimeLocked?: boolean;
+  /** Tooltip text shown on locked overtime inputs. */
+  overtimeLockReason?: string;
 }>();
 
 const emit = defineEmits<{
@@ -46,12 +51,20 @@ const groupOptions = computed(() =>
 
 const effectiveGroupId = computed(() => props.fixedGroupId ?? model.value.groupId);
 
-const categoryOptions = computed(() =>
-  props.categories
+const categoryOptions = computed(() => {
+  const filtered = props.categories
     .filter((c) => !c.isArchived && (effectiveGroupId.value === null || c.groupId === effectiveGroupId.value))
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
-    .map((c) => ({ code: c.id!, description: c.name! })),
-);
+    .map((c) => ({ code: c.id!, description: c.name! }));
+
+  const selectedId = model.value.categoryId;
+  if (selectedId && !filtered.some((o) => o.code === selectedId)) {
+    const match = props.categories.find((c) => c.id === selectedId);
+    if (match) filtered.unshift({ code: match.id!, description: match.name! });
+  }
+
+  return filtered;
+});
 
 const subCategoryOptions = computed(() => {
   if (!model.value.categoryId) return [];
@@ -70,7 +83,13 @@ const metricDetails = computed(() => {
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     .map((scm) => {
       const metric = props.metrics.find((m) => m.id === scm.metricId);
-      return { id: scm.id!, name: metric?.name ?? '', unit: metric?.unitOfMeasure ?? '' };
+      const isOvertime = metric ? isOvertimeMetric(metric) : false;
+      return {
+        id: scm.id!,
+        name: metric?.name ?? '',
+        unit: metric?.unitOfMeasure ?? '',
+        isOvertime,
+      };
     });
 });
 
@@ -136,7 +155,7 @@ const onCommentInput = (value: string) => {
         :items="categoryOptions"
         :model-value="model.categoryId"
         :error-messages="errors[`assignment_${index}_category`]"
-        :disabled="!model.groupId"
+        :disabled="!effectiveGroupId"
         @update:model-value="onCategoryChange"
       />
 
@@ -155,22 +174,35 @@ const onCommentInput = (value: string) => {
 
       <!-- Dynamic metric inputs -->
       <template v-for="m in metricDetails" :key="m.id">
-        <UaTextField
+        <div class="metric-label-row">
+          <label class="ua-form-label" :for="`metric-${model.id}-${m.id}`">
+            {{ m.name }}
+            <span class="unit-label">({{ m.unit }})</span>
+          </label>
+          <v-tooltip
+            v-if="m.isOvertime && overtimeLocked"
+            :text="overtimeLockReason || 'Enter 7h regular today or 35h for the week to unlock overtime.'"
+            location="top"
+          >
+            <template #activator="{ props: tooltipProps }">
+              <v-icon v-bind="tooltipProps" :icon="mdiLockOutline" size="16" class="lock-icon" />
+            </template>
+          </v-tooltip>
+        </div>
+        <v-text-field
           :id="`metric-${model.id}-${m.id}`"
-          :label="m.name"
           type="number"
           min="0"
           step="0.25"
           placeholder="0"
+          density="compact"
+          variant="outlined"
+          hide-details="auto"
           :model-value="model.metricValues[m.id] ?? ''"
           :error-messages="errors[`assignment_${index}_metric_${m.id}`]"
+          :disabled="m.isOvertime && overtimeLocked"
           @update:model-value="(v: string) => onMetricValueInput(m.id, String(v))"
-        >
-          <template #label>
-            {{ m.name }}
-            <span class="unit-label">({{ m.unit }})</span>
-          </template>
-        </UaTextField>
+        />
       </template>
 
       <!-- Assignment-level error (no metrics entered) -->
@@ -211,6 +243,17 @@ const onCommentInput = (value: string) => {
   color: var(--ua-text-muted);
 }
 
+.metric-label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ua-spacing-xs);
+}
+
+.lock-icon {
+  color: var(--ua-text-muted);
+  flex-shrink: 0;
+}
+
 .field-error {
   font-size: var(--ua-font-size-sm);
   color: rgb(var(--v-theme-error));
@@ -219,8 +262,5 @@ const onCommentInput = (value: string) => {
 :deep(.v-field) {
   border-radius: var(--ua-border-radius);
   background: var(--ua-field-bg);
-}
-
-@media (max-width: 640px) {
 }
 </style>

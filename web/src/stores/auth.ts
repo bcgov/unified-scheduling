@@ -11,6 +11,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const currentUserId = computed(() => userInfo.value?.userId ?? null);
 
+  const homeLocationId = computed(() => userInfo.value?.homeLocationId ?? null);
+
   function setUserInfo(info: UserInfo | null) {
     userInfo.value = info;
   }
@@ -24,6 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     userName,
     currentUserId,
+    homeLocationId,
     setUserInfo,
     clearUserInfo,
   };

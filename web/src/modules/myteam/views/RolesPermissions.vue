@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { Permissions, type RoleDto } from '@/api-access/generated/models';
-import { getApiRoles, deleteApiRolesId } from '@/api-access/generated/roles/roles';
+import { getApiRoles } from '@/api-access/generated/roles/roles';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
-import UaModal from '@/shared/components/UaModal.vue';
+import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { mdiDelete, mdiPencil, mdiPlus } from '@mdi/js';
 import { ref } from 'vue';
+import RoleDeleteModal from '../components/RoleDeleteModal.vue';
 import RoleFormModal from '../components/RoleFormModal.vue';
 
 // Access control
@@ -17,14 +18,17 @@ const accessControl = useAccessControl();
 
 // Data state
 const { data: roles, error: rolesError, isFetching: isFetchingRoles, execute: fetchRoles } = getApiRoles();
-
 // Modal states
 const showCreateEditModal = ref(false);
 const showDeleteConfirm = ref(false);
 const selectedRole = ref<RoleDto | null>(null);
 const roleToDelete = ref<RoleDto | null>(null);
-const isDeleting = ref(false);
-const deleteError = ref('');
+
+const roleHeaders = [
+  { title: 'Name', key: 'name', sortable: false },
+  { title: 'Description', key: 'description', sortable: false },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 120 },
+];
 
 // Form handlers
 const handleAddRole = () => {
@@ -37,32 +41,19 @@ const handleEditRole = (role: RoleDto) => {
   showCreateEditModal.value = true;
 };
 
+const resetDeleteModalState = () => {
+  showDeleteConfirm.value = false;
+  roleToDelete.value = null;
+};
+
 const handleDeleteRole = (role: RoleDto) => {
   roleToDelete.value = role;
   showDeleteConfirm.value = true;
 };
 
-const handleConfirmDelete = async () => {
-  if (!roleToDelete.value) return;
-
-  isDeleting.value = true;
-  deleteError.value = '';
-
-  try {
-    const { error } = await deleteApiRolesId(roleToDelete.value.id!);
-
-    if (error.value) {
-      deleteError.value =
-        error.value instanceof Error ? error.value.message : 'An error occurred while deleting the role';
-      return;
-    }
-
-    showDeleteConfirm.value = false;
-    roleToDelete.value = null;
-    await fetchRoles();
-  } finally {
-    isDeleting.value = false;
-  }
+const handleRoleDeleted = async () => {
+  resetDeleteModalState();
+  await fetchRoles();
 };
 
 const handleRoleFormClose = () => {
@@ -105,23 +96,24 @@ const handleRoleUpdated = async () => {
 
     <!-- Roles Table -->
     <UaCard v-else-if="roles && roles.length > 0" title="Available Roles">
-      <div class="roles-table">
-        <div class="table-header">
-          <div class="col-name">Name</div>
-          <div class="col-description">Description</div>
-          <div class="col-actions">Actions</div>
-        </div>
+      <UaDataTable :headers="roleHeaders" :items="roles" :items-per-page="-1" density="comfortable" hide-default-footer>
+        <template #[`item.name`]="{ item }">
+          <span class="col-name">{{ item.name || '-' }}</span>
+        </template>
 
-        <div v-for="role in roles" :key="role.id" class="table-row">
-          <div class="col-name">{{ role.name }}</div>
-          <div class="col-description">{{ role.description }}</div>
+        <template #[`item.description`]="{ item }">
+          {{ item.description || '-' }}
+        </template>
+
+        <template #[`item.actions`]="{ item }">
           <div class="col-actions">
             <UaBtn
               v-if="accessControl.hasPermission(Permissions.RolesEdit)"
               icon
               variant="text"
               size="small"
-              @click="handleEditRole(role)"
+              aria-label="Edit role"
+              @click="handleEditRole(item)"
               title="Edit role"
             >
               <v-icon :icon="mdiPencil" />
@@ -132,14 +124,15 @@ const handleRoleUpdated = async () => {
               variant="text"
               size="small"
               color="error"
-              @click="handleDeleteRole(role)"
+              aria-label="Delete role"
+              @click="handleDeleteRole(item)"
               title="Delete role"
             >
               <v-icon :icon="mdiDelete" />
             </UaBtn>
           </div>
-        </div>
-      </div>
+        </template>
+      </UaDataTable>
     </UaCard>
 
     <!-- Empty State -->
@@ -159,26 +152,13 @@ const handleRoleUpdated = async () => {
     />
 
     <!-- Delete Confirmation Modal -->
-    <UaModal v-if="showDeleteConfirm" title="Delete Role" :loading="isDeleting" @close="showDeleteConfirm = false">
-      <template #alerts>
-        <UaAlert v-if="deleteError" type="error" @close="deleteError = ''">
-          {{ deleteError }}
-        </UaAlert>
-      </template>
-
-      <div class="delete-confirmation">
-        <p>
-          Are you sure you want to delete the role <strong>{{ roleToDelete?.name }}</strong
-          >?
-        </p>
-        <p class="warning-text">This action cannot be undone.</p>
-      </div>
-
-      <template #actions>
-        <UaBtn variant="outlined" @click="showDeleteConfirm = false" :disabled="isDeleting"> Cancel </UaBtn>
-        <UaBtn color="error" variant="flat" @click="handleConfirmDelete" :loading="isDeleting"> Delete </UaBtn>
-      </template>
-    </UaModal>
+    <RoleDeleteModal
+      v-if="showDeleteConfirm && roleToDelete"
+      :role="roleToDelete"
+      :all-roles="roles ?? []"
+      @close="resetDeleteModalState"
+      @deleted="handleRoleDeleted"
+    />
   </div>
 </template>
 
@@ -200,70 +180,15 @@ const handleRoleUpdated = async () => {
   color: var(--ua-text-secondary);
 }
 
-.roles-table {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--ua-border-color);
-  border-radius: var(--ua-border-radius);
-  overflow: hidden;
-}
-
-.table-header {
-  display: grid;
-  grid-template-columns: 150px 1fr 100px;
-  gap: var(--ua-spacing-md);
-  padding: var(--ua-spacing-md) var(--ua-spacing-lg);
-  background-color: rgb(var(--v-theme-surface-variant));
-  font-weight: var(--ua-font-weight-bold);
-  font-size: var(--ua-font-size-sm);
-}
-
-.table-row {
-  display: grid;
-  grid-template-columns: 150px 1fr 100px;
-  gap: var(--ua-spacing-md);
-  align-items: center;
-  padding: var(--ua-spacing-md) var(--ua-spacing-lg);
-  border-top: 1px solid var(--ua-border-color);
-
-  &:hover {
-    background-color: rgba(var(--v-theme-primary), 0.05);
-  }
-}
-
-.col-name {
-  font-weight: var(--ua-font-weight-semibold);
-  word-break: break-word;
-}
-
-.col-description {
-  color: var(--ua-text-secondary);
-  font-size: var(--ua-font-size-sm);
-  word-break: break-word;
-}
-
 .col-actions {
   display: flex;
   gap: var(--ua-spacing-sm);
   justify-content: flex-end;
 }
 
-.delete-confirmation {
-  padding: var(--ua-spacing-md) 0;
-
-  p {
-    margin: var(--ua-spacing-md) 0;
-    color: var(--ua-text-primary);
-  }
-
-  strong {
-    color: rgb(var(--v-theme-primary));
-  }
-}
-
-.warning-text {
-  color: rgb(var(--v-theme-warning));
-  font-size: var(--ua-font-size-sm);
+.col-name {
+  font-weight: var(--ua-font-weight-semibold);
+  word-break: break-word;
 }
 
 @media (max-width: 768px) {

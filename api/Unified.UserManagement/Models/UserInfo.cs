@@ -8,7 +8,8 @@ public sealed record UserInfo(
     string? AuthenticationType,
     IReadOnlyList<UserClaim> Claims,
     IReadOnlyList<Permissions> Permissions,
-    Guid? UserId
+    Guid? UserId,
+    int? HomeLocationId
 );
 
 public sealed record UserClaim(string Type, string Value);

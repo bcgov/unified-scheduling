@@ -18,7 +18,8 @@ public class UsersControllerTests
         var controller = new UsersController(
             fakeService,
             new UserRequestValidator(),
-            new AssignUserRoleRequestValidator()
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
         );
         var queryParams = new UserQueryParams { Search = "John" };
 
@@ -41,7 +42,8 @@ public class UsersControllerTests
         var controller = new UsersController(
             fakeService,
             new UserRequestValidator(),
-            new AssignUserRoleRequestValidator()
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
         );
 
         // Act
@@ -63,7 +65,8 @@ public class UsersControllerTests
         var controller = new UsersController(
             fakeService,
             new UserRequestValidator(),
-            new AssignUserRoleRequestValidator()
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
         );
 
         // Act
@@ -71,6 +74,57 @@ public class UsersControllerTests
 
         // Assert
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetRoles_Should_Return_Ok_With_User_Roles()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var expectedRoles = new List<UserRoleResponseDto>
+        {
+            new()
+            {
+                Id = 9001,
+                UserId = userId,
+                RoleId = 2,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-10),
+                ExpiryDate = null,
+            },
+        };
+        var fakeService = new FakeUserService { GetRolesResult = expectedRoles };
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
+        );
+
+        // Act
+        var result = await controller.GetRoles(userId, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var roles = Assert.IsAssignableFrom<IEnumerable<UserRoleResponseDto>>(okResult.Value);
+        Assert.Single(roles);
+    }
+
+    [Fact]
+    public async Task GetRoles_Should_Throw_When_User_Missing()
+    {
+        // Arrange
+        var fakeService = new FakeUserService { GetRolesException = new KeyNotFoundException("User not found.") };
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
+        );
+
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            controller.GetRoles(Guid.NewGuid(), TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -82,7 +136,8 @@ public class UsersControllerTests
         var controller = new UsersController(
             fakeService,
             new UserRequestValidator(),
-            new AssignUserRoleRequestValidator()
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
         );
         var request = new UserRequestDto
         {
@@ -118,7 +173,8 @@ public class UsersControllerTests
         var controller = new UsersController(
             fakeService,
             new UserRequestValidator(),
-            new AssignUserRoleRequestValidator()
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
         );
         var request = new UserRequestDto
         {
@@ -152,7 +208,8 @@ public class UsersControllerTests
         var controller = new UsersController(
             fakeService,
             new UserRequestValidator(),
-            new AssignUserRoleRequestValidator()
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
         );
         var request = new UserRequestDto
         {
@@ -192,13 +249,14 @@ public class UsersControllerTests
         var controller = new UsersController(
             fakeService,
             new UserRequestValidator(),
-            new AssignUserRoleRequestValidator()
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
         );
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 5,
-            EffectiveDate = DateTimeOffset.UtcNow,
-            ExpiryDate = null,
+            EffectiveDate = "2026-01-10",
+            ExpiryDate = "2026-02-10",
         };
 
         // Act
@@ -209,6 +267,8 @@ public class UsersControllerTests
         var response = Assert.IsType<UserRoleResponseDto>(okResult.Value);
         Assert.Equal(5001, response.Id);
         Assert.Equal(userId, response.UserId);
+        Assert.NotNull(fakeService.LastAssignRoleRequest);
+        Assert.Equal(request.ExpiryDate, fakeService.LastAssignRoleRequest!.ExpiryDate);
     }
 
     [Fact]
@@ -219,18 +279,66 @@ public class UsersControllerTests
         var controller = new UsersController(
             fakeService,
             new UserRequestValidator(),
-            new AssignUserRoleRequestValidator()
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
         );
-        var request = new AssignUserRoleRequestDto
-        {
-            RoleId = 5,
-            EffectiveDate = DateTimeOffset.UtcNow,
-            ExpiryDate = DateTimeOffset.UtcNow.AddDays(30),
-        };
+        var request = new AssignUserRoleRequestDto { RoleId = 5, EffectiveDate = "2026-01-10" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             controller.AssignRole(Guid.NewGuid(), request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task ExpireRole_Should_Return_Ok_When_User_Role_Exists()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var expiredUserRole = new UserRoleResponseDto
+        {
+            Id = 5002,
+            UserId = userId,
+            RoleId = 5,
+            EffectiveDate = DateTimeOffset.UtcNow.AddDays(-30),
+            ExpiryDate = DateTimeOffset.UtcNow,
+            ExpiryReason = "PERSONAL",
+        };
+        var fakeService = new FakeUserService { ExpireRoleResult = expiredUserRole };
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
+        );
+        var request = new ExpireUserRoleRequestDto { RoleId = 5, ExpiryReason = "PERSONAL" };
+
+        // Act
+        var result = await controller.ExpireRole(userId, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<UserRoleResponseDto>(okResult.Value);
+        Assert.Equal(expiredUserRole.Id, response.Id);
+        Assert.Equal(expiredUserRole.ExpiryReason, response.ExpiryReason);
+    }
+
+    [Fact]
+    public async Task ExpireRole_Should_Throw_When_User_Role_Missing()
+    {
+        // Arrange
+        var fakeService = new FakeUserService { ExpireRoleException = new KeyNotFoundException("Role not found.") };
+        var controller = new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator()
+        );
+        var request = new ExpireUserRoleRequestDto { RoleId = 5, ExpiryReason = "ENTRYERR" };
+
+        // Act + Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            controller.ExpireRole(Guid.NewGuid(), request, TestContext.Current.CancellationToken)
         );
     }
 
@@ -262,6 +370,10 @@ public class UsersControllerTests
 
         public UserResponse? UpdateResult { get; init; } = CreateUserResponse("Updated", "User");
 
+        public IReadOnlyCollection<UserRoleResponseDto> GetRolesResult { get; init; } = [];
+
+        public Exception? GetRolesException { get; init; }
+
         public UserRoleResponseDto AssignRoleResult { get; init; } =
             new UserRoleResponseDto
             {
@@ -275,7 +387,22 @@ public class UsersControllerTests
 
         public Exception? AssignRoleException { get; init; }
 
+        public UserRoleResponseDto ExpireRoleResult { get; init; } =
+            new UserRoleResponseDto
+            {
+                Id = 5002,
+                UserId = Guid.NewGuid(),
+                RoleId = 1,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-30),
+                ExpiryDate = DateTimeOffset.UtcNow,
+                ExpiryReason = "ENTRYERR",
+            };
+
+        public Exception? ExpireRoleException { get; init; }
+
         public UserQueryParams? LastQueryParams { get; private set; }
+
+        public AssignUserRoleRequestDto? LastAssignRoleRequest { get; private set; }
 
         public Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
             UserQueryParams? queryParams = null,
@@ -305,6 +432,19 @@ public class UsersControllerTests
             return Task.FromResult(UpdateResult);
         }
 
+        public Task<IReadOnlyCollection<UserRoleResponseDto>> GetRolesAsync(
+            Guid id,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (GetRolesException is not null)
+            {
+                return Task.FromException<IReadOnlyCollection<UserRoleResponseDto>>(GetRolesException);
+            }
+
+            return Task.FromResult(GetRolesResult);
+        }
+
         public Task<UserRoleResponseDto> AssignRoleAsync(
             Guid id,
             AssignUserRoleRequestDto request,
@@ -316,7 +456,23 @@ public class UsersControllerTests
                 return Task.FromException<UserRoleResponseDto>(AssignRoleException);
             }
 
+            LastAssignRoleRequest = request;
+
             return Task.FromResult(AssignRoleResult);
+        }
+
+        public Task<UserRoleResponseDto> ExpireRoleAsync(
+            Guid id,
+            ExpireUserRoleRequestDto request,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (ExpireRoleException is not null)
+            {
+                return Task.FromException<UserRoleResponseDto>(ExpireRoleException);
+            }
+
+            return Task.FromResult(ExpireRoleResult);
         }
     }
 }

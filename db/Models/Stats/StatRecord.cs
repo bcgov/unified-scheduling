@@ -36,10 +36,17 @@ public class StatRecord : BaseEntity
 
     [Required]
     public string Status { get; set; } = StatRecordStatus.Draft;
+
+    public Guid? SignedOffByUserId { get; set; }
+
+    public User? SignedOffByUser { get; set; }
+
+    public DateTimeOffset? SignedOffAt { get; set; }
 }
 
 public static class StatRecordStatus
 {
     public const string Draft = "Draft";
     public const string Submitted = "Submitted";
+    public const string SignedOff = "SignedOff";
 }

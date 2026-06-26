@@ -65,7 +65,11 @@ export const GetApiAuthUserResponse = zod.object({
       'IdirEdit',
       'ReportsGenerate',
       'StatsRecordsEnterForOthers',
+      'DashboardView',
+      'DashboardSignOff',
+      'DashboardSubmit',
     ]),
   ),
   userId: zod.uuid().nullable(),
+  homeLocationId: zod.number().nullable(),
 });

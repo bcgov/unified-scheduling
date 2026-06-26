@@ -32,6 +32,25 @@ public class RolesController(
     }
 
     /// <summary>
+    /// Returns active users currently assigned to the specified role.
+    /// </summary>
+    /// <param name="id">The role ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of active users assigned to the role.</returns>
+    [HttpGet("{id:int}/users")]
+    [Authorize(Policy = UserManagementPolicies.RolesView)]
+    [ProducesResponseType(typeof(IEnumerable<RoleAssignedUserDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IEnumerable<RoleAssignedUserDto>>> GetAssignedUsers(
+        int id,
+        CancellationToken cancellationToken
+    )
+    {
+        var users = await roleService.GetAssignedUsersAsync(id, cancellationToken);
+        return Ok(users);
+    }
+
+    /// <summary>
     /// Creates a new role, optionally assigning permissions.
     /// </summary>
     /// <param name="request">The role payload including optional permission IDs.</param>
@@ -84,19 +103,25 @@ public class RolesController(
     }
 
     /// <summary>
-    /// Deletes a role and its related user-role and role-permission assignments.
+    /// Reassigns active users to a new role and then deletes the source role.
     /// </summary>
-    /// <param name="id">The role ID.</param>
+    /// <param name="id">The role ID to delete.</param>
+    /// <param name="request">Required reassignment payload.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>No content.</returns>
-    [HttpDelete("{id:int}")]
+    /// <returns>Deleted role metadata.</returns>
+    [HttpPost("{id:int}/reassign-and-delete")]
     [Authorize(Policy = UserManagementPolicies.RolesExpire)]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(DeletedRoleDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<DeletedRoleDto>> ReassignAndDelete(
+        int id,
+        [FromBody] DeleteRoleWithReassignmentRequestDto request,
+        CancellationToken cancellationToken
+    )
     {
-        await roleService.DeleteAsync(id, cancellationToken);
+        var result = await roleService.ReassignAndDeleteAsync(id, request, cancellationToken);
 
-        return NoContent();
+        return Ok(result);
     }
 }

@@ -13,4 +13,11 @@ public class StatMetric : BaseEntity
 
     [Required]
     public string UnitOfMeasure { get; set; } = string.Empty;
+
+    public bool IsOvertime { get; set; }
+}
+
+public static class StatMetricUnitOfMeasure
+{
+    public const string Hours = "hours";
 }

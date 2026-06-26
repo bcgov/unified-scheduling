@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router';
 import Appbar from '@/shared/components/Appbar.vue';
+
+const route = useRoute();
 </script>
 
 <template>
   <v-app>
     <Appbar />
     <!-- Main Content -->
-    <main class="main-content">
+    <main class="main-content" :class="{ 'main-content--full-screen': route.meta.fullScreen }">
       <RouterView />
     </main>
   </v-app>
@@ -20,5 +23,9 @@ import Appbar from '@/shared/components/Appbar.vue';
   padding: 0 var(--ua-page-padding-x);
   background-color: rgb(var(--v-theme-background));
   padding-top: var(--ua-spacing-md);
+}
+
+.main-content--full-screen {
+  padding-inline: 0;
 }
 </style>

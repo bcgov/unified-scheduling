@@ -26,6 +26,9 @@ public static class StatsModule
         s.AddScoped<IStatRecordService, StatRecordService>();
         s.AddScoped<IStatSignoffService, StatSignoffService>();
 
+        // Dashboard services
+        s.AddScoped<IDashboardService, DashboardService>();
+
         // Validators (data entry only)
         s.AddScoped<StatRecordRequestValidator>();
         s.AddScoped<StatSignoffRequestValidator>();
@@ -34,7 +37,11 @@ public static class StatsModule
         s.AddSingleton(StatsPermissionSeedData.Configuration);
 
         // Register permission policies owned by this module
-        s.AddAuthorizationBuilder().AddPermissionPolicy(Permissions.StatsRecordsEnterForOthers);
+        s.AddAuthorizationBuilder()
+            .AddPermissionPolicy(Permissions.StatsRecordsEnterForOthers)
+            .AddPermissionPolicy(Permissions.DashboardView)
+            .AddPermissionPolicy(Permissions.DashboardSignOff)
+            .AddPermissionPolicy(Permissions.DashboardSubmit);
 
         return s;
     }

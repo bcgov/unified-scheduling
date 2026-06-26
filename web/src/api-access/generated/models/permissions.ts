@@ -49,4 +49,7 @@ export const Permissions = {
   IdirEdit: 'IdirEdit',
   ReportsGenerate: 'ReportsGenerate',
   StatsRecordsEnterForOthers: 'StatsRecordsEnterForOthers',
+  DashboardView: 'DashboardView',
+  DashboardSignOff: 'DashboardSignOff',
+  DashboardSubmit: 'DashboardSubmit',
 } as const;

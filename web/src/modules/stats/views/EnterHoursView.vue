@@ -1,546 +1,274 @@
 <script setup lang="ts">
-import type { UserResponse } from '@/api-access/generated/models';
-import { getApiUsers } from '@/api-access/generated/users/users';
-import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
-import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
-import { getApiStatsMetrics } from '@/api-access/generated/stat-metrics/stat-metrics';
-import { postApiStatsRecordsBatch } from '@/api-access/generated/stat-records/stat-records';
-import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
-import { getApiStatsSubCategoryMetrics } from '@/api-access/generated/sub-category-metrics/sub-category-metrics';
-import type {
-  StatCategoryResponse,
-  StatGroupResponse,
-  StatMetricResponse,
-  StatRecordRequest,
-  SubCategoryMetricResponse,
-  SubCategoryResponse,
-} from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
-import UaBtn from '@/shared/components/UaBtn.vue';
 import UaCard from '@/shared/components/UaCard.vue';
-import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
-import UaTextField from '@/shared/components/UaTextField.vue';
-import { Permissions } from '@/api-access/generated/models';
-import { useAccessControl } from '@/composables/useAccessControl';
-import { useAuthStore } from '@/stores/auth';
-import { useLocationsStore } from '@/stores/LocationsStore';
-import type { SelectValue } from '@/types/select';
-import { mdiPlus } from '@mdi/js';
-import { computed, onMounted, ref, watch } from 'vue';
-import AssignmentRow from '../components/AssignmentRow.vue';
-import type { AssignmentData, PeriodType } from '../types';
+import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
+import { computed } from 'vue';
+import DayDetailPanel from '../components/DayDetailPanel.vue';
+import WeeklyGrid from '../components/WeeklyGrid.vue';
+import { useEnterHours } from '../composables/useEnterHours';
+import { EntryStatus } from '../constants';
 
 const props = defineProps<{
-  /** 1 = Non-Supervision, 2 = Supervision. When set, locks all assignments to that group. */
-  groupId?: number;
+  /** 1 = Non-Supervision, 2 = Supervision. Locks all assignments to that group. */
+  groupId: number;
 }>();
 
-/**
- * Header colours keyed by groupId.
- * All values are BC Gov palette colours that pass WCAG AA (≥4.5:1) with white text.
- * Add new groups here — no other changes required.
- *
- * Group 1 — Non-Supervision: #42814A (BC Gov support.borderColor.success — forest green)
- * Group 2 — Supervision:     #CE3E39 (BC Gov support.borderColor.danger  — deep crimson)
- */
 const GROUP_HEADER_COLORS: Record<number, string> = {
   1: '#42814A',
   2: '#CE3E39',
 };
-
-const cardHeaderColor = computed(() => (props.groupId != null ? GROUP_HEADER_COLORS[props.groupId] : undefined));
-
+const cardHeaderColor = computed<string | undefined>(() => GROUP_HEADER_COLORS[props.groupId]);
 const formTitle = computed(() => {
   if (props.groupId === 1) return 'Enter Non-Supervision Hours';
   if (props.groupId === 2) return 'Enter Supervision Hours';
   return 'Enter Hours Worked';
 });
 
-// ── Reference data ─────────────────────────────────────────────────────────
-
-const isLoadingReference = ref(true);
-const groups = ref<StatGroupResponse[]>([]);
-const categories = ref<StatCategoryResponse[]>([]);
-const subCategories = ref<SubCategoryResponse[]>([]);
-const metrics = ref<StatMetricResponse[]>([]);
-const subCategoryMetrics = ref<SubCategoryMetricResponse[]>([]);
-
-onMounted(async () => {
-  const [groupsRes, catsRes, subCatsRes, metricsRes, scmRes] = await Promise.all([
-    getApiStatsGroups(),
-    getApiStatsCategories(),
-    getApiStatsSubCategories(),
-    getApiStatsMetrics(),
-    getApiStatsSubCategoryMetrics(),
-  ]);
-  groups.value = groupsRes.data.value ?? [];
-  categories.value = catsRes.data.value ?? [];
-  subCategories.value = subCatsRes.data.value ?? [];
-  metrics.value = metricsRes.data.value ?? [];
-  subCategoryMetrics.value = scmRes.data.value ?? [];
-  isLoadingReference.value = false;
-});
-
-// ── Locations ──────────────────────────────────────────────────────────────
-
-const authStore = useAuthStore();
-const { hasPermission } = useAccessControl();
-const locationsStore = useLocationsStore();
-const locationOptions = computed(() => locationsStore.getSelectOptions());
-
-// ── Supervisor user picker ──────────────────────────────────────────────────
-
-const locationUsers = ref<UserResponse[]>([]);
-const selectedUserId = ref<string | null>(null);
-// Tracks which location's fetch is authoritative; stale responses are discarded.
-let activeLocationId: number | null = null;
-
-const userOptions = computed(() =>
-  locationUsers.value.map((u) => ({
-    code: u.id,
-    description: `${u.firstName} ${u.lastName}`,
-  })),
-);
-
-const loadUsersForLocation = async (locationId: number) => {
-  activeLocationId = locationId;
-  const { data } = await getApiUsers({ LocationId: locationId, IsEnabled: true });
-  if (activeLocationId !== locationId) return;
-  locationUsers.value = data.value ?? [];
-  const currentUserAtLocation = locationUsers.value.some((u) => u.id === authStore.currentUserId);
-  selectedUserId.value = currentUserAtLocation ? (authStore.currentUserId ?? null) : null;
-};
-
-// ── Form state ─────────────────────────────────────────────────────────────
-
-const selectedLocationId = ref<number | null>(null);
-const periodType = ref<PeriodType>('Monthly');
-
-const periodOptions: { label: string; value: PeriodType }[] = [
-  { label: 'Daily', value: 'Daily' },
-  { label: 'Weekly', value: 'Weekly' },
-  { label: 'Monthly', value: 'Monthly' },
-];
-
-// Daily / Monthly anchor
-const anchorDate = ref('');
-// Weekly — free dateFrom/dateTo, capped at 7 days
-const weeklyFrom = ref('');
-const weeklyTo = ref('');
-
-let nextId = 1;
-const createAssignment = (): AssignmentData => ({
-  id: String(nextId++),
-  groupId: props.groupId ?? null,
-  categoryId: null,
-  subCategoryId: null,
-  metricValues: {},
-  comment: '',
-});
-
-const assignments = ref<AssignmentData[]>([createAssignment()]);
-
-const isSubmitting = ref(false);
-const apiError = ref('');
-const formErrors = ref<Record<string, string>>({});
-const successMessage = ref('');
-
-// ── Date range ─────────────────────────────────────────────────────────────
-
-const toDateStr = (date: Date): string => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
-const addDays = (dateStr: string, days: number): string => {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + days);
-  return toDateStr(d);
-};
-
-const diffDays = (from: string, to: string): number => {
-  const a = new Date(from + 'T00:00:00');
-  const b = new Date(to + 'T00:00:00');
-  return Math.round((b.getTime() - a.getTime()) / 86400000);
-};
-
-const today = new Date();
-anchorDate.value = toDateStr(today);
-weeklyFrom.value = toDateStr(today);
-weeklyTo.value = addDays(toDateStr(today), 6);
-
-// When weekly dateFrom changes → auto-set dateTo to +6 days
-watch(weeklyFrom, (val) => {
-  if (val) weeklyTo.value = addDays(val, 6);
-});
-
-// When weekly dateTo changes → cap to 7 days from dateFrom
-watch(weeklyTo, (val) => {
-  if (val && weeklyFrom.value && diffDays(weeklyFrom.value, val) > 6) {
-    weeklyTo.value = addDays(weeklyFrom.value, 6);
-  }
-});
-
-const dateRange = computed((): { dateFrom: string; dateTo: string } => {
-  if (periodType.value === 'Daily') {
-    return { dateFrom: anchorDate.value, dateTo: anchorDate.value };
-  }
-  if (periodType.value === 'Weekly') {
-    return { dateFrom: weeklyFrom.value, dateTo: weeklyTo.value };
-  }
-  // Monthly — anchorDate is "YYYY-MM"
-  const [y, m] = anchorDate.value.split('-').map(Number);
-  const first = new Date(y, m - 1, 1);
-  const last = new Date(y, m, 0);
-  return { dateFrom: toDateStr(first), dateTo: toDateStr(last) };
-});
-
-// Reset dates when switching period types
-watch(periodType, () => {
-  const t = new Date();
-  anchorDate.value =
-    periodType.value === 'Monthly' ? `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}` : toDateStr(t);
-  weeklyFrom.value = toDateStr(t);
-  weeklyTo.value = addDays(toDateStr(t), 6);
-});
-
-// ── Assignment management ──────────────────────────────────────────────────
-
-const addAssignment = () => {
-  assignments.value = [...assignments.value, createAssignment()];
-};
-
-const removeAssignment = (id: string) => {
-  assignments.value = assignments.value.filter((a) => a.id !== id);
-};
-
-const onLocationChange = async (value: SelectValue | undefined) => {
-  selectedLocationId.value = value !== null && value !== undefined ? Number(value) : null;
-  activeLocationId = selectedLocationId.value;
-  if (hasPermission(Permissions.StatsRecordsEnterForOthers)) {
-    selectedUserId.value = null;
-    locationUsers.value = [];
-    if (selectedLocationId.value) {
-      await loadUsersForLocation(selectedLocationId.value);
-    }
-  }
-};
-
-// ── Submission ─────────────────────────────────────────────────────────────
-
-const buildRecords = (status: string): StatRecordRequest[] | null => {
-  const errors: Record<string, string> = {};
-
-  const resolvedUserId = hasPermission(Permissions.StatsRecordsEnterForOthers)
-    ? selectedUserId.value
-    : authStore.currentUserId;
-  if (!resolvedUserId) {
-    errors['user'] = hasPermission(Permissions.StatsRecordsEnterForOthers)
-      ? 'Please select a user to submit hours for.'
-      : 'Unable to determine current user. Please refresh and try again.';
-  }
-
-  if (!selectedLocationId.value) {
-    errors['location'] = 'Location is required';
-  }
-
-  for (const [i, assignment] of assignments.value.entries()) {
-    if (!assignment.groupId && !props.groupId) {
-      errors[`assignment_${i}_group`] = 'Group is required';
-    }
-    if (!assignment.categoryId) {
-      errors[`assignment_${i}_category`] = 'Work Area is required';
-    }
-    if (!assignment.subCategoryId) {
-      errors[`assignment_${i}_subCategory`] = 'Subcategory is required';
-    }
-
-    const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
-    for (const scm of scms) {
-      const raw = assignment.metricValues[scm.id!];
-      if (!raw || raw.trim() === '') continue;
-
-      const val = parseFloat(raw);
-      if (isNaN(val)) {
-        errors[`assignment_${i}_metric_${scm.id}`] = 'Must be a valid number';
-        continue;
-      }
-
-      const metric = metrics.value.find((m) => m.id === scm.metricId);
-      const isRegularHours = metric?.unitOfMeasure === 'hours' && !metric.name?.toLowerCase().includes('overtime');
-      if (isRegularHours) {
-        if (periodType.value === 'Daily' && val > 7) {
-          errors[`assignment_${i}_metric_${scm.id}`] = 'Daily hours cannot exceed 7';
-        } else if (periodType.value === 'Weekly' && val > 35) {
-          errors[`assignment_${i}_metric_${scm.id}`] = 'Weekly hours cannot exceed 35';
-        }
-      }
-    }
-  }
-
-  formErrors.value = errors;
-
-  if (Object.keys(errors).length > 0) return null;
-
-  const records: StatRecordRequest[] = [];
-  const { dateFrom: dateFromVal, dateTo: dateToVal } = dateRange.value;
-
-  for (const assignment of assignments.value) {
-    const scms = subCategoryMetrics.value.filter((scm) => scm.subCategoryId === assignment.subCategoryId);
-    for (const scm of scms) {
-      const raw = assignment.metricValues[scm.id!];
-      if (!raw || raw.trim() === '') continue;
-      records.push({
-        userId: resolvedUserId!,
-        dateFrom: dateFromVal,
-        dateTo: dateToVal,
-        periodType: periodType.value,
-        locationId: selectedLocationId.value!,
-        subCategoryMetricId: scm.id!,
-        value: parseFloat(raw),
-        comment: assignment.comment || undefined,
-        status,
-      });
-    }
-  }
-
-  if (records.length === 0) {
-    formErrors.value = { form: 'Please enter at least one metric value before saving.' };
-    return null;
-  }
-
-  return records;
-};
-
-const handleSave = async (status: string) => {
-  successMessage.value = '';
-  apiError.value = '';
-
-  const records = buildRecords(status);
-  if (!records) return;
-
-  isSubmitting.value = true;
-  try {
-    const { error } = await postApiStatsRecordsBatch(records);
-    if (error.value) {
-      apiError.value = error.value.message || 'Failed to save records. Please try again.';
-      return;
-    }
-    const label = status === 'Submitted' ? 'submitted' : 'saved as draft';
-    successMessage.value = `Records ${label} successfully.`;
-  } catch (err) {
-    apiError.value = err instanceof Error ? err.message : 'An unexpected error occurred.';
-  } finally {
-    isSubmitting.value = false;
-  }
-};
+const {
+  canEnterForOthers,
+  seedLocationId,
+  seedUserId,
+  isLoadingReference,
+  groups,
+  categories,
+  subCategories,
+  metrics,
+  subCategoryMetrics,
+  locationOptions,
+  selectedLocationId,
+  onLocationChange,
+  selectedUserId,
+  userOptions,
+  weekDates,
+  dayStatusMap,
+  daySummaryMap,
+  weeklyRegularTotal,
+  weeklyOvertimeTotal,
+  isOvertimeEnabled,
+  isLoading,
+  loadError,
+  navigateWeek,
+  weekRangeLabel,
+  selectedDate,
+  selectedAssignments,
+  onSelectDay,
+  addAssignment,
+  removeAssignment,
+  updateAssignment,
+  dayErrors,
+  apiError,
+  isSaving,
+  handleSave,
+} = useEnterHours(props.groupId);
 </script>
 
 <template>
   <div class="enter-hours-page">
-    <UaCard :title="formTitle" :header-color="cardHeaderColor">
-      <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
+    <!-- Page header -->
+    <UaCard :header-color="cardHeaderColor">
+      <template #header>
+        <span class="ua-card__title">{{ formTitle }}</span>
+      </template>
 
-      <template v-else>
-        <UaAlert v-if="apiError" type="error" @close="apiError = ''">
-          {{ apiError }}
-        </UaAlert>
-        <UaAlert v-if="successMessage" type="success" @close="successMessage = ''">
-          {{ successMessage }}
-        </UaAlert>
-
-        <!-- Location + Period -->
-        <UaFormGrid>
-          <label class="ua-form-label" for="location-select">Location</label>
+      <div class="page-header">
+        <!-- Location selector -->
+        <div class="header-field">
+          <label class="field-label">Location</label>
           <UaSelect
-            id="location-select"
             label="Select Location"
             :items="locationOptions"
             :model-value="selectedLocationId"
-            :error-messages="formErrors['location']"
+            :disabled="!!seedLocationId"
             @update:model-value="onLocationChange"
           />
+        </div>
 
-          <label class="ua-form-label">Period</label>
-          <div class="period-row">
-            <v-btn-toggle v-model="periodType" mandatory density="compact" variant="outlined" color="primary">
-              <UaBtn v-for="opt in periodOptions" :key="opt.value" :value="opt.value" size="small">
-                {{ opt.label }}
-              </UaBtn>
-            </v-btn-toggle>
+        <!-- Employee picker (supervisors only) -->
+        <div v-if="canEnterForOthers" class="header-field">
+          <label class="field-label">Employee</label>
+          <UaSelect
+            label="Select Employee"
+            :items="userOptions"
+            :model-value="selectedUserId"
+            :disabled="!!seedUserId || !selectedLocationId"
+            @update:model-value="(v) => (selectedUserId = v ? String(v) : null)"
+          />
+        </div>
+
+        <!-- Week navigation -->
+        <div class="week-nav">
+          <v-btn icon variant="text" size="small" :prepend-icon="mdiChevronLeft" @click="navigateWeek(-1)">
+            <v-icon :icon="mdiChevronLeft" />
+          </v-btn>
+          <span class="week-range">{{ weekRangeLabel }}</span>
+          <v-btn icon variant="text" size="small" @click="navigateWeek(1)">
+            <v-icon :icon="mdiChevronRight" />
+          </v-btn>
+        </div>
+      </div>
+    </UaCard>
+
+    <!-- Loading state -->
+    <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
+
+    <!-- Week load error -->
+    <UaAlert v-if="loadError" type="error">{{ loadError }}</UaAlert>
+
+    <template v-else>
+      <!-- Main two-panel layout -->
+      <div class="main-layout">
+        <!-- Left: Weekly grid -->
+        <div class="panel panel--grid">
+          <div v-if="isLoading" class="loading-overlay">Loading…</div>
+          <WeeklyGrid
+            :week-dates="weekDates"
+            :selected-date="selectedDate"
+            :day-summary-map="daySummaryMap"
+            :weekly-regular-total="weeklyRegularTotal"
+            :weekly-overtime-total="weeklyOvertimeTotal"
+            @select-day="onSelectDay"
+          />
+        </div>
+
+        <!-- Right: Day detail panel -->
+        <div class="panel panel--detail">
+          <div v-if="!selectedDate" class="no-day-selected">
+            <p>Select a day to enter hours</p>
           </div>
-
-          <template v-if="periodType === 'Weekly'">
-            <UaTextField id="weekly-from" label="Date From" v-model="weeklyFrom" type="date" />
-            <UaTextField
-              id="weekly-to"
-              label="Date To"
-              v-model="weeklyTo"
-              type="date"
-              :min="weeklyFrom"
-              :max="addDays(weeklyFrom, 6)"
-            />
-          </template>
-          <template v-else>
-            <UaTextField
-              id="anchor-date"
-              :label="periodType === 'Monthly' ? 'Month' : 'Date'"
-              v-model="anchorDate"
-              :type="periodType === 'Monthly' ? 'month' : 'date'"
-            />
-          </template>
-
-          <template v-if="hasPermission(Permissions.StatsRecordsEnterForOthers)">
-            <label class="ua-form-label" for="user-select">Employee</label>
-            <UaSelect
-              id="user-select"
-              label="Select Employee"
-              :items="userOptions"
-              :model-value="selectedUserId"
-              :disabled="!selectedLocationId"
-              :error-messages="formErrors['user']"
-              @update:model-value="(v) => (selectedUserId = v ? String(v) : null)"
-            />
-          </template>
-        </UaFormGrid>
-
-        <div class="section-divider" />
-
-        <!-- Assignment rows -->
-        <div class="assignments-section">
-          <span class="section-label">Work Assignments</span>
-
-          <div v-if="assignments.length === 0" class="empty-assignments">
-            No assignments added. Click "Add Assignment" to begin.
+          <div v-else-if="!selectedLocationId" class="no-day-selected">
+            <p>Select a location first</p>
           </div>
-
-          <AssignmentRow
-            v-for="(assignment, i) in assignments"
-            :key="assignment.id"
-            v-model="assignments[i]"
+          <DayDetailPanel
+            v-else
+            :date="selectedDate"
+            :group-id="groupId"
+            :assignments="selectedAssignments"
             :groups="groups"
             :categories="categories"
             :sub-categories="subCategories"
             :sub-category-metrics="subCategoryMetrics"
             :metrics="metrics"
-            :index="i"
-            :errors="formErrors"
-            :fixed-group-id="groupId"
+            :overtime-enabled="isOvertimeEnabled(selectedDate)"
+            :is-saving="isSaving"
+            :errors="dayErrors"
+            :api-error="apiError"
             :header-color="cardHeaderColor"
-            @remove="removeAssignment(assignment.id)"
+            :day-status="dayStatusMap[selectedDate]"
+            @add-assignment="addAssignment"
+            @remove-assignment="removeAssignment"
+            @update-assignment="updateAssignment"
+            @save-draft="handleSave(EntryStatus.Draft)"
+            @submit-day="handleSave(EntryStatus.Submitted)"
+            @clear-error="apiError = ''"
           />
-
-          <UaBtn variant="outlined" class="add-assignment-btn" :prepend-icon="mdiPlus" @click="addAssignment">
-            Add Assignment
-          </UaBtn>
         </div>
-
-        <!-- Form-level error -->
-        <p v-if="formErrors['form']" class="form-level-error">{{ formErrors['form'] }}</p>
-
-        <!-- Actions -->
-        <div class="form-actions">
-          <UaBtn variant="outlined" :disabled="isSubmitting" @click="$router.back()">Back</UaBtn>
-          <UaBtn variant="outlined" color="primary" :loading="isSubmitting" @click="handleSave('Draft')">
-            Save Draft
-          </UaBtn>
-          <UaBtn color="primary" variant="flat" :loading="isSubmitting" @click="handleSave('Submitted')">
-            Submit
-          </UaBtn>
-        </div>
-      </template>
-    </UaCard>
+      </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .enter-hours-page {
-  padding: var(--ua-spacing-xl);
-  max-width: 900px;
-}
-
-.ua-form-label {
-  font-size: var(--ua-font-size-lg);
-  font-weight: var(--ua-font-weight-bold);
-  color: var(--ua-text-primary);
-}
-
-.loading-state {
-  padding: var(--ua-spacing-md) 0;
-  color: var(--ua-text-muted);
-}
-
-.period-row {
-  display: flex;
-  align-items: center;
-  gap: var(--ua-spacing-md);
-  flex-wrap: wrap;
-}
-
-.section-divider {
-  border-top: 1px solid var(--ua-border-color);
-  margin: var(--ua-spacing-lg) 0;
-}
-
-.assignments-section {
   display: flex;
   flex-direction: column;
-  gap: var(--ua-spacing-md);
-  margin-bottom: var(--ua-spacing-lg);
+  gap: var(--ua-spacing-lg);
+  padding: var(--ua-spacing-xl);
+  max-width: var(--ua-content-max-width);
 }
 
-.section-label {
-  font-size: var(--ua-font-size-lg);
-  font-weight: var(--ua-font-weight-bold);
-  color: var(--ua-text-primary);
-}
-
-.empty-assignments {
-  font-size: var(--ua-font-size-sm);
-  color: var(--ua-text-muted);
-}
-
-.add-assignment-btn {
-  align-self: flex-start;
-}
-
-.form-level-error {
-  font-size: var(--ua-font-size-sm);
-  color: rgb(var(--v-theme-error));
-  margin-bottom: var(--ua-spacing-md);
-}
-
-.form-actions {
+.page-header {
   display: flex;
-  gap: var(--ua-spacing-md);
-  justify-content: flex-end;
-  padding-top: var(--ua-spacing-sm);
+  flex-wrap: wrap;
+  gap: var(--ua-spacing-lg);
+  align-items: flex-end;
 }
 
-.form-actions :deep(.v-btn) {
-  min-width: 120px;
+.header-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ua-spacing-xs);
+  min-width: 220px;
+  flex: 1;
 }
 
-:deep(.v-field) {
+.field-label {
+  font-size: var(--ua-font-size-sm);
+  font-weight: var(--ua-font-weight-bold);
+  color: var(--ua-text-secondary);
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--ua-spacing-xs);
+  margin-left: auto;
+}
+
+.week-range {
+  font-size: var(--ua-font-size-base);
+  font-weight: var(--ua-font-weight-semibold);
+  color: var(--ua-text-primary);
+  min-width: 200px;
+  text-align: center;
+}
+
+.loading-state,
+.loading-overlay {
+  padding: var(--ua-spacing-md);
+  color: var(--ua-text-muted);
+  font-size: var(--ua-font-size-sm);
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
   border-radius: var(--ua-border-radius);
-  background: var(--ua-field-bg);
 }
 
-@media (max-width: 640px) {
+.main-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 2fr) minmax(400px, 3fr);
+  gap: var(--ua-spacing-xl);
+  align-items: start;
+}
+
+.panel {
+  position: relative;
+}
+
+.no-day-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border: 2px dashed var(--ua-border-color);
+  border-radius: var(--ua-border-radius);
+  color: var(--ua-text-muted);
+  font-size: var(--ua-font-size-sm);
+}
+
+/* Mobile: stack panels */
+@media (max-width: 900px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .panel--grid {
+    position: sticky;
+    top: 0;
+    background: rgb(var(--v-theme-background));
+    z-index: 5;
+    padding-bottom: var(--ua-spacing-md);
+  }
+
   .enter-hours-page {
     padding: var(--ua-spacing-md);
-  }
-
-  .form-actions {
-    flex-wrap: wrap;
-  }
-
-  .form-actions :deep(.v-btn) {
-    flex: 1 1 auto;
-    min-width: 0;
   }
 }
 </style>

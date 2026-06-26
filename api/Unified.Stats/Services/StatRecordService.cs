@@ -34,6 +34,9 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         if (queryParams?.Status is { Length: > 0 } status)
             query = query.Where(r => r.Status == status);
 
+        if (queryParams?.UserId is Guid userId)
+            query = query.Where(r => r.UserId == userId);
+
         return await query
             .OrderByDescending(r => r.DateFrom)
             .ProjectToType<StatRecordResponse>()
@@ -126,6 +129,76 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         db.StatRecords.Remove(entity);
         await db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<IReadOnlyCollection<StatRecordResponse>> SaveDayAsync(
+        SaveDayRequest request,
+        Guid callerUserId,
+        bool callerCanEnterForOthers,
+        CancellationToken cancellationToken = default
+    )
+    {
+        EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
+
+        // Load existing records for this user/location/date scoped to the same group so we can
+        // diff within one transaction without touching records that belong to other group forms.
+        var existingRecords = await db
+            .StatRecords.Where(r =>
+                r.UserId == request.UserId
+                && r.LocationId == request.LocationId
+                && r.DateFrom == request.Date
+                && r.DateTo == request.Date
+                && r.SubCategoryMetric!.SubCategory!.Category!.GroupId == request.GroupId
+            )
+            .ToListAsync(cancellationToken);
+
+        var incomingIds = request.Records.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).ToHashSet();
+
+        // Delete records no longer present in the incoming set; signed-off records are immutable.
+        var toDelete = existingRecords
+            .Where(r => !incomingIds.Contains(r.Id) && r.Status != StatRecordStatus.SignedOff)
+            .ToList();
+        db.StatRecords.RemoveRange(toDelete);
+
+        var results = new List<StatRecord>();
+
+        foreach (var item in request.Records)
+        {
+            if (item.Id.HasValue)
+            {
+                // Update existing record
+                var entity = existingRecords.FirstOrDefault(r => r.Id == item.Id.Value);
+                if (entity is null || entity.Status == StatRecordStatus.SignedOff)
+                    continue; // stale ID or signed-off — skip
+
+                entity.SubCategoryMetricId = item.SubCategoryMetricId;
+                entity.Value = item.Value;
+                entity.Comment = item.Comment?.Trim();
+                entity.Status = request.Status;
+                results.Add(entity);
+            }
+            else
+            {
+                // Create new record
+                var entity = new StatRecord
+                {
+                    DateFrom = request.Date,
+                    DateTo = request.Date,
+                    PeriodType = "Daily",
+                    UserId = request.UserId,
+                    LocationId = request.LocationId,
+                    SubCategoryMetricId = item.SubCategoryMetricId,
+                    Value = item.Value,
+                    Comment = item.Comment?.Trim(),
+                    Status = request.Status,
+                };
+                db.StatRecords.Add(entity);
+                results.Add(entity);
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return results.Adapt<List<StatRecordResponse>>();
     }
 
     private static void EnsureAuthorizedToSubmitFor(

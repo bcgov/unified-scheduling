@@ -361,6 +361,73 @@ export const getPostApiStatsRecordsBatchResponseMock = (): StatRecordResponse[] 
     })),
   ]);
 
+export const getPutApiStatsRecordsDayResponseMock = (): StatRecordResponse[] =>
+  faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      comment: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      createdById: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      comment: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      createdById: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
+      periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
+      comment: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      status: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      createdById: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+  ]);
+
 export const getGetApiStatsRecordsMockHandler = (
   overrideResponse?:
     | StatRecordResponse[]
@@ -487,6 +554,28 @@ export const getPostApiStatsRecordsBatchMockHandler = (
     options,
   );
 };
+
+export const getPutApiStatsRecordsDayMockHandler = (
+  overrideResponse?:
+    | StatRecordResponse[]
+    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<StatRecordResponse[]> | StatRecordResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.put(
+    '*/api/stats/records/day',
+    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPutApiStatsRecordsDayResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 export const getStatRecordsMock = () => [
   getGetApiStatsRecordsMockHandler(),
   getPostApiStatsRecordsMockHandler(),
@@ -494,4 +583,5 @@ export const getStatRecordsMock = () => [
   getPutApiStatsRecordsIdMockHandler(),
   getDeleteApiStatsRecordsIdMockHandler(),
   getPostApiStatsRecordsBatchMockHandler(),
+  getPutApiStatsRecordsDayMockHandler(),
 ];
