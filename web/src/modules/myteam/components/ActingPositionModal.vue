@@ -43,7 +43,7 @@ const locationsStore = useLocationsStore();
 const timezone = computed(() =>
   authStore.userInfo?.homeLocationId
     ? locationsStore.entitiesMap[authStore.userInfo.homeLocationId]?.timezone
-    : 'America/Vancouver',
+    : 'local',
 );
 
 const isEditMode = computed(() => !!props.position);

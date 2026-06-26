@@ -126,7 +126,7 @@ export function toLocalDateTimeString(date: string, time?: string): string {
  * ISO 8601 string with the UTC offset for the given IANA timezone.
  *
  * When no time is supplied, midnight (start of day) is used — representing a full-day entry.
- * Falls back to UTC when timezone is absent or invalid.
+ * Falls back to local time when timezone is absent or invalid.
  *
  * Examples (timezone = 'America/Vancouver', offset -08:00 in winter):
  * - ('2026-01-10', '08:30', 'America/Vancouver') => '2026-01-10T08:30:00.000-08:00'
@@ -137,7 +137,7 @@ export function toOffsetDateTimeString(
   time: string | undefined,
   timezone: string | null | undefined,
 ): string {
-  const zone = timezone || 'UTC';
+  const zone = timezone || 'local';
   const d = DateTime.fromFormat(date, DATE_FORMAT, { zone });
   if (!d.isValid) {
     throw new Error(`Invalid date: ${date}`);
@@ -151,7 +151,7 @@ export function toOffsetDateTimeString(
     return d.set({ hour: t.hour, minute: t.minute, second: 0, millisecond: 0 }).toISO()!;
   }
 
-  return d.startOf('day').toISO()!;
+  return d.startOf('day').toUTC().toISO()!;
 }
 
 /**
