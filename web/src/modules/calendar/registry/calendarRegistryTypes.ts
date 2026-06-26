@@ -23,6 +23,7 @@ export interface CalendarViewDefinition<TModel = unknown> {
   label: string;
   order?: number;
   component: Component;
+  supportedPeriods?: readonly CalendarPeriod[];
   buildModel: (
     data: CalendarDataResponse,
     queryContext: CalendarQueryContext,

@@ -10,6 +10,7 @@
   --fc-event-text-color: var(--ua-text-primary);
   --fc-page-bg-color: rgb(var(--v-theme-surface));
   --fc-neutral-bg-color: rgb(var(--v-theme-surface-variant));
+  --fc-today-bg-color: var(--calendar-today-bg-color);
   --fc-list-event-hover-bg-color: rgba(var(--v-theme-accent), 0.12);
   color: var(--ua-text-primary);
   font-size: var(--ua-font-size-sm);

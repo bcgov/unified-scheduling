@@ -3,6 +3,7 @@ import type { RouteRecordRaw, RouteLocationNormalized, RouteLocationNormalizedLo
 import type { createPinia } from 'pinia';
 import { type AppFeatureFlagKey, useAccessControl } from '@/composables/useAccessControl';
 import * as calendarModule from '@/modules/calendar/CalendarModule';
+import * as calendarMatrixTestModule from '@/modules/calendarMatrixTest/CalendarMatrixTestModule';
 import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
 import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import * as statsModule from '@/modules/stats/StatsModule';
@@ -86,6 +87,10 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
   if (accessControl.isFeatureFlagEnabled('calendarModule')) {
     calendarModule.registerModule(routes);
+  }
+
+  if (accessControl.isFeatureFlagEnabled('calendarMatrixTestModule')) {
+    calendarMatrixTestModule.registerModule();
   }
 
   const router = createRouter({
