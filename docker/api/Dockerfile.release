@@ -1,23 +1,31 @@
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.301 AS build
 WORKDIR /src
 
 # Copy project files
-COPY api/api.csproj ./api/
-# COPY db/db.csproj ./db/
+COPY api/Unified.Api/Unified.Api.csproj ./api/Unified.Api/
+COPY api/Unified.Authorization/Unified.Authorization.csproj ./api/Unified.Authorization/
+COPY api/Unified.Common/Unified.Common.csproj ./api/Unified.Common/
+COPY api/Unified.Core/Unified.Core.csproj ./api/Unified.Core/
+COPY api/Unified.Infrastructure/Unified.Infrastructure.csproj ./api/Unified.Infrastructure/
+COPY api/Unified.Stats/Unified.Stats.csproj ./api/Unified.Stats/
+COPY api/Unified.UserManagement/Unified.UserManagement.csproj ./api/Unified.UserManagement/
+COPY api/Unified.Training/Unified.Training.csproj ./api/Unified.Training/
+COPY api/Unified.Calendar/Unified.Calendar.csproj ./api/Unified.Calendar/
+COPY db/db.csproj ./db/
 
 # Restore dependencies
-RUN dotnet restore ./api/api.csproj
+RUN dotnet restore ./api/Unified.Api/Unified.Api.csproj
 # Copy source code
 COPY api ./api
-# COPY db/ ./db/
+COPY db ./db
 
 # Build and publish
-WORKDIR /src/api
-RUN dotnet publish -c Release -o /app/publish --no-restore
+WORKDIR /src/api/Unified.Api
+RUN dotnet publish Unified.Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.9 AS runtime
 WORKDIR /app
 
 # Copy published app
@@ -34,4 +42,4 @@ EXPOSE 8080
 USER 1001
 
 # Start the application
-ENTRYPOINT ["dotnet", "api.dll"]
+ENTRYPOINT ["dotnet", "Unified.Api.dll"]

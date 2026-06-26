@@ -1,0 +1,137 @@
+#!/bin/bash
+set -euo pipefail
+
+getListenConfigSection() {
+  if [ -n "${USE_SELF_SIGNED_SSL:-}" ]; then
+    cat <<'EOF'
+              listen       8080 ssl;
+              server_name  localhost;
+              ssl_certificate         /var/run/nginx-selfsigned.crt;
+              ssl_certificate_key     /var/run/nginx-selfsigned.key;
+EOF
+  else
+    cat <<'EOF'
+              listen       8080;
+              server_name  localhost;
+EOF
+  fi
+}
+
+getApiProxyConfigSection() {
+  local apiUrl="${1%/}"
+
+  cat <<EOF
+        location /api {
+            limit_except OPTIONS {
+                ${HTTP_BASIC:-}
+            }
+            proxy_set_header Host               \$host;
+            proxy_set_header X-Real-IP          \$remote_addr;
+            proxy_set_header X-Forwarded-For    \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host   \$host;
+            proxy_set_header X-Forwarded-Proto  \$http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Port   \$http_x_forwarded_port;
+            proxy_set_header X-Base-Href        ${WEB_BASE_HREF};
+            proxy_pass_request_headers on;
+            proxy_pass_header Authorization;
+            proxy_pass_header Accept;
+            proxy_pass ${apiUrl};
+            proxy_buffer_size       128k;
+            proxy_buffers           4 256k;
+            proxy_busy_buffers_size 256k;
+            proxy_cookie_path /api/auth ${WEB_BASE_HREF}api/auth;
+            proxy_read_timeout 600s;
+        }
+EOF
+}
+
+getApiUrl() {
+  if [ -n "${API_SERVICE_NAME:-}" ]; then
+    local serviceName serviceHostName servicePortName
+    serviceName="$(tr '[:lower:]' '[:upper:]' <<< "${API_SERVICE_NAME//-/_}")"
+    serviceHostName="${serviceName}_SERVICE_HOST"
+    servicePortName="${serviceName}_SERVICE_PORT"
+
+    if [ -n "${!serviceHostName:-}" ]; then
+      if [ -n "${!servicePortName:-}" ]; then
+        API_URL="http://${!serviceHostName}:${!servicePortName}${API_PATH}"
+      else
+        API_URL="http://${!serviceHostName}${API_PATH}"
+      fi
+    fi
+  fi
+
+  echo "${API_URL:-}"
+}
+
+getRemoveBaseHref() {
+  local base="$1"
+  if [ -n "${base}" ] && [ "${base}" != "/" ]; then
+    echo "rewrite ^${base}(.*)\$ /\$1 last;"
+  fi
+}
+
+escapeForSedReplacement() {
+  sed ':a;N;$!ba;s/\n/\\n/g; s/\$/\\$/g'
+}
+
+makeReplacementPattern() {
+  local replace=""
+  local var
+  for var in "$@"; do
+    replace+="s~%${var}%~${!var:-}~g; "
+  done
+  echo "${replace}"
+}
+
+export API_PATH="${API_PATH:-/api/}"
+export WEB_BASE_HREF="${WEB_BASE_HREF:-/}"
+export RealIpFrom="${RealIpFrom:-172.51.0.0/16}"
+export REMOVE_BASE_HREF
+REMOVE_BASE_HREF="$(getRemoveBaseHref "${WEB_BASE_HREF}")"
+
+if [ -n "${HTTP_BASIC_USERNAME:-}" ] && [ -n "${HTTP_BASIC_PASSWORD:-}" ]; then
+  echo "---> Generating .htpasswd file"
+  echo "${HTTP_BASIC_USERNAME}:$(openssl passwd -crypt "${HTTP_BASIC_PASSWORD}")" > /tmp/.htpasswd
+
+  if [ -z "${HTTP_BASIC:-}" ] || [ "${HTTP_BASIC}" = "on" ] || [ "${HTTP_BASIC}" = "1" ]; then
+    export HTTP_BASIC="auth_basic 'restricted';"
+  elif [ "${HTTP_BASIC}" = "off" ] || [ "${HTTP_BASIC}" = "0" ]; then
+    export HTTP_BASIC=""
+  fi
+fi
+
+if [ "${IncludeSiteminderHeaders:-}" = "on" ] || [ "${IncludeSiteminderHeaders:-}" = "1" ] || [ "${IncludeSiteminderHeaders:-}" = "true" ]; then
+  export IgnoreInvalidHeaders="ignore_invalid_headers off;"
+else
+  export IgnoreInvalidHeaders="ignore_invalid_headers on;"
+fi
+
+export API_URL
+API_URL="$(getApiUrl)"
+
+if [ -n "${API_URL}" ]; then
+  export API_CONFIG_SECTION
+  API_CONFIG_SECTION="$(getApiProxyConfigSection "${API_URL}" | escapeForSedReplacement)"
+fi
+
+export LISTEN_CONFIG_SECTION
+LISTEN_CONFIG_SECTION="$(getListenConfigSection | escapeForSedReplacement)"
+
+echo "---> Replacing nginx configuration"
+sed "$(makeReplacementPattern RealIpFrom IpFilterRules AdditionalRealIpFromRules IgnoreInvalidHeaders HTTP_BASIC WEB_BASE_HREF REMOVE_BASE_HREF API_CONFIG_SECTION LISTEN_CONFIG_SECTION)" /tmp/nginx.conf.template > /etc/nginx/nginx.conf
+
+if [ -n "${USE_SELF_SIGNED_SSL:-}" ] && [ ! -r /var/run/nginx-selfsigned.crt ]; then
+  echo "---> Generating self-signed SSL certificate"
+  openssl req -newkey rsa:4096 \
+    -x509 \
+    -sha256 \
+    -days 365 \
+    -nodes \
+    -out /var/run/nginx-selfsigned.crt \
+    -keyout /var/run/nginx-selfsigned.key \
+    -subj "/C=CA/ST=BC/L=BC/O=BCGOV/OU=Testing"
+fi
+
+echo "---> Starting nginx"
+/usr/sbin/nginx -g "daemon off;"

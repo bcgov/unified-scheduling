@@ -21,6 +21,11 @@ on:
         description: "Release tag, e.g. v1.2.3"
         required: true
         type: string
+      prerelease:
+        description: "Require an -rc tag and prevent prod promotion"
+        required: false
+        default: false
+        type: boolean
 
 env:
   GITHUB_IMAGE_REPO: ghcr.io/bcgov/unified-scheduling
@@ -39,20 +44,39 @@ jobs:
     outputs:
       image_tag: ${{ steps.resolve.outputs.IMAGE_TAG }}
       release_ref: ${{ steps.resolve.outputs.RELEASE_REF }}
+      prerelease: ${{ steps.resolve.outputs.PRERELEASE }}
     steps:
       - name: Resolve tag
         id: resolve
         env:
           EVENT_NAME: ${{ github.event_name }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
           INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_PRERELEASE: ${{ github.event.inputs.prerelease }}
         run: |
           set -euo pipefail
 
           if [ "${EVENT_NAME}" = "release" ]; then
             RAW_TAG="${RELEASE_TAG}"
+            PRERELEASE="${RELEASE_PRERELEASE}"
+            if [ "${PRERELEASE}" = "true" ] && [[ ! "${RAW_TAG}" =~ -rc([.-]?[A-Za-z0-9]+)?$ ]]; then
+              echo "Pre-release tags must include an -rc suffix, for example v1.2.3-rc."
+              exit 1
+            fi
           else
             RAW_TAG="${INPUT_TAG}"
+            PRERELEASE="${INPUT_PRERELEASE}"
+            if [ "${PRERELEASE}" = "true" ] && [[ ! "${RAW_TAG}" =~ -rc([.-]?[A-Za-z0-9]+)?$ ]]; then
+              echo "Pre-release tags must include an -rc suffix, for example v1.2.3-rc."
+              exit 1
+            fi
+          fi
+
+          if [[ "${RAW_TAG}" =~ -rc([.-]?[A-Za-z0-9]+)?$ ]]; then
+            PRERELEASE="true"
+          elif [ "${PRERELEASE}" != "true" ]; then
+            PRERELEASE="false"
           fi
 
           if [[ ! "${RAW_TAG}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
@@ -64,6 +88,7 @@ jobs:
           {
             printf 'IMAGE_TAG=%s\n' "${IMAGE_TAG}"
             printf 'RELEASE_REF=%s\n' "${RAW_TAG}"
+            printf 'PRERELEASE=%s\n' "${PRERELEASE}"
           } >> "$GITHUB_OUTPUT"
 
   build-images:
@@ -143,7 +168,7 @@ jobs:
         with:
           licence_plate: ${{ matrix.license_plate }}
           gitops_branch: develop
-          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          gitops_gh_token: ${{ secrets.GITOPS_GH_TOKEN }}
           image_name: unified-scheduling-api
           new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
           image_name_2: unified-scheduling-web
@@ -169,7 +194,7 @@ jobs:
         with:
           licence_plate: ${{ matrix.license_plate }}
           gitops_branch: test
-          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          gitops_gh_token: ${{ secrets.GITOPS_GH_TOKEN }}
           image_name: unified-scheduling-api
           new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
           image_name_2: unified-scheduling-web
@@ -179,6 +204,7 @@ jobs:
   deploy-prod:
     name: Deploy to Prod (${{ matrix.license_plate }})
     needs: [setup, build-images, deploy-test]
+    if: ${{ needs.setup.outputs.prerelease != 'true' }}
     runs-on: ubuntu-latest
     environment: prod
     strategy:
@@ -195,7 +221,7 @@ jobs:
         with:
           licence_plate: ${{ matrix.license_plate }}
           gitops_branch: main
-          gitops_gh_token: ${{ secrets.GITOPS_DEPLOY_TOKEN }}
+          gitops_gh_token: ${{ secrets.GITOPS_GH_TOKEN }}
           image_name: unified-scheduling-api
           new_image: ${{ env.GITHUB_IMAGE_REPO }}/api:${{ needs.setup.outputs.image_tag }}
           image_name_2: unified-scheduling-web

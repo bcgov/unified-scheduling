@@ -46,11 +46,7 @@ api/**/obj
 db/bin
 db/obj
 
-# ─── Docker folder – exclude everything except what Dockerfile.dev copies ───
-# docker/web/dev-entrypoint.sh is referenced by COPY in web/Dockerfile.dev
-docker/api
-docker/nginx-runtime
-docker/vue-on-nginx
+# ─── Docker folder – local tooling and metadata ──────────────────────────────
 docker/manage
 docker/README.md
 docker/.env

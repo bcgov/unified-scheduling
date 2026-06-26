@@ -22,9 +22,6 @@ project.lock.json
 *.sqlite
 *.log
 *.sln
-# Exception: Include docker nginx runtime scripts
-!docker/nginx-runtime/s2i/bin/
-
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -40,6 +37,14 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+
+# Exception: Include docker runtime scripts
+!docker/nginx-runtime/s2i/
+!docker/nginx-runtime/s2i/bin/
+!docker/nginx-runtime/s2i/bin/run
+!docker/vue-on-nginx/s2i/
+!docker/vue-on-nginx/s2i/bin/
+!docker/vue-on-nginx/s2i/bin/fix-base-url
 
 # Visual Studio cache/options directory
 .vs/
@@ -126,4 +131,3 @@ coverage/
 tmp/
 temp/
 *.tmp
-
