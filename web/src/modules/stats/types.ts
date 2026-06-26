@@ -19,4 +19,4 @@ export interface DaySummary {
   assignmentCount: number;
 }
 
-export type EntryStatus = 'Draft' | 'Submitted' | '';
+export type EntryStatus = 'Draft' | 'Submitted' | 'SignedOff' | '';

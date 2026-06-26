@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import type { StatCategoryResponse, SubCategoryResponse } from '@/api-access/generated/models';
+import type { StatCategoryResponse, StatGroupResponse, SubCategoryResponse } from '@/api-access/generated/models';
 import UaBtn from '@/shared/components/UaBtn.vue';
-import { computed } from 'vue';
+import type { SelectOption } from '@/types/select';
+import { computed, ref } from 'vue';
 import { EntryStatus } from '../constants';
 
 const props = defineProps<{
+  groups: StatGroupResponse[];
   employees: { id: string; name: string }[];
+  locations: SelectOption[];
   categories: StatCategoryResponse[];
   subCategories: SubCategoryResponse[];
   loading?: boolean;
@@ -15,22 +18,37 @@ const emit = defineEmits<{
   apply: [];
 }>();
 
+const groupId = defineModel<number | null>('groupId', { default: null });
 const employeeId = defineModel<string | null>('employeeId', { default: null });
+const locationId = defineModel<number | null>('locationId', { default: null });
 const categoryName = defineModel<string | null>('categoryName', { default: null });
 const subCategoryId = defineModel<number | null>('subCategoryId', { default: null });
 const status = defineModel<string | null>('status', { default: null });
 const fromDate = defineModel<string | null>('fromDate', { default: null });
 const toDate = defineModel<string | null>('toDate', { default: null });
 
+const groupItems = computed(() =>
+  [...props.groups]
+    .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+    .map((g) => ({ title: g.name ?? '', value: g.id! })),
+);
+
 const employeeItems = computed(() =>
   props.employees.map((u) => ({ title: u.name, value: u.id })).sort((a, b) => a.title.localeCompare(b.title)),
 );
 
-// Dedup by name — filtering is now by name on the backend so both group IDs are matched
+const locationItems = computed(() =>
+  props.locations
+    .map((l) => ({ title: String(l.description ?? ''), value: Number(l.code) }))
+    .sort((a, b) => a.title.localeCompare(b.title)),
+);
+
+// Filter categories by selected group, then dedup by name
 const categoryItems = computed(() => {
   const seen = new Set<string>();
   return props.categories
     .filter((c) => {
+      if (groupId.value != null && c.groupId !== groupId.value) return false;
       const name = c.name ?? '';
       if (seen.has(name)) return false;
       seen.add(name);
@@ -40,10 +58,13 @@ const categoryItems = computed(() => {
     .sort((a, b) => a.title.localeCompare(b.title));
 });
 
-// Cascade subcategories across all categories that share the selected name
 const matchingCategoryIds = computed(() => {
   if (!categoryName.value) return [];
-  return props.categories.filter((c) => c.name === categoryName.value && c.id != null).map((c) => c.id!);
+  return props.categories
+    .filter(
+      (c) => c.name === categoryName.value && c.id != null && (groupId.value == null || c.groupId === groupId.value),
+    )
+    .map((c) => c.id!);
 });
 
 const filteredSubCategoryItems = computed(() => {
@@ -60,15 +81,36 @@ const filteredSubCategoryItems = computed(() => {
 const statusItems = [
   { title: 'Draft', value: EntryStatus.Draft },
   { title: 'Submitted', value: EntryStatus.Submitted },
+  { title: 'Signed Off', value: EntryStatus.SignedOff },
 ];
 
+const groupError = ref(false);
+
+function onGroupChange() {
+  groupError.value = false;
+  categoryName.value = null;
+  subCategoryId.value = null;
+}
+
+function applyFilters() {
+  if (!groupId.value) {
+    groupError.value = true;
+    return;
+  }
+  groupError.value = false;
+  emit('apply');
+}
+
 function clearAll() {
+  groupId.value = null;
   employeeId.value = null;
+  locationId.value = null;
   categoryName.value = null;
   subCategoryId.value = null;
   status.value = null;
   fromDate.value = null;
   toDate.value = null;
+  groupError.value = false;
   emit('apply');
 }
 </script>
@@ -78,10 +120,41 @@ function clearAll() {
     <h3 class="filters-title">Filters</h3>
 
     <div class="filter-group">
+      <label class="filter-label">
+        Group
+        <span class="filter-required">*</span>
+      </label>
+      <v-select
+        v-model="groupId"
+        :items="groupItems"
+        item-title="title"
+        item-value="value"
+        placeholder="Select a group"
+        :error-messages="groupError ? 'Group is required.' : []"
+        density="compact"
+        @update:model-value="onGroupChange"
+      />
+    </div>
+
+    <div class="filter-group">
       <label class="filter-label">Employee</label>
       <v-select
         v-model="employeeId"
         :items="employeeItems"
+        item-title="title"
+        item-value="value"
+        placeholder="Select an option"
+        clearable
+        hide-details
+        density="compact"
+      />
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">Location</label>
+      <v-select
+        v-model="locationId"
+        :items="locationItems"
         item-title="title"
         item-value="value"
         placeholder="Select an option"
@@ -145,7 +218,7 @@ function clearAll() {
     </div>
 
     <div class="filter-actions">
-      <UaBtn color="primary" variant="flat" block :loading="loading" @click="emit('apply')">Apply Filters</UaBtn>
+      <UaBtn color="primary" variant="flat" block :loading="loading" @click="applyFilters">Apply Filters</UaBtn>
       <UaBtn variant="text" block @click="clearAll">Clear</UaBtn>
     </div>
   </div>
@@ -179,6 +252,11 @@ function clearAll() {
   font-size: var(--ua-font-size-sm);
   font-weight: var(--ua-font-weight-semibold);
   color: var(--ua-text-primary);
+}
+
+.filter-required {
+  color: rgb(var(--v-theme-error));
+  margin-left: 2px;
 }
 
 .filter-actions {

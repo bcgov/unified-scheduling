@@ -11,5 +11,6 @@ export interface SaveDayRequest {
   locationId: number;
   userId: string;
   status: string;
+  groupId: number;
   records: SaveDayRecordItem[];
 }

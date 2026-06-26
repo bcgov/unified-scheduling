@@ -119,6 +119,7 @@ export const PutApiStatsRecordsDayBody = zod.strictObject({
   locationId: zod.number(),
   userId: zod.uuid(),
   status: zod.string(),
+  groupId: zod.number(),
   records: zod.array(
     zod.strictObject({
       id: zod.number().nullish(),

@@ -6,6 +6,8 @@
  */
 import type {
   DashboardEntryResponse,
+  DashboardSignOffRequest,
+  DashboardSignOffResponse,
   DashboardSummaryResponse,
   GetApiStatsDashboardEntriesParams,
   GetApiStatsDashboardSummaryParams,
@@ -27,5 +29,20 @@ export const getApiStatsDashboardSummary = (
 ) => {
   return useFetchAPI<DashboardSummaryResponse>({ url: `/api/stats/dashboard/summary`, method: 'GET', params }, options);
 };
+export const postApiStatsDashboardSignOff = (
+  dashboardSignOffRequest: DashboardSignOffRequest,
+  options?: SecondParameter<typeof useFetchAPI<DashboardSignOffResponse>>,
+) => {
+  return useFetchAPI<DashboardSignOffResponse>(
+    {
+      url: `/api/stats/dashboard/sign-off`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: dashboardSignOffRequest,
+    },
+    options,
+  );
+};
 export type GetApiStatsDashboardEntriesResult = NonNullable<Awaited<ReturnType<typeof getApiStatsDashboardEntries>>>;
 export type GetApiStatsDashboardSummaryResult = NonNullable<Awaited<ReturnType<typeof getApiStatsDashboardSummary>>>;
+export type PostApiStatsDashboardSignOffResult = NonNullable<Awaited<ReturnType<typeof postApiStatsDashboardSignOff>>>;
