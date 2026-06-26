@@ -1,5 +1,5 @@
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:10.0.9 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.301 AS build
 WORKDIR /src
 
 # Copy project files
@@ -10,6 +10,8 @@ COPY api/Unified.Core/Unified.Core.csproj ./api/Unified.Core/
 COPY api/Unified.Infrastructure/Unified.Infrastructure.csproj ./api/Unified.Infrastructure/
 COPY api/Unified.Stats/Unified.Stats.csproj ./api/Unified.Stats/
 COPY api/Unified.UserManagement/Unified.UserManagement.csproj ./api/Unified.UserManagement/
+COPY api/Unified.Training/Unified.Training.csproj ./api/Unified.Training/
+COPY api/Unified.Calendar/Unified.Calendar.csproj ./api/Unified.Calendar/
 COPY db/db.csproj ./db/
 
 # Restore dependencies
