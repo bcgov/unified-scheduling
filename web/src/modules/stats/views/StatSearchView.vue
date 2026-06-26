@@ -62,11 +62,14 @@ const columns = computed(() => {
   return cols;
 });
 
-function statusColor(s: string | undefined) {
-  if (s === EntryStatus.SignedOff) return 'primary';
-  if (s === EntryStatus.Submitted) return 'success';
-  if (s === EntryStatus.Draft) return 'warning';
-  return 'default';
+const STATUS_COLORS: Partial<Record<string, string>> = {
+  [EntryStatus.SignedOff]: 'primary',
+  [EntryStatus.Submitted]: 'success',
+  [EntryStatus.Draft]: 'warning',
+};
+
+function statusColor(status?: string) {
+  return status ? (STATUS_COLORS[status] ?? 'default') : 'default';
 }
 
 // ── Edit: open in new tab pre-seeded with the entry's user/date/location ───
@@ -228,7 +231,12 @@ async function onSignOffConfirm(entryIds: number[]) {
         :categories="categories"
         :sub-categories="subCategories"
         :loading="isLoadingEntries"
-        @apply="applyFilters"
+        @apply="
+          () => {
+            selectedItems.value = [];
+            applyFilters();
+          }
+        "
       />
     </div>
 

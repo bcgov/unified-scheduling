@@ -60,7 +60,11 @@ const categoryItems = computed(() => {
 
 const matchingCategoryIds = computed(() => {
   if (!categoryName.value) return [];
-  return props.categories.filter((c) => c.name === categoryName.value && c.id != null).map((c) => c.id!);
+  return props.categories
+    .filter(
+      (c) => c.name === categoryName.value && c.id != null && (groupId.value == null || c.groupId === groupId.value),
+    )
+    .map((c) => c.id!);
 });
 
 const filteredSubCategoryItems = computed(() => {
@@ -107,6 +111,7 @@ function clearAll() {
   fromDate.value = null;
   toDate.value = null;
   groupError.value = false;
+  emit('apply');
 }
 </script>
 

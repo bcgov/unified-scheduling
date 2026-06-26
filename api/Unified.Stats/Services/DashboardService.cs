@@ -22,35 +22,13 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
                 EmployeeName = r.User != null ? $"{r.User.FirstName} {r.User.LastName}".Trim() : string.Empty,
                 BadgeNumber = r.User != null ? r.User.BadgeNumber : null,
                 Date = r.DateFrom,
-                GroupId =
-                    r.SubCategoryMetric != null
-                    && r.SubCategoryMetric.SubCategory != null
-                    && r.SubCategoryMetric.SubCategory.Category != null
-                        ? r.SubCategoryMetric.SubCategory.Category.GroupId
-                        : 0,
+                GroupId = r.SubCategoryMetric?.SubCategory?.Category?.GroupId ?? 0,
                 LocationId = r.LocationId,
-                WorkArea =
-                    r.SubCategoryMetric != null
-                    && r.SubCategoryMetric.SubCategory != null
-                    && r.SubCategoryMetric.SubCategory.Category != null
-                        ? r.SubCategoryMetric.SubCategory.Category.Name
-                        : string.Empty,
-                Subcategory =
-                    r.SubCategoryMetric != null && r.SubCategoryMetric.SubCategory != null
-                        ? r.SubCategoryMetric.SubCategory.Name
-                        : string.Empty,
-                MetricName =
-                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
-                        ? r.SubCategoryMetric.Metric.Name
-                        : string.Empty,
-                MetricUnit =
-                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
-                        ? r.SubCategoryMetric.Metric.UnitOfMeasure
-                        : string.Empty,
-                IsOvertime =
-                    r.SubCategoryMetric != null
-                    && r.SubCategoryMetric.Metric != null
-                    && r.SubCategoryMetric.Metric.IsOvertime,
+                WorkArea = r.SubCategoryMetric?.SubCategory?.Category?.Name ?? string.Empty,
+                Subcategory = r.SubCategoryMetric?.SubCategory?.Name ?? string.Empty,
+                MetricName = r.SubCategoryMetric?.Metric?.Name ?? string.Empty,
+                MetricUnit = r.SubCategoryMetric?.Metric?.UnitOfMeasure ?? string.Empty,
+                IsOvertime = r.SubCategoryMetric?.Metric?.IsOvertime ?? false,
                 Value = r.Value,
                 Status = r.Status,
             })
@@ -125,7 +103,11 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return new DashboardSignOffResponse { SignedOffCount = toSignOff.Count };
+        return new DashboardSignOffResponse
+        {
+            SignedOffCount = toSignOff.Count,
+            SignedOffIds = toSignOff.Select(r => r.Id).ToList(),
+        };
     }
 
     private IQueryable<StatRecord> BuildQuery(int callerHomeLocationId, DashboardEntriesQueryParams? queryParams)

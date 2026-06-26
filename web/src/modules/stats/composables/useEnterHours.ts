@@ -70,8 +70,9 @@ export function useEnterHours(groupId: number) {
     const { data } = await getApiUsers({ LocationId: locationId, IsEnabled: true });
     if (activeLocationId !== locationId) return;
     locationUsers.value = data.value ?? [];
-    const currentAtLocation = locationUsers.value.some((u) => u.id === authStore.currentUserId);
-    selectedUserId.value = currentAtLocation ? (authStore.currentUserId ?? null) : null;
+    const currentUserId = authStore.currentUserId;
+    selectedUserId.value =
+      currentUserId != null && locationUsers.value.some((u) => u.id === currentUserId) ? currentUserId : null;
   }
 
   watch(selectedLocationId, async (locId) => {
