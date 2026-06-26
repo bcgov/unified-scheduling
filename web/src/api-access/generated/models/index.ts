@@ -17,6 +17,7 @@ export * from './configResponse';
 export * from './dashboardEntryResponse';
 export * from './dashboardSignOffRequest';
 export * from './dashboardSignOffResponse';
+export * from './dashboardSummaryResponse';
 export * from './deletedRoleDto';
 export * from './deleteRoleWithReassignmentRequestDto';
 export * from './expireActingPositionRequestDto';
