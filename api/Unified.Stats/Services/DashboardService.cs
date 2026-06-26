@@ -13,6 +13,9 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         CancellationToken cancellationToken = default
     )
     {
+        // Note: null-conditional operators (?.) are not allowed inside expression tree lambdas
+        // (CS8072 — a C# compiler restriction, not an EF Core one), so navigation checks use
+        // explicit != null comparisons instead.
         return await BuildQuery(callerHomeLocationId, queryParams)
             .OrderByDescending(r => r.DateFrom)
             .Select(r => new DashboardEntryResponse
@@ -22,13 +25,35 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
                 EmployeeName = r.User != null ? $"{r.User.FirstName} {r.User.LastName}".Trim() : string.Empty,
                 BadgeNumber = r.User != null ? r.User.BadgeNumber : null,
                 Date = r.DateFrom,
-                GroupId = r.SubCategoryMetric?.SubCategory?.Category?.GroupId ?? 0,
+                GroupId =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.SubCategory != null
+                    && r.SubCategoryMetric.SubCategory.Category != null
+                        ? r.SubCategoryMetric.SubCategory.Category.GroupId
+                        : 0,
                 LocationId = r.LocationId,
-                WorkArea = r.SubCategoryMetric?.SubCategory?.Category?.Name ?? string.Empty,
-                Subcategory = r.SubCategoryMetric?.SubCategory?.Name ?? string.Empty,
-                MetricName = r.SubCategoryMetric?.Metric?.Name ?? string.Empty,
-                MetricUnit = r.SubCategoryMetric?.Metric?.UnitOfMeasure ?? string.Empty,
-                IsOvertime = r.SubCategoryMetric?.Metric?.IsOvertime ?? false,
+                WorkArea =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.SubCategory != null
+                    && r.SubCategoryMetric.SubCategory.Category != null
+                        ? r.SubCategoryMetric.SubCategory.Category.Name
+                        : string.Empty,
+                Subcategory =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.SubCategory != null
+                        ? r.SubCategoryMetric.SubCategory.Name
+                        : string.Empty,
+                MetricName =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
+                        ? r.SubCategoryMetric.Metric.Name
+                        : string.Empty,
+                MetricUnit =
+                    r.SubCategoryMetric != null && r.SubCategoryMetric.Metric != null
+                        ? r.SubCategoryMetric.Metric.UnitOfMeasure
+                        : string.Empty,
+                IsOvertime =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.Metric != null
+                    && r.SubCategoryMetric.Metric.IsOvertime,
                 Value = r.Value,
                 Status = r.Status,
             })

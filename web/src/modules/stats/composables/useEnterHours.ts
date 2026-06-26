@@ -241,7 +241,7 @@ export function useEnterHours(groupId: number) {
       if (seedUserId && seedEmployeeName && !locationUsers.value.some((u) => u.id === seedUserId)) {
         const [firstName, ...rest] = seedEmployeeName.split(' ');
         locationUsers.value = [
-          { id: seedUserId, firstName: firstName ?? '', lastName: rest.join(' ') },
+          { id: seedUserId, firstName: firstName ?? '', lastName: rest.join(' ') } as UserResponse,
           ...locationUsers.value,
         ];
       }

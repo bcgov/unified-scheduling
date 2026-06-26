@@ -233,7 +233,7 @@ async function onSignOffConfirm(entryIds: number[]) {
         :loading="isLoadingEntries"
         @apply="
           () => {
-            selectedItems.value = [];
+            selectedItems = [];
             applyFilters();
           }
         "
