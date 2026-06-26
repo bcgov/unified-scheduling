@@ -12,6 +12,8 @@ export interface DashboardEntryResponse {
   /** @nullable */
   badgeNumber?: string | null;
   date?: string;
+  groupId?: number;
+  locationId?: number;
   workArea?: string;
   subcategory?: string;
   metricName?: string;

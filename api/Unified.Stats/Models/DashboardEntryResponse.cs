@@ -7,6 +7,8 @@ public sealed record DashboardEntryResponse
     public string EmployeeName { get; init; } = string.Empty;
     public string? BadgeNumber { get; init; }
     public DateOnly Date { get; init; }
+    public int GroupId { get; init; }
+    public int LocationId { get; init; }
     public string WorkArea { get; init; } = string.Empty;
     public string Subcategory { get; init; } = string.Empty;
     public string MetricName { get; init; } = string.Empty;

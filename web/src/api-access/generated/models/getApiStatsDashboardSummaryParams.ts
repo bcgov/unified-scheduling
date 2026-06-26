@@ -8,12 +8,14 @@ import type { MaybeRef } from 'vue';
 
 export type OriginalGetApiStatsDashboardSummaryParams = {
   EmployeeId?: string;
+  GroupId?: number;
   CategoryName?: string;
   SubCategoryId?: number;
   Status?: string;
   NameSearch?: string;
   FromDate?: string;
   ToDate?: string;
+  LocationId?: number;
 };
 
 export type GetApiStatsDashboardSummaryParams = MaybeRef<OriginalGetApiStatsDashboardSummaryParams>;
