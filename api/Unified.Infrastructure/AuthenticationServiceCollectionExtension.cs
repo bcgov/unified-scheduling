@@ -182,6 +182,22 @@ public static class AuthenticationServiceCollectionExtension
                         }
                         return Task.CompletedTask;
                     },
+                    OnRedirectToIdentityProviderForSignOut = context =>
+                    {
+                        var request = context.HttpContext.Request;
+                        var baseHref = XForwardedForHelper.ResolveBaseHref(request);
+
+                        context.ProtocolMessage.PostLogoutRedirectUri = XForwardedForHelper.BuildUrlString(
+                            forwardedProto: request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? request.Scheme,
+                            forwardedHost: request.Headers["X-Forwarded-Host"].FirstOrDefault()
+                                ?? request.Host.ToString(),
+                            forwardedPort: request.Headers["X-Forwarded-Port"].FirstOrDefault() ?? "",
+                            baseUrl: baseHref,
+                            remainingPath: "/"
+                        );
+
+                        return Task.CompletedTask;
+                    },
                 };
             });
 

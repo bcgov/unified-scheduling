@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { useNavigationStore } from '@/stores/NavigationStore';
+import { useAuthStore } from '@/stores/auth';
+import { mdiLogout } from '@mdi/js';
+
 const bcgovLogo = new URL('/images/bcid-logo-rev-en.svg', import.meta.url).href;
 const navigationStore = useNavigationStore();
+const authStore = useAuthStore();
+
+const handleLogout = () => {
+  authStore.clearUserInfo();
+  window.location.href = '/api/auth/logout';
+};
 </script>
 
 <template>
@@ -20,6 +29,32 @@ const navigationStore = useNavigationStore();
         >
           {{ navItem.name }}
         </RouterLink>
+      </div>
+
+      <v-spacer />
+
+      <div v-if="authStore.isAuthenticated" class="profile-menu-container">
+        <v-menu min-width="200px" rounded>
+          <template #activator="{ props }">
+            <v-btn icon v-bind="props" class="avatar-btn">
+              <v-avatar color="accent" size="36">
+                <span class="initials-text">{{ authStore.initials }}</span>
+              </v-avatar>
+            </v-btn>
+          </template>
+          <v-card class="mt-2">
+            <v-card-text>
+              <div class="mx-auto text-center">
+                <v-avatar color="accent" size="48" class="mb-2">
+                  <span class="initials-text text-h6">{{ authStore.initials }}</span>
+                </v-avatar>
+                <h3>{{ authStore.userName }}</h3>
+                <v-divider class="my-3"></v-divider>
+                <v-btn variant="text" block @click="handleLogout" :prepend-icon="mdiLogout"> Logout </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+        </v-menu>
       </div>
     </v-app-bar>
     <div class="gold-accent-bar" />
@@ -71,5 +106,20 @@ const navigationStore = useNavigationStore();
   font-weight: var(--ua-font-weight-semibold);
   color: rgb(var(--v-theme-accent));
   text-decoration: underline;
+}
+
+.profile-menu-container {
+  display: flex;
+  align-items: center;
+  margin-right: var(--ua-spacing-xl);
+}
+
+.avatar-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.initials-text {
+  color: rgb(var(--v-theme-primary));
+  font-weight: var(--ua-font-weight-bold, 700);
 }
 </style>

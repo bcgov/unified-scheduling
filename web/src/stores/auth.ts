@@ -9,6 +9,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   const userName = computed(() => userInfo.value?.name ?? null);
 
+  const initials = computed(() => {
+    if (!userName.value) return '';
+    const parts = userName.value.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '';
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  });
+
   const currentUserId = computed(() => userInfo.value?.userId ?? null);
 
   const homeLocationId = computed(() => userInfo.value?.homeLocationId ?? null);
@@ -25,6 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
     userInfo,
     isAuthenticated,
     userName,
+    initials,
     currentUserId,
     homeLocationId,
     setUserInfo,
