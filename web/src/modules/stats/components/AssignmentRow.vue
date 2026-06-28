@@ -33,6 +33,8 @@ const props = defineProps<{
   overtimeLocked?: boolean;
   /** Tooltip text shown on locked overtime inputs. */
   overtimeLockReason?: string;
+  /** When true, all inputs are disabled and remove is hidden (e.g. signed-off entries). */
+  readonly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -130,7 +132,7 @@ const onCommentInput = (value: string) => {
 
 <template>
   <UaCard :title="`Assignment ${index + 1}`" :header-color="headerColor" class="assignment-card">
-    <template #header-actions>
+    <template v-if="!readonly" #header-actions>
       <UaBtn variant="text" density="compact" color="white" class="remove-btn" @click="emit('remove')">Remove</UaBtn>
     </template>
     <UaFormGrid>
@@ -143,6 +145,7 @@ const onCommentInput = (value: string) => {
           :items="groupOptions"
           :model-value="model.groupId"
           :error-messages="errors[`assignment_${index}_group`]"
+          :disabled="readonly"
           @update:model-value="onGroupChange"
         />
       </template>
@@ -155,7 +158,7 @@ const onCommentInput = (value: string) => {
         :items="categoryOptions"
         :model-value="model.categoryId"
         :error-messages="errors[`assignment_${index}_category`]"
-        :disabled="!effectiveGroupId"
+        :disabled="readonly || !effectiveGroupId"
         @update:model-value="onCategoryChange"
       />
 
@@ -168,6 +171,7 @@ const onCommentInput = (value: string) => {
           :items="subCategoryOptions"
           :model-value="model.subCategoryId"
           :error-messages="errors[`assignment_${index}_subCategory`]"
+          :disabled="readonly"
           @update:model-value="onSubCategoryChange"
         />
       </template>
@@ -200,7 +204,7 @@ const onCommentInput = (value: string) => {
           hide-details="auto"
           :model-value="model.metricValues[m.id] ?? ''"
           :error-messages="errors[`assignment_${index}_metric_${m.id}`]"
-          :disabled="m.isOvertime && overtimeLocked"
+          :disabled="readonly || (m.isOvertime && overtimeLocked)"
           @update:model-value="(v: string) => onMetricValueInput(m.id, String(v))"
         />
       </template>
@@ -219,6 +223,7 @@ const onCommentInput = (value: string) => {
         auto-grow
         placeholder="Optional note"
         :model-value="model.comment"
+        :disabled="readonly"
         @update:model-value="(v: string) => onCommentInput(String(v))"
       />
     </UaFormGrid>

@@ -50,7 +50,7 @@ export function useEnterHours(groupId: number) {
 
   // ── Location ──────────────────────────────────────────────────────────────
   const locationOptions = computed(() => locationsStore.getSelectOptions());
-  const selectedLocationId = ref<number | null>(seedLocationId ?? null);
+  const selectedLocationId = ref<number | null>(seedLocationId ?? authStore.homeLocationId ?? null);
 
   const onLocationChange = (value: SelectValue | undefined) => {
     selectedLocationId.value = value != null ? Number(value) : null;
@@ -233,8 +233,9 @@ export function useEnterHours(groupId: number) {
     metrics.value = metricsRes.data.value ?? [];
     subCategoryMetrics.value = scmRes.data.value ?? [];
 
-    if (seedLocationId) {
-      const { data } = await getApiUsers({ LocationId: seedLocationId, IsEnabled: true });
+    const initialLocationId = seedLocationId ?? authStore.homeLocationId;
+    if (initialLocationId) {
+      const { data } = await getApiUsers({ LocationId: initialLocationId, IsEnabled: true });
       locationUsers.value = data.value ?? [];
 
       // If the seeded user isn't in this location's list, inject them so the dropdown shows their name.
@@ -245,6 +246,11 @@ export function useEnterHours(groupId: number) {
           ...locationUsers.value,
         ];
       }
+
+      // Default the selected user to the current user if they belong to this location
+      if (!seedUserId && !canEnterForOthers.value) {
+        selectedUserId.value = authStore.currentUserId;
+      }
     }
 
     isLoadingReference.value = false;
@@ -252,6 +258,8 @@ export function useEnterHours(groupId: number) {
     if (seedDate && seedLocationId && seedUserId) {
       await loadWeek();
       onSelectDay(seedDate);
+    } else if (initialLocationId && selectedUserId.value) {
+      await loadWeek();
     }
   });
 

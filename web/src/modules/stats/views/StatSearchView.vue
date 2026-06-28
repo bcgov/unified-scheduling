@@ -142,8 +142,7 @@ onMounted(async () => {
 
         <div v-if="canSignOff" class="entries-actions">
           <UaAlert v-if="signOffError" type="error" class="signoff-error">{{ signOffError }}</UaAlert>
-          <p v-if="!groupId" class="signoff-hint">Select a group in the Filters panel to enable sign off.</p>
-          <p v-else-if="selectedItems.length === 0" class="signoff-hint">Select one or more entries to sign off.</p>
+          <p v-if="selectedItems.length === 0" class="signoff-hint">Select one or more entries to sign off.</p>
           <UaBtn
             color="primary"
             variant="flat"

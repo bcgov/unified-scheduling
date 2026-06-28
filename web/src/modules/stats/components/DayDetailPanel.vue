@@ -60,6 +60,8 @@ const dailyRegularTotal = computed(() => {
   return total;
 });
 
+const isSignedOff = computed(() => props.dayStatus === 'SignedOff');
+
 const overtimeLockReason = computed(() => {
   if (props.overtimeEnabled) return '';
   return `Enter ${DAILY_REGULAR_TARGET_HOURS}h regular today (${dailyRegularTotal.value}h / ${DAILY_REGULAR_TARGET_HOURS}h) or ${WEEKLY_REGULAR_TARGET_HOURS}h for the week to unlock overtime.`;
@@ -119,11 +121,18 @@ const overtimeLockReason = computed(() => {
         :header-color="headerColor"
         :overtime-locked="!overtimeEnabled"
         :overtime-lock-reason="overtimeLockReason"
+        :readonly="isSignedOff"
         @remove="emit('remove-assignment', assignment.id)"
         @update:model-value="(v) => emit('update-assignment', v as DayAssignment)"
       />
 
-      <UaBtn variant="outlined" class="add-btn" :prepend-icon="mdiPlus" @click="emit('add-assignment')">
+      <UaBtn
+        v-if="!isSignedOff"
+        variant="outlined"
+        class="add-btn"
+        :prepend-icon="mdiPlus"
+        @click="emit('add-assignment')"
+      >
         Add Assignment
       </UaBtn>
     </div>
@@ -131,8 +140,8 @@ const overtimeLockReason = computed(() => {
     <!-- Form-level errors -->
     <p v-if="errors['form']" class="form-error">{{ errors['form'] }}</p>
 
-    <!-- Actions -->
-    <div class="day-detail-panel__actions">
+    <!-- Actions (hidden for signed-off days) -->
+    <div v-if="!isSignedOff" class="day-detail-panel__actions">
       <UaBtn variant="outlined" color="primary" :loading="isSaving" @click="emit('save-draft')"> Save Draft </UaBtn>
       <UaBtn color="primary" variant="flat" :loading="isSaving" @click="emit('submit-day')"> Submit Day </UaBtn>
     </div>
