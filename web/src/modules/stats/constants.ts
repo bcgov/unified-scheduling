@@ -7,6 +7,16 @@ export const EntryStatus = {
   SignedOff: 'SignedOff',
 } as const;
 
+export const STATUS_COLORS: Partial<Record<string, string>> = {
+  [EntryStatus.SignedOff]: 'primary',
+  [EntryStatus.Submitted]: 'success',
+  [EntryStatus.Draft]: 'warning',
+};
+
+export function statusColor(status?: string): string {
+  return status ? (STATUS_COLORS[status] ?? 'default') : 'default';
+}
+
 // Maps stat group DB IDs to their entry form route names.
 // Group 1 = Non-Supervision, Group 2 = Supervision (see StatsModule.ts route definitions).
 export const GROUP_ROUTE: Record<number, string> = {

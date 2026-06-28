@@ -1,31 +1,26 @@
 <script setup lang="ts">
-import { Permissions } from '@/api-access/generated/models';
-import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
-import { mdiPencil } from '@mdi/js';
-import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { mdiDownload, mdiPencil } from '@mdi/js';
+import { onMounted } from 'vue';
 import DashboardFilters from '../components/DashboardFilters.vue';
 import SignOffConfirmModal from '../components/SignOffConfirmModal.vue';
-import { EntryStatus, GROUP_ROUTE } from '../constants';
+import { EntryStatus, statusColor } from '../constants';
 import { useStatSearch } from '../composables/useStatSearch';
 import type { DashboardEntryResponse } from '@/api-access/generated/models';
 
-const { hasPermission } = useAccessControl();
-const canViewDashboard = computed(() => hasPermission(Permissions.DashboardView));
-const canEditEntries = computed(() => hasPermission(Permissions.StatsRecordsEnterForOthers));
-const canSignOff = computed(() => hasPermission(Permissions.DashboardSignOff));
-const router = useRouter();
-
 const {
+  // Permissions
+  canViewDashboard,
+  canEditEntries,
+  canSignOff,
+  // Reference data
   groups,
   employees,
   categories,
   subCategories,
-  isLoadingEntries,
-  entries,
+  // Filters
   groupId,
   employeeId,
   locationId,
@@ -34,99 +29,34 @@ const {
   status,
   fromDate,
   toDate,
-  error,
-  summary,
   locationOptions,
+  // Table
+  columns,
+  entries,
+  isLoadingEntries,
+  selectedItems,
+  // Summary
+  summary,
+  // Sign-off
+  showSignOffModal,
+  isSigningOff,
+  signOffError,
+  selectedGroupName,
+  canInitiateSignOff,
+  // Errors
+  error,
+  // Actions
   loadReferenceData,
   applyFilters,
-  signOff,
+  confirmSignOff,
+  openEdit,
+  exportEntriesCsv,
 } = useStatSearch();
 
 onMounted(async () => {
   if (!canViewDashboard.value) return;
   await Promise.all([loadReferenceData(), applyFilters()]);
 });
-
-const columns = computed(() => {
-  const cols = [
-    { title: 'Employee', key: 'employeeName', sortable: true },
-    { title: 'Date', key: 'date', sortable: true },
-    { title: 'Work Area', key: 'workArea', sortable: true },
-    { title: 'Subcategory', key: 'subcategory', sortable: true },
-    { title: 'Metric', key: 'metricName', sortable: true },
-    { title: 'Unit', key: 'metricUnit', sortable: true },
-    { title: 'Value', key: 'value', sortable: true },
-    { title: 'Status', key: 'status', sortable: true },
-  ];
-  if (canEditEntries.value) cols.push({ title: '', key: 'actions', sortable: false });
-  return cols;
-});
-
-const STATUS_COLORS: Partial<Record<string, string>> = {
-  [EntryStatus.SignedOff]: 'primary',
-  [EntryStatus.Submitted]: 'success',
-  [EntryStatus.Draft]: 'warning',
-};
-
-function statusColor(status?: string) {
-  return status ? (STATUS_COLORS[status] ?? 'default') : 'default';
-}
-
-// ── Edit: open in new tab pre-seeded with the entry's user/date/location ───
-function openEdit(item: (typeof entries.value)[number]) {
-  const itemGroupId = item.groupId;
-  const locationId = item.locationId;
-  if (!item.userId || !item.date || !itemGroupId || !locationId) {
-    error.value = 'Unable to open entry for editing — missing data.';
-    return;
-  }
-
-  const routeName = GROUP_ROUTE[itemGroupId];
-  if (!routeName) {
-    error.value = 'Unable to open entry for editing — unknown work area group.';
-    return;
-  }
-
-  const url = router.resolve({
-    name: routeName,
-    query: {
-      userId: item.userId,
-      locationId: String(locationId),
-      date: item.date,
-      employeeName: item.employeeName ?? '',
-    },
-  }).href;
-  window.open(url, '_blank');
-}
-
-// ── Row selection ───────────────────────────────────────────────────────────
-const selectedItems = ref<DashboardEntryResponse[]>([]);
-
-// ── Sign-off ────────────────────────────────────────────────────────────────
-const showSignOffModal = ref(false);
-const isSigningOff = ref(false);
-const signOffError = ref('');
-
-const selectedGroupName = computed(() => {
-  if (!groupId.value) return '';
-  return groups.value.find((g) => g.id === groupId.value)?.name ?? '';
-});
-
-const canInitiateSignOff = computed(() => canSignOff.value && groupId.value != null && selectedItems.value.length > 0);
-
-async function onSignOffConfirm(entryIds: number[]) {
-  isSigningOff.value = true;
-  signOffError.value = '';
-  const err = await signOff(entryIds);
-  isSigningOff.value = false;
-  if (err) {
-    signOffError.value = err;
-    return;
-  }
-  showSignOffModal.value = false;
-  selectedItems.value = [];
-  await applyFilters();
-}
 </script>
 
 <template>
@@ -163,7 +93,18 @@ async function onSignOffConfirm(entryIds: number[]) {
     <div class="search-layout">
       <!-- Entries panel -->
       <div class="panel">
-        <h3 class="panel-title">Entries</h3>
+        <div class="panel-header">
+          <h3 class="panel-title">Entries</h3>
+          <UaBtn
+            variant="outlined"
+            size="small"
+            :prepend-icon="mdiDownload"
+            :disabled="entries.length === 0"
+            @click="exportEntriesCsv"
+          >
+            Export CSV
+          </UaBtn>
+        </div>
 
         <UaDataTable
           v-model="selectedItems"
@@ -231,12 +172,7 @@ async function onSignOffConfirm(entryIds: number[]) {
         :categories="categories"
         :sub-categories="subCategories"
         :loading="isLoadingEntries"
-        @apply="
-          () => {
-            selectedItems = [];
-            applyFilters();
-          }
-        "
+        @apply="applyFilters"
       />
     </div>
 
@@ -244,7 +180,7 @@ async function onSignOffConfirm(entryIds: number[]) {
       v-if="showSignOffModal"
       :selected-entries="selectedItems"
       :group-name="selectedGroupName"
-      @confirm="onSignOffConfirm"
+      @confirm="confirmSignOff"
       @close="showSignOffModal = false"
     />
   </div>
@@ -311,6 +247,12 @@ async function onSignOffConfirm(entryIds: number[]) {
   border: 1px solid var(--ua-border-color);
   border-radius: var(--ua-border-radius);
   background: rgb(var(--v-theme-surface));
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .panel-title {

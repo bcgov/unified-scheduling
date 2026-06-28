@@ -5,6 +5,7 @@ import type {
   StatGroupResponse,
   SubCategoryResponse,
 } from '@/api-access/generated/models';
+import { Permissions } from '@/api-access/generated/models';
 import {
   getApiStatsDashboardEntries,
   getApiStatsDashboardSummary,
@@ -14,15 +15,26 @@ import { getApiStatsCategories } from '@/api-access/generated/stat-categories/st
 import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
 import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
 import { getApiUsers } from '@/api-access/generated/users/users';
+import { useAccessControl } from '@/composables/useAccessControl';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
+import type { SelectOption } from '@/types/select';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
-import type { SelectOption } from '@/types/select';
+import { useRouter } from 'vue-router';
+import { EntryStatus, GROUP_ROUTE } from '../constants';
+import { exportToCsv } from '../utils/exportCsv';
 
 export function useStatSearch() {
   const authStore = useAuthStore();
   const locationsStore = useLocationsStore();
+  const { hasPermission } = useAccessControl();
+  const router = useRouter();
+
+  // ── Permissions ────────────────────────────────────────────────────────
+  const canViewDashboard = computed(() => hasPermission(Permissions.DashboardView));
+  const canEditEntries = computed(() => hasPermission(Permissions.StatsRecordsEnterForOthers));
+  const canSignOff = computed(() => hasPermission(Permissions.DashboardSignOff));
 
   // ── Reference data ──────────────────────────────────────────────────────
   const locationUsers = ref<{ id: string; name: string }[]>([]);
@@ -74,6 +86,40 @@ export function useStatSearch() {
     return Array.from(map, ([id, name]) => ({ id, name }));
   });
 
+  // ── Table columns ───────────────────────────────────────────────────────
+  const columns = computed(() => {
+    const cols = [
+      { title: 'Employee', key: 'employeeName', sortable: true },
+      { title: 'Date', key: 'date', sortable: true },
+      { title: 'Work Area', key: 'workArea', sortable: true },
+      { title: 'Subcategory', key: 'subcategory', sortable: true },
+      { title: 'Metric', key: 'metricName', sortable: true },
+      { title: 'Unit', key: 'metricUnit', sortable: true },
+      { title: 'Value', key: 'value', sortable: true },
+      { title: 'Status', key: 'status', sortable: true },
+    ];
+    if (canEditEntries.value) cols.push({ title: '', key: 'actions', sortable: false });
+    return cols;
+  });
+
+  // ── Row selection ───────────────────────────────────────────────────────
+  const selectedItems = ref<DashboardEntryResponse[]>([]);
+
+  // ── Sign-off state ──────────────────────────────────────────────────────
+  const showSignOffModal = ref(false);
+  const isSigningOff = ref(false);
+  const signOffError = ref('');
+
+  const selectedGroupName = computed(() => {
+    if (!groupId.value) return '';
+    return groups.value.find((g) => g.id === groupId.value)?.name ?? '';
+  });
+
+  const canInitiateSignOff = computed(
+    () => canSignOff.value && groupId.value != null && selectedItems.value.length > 0,
+  );
+
+  // ── Data loading ────────────────────────────────────────────────────────
   async function loadReferenceData() {
     isLoadingReference.value = true;
     try {
@@ -160,28 +206,86 @@ export function useStatSearch() {
   }
 
   async function applyFilters() {
+    selectedItems.value = [];
     await Promise.all([loadEntries(), loadSummary()]);
   }
 
-  async function signOff(entryIds: number[]): Promise<string | null> {
-    error.value = '';
+  // ── Sign-off actions ────────────────────────────────────────────────────
+  async function confirmSignOff(entryIds: number[]) {
+    isSigningOff.value = true;
+    signOffError.value = '';
     try {
       const res = await postApiStatsDashboardSignOff({ entryIds });
       if (res.error.value) {
-        return res.error.value.message ?? 'Sign-off failed.';
+        signOffError.value = res.error.value.message ?? 'Sign-off failed.';
+        return;
       }
-      return null;
+      showSignOffModal.value = false;
+      selectedItems.value = [];
+      await applyFilters();
     } catch (e) {
-      return e instanceof Error ? e.message : 'Sign-off failed.';
+      signOffError.value = e instanceof Error ? e.message : 'Sign-off failed.';
+    } finally {
+      isSigningOff.value = false;
     }
   }
 
+  // ── Edit navigation ─────────────────────────────────────────────────────
+  function openEdit(item: DashboardEntryResponse) {
+    const itemGroupId = item.groupId;
+    const itemLocationId = item.locationId;
+    if (!item.userId || !item.date || !itemGroupId || !itemLocationId) {
+      error.value = 'Unable to open entry for editing — missing data.';
+      return;
+    }
+
+    const routeName = GROUP_ROUTE[itemGroupId];
+    if (!routeName) {
+      error.value = 'Unable to open entry for editing — unknown work area group.';
+      return;
+    }
+
+    const url = router.resolve({
+      name: routeName,
+      query: {
+        userId: item.userId,
+        locationId: String(itemLocationId),
+        date: item.date,
+        employeeName: item.employeeName ?? '',
+      },
+    }).href;
+    window.open(url, '_blank');
+  }
+
+  // ── CSV Export ──────────────────────────────────────────────────────────
+  function exportEntriesCsv() {
+    const headers = ['Employee', 'Date', 'Work Area', 'Subcategory', 'Metric', 'Unit', 'Value', 'Status'];
+    const rows = entries.value.map((e) => [
+      e.employeeName ?? '',
+      e.date ?? '',
+      e.workArea ?? '',
+      e.subcategory ?? '',
+      e.metricName ?? '',
+      e.metricUnit ?? '',
+      String(e.value ?? ''),
+      e.status === EntryStatus.SignedOff ? 'Signed Off' : (e.status ?? ''),
+    ]);
+    const datePart = fromDate.value && toDate.value ? `_${fromDate.value}_to_${toDate.value}` : '';
+    exportToCsv(`dashboard_entries${datePart}.csv`, headers, rows);
+  }
+
   return {
+    // Permissions
+    canViewDashboard,
+    canEditEntries,
+    canSignOff,
+    // Reference data
     groups,
     employees,
     categories,
     subCategories,
     isLoadingReference,
+    // Filters
     groupId,
     employeeId,
     locationId,
@@ -190,14 +294,28 @@ export function useStatSearch() {
     status,
     fromDate,
     toDate,
+    locationOptions,
+    // Table
+    columns,
     entries,
     isLoadingEntries,
+    selectedItems,
+    // Summary
     summary,
     isLoadingSummary,
+    // Sign-off
+    showSignOffModal,
+    isSigningOff,
+    signOffError,
+    selectedGroupName,
+    canInitiateSignOff,
+    // Errors
     error,
-    locationOptions,
+    // Actions
     loadReferenceData,
     applyFilters,
-    signOff,
+    confirmSignOff,
+    openEdit,
+    exportEntriesCsv,
   };
 }
