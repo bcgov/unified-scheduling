@@ -26,8 +26,10 @@ const searchParams = computed(() => {
   if (isEnabled.value !== undefined) {
     params.IsEnabled = isEnabled.value;
   }
-  if (locationsStore.selectedLocationId != null) {
-    params.LocationId = locationsStore.selectedLocationId as number;
+  const locationId = locationsStore.selectedLocationId;
+  const parsedLocationId = locationId === '' || locationId == null ? null : Number(locationId);
+  if (parsedLocationId != null && !Number.isNaN(parsedLocationId)) {
+    params.LocationId = parsedLocationId;
   }
   return params;
 });
