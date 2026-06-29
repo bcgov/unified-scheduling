@@ -7,6 +7,7 @@ import Myteam from '@/modules/myteam/views/Myteam.vue';
 import UserCard from '@/modules/myteam/components/UserCard.vue';
 import { createTestApp } from '../../helpers/createTestApp';
 import { server } from '../../mocks/server';
+import { useLocationsStore } from '@/stores/LocationsStore';
 
 describe('Myteam', () => {
   it('fetches users and renders user cards', async () => {
@@ -61,5 +62,56 @@ describe('Myteam', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('Error:');
+  });
+
+  it('sends LocationId query param when a location is selected', async () => {
+    const app = await createTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(42);
+
+    let capturedLocationId: string | null = null;
+
+    server.use(
+      getGetApiUsersMockHandler((info) => {
+        const url = new URL(info.request.url);
+        capturedLocationId = url.searchParams.get('LocationId');
+        return getGetApiUsersResponseMock();
+      }),
+    );
+
+    mount(Myteam, {
+      global: {
+        plugins: app.mountPlugins,
+      },
+    });
+
+    await flushPromises();
+
+    expect(capturedLocationId).toBe('42');
+  });
+
+  it('omits LocationId query param when no location is selected', async () => {
+    const app = await createTestApp();
+
+    let capturedUrl: URL | null = null;
+
+    server.use(
+      getGetApiUsersMockHandler((info) => {
+        capturedUrl = new URL(info.request.url);
+        return getGetApiUsersResponseMock();
+      }),
+    );
+
+    mount(Myteam, {
+      global: {
+        plugins: app.mountPlugins,
+      },
+    });
+
+    await flushPromises();
+
+    expect(capturedUrl).not.toBeNull();
+
+    expect(capturedUrl!.searchParams.has('LocationId')).toBe(false);
   });
 });

@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +39,19 @@ public class AuthControllerTest
 
         var redirectResult = Assert.IsType<RedirectResult>(result);
         Assert.Equal("/api", redirectResult.Url);
+    }
+
+    [Fact]
+    public void Logout_Should_Return_SignOut_With_Cookie_And_OIDC_Schemes()
+    {
+        var controller = CreateController();
+
+        var result = controller.Logout();
+
+        var signOutResult = Assert.IsType<SignOutResult>(result);
+        Assert.Contains(CookieAuthenticationDefaults.AuthenticationScheme, signOutResult.AuthenticationSchemes);
+        Assert.Contains(OpenIdConnectDefaults.AuthenticationScheme, signOutResult.AuthenticationSchemes);
+        Assert.Equal("/", signOutResult.Properties?.RedirectUri);
     }
 
     [Fact]
