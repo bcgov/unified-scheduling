@@ -129,14 +129,10 @@ const overtimeLockReason = computed(() => {
       />
 
       <div v-if="!isSignedOff" class="assignment-toolbar">
-        <UaBtn variant="outlined" :prepend-icon="mdiPlus" @click="emit('add-assignment')">
-          Add Assignment
-        </UaBtn>
+        <UaBtn variant="outlined" :prepend-icon="mdiPlus" @click="emit('add-assignment')"> Add Assignment </UaBtn>
         <v-menu v-if="copyFromOptions && copyFromOptions.length > 0" location="bottom start">
           <template #activator="{ props: menuProps }">
-            <UaBtn v-bind="menuProps" variant="outlined" :prepend-icon="mdiContentCopy">
-              Copy From...
-            </UaBtn>
+            <UaBtn v-bind="menuProps" variant="outlined" :prepend-icon="mdiContentCopy"> Copy From... </UaBtn>
           </template>
           <v-list density="compact">
             <v-list-item
