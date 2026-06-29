@@ -44,7 +44,7 @@ public class AuthController : ControllerBase
     /// Log out the current user by clearing the authentication cookie and signing out of the identity provider
     /// </summary>
     [HttpGet("logout")]
-    public async Task<IActionResult> Logout()
+    public IActionResult Logout()
     {
         return SignOut(
             new AuthenticationProperties { RedirectUri = "/" },
