@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Unified.Db.Models;
 using Unified.Db.Models.Abstract;
+using Unified.Db.Models.Training;
 
 namespace Unified.Db.Models.UserManagement;
 
@@ -26,6 +27,7 @@ public class User : BaseEntity
     public DateTimeOffset? LastLogin { get; set; }
 
     public virtual ICollection<UserRole> UserRoles { get; set; } = [];
+    public virtual ICollection<UserTraining> UserTrainings { get; set; } = [];
 
     [NotMapped]
     public virtual IReadOnlyList<UserRole> ActiveUserRoles =>

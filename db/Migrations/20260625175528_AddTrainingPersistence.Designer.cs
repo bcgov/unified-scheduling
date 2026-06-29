@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Unified.Db;
@@ -11,9 +12,11 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    partial class UnifiedDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260625175528_AddTrainingPersistence")]
+    partial class AddTrainingPersistence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -742,12 +745,6 @@ namespace Unified.Db.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTimeOffset?>("SignedOffAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("SignedOffByUserId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -772,8 +769,6 @@ namespace Unified.Db.Migrations
                     b.HasIndex("CreatedById");
 
                     b.HasIndex("LocationId");
-
-                    b.HasIndex("SignedOffByUserId");
 
                     b.HasIndex("SubCategoryMetricId");
 
@@ -1359,75 +1354,6 @@ namespace Unified.Db.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.UserManagement.UserActingPosition", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<uint>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<DateTimeOffset?>("EndAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("ExpiryAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExpiryReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("PositionTypeId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("StartAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Timezone")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("PositionTypeId");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserActingPositions");
-                });
-
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserRole", b =>
                 {
                     b.Property<int>("Id")
@@ -1755,10 +1681,6 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "SignedOffByUser")
-                        .WithMany()
-                        .HasForeignKey("SignedOffByUserId");
-
                     b.HasOne("Unified.Db.Models.Stats.SubCategoryMetric", "SubCategoryMetric")
                         .WithMany()
                         .HasForeignKey("SubCategoryMetricId")
@@ -1778,8 +1700,6 @@ namespace Unified.Db.Migrations
                     b.Navigation("CreatedBy");
 
                     b.Navigation("Location");
-
-                    b.Navigation("SignedOffByUser");
 
                     b.Navigation("SubCategoryMetric");
 
@@ -2042,39 +1962,6 @@ namespace Unified.Db.Migrations
                     b.Navigation("HomeLocation");
 
                     b.Navigation("UpdatedBy");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.UserManagement.UserActingPosition", b =>
-                {
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Unified.Db.Models.Lookup.PositionType", "PositionType")
-                        .WithMany()
-                        .HasForeignKey("PositionTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("PositionType");
-
-                    b.Navigation("UpdatedBy");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserRole", b =>
