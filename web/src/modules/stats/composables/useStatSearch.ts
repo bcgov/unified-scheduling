@@ -71,7 +71,7 @@ export function useStatSearch() {
 
   const error = ref('');
 
-  const locationOptions = locationsStore.selectOptions;
+  const locationOptions = computed(() => locationsStore.selectOptions);
 
   // Merge location users with any additional employees found in entries (e.g. loaned staff)
   const employees = computed(() => {
