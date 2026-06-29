@@ -23,4 +23,14 @@ public static class UserManagementPolicies
     public const string RolesCreate = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesCreate);
     public const string RolesEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesEdit);
     public const string RolesExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.RolesExpire);
+
+    // --- Acting Positions ---
+    public const string ActingPositionsView =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.ActingPositionsView);
+    public const string ActingPositionsCreate =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.ActingPositionsCreate);
+    public const string ActingPositionsEdit =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.ActingPositionsEdit);
+    public const string ActingPositionsExpire =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.ActingPositionsExpire);
 }

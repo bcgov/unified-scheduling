@@ -70,6 +70,12 @@ public enum Permissions
     TrainingAdjustExpiry,
     TrainingExempt,
 
+    // --- Acting Positions ---
+    ActingPositionsView,
+    ActingPositionsCreate,
+    ActingPositionsEdit,
+    ActingPositionsExpire,
+
     // --- IDIR ---
     IdirEdit,
 

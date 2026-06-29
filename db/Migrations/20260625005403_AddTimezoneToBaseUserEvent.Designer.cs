@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Unified.Db;
@@ -11,9 +12,11 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    partial class UnifiedDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260625005403_AddTimezoneToBaseUserEvent")]
+    partial class AddTimezoneToBaseUserEvent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -742,12 +745,6 @@ namespace Unified.Db.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTimeOffset?>("SignedOffAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("SignedOffByUserId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -772,8 +769,6 @@ namespace Unified.Db.Migrations
                     b.HasIndex("CreatedById");
 
                     b.HasIndex("LocationId");
-
-                    b.HasIndex("SignedOffByUserId");
 
                     b.HasIndex("SubCategoryMetricId");
 
@@ -1567,10 +1562,6 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "SignedOffByUser")
-                        .WithMany()
-                        .HasForeignKey("SignedOffByUserId");
-
                     b.HasOne("Unified.Db.Models.Stats.SubCategoryMetric", "SubCategoryMetric")
                         .WithMany()
                         .HasForeignKey("SubCategoryMetricId")
@@ -1590,8 +1581,6 @@ namespace Unified.Db.Migrations
                     b.Navigation("CreatedBy");
 
                     b.Navigation("Location");
-
-                    b.Navigation("SignedOffByUser");
 
                     b.Navigation("SubCategoryMetric");
 

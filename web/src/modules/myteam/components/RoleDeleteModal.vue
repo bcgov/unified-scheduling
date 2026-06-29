@@ -131,7 +131,7 @@ const handleConfirmDelete = async () => {
 
     try {
       const { error } = await postApiRolesIdReassignAndDelete(props.role.id!, {
-        newRoleId: payload.newRoleId,
+        newRoleId: payload.newRoleId!,
         newRoleEffectiveDate: toApiDateString(payload.newRoleEffectiveDate!),
         newRoleExpiryDate: payload.newRoleExpiryDate ? toApiDateString(payload.newRoleExpiryDate) : null,
       });

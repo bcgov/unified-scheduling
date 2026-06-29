@@ -70,7 +70,13 @@ const handleEditModalClose = () => {
         >
           Assign Roles
         </UaBtn>
-        <UaBtn variant="outlined" disabled>Acting rank</UaBtn>
+        <UaBtn
+          v-if="accessControl.hasPermission(Permissions.ActingPositionsView)"
+          variant="outlined"
+          :to="{ name: 'UserActingPositions', params: { userId: props.userId } }"
+        >
+          Acting Positions
+        </UaBtn>
         <UaBtn variant="outlined" disabled>Schedule</UaBtn>
         <UaBtn variant="outlined" disabled>Work History</UaBtn>
         <UaBtn variant="outlined" disabled>Deactivate</UaBtn>

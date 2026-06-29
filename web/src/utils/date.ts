@@ -65,6 +65,96 @@ export function toApiDateString(dateInput: string): string {
 }
 
 /**
+ * Extracts HH:mm time from an ISO datetime string, preserving source zone/offset.
+ * Returns null for full-day sentinel times (midnight 00:00 or end-of-day 23:59) or if the input is invalid.
+ * Pass { setZone: false } to derive time in local zone.
+ */
+export function toTimeInputValue(isoDateString?: string | null, options?: CalendarDateOptions): string | null {
+  if (!isoDateString) return null;
+
+  const parsed = DateTime.fromISO(isoDateString, { setZone: options?.setZone ?? true });
+  if (!parsed.isValid) return null;
+
+  const hh = String(parsed.hour).padStart(2, '0');
+  const mm = String(parsed.minute).padStart(2, '0');
+  const time = `${hh}:${mm}`;
+
+  // Treat midnight (00:00) or end-of-day (23:59) as full-day sentinels — no time component
+  return time === '00:00' || time === '23:59' ? null : time;
+}
+
+/**
+ * Determines if a datetime range represents a full-day entry.
+ *
+ * Mirrors the isDateFullday filter from sheriff-scheduling:
+ * Returns true when both start and end times are midnight (00:00), or when either value is absent.
+ */
+export function isDateTimeFullDay(startIso?: string | null, endIso?: string | null): boolean {
+  return toTimeInputValue(startIso) === null && toTimeInputValue(endIso) === null;
+}
+
+/**
+ * Combines a date input (yyyy-MM-dd) and an optional time input (HH:mm) into a
+ * local datetime string (yyyy-MM-ddTHH:mm) suitable for the API.
+ *
+ * When no time is supplied, midnight (T00:00) is used — representing a full-day entry.
+ *
+ * Examples:
+ * - ('2026-01-10', '08:30') => '2026-01-10T08:30'
+ * - ('2026-01-10', '')      => '2026-01-10T00:00'
+ * - ('2026-01-10')          => '2026-01-10T00:00'
+ */
+export function toLocalDateTimeString(date: string, time?: string): string {
+  const d = DateTime.fromFormat(date, DATE_FORMAT);
+  if (!d.isValid) {
+    throw new Error(`Invalid date: ${date}`);
+  }
+
+  if (time) {
+    const t = DateTime.fromFormat(time, 'HH:mm');
+    if (!t.isValid) {
+      throw new Error(`Invalid time: ${time}`);
+    }
+    return d.set({ hour: t.hour, minute: t.minute }).toFormat(`${DATE_FORMAT}'T'HH:mm`);
+  }
+
+  return d.toFormat(`${DATE_FORMAT}'T'HH:mm`);
+}
+
+/**
+ * Converts a date input (yyyy-MM-dd) and an optional time input (HH:mm) to an
+ * ISO 8601 string with the UTC offset for the given IANA timezone.
+ *
+ * When no time is supplied, midnight (start of day) is used — representing a full-day entry.
+ * Falls back to local time when timezone is absent or invalid.
+ *
+ * Examples (timezone = 'America/Vancouver', offset -08:00 in winter):
+ * - ('2026-01-10', '08:30', 'America/Vancouver') => '2026-01-10T08:30:00.000-08:00'
+ * - ('2026-01-10', '',      'America/Vancouver') => '2026-01-10T00:00:00.000-08:00'
+ */
+export function toOffsetDateTimeString(
+  date: string,
+  time: string | undefined,
+  timezone: string | null | undefined,
+): string {
+  const zone = timezone || 'local';
+  const d = DateTime.fromFormat(date, DATE_FORMAT, { zone });
+  if (!d.isValid) {
+    throw new Error(`Invalid date: ${date}`);
+  }
+
+  if (time) {
+    const t = DateTime.fromFormat(time, 'HH:mm');
+    if (!t.isValid) {
+      throw new Error(`Invalid time: ${time}`);
+    }
+    return d.set({ hour: t.hour, minute: t.minute, second: 0, millisecond: 0 }).toISO()!;
+  }
+
+  return d.startOf('day').toUTC().toISO()!;
+}
+
+/**
  * Compare two date inputs (yyyy-MM-dd format).
  * Returns true if left date is before right date.
  */

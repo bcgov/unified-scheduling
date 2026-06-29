@@ -72,23 +72,13 @@ export const PutApiRolesIdResponse = zod.object({
     .optional(),
 });
 
-export const DeleteApiRolesIdParams = zod.strictObject({
-  id: zod.number(),
-});
-
-export const DeleteApiRolesIdResponse = zod.object({
-  id: zod.number().optional(),
-  deletedBy: zod.uuid().optional(),
-  deletedOn: zod.iso.datetime({ offset: true }).optional(),
-});
-
 export const PostApiRolesIdReassignAndDeleteParams = zod.strictObject({
   id: zod.number(),
 });
 
 export const PostApiRolesIdReassignAndDeleteBody = zod.strictObject({
-  newRoleId: zod.number().optional(),
-  newRoleEffectiveDate: zod.string().optional(),
+  newRoleId: zod.number().nullish(),
+  newRoleEffectiveDate: zod.string().nullish(),
   newRoleExpiryDate: zod.string().nullish(),
 });
 

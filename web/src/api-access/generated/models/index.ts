@@ -5,6 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from './actingPositionRequestDto';
+export * from './actingPositionResponseDto';
 export * from './assignUserRoleRequestDto';
 export * from './calendarEventResponse';
 export * from './calendarEventsRequest';
@@ -15,9 +17,10 @@ export * from './configResponse';
 export * from './dashboardEntryResponse';
 export * from './dashboardSignOffRequest';
 export * from './dashboardSignOffResponse';
+export * from './dashboardSummaryResponse';
 export * from './deletedRoleDto';
 export * from './deleteRoleWithReassignmentRequestDto';
-export * from './dashboardSummaryResponse';
+export * from './expireActingPositionRequestDto';
 export * from './expireUserRoleRequestDto';
 export * from './featureFlags';
 export * from './gender';
