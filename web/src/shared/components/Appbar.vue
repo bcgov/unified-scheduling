@@ -2,7 +2,8 @@
 import { useNavigationStore } from '@/stores/NavigationStore';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { mdiLogout } from '@mdi/js';
+import { mdiLogout, mdiEarth } from '@mdi/js';
+import UaSelect from '@/shared/components/UaSelect.vue';
 
 const bcgovLogo = new URL('/images/bcid-logo-rev-en.svg', import.meta.url).href;
 const navigationStore = useNavigationStore();
@@ -36,12 +37,13 @@ const handleLogout = () => {
       <v-spacer />
 
       <div v-if="authStore.isAuthenticated" class="appbar-actions">
-        <select v-model="locationsStore.selectedLocationId" class="location-picker" aria-label="Select location">
-          <option disabled :value="null">Select location</option>
-          <option v-for="option in locationsStore.selectOptions" :key="option.code" :value="option.code">
-            {{ option.description }}
-          </option>
-        </select>
+        <UaSelect
+          v-model="locationsStore.selectedLocationId"
+          :items="locationsStore.selectOptions"
+          label="Select location"
+          :prepend-inner-icon="mdiEarth"
+          class="location-picker"
+        />
         <v-menu min-width="200px" rounded>
           <template #activator="{ props }">
             <v-btn icon v-bind="props" class="avatar-btn">
@@ -124,23 +126,9 @@ const handleLogout = () => {
 }
 
 .location-picker {
-  background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 4px;
-  color: #ffffff;
-  padding: 6px 10px;
-  font-size: 14px;
-  cursor: pointer;
-  min-width: 200px;
-}
-
-.location-picker:hover {
-  border-color: rgba(255, 255, 255, 0.8);
-}
-
-.location-picker option {
-  background-color: rgb(var(--v-theme-primary));
-  color: #ffffff;
+  width: 320px;
+  font-size: 16px;
+  background: #fff;
 }
 
 .avatar-btn {
