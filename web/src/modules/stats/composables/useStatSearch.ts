@@ -21,7 +21,7 @@ import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectOption } from '@/types/select';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { EntryStatus, GROUP_ROUTE } from '../constants';
 import { exportToCsv } from '../utils/exportCsv';
 
@@ -30,6 +30,7 @@ export function useStatSearch() {
   const locationsStore = useLocationsStore();
   const { hasPermission } = useAccessControl();
   const router = useRouter();
+  const route = useRoute();
 
   // ── Permissions ────────────────────────────────────────────────────────
   const canViewDashboard = computed(() => hasPermission(Permissions.DashboardView));
@@ -43,17 +44,18 @@ export function useStatSearch() {
   const subCategories = ref<SubCategoryResponse[]>([]);
   const isLoadingReference = ref(false);
 
-  // ── Filter state ────────────────────────────────────────────────────────
+  // ── Filter state (pre-seeded from query params when present) ─────────────
   const groupId = ref<number | null>(null);
   const employeeId = ref<string | null>(null);
-  const locationId = ref<number | null>(null);
+  const qLocationId = Number(route.query.locationId);
+  const locationId = ref<number | null>(Number.isFinite(qLocationId) ? qLocationId : null);
   const categoryName = ref<string | null>(null);
   const subCategoryId = ref<number | null>(null);
-  const status = ref<string | null>(null);
+  const status = ref<string | null>((route.query.status as string) || null);
   const monday = DateTime.now().startOf('week');
   const sunday = monday.plus({ days: 6 });
-  const fromDate = ref<string | null>(monday.toISODate());
-  const toDate = ref<string | null>(sunday.toISODate());
+  const fromDate = ref<string | null>((route.query.fromDate as string) || monday.toISODate());
+  const toDate = ref<string | null>((route.query.toDate as string) || sunday.toISODate());
 
   // ── Table data ──────────────────────────────────────────────────────────
   const entries = ref<DashboardEntryResponse[]>([]);
@@ -115,9 +117,7 @@ export function useStatSearch() {
     return groups.value.find((g) => g.id === groupId.value)?.name ?? '';
   });
 
-  const canInitiateSignOff = computed(
-    () => canSignOff.value && groupId.value != null && selectedItems.value.length > 0,
-  );
+  const canInitiateSignOff = computed(() => canSignOff.value && selectedItems.value.length > 0);
 
   // ── Data loading ────────────────────────────────────────────────────────
   async function loadReferenceData() {

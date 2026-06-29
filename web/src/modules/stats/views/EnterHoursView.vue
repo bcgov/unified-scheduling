@@ -56,6 +56,8 @@ const {
   addAssignment,
   removeAssignment,
   updateAssignment,
+  copyFromOptions,
+  copyFromDay,
   dayErrors,
   apiError,
   isSaving,
@@ -155,9 +157,11 @@ const {
             :api-error="apiError"
             :header-color="cardHeaderColor"
             :day-status="dayStatusMap[selectedDate]"
+            :copy-from-options="copyFromOptions"
             @add-assignment="addAssignment"
             @remove-assignment="removeAssignment"
             @update-assignment="updateAssignment"
+            @copy-from="copyFromDay"
             @save-draft="handleSave(EntryStatus.Draft)"
             @submit-day="handleSave(EntryStatus.Submitted)"
             @clear-error="apiError = ''"

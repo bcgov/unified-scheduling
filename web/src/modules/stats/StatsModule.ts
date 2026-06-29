@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
+import { useAuthStore } from '@/stores/auth';
+import { DateTime } from 'luxon';
 
 const statsRoutes: RouteRecordRaw[] = [
   {
@@ -38,8 +40,19 @@ const statsRoutes: RouteRecordRaw[] = [
       {
         path: 'signoffs',
         name: 'StatSignoffs',
-        component: () => import('./views/StatSignoffsView.vue'),
-        meta: { title: 'Monthly End Sign Offs' },
+        redirect: () => {
+          const now = DateTime.now();
+          const authStore = useAuthStore();
+          return {
+            name: 'StatSearch',
+            query: {
+              status: 'Submitted',
+              fromDate: now.startOf('month').toISODate(),
+              toDate: now.endOf('month').toISODate(),
+              ...(authStore.homeLocationId ? { locationId: String(authStore.homeLocationId) } : {}),
+            },
+          };
+        },
       },
     ],
   },

@@ -50,7 +50,7 @@ export function useEnterHours(groupId: number) {
 
   // ── Location ──────────────────────────────────────────────────────────────
   const locationOptions = computed(() => locationsStore.getSelectOptions());
-  const selectedLocationId = ref<number | null>(seedLocationId ?? null);
+  const selectedLocationId = ref<number | null>(seedLocationId ?? authStore.homeLocationId ?? null);
 
   const onLocationChange = (value: SelectValue | undefined) => {
     selectedLocationId.value = value != null ? Number(value) : null;
@@ -149,6 +149,35 @@ export function useEnterHours(groupId: number) {
     );
   }
 
+  // ── Copy from another day (within current week) ────────────────────────
+  const copyFromOptions = computed(() =>
+    weekDates.value
+      .filter((d) => d !== selectedDate.value)
+      .filter((d) => (dayAssignmentsMap.value[d] ?? []).some((a) => a.subCategoryId))
+      .map((d) => {
+        const dt = DateTime.fromISO(d);
+        const count = (dayAssignmentsMap.value[d] ?? []).filter((a) => a.subCategoryId).length;
+        return { date: d, label: `${dt.toFormat('EEE, MMM d')} (${count})` };
+      }),
+  );
+
+  function copyFromDay(sourceDate: string) {
+    if (!selectedDate.value) return;
+    const source = (dayAssignmentsMap.value[sourceDate] ?? []).filter((a) => a.subCategoryId);
+    if (source.length === 0) return;
+
+    const cloned = source.map((a) => ({
+      ...a,
+      id: String(Date.now() + Math.random()),
+      metricValues: { ...a.metricValues },
+      existingRecordIds: {},
+    }));
+
+    const current = selectedAssignments.value;
+    const hasOnlyEmpty = current.length === 1 && !current[0].subCategoryId;
+    dayAssignmentsMap.value[selectedDate.value] = hasOnlyEmpty ? cloned : [...current, ...cloned];
+  }
+
   // ── Validation ────────────────────────────────────────────────────────────
   function validate(assignments: DayAssignment[]): boolean {
     const errors: Record<string, string> = {};
@@ -233,8 +262,9 @@ export function useEnterHours(groupId: number) {
     metrics.value = metricsRes.data.value ?? [];
     subCategoryMetrics.value = scmRes.data.value ?? [];
 
-    if (seedLocationId) {
-      const { data } = await getApiUsers({ LocationId: seedLocationId, IsEnabled: true });
+    const initialLocationId = seedLocationId ?? authStore.homeLocationId;
+    if (initialLocationId) {
+      const { data } = await getApiUsers({ LocationId: initialLocationId, IsEnabled: true });
       locationUsers.value = data.value ?? [];
 
       // If the seeded user isn't in this location's list, inject them so the dropdown shows their name.
@@ -245,6 +275,11 @@ export function useEnterHours(groupId: number) {
           ...locationUsers.value,
         ];
       }
+
+      // Default the selected user to the current user if they belong to this location
+      if (!seedUserId && !canEnterForOthers.value) {
+        selectedUserId.value = authStore.currentUserId;
+      }
     }
 
     isLoadingReference.value = false;
@@ -252,6 +287,8 @@ export function useEnterHours(groupId: number) {
     if (seedDate && seedLocationId && seedUserId) {
       await loadWeek();
       onSelectDay(seedDate);
+    } else if (initialLocationId && selectedUserId.value) {
+      await loadWeek();
     }
   });
 
@@ -294,6 +331,8 @@ export function useEnterHours(groupId: number) {
     addAssignment,
     removeAssignment,
     updateAssignment,
+    copyFromOptions,
+    copyFromDay,
     dayErrors,
     apiError,
     isSaving,

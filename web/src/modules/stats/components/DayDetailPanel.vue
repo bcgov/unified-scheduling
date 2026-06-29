@@ -8,11 +8,15 @@ import type {
 } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
-import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiCheckAll, mdiPlus } from '@mdi/js';
+import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiCheckAll, mdiPlus, mdiContentCopy } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
 import type { DayAssignment, EntryStatus } from '../types';
-import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
+import {
+  DAILY_REGULAR_TARGET_HOURS,
+  WEEKLY_REGULAR_TARGET_HOURS,
+  EntryStatus as EntryStatusValues,
+} from '../constants';
 import { isRegularMetric } from '../utils/metricHelpers';
 import AssignmentRow from './AssignmentRow.vue';
 
@@ -31,12 +35,14 @@ const props = defineProps<{
   apiError: string;
   headerColor?: string;
   dayStatus?: EntryStatus;
+  copyFromOptions?: { date: string; label: string }[];
 }>();
 
 const emit = defineEmits<{
   'add-assignment': [];
   'remove-assignment': [id: string];
   'update-assignment': [assignment: DayAssignment];
+  'copy-from': [sourceDate: string];
   'save-draft': [];
   'submit-day': [];
   'clear-error': [];
@@ -59,6 +65,8 @@ const dailyRegularTotal = computed(() => {
   }
   return total;
 });
+
+const isSignedOff = computed(() => props.dayStatus === EntryStatusValues.SignedOff);
 
 const overtimeLockReason = computed(() => {
   if (props.overtimeEnabled) return '';
@@ -85,7 +93,7 @@ const overtimeLockReason = computed(() => {
           <v-icon :icon="mdiCheckCircleOutline" size="14" />
           Submitted
         </div>
-        <div v-else-if="dayStatus === 'SignedOff'" class="status-badge status-badge--signed-off">
+        <div v-else-if="dayStatus === EntryStatusValues.SignedOff" class="status-badge status-badge--signed-off">
           <v-icon :icon="mdiCheckAll" size="14" />
           Signed Off
         </div>
@@ -119,20 +127,34 @@ const overtimeLockReason = computed(() => {
         :header-color="headerColor"
         :overtime-locked="!overtimeEnabled"
         :overtime-lock-reason="overtimeLockReason"
+        :readonly="isSignedOff"
         @remove="emit('remove-assignment', assignment.id)"
         @update:model-value="(v) => emit('update-assignment', v as DayAssignment)"
       />
 
-      <UaBtn variant="outlined" class="add-btn" :prepend-icon="mdiPlus" @click="emit('add-assignment')">
-        Add Assignment
-      </UaBtn>
+      <div v-if="!isSignedOff" class="assignment-toolbar">
+        <UaBtn variant="outlined" :prepend-icon="mdiPlus" @click="emit('add-assignment')"> Add Assignment </UaBtn>
+        <v-menu v-if="copyFromOptions && copyFromOptions.length > 0" location="bottom start">
+          <template #activator="{ props: menuProps }">
+            <UaBtn v-bind="menuProps" variant="outlined" :prepend-icon="mdiContentCopy"> Copy From... </UaBtn>
+          </template>
+          <v-list density="compact">
+            <v-list-item
+              v-for="opt in copyFromOptions"
+              :key="opt.date"
+              :title="opt.label"
+              @click="emit('copy-from', opt.date)"
+            />
+          </v-list>
+        </v-menu>
+      </div>
     </div>
 
     <!-- Form-level errors -->
     <p v-if="errors['form']" class="form-error">{{ errors['form'] }}</p>
 
-    <!-- Actions -->
-    <div class="day-detail-panel__actions">
+    <!-- Actions (hidden for signed-off days) -->
+    <div v-if="!isSignedOff" class="day-detail-panel__actions">
       <UaBtn variant="outlined" color="primary" :loading="isSaving" @click="emit('save-draft')"> Save Draft </UaBtn>
       <UaBtn color="primary" variant="flat" :loading="isSaving" @click="emit('submit-day')"> Submit Day </UaBtn>
     </div>
@@ -227,8 +249,10 @@ const overtimeLockReason = computed(() => {
   overflow-y: auto;
 }
 
-.add-btn {
-  align-self: flex-start;
+.assignment-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ua-spacing-sm);
 }
 
 .form-error {
