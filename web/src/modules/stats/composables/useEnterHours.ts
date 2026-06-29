@@ -49,7 +49,7 @@ export function useEnterHours(groupId: number) {
   const subCategoryMetrics = ref<SubCategoryMetricResponse[]>([]);
 
   // ── Location ──────────────────────────────────────────────────────────────
-  const locationOptions = computed(() => locationsStore.getSelectOptions());
+  const locationOptions = computed(() => locationsStore.selectOptions);
   const selectedLocationId = ref<number | null>(seedLocationId ?? authStore.homeLocationId ?? null);
 
   const onLocationChange = (value: SelectValue | undefined) => {

@@ -89,7 +89,7 @@ const selectedDetailEvent = computed(() => {
 });
 
 const locationOptions = computed<SelectOption[]>(() => {
-  return [{ code: 'all', description: 'All locations' }, ...locationsStore.getSelectOptions()];
+  return [{ code: 'all', description: 'All locations' }, ...locationsStore.selectOptions];
 });
 
 const locationValue = computed<SelectValue>({

@@ -37,7 +37,7 @@ onMounted(async () => {
 const isEditMode = computed(() => !!props.user);
 
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
-const homeLocationOptions = computed(() => locationsStore.getSelectOptions());
+const homeLocationOptions = locationsStore.selectOptions;
 const genderOptions = mapToSelectOptions(
   Object.values(Gender),
   (gender) => gender,

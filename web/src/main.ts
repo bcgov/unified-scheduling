@@ -45,6 +45,11 @@ const bootstrap = async () => {
   const locationStore = useLocationsStore(pinia);
   await locationStore.getEntities();
 
+  // Seed the selected location from the user's home location
+  if (authStore.homeLocationId) {
+    locationStore.setSelectedLocationId(authStore.homeLocationId);
+  }
+
   // vuetify
   app.use(vuetify);
 

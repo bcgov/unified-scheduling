@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useNavigationStore } from '@/stores/NavigationStore';
 import { useAuthStore } from '@/stores/auth';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import { mdiLogout } from '@mdi/js';
 
 const bcgovLogo = new URL('/images/bcid-logo-rev-en.svg', import.meta.url).href;
 const navigationStore = useNavigationStore();
 const authStore = useAuthStore();
+const locationsStore = useLocationsStore();
 
 const handleLogout = () => {
   authStore.clearUserInfo();
@@ -33,7 +35,18 @@ const handleLogout = () => {
 
       <v-spacer />
 
-      <div v-if="authStore.isAuthenticated" class="profile-menu-container">
+      <div v-if="authStore.isAuthenticated" class="appbar-actions">
+        <select
+          v-model="locationsStore.selectedLocationId"
+          class="location-picker"
+        >
+          <option disabled value="">Select location</option>
+          <option
+            v-for="option in locationsStore.selectOptions"
+            :key="option.code"
+            :value="option.code"
+          >{{ option.description }}</option>
+        </select>
         <v-menu min-width="200px" rounded>
           <template #activator="{ props }">
             <v-btn icon v-bind="props" class="avatar-btn">
@@ -108,10 +121,31 @@ const handleLogout = () => {
   text-decoration: underline;
 }
 
-.profile-menu-container {
+.appbar-actions {
   display: flex;
   align-items: center;
+  gap: var(--ua-spacing-md);
   margin-right: var(--ua-spacing-xl);
+}
+
+.location-picker {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  color: #ffffff;
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.location-picker:hover {
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.location-picker option {
+  background-color: rgb(var(--v-theme-primary));
+  color: #ffffff;
 }
 
 .avatar-btn {
