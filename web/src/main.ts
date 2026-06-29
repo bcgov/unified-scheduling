@@ -46,7 +46,7 @@ const bootstrap = async () => {
   await locationStore.getEntities();
 
   // Seed the selected location from the user's home location
-  if (authStore.homeLocationId) {
+  if (authStore.homeLocationId != null) {
     locationStore.setSelectedLocationId(authStore.homeLocationId);
   }
 
