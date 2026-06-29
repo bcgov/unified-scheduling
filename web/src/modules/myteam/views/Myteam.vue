@@ -35,7 +35,10 @@ const searchParams = computed(() => {
 // Call the execute function when you want to re run api call with updated search params
 const { data, error, isFetching, execute } = getApiUsers(searchParams);
 
-watch(() => locationsStore.selectedLocationId, () => execute());
+watch(
+  () => locationsStore.selectedLocationId,
+  () => execute(),
+);
 
 const showCreateUserModal = ref(false);
 

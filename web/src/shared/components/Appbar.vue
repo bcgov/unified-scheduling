@@ -36,16 +36,11 @@ const handleLogout = () => {
       <v-spacer />
 
       <div v-if="authStore.isAuthenticated" class="appbar-actions">
-        <select
-          v-model="locationsStore.selectedLocationId"
-          class="location-picker"
-        >
+        <select v-model="locationsStore.selectedLocationId" class="location-picker">
           <option disabled value="">Select location</option>
-          <option
-            v-for="option in locationsStore.selectOptions"
-            :key="option.code"
-            :value="option.code"
-          >{{ option.description }}</option>
+          <option v-for="option in locationsStore.selectOptions" :key="option.code" :value="option.code">
+            {{ option.description }}
+          </option>
         </select>
         <v-menu min-width="200px" rounded>
           <template #activator="{ props }">
