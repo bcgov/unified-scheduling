@@ -12,7 +12,11 @@ import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiCheckAll, m
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
 import type { DayAssignment, EntryStatus } from '../types';
-import { DAILY_REGULAR_TARGET_HOURS, WEEKLY_REGULAR_TARGET_HOURS } from '../constants';
+import {
+  DAILY_REGULAR_TARGET_HOURS,
+  WEEKLY_REGULAR_TARGET_HOURS,
+  EntryStatus as EntryStatusValues,
+} from '../constants';
 import { isRegularMetric } from '../utils/metricHelpers';
 import AssignmentRow from './AssignmentRow.vue';
 
@@ -62,7 +66,7 @@ const dailyRegularTotal = computed(() => {
   return total;
 });
 
-const isSignedOff = computed(() => props.dayStatus === 'SignedOff');
+const isSignedOff = computed(() => props.dayStatus === EntryStatusValues.SignedOff);
 
 const overtimeLockReason = computed(() => {
   if (props.overtimeEnabled) return '';
@@ -89,7 +93,7 @@ const overtimeLockReason = computed(() => {
           <v-icon :icon="mdiCheckCircleOutline" size="14" />
           Submitted
         </div>
-        <div v-else-if="dayStatus === 'SignedOff'" class="status-badge status-badge--signed-off">
+        <div v-else-if="dayStatus === EntryStatusValues.SignedOff" class="status-badge status-badge--signed-off">
           <v-icon :icon="mdiCheckAll" size="14" />
           Signed Off
         </div>
