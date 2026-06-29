@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Authorization.Claims;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
@@ -38,7 +39,8 @@ public class RoleServiceTests : IAsyncLifetime
         _roleService = new RoleService(
             _dbContext,
             CreateHttpContextAccessor(),
-            new DeleteRoleWithReassignmentRequestDtoValidator()
+            new DeleteRoleWithReassignmentRequestDtoValidator(),
+            NullLogger<RoleService>.Instance
         );
 
         return ValueTask.CompletedTask;
