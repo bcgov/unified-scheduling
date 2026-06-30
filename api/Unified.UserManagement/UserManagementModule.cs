@@ -25,6 +25,7 @@ public static class UserManagementModule
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IActingPositionService, ActingPositionService>();
+        services.AddScoped<IAwayLocationService, AwayLocationService>();
 
         services.AddScoped<UserSeeder>();
         services.AddScoped<RegionSeeder>();
@@ -40,6 +41,8 @@ public static class UserManagementModule
         services.AddScoped<DeleteRoleWithReassignmentRequestDtoValidator>();
         services.AddScoped<ActingPositionRequestValidator>();
         services.AddScoped<ExpireActingPositionRequestValidator>();
+        services.AddScoped<AwayLocationRequestValidator>();
+        services.AddScoped<ExpireAwayLocationRequestValidator>();
 
         // Register permission policies owned by this module
         services
@@ -60,7 +63,12 @@ public static class UserManagementModule
             .AddPermissionPolicy(Permissions.ActingPositionsView)
             .AddPermissionPolicy(Permissions.ActingPositionsCreate)
             .AddPermissionPolicy(Permissions.ActingPositionsEdit)
-            .AddPermissionPolicy(Permissions.ActingPositionsExpire);
+            .AddPermissionPolicy(Permissions.ActingPositionsExpire)
+            // Away Locations
+            .AddPermissionPolicy(Permissions.AwayLocationsView)
+            .AddPermissionPolicy(Permissions.AwayLocationsCreate)
+            .AddPermissionPolicy(Permissions.AwayLocationsEdit)
+            .AddPermissionPolicy(Permissions.AwayLocationsExpire);
 
         return services;
     }
