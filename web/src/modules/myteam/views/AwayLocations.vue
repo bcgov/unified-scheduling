@@ -165,7 +165,7 @@ const handleExpired = async () => {
     <AwayLocationModal
       v-if="showAwayLocationModal"
       :user-id="userId"
-      :locations="locationsStore.getSelectOptions()"
+      :locations="locationsStore.selectOptions"
       :away-location="selectedAwayLocation"
       @close="handleModalClose"
       @saved="handleSaved"
