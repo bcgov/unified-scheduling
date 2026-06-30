@@ -8,6 +8,8 @@
 export * from './actingPositionRequestDto';
 export * from './actingPositionResponseDto';
 export * from './assignUserRoleRequestDto';
+export * from './awayLocationRequestDto';
+export * from './awayLocationResponseDto';
 export * from './calendarEventResponse';
 export * from './calendarEventsRequest';
 export * from './calendarEventsRequestFilters';
@@ -21,6 +23,7 @@ export * from './dashboardSummaryResponse';
 export * from './deletedRoleDto';
 export * from './deleteRoleWithReassignmentRequestDto';
 export * from './expireActingPositionRequestDto';
+export * from './expireAwayLocationRequestDto';
 export * from './expireUserRoleRequestDto';
 export * from './featureFlags';
 export * from './gender';
