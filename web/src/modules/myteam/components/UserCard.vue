@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import UaCard from '@/shared/components/UaCard.vue';
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
@@ -16,16 +16,20 @@ const lookupStore = useLookupStore();
 const initials = computed(() => `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`);
 const fullName = computed(() => `${user.firstName || ''} ${user.lastName || ''}`.trim());
 const positionDescription = computed(() => {
-  if (user?.rank == null) {
+  if (!user?.rank) {
     return '-';
   }
 
-  return lookupStore.getDescriptionFromCode(LookupCodeTypes.PositionTypes, user.rank);
+  return lookupStore.entityMap[LookupCodeTypes.PositionTypes]?.[user.rank]?.description ?? '-';
 });
 
 const gotoProfile = () => {
   router.push({ name: 'UserProfile', params: { userId: user.id } });
 };
+
+onMounted(async () => {
+  await lookupStore.load(LookupCodeTypes.PositionTypes);
+});
 </script>
 
 <template>

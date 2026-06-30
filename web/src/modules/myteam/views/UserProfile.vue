@@ -3,7 +3,7 @@ import { getApiUsersId } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import UserFormModal from '../components/UserFormModal.vue';
 import { LookupCodeTypes, Permissions } from '@/api-access/generated/models';
 import { useLookupStore } from '@/stores/LookupStore';
@@ -20,11 +20,11 @@ const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userB
 const showEditUserModal = ref(false);
 
 const positionDescription = computed(() => {
-  if (data?.value?.rank == null) {
+  if (!data?.value?.rank) {
     return '-';
   }
 
-  return lookupStore.getDescriptionFromCode(LookupCodeTypes.PositionTypes, data.value.rank);
+  return lookupStore.entityMap[LookupCodeTypes.PositionTypes]?.[data.value.rank]?.description ?? '-';
 });
 
 const handleEditMember = () => {
@@ -38,6 +38,10 @@ const handleUserUpdated = async () => {
 const handleEditModalClose = () => {
   showEditUserModal.value = false;
 };
+
+onMounted(async () => {
+  await lookupStore.load(LookupCodeTypes.PositionTypes);
+});
 </script>
 
 <template>

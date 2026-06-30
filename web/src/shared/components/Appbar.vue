@@ -128,7 +128,7 @@ const handleLogout = () => {
 .location-picker {
   width: 320px;
   font-size: 16px;
-  background: #fff;
+  background: var(--ua-field-bg);
 }
 
 .avatar-btn {
