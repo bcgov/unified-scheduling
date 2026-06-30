@@ -52,6 +52,14 @@ const myTeamRoutes: RouteRecordRaw[] = [
               title: 'Acting Positions',
             },
           },
+          {
+            path: 'away-locations',
+            name: 'UserAwayLocations',
+            component: () => import('./views/AwayLocations.vue'),
+            meta: {
+              title: 'Away Locations',
+            },
+          },
         ],
       },
     ],
