@@ -109,5 +109,5 @@ export const useLookupStore = defineStore('lookup', () => {
     );
   };
 
-  return { load, getSelectOptions, getDescriptionFromCode };
+  return { entityMap, load, getSelectOptions, getDescriptionFromCode };
 });

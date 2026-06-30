@@ -16,8 +16,12 @@ export const getApiAuthLogin = (
 ) => {
   return useFetchAPI<void>({ url: `/api/auth/login`, method: 'GET', params }, options);
 };
+export const getApiAuthLogout = (options?: SecondParameter<typeof useFetchAPI<void>>) => {
+  return useFetchAPI<void>({ url: `/api/auth/logout`, method: 'GET' }, options);
+};
 export const getApiAuthUser = (options?: SecondParameter<typeof useFetchAPI<UserInfo>>) => {
   return useFetchAPI<UserInfo>({ url: `/api/auth/user`, method: 'GET' }, options);
 };
 export type GetApiAuthLoginResult = NonNullable<Awaited<ReturnType<typeof getApiAuthLogin>>>;
+export type GetApiAuthLogoutResult = NonNullable<Awaited<ReturnType<typeof getApiAuthLogout>>>;
 export type GetApiAuthUserResult = NonNullable<Awaited<ReturnType<typeof getApiAuthUser>>>;

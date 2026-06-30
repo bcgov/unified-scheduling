@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { useNavigationStore } from '@/stores/NavigationStore';
+import { useAuthStore } from '@/stores/auth';
+import { useLocationsStore } from '@/stores/LocationsStore';
+import { mdiLogout, mdiEarth } from '@mdi/js';
+import UaSelect from '@/shared/components/UaSelect.vue';
+
 const bcgovLogo = new URL('/images/bcid-logo-rev-en.svg', import.meta.url).href;
 const navigationStore = useNavigationStore();
+const authStore = useAuthStore();
+const locationsStore = useLocationsStore();
+
+const handleLogout = () => {
+  authStore.clearUserInfo();
+  window.location.href = '/api/auth/logout';
+};
 </script>
 
 <template>
@@ -20,6 +32,39 @@ const navigationStore = useNavigationStore();
         >
           {{ navItem.name }}
         </RouterLink>
+      </div>
+
+      <v-spacer />
+
+      <div v-if="authStore.isAuthenticated" class="appbar-actions">
+        <UaSelect
+          v-model="locationsStore.selectedLocationId"
+          :items="locationsStore.selectOptions"
+          label="Select location"
+          :prepend-inner-icon="mdiEarth"
+          class="location-picker"
+        />
+        <v-menu min-width="200px" rounded>
+          <template #activator="{ props }">
+            <v-btn icon v-bind="props" class="avatar-btn">
+              <v-avatar color="accent" size="36">
+                <span class="initials-text">{{ authStore.initials }}</span>
+              </v-avatar>
+            </v-btn>
+          </template>
+          <v-card class="mt-2">
+            <v-card-text>
+              <div class="mx-auto text-center">
+                <v-avatar color="accent" size="48" class="mb-2">
+                  <span class="initials-text text-h6">{{ authStore.initials }}</span>
+                </v-avatar>
+                <h3>{{ authStore.userName }}</h3>
+                <v-divider class="my-3"></v-divider>
+                <v-btn variant="text" block @click="handleLogout" :prepend-icon="mdiLogout"> Logout </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+        </v-menu>
       </div>
     </v-app-bar>
     <div class="gold-accent-bar" />
@@ -71,5 +116,27 @@ const navigationStore = useNavigationStore();
   font-weight: var(--ua-font-weight-semibold);
   color: rgb(var(--v-theme-accent));
   text-decoration: underline;
+}
+
+.appbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ua-spacing-md);
+  margin-right: var(--ua-spacing-xl);
+}
+
+.location-picker {
+  width: 320px;
+  font-size: 16px;
+  background: var(--ua-field-bg);
+}
+
+.avatar-btn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.initials-text {
+  color: rgb(var(--v-theme-primary));
+  font-weight: var(--ua-font-weight-bold, 700);
 }
 </style>

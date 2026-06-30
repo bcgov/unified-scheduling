@@ -18,7 +18,6 @@ import { getApiUsers } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import type { SelectOption } from '@/types/select';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -72,7 +71,7 @@ export function useStatSearch() {
 
   const error = ref('');
 
-  const locationOptions = computed<SelectOption[]>(() => locationsStore.getSelectOptions());
+  const locationOptions = computed(() => locationsStore.selectOptions);
 
   // Merge location users with any additional employees found in entries (e.g. loaned staff)
   const employees = computed(() => {

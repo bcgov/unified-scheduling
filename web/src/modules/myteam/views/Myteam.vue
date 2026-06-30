@@ -5,12 +5,14 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { mdiPlus } from '@mdi/js';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import UserCard from '../components/UserCard.vue';
 import UserFormModal from '../components/UserFormModal.vue';
 import { useAccessControl } from '@/composables/useAccessControl';
+import { useLocationsStore } from '@/stores/LocationsStore';
 
 const accessControl = useAccessControl();
+const locationsStore = useLocationsStore();
 
 const searchText = ref('');
 const isEnabled = ref<boolean | undefined>(true);
@@ -24,11 +26,21 @@ const searchParams = computed(() => {
   if (isEnabled.value !== undefined) {
     params.IsEnabled = isEnabled.value;
   }
+  const locationId = locationsStore.selectedLocationId;
+  const parsedLocationId = locationId === '' || locationId == null ? null : Number(locationId);
+  if (parsedLocationId != null && !Number.isNaN(parsedLocationId)) {
+    params.LocationId = parsedLocationId;
+  }
   return params;
 });
 
 // Call the execute function when you want to re run api call with updated search params
 const { data, error, isFetching, execute } = getApiUsers(searchParams);
+
+watch(
+  () => locationsStore.selectedLocationId,
+  () => execute(),
+);
 
 const showCreateUserModal = ref(false);
 

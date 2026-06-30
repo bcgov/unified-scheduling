@@ -3,9 +3,10 @@ import { getApiUsersId } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import UserFormModal from '../components/UserFormModal.vue';
-import { Permissions } from '@/api-access/generated/models';
+import { LookupCodeTypes, Permissions } from '@/api-access/generated/models';
+import { useLookupStore } from '@/stores/LookupStore';
 import { mdiPencil } from '@mdi/js';
 
 const props = defineProps<{
@@ -14,8 +15,17 @@ const props = defineProps<{
 
 const { data, error, isFetching, execute } = getApiUsersId(props.userId);
 const accessControl = useAccessControl();
+const lookupStore = useLookupStore();
 const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
 const showEditUserModal = ref(false);
+
+const positionDescription = computed(() => {
+  if (!data?.value?.rank) {
+    return '-';
+  }
+
+  return lookupStore.entityMap[LookupCodeTypes.PositionTypes]?.[data.value.rank]?.description ?? '-';
+});
 
 const handleEditMember = () => {
   showEditUserModal.value = true;
@@ -28,6 +38,10 @@ const handleUserUpdated = async () => {
 const handleEditModalClose = () => {
   showEditUserModal.value = false;
 };
+
+onMounted(async () => {
+  await lookupStore.load(LookupCodeTypes.PositionTypes);
+});
 </script>
 
 <template>
@@ -55,7 +69,7 @@ const handleEditModalClose = () => {
 
       <div>
         <div>{{ data?.firstName }} {{ data?.lastName }}</div>
-        <div>Chief Sheriff</div>
+        <div>{{ positionDescription }}</div>
         <div v-if="showBadgeNumber">{{ data?.badgeNumber }}</div>
       </div>
 

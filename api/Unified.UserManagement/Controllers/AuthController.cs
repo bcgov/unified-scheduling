@@ -41,6 +41,19 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Log out the current user by clearing the authentication cookie and signing out of the identity provider
+    /// </summary>
+    [HttpGet("logout")]
+    public IActionResult Logout()
+    {
+        return SignOut(
+            new AuthenticationProperties { RedirectUri = "/" },
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            OpenIdConnectDefaults.AuthenticationScheme
+        );
+    }
+
+    /// <summary>
     /// Gets the current authenticated user's information including their permissions
     /// </summary>
     [HttpGet("user")]
@@ -64,9 +77,13 @@ public class AuthController : ControllerBase
             ? parsedLocationId
             : (int?)null;
 
+        var firstName = User.FindFirst(UnifiedClaimTypes.FirstName)?.Value;
+        var lastName = User.FindFirst(UnifiedClaimTypes.LastName)?.Value;
+        var name = string.Join(" ", new[] { firstName, lastName }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
         var user = new UserInfo(
             User.Identity?.IsAuthenticated ?? false,
-            User.Identity?.Name,
+            string.IsNullOrWhiteSpace(name) ? User.Identity?.Name : name,
             User.Identity?.AuthenticationType,
             claims,
             permissions,
