@@ -153,7 +153,7 @@ public class AwayLocationRequestValidatorTests
         var result = _validator.TestValidate(request);
 
         // Assert
-        result.ShouldHaveAnyValidationError();
+        result.ShouldHaveValidationErrorFor(x => x);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public class AwayLocationRequestValidatorTests
         var result = _validator.TestValidate(request);
 
         // Assert
-        result.ShouldHaveAnyValidationError();
+        result.ShouldHaveValidationErrorFor(x => x);
     }
 
     [Fact]

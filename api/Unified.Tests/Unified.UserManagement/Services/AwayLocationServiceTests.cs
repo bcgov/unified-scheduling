@@ -52,17 +52,19 @@ public class AwayLocationServiceTests : IAsyncLifetime
             }
         );
 
-        _dbContext.Users.Add(new User
-        {
-            Id = UserId,
-            IdirName = "testuser",
-            IsEnabled = true,
-            FirstName = "Test",
-            LastName = "User",
-            Email = "test@example.com",
-            Gender = Gender.Male,
-            HomeLocationId = LocationId,
-        });
+        _dbContext.Users.Add(
+            new User
+            {
+                Id = UserId,
+                IdirName = "testuser",
+                IsEnabled = true,
+                FirstName = "Test",
+                LastName = "User",
+                Email = "test@example.com",
+                Gender = Gender.Male,
+                HomeLocationId = LocationId,
+            }
+        );
 
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
@@ -155,10 +157,7 @@ public class AwayLocationServiceTests : IAsyncLifetime
         // Arrange
         await SeedCoreEntitiesAsync();
         await SeedAwayLocationAsync(startAtUtc: DateTimeOffset.UtcNow.AddDays(-10));
-        await SeedAwayLocationAsync(
-            startAtUtc: DateTimeOffset.UtcNow.AddDays(-5),
-            locationId: SecondLocationId
-        );
+        await SeedAwayLocationAsync(startAtUtc: DateTimeOffset.UtcNow.AddDays(-5), locationId: SecondLocationId);
 
         // Act
         var result = await _service.GetByUserIdAsync(UserId, TestContext.Current.CancellationToken);
@@ -372,11 +371,7 @@ public class AwayLocationServiceTests : IAsyncLifetime
         await SeedCoreEntitiesAsync();
         var seeded = await SeedAwayLocationAsync();
 
-        var request = new ExpireAwayLocationRequestDto
-        {
-            AwayLocationId = seeded.Id,
-            ExpiryReason = "ENTRYERR",
-        };
+        var request = new ExpireAwayLocationRequestDto { AwayLocationId = seeded.Id, ExpiryReason = "ENTRYERR" };
 
         // Act
         var result = await _service.ExpireAsync(UserId, request, TestContext.Current.CancellationToken);
@@ -393,11 +388,7 @@ public class AwayLocationServiceTests : IAsyncLifetime
         await SeedCoreEntitiesAsync();
         var seeded = await SeedAwayLocationAsync();
 
-        var request = new ExpireAwayLocationRequestDto
-        {
-            AwayLocationId = seeded.Id,
-            ExpiryReason = "  ENTRYERR  ",
-        };
+        var request = new ExpireAwayLocationRequestDto { AwayLocationId = seeded.Id, ExpiryReason = "  ENTRYERR  " };
 
         // Act
         var result = await _service.ExpireAsync(UserId, request, TestContext.Current.CancellationToken);
@@ -412,11 +403,7 @@ public class AwayLocationServiceTests : IAsyncLifetime
         // Arrange
         await SeedCoreEntitiesAsync();
 
-        var request = new ExpireAwayLocationRequestDto
-        {
-            AwayLocationId = 9999,
-            ExpiryReason = "ENTRYERR",
-        };
+        var request = new ExpireAwayLocationRequestDto { AwayLocationId = 9999, ExpiryReason = "ENTRYERR" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -429,11 +416,7 @@ public class AwayLocationServiceTests : IAsyncLifetime
     {
         // Arrange — no seed
 
-        var request = new ExpireAwayLocationRequestDto
-        {
-            AwayLocationId = 1,
-            ExpiryReason = "ENTRYERR",
-        };
+        var request = new ExpireAwayLocationRequestDto { AwayLocationId = 1, ExpiryReason = "ENTRYERR" };
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
