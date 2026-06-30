@@ -2,6 +2,7 @@ using FluentValidation;
 using Mapster;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Unified.Authorization.Claims;
 using Unified.Common.Helpers.Extensions;
 using Unified.Db;
@@ -14,7 +15,8 @@ namespace Unified.UserManagement.Services;
 public sealed class RoleService(
     UnifiedDbContext DB,
     IHttpContextAccessor httpContextAccessor,
-    DeleteRoleWithReassignmentRequestDtoValidator deleteRoleValidator
+    DeleteRoleWithReassignmentRequestDtoValidator deleteRoleValidator,
+    ILogger<RoleService> logger
 ) : IRoleService
 {
     public async Task<IReadOnlyCollection<RoleDto>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -108,10 +110,22 @@ public sealed class RoleService(
 
         var requestedIds = request.PermissionIds.ToHashSet();
         var existingIds = role.RolePermissions.Select(rp => rp.PermissionId).ToHashSet();
+        var toAdd = requestedIds.Except(existingIds).ToList();
+        var toRemove = role.RolePermissions.Where(rp => !requestedIds.Contains(rp.PermissionId)).ToList();
 
-        DB.RolePermissions.RemoveRange(role.RolePermissions.Where(rp => !requestedIds.Contains(rp.PermissionId)));
+        logger.LogDebug(
+            "UpdateRole {RoleId}: existingIds=[{ExistingIds}] requestedIds=[{RequestedIds}] toAdd=[{ToAdd}] toRemove=[{ToRemove}]",
+            role.Id,
+            string.Join(", ", existingIds),
+            string.Join(", ", requestedIds),
+            string.Join(", ", toAdd),
+            string.Join(", ", toRemove.Select(rp => rp.PermissionId))
+        );
 
-        await AddPermissionsAsync(role, requestedIds.Except(existingIds).ToList(), cancellationToken);
+        foreach (var rp in toRemove)
+            role.RolePermissions.Remove(rp);
+
+        await AddPermissionsAsync(role, toAdd, cancellationToken);
         await DB.SaveChangesAsync(cancellationToken);
 
         await DB.Entry(role)
