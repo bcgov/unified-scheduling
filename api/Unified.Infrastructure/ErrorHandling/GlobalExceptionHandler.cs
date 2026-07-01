@@ -112,7 +112,7 @@ public class GlobalExceptionHandler : IExceptionHandler
 
     private ProblemDetails HandleInvalidOperationException(InvalidOperationException ex, HttpContext httpContext)
     {
-        _logger.LogInformation(ex, "Invalid operation: {Message}", ex.Message);
+        _logger.LogError(ex, "Invalid operation: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
 
         return new ProblemDetails

@@ -54,7 +54,7 @@ dotnet format analyzers --verify-no-changes
 **Auto-fix formatting:**
 
 ```bash
-dotnet csharpier .
+dotnet csharpier format .
 dotnet format style
 ```
 
@@ -100,6 +100,8 @@ Projects:
 Database is **PostgreSQL** via EF Core (Npgsql). Model-to-table configuration lives in `db/Configuration/` using `IEntityTypeConfiguration<T>` applied via `modelBuilder.ApplyAllConfigurations()`. Migrations run automatically on startup via `MigrationAndSeedService`.
 
 Each domain module registers its own seeders (e.g., `UserSeeder`, `RegionSeeder`) via `SeederFactory<T>` and they are executed at startup alongside migrations.
+
+For backend logging changes, load `.github/skills/backend-service-logging/SKILL.md` and follow its service logging pattern.
 
 ### Frontend — Feature Module System
 

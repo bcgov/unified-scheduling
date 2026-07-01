@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Unified.Common.Logging;
 using Unified.Db;
 using Unified.Db.Models.Stats;
 using Unified.Stats.Models;
 
 namespace Unified.Stats.Services;
 
-public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
+public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardService> logger) : IDashboardService
 {
     public async Task<IReadOnlyCollection<DashboardEntryResponse>> GetEntriesAsync(
         int callerHomeLocationId,
@@ -13,6 +15,7 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogDebug("Retrieving dashboard entries for location {LocationId}", callerHomeLocationId);
         // Note: null-conditional operators (?.) are not allowed inside expression tree lambdas
         // (CS8072 — a C# compiler restriction, not an EF Core one), so navigation checks use
         // explicit != null comparisons instead.
@@ -66,6 +69,8 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogDebug("Retrieving dashboard summary for location {LocationId}", callerHomeLocationId);
+
         var baseQuery = BuildQuery(callerHomeLocationId, queryParams);
 
         var regularHours = await baseQuery
@@ -137,6 +142,16 @@ public sealed class DashboardService(UnifiedDbContext db) : IDashboardService
 
     private IQueryable<StatRecord> BuildQuery(int callerHomeLocationId, DashboardEntriesQueryParams? queryParams)
     {
+        logger.LogDebug(
+            "Building dashboard query for location {LocationId}, employee {EmployeeId}, category provided {HasCategory}, name search provided {HasNameSearch}, name search length {NameSearchLength}, status {Status}",
+            callerHomeLocationId,
+            queryParams?.EmployeeId,
+            LogSanitizer.HasValue(queryParams?.CategoryName),
+            LogSanitizer.HasValue(queryParams?.NameSearch),
+            LogSanitizer.Length(queryParams?.NameSearch),
+            queryParams?.Status
+        );
+
         var query = db
             .StatRecords.AsNoTracking()
             .Where(r => r.User != null && r.User.HomeLocationId == callerHomeLocationId);

@@ -1,6 +1,8 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Unified.Common.Helpers.Extensions;
+using Unified.Common.Logging;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.FeatureFlags;
@@ -8,13 +10,22 @@ using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Services;
 
-public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags) : IUserService
+public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags, ILogger<UserService> logger)
+    : IUserService
 {
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogDebug(
+            "Retrieving users with search provided {HasSearch}, search length {SearchLength}, location {LocationId}, enabled {IsEnabled}",
+            LogSanitizer.HasValue(queryParams?.Search),
+            LogSanitizer.Length(queryParams?.Search),
+            queryParams?.LocationId,
+            queryParams?.IsEnabled
+        );
+
         var query = DB.Users.AsNoTracking();
 
         if (queryParams?.Search?.Trim() is { Length: > 0 } searchText)
@@ -76,6 +87,8 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         DB.Users.Add(userEntity);
         await DB.SaveChangesAsync(cancellationToken);
 
+        logger.LogInformation("Created user {UserId}", userEntity.Id);
+
         return userEntity.Adapt<UserResponse>();
     }
 
@@ -89,6 +102,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
         if (userEntity is null)
         {
+            logger.LogDebug("User {UserId} was not found for update", id);
             return null;
         }
 
@@ -104,6 +118,8 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         userEntity.LastLogin = DateTimeOffset.Now;
 
         await DB.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Updated user {UserId}", userEntity.Id);
 
         return userEntity.Adapt<UserResponse>();
     }
@@ -141,6 +157,14 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogInformation(
+            "Assigning role {RoleId} to user {UserId} with effective date {EffectiveDate} and expiry date {ExpiryDate}",
+            request.RoleId,
+            id,
+            request.EffectiveDate,
+            request.ExpiryDate
+        );
+
         var user = await DB
             .Users.AsNoTracking()
             .Include(x => x.HomeLocation)
@@ -177,6 +201,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
 
         if (userRole is null)
         {
+            logger.LogDebug("Creating new user role for user {UserId} and role {RoleId}", id, request.RoleId);
             assignedUserRole = new UserRole
             {
                 UserId = id,
@@ -190,6 +215,12 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         }
         else
         {
+            logger.LogDebug(
+                "Updating existing user role (ID {UserRoleId}) for user {UserId} and role {RoleId}",
+                userRole.Id,
+                id,
+                request.RoleId
+            );
             userRole.EffectiveDate = effectiveDateUtc;
             userRole.ExpiryDate = expiryDateUtc;
             userRole.ExpiryReason = null;
@@ -198,6 +229,8 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         }
 
         await DB.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Assigned role {RoleId} to user {UserId}", request.RoleId, id);
 
         var timezoneId = user.HomeLocation?.Timezone;
 
@@ -233,6 +266,13 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags)
         userRole.ExpiryReason = request.ExpiryReason;
 
         await DB.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Expired role {RoleId} for user {UserId} with reason provided {HasExpiryReason}",
+            request.RoleId,
+            id,
+            LogSanitizer.HasValue(request.ExpiryReason)
+        );
 
         return MapUserRoleResponse(userRole, user.HomeLocation?.Timezone);
     }

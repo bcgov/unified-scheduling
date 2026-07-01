@@ -11,8 +11,6 @@ using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Calendar.Services;
 
-using ApiCalendarConstants = Unified.Calendar.CalendarConstants;
-
 public class CalendarEventServiceTests : IAsyncLifetime
 {
     private SqliteConnection _connection = null!;
@@ -153,7 +151,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
         string title,
         DateTimeOffset startAtUtc,
         DateTimeOffset? endAtUtc,
-        string sourceModule = ApiCalendarConstants.SourceModule,
+        string sourceModule = Db.Models.Calendar.CalendarConstants.SourceModule,
         string? description = null,
         string? notes = null,
         string? color = null,

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Unified.Api.Services;
 using Unified.Authorization;
@@ -38,6 +39,30 @@ var featureFlagsOptions =
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddCalendarApplicationPart(featureFlagsOptions.CalendarModule);
+
+    // Logging
+    var enableBodyLogging =
+        builder.Configuration.GetValue<bool>("HttpLogging:LogBodies")
+        && (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Local"));
+
+    builder.Services.AddHttpLogging(options =>
+    {
+        options.LoggingFields =
+            HttpLoggingFields.RequestMethod
+            | HttpLoggingFields.RequestPath
+            | HttpLoggingFields.ResponseStatusCode
+            | HttpLoggingFields.Duration;
+
+        if (enableBodyLogging)
+        {
+            options.LoggingFields |= HttpLoggingFields.RequestBody | HttpLoggingFields.ResponseBody;
+
+            options.RequestBodyLogLimit = 4096;
+            options.ResponseBodyLogLimit = 4096;
+        }
+
+        options.CombineLogs = true;
+    });
 
     // Modules
     builder
@@ -110,6 +135,22 @@ var app = builder.Build();
     app.UseUnifiedOpenApi();
     app.UseHttpsRedirection();
     app.UseRouting();
+
+    var enableHttpLogging =
+        builder.Configuration.GetValue<bool>("HttpLogging:Enabled")
+        || builder.Environment.IsDevelopment()
+        || builder.Environment.IsEnvironment("Local")
+        || builder.Environment.IsEnvironment("Test");
+
+    if (enableHttpLogging)
+    {
+        app.UseWhen(
+            context =>
+                !context.Request.Path.StartsWithSegments("/health")
+                && !context.Request.Path.StartsWithSegments("/swagger"),
+            branch => branch.UseHttpLogging()
+        );
+    }
 
     // CORS must be between UseRouting and UseAuthentication
     app.UseCors("UnifiedCorsPolicy");
