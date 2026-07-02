@@ -13,8 +13,21 @@ npm run dev          # dev server (hot reload)
 npm run build        # type-check + production build
 npm run lint         # oxlint then eslint (both auto-fix)
 npm run format       # prettier (auto-fix)
-npm run pre:push     # lint + format + build + test (run before pushing)
+npm run pre:push     # frontend lint + format + build + test workflow
+npm run pre:check    # lightweight frontend pre-push checks (oxlint + eslint + prettier)
 ```
+
+Configure repo-managed hooks once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The committed `.githooks/pre-push` hook runs:
+
+- `cd web && npm run pre:check`
+- `dotnet tool restore`
+- `dotnet tool run csharpier check ./api ./db`
 
 **Run a single test file:**
 
