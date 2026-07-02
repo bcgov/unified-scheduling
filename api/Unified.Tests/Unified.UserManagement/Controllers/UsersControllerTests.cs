@@ -55,7 +55,6 @@ public class UsersControllerTests
         var fakeService = new FakeUserService { GetByIdResult = expectedUser };
         var controller = CreateController(fakeService);
 
-
         // Act
         var result = await controller.GetById(expectedUser.Id, TestContext.Current.CancellationToken);
 
@@ -73,7 +72,6 @@ public class UsersControllerTests
         // Arrange
         var fakeService = new FakeUserService { GetByIdResult = null };
         var controller = CreateController(fakeService);
-
 
         // Act
         var result = await controller.GetById(Guid.NewGuid(), TestContext.Current.CancellationToken);
@@ -101,7 +99,6 @@ public class UsersControllerTests
         var fakeService = new FakeUserService { GetRolesResult = expectedRoles };
         var controller = CreateController(fakeService);
 
-
         // Act
         var result = await controller.GetRoles(userId, TestContext.Current.CancellationToken);
 
@@ -117,7 +114,6 @@ public class UsersControllerTests
         // Arrange
         var fakeService = new FakeUserService { GetRolesException = new KeyNotFoundException("User not found.") };
         var controller = CreateController(fakeService);
-
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -375,20 +371,10 @@ public class UsersControllerTests
         var fakeService = new FakeUserService { UploadPhotoResult = updatedUser };
         var controller = CreateController(fakeService);
         var photoBytes = "fake-image-data"u8.ToArray();
-        IFormFile formFile = new FormFile(
-            new MemoryStream(photoBytes),
-            0,
-            photoBytes.Length,
-            "photo",
-            "avatar.jpg"
-        );
+        IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "avatar.jpg");
 
         // Act
-        var result = await controller.UploadPhoto(
-            updatedUser.Id,
-            formFile,
-            TestContext.Current.CancellationToken
-        );
+        var result = await controller.UploadPhoto(updatedUser.Id, formFile, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -406,20 +392,10 @@ public class UsersControllerTests
         var fakeService = new FakeUserService { UploadPhotoResult = null };
         var controller = CreateController(fakeService);
         var photoBytes = "fake-image-data"u8.ToArray();
-        IFormFile formFile = new FormFile(
-            new MemoryStream(photoBytes),
-            0,
-            photoBytes.Length,
-            "photo",
-            "avatar.jpg"
-        );
+        IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "avatar.jpg");
 
         // Act
-        var result = await controller.UploadPhoto(
-            Guid.NewGuid(),
-            formFile,
-            TestContext.Current.CancellationToken
-        );
+        var result = await controller.UploadPhoto(Guid.NewGuid(), formFile, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<NotFoundResult>(result.Result);
@@ -432,20 +408,10 @@ public class UsersControllerTests
         var fakeService = new FakeUserService { UploadPhotoResult = CreateUserResponse("A", "B") };
         var controller = CreateController(fakeService, uploadSizeLimitKb: 1);
         var photoBytes = new byte[2 * 1024]; // 2 KB
-        IFormFile formFile = new FormFile(
-            new MemoryStream(photoBytes),
-            0,
-            photoBytes.Length,
-            "photo",
-            "big.jpg"
-        );
+        IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "big.jpg");
 
         // Act
-        var result = await controller.UploadPhoto(
-            Guid.NewGuid(),
-            formFile,
-            TestContext.Current.CancellationToken
-        );
+        var result = await controller.UploadPhoto(Guid.NewGuid(), formFile, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<BadRequestObjectResult>(result.Result);

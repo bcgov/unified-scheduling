@@ -20,9 +20,8 @@ public class UsersController(
     IConfiguration configuration
 ) : ControllerBase
 {
-    private readonly long _uploadPhotoSizeLimitKb = long.Parse(
-        configuration["UploadPhotoSizeLimitKB"] ?? "5120"
-    );
+    private readonly long _uploadPhotoSizeLimitKb = long.Parse(configuration["UploadPhotoSizeLimitKB"] ?? "5120");
+
     /// <summary>
     /// Returns users filtered by optional query parameters.
     /// </summary>
