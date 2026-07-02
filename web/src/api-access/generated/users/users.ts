@@ -7,7 +7,9 @@
 import type {
   AssignUserRoleRequestDto,
   ExpireUserRoleRequestDto,
+  FileContentResult,
   GetApiUsersParams,
+  PostApiUsersIdUploadPhotoBody,
   UserRequestDto,
   UserResponse,
   UserRoleResponseDto,
@@ -81,6 +83,29 @@ export const postApiUsersIdRolesExpire = (
     options,
   );
 };
+export const getApiUsersIdPhoto = (id: string, options?: SecondParameter<typeof useFetchAPI<FileContentResult>>) => {
+  return useFetchAPI<FileContentResult>({ url: `/api/users/${id}/photo`, method: 'GET' }, options);
+};
+export const postApiUsersIdUploadPhoto = (
+  id: string,
+  postApiUsersIdUploadPhotoBody: PostApiUsersIdUploadPhotoBody,
+  options?: SecondParameter<typeof useFetchAPI<UserResponse>>,
+) => {
+  const formData = new FormData();
+  if (postApiUsersIdUploadPhotoBody.photo !== undefined) {
+    formData.append(`photo`, postApiUsersIdUploadPhotoBody.photo);
+  }
+
+  return useFetchAPI<UserResponse>(
+    {
+      url: `/api/users/${id}/upload-photo`,
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data' },
+      data: formData,
+    },
+    options,
+  );
+};
 export type GetApiUsersResult = NonNullable<Awaited<ReturnType<typeof getApiUsers>>>;
 export type PostApiUsersResult = NonNullable<Awaited<ReturnType<typeof postApiUsers>>>;
 export type GetApiUsersIdResult = NonNullable<Awaited<ReturnType<typeof getApiUsersId>>>;
@@ -88,3 +113,5 @@ export type PutApiUsersIdResult = NonNullable<Awaited<ReturnType<typeof putApiUs
 export type GetApiUsersIdRolesResult = NonNullable<Awaited<ReturnType<typeof getApiUsersIdRoles>>>;
 export type PostApiUsersIdRolesResult = NonNullable<Awaited<ReturnType<typeof postApiUsersIdRoles>>>;
 export type PostApiUsersIdRolesExpireResult = NonNullable<Awaited<ReturnType<typeof postApiUsersIdRolesExpire>>>;
+export type GetApiUsersIdPhotoResult = NonNullable<Awaited<ReturnType<typeof getApiUsersIdPhoto>>>;
+export type PostApiUsersIdUploadPhotoResult = NonNullable<Awaited<ReturnType<typeof postApiUsersIdUploadPhoto>>>;

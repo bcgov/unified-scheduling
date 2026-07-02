@@ -10,7 +10,7 @@ import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
 import { Gender } from '../models';
-import type { UserResponse, UserRoleResponseDto } from '../models';
+import type { EntityTagHeaderValue, FileContentResult, UserResponse, UserRoleResponseDto } from '../models';
 
 export const getGetApiUsersResponseMock = (): UserResponse[] =>
   faker.helpers.arrayElement([
@@ -359,6 +359,190 @@ export const getPostApiUsersIdRolesExpireResponseMock = (
     },
   ]);
 
+export const getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock = (
+  overrideResponse: Partial<EntityTagHeaderValue> = {},
+): EntityTagHeaderValue => ({
+  ...{
+    tag: faker.helpers.arrayElement([
+      {
+        buffer: faker.helpers.arrayElement([
+          faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          undefined,
+        ]),
+        offset: faker.helpers.arrayElement([faker.number.int(), undefined]),
+        length: faker.helpers.arrayElement([faker.number.int(), undefined]),
+        value: faker.helpers.arrayElement([
+          faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          undefined,
+        ]),
+        hasValue: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      },
+      undefined,
+    ]),
+    isWeak: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  },
+  ...overrideResponse,
+});
+
+export const getGetApiUsersIdPhotoResponseMock = (
+  overrideResponse: Partial<Extract<FileContentResult, object>> = {},
+): FileContentResult =>
+  faker.helpers.arrayElement([
+    {
+      fileContents: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      contentType: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      fileDownloadName: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastModified: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      entityTag: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([null, { ...getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock() }]),
+        undefined,
+      ]),
+      enableRangeProcessing: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      ...overrideResponse,
+    },
+    {
+      fileContents: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      contentType: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      fileDownloadName: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastModified: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      entityTag: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([null, { ...getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock() }]),
+        undefined,
+      ]),
+      enableRangeProcessing: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      ...overrideResponse,
+    },
+    {
+      fileContents: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      contentType: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      fileDownloadName: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastModified: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      entityTag: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([null, { ...getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock() }]),
+        undefined,
+      ]),
+      enableRangeProcessing: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      ...overrideResponse,
+    },
+  ]);
+
+export const getPostApiUsersIdUploadPhotoResponseMock = (
+  overrideResponse: Partial<Extract<UserResponse, object>> = {},
+): UserResponse =>
+  faker.helpers.arrayElement([
+    {
+      id: faker.string.uuid(),
+      idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      isEnabled: faker.datatype.boolean(),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        null,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.string.uuid(),
+      idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      isEnabled: faker.datatype.boolean(),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        null,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.string.uuid(),
+      idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      isEnabled: faker.datatype.boolean(),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        null,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        null,
+      ]),
+      ...overrideResponse,
+    },
+  ]);
+
 export const getGetApiUsersMockHandler = (
   overrideResponse?:
     | UserResponse[]
@@ -512,6 +696,50 @@ export const getPostApiUsersIdRolesExpireMockHandler = (
     options,
   );
 };
+
+export const getGetApiUsersIdPhotoMockHandler = (
+  overrideResponse?:
+    | FileContentResult
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<FileContentResult> | FileContentResult),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/users/:id/photo',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiUsersIdPhotoResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
+export const getPostApiUsersIdUploadPhotoMockHandler = (
+  overrideResponse?:
+    | UserResponse
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserResponse> | UserResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    '*/api/users/:id/upload-photo',
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPostApiUsersIdUploadPhotoResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 export const getUsersMock = () => [
   getGetApiUsersMockHandler(),
   getPostApiUsersMockHandler(),
@@ -520,4 +748,6 @@ export const getUsersMock = () => [
   getGetApiUsersIdRolesMockHandler(),
   getPostApiUsersIdRolesMockHandler(),
   getPostApiUsersIdRolesExpireMockHandler(),
+  getGetApiUsersIdPhotoMockHandler(),
+  getPostApiUsersIdUploadPhotoMockHandler(),
 ];

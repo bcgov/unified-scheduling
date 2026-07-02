@@ -25,6 +25,7 @@ export const GetApiUsersResponseItem = zod.object({
   badgeNumber: zod.string().nullable(),
   homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({ offset: true }).nullable(),
+  photoUrl: zod.string().nullable(),
 });
 export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem);
 
@@ -72,6 +73,7 @@ export const GetApiUsersIdResponse = zod.object({
   badgeNumber: zod.string().nullable(),
   homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({ offset: true }).nullable(),
+  photoUrl: zod.string().nullable(),
 });
 
 export const PutApiUsersIdParams = zod.strictObject({
@@ -103,6 +105,7 @@ export const PutApiUsersIdResponse = zod.object({
   badgeNumber: zod.string().nullable(),
   homeLocationId: zod.number().nullable(),
   lastLogin: zod.iso.datetime({ offset: true }).nullable(),
+  photoUrl: zod.string().nullable(),
 });
 
 export const GetApiUsersIdRolesParams = zod.strictObject({
@@ -154,4 +157,57 @@ export const PostApiUsersIdRolesExpireResponse = zod.object({
   effectiveDate: zod.iso.datetime({ offset: true }).optional(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
+});
+
+export const GetApiUsersIdPhotoParams = zod.strictObject({
+  id: zod.uuid(),
+});
+
+export const GetApiUsersIdPhotoResponse = zod.object({
+  fileContents: zod.string().optional(),
+  contentType: zod.string().nullish(),
+  fileDownloadName: zod.string().nullish(),
+  lastModified: zod.iso.datetime({ offset: true }).nullish(),
+  entityTag: zod
+    .union([
+      zod.null(),
+      zod.object({
+        tag: zod
+          .object({
+            buffer: zod.string().nullish(),
+            offset: zod.number().optional(),
+            length: zod.number().optional(),
+            value: zod.string().nullish(),
+            hasValue: zod.boolean().optional(),
+          })
+          .optional(),
+        isWeak: zod.boolean().optional(),
+      }),
+    ])
+    .optional(),
+  enableRangeProcessing: zod.boolean().optional(),
+});
+
+export const PostApiUsersIdUploadPhotoParams = zod.strictObject({
+  id: zod.uuid(),
+});
+
+export const PostApiUsersIdUploadPhotoBody = zod.strictObject({
+  photo: zod.instanceof(File).optional(),
+});
+
+export const PostApiUsersIdUploadPhotoResponse = zod.object({
+  id: zod.uuid(),
+  idirName: zod.string(),
+  idirId: zod.uuid().nullable(),
+  isEnabled: zod.boolean(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  email: zod.string(),
+  gender: zod.enum(['Male', 'Female', 'Other']),
+  rank: zod.string().nullable(),
+  badgeNumber: zod.string().nullable(),
+  homeLocationId: zod.number().nullable(),
+  lastLogin: zod.iso.datetime({ offset: true }).nullable(),
+  photoUrl: zod.string().nullable(),
 });
