@@ -6,9 +6,10 @@
  */
 
 export * from './assignUserRoleRequestDto';
+export * from './calendarDataRequest';
+export * from './calendarDataRequestFilters';
+export * from './calendarDataResponse';
 export * from './calendarEventResponse';
-export * from './calendarEventsRequest';
-export * from './calendarEventsRequestFilters';
 export * from './calendarEventStatusTypeCode';
 export * from './calendarEventTypeCode';
 export * from './configResponse';

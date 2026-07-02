@@ -1,14 +1,16 @@
-using System.Text.Json;
-
 namespace Unified.Calendar.Models;
 
-public sealed class CalendarEventsRequest
+public sealed record CalendarDataRequest
 {
-    public required DateTimeOffset StartDate { get; init; }
+    // Inclusive start date.
+    public required DateOnly StartDate { get; init; }
 
-    public required DateTimeOffset EndDate { get; init; }
+    // Inclusive end date.
+    public required DateOnly EndDate { get; init; }
+
+    public string? TimeZoneId { get; init; }
 
     public int? LocationId { get; init; }
 
-    public Dictionary<string, JsonElement>? Filters { get; init; }
+    public IReadOnlyDictionary<string, string>? Filters { get; init; }
 }

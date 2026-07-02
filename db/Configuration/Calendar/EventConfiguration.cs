@@ -68,6 +68,15 @@ public class EventConfiguration : BaseEntityConfiguration<Event>
         builder.HasIndex(b => b.CancelledByUserId);
         builder.HasIndex(b => b.LocationId);
         builder.HasIndex(b => new { b.SourceModule, b.StartAtUtc });
+        builder
+            .HasIndex(b => new
+            {
+                b.EventSeriesId,
+                b.SeriesStartAtUtc,
+                b.SeriesEndAtUtc,
+            })
+            .IsUnique()
+            .HasFilter("\"EventSeriesId\" IS NOT NULL AND \"SeriesStartAtUtc\" IS NOT NULL");
 
         builder.ToTable(
             "Events",

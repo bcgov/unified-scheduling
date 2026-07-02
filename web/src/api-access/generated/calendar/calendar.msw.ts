@@ -10,9 +10,9 @@ import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
 import { CalendarEventStatusTypeCode, CalendarEventTypeCode } from '../models';
-import type { CalendarEventResponse } from '../models';
+import type { CalendarDataResponse, CalendarEventResponse } from '../models';
 
-export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] =>
+export const getPostApiCalendarDataResponseEventsMock = (): CalendarEventResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.number.int(),
@@ -172,12 +172,16 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
     })),
   ]);
 
-export const getPostApiCalendarEventsMockHandler = (
+export const getPostApiCalendarDataResponseMock = (): CalendarDataResponse => ({
+  moduleId: 'calendar',
+  contributionId: 'calendar.events',
+  events: getPostApiCalendarDataResponseEventsMock(),
+});
+
+export const getPostApiCalendarDataMockHandler = (
   overrideResponse?:
-    | CalendarEventResponse[]
-    | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<CalendarEventResponse[]> | CalendarEventResponse[]),
+    | CalendarDataResponse
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CalendarDataResponse> | CalendarDataResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
@@ -188,11 +192,11 @@ export const getPostApiCalendarEventsMockHandler = (
           ? typeof overrideResponse === 'function'
             ? await overrideResponse(info)
             : overrideResponse
-          : getPostApiCalendarEventsResponseMock(),
+          : getPostApiCalendarDataResponseMock(),
         { status: 200 },
       );
     },
     options,
   );
 };
-export const getCalendarMock = () => [getPostApiCalendarEventsMockHandler()];
+export const getCalendarMock = () => [getPostApiCalendarDataMockHandler()];

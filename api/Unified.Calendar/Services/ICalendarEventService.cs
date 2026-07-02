@@ -4,8 +4,8 @@ namespace Unified.Calendar.Services;
 
 public interface ICalendarEventService
 {
-    Task<IReadOnlyCollection<CalendarEventResponse>> GetEventsAsync(
-        CalendarEventsRequest request,
+    Task<CalendarDataResponse> GetCalendarDataAsync(
+        CalendarDataRequest request,
         CancellationToken cancellationToken = default
     );
 }

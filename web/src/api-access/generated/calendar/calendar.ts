@@ -4,24 +4,24 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { CalendarEventResponse, CalendarEventsRequest } from '../models';
+import type { CalendarDataRequest, CalendarDataResponse } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-export const postApiCalendarEvents = (
-  calendarEventsRequest: CalendarEventsRequest,
-  options?: SecondParameter<typeof useFetchAPI<CalendarEventResponse[]>>,
+export const postApiCalendarData = (
+  calendarDataRequest: CalendarDataRequest,
+  options?: SecondParameter<typeof useFetchAPI<CalendarDataResponse>>,
 ) => {
-  return useFetchAPI<CalendarEventResponse[]>(
+  return useFetchAPI<CalendarDataResponse>(
     {
       url: `/api/calendar/events`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      data: calendarEventsRequest,
+      data: calendarDataRequest,
     },
     options,
   );
 };
-export type PostApiCalendarEventsResult = NonNullable<Awaited<ReturnType<typeof postApiCalendarEvents>>>;
+export type PostApiCalendarDataResult = NonNullable<Awaited<ReturnType<typeof postApiCalendarData>>>;

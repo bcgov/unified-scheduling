@@ -1,5 +1,4 @@
-import { postApiCalendarEvents } from '@/api-access/calendar';
-import { localDateOnlyToUtcInstant } from '@/utils/date';
+import { postApiCalendarData } from '@/api-access/calendar';
 import type { CalendarEventBase } from '../calendarTypes';
 import type { CalendarModuleContribution } from '../registry/calendarRegistryTypes';
 import { mapApiCalendarEventToCalendarEventBase } from './calendarEventMappers';
@@ -11,10 +10,10 @@ export const calendarEventsContribution: CalendarModuleContribution = {
     return runtimeContext.featureFlags.calendarModule ?? true;
   },
   async load(context, options) {
-    const events = await postApiCalendarEvents(
+    const data = await postApiCalendarData(
       {
-        startDate: localDateOnlyToUtcInstant(context.startDate),
-        endDate: localDateOnlyToUtcInstant(context.endDate),
+        startDate: context.startDate,
+        endDate: context.endDate,
         locationId: context.locationId,
         filters: context.filters,
       },
@@ -22,9 +21,9 @@ export const calendarEventsContribution: CalendarModuleContribution = {
     );
 
     return {
-      moduleId: 'calendar',
-      contributionId: 'calendar.events',
-      events: events.map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
+      moduleId: data.moduleId,
+      contributionId: data.contributionId,
+      events: data.events.map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
     };
   },
 };

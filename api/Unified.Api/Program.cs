@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Unified.Api.Modules;
 using Unified.Api.Services;
 using Unified.Authorization;
 using Unified.Calendar;
@@ -7,13 +8,17 @@ using Unified.Core;
 using Unified.Db;
 using Unified.FeatureFlags;
 using Unified.Infrastructure;
+using Unified.Infrastructure.Modules;
 using Unified.Infrastructure.Options;
+using Unified.Scheduling;
 using Unified.Stats;
 using Unified.UserManagement;
 
 var builder = WebApplication.CreateBuilder(args);
 var featureFlagsOptions =
     builder.Configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
+
+ModuleDependencyValidator.Validate(UnifiedModules.All, featureFlagsOptions);
 
 {
     // Configure forwarded headers so the app sees the external scheme/host
@@ -37,6 +42,7 @@ var featureFlagsOptions =
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddCalendarApplicationPart(featureFlagsOptions.CalendarModule);
+    mvcBuilder.AddSchedulingApplicationPart(featureFlagsOptions.SchedulingModule);
 
     // Modules
     builder
@@ -65,6 +71,11 @@ var featureFlagsOptions =
     if (featureFlagsOptions.CalendarModule)
     {
         builder.Services.AddCalendarModule(builder.Configuration);
+    }
+
+    if (featureFlagsOptions.SchedulingModule)
+    {
+        builder.Services.AddSchedulingModule();
     }
 
     // Authentication & Authorization
