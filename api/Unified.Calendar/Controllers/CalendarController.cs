@@ -15,14 +15,14 @@ namespace Unified.Calendar.Controllers;
 public sealed class CalendarController(
     ILogger<CalendarController> logger,
     ICalendarEventService calendarEventService,
-    CalendarEventsRequestValidator calendarEventsRequestValidator
+    CalendarDataRequestValidator calendarDataRequestValidator
 ) : ControllerBase
 {
     [HttpPost("events")]
-    [ProducesResponseType(typeof(IReadOnlyCollection<CalendarEventResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<IReadOnlyCollection<CalendarEventResponse>>> GetEvents(
-        [FromBody] CalendarEventsRequest request,
+    [ProducesResponseType(typeof(CalendarDataResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<CalendarDataResponse>> GetData(
+        [FromBody] CalendarDataRequest request,
         CancellationToken cancellationToken
     )
     {
@@ -32,17 +32,17 @@ public sealed class CalendarController(
             request.EndDate
         );
 
-        await calendarEventsRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+        await calendarDataRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var events = await calendarEventService.GetEventsAsync(request, cancellationToken);
+        var response = await calendarEventService.GetCalendarDataAsync(request, cancellationToken);
 
         logger.LogInformation(
             "Calendar events response completed for range {StartDate} to {EndDate} with {EventCount} events.",
             request.StartDate,
             request.EndDate,
-            events.Count
+            response.Events.Count
         );
 
-        return Ok(events);
+        return Ok(response);
     }
 }

@@ -6,26 +6,42 @@ using Unified.Db.Models.Calendar;
 
 namespace Unified.Calendar.Services;
 
-public sealed class CalendarEventService(ILogger<CalendarEventService> logger, UnifiedDbContext db)
-    : ICalendarEventService
+public sealed class CalendarEventService(
+    ILogger<CalendarEventService> logger,
+    UnifiedDbContext db,
+    ICalendarDateTimeService calendarDateTimeService
+) : ICalendarEventService
 {
-    public async Task<IReadOnlyCollection<CalendarEventResponse>> GetEventsAsync(
-        CalendarEventsRequest request,
+    public async Task<CalendarDataResponse> GetCalendarDataAsync(
+        CalendarDataRequest request,
         CancellationToken cancellationToken = default
     )
     {
         logger.LogInformation(
-            "Querying calendar events for range {StartDate} to {EndDate} with location filter {LocationId}.",
+            "Querying calendar data for local date range {StartDate} to {EndDate}, timezone {TimeZoneId}, and location filter {LocationId}.",
             request.StartDate,
             request.EndDate,
+            request.TimeZoneId,
             request.LocationId
+        );
+
+        var locationTimeZoneId = await GetLocationTimeZoneIdAsync(request.LocationId, cancellationToken);
+        var timeZone = calendarDateTimeService.ResolveTimeZone(request.TimeZoneId, locationTimeZoneId);
+        var utcRange = calendarDateTimeService.ConvertInclusiveLocalDateRangeToUtcRange(
+            request.StartDate,
+            request.EndDate,
+            timeZone
         );
 
         var query = db
             .Events.AsNoTracking()
             .Where(e => e.SourceModule == CalendarConstants.SourceModule)
-            .Where(e => e.StartAtUtc < request.EndDate)
-            .Where(e => e.EndAtUtc == null ? e.StartAtUtc >= request.StartDate : e.EndAtUtc > request.StartDate);
+            .Where(e => e.StartAtUtc < utcRange.EndAtUtc)
+            .Where(e =>
+                e.EndAtUtc == null
+                    ? e.StartAtUtc >= utcRange.StartAtUtc && e.StartAtUtc < utcRange.EndAtUtc
+                    : e.EndAtUtc > utcRange.StartAtUtc
+            );
 
         if (request.LocationId.HasValue)
         {
@@ -34,17 +50,29 @@ public sealed class CalendarEventService(ILogger<CalendarEventService> logger, U
 
         var eventEntities = await query.OrderBy(e => e.StartAtUtc).ThenBy(e => e.Id).ToListAsync(cancellationToken);
 
-        var events = eventEntities.Select(MapToResponse).ToList();
+        var response = new CalendarDataResponse { Events = eventEntities.Select(MapToResponse).ToList() };
 
         logger.LogDebug(
-            "Calendar event query completed for range {StartDate} to {EndDate} with location filter {LocationId}; {EventCount} events matched.",
+            "Calendar data query completed for local date range {StartDate} to {EndDate} with location filter {LocationId}; {EventCount} events matched.",
             request.StartDate,
             request.EndDate,
             request.LocationId,
-            events.Count
+            response.Events.Count
         );
 
-        return events;
+        return response;
+    }
+
+    private async Task<string?> GetLocationTimeZoneIdAsync(int? locationId, CancellationToken cancellationToken)
+    {
+        if (!locationId.HasValue)
+            return null;
+
+        return await db
+            .Locations.AsNoTracking()
+            .Where(location => location.Id == locationId.Value)
+            .Select(location => location.Timezone)
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     private static CalendarEventResponse MapToResponse(Event eventEntity) =>

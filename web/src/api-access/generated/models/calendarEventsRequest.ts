@@ -4,13 +4,4 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { CalendarEventsRequestFilters } from './calendarEventsRequestFilters';
-
-export interface CalendarEventsRequest {
-  startDate: string;
-  endDate: string;
-  /** @nullable */
-  locationId?: number | null;
-  /** @nullable */
-  filters?: CalendarEventsRequestFilters;
-}
+export {};

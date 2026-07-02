@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Lookup;
+using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
@@ -31,6 +32,12 @@ public class UnifiedDbContext : DbContext
     public DbSet<TrainingCategory> TrainingCategories { get; set; }
     public DbSet<Training> Trainings { get; set; }
     public DbSet<UserTraining> UserTrainings { get; set; }
+
+    // Scheduling
+    public DbSet<ShiftSeries> ShiftSeries { get; set; }
+    public DbSet<ShiftSeriesUser> ShiftSeriesUsers { get; set; }
+    public DbSet<ShiftEntry> ShiftEntries { get; set; }
+    public DbSet<ShiftEntryUser> ShiftEntryUsers { get; set; }
 
     // Stats
     public DbSet<StatGroup> StatGroups { get; set; }

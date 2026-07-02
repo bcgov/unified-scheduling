@@ -55,29 +55,30 @@ describe('calendar module integration', () => {
   });
 
   it('loads contribution data and respects the feature flag gate', async () => {
-    const postApiCalendarEvents = vi.fn().mockResolvedValue([
-      {
-        id: 7,
-        title: 'Holiday',
-        startAtUtc: '2025-07-01T00:00:00Z',
-        endAtUtc: '2025-07-02T00:00:00Z',
-        allDay: true,
-        isException: false,
-        eventTypeCode: 'holiday',
-        statusTypeCode: 'active',
-        sourceModule: 'calendar',
-        locationId: 12,
-      },
-    ]);
+    const postApiCalendarData = vi.fn().mockResolvedValue({
+      moduleId: 'calendar',
+      contributionId: 'calendar.events',
+      events: [
+        {
+          id: 7,
+          title: 'Holiday',
+          startAtUtc: '2025-07-01T00:00:00Z',
+          endAtUtc: '2025-07-02T00:00:00Z',
+          allDay: true,
+          isException: false,
+          eventTypeCode: 'holiday',
+          statusTypeCode: 'active',
+          sourceModule: 'calendar',
+          locationId: 12,
+        },
+      ],
+    });
 
     vi.doMock('@/api-access/calendar', () => ({
-      postApiCalendarEvents,
+      postApiCalendarData,
     }));
 
-    const [{ calendarEventsContribution }, { localDateOnlyToUtcInstant }] = await Promise.all([
-      import('@/modules/calendar/contributions/calendarEventsContribution'),
-      import('@/utils/date'),
-    ]);
+    const { calendarEventsContribution } = await import('@/modules/calendar/contributions/calendarEventsContribution');
 
     const isAvailable = calendarEventsContribution.isAvailable;
 
@@ -111,10 +112,10 @@ describe('calendar module integration', () => {
       ],
     });
 
-    expect(postApiCalendarEvents).toHaveBeenCalledWith(
+    expect(postApiCalendarData).toHaveBeenCalledWith(
       {
-        startDate: localDateOnlyToUtcInstant('2025-07-01'),
-        endDate: localDateOnlyToUtcInstant('2025-07-08'),
+        startDate: '2025-07-01',
+        endDate: '2025-07-08',
         locationId: 12,
         filters: { owner: 'team' },
       },

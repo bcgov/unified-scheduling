@@ -2,9 +2,10 @@ import { useFetchAPI } from './useFetchAPI';
 
 type FetchOptions = Parameters<typeof useFetchAPI>[1];
 
-export interface ApiCalendarEventsRequest {
+export interface ApiCalendarDataRequest {
   startDate: string;
   endDate: string;
+  timeZoneId?: string;
   locationId?: number;
   filters?: Record<string, unknown>;
 }
@@ -32,11 +33,17 @@ export interface ApiCalendarEventResponse {
   locationId?: number;
 }
 
-export const postApiCalendarEvents = async (
-  request: ApiCalendarEventsRequest,
+export interface ApiCalendarDataResponse {
+  moduleId: string;
+  contributionId: string;
+  events: ApiCalendarEventResponse[];
+}
+
+export const postApiCalendarData = async (
+  request: ApiCalendarDataRequest,
   options?: FetchOptions,
-): Promise<ApiCalendarEventResponse[]> => {
-  const { data, error, execute } = useFetchAPI<ApiCalendarEventResponse[]>(
+): Promise<ApiCalendarDataResponse> => {
+  const { data, error, execute } = useFetchAPI<ApiCalendarDataResponse>(
     {
       url: `${import.meta.env.BASE_URL}api/calendar/events`,
       method: 'POST',
@@ -58,5 +65,5 @@ export const postApiCalendarEvents = async (
     throw error.value;
   }
 
-  return data.value || [];
+  return data.value || { moduleId: 'calendar', contributionId: 'calendar.events', events: [] };
 };

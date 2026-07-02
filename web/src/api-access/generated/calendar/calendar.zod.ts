@@ -6,14 +6,15 @@
  */
 import * as zod from 'zod';
 
-export const PostApiCalendarEventsBody = zod.strictObject({
-  startDate: zod.iso.datetime({ offset: true }),
-  endDate: zod.iso.datetime({ offset: true }),
+export const PostApiCalendarDataBody = zod.strictObject({
+  startDate: zod.iso.date(),
+  endDate: zod.iso.date(),
+  timeZoneId: zod.string().nullish(),
   locationId: zod.number().nullish(),
-  filters: zod.looseObject({}).nullish(),
+  filters: zod.record(zod.string(), zod.string()).nullish(),
 });
 
-export const PostApiCalendarEventsResponseItem = zod.object({
+export const PostApiCalendarDataResponseEventsItem = zod.object({
   id: zod.number(),
   eventSeriesId: zod.number().nullish(),
   title: zod.string(),
@@ -35,4 +36,8 @@ export const PostApiCalendarEventsResponseItem = zod.object({
   sourceModule: zod.string(),
   locationId: zod.number().nullish(),
 });
-export const PostApiCalendarEventsResponse = zod.array(PostApiCalendarEventsResponseItem);
+export const PostApiCalendarDataResponse = zod.object({
+  moduleId: zod.string().optional(),
+  contributionId: zod.string().optional(),
+  events: zod.array(PostApiCalendarDataResponseEventsItem).optional(),
+});

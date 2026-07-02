@@ -1,7 +1,9 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Unified.Calendar;
 using Unified.Calendar.Models;
+using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Db;
 using Unified.Db.Models;
@@ -30,7 +32,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
         await SeedLookupDataAsync();
         _service = new CalendarEventService(
             Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarEventService>.Instance,
-            _dbContext
+            _dbContext,
+            CreateCalendarDateTimeService()
         );
     }
 
@@ -41,40 +44,40 @@ public class CalendarEventServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetEventsAsync_WhenNoLocationFilter_UsesStartEndExclusiveOverlapBoundaries()
+    public async Task GetCalendarDataAsync_WhenNoLocationFilter_UsesStartEndExclusiveOverlapBoundaries()
     {
         // Arrange
-        var request = CreateRequest(
-            new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero)
-        );
+        var request = CreateRequest(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 5));
+        var rangeStartAtUtc = new DateTimeOffset(2026, 6, 1, 7, 0, 0, TimeSpan.Zero);
+        var rangeEndAtUtc = new DateTimeOffset(2026, 6, 6, 7, 0, 0, TimeSpan.Zero);
+        var endDateStartAtUtc = new DateTimeOffset(2026, 6, 5, 7, 0, 0, TimeSpan.Zero);
 
         _dbContext.Events.AddRange(
-            CreateEvent(5, "Ends at request start", request.StartDate.AddHours(-2), request.StartDate),
-            CreateEvent(4, "Starts at request end", request.EndDate, request.EndDate.AddHours(1)),
-            CreateEvent(3, "Open ended on range start", request.StartDate, endAtUtc: null),
+            CreateEvent(5, "Ends at request start", rangeStartAtUtc.AddHours(-2), rangeStartAtUtc),
+            CreateEvent(4, "Starts on request end date", endDateStartAtUtc, endDateStartAtUtc.AddHours(1)),
+            CreateEvent(3, "Open ended on range start", rangeStartAtUtc, endAtUtc: null),
             CreateEvent(
                 2,
                 "Non-calendar",
-                request.StartDate.AddHours(2),
-                request.StartDate.AddHours(3),
+                rangeStartAtUtc.AddHours(2),
+                rangeStartAtUtc.AddHours(3),
                 sourceModule: "other"
             ),
             CreateEvent(
                 1,
                 "Overlapping event",
-                request.StartDate.AddHours(1),
-                request.StartDate.AddHours(2),
+                rangeStartAtUtc.AddHours(1),
+                rangeStartAtUtc.AddHours(2),
                 description: "Description",
                 notes: "Notes",
                 color: "calendar.deadline",
-                seriesStartAtUtc: request.StartDate,
-                seriesEndAtUtc: request.EndDate,
+                seriesStartAtUtc: rangeStartAtUtc,
+                seriesEndAtUtc: rangeEndAtUtc,
                 timeZoneId: "America/Vancouver",
                 isException: true,
                 eventTypeCode: CalendarCodeMappings.ToDbCode(CalendarEventTypeCode.Deadline),
                 statusTypeCode: CalendarCodeMappings.ToDbCode(CalendarEventStatusTypeCode.Active),
-                cancelledAt: request.StartDate.AddHours(3),
+                cancelledAt: rangeStartAtUtc.AddHours(3),
                 cancellationReason: "Reason",
                 locationId: 8
             )
@@ -82,11 +85,13 @@ public class CalendarEventServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEventsAsync(request, TestContext.Current.CancellationToken);
+        var result = await _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
+        Assert.Equal("calendar", result.ModuleId);
+        Assert.Equal("calendar.events", result.ContributionId);
         Assert.Collection(
-            result,
+            result.Events,
             first =>
             {
                 Assert.Equal(3, first.Id);
@@ -106,39 +111,63 @@ public class CalendarEventServiceTests : IAsyncLifetime
                 Assert.Equal(CalendarEventStatusTypeCode.Active, second.StatusTypeCode);
                 Assert.Equal("Reason", second.CancellationReason);
                 Assert.Equal(8, second.LocationId);
+            },
+            third =>
+            {
+                Assert.Equal(4, third.Id);
+                Assert.Equal("Starts on request end date", third.Title);
             }
         );
     }
 
     [Fact]
-    public async Task GetEventsAsync_WhenLocationFilterProvided_ReturnsSharedAndMatchingLocationsOnly()
+    public async Task GetCalendarDataAsync_WhenLocationFilterProvided_ReturnsSharedAndMatchingLocationsOnly()
     {
         // Arrange
-        var request = CreateRequest(
-            new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero),
-            locationId: 5
-        );
+        var request = CreateRequest(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 10), locationId: 5);
+        var rangeStartAtUtc = new DateTimeOffset(2026, 6, 1, 7, 0, 0, TimeSpan.Zero);
 
         _dbContext.Events.AddRange(
-            CreateEvent(1, "Shared", request.StartDate, request.StartDate.AddHours(1), locationId: null),
-            CreateEvent(2, "Matching", request.StartDate.AddHours(1), request.StartDate.AddHours(2), locationId: 5),
-            CreateEvent(3, "Different", request.StartDate.AddHours(2), request.StartDate.AddHours(3), locationId: 9)
+            CreateEvent(1, "Shared", rangeStartAtUtc, rangeStartAtUtc.AddHours(1), locationId: null),
+            CreateEvent(2, "Matching", rangeStartAtUtc.AddHours(1), rangeStartAtUtc.AddHours(2), locationId: 5),
+            CreateEvent(3, "Different", rangeStartAtUtc.AddHours(2), rangeStartAtUtc.AddHours(3), locationId: 9)
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetEventsAsync(request, TestContext.Current.CancellationToken);
+        var result = await _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal([1, 2], result.Select(x => x.Id).ToArray());
+        Assert.Equal([1, 2], result.Events.Select(x => x.Id).ToArray());
     }
 
-    private static CalendarEventsRequest CreateRequest(
-        DateTimeOffset startDate,
-        DateTimeOffset endDate,
-        int? locationId = null
-    ) =>
+    [Fact]
+    public async Task GetCalendarDataAsync_WhenEventStartsOnEndDate_IncludesWholeEndDate()
+    {
+        // Arrange
+        var request = CreateRequest(new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 1));
+        var endDateMorningUtc = new DateTimeOffset(2026, 6, 1, 15, 0, 0, TimeSpan.Zero);
+        _dbContext.Events.AddRange(
+            CreateEvent(1, "On end date", endDateMorningUtc, endDateMorningUtc.AddHours(1)),
+            CreateEvent(
+                2,
+                "After end date",
+                new DateTimeOffset(2026, 6, 2, 7, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 2, 8, 0, 0, TimeSpan.Zero)
+            )
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var item = Assert.Single(result.Events);
+        Assert.Equal(1, item.Id);
+        Assert.Equal("On end date", item.Title);
+    }
+
+    private static CalendarDataRequest CreateRequest(DateOnly startDate, DateOnly endDate, int? locationId = null) =>
         new()
         {
             StartDate = startDate,
@@ -260,4 +289,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
 
         static DateTimeOffset requestDate() => new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
     }
+
+    private static CalendarDateTimeService CreateCalendarDateTimeService() =>
+        new(Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }));
 }
