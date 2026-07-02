@@ -1,0 +1,229 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import UserFormModal from '@/modules/myteam/components/UserFormModal.vue';
+import {
+  getPostApiUsersMockHandler,
+  getPostApiUsersResponseMock,
+  getPutApiUsersIdMockHandler,
+  getPutApiUsersIdResponseMock,
+  getPostApiUsersIdUploadPhotoMockHandler,
+  getPostApiUsersIdUploadPhotoResponseMock,
+} from '@/api-access/generated/users/users.msw';
+import { server } from '../../../mocks/server';
+import { createTestApp } from '../../../helpers/createTestApp';
+import type { UserResponse } from '@/api-access/generated/models';
+import { Gender } from '@/api-access/generated/models';
+
+afterEach(() => {
+  document.body.innerHTML = '';
+  vi.restoreAllMocks();
+});
+
+const baseUser: UserResponse = {
+  id: 'user-123',
+  idirName: 'jdoe',
+  idirId: null,
+  isEnabled: true,
+  firstName: 'Jane',
+  lastName: 'Doe',
+  email: 'jane.doe@example.com',
+  gender: Gender.Female,
+  rank: null,
+  badgeNumber: null,
+  homeLocationId: null,
+  lastLogin: null,
+  photoUrl: null,
+  lastPhotoUpdate: null,
+};
+
+const validFormData = {
+  firstName: 'Jane',
+  lastName: 'Doe',
+  email: 'jane.doe@example.com',
+  idirName: 'jdoe',
+  gender: Gender.Female,
+  rank: 'Constable',
+  badgeNumber: 'B001',
+  homeLocationId: 1,
+  isEnabled: true,
+};
+
+describe('UserFormModal — photo upload', () => {
+  it('shows initials avatar placeholder when no photo', async () => {
+    const app = await createTestApp();
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    // Avatar should show initials "?" (empty form) not an <img>
+    const avatar = document.querySelector('.v-avatar');
+    expect(avatar).not.toBeNull();
+    const img = avatar?.querySelector('img');
+    expect(img).toBeNull();
+
+    wrapper.unmount();
+  });
+
+  it('shows current photo in edit mode when user has a photoUrl', async () => {
+    const app = await createTestApp();
+    const userWithPhoto: UserResponse = { ...baseUser, photoUrl: '/api/users/user-123/photo' };
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: userWithPhoto },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const img = document.querySelector('.v-avatar img') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img?.src).toContain('/api/users/user-123/photo');
+
+    wrapper.unmount();
+  });
+
+  it('calls upload-photo after successful create when a file is selected', async () => {
+    const app = await createTestApp();
+
+    const createdUser = getPostApiUsersResponseMock({ id: 'new-user-id', photoUrl: null });
+    const updatedUser = getPostApiUsersIdUploadPhotoResponseMock({
+      id: 'new-user-id',
+      photoUrl: '/api/users/new-user-id/photo',
+    });
+
+    let uploadPhotoCallCount = 0;
+
+    server.use(
+      getPostApiUsersMockHandler(async () => createdUser),
+      getPostApiUsersIdUploadPhotoMockHandler(async () => {
+        uploadPhotoCallCount++;
+        return updatedUser;
+      }),
+    );
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    // Set form data directly on the vm
+    const vm = wrapper.vm as unknown as { formData: typeof validFormData; photoFile: File | null };
+    Object.assign(vm.formData, validFormData);
+    vm.photoFile = new File(['fake-image'], 'avatar.jpg', { type: 'image/jpeg' });
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Add Member'),
+    );
+    expect(saveButton).toBeDefined();
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(uploadPhotoCallCount).toBe(1);
+    expect(wrapper.emitted('created')).toBeTruthy();
+    const emittedUser = wrapper.emitted('created')?.[0]?.[0] as UserResponse;
+    expect(emittedUser?.photoUrl).toBe('/api/users/new-user-id/photo');
+
+    wrapper.unmount();
+  });
+
+  it('calls upload-photo after successful update when a file is selected', async () => {
+    const app = await createTestApp();
+
+    const updatedMeta = getPutApiUsersIdResponseMock({ id: 'user-123', photoUrl: null });
+    const updatedWithPhoto = getPostApiUsersIdUploadPhotoResponseMock({
+      id: 'user-123',
+      photoUrl: '/api/users/user-123/photo',
+    });
+
+    let uploadPhotoCallCount = 0;
+
+    server.use(
+      getPutApiUsersIdMockHandler(async () => updatedMeta),
+      getPostApiUsersIdUploadPhotoMockHandler(async () => {
+        uploadPhotoCallCount++;
+        return updatedWithPhoto;
+      }),
+    );
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: { ...baseUser, ...validFormData } },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { photoFile: File | null };
+    vm.photoFile = new File(['fake-image'], 'avatar.jpg', { type: 'image/jpeg' });
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Save Changes'),
+    );
+    expect(saveButton).toBeDefined();
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(uploadPhotoCallCount).toBe(1);
+    expect(wrapper.emitted('updated')).toBeTruthy();
+    const emittedUser = wrapper.emitted('updated')?.[0]?.[0] as UserResponse;
+    expect(emittedUser?.photoUrl).toBe('/api/users/user-123/photo');
+
+    wrapper.unmount();
+  });
+
+  it('does not call upload-photo when no file is selected', async () => {
+    const app = await createTestApp();
+
+    const createdUser = getPostApiUsersResponseMock({ id: 'no-photo-user', photoUrl: null });
+    let uploadPhotoCallCount = 0;
+
+    server.use(
+      getPostApiUsersMockHandler(async () => createdUser),
+      getPostApiUsersIdUploadPhotoMockHandler(async () => {
+        uploadPhotoCallCount++;
+        return getPostApiUsersIdUploadPhotoResponseMock();
+      }),
+    );
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { formData: typeof validFormData };
+    Object.assign(vm.formData, validFormData);
+    // photoFile intentionally left null
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Add Member'),
+    );
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(uploadPhotoCallCount).toBe(0);
+    expect(wrapper.emitted('created')).toBeTruthy();
+
+    wrapper.unmount();
+  });
+});

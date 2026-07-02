@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.Models;
@@ -9,18 +11,30 @@ namespace Unified.Tests.UserManagement.Controllers;
 
 public class UsersControllerTests
 {
+    private static UsersController CreateController(FakeUserService fakeService, long uploadSizeLimitKb = 5120)
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { ["UploadPhotoSizeLimitKB"] = uploadSizeLimitKb.ToString() }
+            )
+            .Build();
+
+        return new UsersController(
+            fakeService,
+            new UserRequestValidator(),
+            new AssignUserRoleRequestValidator(),
+            new ExpireUserRoleRequestValidator(),
+            config
+        );
+    }
+
     [Fact]
     public async Task Get_Should_Return_Ok_With_Users()
     {
         // Arrange
         var expectedUsers = new List<UserResponse> { CreateUserResponse("John", "Smith") };
         var fakeService = new FakeUserService { GetAllResult = expectedUsers };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
         var queryParams = new UserQueryParams { Search = "John" };
 
         // Act
@@ -39,12 +53,8 @@ public class UsersControllerTests
         // Arrange
         var expectedUser = CreateUserResponse("Jane", "Doe");
         var fakeService = new FakeUserService { GetByIdResult = expectedUser };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
 
         // Act
         var result = await controller.GetById(expectedUser.Id, TestContext.Current.CancellationToken);
@@ -62,12 +72,8 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { GetByIdResult = null };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
 
         // Act
         var result = await controller.GetById(Guid.NewGuid(), TestContext.Current.CancellationToken);
@@ -93,12 +99,8 @@ public class UsersControllerTests
             },
         };
         var fakeService = new FakeUserService { GetRolesResult = expectedRoles };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
 
         // Act
         var result = await controller.GetRoles(userId, TestContext.Current.CancellationToken);
@@ -114,12 +116,8 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { GetRolesException = new KeyNotFoundException("User not found.") };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -133,12 +131,8 @@ public class UsersControllerTests
         // Arrange
         var createdUser = CreateUserResponse("New", "User");
         var fakeService = new FakeUserService { CreateResult = createdUser };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
         var request = new UserRequestDto
         {
             IdirName = "newuser",
@@ -170,12 +164,8 @@ public class UsersControllerTests
         // Arrange
         var updatedUser = CreateUserResponse("Updated", "Name");
         var fakeService = new FakeUserService { UpdateResult = updatedUser };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
         var request = new UserRequestDto
         {
             IdirName = "updateduser",
@@ -205,12 +195,8 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { UpdateResult = null };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
         var request = new UserRequestDto
         {
             IdirName = "updateduser",
@@ -246,12 +232,8 @@ public class UsersControllerTests
             ExpiryReason = null,
         };
         var fakeService = new FakeUserService { AssignRoleResult = assignedUserRole };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
         var request = new AssignUserRoleRequestDto
         {
             RoleId = 5,
@@ -276,12 +258,8 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { AssignRoleException = new KeyNotFoundException("User not found.") };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
         var request = new AssignUserRoleRequestDto { RoleId = 5, EffectiveDate = "2026-01-10" };
 
         // Act + Assert
@@ -305,12 +283,8 @@ public class UsersControllerTests
             ExpiryReason = "PERSONAL",
         };
         var fakeService = new FakeUserService { ExpireRoleResult = expiredUserRole };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
         var request = new ExpireUserRoleRequestDto { RoleId = 5, ExpiryReason = "PERSONAL" };
 
         // Act
@@ -328,12 +302,8 @@ public class UsersControllerTests
     {
         // Arrange
         var fakeService = new FakeUserService { ExpireRoleException = new KeyNotFoundException("Role not found.") };
-        var controller = new UsersController(
-            fakeService,
-            new UserRequestValidator(),
-            new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+        var controller = CreateController(fakeService);
+
         var request = new ExpireUserRoleRequestDto { RoleId = 5, ExpiryReason = "ENTRYERR" };
 
         // Act + Assert
@@ -359,6 +329,126 @@ public class UsersControllerTests
             HomeLocationId = 1,
             LastLogin = DateTimeOffset.UtcNow,
         };
+    }
+
+    // --- Photo tests ---
+
+    [Fact]
+    public async Task GetPhoto_Should_Return_File_When_User_Has_Photo()
+    {
+        // Arrange
+        var photoBytes = "fake-image-data"u8.ToArray();
+        var fakeService = new FakeUserService { GetPhotoResult = photoBytes };
+        var controller = CreateController(fakeService);
+
+        // Act
+        var result = await controller.GetPhoto(Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        // Assert
+        var fileResult = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("image/jpeg", fileResult.ContentType);
+        Assert.Equal(photoBytes, fileResult.FileContents);
+    }
+
+    [Fact]
+    public async Task GetPhoto_Should_Return_NotFound_When_User_Has_No_Photo()
+    {
+        // Arrange
+        var fakeService = new FakeUserService { GetPhotoResult = null };
+        var controller = CreateController(fakeService);
+
+        // Act
+        var result = await controller.GetPhoto(Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task UploadPhoto_Should_Return_Ok_With_Updated_User()
+    {
+        // Arrange
+        var updatedUser = CreateUserResponse("Jane", "Doe") with
+        {
+            PhotoUrl = "/api/users/jane/photo",
+        };
+        var fakeService = new FakeUserService { UploadPhotoResult = updatedUser };
+        var controller = CreateController(fakeService);
+        var photoBytes = "fake-image-data"u8.ToArray();
+        IFormFile formFile = new FormFile(
+            new MemoryStream(photoBytes),
+            0,
+            photoBytes.Length,
+            "photo",
+            "avatar.jpg"
+        );
+
+        // Act
+        var result = await controller.UploadPhoto(
+            updatedUser.Id,
+            formFile,
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var user = Assert.IsType<UserResponse>(okResult.Value);
+        Assert.Equal(updatedUser.Id, user.Id);
+        Assert.Equal("/api/users/jane/photo", user.PhotoUrl);
+        Assert.NotNull(fakeService.LastUploadedPhoto);
+        Assert.Equal(photoBytes.Length, fakeService.LastUploadedPhoto!.Length);
+    }
+
+    [Fact]
+    public async Task UploadPhoto_Should_Return_NotFound_When_User_Missing()
+    {
+        // Arrange
+        var fakeService = new FakeUserService { UploadPhotoResult = null };
+        var controller = CreateController(fakeService);
+        var photoBytes = "fake-image-data"u8.ToArray();
+        IFormFile formFile = new FormFile(
+            new MemoryStream(photoBytes),
+            0,
+            photoBytes.Length,
+            "photo",
+            "avatar.jpg"
+        );
+
+        // Act
+        var result = await controller.UploadPhoto(
+            Guid.NewGuid(),
+            formFile,
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task UploadPhoto_Should_Return_BadRequest_When_File_Exceeds_Size_Limit()
+    {
+        // Arrange — limit set to 1 KB, file is 2 KB
+        var fakeService = new FakeUserService { UploadPhotoResult = CreateUserResponse("A", "B") };
+        var controller = CreateController(fakeService, uploadSizeLimitKb: 1);
+        var photoBytes = new byte[2 * 1024]; // 2 KB
+        IFormFile formFile = new FormFile(
+            new MemoryStream(photoBytes),
+            0,
+            photoBytes.Length,
+            "photo",
+            "big.jpg"
+        );
+
+        // Act
+        var result = await controller.UploadPhoto(
+            Guid.NewGuid(),
+            formFile,
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     private sealed class FakeUserService : IUserService
@@ -474,6 +564,26 @@ public class UsersControllerTests
             }
 
             return Task.FromResult(ExpireRoleResult);
+        }
+
+        // --- Photo ---
+        public byte[]? GetPhotoResult { get; init; }
+
+        public UserResponse? UploadPhotoResult { get; init; }
+
+        public byte[]? LastUploadedPhoto { get; private set; }
+
+        public Task<byte[]?> GetPhotoAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(GetPhotoResult);
+
+        public Task<UserResponse?> UploadPhotoAsync(
+            Guid id,
+            byte[] photo,
+            CancellationToken cancellationToken = default
+        )
+        {
+            LastUploadedPhoto = photo;
+            return Task.FromResult(UploadPhotoResult);
         }
     }
 }
