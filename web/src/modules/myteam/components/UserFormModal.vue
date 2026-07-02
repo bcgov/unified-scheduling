@@ -52,9 +52,7 @@ const photoFile = ref<File | null>(null);
 const localPhotoPreviewUrl = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
-const photoPreviewUrl = computed(
-  () => localPhotoPreviewUrl.value ?? props.user?.photoUrl ?? null,
-);
+const photoPreviewUrl = computed(() => localPhotoPreviewUrl.value ?? props.user?.photoUrl ?? null);
 
 const photoInitials = computed(() => {
   const f = (formData.value.firstName?.[0] ?? '').toUpperCase();

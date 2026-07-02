@@ -362,25 +362,39 @@ export const getPostApiUsersIdRolesExpireResponseMock = (
 export const getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock = (
   overrideResponse: Partial<EntityTagHeaderValue> = {},
 ): EntityTagHeaderValue => ({
-  ...{
-    tag: faker.helpers.arrayElement([
-      {
-        buffer: faker.helpers.arrayElement([
-          faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-          undefined,
+  tag: faker.helpers.arrayElement([
+    {
+      buffer: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([
+          faker.string.alpha({
+            length: {
+              min: 10,
+              max: 20,
+            },
+          }),
+          null,
         ]),
-        offset: faker.helpers.arrayElement([faker.number.int(), undefined]),
-        length: faker.helpers.arrayElement([faker.number.int(), undefined]),
-        value: faker.helpers.arrayElement([
-          faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-          undefined,
+        undefined,
+      ]),
+      offset: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      length: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      value: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([
+          faker.string.alpha({
+            length: {
+              min: 10,
+              max: 20,
+            },
+          }),
+          null,
         ]),
-        hasValue: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      },
-      undefined,
-    ]),
-    isWeak: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-  },
+        undefined,
+      ]),
+      hasValue: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+    },
+    undefined,
+  ]),
+  isWeak: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
   ...overrideResponse,
 });
 
@@ -460,7 +474,7 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
@@ -468,27 +482,31 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
       gender: faker.helpers.arrayElement(Object.values(Gender)),
       rank: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
       ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
       ]),
-      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        null,
+        undefined,
       ]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
       ]),
       ...overrideResponse,
     },
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
@@ -496,27 +514,31 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
       gender: faker.helpers.arrayElement(Object.values(Gender)),
       rank: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
       ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
       ]),
-      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        null,
+        undefined,
       ]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
       ]),
       ...overrideResponse,
     },
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
@@ -524,20 +546,24 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
       gender: faker.helpers.arrayElement(Object.values(Gender)),
       rank: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
       ]),
       badgeNumber: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
       ]),
-      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), null]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        null,
+        undefined,
       ]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        null,
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
       ]),
       ...overrideResponse,
     },

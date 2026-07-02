@@ -26,9 +26,7 @@ const photoSrc = computed(() => {
   const bust = data.value.lastPhotoUpdate ?? data.value.id;
   return `${data.value.photoUrl}?v=${encodeURIComponent(bust)}`;
 });
-const avatarInitials = computed(
-  () => `${data.value?.firstName?.[0] ?? ''}${data.value?.lastName?.[0] ?? ''}`,
-);
+const avatarInitials = computed(() => `${data.value?.firstName?.[0] ?? ''}${data.value?.lastName?.[0] ?? ''}`);
 
 const positionDescription = computed(() => {
   if (!data?.value?.rank) {

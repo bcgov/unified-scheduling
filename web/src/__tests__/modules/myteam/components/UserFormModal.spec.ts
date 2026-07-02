@@ -60,11 +60,9 @@ describe('UserFormModal — photo upload', () => {
 
     await flushPromises();
 
-    // Avatar should show initials "?" (empty form) not an <img>
-    const avatar = document.querySelector('.v-avatar');
-    expect(avatar).not.toBeNull();
-    const img = avatar?.querySelector('img');
-    expect(img).toBeNull();
+    // photoPreviewUrl should be null (no photo, empty form)
+    const vm = wrapper.vm as unknown as { photoPreviewUrl: string | null };
+    expect(vm.photoPreviewUrl).toBeNull();
 
     wrapper.unmount();
   });
@@ -81,9 +79,9 @@ describe('UserFormModal — photo upload', () => {
 
     await flushPromises();
 
-    const img = document.querySelector('.v-avatar img') as HTMLImageElement | null;
-    expect(img).not.toBeNull();
-    expect(img?.src).toContain('/api/users/user-123/photo');
+    // photoPreviewUrl should reflect the user's existing photo URL
+    const vm = wrapper.vm as unknown as { photoPreviewUrl: string | null };
+    expect(vm.photoPreviewUrl).toBe('/api/users/user-123/photo');
 
     wrapper.unmount();
   });

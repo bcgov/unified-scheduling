@@ -86,11 +86,7 @@ export const useFetchAPI = <T>(
   // so it includes the required multipart boundary. Manually setting it strips the boundary.
   const resolvedHeaders =
     body instanceof FormData
-      ? Object.fromEntries(
-          Object.entries(headers ?? {}).filter(
-            ([key]) => key.toLowerCase() !== 'content-type',
-          ),
-        )
+      ? Object.fromEntries(Object.entries(headers ?? {}).filter(([key]) => key.toLowerCase() !== 'content-type'))
       : headers;
 
   // Build reactive URL with query params
