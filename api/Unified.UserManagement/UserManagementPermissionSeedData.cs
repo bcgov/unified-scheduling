@@ -11,6 +11,7 @@ public static class UserManagementPermissionSeedData
     private const string PermissionGroupUsers = "Users";
     private const string PermissionGroupRoles = "Roles";
     private const string PermissionGroupActingPositions = "ActingPositions";
+    private const string PermissionGroupAwayLocations = "AwayLocations";
     public static PermissionSeedConfiguration Configuration { get; } =
         new()
         {
@@ -102,6 +103,31 @@ public static class UserManagementPermissionSeedData
                     Group = PermissionGroupActingPositions,
                     Id = nameof(Permissions.ActingPositionsExpire),
                     Description = "Expire acting positions",
+                },
+                // Away Locations
+                new()
+                {
+                    Group = PermissionGroupAwayLocations,
+                    Id = nameof(Permissions.AwayLocationsView),
+                    Description = "View away locations",
+                },
+                new()
+                {
+                    Group = PermissionGroupAwayLocations,
+                    Id = nameof(Permissions.AwayLocationsCreate),
+                    Description = "Create away locations",
+                },
+                new()
+                {
+                    Group = PermissionGroupAwayLocations,
+                    Id = nameof(Permissions.AwayLocationsEdit),
+                    Description = "Edit away locations",
+                },
+                new()
+                {
+                    Group = PermissionGroupAwayLocations,
+                    Id = nameof(Permissions.AwayLocationsExpire),
+                    Description = "Expire away locations",
                 },
             ],
         };
