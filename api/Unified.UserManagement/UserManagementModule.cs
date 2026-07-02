@@ -1,7 +1,9 @@
 using FluentValidation;
+using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
+using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
@@ -21,6 +23,16 @@ public static class UserManagementModule
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddUserManagementModule(this IServiceCollection services)
     {
+        // Map PhotoUrl from Photo presence — expression is EF-translatable so both
+        // ProjectToType (list) and Adapt (single user) populate it automatically.
+        TypeAdapterConfig<User, UserResponse>.NewConfig()
+            .Map(
+                dest => dest.PhotoUrl,
+                src => src.Photo != null && src.Photo.Length > 0
+                    ? "/api/users/" + src.Id + "/photo"
+                    : null
+            );
+
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();
         services.AddScoped<IPermissionService, PermissionService>();

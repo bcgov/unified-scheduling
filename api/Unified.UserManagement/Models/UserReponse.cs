@@ -14,5 +14,6 @@ public sealed record UserResponse(
     string? Rank,
     string? BadgeNumber,
     int? HomeLocationId,
-    DateTimeOffset? LastLogin
+    DateTimeOffset? LastLogin,
+    string? PhotoUrl
 );

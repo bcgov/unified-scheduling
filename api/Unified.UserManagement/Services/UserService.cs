@@ -61,11 +61,8 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
 
     public async Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await DB
-            .Users.AsNoTracking()
-            .Where(x => x.Id == id)
-            .ProjectToType<UserResponse>()
-            .SingleOrDefaultAsync(cancellationToken);
+        var user = await DB.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return user?.Adapt<UserResponse>();
     }
 
     public async Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default)
@@ -289,5 +286,34 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
             ExpiryDate = userRole.ExpiryDate?.ToTimeZone(timezoneId),
             ExpiryReason = userRole.ExpiryReason,
         };
+    }
+
+    public async Task<byte[]?> GetPhotoAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await DB
+            .Users.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => x.Photo)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<UserResponse?> UploadPhotoAsync(
+        Guid id,
+        byte[] photo,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var user = await DB.Users.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        user.Photo = photo;
+        user.LastPhotoUpdate = DateTimeOffset.UtcNow;
+
+        await DB.SaveChangesAsync(cancellationToken);
+
+        return user.Adapt<UserResponse>();
     }
 }
