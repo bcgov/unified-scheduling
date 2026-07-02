@@ -34,8 +34,9 @@ onMounted(async () => {
 
 <template>
   <UaCard class="user-card" @click="gotoProfile">
-    <v-avatar color="grey" size="40">
-      <span class="text-headline-small">{{ initials }}</span>
+    <v-avatar color="grey" size="80">
+      <v-img v-if="user.photoUrl" :src="user.photoUrl" cover :alt="initials" />
+      <span v-else class="text-headline-small">{{ initials }}</span>
     </v-avatar>
     <div :title="fullName" class="user-card-title">
       <div class="user-full-name">
@@ -54,8 +55,8 @@ onMounted(async () => {
 
 <style scoped>
 .user-card {
-  width: 160px;
-  height: 160px;
+  width: 180px;
+  height: 180px;
   cursor: pointer;
 }
 

@@ -19,6 +19,17 @@ const lookupStore = useLookupStore();
 const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
 const showEditUserModal = ref(false);
 
+// Uses lastPhotoUpdate as a cache-busting query param so the browser re-fetches
+// the photo image whenever it changes after an edit.
+const photoSrc = computed(() => {
+  if (!data.value?.photoUrl) return null;
+  const bust = data.value.lastPhotoUpdate ?? data.value.id;
+  return `${data.value.photoUrl}?v=${encodeURIComponent(bust)}`;
+});
+const avatarInitials = computed(
+  () => `${data.value?.firstName?.[0] ?? ''}${data.value?.lastName?.[0] ?? ''}`,
+);
+
 const positionDescription = computed(() => {
   if (!data?.value?.rank) {
     return '-';
@@ -62,8 +73,9 @@ onMounted(async () => {
     <!-- Left Panel -->
     <div class="left-panel">
       <div class="avatar-container">
-        <v-avatar color="brown" size="80">
-          <span class="text-headline-small">{{ data?.firstName?.[0] || '' }}{{ data?.lastName?.[0] || '' }}</span>
+        <v-avatar color="brown" size="120">
+          <v-img v-if="photoSrc" :src="photoSrc" cover :alt="avatarInitials" />
+          <span v-else class="text-headline-small">{{ avatarInitials }}</span>
         </v-avatar>
       </div>
 

@@ -26,7 +26,7 @@ public class User : BaseEntity
     public string? Rank { get; set; }
     public DateTimeOffset? LastLogin { get; set; }
     public byte[]? Photo { get; set; }
-    public DateTimeOffset LastPhotoUpdate { get; set; }
+    public DateTimeOffset? LastPhotoUpdate { get; set; }
 
     public virtual ICollection<UserRole> UserRoles { get; set; } = [];
     public virtual ICollection<UserTraining> UserTrainings { get; set; } = [];

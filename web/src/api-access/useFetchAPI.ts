@@ -82,6 +82,17 @@ export const useFetchAPI = <T>(
 ) => {
   const body = toBodyInit(data, headers);
 
+  // When the body is FormData, let the browser set Content-Type automatically
+  // so it includes the required multipart boundary. Manually setting it strips the boundary.
+  const resolvedHeaders =
+    body instanceof FormData
+      ? Object.fromEntries(
+          Object.entries(headers ?? {}).filter(
+            ([key]) => key.toLowerCase() !== 'content-type',
+          ),
+        )
+      : headers;
+
   // Build reactive URL with query params
   const reactiveUrl = computed(() => {
     const queryString = buildQueryString(unref(params));
@@ -93,7 +104,7 @@ export const useFetchAPI = <T>(
     {
       ...fetchOptions,
       method,
-      headers,
+      headers: resolvedHeaders,
       body: body as BodyInit,
     },
     options,

@@ -344,20 +344,21 @@ public class UsersControllerTests
 
     private static UserResponse CreateUserResponse(string firstName, string lastName)
     {
-        return new UserResponse(
-            Id: Guid.NewGuid(),
-            IdirName: "idir",
-            IdirId: Guid.NewGuid(),
-            IsEnabled: true,
-            FirstName: firstName,
-            LastName: lastName,
-            Email: $"{firstName}.{lastName}@example.com",
-            Gender: Gender.Other,
-            Rank: "Deputy Sheriff",
-            BadgeNumber: "BADGE-TEST",
-            HomeLocationId: 1,
-            LastLogin: DateTimeOffset.UtcNow
-        );
+        return new UserResponse
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "idir",
+            IdirId = Guid.NewGuid(),
+            IsEnabled = true,
+            FirstName = firstName,
+            LastName = lastName,
+            Email = $"{firstName}.{lastName}@example.com",
+            Gender = Gender.Other,
+            Rank = "Deputy Sheriff",
+            BadgeNumber = "BADGE-TEST",
+            HomeLocationId = 1,
+            LastLogin = DateTimeOffset.UtcNow,
+        };
     }
 
     private sealed class FakeUserService : IUserService

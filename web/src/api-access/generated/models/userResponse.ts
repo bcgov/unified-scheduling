@@ -26,4 +26,6 @@ export interface UserResponse {
   lastLogin: string | null;
   /** @nullable */
   photoUrl: string | null;
+  /** @nullable */
+  lastPhotoUpdate: string | null;
 }
