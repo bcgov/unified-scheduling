@@ -108,19 +108,19 @@ const handleExpired = async () => {
       hide-default-footer
     >
       <template #[`item.startAtUtc`]="{ item }">
-        {{ toCalendarDateString(item.startAtUtc) ?? '-' }}
+        {{ toCalendarDateString(item.startAtUtc, { setZone: false }) ?? '-' }}
       </template>
 
       <template #[`item.startTime`]="{ item }">
-        {{ toTimeInputValue(item.startAtUtc) ?? '-' }}
+        {{ toTimeInputValue(item.startAtUtc, { setZone: false }) ?? '-' }}
       </template>
 
       <template #[`item.endAtUtc`]="{ item }">
-        {{ toCalendarDateString(item.endAtUtc) ?? '-' }}
+        {{ toCalendarDateString(item.endAtUtc, { setZone: false }) ?? '-' }}
       </template>
 
       <template #[`item.endTime`]="{ item }">
-        {{ toTimeInputValue(item.endAtUtc) ?? '-' }}
+        {{ toTimeInputValue(item.endAtUtc, { setZone: false }) ?? '-' }}
       </template>
 
       <template #[`item.comment`]="{ item }">

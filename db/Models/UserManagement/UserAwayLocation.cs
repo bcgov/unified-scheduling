@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Unified.Db.Models.Abstract;
+using Unified.Db.Models;
 
 namespace Unified.Db.Models.UserManagement;
 
