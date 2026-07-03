@@ -39,10 +39,7 @@ public static class TrainingModule
         var grpBuilder = app.MapGroup("/api/training").WithTags("Training");
 
         grpBuilder
-            .MapGet(
-                "/health",
-                () => TypedResults.Ok("Training Loaded Successfully")
-            )
+            .MapGet("/health", () => TypedResults.Ok("Training Loaded Successfully"))
             .WithName("GetTrainingHealth")
             .WithDescription("Checks the health of the Training module.");
 

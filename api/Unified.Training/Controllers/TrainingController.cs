@@ -11,10 +11,8 @@ namespace Unified.Training.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/trainings")]
-public sealed class TrainingsController(
-    ITrainingService trainingsService,
-    TrainingRequestValidator validator
-) : ControllerBase
+public sealed class TrainingsController(ITrainingService trainingsService, TrainingRequestValidator validator)
+    : ControllerBase
 {
     [HttpGet]
     [Authorize(Policy = TrainingPolicies.TrainingsView)]

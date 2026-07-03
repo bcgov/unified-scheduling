@@ -1,8 +1,8 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
-using TrainingEntity = Unified.Db.Models.Training.Training;
 using Unified.Training.Models;
+using TrainingEntity = Unified.Db.Models.Training.Training;
 
 namespace Unified.Training.Services;
 
@@ -75,7 +75,9 @@ public sealed class TrainingService(UnifiedDbContext db) : ITrainingService
 
         var inUse = await db.UserTrainings.AnyAsync(ut => ut.TrainingId == id, cancellationToken);
         if (inUse)
-            throw new InvalidOperationException("Cannot delete a training type that has assigned user training records.");
+            throw new InvalidOperationException(
+                "Cannot delete a training type that has assigned user training records."
+            );
 
         db.Trainings.Remove(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -100,9 +102,7 @@ public sealed class TrainingService(UnifiedDbContext db) : ITrainingService
     {
         var codeUpper = code.ToUpperInvariant();
         var exists = await db.Trainings.AnyAsync(
-            t =>
-                (excludeId == null || t.Id != excludeId)
-                && t.Code.ToUpper() == codeUpper,
+            t => (excludeId == null || t.Id != excludeId) && t.Code.ToUpper() == codeUpper,
             cancellationToken
         );
 
