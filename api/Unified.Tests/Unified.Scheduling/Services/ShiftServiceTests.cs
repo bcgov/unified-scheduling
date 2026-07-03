@@ -352,6 +352,17 @@ public class ShiftServiceTests : IAsyncLifetime
 
         // Assert
         var firstResult = result.Single(x => x.Id == first.Id);
+        Assert.Equal("Series", firstResult.Title);
+        Assert.Equal("Description", firstResult.Description);
+        Assert.Equal("Notes", firstResult.Notes);
+        Assert.Equal("blue", firstResult.Color);
+        Assert.Equal("FREQ=DAILY;COUNT=2", firstResult.RecurrenceRule);
+        Assert.Equal("America/Vancouver", firstResult.TimeZoneId);
+        Assert.Equal(new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero), firstResult.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero), firstResult.EndAtUtc);
+        Assert.False(firstResult.AllDay);
+        Assert.Equal("draft", firstResult.StatusTypeCode);
+        Assert.Equal(5, firstResult.LocationId);
         Assert.Equal(2, firstResult.EventIds.Count);
         Assert.Equal(2, firstResult.ShiftEntryIds.Count);
         var secondResult = result.Single(x => x.Id == second.Id);
@@ -367,6 +378,43 @@ public class ShiftServiceTests : IAsyncLifetime
         Assert.Null(typeof(ShiftSeriesResponse).GetProperty("ShiftEntries"));
         Assert.NotNull(typeof(ShiftSeriesResponse).GetProperty("EventIds"));
         Assert.NotNull(typeof(ShiftSeriesResponse).GetProperty("ShiftEntryIds"));
+    }
+
+    [Fact]
+    public async Task GetShiftSeriesByIdAsync_WhenFound_ReturnsEventSeriesFieldsAndShiftFields()
+    {
+        // Arrange
+        var created = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2", userIds: [UserA, UserB]),
+            TestContext.Current.CancellationToken
+        );
+        _dbContext.ChangeTracker.Clear();
+
+        // Act
+        var result = await _service.GetShiftSeriesByIdAsync(created.Id, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(created.Id, result.Id);
+        Assert.Equal(created.EventSeriesId, result.EventSeriesId);
+        Assert.Equal("Series", result.Title);
+        Assert.Equal("Description", result.Description);
+        Assert.Equal("Notes", result.Notes);
+        Assert.Equal("blue", result.Color);
+        Assert.Equal("FREQ=DAILY;COUNT=2", result.RecurrenceRule);
+        Assert.Equal("America/Vancouver", result.TimeZoneId);
+        Assert.Equal(new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero), result.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero), result.EndAtUtc);
+        Assert.False(result.AllDay);
+        Assert.Equal(SchedulingConstants.ShiftEventTypeCode, result.EventTypeCode);
+        Assert.Equal("draft", result.StatusTypeCode);
+        Assert.Null(result.CancelledAt);
+        Assert.Null(result.CancelledByUserId);
+        Assert.Null(result.CancellationReason);
+        Assert.Equal(5, result.LocationId);
+        Assert.Equal([UserA, UserB], result.UserIds);
+        Assert.Equal(2, result.EventIds.Count);
+        Assert.Equal(2, result.ShiftEntryIds.Count);
     }
 
     [Fact]
@@ -703,10 +751,7 @@ public class ShiftServiceTests : IAsyncLifetime
             )
         );
         Assert.False(
-            await _dbContext.ShiftEntries.AnyAsync(
-                x => x.Id == draftEntry.Id,
-                TestContext.Current.CancellationToken
-            )
+            await _dbContext.ShiftEntries.AnyAsync(x => x.Id == draftEntry.Id, TestContext.Current.CancellationToken)
         );
         Assert.False(
             await _dbContext.Events.AnyAsync(x => x.Id == draftEntry.EventId, TestContext.Current.CancellationToken)

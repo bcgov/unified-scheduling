@@ -9,7 +9,6 @@ import * as zod from 'zod';
 export const GetApiConfigResponse = zod.object({
   featureFlags: zod.object({
     calendarModule: zod.boolean(),
-    calendarMatrixTestModule: zod.boolean(),
     schedulingModule: zod.boolean(),
     statsModule: zod.boolean(),
     trainingModule: zod.boolean(),

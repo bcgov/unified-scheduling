@@ -10,7 +10,7 @@ import type {
   CalendarMatrixCellHeaderClickEvent,
   CalendarMatrixDragPayload,
   CalendarMatrixEventBlockActionEvent,
-  CalendarMatrixResource,
+  CalendarMatrixResourceAddEvent,
   CalendarMatrixViewModel,
 } from './calendarMatrixTypes';
 
@@ -29,7 +29,7 @@ const emit = defineEmits<{
   (event: 'eventClick', payload: CalendarEventBase): void;
   (event: 'headerAction', payload: CalendarMatrixCellHeaderActionEvent): void;
   (event: 'headerClick', payload: CalendarMatrixCellHeaderClickEvent): void;
-  (event: 'resourceAdd', payload: CalendarMatrixResource): void;
+  (event: 'resourceAdd', payload: CalendarMatrixResourceAddEvent): void;
 }>();
 
 const columnTemplate = computed(() => {
@@ -75,7 +75,7 @@ function resolveCell(resourceId: string, date: string) {
         <template v-if="model.primaryColumn.resources.length && model.days.length">
           <template v-for="resource in model.primaryColumn.resources" :key="resource.id">
             <div class="calendar-matrix-grid__row" role="row">
-              <CalendarMatrixResourceRow :resource="resource" @add-resource="emit('resourceAdd', $event)">
+              <CalendarMatrixResourceRow :resource="resource" @add-resource="emit('resourceAdd', { resource: $event })">
                 <template v-if="$slots['resource-row']" #default="slotProps">
                   <slot name="resource-row" v-bind="slotProps" />
                 </template>
@@ -96,6 +96,7 @@ function resolveCell(resourceId: string, date: string) {
                 @event-click="emit('eventClick', $event)"
                 @header-action="emit('headerAction', $event)"
                 @header-click="emit('headerClick', $event)"
+                @resource-add="emit('resourceAdd', $event)"
               >
                 <template v-if="$slots.cell" #cell="slotProps">
                   <slot name="cell" v-bind="slotProps" />

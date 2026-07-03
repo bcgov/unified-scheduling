@@ -24,6 +24,8 @@ defineSlots<{
 }>();
 
 const isClickable = computed(() => Boolean(props.header.actionId));
+const infoIcons = computed(() => props.header.info?.icons ?? []);
+const hasInfoIcons = computed(() => infoIcons.value.length > 0);
 const hasActionDisplay = computed(() => !!props.header.action?.icon || !!props.header.action?.text);
 const isActionClickable = computed(
   () => hasActionDisplay.value && props.header.action?.type !== CalendarMatrixActionType.Custom,
@@ -33,7 +35,7 @@ const statusClass = computed(() => resolveMatrixStatusClass(props.header.status)
 const hasColor = computed(() => Boolean(props.header.color));
 
 const headerStyle = computed(() => {
-  if (!props.header.color) {
+  if (!props.header.color || statusClass.value === 'active') {
     return undefined;
   }
 
@@ -74,6 +76,7 @@ function handleActionClick() {
       selected ? 'is-selected' : undefined,
       hasColor ? 'has-color' : undefined,
       statusClass ? `is-${statusClass}` : undefined,
+      hasInfoIcons ? 'has-info-icons' : undefined,
       hasActionDisplay ? 'has-action-display' : undefined,
     ]"
     :style="headerStyle"
@@ -93,6 +96,19 @@ function handleActionClick() {
         </slot>
       </span>
     </div>
+
+    <span v-if="hasInfoIcons" class="calendar-matrix-cell-header__info-icons">
+      <span
+        v-for="infoIcon in infoIcons"
+        :key="`${infoIcon.icon}-${infoIcon.ariaLabel ?? infoIcon.title ?? ''}`"
+        class="calendar-matrix-cell-header__info-icon"
+        :aria-label="infoIcon.ariaLabel"
+        :aria-hidden="infoIcon.ariaLabel ? undefined : true"
+        :title="infoIcon.title ?? infoIcon.ariaLabel"
+      >
+        <v-icon :icon="infoIcon.icon" size="16" />
+      </span>
+    </span>
 
     <button
       v-if="isActionClickable"
@@ -134,6 +150,14 @@ function handleActionClick() {
 
 .calendar-matrix-cell-header.has-action-display {
   padding-right: 2rem;
+}
+
+.calendar-matrix-cell-header.has-info-icons {
+  padding-right: 2rem;
+}
+
+.calendar-matrix-cell-header.has-info-icons.has-action-display {
+  padding-right: 3.75rem;
 }
 
 .calendar-matrix-cell-header__main {
@@ -183,6 +207,31 @@ button.calendar-matrix-cell-header__main:focus-visible {
   width: 1.375rem;
 }
 
+.calendar-matrix-cell-header__info-icons {
+  align-items: center;
+  color: inherit;
+  display: inline-flex;
+  gap: 0.125rem;
+  pointer-events: none;
+  position: absolute;
+  right: 0.25rem;
+  top: 0.1875rem;
+}
+
+.calendar-matrix-cell-header.has-action-display .calendar-matrix-cell-header__info-icons {
+  right: 1.875rem;
+}
+
+.calendar-matrix-cell-header__info-icon {
+  align-items: center;
+  color: inherit;
+  display: inline-flex;
+  height: 1.375rem;
+  justify-content: center;
+  line-height: 1;
+  width: 1.375rem;
+}
+
 button.calendar-matrix-cell-header__action {
   cursor: pointer;
 }
@@ -200,7 +249,16 @@ button.calendar-matrix-cell-header__action {
 }
 
 .calendar-matrix-cell-header.is-active {
+  background: rgba(var(--v-theme-on-surface), 0.82);
+  border-color: rgba(var(--v-theme-on-surface), 0.82);
   border-style: solid;
+  color: rgb(var(--v-theme-surface));
+}
+
+.calendar-matrix-cell-header.is-active .calendar-matrix-cell-header__action {
+  background: transparent;
+  border-color: transparent;
+  color: rgb(var(--v-theme-surface));
 }
 
 .calendar-matrix-cell-header.is-cancelled {
@@ -216,6 +274,10 @@ button.calendar-matrix-cell-header__action {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .calendar-matrix-cell-header.is-active:has(button.calendar-matrix-cell-header__main:hover) {
+    background: rgba(var(--v-theme-on-surface), 0.82);
+  }
+
   button.calendar-matrix-cell-header__action:hover {
     background: rgb(var(--v-theme-primary) / 0.08);
     border-color: rgb(var(--v-theme-primary));

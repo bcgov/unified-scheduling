@@ -24,7 +24,7 @@ public sealed class CalendarDataRequestValidator : AbstractValidator<CalendarDat
         RuleFor(x => x.StartDate)
             .LessThan(x => x.EndDate)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
-            .WithMessage("Start date must be on or before end date.");
+            .WithMessage("Start date must be on or before========== end date.");
 
         RuleFor(x => x.EndDate)
             .Must((request, endDate) => endDate.DayNumber - request.StartDate.DayNumber + 1 <= MaxRangeLengthDays) // use +1 due to inclusive day range.

@@ -10,175 +10,204 @@ import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
 import { CalendarEventStatusTypeCode, CalendarEventTypeCode } from '../models';
-import type { CalendarDataResponse, CalendarEventResponse } from '../models';
+import type { CalendarDataResponse } from '../models';
 
-export const getPostApiCalendarDataResponseEventsMock = (): CalendarEventResponse[] =>
+export const getPostApiCalendarEventsResponseMock = (
+  overrideResponse: Partial<Extract<CalendarDataResponse, object>> = {},
+): CalendarDataResponse =>
   faker.helpers.arrayElement([
-    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
-      eventSeriesId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      description: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+    {
+      moduleId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      contributionId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      events: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.number.int(),
+          eventSeriesId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
+          title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          description: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          notes: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          color: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          endAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          seriesStartAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          seriesEndAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          timeZoneId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
+          statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
+          cancelledAt: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          cancelledByUserId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.uuid(), null]),
+            undefined,
+          ]),
+          cancellationReason: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+        })),
         undefined,
       ]),
-      notes: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      ...overrideResponse,
+    },
+    {
+      moduleId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      contributionId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      events: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.number.int(),
+          eventSeriesId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
+          title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          description: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          notes: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          color: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          endAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          seriesStartAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          seriesEndAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          timeZoneId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
+          statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
+          cancelledAt: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          cancelledByUserId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.uuid(), null]),
+            undefined,
+          ]),
+          cancellationReason: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+        })),
         undefined,
       ]),
-      color: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      ...overrideResponse,
+    },
+    {
+      moduleId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      contributionId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      events: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.number.int(),
+          eventSeriesId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
+          title: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          description: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          notes: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          color: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          endAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          seriesStartAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          seriesEndAtUtc: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          timeZoneId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
+          statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
+          cancelledAt: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+            undefined,
+          ]),
+          cancelledByUserId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.uuid(), null]),
+            undefined,
+          ]),
+          cancellationReason: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            undefined,
+          ]),
+          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+        })),
         undefined,
       ]),
-      startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      endAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      seriesStartAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      seriesEndAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      timeZoneId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
-      statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
-      cancelledAt: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      cancelledByUserId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.uuid(), null]),
-        undefined,
-      ]),
-      cancellationReason: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-    })),
-    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
-      eventSeriesId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      description: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      notes: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      color: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      endAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      seriesStartAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      seriesEndAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      timeZoneId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
-      statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
-      cancelledAt: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      cancelledByUserId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.uuid(), null]),
-        undefined,
-      ]),
-      cancellationReason: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-    })),
-    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
-      eventSeriesId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      title: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      description: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      notes: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      color: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      endAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      seriesStartAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      seriesEndAtUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      timeZoneId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
-      statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
-      cancelledAt: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      cancelledByUserId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.uuid(), null]),
-        undefined,
-      ]),
-      cancellationReason: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-    })),
+      ...overrideResponse,
+    },
   ]);
 
-export const getPostApiCalendarDataResponseMock = (): CalendarDataResponse => ({
-  moduleId: 'calendar',
-  contributionId: 'calendar.events',
-  events: getPostApiCalendarDataResponseEventsMock(),
-});
-
-export const getPostApiCalendarDataMockHandler = (
+export const getPostApiCalendarEventsMockHandler = (
   overrideResponse?:
     | CalendarDataResponse
     | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CalendarDataResponse> | CalendarDataResponse),
@@ -192,11 +221,11 @@ export const getPostApiCalendarDataMockHandler = (
           ? typeof overrideResponse === 'function'
             ? await overrideResponse(info)
             : overrideResponse
-          : getPostApiCalendarDataResponseMock(),
+          : getPostApiCalendarEventsResponseMock(),
         { status: 200 },
       );
     },
     options,
   );
 };
-export const getCalendarMock = () => [getPostApiCalendarDataMockHandler()];
+export const getCalendarMock = () => [getPostApiCalendarEventsMockHandler()];

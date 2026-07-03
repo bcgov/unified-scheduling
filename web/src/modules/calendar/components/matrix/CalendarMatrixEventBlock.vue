@@ -75,7 +75,7 @@ const eventBlockStyle = computed(() => {
 
   const activeColorBackground = toRgba(props.display.color, activeColorBackgroundAlpha);
 
-  if (hasColorBar.value && statusClass.value === 'active' && activeColorBackground) {
+  if (hasColorBar.value && statusClass.value !== 'active' && activeColorBackground) {
     style['--calendar-event-bg'] = activeColorBackground;
   }
 
@@ -302,10 +302,6 @@ button.calendar-matrix-event-block__action {
   border-style: dashed;
 }
 
-.calendar-matrix-event-block.is-active {
-  border-style: solid;
-}
-
 .calendar-matrix-event-block.is-cancelled {
   border-style: dotted;
   opacity: 0.6;
@@ -342,6 +338,31 @@ button.calendar-matrix-event-block__action {
 
 .calendar-matrix-event-block.has-warning-variant {
   --calendar-event-bg: var(--calendar-event-warning-bg);
+}
+
+.calendar-matrix-event-block.is-active {
+  --calendar-event-bg: rgba(var(--v-theme-on-surface), 0.82);
+  border-color: rgba(var(--v-theme-on-surface), 0.82);
+  border-style: solid;
+  color: rgb(var(--v-theme-surface));
+}
+
+.calendar-matrix-event-block.is-active.has-color-bar {
+  padding-left: 0.5rem;
+}
+
+.calendar-matrix-event-block.is-active.has-color-bar::before {
+  display: none;
+}
+
+.calendar-matrix-event-block.is-active .calendar-matrix-event-block__meta {
+  color: rgb(var(--v-theme-surface));
+}
+
+.calendar-matrix-event-block.is-active .calendar-matrix-event-block__action {
+  background: transparent;
+  border-color: transparent;
+  color: rgb(var(--v-theme-surface));
 }
 
 .calendar-matrix-event-block__title {

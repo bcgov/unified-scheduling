@@ -10,6 +10,7 @@ export const useCalendarStore = defineStore('calendar', () => {
   const period = ref<CalendarPeriod>('week');
   const locationId = ref<number>();
   const filters = ref<Record<string, unknown>>({});
+  const refreshNonce = ref(0);
   const selectedEventId = ref<string>();
   const selectedResourceId = ref<string>();
 
@@ -59,12 +60,17 @@ export const useCalendarStore = defineStore('calendar', () => {
     selectedResourceId.value = undefined;
   };
 
+  const refresh = () => {
+    refreshNonce.value += 1;
+  };
+
   return {
     activeViewId,
     dateRange,
     period,
     locationId,
     filters,
+    refreshNonce,
     selectedEventId,
     selectedResourceId,
     setActiveView,
@@ -77,5 +83,6 @@ export const useCalendarStore = defineStore('calendar', () => {
     clearSelectedEvent,
     setSelectedResource,
     clearSelection,
+    refresh,
   };
 });

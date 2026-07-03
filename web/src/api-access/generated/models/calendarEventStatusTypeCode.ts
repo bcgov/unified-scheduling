@@ -9,7 +9,7 @@ export type CalendarEventStatusTypeCode =
   (typeof CalendarEventStatusTypeCode)[keyof typeof CalendarEventStatusTypeCode];
 
 export const CalendarEventStatusTypeCode = {
-  Draft: 'Draft',
-  Active: 'Active',
-  Cancelled: 'Cancelled',
+  Draft: 'draft',
+  Active: 'active',
+  Cancelled: 'cancelled',
 } as const;

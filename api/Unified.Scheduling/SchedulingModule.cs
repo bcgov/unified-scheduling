@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
 using Unified.Calendar;
+using Unified.Common.Seeding;
 using Unified.Infrastructure.Modules;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.Seeders;
@@ -37,15 +38,14 @@ public static class SchedulingModule
         services.AddScoped<ShiftEntryRequestValidator>();
         services.AddScoped<SchedulingCalendarRequestValidator>();
         services.AddScoped<ShiftEventTypeSeeder>();
+        services.AddSingleton(SchedulingPermissionSeedData.Configuration);
 
         services
             .AddAuthorizationBuilder()
             .AddPermissionPolicy(Permissions.ShiftsView)
             .AddPermissionPolicy(Permissions.ShiftsCreateAndAssign)
             .AddPermissionPolicy(Permissions.ShiftsEdit)
-            .AddPermissionPolicy(Permissions.ShiftsExpire)
-            .AddPermissionPolicy(Permissions.ShiftsImport)
-            .AddPermissionPolicy(Permissions.ShiftsViewAllFuture);
+            .AddPermissionPolicy(Permissions.ShiftsExpire);
 
         return services;
     }

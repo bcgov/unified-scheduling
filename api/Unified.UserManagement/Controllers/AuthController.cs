@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -60,6 +61,8 @@ public class AuthController : ControllerBase
     [Authorize]
     public ActionResult<UserInfo> GetUserInfo()
     {
+        var keycloakSubject = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
         var claims = User.Claims.Select(c => new UserClaim(c.Type, c.Value)).ToList();
 
         var permissions = claims
@@ -83,7 +86,7 @@ public class AuthController : ControllerBase
 
         var user = new UserInfo(
             User.Identity?.IsAuthenticated ?? false,
-            string.IsNullOrWhiteSpace(name) ? User.Identity?.Name : name,
+            string.IsNullOrWhiteSpace(keycloakSubject) ? keycloakSubject : "test",
             User.Identity?.AuthenticationType,
             claims,
             permissions,

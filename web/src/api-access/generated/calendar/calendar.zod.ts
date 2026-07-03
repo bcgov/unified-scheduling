@@ -6,7 +6,7 @@
  */
 import * as zod from 'zod';
 
-export const PostApiCalendarDataBody = zod.strictObject({
+export const PostApiCalendarEventsBody = zod.strictObject({
   startDate: zod.iso.date(),
   endDate: zod.iso.date(),
   timeZoneId: zod.string().nullish(),
@@ -14,30 +14,33 @@ export const PostApiCalendarDataBody = zod.strictObject({
   filters: zod.record(zod.string(), zod.string()).nullish(),
 });
 
-export const PostApiCalendarDataResponseEventsItem = zod.object({
-  id: zod.number(),
-  eventSeriesId: zod.number().nullish(),
-  title: zod.string(),
-  description: zod.string().nullish(),
-  notes: zod.string().nullish(),
-  color: zod.string().nullish(),
-  startAtUtc: zod.iso.datetime({ offset: true }),
-  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
-  seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
-  seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
-  timeZoneId: zod.string().nullish(),
-  allDay: zod.boolean().optional(),
-  isException: zod.boolean().optional(),
-  eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline']),
-  statusTypeCode: zod.enum(['Draft', 'Active', 'Cancelled']),
-  cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
-  cancelledByUserId: zod.uuid().nullish(),
-  cancellationReason: zod.string().nullish(),
-  sourceModule: zod.string(),
-  locationId: zod.number().nullish(),
-});
-export const PostApiCalendarDataResponse = zod.object({
+export const PostApiCalendarEventsResponse = zod.object({
   moduleId: zod.string().optional(),
   contributionId: zod.string().optional(),
-  events: zod.array(PostApiCalendarDataResponseEventsItem).optional(),
+  events: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        eventSeriesId: zod.number().nullish(),
+        title: zod.string(),
+        description: zod.string().nullish(),
+        notes: zod.string().nullish(),
+        color: zod.string().nullish(),
+        startAtUtc: zod.iso.datetime({ offset: true }),
+        endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        timeZoneId: zod.string().nullish(),
+        allDay: zod.boolean().optional(),
+        isException: zod.boolean().optional(),
+        eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline']),
+        statusTypeCode: zod.enum(['Draft', 'Active', 'Cancelled']),
+        cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
+        cancelledByUserId: zod.uuid().nullish(),
+        cancellationReason: zod.string().nullish(),
+        sourceModule: zod.string(),
+        locationId: zod.number().nullish(),
+      }),
+    )
+    .optional(),
 });

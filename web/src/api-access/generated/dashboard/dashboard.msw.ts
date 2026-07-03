@@ -103,9 +103,30 @@ export const getPostApiStatsDashboardSignOffResponseMock = (
   overrideResponse: Partial<Extract<DashboardSignOffResponse, object>> = {},
 ): DashboardSignOffResponse =>
   faker.helpers.arrayElement([
-    { signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
-    { signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
-    { signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
+    {
+      signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      signedOffIds: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      signedOffIds: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      signedOffCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      signedOffIds: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
   ]);
 
 export const getGetApiStatsDashboardEntriesMockHandler = (

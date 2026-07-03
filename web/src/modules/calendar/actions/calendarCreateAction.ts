@@ -5,4 +5,5 @@ export const calendarCreateAction: CalendarCreateAction = {
   label: 'Create event',
   moduleId: 'calendar',
   disabled: true,
+  isAvailable: (context) => context.activeViewId === 'calendar-default',
 };

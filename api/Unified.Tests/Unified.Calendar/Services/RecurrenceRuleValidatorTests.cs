@@ -37,6 +37,25 @@ public class RecurrenceRuleValidatorTests
     }
 
     [Fact]
+    public void Validate_WhenRuleHasRRulePrefix_ReturnsValid()
+    {
+        // Arrange
+        var options = CreateOptions();
+
+        // Act
+        var result = _validator.Validate(
+            "RRULE:FREQ=DAILY;COUNT=5",
+            new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero),
+            "America/Vancouver",
+            options
+        );
+
+        // Assert
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
     public void Validate_WhenRuleIsUnbounded_ReturnsError()
     {
         // Arrange
@@ -286,7 +305,7 @@ public class RecurrenceRuleValidatorTests
     public void ExpandWithin_WhenRuleUsesByDay_ReturnsExpectedOccurrenceTimes()
     {
         // Arrange
-        var eventSeries = new Unified.Db.Models.Calendar.EventSeries
+        var eventSeries = new global::Unified.Db.Models.Calendar.EventSeries
         {
             RecurrenceRule = "FREQ=WEEKLY;COUNT=2;BYDAY=MO",
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),

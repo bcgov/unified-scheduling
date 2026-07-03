@@ -61,4 +61,5 @@ export const PostApiStatsDashboardSignOffBody = zod.strictObject({
 
 export const PostApiStatsDashboardSignOffResponse = zod.object({
   signedOffCount: zod.number().optional(),
+  signedOffIds: zod.array(zod.number()).optional(),
 });

@@ -32,7 +32,6 @@ namespace Unified.Db.Models.UserManagement;
 ///   CreateAndAssignShifts    → ShiftsCreateAndAssign
 ///   ExpireShifts             → ShiftsExpire
 ///   EditShifts               → ShiftsEdit
-///   ImportShifts             → ShiftsImport
 ///   ViewDistributeSchedule   → ScheduleViewDistribute
 ///   ViewHomeLocation         → LocationViewHome
 ///   ViewAssignedLocation     → LocationViewAssigned
@@ -50,7 +49,6 @@ namespace Unified.Db.Models.UserManagement;
 ///   EditPastTraining         → TrainingEditPast
 ///   RemovePastTraining       → TrainingRemovePast
 ///   ViewDutyRosterInFuture   → DutyRosterViewFuture
-///   ViewAllFutureShifts      → ShiftsViewAllFuture
 ///   ViewOtherProfiles        → UsersViewOtherProfiles
 ///   GenerateReports          → ReportsGenerate
 ///   AdjustTrainingExpiry     → TrainingAdjustExpiry
