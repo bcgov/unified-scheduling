@@ -28,7 +28,7 @@ public class TrainingsControllerTests
             TrainingCategoryName = "Mandatory",
         };
 
-        var service = new FakeTrainingsService { CreateResult = response };
+        var service = new FakeTrainingService { CreateResult = response };
         var controller = new TrainingsController(service, new TrainingRequestValidator());
 
         var result = await controller.Create(request, TestContext.Current.CancellationToken);
@@ -48,7 +48,7 @@ public class TrainingsControllerTests
             TrainingCategoryId = 1,
         };
 
-        var service = new FakeTrainingsService { UpdateResult = null };
+        var service = new FakeTrainingService { UpdateResult = null };
         var controller = new TrainingsController(service, new TrainingRequestValidator());
 
         var result = await controller.Update(99, request, TestContext.Current.CancellationToken);
@@ -66,7 +66,7 @@ public class TrainingsControllerTests
             TrainingCategoryId = 1,
         };
 
-        var service = new FakeTrainingsService();
+        var service = new FakeTrainingService();
         var controller = new TrainingsController(service, new TrainingRequestValidator());
 
         await Assert.ThrowsAsync<ValidationException>(() =>
@@ -74,7 +74,7 @@ public class TrainingsControllerTests
         );
     }
 
-    private sealed class FakeTrainingsService : ITrainingsService
+    private sealed class FakeTrainingService : ITrainingService
     {
         public IReadOnlyCollection<TrainingResponse> GetAllResult { get; init; } = [];
         public TrainingResponse? GetByIdResult { get; init; }

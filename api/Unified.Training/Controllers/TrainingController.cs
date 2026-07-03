@@ -12,7 +12,7 @@ namespace Unified.Training.Controllers;
 [Authorize]
 [Route("api/trainings")]
 public sealed class TrainingsController(
-    ITrainingsService trainingsService,
+    ITrainingService trainingsService,
     TrainingRequestValidator validator
 ) : ControllerBase
 {

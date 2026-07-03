@@ -15,7 +15,6 @@ public static class TrainingModule
     public static IServiceCollection AddTrainingModule(this IServiceCollection services)
     {
         services.AddScoped<ITrainingService, TrainingService>();
-        services.AddScoped<ITrainingsService, TrainingsService>();
         services.AddScoped<TrainingRequestValidator>();
 
         services.AddSingleton(TrainingPermissionSeedData.Configuration);
@@ -42,11 +41,7 @@ public static class TrainingModule
         grpBuilder
             .MapGet(
                 "/health",
-                (ITrainingService trainingService) =>
-                {
-                    var result = trainingService.CheckHealth();
-                    return TypedResults.Ok(result);
-                }
+                () => TypedResults.Ok("Training Loaded Successfully")
             )
             .WithName("GetTrainingHealth")
             .WithDescription("Checks the health of the Training module.");
