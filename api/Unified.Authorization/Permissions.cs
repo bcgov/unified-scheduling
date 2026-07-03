@@ -65,6 +65,11 @@ public enum Permissions
     LocationExpire,
 
     // --- Training ---
+    TrainingsView,
+    TrainingsCreate,
+    TrainingsEdit,
+    TrainingsDelete,
+    TrainingRecordsManageForOthers,
     TrainingEditPast,
     TrainingRemovePast,
     TrainingAdjustExpiry,

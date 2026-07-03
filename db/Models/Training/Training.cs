@@ -22,11 +22,11 @@ public class Training : BaseEntity
 
     public bool Rotating { get; set; }
 
-    public int TrainingCategoryId { get; set; }
+    public int? TrainingCategoryId { get; set; }
 
     public int Order { get; set; }
 
-    public virtual TrainingCategory TrainingCategory { get; set; } = null!;
+    public virtual TrainingCategory? TrainingCategory { get; set; }
 
     public virtual ICollection<UserTraining> UserTrainings { get; set; } = [];
 }

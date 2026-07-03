@@ -1,18 +1,38 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.Authorization;
+using Unified.Training.Controllers;
 using Unified.Training.Services;
+using Unified.Training.Validators;
 
 namespace Unified.Training;
 
 public static class TrainingModule
 {
-    public static IServiceCollection AddTrainingModule(this IServiceCollection service)
+    public static IServiceCollection AddTrainingModule(this IServiceCollection services)
     {
-        service.AddScoped<ITrainingService, TrainingService>();
+        services.AddScoped<ITrainingService, TrainingService>();
+        services.AddScoped<ITrainingsService, TrainingsService>();
+        services.AddScoped<TrainingRequestValidator>();
 
-        return service;
+        services.AddSingleton(TrainingPermissionSeedData.Configuration);
+
+        services
+            .AddAuthorizationBuilder()
+            .AddPermissionPolicy(Permissions.TrainingsView.ToString())
+            .AddPermissionPolicy(Permissions.TrainingsCreate.ToString())
+            .AddPermissionPolicy(Permissions.TrainingsEdit.ToString())
+            .AddPermissionPolicy(Permissions.TrainingsDelete.ToString())
+            .AddPermissionPolicy(Permissions.TrainingRecordsManageForOthers.ToString())
+            .AddPermissionPolicy(Permissions.TrainingEditPast.ToString())
+            .AddPermissionPolicy(Permissions.TrainingRemovePast.ToString())
+            .AddPermissionPolicy(Permissions.TrainingAdjustExpiry.ToString())
+            .AddPermissionPolicy(Permissions.TrainingExempt.ToString());
+
+        return services;
     }
 
     public static IEndpointRouteBuilder MapTrainingEndpoints(this IEndpointRouteBuilder app)
