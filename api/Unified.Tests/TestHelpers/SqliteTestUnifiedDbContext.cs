@@ -34,6 +34,10 @@ internal sealed class SqliteTestUnifiedDbContext(DbContextOptions<UnifiedDbConte
                 {
                     property.SetValueConverter(DateTimeOffsetConverter);
                     property.SetColumnType("TEXT");
+
+                    // Replace PostgreSQL-specific now() default with the SQLite equivalent.
+                    if (property.GetDefaultValueSql() == "now()")
+                        property.SetDefaultValueSql("datetime('now')");
                 }
 
                 if (property.ClrType == typeof(DateTimeOffset?))
