@@ -10,7 +10,7 @@ import { useFetchAPI } from '../../useFetchAPI';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-export const postApiCalendarData = (
+export const postApiCalendarEvents = (
   calendarDataRequest: CalendarDataRequest,
   options?: SecondParameter<typeof useFetchAPI<CalendarDataResponse>>,
 ) => {
@@ -24,4 +24,4 @@ export const postApiCalendarData = (
     options,
   );
 };
-export type PostApiCalendarDataResult = NonNullable<Awaited<ReturnType<typeof postApiCalendarData>>>;
+export type PostApiCalendarEventsResult = NonNullable<Awaited<ReturnType<typeof postApiCalendarEvents>>>;

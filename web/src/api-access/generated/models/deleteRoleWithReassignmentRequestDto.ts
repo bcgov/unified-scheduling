@@ -6,8 +6,10 @@
  */
 
 export interface DeleteRoleWithReassignmentRequestDto {
-  newRoleId?: number;
-  newRoleEffectiveDate?: string;
+  /** @nullable */
+  newRoleId?: number | null;
+  /** @nullable */
+  newRoleEffectiveDate?: string | null;
   /** @nullable */
   newRoleExpiryDate?: string | null;
 }

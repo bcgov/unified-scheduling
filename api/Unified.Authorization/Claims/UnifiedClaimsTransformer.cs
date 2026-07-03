@@ -1,6 +1,9 @@
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Unified.Db;
 
 namespace Unified.Authorization.Claims;
@@ -10,7 +13,8 @@ namespace Unified.Authorization.Claims;
 /// <c>sub</c> claim, loads their active role permissions from the database, and
 /// adds the corresponding permission claims to the identity.
 /// </summary>
-public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTransformation
+public sealed class UnifiedClaimsTransformer(UnifiedDbContext db, ILogger<UnifiedClaimsTransformer> logger)
+    : IClaimsTransformation
 {
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
@@ -25,6 +29,12 @@ public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTrans
         if (string.IsNullOrWhiteSpace(nameIdentifier))
             return principal;
 
+        logger.LogInformation(
+            "Transforming claims for Keycloak subject {NameIdentifier} idir: {Idir}",
+            nameIdentifier,
+            nameIdentifier.Replace("@idir", "")
+        );
+
         var idir = Guid.Parse(nameIdentifier.Replace("@idir", ""));
 
         var user = await db
@@ -35,6 +45,8 @@ public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTrans
             .Where(u => u.IdirId == idir && u.IsEnabled)
             .FirstOrDefaultAsync();
 
+        logger.LogInformation("Retrieved user {FirstName}", user?.FirstName);
+
         if (user == null)
             return principal;
 
@@ -43,6 +55,8 @@ public sealed class UnifiedClaimsTransformer(UnifiedDbContext db) : IClaimsTrans
             .Select(rp => rp.PermissionId)
             .Distinct()
             .ToList();
+
+        logger.LogInformation("retrieved permissions {Permissions}", permissions.Select(p => p));
 
         var roles = user.ActiveUserRoles.Select(ur => ur.Role.Name).Distinct().ToList();
 

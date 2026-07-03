@@ -114,6 +114,7 @@ describe('calendar workflow', () => {
     calendarStore.setPeriod('week');
     calendarStore.setDateRange('2025-04-07', '2025-04-14');
     locationsStore.entities = [{ id: 12, name: 'Main Hall' }];
+    locationsStore.setSelectedLocationId(12);
 
     const wrapper = mount(Calendar, {
       attachTo: document.body,
@@ -132,7 +133,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ calendarModule: true }),
         },
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: undefined, filters: {} },
+        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -144,7 +145,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ calendarModule: true }),
         },
-        { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: undefined, filters: {} },
+        { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -155,7 +156,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ calendarModule: true }),
         },
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: undefined, filters: {} },
+        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -167,7 +168,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ calendarModule: true }),
         },
-        { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: undefined, filters: {} },
+        { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: 12, filters: {} },
         expect.any(Object),
       );
 

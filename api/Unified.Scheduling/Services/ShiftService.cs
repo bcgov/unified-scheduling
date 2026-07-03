@@ -38,7 +38,10 @@ public sealed class ShiftService(
             queryParams?.UserId
         );
 
-        IQueryable<ShiftSeries> query = db.ShiftSeries.AsNoTracking().Include(shiftSeries => shiftSeries.Users);
+        IQueryable<ShiftSeries> query = db
+            .ShiftSeries.AsNoTracking()
+            .Include(shiftSeries => shiftSeries.EventSeries)
+            .Include(shiftSeries => shiftSeries.Users);
 
         if (queryParams?.EventSeriesId is int eventSeriesId)
             query = query.Where(shiftSeries => shiftSeries.EventSeriesId == eventSeriesId);
@@ -65,6 +68,7 @@ public sealed class ShiftService(
 
         var result = await db
             .ShiftSeries.AsNoTracking()
+            .Include(shiftSeries => shiftSeries.EventSeries)
             .Include(shiftSeries => shiftSeries.Users)
             .Where(shiftSeries => shiftSeries.Id == id)
             .SingleOrDefaultAsync(cancellationToken);
@@ -634,9 +638,16 @@ public sealed class ShiftService(
     )
     {
         var entryIds = await LoadShiftSeriesEntryIdsAsync(shiftSeries, cancellationToken);
+        var eventSeriesById = await LoadEventSeriesByIdAsync(shiftSeries, cancellationToken);
 
         return shiftSeries
-            .Select(series => MapToShiftSeriesResponse(series, entryIds.GetValueOrDefault(series.Id, [])))
+            .Select(series =>
+                MapToShiftSeriesResponse(
+                    series,
+                    eventSeriesById.GetValueOrDefault(series.EventSeriesId) ?? series.EventSeries,
+                    entryIds.GetValueOrDefault(series.Id, [])
+                )
+            )
             .ToList();
     }
 
@@ -660,7 +671,29 @@ public sealed class ShiftService(
                     .ToList();
         }
 
-        return MapToShiftSeriesResponse(shiftSeries, ids);
+        var eventSeries =
+            shiftSeries.EventSeries
+            ?? await db
+                .EventSeries.AsNoTracking()
+                .SingleOrDefaultAsync(series => series.Id == shiftSeries.EventSeriesId, cancellationToken);
+
+        return MapToShiftSeriesResponse(shiftSeries, eventSeries, ids);
+    }
+
+    private async Task<Dictionary<int, EventSeries>> LoadEventSeriesByIdAsync(
+        IReadOnlyCollection<ShiftSeries> shiftSeries,
+        CancellationToken cancellationToken
+    )
+    {
+        if (shiftSeries.Count == 0)
+            return [];
+
+        var eventSeriesIds = shiftSeries.Select(series => series.EventSeriesId).Distinct().ToList();
+
+        return await db
+            .EventSeries.AsNoTracking()
+            .Where(series => eventSeriesIds.Contains(series.Id))
+            .ToDictionaryAsync(series => series.Id, cancellationToken);
     }
 
     private async Task<Dictionary<int, List<ShiftSeriesEntryIds>>> LoadShiftSeriesEntryIdsAsync(
@@ -696,12 +729,28 @@ public sealed class ShiftService(
 
     private static ShiftSeriesResponse MapToShiftSeriesResponse(
         ShiftSeries shiftSeries,
+        EventSeries? eventSeries,
         IReadOnlyCollection<ShiftSeriesEntryIds> entryIds
     ) =>
         new()
         {
             Id = shiftSeries.Id,
             EventSeriesId = shiftSeries.EventSeriesId,
+            Title = eventSeries?.Title,
+            Description = eventSeries?.Description,
+            Notes = eventSeries?.Notes,
+            Color = eventSeries?.Color,
+            RecurrenceRule = eventSeries?.RecurrenceRule,
+            TimeZoneId = eventSeries?.TimeZoneId,
+            StartAtUtc = eventSeries?.StartAtUtc,
+            EndAtUtc = eventSeries?.EndAtUtc,
+            AllDay = eventSeries?.AllDay ?? false,
+            EventTypeCode = eventSeries?.EventTypeCode,
+            StatusTypeCode = eventSeries?.StatusTypeCode,
+            CancelledAt = eventSeries?.CancelledAt,
+            CancelledByUserId = eventSeries?.CancelledByUserId,
+            CancellationReason = eventSeries?.CancellationReason,
+            LocationId = eventSeries?.LocationId,
             UserIds = shiftSeries.Users.Select(user => user.UserId).Distinct().ToList(),
             EventIds = entryIds.Select(entry => entry.EventId).ToList(),
             ShiftEntryIds = entryIds.Select(entry => entry.ShiftEntryId).ToList(),

@@ -7,4 +7,5 @@
 
 export interface DashboardSignOffResponse {
   signedOffCount?: number;
+  signedOffIds?: number[];
 }

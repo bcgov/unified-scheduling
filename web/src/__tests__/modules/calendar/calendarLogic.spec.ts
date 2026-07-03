@@ -13,7 +13,12 @@ import {
   startOfWeek,
   toCalendarDateOnly,
 } from '@/utils/date';
-import { getCalendarEventDateKey } from '@/modules/calendarMatrixTest/calendarMatrixTestMappers';
+import {
+  buildCalendarSchedulingViewModel,
+  getCalendarEventDateKey,
+} from '@/modules/scheduling/calendarSchedulingMappers';
+import type { CalendarSchedulingUserResource } from '@/modules/scheduling/contributions/calendarSchedulingEventsContribution';
+import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSchedulingData';
 import { selectCalendarEvents, selectContribution } from '@/modules/calendar/calendarSelectors';
 import { mapApiCalendarEventToCalendarEventBase } from '@/modules/calendar/contributions/calendarEventMappers';
 import { buildCalendarPeriodSelectOptions, DEFAULT_CALENDAR_PERIODS } from '@/modules/calendar/calendarPeriodOptions';
@@ -23,6 +28,7 @@ import type {
   CalendarQueryContext,
   CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
+import { mdiCalendarSync } from '@mdi/js';
 
 describe('shared calendar date helpers', () => {
   it('builds ranges for every period and shifts them correctly', () => {
@@ -137,6 +143,67 @@ describe('calendar selectors and view models', () => {
       initialDate: '2025-01-13',
       events: selectCalendarEvents(response),
       weekends,
+    });
+  });
+});
+
+describe('scheduling calendar view model', () => {
+  it('shows the conflict action only when a shift event has isConflict', () => {
+    const shiftEvents: CalendarSchedulingEvent[] = [
+      {
+        id: 'shift-conflict',
+        type: 'scheduling.shift',
+        sourceModule: 'calendar-scheduling',
+        title: 'Conflict shift',
+        start: '2025-01-13T09:00:00',
+        end: '2025-01-13T17:00:00',
+        resourceIds: ['user-1'],
+        isConflict: true,
+        metadata: { userIds: ['user-1'] },
+      },
+      {
+        id: 'shift-normal',
+        type: 'scheduling.shift',
+        sourceModule: 'calendar-scheduling',
+        title: 'Normal shift',
+        start: '2025-01-14T09:00:00',
+        end: '2025-01-14T17:00:00',
+        resourceIds: ['user-1'],
+        metadata: { userIds: ['user-1'], shiftSeriesId: 100 },
+      },
+    ];
+
+    const viewModel = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'scheduling.shift-events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.shift-events',
+            events: shiftEvents,
+            resources: [
+              {
+                id: 'user-1',
+                type: 'user',
+                sourceModule: 'scheduling',
+                label: 'Alex Alpha',
+                title: 'Alex Alpha',
+              },
+            ] as CalendarSchedulingUserResource[],
+          },
+        },
+      },
+      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      'week',
+    );
+
+    const headers = viewModel.cells.flatMap((cell) => cell.headers ?? []);
+
+    expect(headers.find((header) => header.id === 'shift-conflict')?.action?.ariaLabel).toBe('Show conflict details');
+    expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
+    expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
+      icon: mdiCalendarSync,
+      ariaLabel: 'Part of a shift series',
+      title: 'Part of a shift series',
     });
   });
 });
