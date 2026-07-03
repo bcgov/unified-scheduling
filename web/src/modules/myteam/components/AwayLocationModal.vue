@@ -79,15 +79,15 @@ const createInitialFormData = (): FormData => ({
 });
 
 const populateFromAwayLocation = (al: AwayLocationResponseDto): FormData => {
-  const startTime = toTimeInputValue(al.startAtUtc) ?? '';
-  const endTime = toTimeInputValue(al.endAtUtc) ?? '';
-  addTime.value = !isDateTimeFullDay(al.startAtUtc, al.endAtUtc);
+  const startTime = toTimeInputValue(al.startAtUtc, { setZone: false }) ?? '';
+  const endTime = toTimeInputValue(al.endAtUtc, { setZone: false }) ?? '';
+  addTime.value = startTime !== '' || endTime !== '';
 
   return {
     locationId: al.locationId,
-    startDate: toDateInputValue(al.startAtUtc) ?? getTodayDateInputValue(),
+    startDate: toDateInputValue(al.startAtUtc, { setZone: false }) ?? getTodayDateInputValue(),
     startTime,
-    endDate: toDateInputValue(al.endAtUtc ?? undefined) ?? '',
+    endDate: toDateInputValue(al.endAtUtc ?? undefined, { setZone: false }) ?? '',
     endTime,
     comment: al.comment ?? null,
   };
@@ -169,7 +169,7 @@ function validateForm(): AwayLocationRequestDto | null {
     locationId: parsed.data.locationId,
     startDateTime: toOffsetDateTimeString(
       parsed.data.startDate,
-      addTime.value ? parsed.data.startTime : '',
+      addTime.value ? parsed.data.startTime : '00:00',
       timezone.value,
     ),
     endDateTime: toOffsetDateTimeString(
