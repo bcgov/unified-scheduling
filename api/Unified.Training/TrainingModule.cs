@@ -36,7 +36,7 @@ public static class TrainingModule
 
     public static IEndpointRouteBuilder MapTrainingEndpoints(this IEndpointRouteBuilder app)
     {
-        var grpBuilder = app.MapGroup("/api/training").WithTags("Training");
+        var grpBuilder = app.MapGroup("/api/trainings").WithTags("Training");
 
         grpBuilder
             .MapGet("/health", () => TypedResults.Ok("Training Loaded Successfully"))
