@@ -21,15 +21,15 @@ public static class TrainingModule
 
         services
             .AddAuthorizationBuilder()
-            .AddPermissionPolicy(Permissions.TrainingsView.ToString())
-            .AddPermissionPolicy(Permissions.TrainingsCreate.ToString())
-            .AddPermissionPolicy(Permissions.TrainingsEdit.ToString())
-            .AddPermissionPolicy(Permissions.TrainingsDelete.ToString())
-            .AddPermissionPolicy(Permissions.TrainingRecordsManageForOthers.ToString())
-            .AddPermissionPolicy(Permissions.TrainingEditPast.ToString())
-            .AddPermissionPolicy(Permissions.TrainingRemovePast.ToString())
-            .AddPermissionPolicy(Permissions.TrainingAdjustExpiry.ToString())
-            .AddPermissionPolicy(Permissions.TrainingExempt.ToString());
+            .AddPermissionPolicy(Permissions.TrainingsView)
+            .AddPermissionPolicy(Permissions.TrainingsCreate)
+            .AddPermissionPolicy(Permissions.TrainingsEdit)
+            .AddPermissionPolicy(Permissions.TrainingsDelete)
+            .AddPermissionPolicy(Permissions.TrainingRecordsManageForOthers)
+            .AddPermissionPolicy(Permissions.TrainingEditPast)
+            .AddPermissionPolicy(Permissions.TrainingRemovePast)
+            .AddPermissionPolicy(Permissions.TrainingAdjustExpiry)
+            .AddPermissionPolicy(Permissions.TrainingExempt);
 
         return services;
     }
