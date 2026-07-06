@@ -24,16 +24,18 @@ public class TrainingServiceTests : IAsyncLifetime
         await _db.Database.EnsureCreatedAsync();
 
         _db.TrainingCategories.Add(new TrainingCategory { Id = 1, Name = "Mandatory" });
-        _db.Users.Add(new User
-        {
-            Id = Guid.NewGuid(),
-            IdirName = "u1",
-            IdirId = Guid.NewGuid(),
-            IsEnabled = true,
-            FirstName = "T",
-            LastName = "User",
-            Gender = Gender.Other,
-        });
+        _db.Users.Add(
+            new User
+            {
+                Id = Guid.NewGuid(),
+                IdirName = "u1",
+                IdirId = Guid.NewGuid(),
+                IsEnabled = true,
+                FirstName = "T",
+                LastName = "User",
+                Gender = Gender.Other,
+            }
+        );
 
         await _db.SaveChangesAsync();
 
@@ -78,13 +80,15 @@ public class TrainingServiceTests : IAsyncLifetime
 
         var userId = await _db.Users.Select(u => u.Id).FirstAsync(TestContext.Current.CancellationToken);
 
-        _db.UserTrainings.Add(new UserTraining
-        {
-            UserId = userId,
-            TrainingId = created.Id,
-            AwardedOn = DateTimeOffset.UtcNow,
-            NoticeState = UserTrainingNoticeStates.None,
-        });
+        _db.UserTrainings.Add(
+            new UserTraining
+            {
+                UserId = userId,
+                TrainingId = created.Id,
+                AwardedOn = DateTimeOffset.UtcNow,
+                NoticeState = UserTrainingNoticeStates.None,
+            }
+        );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
