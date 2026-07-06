@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
@@ -12,6 +13,17 @@ namespace Unified.Training;
 
 public static class TrainingModule
 {
+    public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, bool isEnabled)
+    {
+        var trainingAssembly = typeof(TrainingsController).Assembly;
+
+        mvcBuilder.ConfigureApplicationPartManager(manager =>
+            ConfigureTrainingApplicationParts(manager, trainingAssembly, isEnabled)
+        );
+
+        return mvcBuilder;
+    }
+
     public static IServiceCollection AddTrainingModule(this IServiceCollection services)
     {
         services.AddScoped<ITrainingService, TrainingService>();
@@ -21,15 +33,15 @@ public static class TrainingModule
 
         services
             .AddAuthorizationBuilder()
-            .AddPermissionPolicy(Permissions.TrainingsView.ToString())
-            .AddPermissionPolicy(Permissions.TrainingsCreate.ToString())
-            .AddPermissionPolicy(Permissions.TrainingsEdit.ToString())
-            .AddPermissionPolicy(Permissions.TrainingsDelete.ToString())
-            .AddPermissionPolicy(Permissions.TrainingRecordsManageForOthers.ToString())
-            .AddPermissionPolicy(Permissions.TrainingEditPast.ToString())
-            .AddPermissionPolicy(Permissions.TrainingRemovePast.ToString())
-            .AddPermissionPolicy(Permissions.TrainingAdjustExpiry.ToString())
-            .AddPermissionPolicy(Permissions.TrainingExempt.ToString());
+            .AddPermissionPolicy(Permissions.TrainingsView)
+            .AddPermissionPolicy(Permissions.TrainingsCreate)
+            .AddPermissionPolicy(Permissions.TrainingsEdit)
+            .AddPermissionPolicy(Permissions.TrainingsDelete)
+            .AddPermissionPolicy(Permissions.TrainingRecordsManageForOthers)
+            .AddPermissionPolicy(Permissions.TrainingEditPast)
+            .AddPermissionPolicy(Permissions.TrainingRemovePast)
+            .AddPermissionPolicy(Permissions.TrainingAdjustExpiry)
+            .AddPermissionPolicy(Permissions.TrainingExempt);
 
         return services;
     }
@@ -44,5 +56,25 @@ public static class TrainingModule
             .WithDescription("Checks the health of the Training module.");
 
         return app;
+    }
+
+    private static void ConfigureTrainingApplicationParts(
+        ApplicationPartManager manager,
+        Assembly trainingAssembly,
+        bool isEnabled
+    )
+    {
+        var assemblyName = trainingAssembly.GetName().Name;
+        var existingParts = manager.ApplicationParts.Where(part => part.Name == assemblyName).ToList();
+
+        foreach (var part in existingParts)
+        {
+            manager.ApplicationParts.Remove(part);
+        }
+
+        if (isEnabled)
+        {
+            manager.ApplicationParts.Add(new AssemblyPart(trainingAssembly));
+        }
     }
 }
