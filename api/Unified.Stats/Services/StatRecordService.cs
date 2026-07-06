@@ -1,5 +1,6 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Unified.Db;
 using Unified.Db.Models.Stats;
 using Unified.Infrastructure.ErrorHandling;
@@ -7,13 +8,21 @@ using Unified.Stats.Models;
 
 namespace Unified.Stats.Services;
 
-public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
+public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordService> logger) : IStatRecordService
 {
     public async Task<IReadOnlyCollection<StatRecordResponse>> GetAllAsync(
         StatRecordQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogDebug(
+            "Retrieving stat records for location {LocationId}, metric {SubCategoryMetricId}, status {Status}, user {UserId}",
+            queryParams?.LocationId,
+            queryParams?.SubCategoryMetricId,
+            queryParams?.Status,
+            queryParams?.UserId
+        );
+
         var query = db.StatRecords.AsNoTracking();
 
         if (queryParams?.LocationId is int locationId)
@@ -45,6 +54,8 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
 
     public async Task<StatRecordResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("Retrieving stat record {StatRecordId}", id);
+
         return await db
             .StatRecords.AsNoTracking()
             .Where(r => r.Id == id)
@@ -59,11 +70,22 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogInformation(
+            "Creating stat record for user {UserId}, location {LocationId}, metric {SubCategoryMetricId}, caller {CallerUserId}",
+            request.UserId,
+            request.LocationId,
+            request.SubCategoryMetricId,
+            callerUserId
+        );
+
         EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         var entity = MapToEntity(request);
         db.StatRecords.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Created stat record {StatRecordId}", entity.Id);
+
         return entity.Adapt<StatRecordResponse>();
     }
 
@@ -74,12 +96,21 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogInformation(
+            "Creating {RecordCount} stat records for caller {CallerUserId}",
+            requests.Count,
+            callerUserId
+        );
+
         foreach (var request in requests)
             EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         var entities = requests.Select(MapToEntity).ToList();
         db.StatRecords.AddRange(entities);
         await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Created {RecordCount} stat records", entities.Count);
+
         return entities.Adapt<List<StatRecordResponse>>();
     }
 
@@ -91,9 +122,19 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogInformation(
+            "Updating stat record {StatRecordId} request user {RequestUserId} caller {CallerUserId}",
+            id,
+            request.UserId,
+            callerUserId
+        );
+
         var entity = await db.StatRecords.SingleOrDefaultAsync(r => r.Id == id, cancellationToken);
         if (entity is null)
+        {
+            logger.LogDebug("Stat record {StatRecordId} was not found for update", id);
             return null;
+        }
 
         // Check caller is allowed to modify the existing record's owner, then the new owner.
         EnsureAuthorizedToSubmitFor(entity.UserId, callerUserId, callerCanEnterForOthers);
@@ -110,6 +151,9 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         entity.Status = request.Status;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Updated stat record {StatRecordId}", id);
+
         return entity.Adapt<StatRecordResponse>();
     }
 
@@ -120,14 +164,22 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogInformation("Deleting stat record {StatRecordId} caller {CallerUserId}", id, callerUserId);
+
         var entity = await db.StatRecords.SingleOrDefaultAsync(r => r.Id == id, cancellationToken);
         if (entity is null)
+        {
+            logger.LogDebug("Stat record {StatRecordId} was not found for delete", id);
             return false;
+        }
 
         EnsureAuthorizedToSubmitFor(entity.UserId, callerUserId, callerCanEnterForOthers);
 
         db.StatRecords.Remove(entity);
         await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Deleted stat record {StatRecordId}", id);
+
         return true;
     }
 
@@ -138,6 +190,15 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         CancellationToken cancellationToken = default
     )
     {
+        logger.LogInformation(
+            "Saving {RecordCount} stat records for user {UserId}, location {LocationId}, date {Date}, caller {CallerUserId}",
+            request.Records.Count,
+            request.UserId,
+            request.LocationId,
+            request.Date,
+            callerUserId
+        );
+
         EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         // Load existing records for this user/location/date scoped to the same group so we can
@@ -159,6 +220,7 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
             .Where(r => !incomingIds.Contains(r.Id) && r.Status != StatRecordStatus.SignedOff)
             .ToList();
         db.StatRecords.RemoveRange(toDelete);
+        logger.LogDebug("Deleting {RecordCount} stale stat records while saving day", toDelete.Count);
 
         var results = new List<StatRecord>();
 
@@ -169,7 +231,11 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
                 // Update existing record
                 var entity = existingRecords.FirstOrDefault(r => r.Id == item.Id.Value);
                 if (entity is null || entity.Status == StatRecordStatus.SignedOff)
+                {
                     continue; // stale ID or signed-off — skip
+                    logger.LogDebug("Skipping stale stat record id {StatRecordId} while saving day", item.Id.Value);
+                    continue; // stale ID - skip rather than error
+                }
 
                 entity.SubCategoryMetricId = item.SubCategoryMetricId;
                 entity.Value = item.Value;
@@ -198,6 +264,15 @@ public sealed class StatRecordService(UnifiedDbContext db) : IStatRecordService
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Saved {RecordCount} stat records for user {UserId}, location {LocationId}, date {Date}",
+            results.Count,
+            request.UserId,
+            request.LocationId,
+            request.Date
+        );
+
         return results.Adapt<List<StatRecordResponse>>();
     }
 

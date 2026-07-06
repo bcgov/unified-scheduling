@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Core.Models;
 using Unified.Core.Services;
 using Unified.Core.Services.Lookup;
@@ -20,7 +21,10 @@ public class LookupServiceTests
             },
         };
 
-        var service = new LookupService([new FakeLookupStrategy(LookupCodeTypes.PositionTypes, expected)]);
+        var service = new LookupService(
+            [new FakeLookupStrategy(LookupCodeTypes.PositionTypes, expected)],
+            NullLogger<LookupService>.Instance
+        );
 
         // Act
         var result = await service.GetAllAsync(LookupCodeTypes.PositionTypes, TestContext.Current.CancellationToken);
@@ -34,7 +38,10 @@ public class LookupServiceTests
     public async Task GetAllAsync_Should_Throw_When_CodeType_NotFound()
     {
         // Arrange
-        var service = new LookupService([new FakeLookupStrategy(LookupCodeTypes.PositionTypes, [])]);
+        var service = new LookupService(
+            [new FakeLookupStrategy(LookupCodeTypes.PositionTypes, [])],
+            NullLogger<LookupService>.Instance
+        );
 
         // Act + Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
