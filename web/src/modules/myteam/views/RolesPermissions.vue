@@ -29,16 +29,16 @@ const roleFilterOptions: SelectOption[] = [
   { code: 'inactive', description: 'Inactive' },
 ];
 
+const isRoleInactive = (role: RoleDto) => role.deletedOn != null || role.deletedById != null;
+
 const filteredRoles = computed<RoleDto[]>(() => {
   return (roles.value ?? []).filter((role) =>
-    selectedRoleFilter.value === 'inactive' ? role.deletedOn != null : role.deletedOn == null,
+    selectedRoleFilter.value === 'inactive' ? isRoleInactive(role) : !isRoleInactive(role),
   );
 });
 
 const emptyStateDescription = computed(() =>
-  selectedRoleFilter.value === 'inactive'
-    ? 'There are no inactive roles.'
-    : 'Create your first role to get started managing permissions.',
+  selectedRoleFilter.value === 'inactive' ? 'There are no inactive roles.' : 'There are no active roles.',
 );
 
 // Modal states
@@ -143,7 +143,7 @@ const handleRoleUpdated = async () => {
           <template #[`item.actions`]="{ item }">
             <div class="col-actions">
               <UaBtn
-                v-if="accessControl.hasPermission(Permissions.RolesEdit) && !item.deletedOn"
+                v-if="accessControl.hasPermission(Permissions.RolesEdit) && !isRoleInactive(item)"
                 icon
                 variant="text"
                 size="small"
@@ -154,7 +154,7 @@ const handleRoleUpdated = async () => {
                 <v-icon :icon="mdiPencil" />
               </UaBtn>
               <UaBtn
-                v-if="accessControl.hasPermission(Permissions.RolesExpire) && !item.deletedOn"
+                v-if="accessControl.hasPermission(Permissions.RolesExpire) && !isRoleInactive(item)"
                 icon
                 variant="text"
                 size="small"
