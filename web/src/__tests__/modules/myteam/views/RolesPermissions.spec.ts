@@ -37,7 +37,7 @@ describe('RolesPermissions', () => {
     const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
     await flushPromises();
     expect(wrapper.text()).toContain('No roles available');
-    expect(wrapper.text()).toContain('Create your first role to get started');
+    expect(wrapper.text()).toContain('There are no active roles.');
   });
 
   it('shows error alert when roles API fails', async () => {
