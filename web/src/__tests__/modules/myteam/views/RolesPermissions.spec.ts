@@ -234,7 +234,14 @@ describe('RolesPermissions', () => {
       permissions: [Permissions.RolesEdit, Permissions.RolesExpire],
     });
     const roles: RoleDto[] = [
-      { id: 1, name: 'Inactive Role', description: 'Inactive', concurrencyToken: 0, permissions: [], deletedOn: '2026-01-01T00:00:00Z' },
+      {
+        id: 1,
+        name: 'Inactive Role',
+        description: 'Inactive',
+        concurrencyToken: 0,
+        permissions: [],
+        deletedOn: '2026-01-01T00:00:00Z',
+      },
     ];
     server.use(getGetApiRolesMockHandler(() => roles));
 
@@ -245,8 +252,12 @@ describe('RolesPermissions', () => {
     await select.setValue('inactive');
     await flushPromises();
 
-    const editButtons = Array.from(document.querySelectorAll('button')).filter((btn) => btn.title?.includes('Edit role'));
-    const deleteButtons = Array.from(document.querySelectorAll('button')).filter((btn) => btn.title?.includes('Delete role'));
+    const editButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+      btn.title?.includes('Edit role'),
+    );
+    const deleteButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+      btn.title?.includes('Delete role'),
+    );
     expect(editButtons.length).toBe(0);
     expect(deleteButtons.length).toBe(0);
     wrapper.unmount();
@@ -263,8 +274,12 @@ describe('RolesPermissions', () => {
     const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
     await flushPromises();
 
-    const editButtons = Array.from(document.querySelectorAll('button')).filter((btn) => btn.title?.includes('Edit role'));
-    const deleteButtons = Array.from(document.querySelectorAll('button')).filter((btn) => btn.title?.includes('Delete role'));
+    const editButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+      btn.title?.includes('Edit role'),
+    );
+    const deleteButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+      btn.title?.includes('Delete role'),
+    );
     expect(editButtons.length).toBeGreaterThan(0);
     expect(deleteButtons.length).toBeGreaterThan(0);
     wrapper.unmount();
