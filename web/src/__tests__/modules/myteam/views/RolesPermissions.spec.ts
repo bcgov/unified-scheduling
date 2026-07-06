@@ -228,4 +228,45 @@ describe('RolesPermissions', () => {
     expect(wrapper.text()).toContain('Deleted Role');
     expect(wrapper.text()).not.toContain('Active Role');
   });
+
+  it('hides action buttons for inactive roles', async () => {
+    const app = await createTestApp({
+      permissions: [Permissions.RolesEdit, Permissions.RolesExpire],
+    });
+    const roles: RoleDto[] = [
+      { id: 1, name: 'Inactive Role', description: 'Inactive', concurrencyToken: 0, permissions: [], deletedOn: '2026-01-01T00:00:00Z' },
+    ];
+    server.use(getGetApiRolesMockHandler(() => roles));
+
+    // Switch to inactive filter so the role is visible
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
+    await flushPromises();
+    const select = wrapper.findComponent({ name: 'UaSelect' });
+    await select.setValue('inactive');
+    await flushPromises();
+
+    const editButtons = Array.from(document.querySelectorAll('button')).filter((btn) => btn.title?.includes('Edit role'));
+    const deleteButtons = Array.from(document.querySelectorAll('button')).filter((btn) => btn.title?.includes('Delete role'));
+    expect(editButtons.length).toBe(0);
+    expect(deleteButtons.length).toBe(0);
+    wrapper.unmount();
+  });
+
+  it('shows action buttons for active roles', async () => {
+    const app = await createTestApp({
+      permissions: [Permissions.RolesEdit, Permissions.RolesExpire],
+    });
+    const roles: RoleDto[] = [
+      { id: 1, name: 'Active Role', description: 'Active', concurrencyToken: 0, permissions: [], deletedOn: null },
+    ];
+    server.use(getGetApiRolesMockHandler(() => roles));
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
+    await flushPromises();
+
+    const editButtons = Array.from(document.querySelectorAll('button')).filter((btn) => btn.title?.includes('Edit role'));
+    const deleteButtons = Array.from(document.querySelectorAll('button')).filter((btn) => btn.title?.includes('Delete role'));
+    expect(editButtons.length).toBeGreaterThan(0);
+    expect(deleteButtons.length).toBeGreaterThan(0);
+    wrapper.unmount();
+  });
 });

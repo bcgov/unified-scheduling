@@ -143,7 +143,7 @@ const handleRoleUpdated = async () => {
           <template #[`item.actions`]="{ item }">
             <div class="col-actions">
               <UaBtn
-                v-if="accessControl.hasPermission(Permissions.RolesEdit)"
+                v-if="accessControl.hasPermission(Permissions.RolesEdit) && !item.deletedOn"
                 icon
                 variant="text"
                 size="small"
@@ -154,7 +154,7 @@ const handleRoleUpdated = async () => {
                 <v-icon :icon="mdiPencil" />
               </UaBtn>
               <UaBtn
-                v-if="accessControl.hasPermission(Permissions.RolesExpire)"
+                v-if="accessControl.hasPermission(Permissions.RolesExpire) && !item.deletedOn"
                 icon
                 variant="text"
                 size="small"
