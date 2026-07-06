@@ -7,9 +7,11 @@ import UaCard from '@/shared/components/UaCard.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
+import UaSelect from '@/shared/components/UaSelect.vue';
 import { useAccessControl } from '@/composables/useAccessControl';
+import type { SelectOption } from '@/types/select';
 import { mdiDelete, mdiPencil, mdiPlus } from '@mdi/js';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import RoleDeleteModal from '../components/RoleDeleteModal.vue';
 import RoleFormModal from '../components/RoleFormModal.vue';
 
@@ -18,6 +20,27 @@ const accessControl = useAccessControl();
 
 // Data state
 const { data: roles, error: rolesError, isFetching: isFetchingRoles, execute: fetchRoles } = getApiRoles();
+
+// Filter state
+const selectedRoleFilter = ref<'active' | 'inactive'>('active');
+
+const roleFilterOptions: SelectOption[] = [
+  { code: 'active', description: 'Active' },
+  { code: 'inactive', description: 'Inactive' },
+];
+
+const filteredRoles = computed<RoleDto[]>(() => {
+  return (roles.value ?? []).filter((role) =>
+    selectedRoleFilter.value === 'inactive' ? role.deletedOn != null : role.deletedOn == null,
+  );
+});
+
+const emptyStateDescription = computed(() =>
+  selectedRoleFilter.value === 'inactive'
+    ? 'There are no inactive roles.'
+    : 'Create your first role to get started managing permissions.',
+);
+
 // Modal states
 const showCreateEditModal = ref(false);
 const showDeleteConfirm = ref(false);
@@ -94,53 +117,62 @@ const handleRoleUpdated = async () => {
     <!-- Loading State -->
     <div v-if="isFetchingRoles" class="loading-state">Loading roles...</div>
 
-    <!-- Roles Table -->
-    <UaCard v-else-if="roles && roles.length > 0" title="Available Roles">
-      <UaDataTable :headers="roleHeaders" :items="roles" :items-per-page="-1" density="comfortable" hide-default-footer>
-        <template #[`item.name`]="{ item }">
-          <span class="col-name">{{ item.name || '-' }}</span>
-        </template>
+    <template v-else>
+      <!-- Filter -->
+      <div class="roles-filters">
+        <UaSelect v-model="selectedRoleFilter" label="View" :items="roleFilterOptions" />
+      </div>
 
-        <template #[`item.description`]="{ item }">
-          {{ item.description || '-' }}
-        </template>
+      <!-- Roles Table -->
+      <UaCard v-if="filteredRoles.length > 0" title="Available Roles">
+        <UaDataTable
+          :headers="roleHeaders"
+          :items="filteredRoles"
+          :items-per-page="-1"
+          density="comfortable"
+          hide-default-footer
+        >
+          <template #[`item.name`]="{ item }">
+            <span class="col-name">{{ item.name || '-' }}</span>
+          </template>
 
-        <template #[`item.actions`]="{ item }">
-          <div class="col-actions">
-            <UaBtn
-              v-if="accessControl.hasPermission(Permissions.RolesEdit)"
-              icon
-              variant="text"
-              size="small"
-              aria-label="Edit role"
-              @click="handleEditRole(item)"
-              title="Edit role"
-            >
-              <v-icon :icon="mdiPencil" />
-            </UaBtn>
-            <UaBtn
-              v-if="accessControl.hasPermission(Permissions.RolesExpire)"
-              icon
-              variant="text"
-              size="small"
-              color="error"
-              aria-label="Delete role"
-              @click="handleDeleteRole(item)"
-              title="Delete role"
-            >
-              <v-icon :icon="mdiDelete" />
-            </UaBtn>
-          </div>
-        </template>
-      </UaDataTable>
-    </UaCard>
+          <template #[`item.description`]="{ item }">
+            {{ item.description || '-' }}
+          </template>
 
-    <!-- Empty State -->
-    <UaPlaceholderPage
-      v-else
-      title="No roles available"
-      description="Create your first role to get started managing permissions."
-    />
+          <template #[`item.actions`]="{ item }">
+            <div class="col-actions">
+              <UaBtn
+                v-if="accessControl.hasPermission(Permissions.RolesEdit)"
+                icon
+                variant="text"
+                size="small"
+                aria-label="Edit role"
+                @click="handleEditRole(item)"
+                title="Edit role"
+              >
+                <v-icon :icon="mdiPencil" />
+              </UaBtn>
+              <UaBtn
+                v-if="accessControl.hasPermission(Permissions.RolesExpire)"
+                icon
+                variant="text"
+                size="small"
+                color="error"
+                aria-label="Delete role"
+                @click="handleDeleteRole(item)"
+                title="Delete role"
+              >
+                <v-icon :icon="mdiDelete" />
+              </UaBtn>
+            </div>
+          </template>
+        </UaDataTable>
+      </UaCard>
+
+      <!-- Empty State -->
+      <UaPlaceholderPage v-else title="No roles available" :description="emptyStateDescription" />
+    </template>
 
     <!-- Create/Edit Modal -->
     <RoleFormModal
@@ -172,6 +204,10 @@ const handleRoleUpdated = async () => {
 
 .roles-alert {
   max-width: 100%;
+}
+
+.roles-filters {
+  width: min(280px, 100%);
 }
 
 .loading-state {

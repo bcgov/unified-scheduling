@@ -4,7 +4,7 @@ import { createTestApp } from '../../../helpers/createTestApp';
 import RolesPermissions from '@/modules/myteam/views/RolesPermissions.vue';
 import { server } from '../../../mocks/server';
 import { getGetApiRolesMockHandler } from '@/api-access/generated/roles/roles.msw';
-import { Permissions } from '@/api-access/generated/models';
+import { Permissions, type RoleDto } from '@/api-access/generated/models';
 
 describe('RolesPermissions', () => {
   beforeEach(() => {
@@ -181,5 +181,51 @@ describe('RolesPermissions', () => {
     const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
     await flushPromises();
     expect(wrapper.text()).toContain('Available Roles');
+  });
+
+  it('hides inactive roles by default (active filter)', async () => {
+    const app = await createTestApp();
+    const roles: RoleDto[] = [
+      { id: 1, name: 'Active Role', description: 'Active', concurrencyToken: 0, permissions: [], deletedOn: null },
+      {
+        id: 2,
+        name: 'Deleted Role',
+        description: 'Inactive',
+        concurrencyToken: 0,
+        permissions: [],
+        deletedOn: '2026-01-01T00:00:00Z',
+      },
+    ];
+    server.use(getGetApiRolesMockHandler(() => roles));
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
+    await flushPromises();
+    expect(wrapper.text()).toContain('Active Role');
+    expect(wrapper.text()).not.toContain('Deleted Role');
+  });
+
+  it('shows inactive roles when Inactive filter is selected', async () => {
+    const app = await createTestApp();
+    const roles: RoleDto[] = [
+      { id: 1, name: 'Active Role', description: 'Active', concurrencyToken: 0, permissions: [], deletedOn: null },
+      {
+        id: 2,
+        name: 'Deleted Role',
+        description: 'Inactive',
+        concurrencyToken: 0,
+        permissions: [],
+        deletedOn: '2026-01-01T00:00:00Z',
+      },
+    ];
+    server.use(getGetApiRolesMockHandler(() => roles));
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
+    await flushPromises();
+
+    // Switch filter to Inactive
+    const select = wrapper.findComponent({ name: 'UaSelect' });
+    await select.setValue('inactive');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Deleted Role');
+    expect(wrapper.text()).not.toContain('Active Role');
   });
 });

@@ -51,7 +51,7 @@ const roleNameById = computed(() => {
   return map;
 });
 
-const roleList = computed<RoleDto[]>(() => roles.value ?? []);
+const roleList = computed<RoleDto[]>(() => (roles.value ?? []).filter((r) => r.deletedOn == null));
 
 const userRoleRows = computed(() => assignedRoles.value ?? []);
 
