@@ -6,9 +6,6 @@
  */
 import { faker } from '@faker-js/faker';
 
-import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
-
 import type { SubCategoryResponse } from '../models';
 
 export const getGetApiStatsSubCategoriesResponseMock = (): SubCategoryResponse[] =>
@@ -59,51 +56,3 @@ export const getGetApiStatsSubCategoriesIdResponseMock = (
       ...overrideResponse,
     },
   ]);
-
-export const getGetApiStatsSubCategoriesMockHandler = (
-  overrideResponse?:
-    | SubCategoryResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<SubCategoryResponse[]> | SubCategoryResponse[]),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/sub-categories',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsSubCategoriesResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getGetApiStatsSubCategoriesIdMockHandler = (
-  overrideResponse?:
-    | SubCategoryResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<SubCategoryResponse> | SubCategoryResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/sub-categories/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsSubCategoriesIdResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-export const getSubCategoriesMock = () => [
-  getGetApiStatsSubCategoriesMockHandler(),
-  getGetApiStatsSubCategoriesIdMockHandler(),
-];

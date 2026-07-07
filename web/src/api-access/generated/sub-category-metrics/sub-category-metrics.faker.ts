@@ -6,9 +6,6 @@
  */
 import { faker } from '@faker-js/faker';
 
-import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
-
 import type { SubCategoryMetricResponse } from '../models';
 
 export const getGetApiStatsSubCategoryMetricsResponseMock = (): SubCategoryMetricResponse[] =>
@@ -59,55 +56,3 @@ export const getGetApiStatsSubCategoryMetricsIdResponseMock = (
       ...overrideResponse,
     },
   ]);
-
-export const getGetApiStatsSubCategoryMetricsMockHandler = (
-  overrideResponse?:
-    | SubCategoryMetricResponse[]
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<SubCategoryMetricResponse[]> | SubCategoryMetricResponse[]),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/sub-category-metrics',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsSubCategoryMetricsResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getGetApiStatsSubCategoryMetricsIdMockHandler = (
-  overrideResponse?:
-    | SubCategoryMetricResponse
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<SubCategoryMetricResponse> | SubCategoryMetricResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/sub-category-metrics/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsSubCategoryMetricsIdResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-export const getSubCategoryMetricsMock = () => [
-  getGetApiStatsSubCategoryMetricsMockHandler(),
-  getGetApiStatsSubCategoryMetricsIdMockHandler(),
-];

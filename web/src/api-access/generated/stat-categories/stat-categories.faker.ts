@@ -6,95 +6,65 @@
  */
 import { faker } from '@faker-js/faker';
 
-import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
+import type { StatCategoryResponse } from '../models';
 
-import type { StatGroupResponse } from '../models';
-
-export const getGetApiStatsGroupsResponseMock = (): StatGroupResponse[] =>
+export const getGetApiStatsCategoriesResponseMock = (): StatCategoryResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isArchived: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isHighSecurity: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isArchived: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isHighSecurity: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isArchived: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isHighSecurity: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
     })),
   ]);
 
-export const getGetApiStatsGroupsIdResponseMock = (
-  overrideResponse: Partial<Extract<StatGroupResponse, object>> = {},
-): StatGroupResponse =>
+export const getGetApiStatsCategoriesIdResponseMock = (
+  overrideResponse: Partial<Extract<StatCategoryResponse, object>> = {},
+): StatCategoryResponse =>
   faker.helpers.arrayElement([
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isArchived: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isHighSecurity: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isArchived: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isHighSecurity: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      groupId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isArchived: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isHighSecurity: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
   ]);
-
-export const getGetApiStatsGroupsMockHandler = (
-  overrideResponse?:
-    | StatGroupResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatGroupResponse[]> | StatGroupResponse[]),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/groups',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsGroupsResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getGetApiStatsGroupsIdMockHandler = (
-  overrideResponse?:
-    | StatGroupResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatGroupResponse> | StatGroupResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/groups/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsGroupsIdResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-export const getStatGroupsMock = () => [getGetApiStatsGroupsMockHandler(), getGetApiStatsGroupsIdMockHandler()];
