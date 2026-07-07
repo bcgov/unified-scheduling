@@ -69,7 +69,7 @@ updates:
 
   # Dev Container features
   - package-ecosystem: devcontainers
-    directory: /
+    directory: /.devcontainer
     schedule:
       interval: weekly
       day: monday
@@ -84,7 +84,7 @@ updates:
     groups:
       nuget-minor-patch:
         update-types: ["minor", "patch"]
-    # Only applies to non-grouped PRs (Major PRs)
+    # Limits total open Dependabot PRs for this ecosystem (grouped minor/patch + separate major PRs)
     open-pull-requests-limit: 10
 
   # NPM
@@ -103,5 +103,5 @@ updates:
         dependency-type: development
         update-types: ["minor", "patch"]
         patterns: ["*"]
-    # Only applies to non-grouped PRs (Major PRs)
+    # Limits total open Dependabot PRs for this ecosystem (grouped minor/patch + separate major PRs)
     open-pull-requests-limit: 10
