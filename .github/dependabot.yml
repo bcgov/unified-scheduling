@@ -14,15 +14,57 @@ updates:
 
   # Docker
   - package-ecosystem: docker
-    directories:
-      - /docker
-      - "/docker/**"
-      - /.devcontainer
+    directory: /docker
     schedule:
       interval: weekly
       day: monday
     groups:
-      docker-images:
+      docker-root:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /docker/api
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      docker-api:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /docker/web
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      docker-web:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /docker/vue-on-nginx
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      docker-vue-on-nginx:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /docker/nginx-runtime
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      docker-nginx-runtime:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /.devcontainer
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      docker-devcontainer:
         patterns: ["*"]
 
   # Dev Container features
@@ -42,6 +84,7 @@ updates:
     groups:
       nuget-minor-patch:
         update-types: ["minor", "patch"]
+    # Only applies to non-grouped PRs (Major PRs)
     open-pull-requests-limit: 10
 
   # NPM
@@ -60,4 +103,5 @@ updates:
         dependency-type: development
         update-types: ["minor", "patch"]
         patterns: ["*"]
+    # Only applies to non-grouped PRs (Major PRs)
     open-pull-requests-limit: 10
