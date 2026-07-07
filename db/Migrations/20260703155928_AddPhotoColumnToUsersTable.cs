@@ -15,25 +15,23 @@ namespace Unified.Db.Migrations
                 name: "LastPhotoUpdate",
                 table: "Users",
                 type: "timestamp with time zone",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<byte[]>(
                 name: "Photo",
                 table: "Users",
                 type: "bytea",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "LastPhotoUpdate",
-                table: "Users");
+            migrationBuilder.DropColumn(name: "LastPhotoUpdate", table: "Users");
 
-            migrationBuilder.DropColumn(
-                name: "Photo",
-                table: "Users");
+            migrationBuilder.DropColumn(name: "Photo", table: "Users");
         }
     }
 }
