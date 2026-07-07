@@ -16,7 +16,7 @@ describe('UserProfile', () => {
     });
 
     const userId = 'test-user-id';
-    const user = getGetApiUsersIdResponseMock();
+    const user = getGetApiUsersIdResponseMock({ photoUrl: null });
 
     server.use(
       getGetApiUsersIdMockHandler((info) => {
