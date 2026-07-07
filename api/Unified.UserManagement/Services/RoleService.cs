@@ -25,7 +25,6 @@ public sealed class RoleService(
 
         var roles = await DB
             .Roles.AsNoTracking()
-            .Where(r => r.DeletedById == null)
             .Include(r => r.RolePermissions)
                 .ThenInclude(rp => rp.Permission)
             .OrderBy(x => x.Name)
@@ -316,6 +315,8 @@ public sealed class RoleService(
             Name = role.Name,
             Description = role.Description,
             ConcurrencyToken = role.ConcurrencyToken,
+            DeletedOn = role.DeletedOn,
+            DeletedById = role.DeletedById,
             Permissions = role.RolePermissions.Select(rp => rp.Permission.Adapt<PermissionDto>()).ToList(),
         };
 }

@@ -11,5 +11,9 @@ export interface RoleDto {
   name?: string;
   description?: string;
   concurrencyToken?: number;
+  /** @nullable */
+  deletedOn?: string | null;
+  /** @nullable */
+  deletedById?: string | null;
   permissions?: PermissionDto[];
 }

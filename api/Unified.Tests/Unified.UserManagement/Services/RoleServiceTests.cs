@@ -121,21 +121,24 @@ public class RoleServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetAllAsync_Should_Exclude_Soft_Deleted_Roles()
+    public async Task GetAllAsync_Should_Include_Soft_Deleted_Roles_With_DeletedFields_Populated()
     {
         // Arrange
         await SeedRoles();
         var deletedRole = await _dbContext.Roles.FirstAsync(r => r.Id == 2, TestContext.Current.CancellationToken);
-        deletedRole.DeletedOn = DateTimeOffset.UtcNow;
+        var deletedOn = DateTimeOffset.UtcNow;
+        deletedRole.DeletedOn = deletedOn;
         deletedRole.DeletedById = User.SystemUser;
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _roleService.GetAllAsync(TestContext.Current.CancellationToken);
 
-        // Assert
-        Assert.Equal(2, result.Count);
-        Assert.DoesNotContain(result, r => r.Id == 2);
+        // Assert — all 3 roles returned, deleted role has fields mapped
+        Assert.Equal(3, result.Count);
+        var dto = result.Single(r => r.Id == 2);
+        Assert.NotNull(dto.DeletedOn);
+        Assert.Equal(User.SystemUser, dto.DeletedById);
     }
 
     [Fact]
