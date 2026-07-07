@@ -37,11 +37,11 @@ public static class TrainingModule
             .AddPermissionPolicy(Permissions.TrainingsCreate)
             .AddPermissionPolicy(Permissions.TrainingsEdit)
             .AddPermissionPolicy(Permissions.TrainingsDelete)
-            .AddPermissionPolicy(Permissions.TrainingRecordsManageForOthers)
-            .AddPermissionPolicy(Permissions.TrainingEditPast)
-            .AddPermissionPolicy(Permissions.TrainingRemovePast)
-            .AddPermissionPolicy(Permissions.TrainingAdjustExpiry)
-            .AddPermissionPolicy(Permissions.TrainingExempt);
+            .AddPermissionPolicy(Permissions.TrainingsRecordsManageForOthers)
+            .AddPermissionPolicy(Permissions.TrainingsEditPast)
+            .AddPermissionPolicy(Permissions.TrainingsRemovePast)
+            .AddPermissionPolicy(Permissions.TrainingsAdjustExpiry)
+            .AddPermissionPolicy(Permissions.TrainingsExempt);
 
         return services;
     }

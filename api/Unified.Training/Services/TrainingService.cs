@@ -1,5 +1,6 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Training.Models;
 using TrainingEntity = Unified.Db.Models.Training.Training;
@@ -35,7 +36,6 @@ public sealed class TrainingService(UnifiedDbContext db) : ITrainingService
         await EnsureCategoryExistsAsync(request.TrainingCategoryId, cancellationToken);
 
         var normalizedRequest = NormalizeRequest(request);
-        await EnsureCodeUniqueAsync(normalizedRequest.Code, excludeId: null, cancellationToken);
 
         var entity = normalizedRequest.Adapt<TrainingEntity>();
 
@@ -58,7 +58,6 @@ public sealed class TrainingService(UnifiedDbContext db) : ITrainingService
         await EnsureCategoryExistsAsync(request.TrainingCategoryId, cancellationToken);
 
         var normalizedRequest = NormalizeRequest(request);
-        await EnsureCodeUniqueAsync(normalizedRequest.Code, id, cancellationToken);
 
         normalizedRequest.Adapt(entity);
 
@@ -72,12 +71,6 @@ public sealed class TrainingService(UnifiedDbContext db) : ITrainingService
         var entity = await db.Trainings.SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
         if (entity is null)
             return false;
-
-        var inUse = await db.UserTrainings.AnyAsync(ut => ut.TrainingId == id, cancellationToken);
-        if (inUse)
-            throw new InvalidOperationException(
-                "Cannot delete a training type that has assigned user training records."
-            );
 
         db.Trainings.Remove(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -96,18 +89,6 @@ public sealed class TrainingService(UnifiedDbContext db) : ITrainingService
 
         if (!categoryExists)
             throw new InvalidOperationException("Training category was not found.");
-    }
-
-    private async Task EnsureCodeUniqueAsync(string code, int? excludeId, CancellationToken cancellationToken)
-    {
-        var codeUpper = code.ToUpperInvariant();
-        var exists = await db.Trainings.AnyAsync(
-            t => (excludeId == null || t.Id != excludeId) && t.Code.ToUpper() == codeUpper,
-            cancellationToken
-        );
-
-        if (exists)
-            throw new InvalidOperationException("A training type with this code already exists.");
     }
 
     private async Task<TrainingResponse> GetRequiredByIdAsync(int id, CancellationToken cancellationToken) =>

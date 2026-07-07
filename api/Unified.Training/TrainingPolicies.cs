@@ -17,13 +17,14 @@ public static class TrainingPolicies
 
     public const string TrainingsDelete = AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingsDelete);
 
-    public const string TrainingRecordsManageForOthers =
-        AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingRecordsManageForOthers);
+    public const string TrainingsRecordsManageForOthers =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingsRecordsManageForOthers);
 
-    public const string TrainingEditPast = AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingEditPast);
+    public const string TrainingsEditPast = AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingsEditPast);
 
-    public const string TrainingRemovePast = AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingRemovePast);
+    public const string TrainingsRemovePast =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingsRemovePast);
 
-    public const string TrainingAdjustExpiry =
-        AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingAdjustExpiry);
+    public const string TrainingsAdjustExpiry =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.TrainingsAdjustExpiry);
 }

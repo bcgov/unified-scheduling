@@ -42,31 +42,31 @@ public static class TrainingPermissionSeedData
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingRecordsManageForOthers),
+                    Id = nameof(Permissions.TrainingsRecordsManageForOthers),
                     Description = "Create, update, and delete training records on behalf of other users",
                 },
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingEditPast),
+                    Id = nameof(Permissions.TrainingsEditPast),
                     Description = "Edit training records where the awarded date is in the past",
                 },
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingRemovePast),
+                    Id = nameof(Permissions.TrainingsRemovePast),
                     Description = "Remove training records where the awarded date is in the past",
                 },
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingAdjustExpiry),
+                    Id = nameof(Permissions.TrainingsAdjustExpiry),
                     Description = "Manually override the expiry date on a training record",
                 },
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingExempt),
+                    Id = nameof(Permissions.TrainingsExempt),
                     Description = "Exempt a user from mandatory training requirements",
                 },
             ],
