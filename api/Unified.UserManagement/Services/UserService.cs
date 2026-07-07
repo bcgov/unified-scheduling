@@ -2,6 +2,7 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Common.Helpers.Extensions;
+using Unified.Db.Extensions;
 using Unified.Common.Logging;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;

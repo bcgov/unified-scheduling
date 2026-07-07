@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Authorization.Claims;
 using Unified.Common.Helpers.Extensions;
+using Unified.Db.Extensions;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;

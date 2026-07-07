@@ -1,7 +1,7 @@
-using Unified.Common.Helpers.Extensions;
+using Unified.Db.Extensions;
 using Unified.Db.Models.Abstract;
 
-namespace Unified.Tests.Unified.Common.Helpers.Extensions;
+namespace Unified.Tests.Unified.Db.Extensions;
 
 public class QueryExtensionsTests
 {

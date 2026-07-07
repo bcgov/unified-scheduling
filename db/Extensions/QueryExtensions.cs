@@ -1,6 +1,6 @@
 using Unified.Db.Models.Abstract;
 
-namespace Unified.Common.Helpers.Extensions;
+namespace Unified.Db.Extensions;
 
 public static class QueryExtensions
 {
