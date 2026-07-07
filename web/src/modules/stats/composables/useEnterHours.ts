@@ -32,6 +32,16 @@ export function useEnterHours(groupId: number) {
 
   const canEnterForOthers = computed(() => hasPermission(Permissions.StatsRecordsEnterForOthers));
 
+  const accountWarning = computed(() => {
+    if (!authStore.currentUserId) {
+      return 'Your account is not set up for time entry. Please contact your administrator to ensure your user profile is created and enabled.';
+    }
+    if (!authStore.homeLocationId && !canEnterForOthers.value) {
+      return 'Your account does not have a home location assigned. Please contact your administrator.';
+    }
+    return null;
+  });
+
   // ── Deep-link query params (optional pre-seed from dashboard edit) ─────────
   const seedUserId = route.query.userId as string | undefined;
   const parsedLocationId = Number(route.query.locationId);
@@ -301,6 +311,7 @@ export function useEnterHours(groupId: number) {
   });
 
   return {
+    accountWarning,
     canEnterForOthers,
     seedLocationId,
     seedUserId,
