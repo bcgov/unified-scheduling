@@ -186,7 +186,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
             )
             : null;
 
-        var roleExists = await DB.Roles.AnyAsync(r => r.Id == request.RoleId, cancellationToken);
+        var roleExists = await DB.Roles.WhereActive().AnyAsync(r => r.Id == request.RoleId, cancellationToken);
         if (!roleExists)
         {
             throw new KeyNotFoundException($"Role {request.RoleId} not found.");
