@@ -68,8 +68,10 @@ updates:
         patterns: ["*"]
 
   # Dev Container features
+  # directory is the repo root; Dependabot discovers .devcontainer/devcontainer.json
+  # (any valid dev container location) relative to it.
   - package-ecosystem: devcontainers
-    directory: /.devcontainer
+    directory: /
     schedule:
       interval: weekly
       day: monday
@@ -84,7 +86,7 @@ updates:
     groups:
       nuget-minor-patch:
         update-types: ["minor", "patch"]
-    # Limits total open Dependabot PRs for this ecosystem (grouped minor/patch + separate major PRs)
+    # Caps total open version-update PRs for this ecosystem (grouped and individual alike)
     open-pull-requests-limit: 10
 
   # NPM
@@ -103,5 +105,5 @@ updates:
         dependency-type: development
         update-types: ["minor", "patch"]
         patterns: ["*"]
-    # Limits total open Dependabot PRs for this ecosystem (grouped minor/patch + separate major PRs)
+    # Caps total open version-update PRs for this ecosystem (grouped and individual alike)
     open-pull-requests-limit: 10
