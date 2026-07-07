@@ -2,51 +2,62 @@
 #   - https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
-  # Maintain dependencies for GitHub Actions
-  #  - Check for updates once a week
-  #  - Group all updates into a single PR
+  # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: monday
     groups:
-      all-actions:
-        patterns: [ "*" ]
+      github-actions:
+        patterns: ["*"]
 
-  # Maintain dependencies for docker
-  - package-ecosystem: "docker"
-    directory: "/docker"
+  # Docker
+  - package-ecosystem: docker
+    directories:
+      - /docker
+      - "/docker/**"
+      - /.devcontainer
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    groups:
+      docker-images:
+        patterns: ["*"]
 
-  - package-ecosystem: "docker"
-    directory: "/docker/api"
+  # Dev Container features
+  - package-ecosystem: devcontainers
+    directory: /
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
 
-  - package-ecosystem: "docker"
-    directory: "/docker/nginx-runtime"
+  # NuGet
+  # Minor + patch grouped into one PR; each major gets its own PR for deliberate review.
+  - package-ecosystem: nuget
+    directory: /
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    groups:
+      nuget-minor-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 10
 
-  - package-ecosystem: "docker"
-    directory: "/docker/web"
+  # NPM
+  # Minor + patch grouped into one PR; each major gets its own PR for deliberate review.
+  - package-ecosystem: npm
+    directory: /web
     schedule:
-      interval: "weekly"
-
-  # Maintain dependencies for Nuget
-  - package-ecosystem: "nuget"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-
-  # Maintain dependencies for NPM
-  - package-ecosystem: "npm"
-    directory: "/web"
-    schedule:
-      interval: "daily"
-    cooldown:
-      default-days: 30  # Fallback cooldown if no other rule applies
-      semver-major-days: 30  # Cooldown for major version updates
-      semver-minor-days: 30  # Cooldown for minor version updates
-      semver-patch-days: 30  # Cooldown for patch updates
+      interval: weekly
+      day: monday
+    groups:
+      npm-production-minor-patch:
+        dependency-type: production
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+      npm-development-minor-patch:
+        dependency-type: development
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+    open-pull-requests-limit: 10
