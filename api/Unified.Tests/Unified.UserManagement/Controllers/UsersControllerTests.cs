@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Unified.Common.ImageFormat;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.Models;
+using Unified.UserManagement.Options;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
 
@@ -14,18 +15,14 @@ public class UsersControllerTests
 {
     private static UsersController CreateController(FakeUserService fakeService, long uploadSizeLimitKb = 5120)
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(
-                new Dictionary<string, string?> { ["UploadPhotoSizeLimitKB"] = uploadSizeLimitKb.ToString() }
-            )
-            .Build();
+        var options = Options.Create(new UserManagementOptions { UploadPhotoSizeLimitKb = uploadSizeLimitKb });
 
         return new UsersController(
             fakeService,
             new UserRequestValidator(),
             new AssignUserRoleRequestValidator(),
             new ExpireUserRoleRequestValidator(),
-            config
+            options
         );
     }
 

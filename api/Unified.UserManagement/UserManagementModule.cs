@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
+using Unified.UserManagement.Options;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
@@ -31,6 +32,12 @@ public static class UserManagementModule
                 dest => dest.PhotoUrl,
                 src => src.Photo != null && src.Photo.Length > 0 ? "/api/users/" + src.Id + "/photo" : null
             );
+
+        services
+            .AddOptions<UserManagementOptions>()
+            .BindConfiguration(UserManagementOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();

@@ -2,9 +2,10 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Unified.Common.ImageFormat;
 using Unified.UserManagement.Models;
+using Unified.UserManagement.Options;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
 
@@ -18,15 +19,10 @@ public class UsersController(
     UserRequestValidator userRequestValidator,
     AssignUserRoleRequestValidator assignUserRoleRequestValidator,
     ExpireUserRoleRequestValidator expireUserRoleRequestValidator,
-    IConfiguration configuration
+    IOptions<UserManagementOptions> userManagementOptions
 ) : ControllerBase
 {
-    private readonly long _uploadPhotoSizeLimitKb = long.TryParse(
-        configuration["UploadPhotoSizeLimitKB"],
-        out var limit
-    )
-        ? limit
-        : 400;
+    private readonly long _uploadPhotoSizeLimitKb = userManagementOptions.Value.UploadPhotoSizeLimitKb;
 
     /// <summary>
     /// Returns users filtered by optional query parameters.
