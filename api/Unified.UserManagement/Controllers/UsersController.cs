@@ -189,7 +189,6 @@ public class UsersController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The photo file if found.</returns>
     [HttpGet("{id:guid}/photo")]
-    [AllowAnonymous]
     [Produces("image/jpeg", "image/png")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
