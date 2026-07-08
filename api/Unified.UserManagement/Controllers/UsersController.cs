@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Unified.Common.ImageFormat;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
@@ -20,7 +21,12 @@ public class UsersController(
     IConfiguration configuration
 ) : ControllerBase
 {
-    private readonly long _uploadPhotoSizeLimitKb = long.Parse(configuration["UploadPhotoSizeLimitKB"] ?? "5120");
+    private readonly long _uploadPhotoSizeLimitKb = long.TryParse(
+        configuration["UploadPhotoSizeLimitKB"],
+        out var limit
+    )
+        ? limit
+        : 400;
 
     /// <summary>
     /// Returns users filtered by optional query parameters.
@@ -184,7 +190,8 @@ public class UsersController(
     /// <returns>The photo file if found.</returns>
     [HttpGet("{id:guid}/photo")]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [Produces("image/jpeg", "image/png")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPhoto(Guid id, CancellationToken cancellationToken)
     {
@@ -194,7 +201,8 @@ public class UsersController(
             return NotFound();
         }
 
-        return File(photo, "image/jpeg");
+        var contentType = ImageFormatDetector.Detect(photo) ?? ImageFormatDetector.JpegContentType;
+        return File(photo, contentType);
     }
 
     /// <summary>
@@ -217,18 +225,26 @@ public class UsersController(
     {
         if (photo is null || photo.Length == 0)
         {
-            return BadRequest("No photo provided.");
+            throw new InvalidOperationException("No photo provided.");
         }
 
         if (photo.Length > _uploadPhotoSizeLimitKb * 1024)
         {
-            return BadRequest($"File size {photo.Length / 1024} KB exceeds the {_uploadPhotoSizeLimitKb} KB limit.");
+            throw new InvalidOperationException(
+                $"File size {photo.Length / 1024} KB exceeds the {_uploadPhotoSizeLimitKb} KB limit."
+            );
         }
 
         using var ms = new MemoryStream();
         await photo.CopyToAsync(ms, cancellationToken);
+        var bytes = ms.ToArray();
 
-        var user = await userService.UploadPhotoAsync(id, ms.ToArray(), cancellationToken);
+        if (ImageFormatDetector.Detect(bytes) is null)
+        {
+            throw new InvalidOperationException("Only JPEG and PNG images are supported.");
+        }
+
+        var user = await userService.UploadPhotoAsync(id, bytes, cancellationToken);
         if (user is null)
         {
             return NotFound();

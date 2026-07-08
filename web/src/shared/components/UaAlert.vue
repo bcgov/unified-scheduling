@@ -20,9 +20,3 @@ const emit = defineEmits<{
     <slot />
   </v-alert>
 </template>
-
-<style scoped>
-.ua-alert {
-  margin-bottom: var(--ua-spacing-md);
-}
-</style>

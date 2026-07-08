@@ -200,7 +200,11 @@ const handleSave = async () => {
       const { data: photoData, error: photoError } = await postApiUsersIdUploadPhoto(userId, {
         photo: photoFile.value,
       });
-      if (!photoError.value && photoData.value) {
+      if (photoError.value) {
+        apiErrorMessage.value = photoError.value.detail || 'Failed to upload photo';
+        return;
+      }
+      if (photoData.value) {
         savedUser = photoData.value;
       }
     }
@@ -243,7 +247,7 @@ const handleSave = async () => {
       <input
         ref="fileInputRef"
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png"
         style="display: none"
         @change="onFileChange"
       />

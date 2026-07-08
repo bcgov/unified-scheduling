@@ -35,7 +35,12 @@ onMounted(async () => {
 <template>
   <UaCard class="user-card" @click="gotoProfile">
     <v-avatar color="grey" size="80">
-      <v-img v-if="user.photoUrl" :src="user.photoUrl" cover :alt="initials" />
+      <v-img
+        v-if="user.photoUrl"
+        :src="`${user.photoUrl}?t=${user.lastPhotoUpdate ?? user.id}`"
+        cover
+        :alt="initials"
+      />
       <span v-else class="text-headline-small">{{ initials }}</span>
     </v-avatar>
     <div :title="fullName" class="user-card-title">

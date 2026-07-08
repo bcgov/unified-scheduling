@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Unified.Common.ImageFormat;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.Models;
@@ -308,6 +309,11 @@ public class UsersControllerTests
         );
     }
 
+    // Smallest valid byte sequences recognised by ImageFormatDetector.
+    private static byte[] MinimalJpeg() => [.. ImageFormatDetector.JpegSignature, 0xE0];
+
+    private static byte[] MinimalPng() => [.. ImageFormatDetector.PngSignature];
+
     private static UserResponse CreateUserResponse(string firstName, string lastName)
     {
         return new UserResponse
@@ -370,7 +376,7 @@ public class UsersControllerTests
         };
         var fakeService = new FakeUserService { UploadPhotoResult = updatedUser };
         var controller = CreateController(fakeService);
-        var photoBytes = "fake-image-data"u8.ToArray();
+        var photoBytes = MinimalJpeg();
         IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "avatar.jpg");
 
         // Act
@@ -391,7 +397,7 @@ public class UsersControllerTests
         // Arrange
         var fakeService = new FakeUserService { UploadPhotoResult = null };
         var controller = CreateController(fakeService);
-        var photoBytes = "fake-image-data"u8.ToArray();
+        var photoBytes = MinimalJpeg();
         IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "avatar.jpg");
 
         // Act
@@ -402,7 +408,22 @@ public class UsersControllerTests
     }
 
     [Fact]
-    public async Task UploadPhoto_Should_Return_BadRequest_When_File_Exceeds_Size_Limit()
+    public async Task UploadPhoto_Should_Throw_When_Format_Is_Unsupported()
+    {
+        // Arrange — file bytes do not match JPEG or PNG magic
+        var fakeService = new FakeUserService { UploadPhotoResult = CreateUserResponse("A", "B") };
+        var controller = CreateController(fakeService);
+        var photoBytes = "fake-image-data"u8.ToArray();
+        IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "image.webp");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            controller.UploadPhoto(Guid.NewGuid(), formFile, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task UploadPhoto_Should_Throw_When_File_Exceeds_Size_Limit()
     {
         // Arrange — limit set to 1 KB, file is 2 KB
         var fakeService = new FakeUserService { UploadPhotoResult = CreateUserResponse("A", "B") };
@@ -410,11 +431,10 @@ public class UsersControllerTests
         var photoBytes = new byte[2 * 1024]; // 2 KB
         IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "big.jpg");
 
-        // Act
-        var result = await controller.UploadPhoto(Guid.NewGuid(), formFile, TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.IsType<BadRequestObjectResult>(result.Result);
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            controller.UploadPhoto(Guid.NewGuid(), formFile, TestContext.Current.CancellationToken)
+        );
     }
 
     private sealed class FakeUserService : IUserService

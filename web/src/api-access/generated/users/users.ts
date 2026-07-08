@@ -7,7 +7,6 @@
 import type {
   AssignUserRoleRequestDto,
   ExpireUserRoleRequestDto,
-  FileContentResult,
   GetApiUsersParams,
   PostApiUsersIdUploadPhotoBody,
   UserRequestDto,
@@ -83,8 +82,8 @@ export const postApiUsersIdRolesExpire = (
     options,
   );
 };
-export const getApiUsersIdPhoto = (id: string, options?: SecondParameter<typeof useFetchAPI<FileContentResult>>) => {
-  return useFetchAPI<FileContentResult>({ url: `/api/users/${id}/photo`, method: 'GET' }, options);
+export const getApiUsersIdPhoto = (id: string, options?: SecondParameter<typeof useFetchAPI<Blob>>) => {
+  return useFetchAPI<Blob>({ url: `/api/users/${id}/photo`, method: 'GET' }, options);
 };
 export const postApiUsersIdUploadPhoto = (
   id: string,

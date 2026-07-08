@@ -10,7 +10,7 @@ import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
 import { Gender } from '../models';
-import type { EntityTagHeaderValue, FileContentResult, UserResponse, UserRoleResponseDto } from '../models';
+import type { UserResponse, UserRoleResponseDto } from '../models';
 
 export const getGetApiUsersResponseMock = (): UserResponse[] =>
   faker.helpers.arrayElement([
@@ -359,113 +359,8 @@ export const getPostApiUsersIdRolesExpireResponseMock = (
     },
   ]);
 
-export const getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock = (
-  overrideResponse: Partial<EntityTagHeaderValue> = {},
-): EntityTagHeaderValue => ({
-  tag: faker.helpers.arrayElement([
-    {
-      buffer: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([
-          faker.string.alpha({
-            length: {
-              min: 10,
-              max: 20,
-            },
-          }),
-          null,
-        ]),
-        undefined,
-      ]),
-      offset: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      length: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      value: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([
-          faker.string.alpha({
-            length: {
-              min: 10,
-              max: 20,
-            },
-          }),
-          null,
-        ]),
-        undefined,
-      ]),
-      hasValue: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-    },
-    undefined,
-  ]),
-  isWeak: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-  ...overrideResponse,
-});
-
-export const getGetApiUsersIdPhotoResponseMock = (
-  overrideResponse: Partial<Extract<FileContentResult, object>> = {},
-): FileContentResult =>
-  faker.helpers.arrayElement([
-    {
-      fileContents: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      contentType: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      fileDownloadName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      lastModified: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      entityTag: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([null, { ...getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock() }]),
-        undefined,
-      ]),
-      enableRangeProcessing: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      ...overrideResponse,
-    },
-    {
-      fileContents: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      contentType: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      fileDownloadName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      lastModified: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      entityTag: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([null, { ...getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock() }]),
-        undefined,
-      ]),
-      enableRangeProcessing: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      ...overrideResponse,
-    },
-    {
-      fileContents: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      contentType: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      fileDownloadName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      lastModified: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      entityTag: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([null, { ...getGetApiUsersIdPhotoResponseEntityTagHeaderValueMock() }]),
-        undefined,
-      ]),
-      enableRangeProcessing: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      ...overrideResponse,
-    },
-  ]);
+export const getGetApiUsersIdPhotoResponseMock = (): Blob =>
+  new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], { type: 'image/jpeg' });
 
 export const getPostApiUsersIdUploadPhotoResponseMock = (
   overrideResponse: Partial<Extract<UserResponse, object>> = {},
@@ -724,22 +619,22 @@ export const getPostApiUsersIdRolesExpireMockHandler = (
 };
 
 export const getGetApiUsersIdPhotoMockHandler = (
-  overrideResponse?:
-    | FileContentResult
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<FileContentResult> | FileContentResult),
+  overrideResponse?: Blob | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<Blob> | Blob),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/users/:id/photo',
     async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
+      const body =
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
             ? await overrideResponse(info)
             : overrideResponse
-          : getGetApiUsersIdPhotoResponseMock(),
-        { status: 200 },
-      );
+          : getGetApiUsersIdPhotoResponseMock();
+      return HttpResponse.arrayBuffer(await body.arrayBuffer(), {
+        status: 200,
+        headers: { 'Content-Type': body.type || 'image/jpeg' },
+      });
     },
     options,
   );

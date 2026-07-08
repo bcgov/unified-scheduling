@@ -61,8 +61,11 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
 
     public async Task<UserResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var user = await DB.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
-        return user?.Adapt<UserResponse>();
+        return await DB
+            .Users.AsNoTracking()
+            .Where(x => x.Id == id)
+            .ProjectToType<UserResponse>()
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default)
