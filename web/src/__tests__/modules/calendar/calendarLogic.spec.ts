@@ -14,6 +14,8 @@ import {
   toCalendarDateOnly,
 } from '@/utils/date';
 import { getCalendarEventDateKey } from '@/modules/calendarMatrixTest/calendarMatrixTestMappers';
+import { CalendarEventStatusTypeCode, CalendarEventType, CalendarEventTypeCode } from '@/api-access/generated/models';
+import type { ApiCalendarEventResponse } from '@/api-access/calendar';
 import { selectCalendarEvents, selectContribution } from '@/modules/calendar/calendarSelectors';
 import { mapApiCalendarEventToCalendarEventBase } from '@/modules/calendar/contributions/calendarEventMappers';
 import { buildCalendarPeriodSelectOptions, DEFAULT_CALENDAR_PERIODS } from '@/modules/calendar/calendarPeriodOptions';
@@ -167,16 +169,16 @@ describe('calendar event mappers', () => {
         allDay: true,
         isException: false,
         eventTypeCode: '',
-        statusTypeCode: 'active',
+        statusTypeCode: CalendarEventStatusTypeCode.Active,
         sourceModule: 'calendar',
-      }),
+      } as unknown as ApiCalendarEventResponse),
     ).toMatchObject({
       id: '10',
-      type: 'calendar.general',
+      type: CalendarEventType.CalendarEvent,
       start: '2025-07-01',
       end: '2025-07-02',
-      eventTypeCode: 'general',
-      statusTypeCode: 'active',
+      eventTypeCode: CalendarEventTypeCode.General,
+      statusTypeCode: CalendarEventStatusTypeCode.Active,
     });
   });
 
@@ -189,17 +191,18 @@ describe('calendar event mappers', () => {
         endAtUtc: '2025-07-01T10:00:00Z',
         allDay: false,
         isException: true,
-        eventTypeCode: 'deadline',
-        statusTypeCode: 'draft',
+        type: CalendarEventType.CalendarEvent,
+        eventTypeCode: CalendarEventTypeCode.Deadline,
+        statusTypeCode: CalendarEventStatusTypeCode.Draft,
         sourceModule: 'calendar',
       }),
     ).toMatchObject({
       id: '11',
-      type: 'calendar.deadline',
+      type: CalendarEventType.CalendarEvent,
       start: '2025-07-01T09:00:00Z',
       end: '2025-07-01T10:00:00Z',
       isException: true,
-      eventTypeCode: 'deadline',
+      eventTypeCode: CalendarEventTypeCode.Deadline,
     });
   });
 });

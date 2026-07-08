@@ -8,6 +8,29 @@ public static class CalendarConstants
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CalendarEventType
+{
+    [JsonStringEnumMemberName("calendar.event")]
+    CalendarEvent,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CalendarEventStatus
+{
+    [JsonStringEnumMemberName("Active")]
+    Active,
+
+    [JsonStringEnumMemberName("Draft")]
+    Draft,
+
+    [JsonStringEnumMemberName("Draft Item")]
+    DraftItem,
+
+    [JsonStringEnumMemberName("Cancelled")]
+    Cancelled,
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CalendarEventTypeCode
 {
     General,
@@ -41,6 +64,15 @@ public static class CalendarCodeMappings
             CalendarEventStatusTypeCode.Active => Unified.Db.Models.Calendar.CalendarEventStatusTypeCodes.Active,
             CalendarEventStatusTypeCode.Cancelled => Unified.Db.Models.Calendar.CalendarEventStatusTypeCodes.Cancelled,
             _ => throw new InvalidOperationException($"Unknown calendar event status enum '{code}'."),
+        };
+
+    public static CalendarEventStatus ToEventStatus(string dbCode) =>
+        dbCode switch
+        {
+            Unified.Db.Models.Calendar.CalendarEventStatusTypeCodes.Draft => CalendarEventStatus.Draft,
+            Unified.Db.Models.Calendar.CalendarEventStatusTypeCodes.Active => CalendarEventStatus.Active,
+            Unified.Db.Models.Calendar.CalendarEventStatusTypeCodes.Cancelled => CalendarEventStatus.Cancelled,
+            _ => throw new InvalidOperationException($"Unknown calendar event status code '{dbCode}'."),
         };
 
     public static CalendarEventTypeCode ToEventTypeCode(string dbCode) =>

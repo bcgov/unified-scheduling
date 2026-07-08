@@ -29,6 +29,8 @@ export interface CalendarEventResponse {
   timeZoneId?: string | null;
   allDay?: boolean;
   isException?: boolean;
+  type?: CalendarEventType;
+  status?: CalendarEventStatus;
   eventTypeCode: CalendarEventTypeCode;
   statusTypeCode: CalendarEventStatusTypeCode;
   /** @nullable */

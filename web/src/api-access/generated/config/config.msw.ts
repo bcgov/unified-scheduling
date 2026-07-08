@@ -18,7 +18,7 @@ export const getGetApiConfigResponseMock = (
     {
       featureFlags: {
         calendarModule: faker.datatype.boolean(),
-        calendarMatrixTestModule: faker.datatype.boolean(),
+        calendarMatrixTestModule: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
         schedulingModule: faker.datatype.boolean(),
         statsModule: faker.datatype.boolean(),
         trainingModule: faker.datatype.boolean(),
@@ -38,7 +38,7 @@ export const getGetApiConfigResponseMock = (
     {
       featureFlags: {
         calendarModule: faker.datatype.boolean(),
-        calendarMatrixTestModule: faker.datatype.boolean(),
+        calendarMatrixTestModule: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
         schedulingModule: faker.datatype.boolean(),
         statsModule: faker.datatype.boolean(),
         trainingModule: faker.datatype.boolean(),
@@ -58,7 +58,7 @@ export const getGetApiConfigResponseMock = (
     {
       featureFlags: {
         calendarModule: faker.datatype.boolean(),
-        calendarMatrixTestModule: faker.datatype.boolean(),
+        calendarMatrixTestModule: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
         schedulingModule: faker.datatype.boolean(),
         statsModule: faker.datatype.boolean(),
         trainingModule: faker.datatype.boolean(),

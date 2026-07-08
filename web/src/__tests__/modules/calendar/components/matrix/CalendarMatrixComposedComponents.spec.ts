@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import { CalendarEventType } from '@/api-access/generated/models';
 import type { CalendarEventBase, CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
 import CalendarMatrixCell from '@/modules/calendar/components/matrix/CalendarMatrixCell.vue';
 import CalendarMatrixGrid from '@/modules/calendar/components/matrix/CalendarMatrixGrid.vue';
@@ -16,7 +17,7 @@ import { useCalendarStore } from '@/modules/calendar/calendarStore';
 
 const event: CalendarEventBase = {
   id: 'event-1',
-  type: 'calendar.event',
+  type: CalendarEventType.CalendarEvent,
   sourceModule: 'calendar',
   title: 'Event One',
   start: '2025-01-13T09:00:00Z',
@@ -303,8 +304,7 @@ describe('CalendarMatrixView', () => {
         stubs: {
           CalendarMatrixGrid: {
             props: ['model'],
-            template:
-              "<div><button class=\"grid-event-click\" @click=\"$emit('eventClick', { id: 'event-1', type: 'calendar.event', sourceModule: 'calendar', title: 'Event One', start: '2025-01-13T09:00:00Z' })\" /><button class=\"grid-cell-drop\" @click=\"$emit('cellDrop', { drag: { source: 'side-panel', itemId: 'item-1', itemType: 'user' }, drop: { resourceId: 'resource-1', date: '2025-01-13' } })\" /><button class=\"grid-header-click\" @click=\"$emit('headerClick', { cell: { resourceId: 'resource-1', date: '2025-01-13', groups: [] }, header: { text: 'Header', actionId: 'open-header' } })\" /><button class=\"grid-header-action\" @click=\"$emit('headerAction', { cell: { resourceId: 'resource-1', date: '2025-01-13', groups: [] }, header: { text: 'Header' }, actionId: 'header-action', actionType: 'button' })\" /><button class=\"grid-event-action\" @click=\"$emit('eventAction', { event: { id: 'event-1', type: 'calendar.event', sourceModule: 'calendar', title: 'Event One', start: '2025-01-13T09:00:00Z' }, actionId: 'event-action', actionType: 'button' })\" /><button class=\"grid-resource-add\" @click=\"$emit('resourceAdd', { id: 'resource-1', type: 'room', title: 'Room 101', action: { actionId: 'add-resource', ariaLabel: 'Add resource' } })\" /><button class=\"grid-drag-start\" @click=\"$emit('dragStart', { source: 'side-panel', itemId: 'item-1', itemType: 'user' })\" /></div>",
+            template: `<div><button class="grid-event-click" @click="$emit('eventClick', { id: 'event-1', type: '${CalendarEventType.CalendarEvent}', sourceModule: 'calendar', title: 'Event One', start: '2025-01-13T09:00:00Z' })" /><button class="grid-cell-drop" @click="$emit('cellDrop', { drag: { source: 'side-panel', itemId: 'item-1', itemType: 'user' }, drop: { resourceId: 'resource-1', date: '2025-01-13' } })" /><button class="grid-header-click" @click="$emit('headerClick', { cell: { resourceId: 'resource-1', date: '2025-01-13', groups: [] }, header: { text: 'Header', actionId: 'open-header' } })" /><button class="grid-header-action" @click="$emit('headerAction', { cell: { resourceId: 'resource-1', date: '2025-01-13', groups: [] }, header: { text: 'Header' }, actionId: 'header-action', actionType: 'button' })" /><button class="grid-event-action" @click="$emit('eventAction', { event: { id: 'event-1', type: '${CalendarEventType.CalendarEvent}', sourceModule: 'calendar', title: 'Event One', start: '2025-01-13T09:00:00Z' }, actionId: 'event-action', actionType: 'button' })" /><button class="grid-resource-add" @click="$emit('resourceAdd', { id: 'resource-1', type: 'room', title: 'Room 101', action: { actionId: 'add-resource', ariaLabel: 'Add resource' } })" /><button class="grid-drag-start" @click="$emit('dragStart', { source: 'side-panel', itemId: 'item-1', itemType: 'user' })" /></div>`,
           },
           CalendarMatrixSidePanel: {
             props: ['panel'],
@@ -372,8 +372,7 @@ describe('CalendarMatrixView', () => {
         stubs: {
           CalendarMatrixGrid: {
             props: ['model'],
-            template:
-              "<div><button class=\"grid-cell-drop\" @click=\"$emit('cellDrop', { drag: { source: 'side-panel', itemId: 'item-1', itemType: 'user' }, drop: { resourceId: 'resource-1', date: '2025-01-13' } })\" /><button class=\"grid-header-click\" @click=\"$emit('headerClick', { cell: { resourceId: 'resource-1', date: '2025-01-13', groups: [] }, header: { text: 'Header', actionId: 'open-header' } })\" /><button class=\"grid-header-action\" @click=\"$emit('headerAction', { cell: { resourceId: 'resource-1', date: '2025-01-13', groups: [] }, header: { text: 'Header' }, actionId: 'header-action', actionType: 'button' })\" /><button class=\"grid-event-action\" @click=\"$emit('eventAction', { event: { id: 'event-1', type: 'calendar.event', sourceModule: 'calendar', title: 'Event One', start: '2025-01-13T09:00:00Z' }, actionId: 'event-action', actionType: 'button' })\" /><button class=\"grid-resource-add\" @click=\"$emit('resourceAdd', { id: 'resource-1', type: 'room', title: 'Room 101', action: { actionId: 'add-resource', ariaLabel: 'Add resource' } })\" /></div>",
+            template: `<div><button class="grid-cell-drop" @click="$emit('cellDrop', { drag: { source: 'side-panel', itemId: 'item-1', itemType: 'user' }, drop: { resourceId: 'resource-1', date: '2025-01-13' } })" /><button class="grid-header-click" @click="$emit('headerClick', { cell: { resourceId: 'resource-1', date: '2025-01-13', groups: [] }, header: { text: 'Header', actionId: 'open-header' } })" /><button class="grid-header-action" @click="$emit('headerAction', { cell: { resourceId: 'resource-1', date: '2025-01-13', groups: [] }, header: { text: 'Header' }, actionId: 'header-action', actionType: 'button' })" /><button class="grid-event-action" @click="$emit('eventAction', { event: { id: 'event-1', type: '${CalendarEventType.CalendarEvent}', sourceModule: 'calendar', title: 'Event One', start: '2025-01-13T09:00:00Z' }, actionId: 'event-action', actionType: 'button' })" /><button class="grid-resource-add" @click="$emit('resourceAdd', { id: 'resource-1', type: 'room', title: 'Room 101', action: { actionId: 'add-resource', ariaLabel: 'Add resource' } })" /></div>`,
           },
           CalendarMatrixSidePanel: {
             props: ['panel'],

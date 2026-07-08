@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import { CalendarEventStatus, CalendarEventType } from '@/api-access/generated/models';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
 import CalendarMatrixEventBlock from '@/modules/calendar/components/matrix/CalendarMatrixEventBlock.vue';
@@ -19,7 +20,7 @@ import type {
 
 const event: CalendarEventBase = {
   id: 'event-1',
-  type: 'calendar.event',
+  type: CalendarEventType.CalendarEvent,
   sourceModule: 'calendar',
   title: 'Morning Event',
   start: '2025-01-13T09:00:00Z',
@@ -117,7 +118,7 @@ describe('CalendarMatrixCellHeader', () => {
       text: 'Header',
       title: 'Header title',
       actionId: 'open',
-      status: 'Draft Item',
+      status: CalendarEventStatus.DraftItem,
       color: '#336699',
       action: {
         actionId: 'details',
@@ -155,7 +156,7 @@ describe('CalendarMatrixCellHeader', () => {
         cell,
         header: {
           text: 'Static Header',
-          status: 'Cancelled',
+          status: CalendarEventStatus.Cancelled,
           action: {
             actionId: 'custom',
             text: 'Static',
@@ -189,7 +190,7 @@ describe('CalendarMatrixEventBlock', () => {
         showColorBar: true,
         display: {
           color: '#123456',
-          status: 'Draft',
+          status: CalendarEventStatus.Draft,
           draggable: true,
           action: {
             actionId: 'inspect',
@@ -216,7 +217,7 @@ describe('CalendarMatrixEventBlock', () => {
     expect(matrixContext.startDrag).toHaveBeenCalledWith({
       source: 'event-block',
       itemId: 'event-1',
-      itemType: 'calendar.event',
+      itemType: CalendarEventType.CalendarEvent,
       payload: event,
     });
     expect(matrixContext.clearDrag).toHaveBeenCalledOnce();

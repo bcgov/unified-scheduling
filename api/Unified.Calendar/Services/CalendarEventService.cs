@@ -63,6 +63,8 @@ public sealed class CalendarEventService(ILogger<CalendarEventService> logger, U
             TimeZoneId = eventEntity.TimeZoneId,
             AllDay = eventEntity.AllDay,
             IsException = eventEntity.IsException,
+            Type = CalendarEventType.CalendarEvent,
+            Status = CalendarCodeMappings.ToEventStatus(eventEntity.StatusTypeCode),
             EventTypeCode = CalendarCodeMappings.ToEventTypeCode(eventEntity.EventTypeCode),
             StatusTypeCode = CalendarCodeMappings.ToStatusTypeCode(eventEntity.StatusTypeCode),
             CancelledAt = eventEntity.CancelledAt,

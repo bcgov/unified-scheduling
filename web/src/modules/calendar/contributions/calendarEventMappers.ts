@@ -1,4 +1,5 @@
 import type { ApiCalendarEventResponse } from '@/api-access/calendar';
+import { CalendarEventType, CalendarEventTypeCode } from '@/api-access/generated/models';
 import { toCalendarDateOnly } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 
@@ -7,11 +8,11 @@ export function mapApiCalendarEventToCalendarEventBase(apiEvent: ApiCalendarEven
     ? (toCalendarDateOnly(apiEvent.startAtUtc) ?? apiEvent.startAtUtc)
     : apiEvent.startAtUtc;
   const end = apiEvent.allDay ? toCalendarDateOnly(apiEvent.endAtUtc) : apiEvent.endAtUtc;
-  const eventTypeCode = apiEvent.eventTypeCode || 'general';
+  const eventTypeCode = apiEvent.eventTypeCode || CalendarEventTypeCode.General;
 
   return {
     id: String(apiEvent.id),
-    type: `calendar.${eventTypeCode}`,
+    type: apiEvent.type ?? CalendarEventType.CalendarEvent,
     sourceModule: apiEvent.sourceModule,
     title: apiEvent.title,
     description: apiEvent.description,

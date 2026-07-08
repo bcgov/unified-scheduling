@@ -102,6 +102,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
                 Assert.Equal("calendar.deadline", second.Color);
                 Assert.Equal("America/Vancouver", second.TimeZoneId);
                 Assert.True(second.IsException);
+                Assert.Equal(CalendarEventType.CalendarEvent, second.Type);
+                Assert.Equal(CalendarEventStatus.Active, second.Status);
                 Assert.Equal(CalendarEventTypeCode.Deadline, second.EventTypeCode);
                 Assert.Equal(CalendarEventStatusTypeCode.Active, second.StatusTypeCode);
                 Assert.Equal("Reason", second.CancellationReason);
