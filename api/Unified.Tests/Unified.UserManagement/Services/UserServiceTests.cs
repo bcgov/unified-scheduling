@@ -827,7 +827,7 @@ public class UserServiceTests : IAsyncLifetime
         Assert.NotNull(result.LastPhotoUpdate);
         Assert.True(result.LastPhotoUpdate >= beforeUpload);
 
-        var persisted = await _dbContext.Users.FindAsync(user.Id);
+        var persisted = await _dbContext.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(persisted);
         Assert.Equal(photoBytes, persisted!.Photo);
         Assert.NotNull(persisted.LastPhotoUpdate);
@@ -863,7 +863,7 @@ public class UserServiceTests : IAsyncLifetime
         Assert.NotNull(result);
         Assert.True(result.LastPhotoUpdate >= beforeUpload);
 
-        var persisted = await _dbContext.Users.FindAsync(user.Id);
+        var persisted = await _dbContext.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.Equal(newPhoto, persisted!.Photo);
     }
 
