@@ -11,14 +11,14 @@ namespace Unified.Scheduling.Controllers;
 
 [ApiController]
 [Authorize]
-[Route("api/scheduling")]
+[Route("api/scheduling/shifts")]
 public sealed class ShiftController(
     IShiftService shiftService,
     ShiftSeriesRequestValidator shiftSeriesRequestValidator,
     ShiftEntryRequestValidator shiftEntryRequestValidator
 ) : ControllerBase
 {
-    [HttpGet("shift-series")]
+    [HttpGet("series")]
     [Authorize(Policy = SchedulingPolicies.ShiftsView)]
     [ProducesResponseType(typeof(IEnumerable<ShiftSeriesResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ShiftSeriesResponse>>> GetShiftSeries(
@@ -29,7 +29,7 @@ public sealed class ShiftController(
         return Ok(await shiftService.GetShiftSeriesAsync(queryParams, cancellationToken));
     }
 
-    [HttpGet("shift-series/{id:int}")]
+    [HttpGet("series/{id:int}")]
     [Authorize(Policy = SchedulingPolicies.ShiftsView)]
     [ProducesResponseType(typeof(ShiftSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -39,7 +39,7 @@ public sealed class ShiftController(
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("shift-series")]
+    [HttpPost("series")]
     [Authorize(Policy = SchedulingPolicies.ShiftsCreateAndAssign)]
     [ProducesResponseType(typeof(ShiftSeriesResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -51,10 +51,10 @@ public sealed class ShiftController(
         await shiftSeriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var result = await shiftService.CreateShiftSeriesAsync(request, cancellationToken);
-        return Created($"/api/scheduling/shift-series/{result.Id}", result);
+        return Created($"/api/scheduling/shifts/series/{result.Id}", result);
     }
 
-    [HttpPut("shift-series/{id:int}")]
+    [HttpPut("series/{id:int}")]
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(typeof(ShiftSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -73,7 +73,7 @@ public sealed class ShiftController(
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("shift-series/{id:int}/publish")]
+    [HttpPost("series/{id:int}/publish")]
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(typeof(ShiftSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -83,7 +83,7 @@ public sealed class ShiftController(
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("shift-series/{id:int}/expire")]
+    [HttpPost("series/{id:int}/expire")]
     [Authorize(Policy = SchedulingPolicies.ShiftsExpire)]
     [ProducesResponseType(typeof(ShiftSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -106,7 +106,7 @@ public sealed class ShiftController(
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpDelete("shift-series/{id:int}")]
+    [HttpDelete("series/{id:int}")]
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -116,7 +116,7 @@ public sealed class ShiftController(
         return deleted ? NoContent() : NotFound();
     }
 
-    [HttpGet("shift-entries")]
+    [HttpGet("entries")]
     [Authorize(Policy = SchedulingPolicies.ShiftsView)]
     [ProducesResponseType(typeof(IEnumerable<ShiftEntryResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ShiftEntryResponse>>> GetShiftEntries(
@@ -127,7 +127,7 @@ public sealed class ShiftController(
         return Ok(await shiftService.GetShiftEntriesAsync(queryParams, cancellationToken));
     }
 
-    [HttpGet("shift-entries/{id:int}")]
+    [HttpGet("entries/{id:int}")]
     [Authorize(Policy = SchedulingPolicies.ShiftsView)]
     [ProducesResponseType(typeof(ShiftEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -137,7 +137,7 @@ public sealed class ShiftController(
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("shift-entries")]
+    [HttpPost("entries")]
     [Authorize(Policy = SchedulingPolicies.ShiftsCreateAndAssign)]
     [ProducesResponseType(typeof(ShiftEntryResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -149,10 +149,10 @@ public sealed class ShiftController(
         await shiftEntryRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var result = await shiftService.CreateShiftEntryAsync(request, cancellationToken);
-        return Created($"/api/scheduling/shift-entries/{result.Id}", result);
+        return Created($"/api/scheduling/shifts/entries/{result.Id}", result);
     }
 
-    [HttpPut("shift-entries/{id:int}")]
+    [HttpPut("entries/{id:int}")]
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(typeof(ShiftEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -171,7 +171,7 @@ public sealed class ShiftController(
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("shift-entries/{id:int}/publish")]
+    [HttpPost("entries/{id:int}/publish")]
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(typeof(ShiftEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -181,7 +181,7 @@ public sealed class ShiftController(
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("shift-entries/{id:int}/expire")]
+    [HttpPost("entries/{id:int}/expire")]
     [Authorize(Policy = SchedulingPolicies.ShiftsExpire)]
     [ProducesResponseType(typeof(ShiftEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -204,7 +204,7 @@ public sealed class ShiftController(
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpDelete("shift-entries/{id:int}")]
+    [HttpDelete("entries/{id:int}")]
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

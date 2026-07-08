@@ -1,4 +1,3 @@
-using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -33,8 +32,7 @@ public sealed class EventSeriesMaterializationService(
     }
 
     /// <summary>
-    /// Recreate all event entries for a given event series, based on the recurrence rule and the start/end dates.
-    /// Only execute the recreate operation if the the event series is in a valid state.
+    /// Replace active generated event entries for a given event series with a fresh generated set.
     /// </summary>
     /// <param name="eventSeries"></param>
     /// <param name="options"></param>
@@ -42,7 +40,7 @@ public sealed class EventSeriesMaterializationService(
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException"></exception>
-    public async Task<EventSeriesMaterializationResult> RecreateAsync(
+    public async Task<EventSeriesMaterializationResult> RegenerateAsync(
         EventSeries eventSeries,
         EventSeriesMaterializationOptions options,
         IEventSeriesMaterializationHandler handler,
@@ -50,9 +48,12 @@ public sealed class EventSeriesMaterializationService(
     )
     {
         ValidateEventSeries(eventSeries, options);
-        var events = await db.Events.Where(e => e.EventSeriesId == eventSeries.Id).ToListAsync(cancellationToken);
-        if (!await handler.CanRecreateSeriesEntriesAsync(eventSeries, events, cancellationToken))
-            throw new InvalidOperationException("Event series entries cannot be recreated in the current state.");
+        var events = await db
+            .Events.Where(e => e.EventSeriesId == eventSeries.Id)
+            .Where(e => e.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
+            .ToListAsync(cancellationToken);
+        if (!await handler.CanRegenerateSeriesEntriesAsync(eventSeries, events, cancellationToken))
+            throw new InvalidOperationException("Event series entries cannot be regenerated in the current state.");
         var context = await handler.CreateContextAsync(eventSeries, cancellationToken);
 
         var existingEvents = await db
@@ -60,21 +61,41 @@ public sealed class EventSeriesMaterializationService(
             .Where(e => e.EventSeriesId == eventSeries.Id)
             .Where(e => e.SourceModule == handler.SourceModule)
             .Where(e => e.EventTypeCode == handler.EventTypeCode)
+            .Where(e => e.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .ToListAsync(cancellationToken);
+
+        var createdEvents = new List<Event>();
 
         foreach (var eventEntity in existingEvents)
         {
             await handler.OnEventRemovedAsync(eventSeries, eventEntity, context, cancellationToken);
+            if (eventEntity.StatusTypeCode == CalendarEventStatusTypeCodes.Cancelled)
+            {
+                eventEntity.SeriesStartAtUtc = null;
+                eventEntity.SeriesEndAtUtc = null;
+            }
         }
 
-        db.Events.RemoveRange(existingEvents);
+        var eventsToRemove = existingEvents
+            .Where(e => e.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
+            .ToList();
+        db.Events.RemoveRange(eventsToRemove);
+
+        foreach (var occurrence in ExpandOccurrences(eventSeries, options))
+        {
+            var eventEntity = CreateMaterializedEvent(eventSeries, occurrence, handler);
+            db.Events.Add(eventEntity);
+            await handler.OnEventCreatedAsync(eventSeries, eventEntity, occurrence, context, cancellationToken);
+            createdEvents.Add(eventEntity);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
-        var materializedResult = await MaterializeAsync(eventSeries, options, handler, context, cancellationToken);
-
-        return materializedResult with
+        return new EventSeriesMaterializationResult
         {
+            CreatedCount = createdEvents.Count,
             RemovedCount = existingEvents.Count,
+            CreatedEventIds = createdEvents.Select(e => e.Id).ToList(),
             RemovedEventIds = existingEvents.Select(e => e.Id).ToList(),
         };
     }
@@ -135,25 +156,37 @@ public sealed class EventSeriesMaterializationService(
         IEventSeriesMaterializationHandler handler
     )
     {
-        var eventEntity = eventSeries.Adapt<Event>();
-        eventEntity.Id = default;
-        eventEntity.EventSeries = null;
-        eventEntity.EventSeriesId = eventSeries.Id;
-        eventEntity.EventType = null;
-        eventEntity.StatusType = null;
+        var eventEntity = new Event();
+        ApplyMaterializedEvent(eventSeries, eventEntry, handler, eventEntity);
+
+        return eventEntity;
+    }
+
+    private static void ApplyMaterializedEvent(
+        EventSeries eventSeries,
+        SeriesEntry eventEntry,
+        IEventSeriesMaterializationHandler handler,
+        Event eventEntity
+    )
+    {
+        eventEntity.Title = eventSeries.Title;
+        eventEntity.Description = eventSeries.Description;
+        eventEntity.Notes = eventSeries.Notes;
+        eventEntity.Color = eventSeries.Color;
+        eventEntity.LocationId = eventSeries.LocationId;
+        eventEntity.TimeZoneId = eventSeries.TimeZoneId;
+        eventEntity.AllDay = eventSeries.AllDay;
         eventEntity.CancelledAt = null;
         eventEntity.CancelledByUserId = null;
-        eventEntity.CancelledByUser = null;
         eventEntity.CancellationReason = null;
-        eventEntity.Location = null;
         eventEntity.StartAtUtc = eventEntry.StartAtUtc;
         eventEntity.EndAtUtc = eventEntry.EndAtUtc;
         eventEntity.SeriesStartAtUtc = eventEntry.StartAtUtc;
         eventEntity.SeriesEndAtUtc = eventEntry.EndAtUtc;
         eventEntity.IsException = false;
+        eventEntity.EventSeriesId = eventSeries.Id;
         eventEntity.EventTypeCode = handler.EventTypeCode;
+        eventEntity.StatusTypeCode = eventSeries.StatusTypeCode;
         eventEntity.SourceModule = handler.SourceModule;
-
-        return eventEntity;
     }
 }

@@ -11,7 +11,7 @@ public interface IEventSeriesMaterializationService
         CancellationToken cancellationToken
     );
 
-    Task<EventSeriesMaterializationResult> RecreateAsync(
+    Task<EventSeriesMaterializationResult> RegenerateAsync(
         EventSeries eventSeries,
         EventSeriesMaterializationOptions options,
         IEventSeriesMaterializationHandler handler,

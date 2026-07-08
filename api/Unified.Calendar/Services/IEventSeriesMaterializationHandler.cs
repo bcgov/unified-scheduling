@@ -13,21 +13,13 @@ public interface IEventSeriesMaterializationHandler
         CancellationToken cancellationToken
     );
 
-    Task<bool> CanRecreateSeriesEntriesAsync(
+    Task<bool> CanRegenerateSeriesEntriesAsync(
         EventSeries eventSeries,
         IEnumerable<Event> events,
         CancellationToken cancellationToken
     );
 
     Task OnEventCreatedAsync(
-        EventSeries eventSeries,
-        Event eventEntity,
-        SeriesEntry occurrence,
-        IEventSeriesMaterializationContext context,
-        CancellationToken cancellationToken
-    );
-
-    Task OnEventUpdatedAsync(
         EventSeries eventSeries,
         Event eventEntity,
         SeriesEntry occurrence,

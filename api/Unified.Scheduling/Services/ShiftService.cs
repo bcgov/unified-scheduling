@@ -136,6 +136,10 @@ public sealed class ShiftService(
             .ShiftSeries.Include(shiftSeries => shiftSeries.EventSeries!)
                 .ThenInclude(eventSeries => eventSeries.Events)
             .Include(shiftSeries => shiftSeries.Users)
+            .Include(shiftSeries => shiftSeries.ShiftEntries)
+                .ThenInclude(shiftEntry => shiftEntry.Event)
+            .Include(shiftSeries => shiftSeries.ShiftEntries)
+                .ThenInclude(shiftEntry => shiftEntry.Users)
             .SingleOrDefaultAsync(shiftSeries => shiftSeries.Id == id, cancellationToken);
         if (entity is null)
         {
@@ -145,19 +149,39 @@ public sealed class ShiftService(
 
         ValidateShiftEventSeriesType(entity.EventSeries!);
         var eventSeries = entity.EventSeries!;
-        ValidateShiftSeriesIsDraft(eventSeries);
+        var oldEventSeriesValues = CaptureEventSeriesValues(eventSeries);
+        var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
+        var recurrenceChanged = HasRecurrenceChanged(eventSeries, request);
 
         UpdateEventSeries(eventSeries, request);
 
         SyncShiftSeriesUsers(entity, request.UserIds);
-        await db.SaveChangesAsync(cancellationToken);
 
-        var materializationResult = await eventSeriesMaterializationService.RecreateAsync(
-            eventSeries,
-            ShiftMaterializationOptions,
-            shiftSeriesMaterializationHandler,
-            cancellationToken
-        );
+        EventSeriesMaterializationResult? materializationResult = null;
+        if (recurrenceChanged)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            materializationResult = await eventSeriesMaterializationService.RegenerateAsync(
+                eventSeries,
+                ShiftMaterializationOptions,
+                shiftSeriesMaterializationHandler,
+                cancellationToken
+            );
+        }
+        else
+        {
+            var newUserIds = GetDistinctUserIds(request.UserIds);
+            foreach (
+                var shiftEntry in entity.ShiftEntries.Where(entry =>
+                    entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                )
+            )
+            {
+                ApplyEventSeriesFieldUpdatePreservingOverrides(shiftEntry.Event!, oldEventSeriesValues, eventSeries);
+                if (UserSetsEqual(shiftEntry.Users.Select(user => user.UserId), oldUserIds))
+                    SyncShiftEntryUsers(shiftEntry, newUserIds);
+            }
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -551,6 +575,7 @@ public sealed class ShiftService(
             .Where(shiftEntry => shiftEntry.Event != null)
             .Where(shiftEntry => shiftEntry.Event!.SourceModule == SchedulingConstants.SourceModule)
             .Where(shiftEntry => shiftEntry.Event!.EventTypeCode == SchedulingConstants.ShiftEventTypeCode)
+            .Where(shiftEntry => shiftEntry.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .Where(shiftEntry => shiftEntry.Event!.StartAtUtc < utcRange.EndAtUtc)
             .Where(shiftEntry =>
                 shiftEntry.Event!.EndAtUtc == null
@@ -574,11 +599,15 @@ public sealed class ShiftService(
 
         var response = new SchedulingCalendarDataResponse
         {
-            Events = shiftEntries.Select(MapToSchedulingCalendarShiftEventResponse).ToList(),
+            Events = shiftEntries
+                .Select(MapToSchedulingCalendarShiftEventResponse)
+                .OrderBy(eventResponse => eventResponse.Start)
+                .ThenBy(eventResponse => eventResponse.Id)
+                .ToList(),
         };
 
         logger.LogDebug(
-            "Scheduling calendar shift event query returned {ShiftEventCount} events.",
+            "Scheduling calendar query returned {SchedulingEventCount} events.",
             response.Events.Count
         );
 
@@ -719,6 +748,7 @@ public sealed class ShiftService(
                 entry.Event != null
                 && entry.Event.EventSeriesId.HasValue
                 && eventSeriesIds.Contains(entry.Event.EventSeriesId.Value)
+                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
             )
             .OrderBy(entry => entry.Id)
             .Select(entry => new ShiftSeriesEntryIds(entry.ShiftSeriesId!.Value, entry.Id, entry.EventId))
@@ -839,6 +869,46 @@ public sealed class ShiftService(
         eventSeries.LocationId = request.LocationId;
     }
 
+    private static bool HasRecurrenceChanged(EventSeries eventSeries, ShiftSeriesRequest request) =>
+        !StringEqualsNormalized(eventSeries.RecurrenceRule, request.RecurrenceRule)
+        || eventSeries.StartAtUtc != request.StartAtUtc
+        || eventSeries.EndAtUtc != request.EndAtUtc
+        || !StringEqualsNormalized(eventSeries.TimeZoneId, request.TimeZoneId)
+        || eventSeries.AllDay != request.AllDay;
+
+    private static EventSeriesCopiedValues CaptureEventSeriesValues(EventSeries eventSeries) =>
+        new(
+            eventSeries.Title,
+            eventSeries.Description,
+            eventSeries.Notes,
+            eventSeries.Color,
+            eventSeries.LocationId
+        );
+
+    private static void ApplyEventSeriesFieldUpdatePreservingOverrides(
+        Event eventEntity,
+        EventSeriesCopiedValues oldValues,
+        EventSeries eventSeries
+    )
+    {
+        if (eventEntity.Title == oldValues.Title)
+            eventEntity.Title = eventSeries.Title;
+        if (eventEntity.Description == oldValues.Description)
+            eventEntity.Description = eventSeries.Description;
+        if (eventEntity.Notes == oldValues.Notes)
+            eventEntity.Notes = eventSeries.Notes;
+        if (eventEntity.Color == oldValues.Color)
+            eventEntity.Color = eventSeries.Color;
+        if (eventEntity.LocationId == oldValues.LocationId)
+            eventEntity.LocationId = eventSeries.LocationId;
+    }
+
+    private static bool StringEqualsNormalized(string? left, string? right) =>
+        string.Equals(left?.Trim(), right?.Trim(), StringComparison.Ordinal);
+
+    private static bool UserSetsEqual(IEnumerable<Guid> left, IEnumerable<Guid> right) =>
+        left.Distinct().Order().SequenceEqual(right.Distinct().Order());
+
     private async Task<ShiftSeries> GetValidatedShiftSeriesAsync(int shiftSeriesId, CancellationToken cancellationToken)
     {
         var shiftSeries = await db
@@ -920,4 +990,12 @@ public sealed class ShiftService(
         if (eventEntity.SourceModule != SchedulingConstants.SourceModule)
             throw new InvalidOperationException($"Event {eventEntity.Id} is not owned by Scheduling.");
     }
+
+    private sealed record EventSeriesCopiedValues(
+        string Title,
+        string? Description,
+        string? Notes,
+        string? Color,
+        int? LocationId
+    );
 }

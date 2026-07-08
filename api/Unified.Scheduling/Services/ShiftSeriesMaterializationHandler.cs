@@ -38,7 +38,7 @@ public sealed class ShiftSeriesMaterializationHandler(UnifiedDbContext db) : IEv
     /// <param name="events">A list of events for the given series</param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public Task<bool> CanRecreateSeriesEntriesAsync(
+    public Task<bool> CanRegenerateSeriesEntriesAsync(
         EventSeries eventSeries,
         IEnumerable<Event> events,
         CancellationToken cancellationToken
@@ -72,29 +72,6 @@ public sealed class ShiftSeriesMaterializationHandler(UnifiedDbContext db) : IEv
         await Task.CompletedTask;
     }
 
-    public async Task OnEventUpdatedAsync(
-        EventSeries eventSeries,
-        Event eventEntity,
-        SeriesEntry occurrence,
-        IEventSeriesMaterializationContext context,
-        CancellationToken cancellationToken
-    )
-    {
-        var shiftContext = GetShiftSeriesContext(context);
-        var shiftEntry = await db
-            .ShiftEntries.Include(entry => entry.Users)
-            .SingleOrDefaultAsync(entry => entry.EventId == eventEntity.Id, cancellationToken);
-
-        if (shiftEntry is null)
-        {
-            await OnEventCreatedAsync(eventSeries, eventEntity, occurrence, context, cancellationToken);
-            return;
-        }
-
-        shiftEntry.ShiftSeriesId = shiftContext.ShiftSeriesId;
-        SyncShiftEntryUsers(shiftEntry, shiftContext.UserIds);
-    }
-
     public async Task OnEventRemovedAsync(
         EventSeries eventSeries,
         Event eventEntity,
@@ -104,6 +81,7 @@ public sealed class ShiftSeriesMaterializationHandler(UnifiedDbContext db) : IEv
     {
         var shiftEntry = await db
             .ShiftEntries.Include(entry => entry.Users)
+            .Include(entry => entry.Event)
             .SingleOrDefaultAsync(entry => entry.EventId == eventEntity.Id, cancellationToken);
 
         if (shiftEntry is null)
@@ -116,16 +94,4 @@ public sealed class ShiftSeriesMaterializationHandler(UnifiedDbContext db) : IEv
     private static ShiftSeriesMaterializationContext GetShiftSeriesContext(
         IEventSeriesMaterializationContext context
     ) => (ShiftSeriesMaterializationContext)context;
-
-    private void SyncShiftEntryUsers(ShiftEntry shiftEntry, IReadOnlyCollection<Guid> userIds)
-    {
-        var usersToRemove = shiftEntry.Users.Where(user => !userIds.Contains(user.UserId)).ToList();
-        db.ShiftEntryUsers.RemoveRange(usersToRemove);
-        foreach (var user in usersToRemove)
-            shiftEntry.Users.Remove(user);
-
-        var existingUserIds = shiftEntry.Users.Select(user => user.UserId).ToHashSet();
-        foreach (var userId in userIds.Where(userId => !existingUserIds.Contains(userId)))
-            shiftEntry.Users.Add(new ShiftEntryUser { ShiftEntryId = shiftEntry.Id, UserId = userId });
-    }
 }
