@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Authorization.Claims;
 using Unified.Common.Helpers.Extensions;
+using Unified.Db.Extensions;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
@@ -40,7 +41,7 @@ public sealed class RoleService(
     {
         logger.LogDebug("Retrieving active users assigned to role {RoleId}", roleId);
 
-        var roleExists = await DB.Roles.AnyAsync(r => r.Id == roleId && r.DeletedById == null, cancellationToken);
+        var roleExists = await DB.Roles.WhereActive().AnyAsync(r => r.Id == roleId, cancellationToken);
         if (!roleExists)
             throw new KeyNotFoundException($"Role {roleId} not found.");
 
@@ -67,8 +68,8 @@ public sealed class RoleService(
         logger.LogInformation("Creating role with {PermissionCount} permissions", request.PermissionIds.Count);
 
         if (
-            await DB.Roles.AnyAsync(
-                r => r.DeletedById == null && r.Name.ToLower() == request.Name.ToLower(),
+            await DB.Roles.WhereActive().AnyAsync(
+                r => r.Name.ToLower() == request.Name.ToLower(),
                 cancellationToken
             )
         )
@@ -103,7 +104,8 @@ public sealed class RoleService(
         var role =
             await DB
                 .Roles.Include(r => r.RolePermissions)
-                .FirstOrDefaultAsync(r => r.Id == request.Id && r.DeletedById == null, cancellationToken)
+                .WhereActive()
+                .FirstOrDefaultAsync(r => r.Id == request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Role {request.Id} not found.");
 
         if (role.ConcurrencyToken != request.ConcurrencyToken)
@@ -111,8 +113,8 @@ public sealed class RoleService(
 
         if (
             !string.Equals(role.Name, request.Name, StringComparison.OrdinalIgnoreCase)
-            && await DB.Roles.AnyAsync(
-                r => r.Id != request.Id && r.DeletedById == null && r.Name.ToLower() == request.Name.ToLower(),
+            && await DB.Roles.WhereActive().AnyAsync(
+                r => r.Id != request.Id && r.Name.ToLower() == request.Name.ToLower(),
                 cancellationToken
             )
         )
@@ -170,7 +172,7 @@ public sealed class RoleService(
         logger.LogInformation("Deleting role {RoleId}", roleIdToDelete);
 
         var roleToDelete =
-            await DB.Roles.FirstOrDefaultAsync(r => r.Id == roleIdToDelete && r.DeletedById == null, cancellationToken)
+            await DB.Roles.WhereActive().FirstOrDefaultAsync(r => r.Id == roleIdToDelete, cancellationToken)
             ?? throw new KeyNotFoundException($"Role {roleIdToDelete} not found.");
         var activeAssignments = await DB
             .UserRoles.Where(ur => ur.RoleId == roleIdToDelete && (ur.ExpiryDate == null || ur.ExpiryDate > now))
@@ -192,8 +194,8 @@ public sealed class RoleService(
             if (request.NewRoleId == roleIdToDelete)
                 throw new InvalidOperationException("The new role cannot be the same as the role being deleted.");
 
-            var newRoleExists = await DB.Roles.AnyAsync(
-                r => r.Id == request.NewRoleId && r.DeletedById == null,
+            var newRoleExists = await DB.Roles.WhereActive().AnyAsync(
+                r => r.Id == request.NewRoleId,
                 cancellationToken
             );
             if (!newRoleExists)
