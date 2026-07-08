@@ -83,7 +83,7 @@ export const postApiUsersIdRolesExpire = (
   );
 };
 export const getApiUsersIdPhoto = (id: string, options?: SecondParameter<typeof useFetchAPI<Blob>>) => {
-  return useFetchAPI<Blob>({ url: `/api/users/${id}/photo`, method: 'GET' }, options);
+  return useFetchAPI<Blob>({ url: `/api/users/${id}/photo`, method: 'GET', responseType: 'blob' }, options);
 };
 export const postApiUsersIdUploadPhoto = (
   id: string,

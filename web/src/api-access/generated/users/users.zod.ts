@@ -166,31 +166,6 @@ export const GetApiUsersIdPhotoParams = zod.strictObject({
   id: zod.uuid(),
 });
 
-export const GetApiUsersIdPhotoResponse = zod.object({
-  fileContents: zod.string().optional(),
-  contentType: zod.string().nullish(),
-  fileDownloadName: zod.string().nullish(),
-  lastModified: zod.iso.datetime({ offset: true }).nullish(),
-  entityTag: zod
-    .union([
-      zod.null(),
-      zod.object({
-        tag: zod
-          .object({
-            buffer: zod.string().nullish(),
-            offset: zod.number().optional(),
-            length: zod.number().optional(),
-            value: zod.string().nullish(),
-            hasValue: zod.boolean().optional(),
-          })
-          .optional(),
-        isWeak: zod.boolean().optional(),
-      }),
-    ])
-    .optional(),
-  enableRangeProcessing: zod.boolean().optional(),
-});
-
 export const PostApiUsersIdUploadPhotoParams = zod.strictObject({
   id: zod.uuid(),
 });

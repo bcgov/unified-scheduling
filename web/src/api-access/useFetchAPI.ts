@@ -14,6 +14,7 @@ export type UseFetchAPIRequest = {
   params?: MaybeRef<QueryParams>;
   headers?: HeadersInit;
   data?: RequestBody;
+  responseType?: 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData';
 };
 
 export type UseFetchAPIOptions = {

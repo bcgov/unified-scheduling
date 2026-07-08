@@ -359,8 +359,11 @@ export const getPostApiUsersIdRolesExpireResponseMock = (
     },
   ]);
 
-export const getGetApiUsersIdPhotoResponseMock = (): Blob =>
-  new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], { type: 'image/jpeg' });
+export const getGetApiUsersIdPhotoResponseMock = (): ArrayBuffer =>
+  faker.helpers.arrayElement([
+    new ArrayBuffer(faker.number.int({ min: 1, max: 64 })),
+    new ArrayBuffer(faker.number.int({ min: 1, max: 64 })),
+  ]);
 
 export const getPostApiUsersIdUploadPhotoResponseMock = (
   overrideResponse: Partial<Extract<UserResponse, object>> = {},
@@ -619,21 +622,23 @@ export const getPostApiUsersIdRolesExpireMockHandler = (
 };
 
 export const getGetApiUsersIdPhotoMockHandler = (
-  overrideResponse?: Blob | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<Blob> | Blob),
+  overrideResponse?:
+    | ArrayBuffer
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ArrayBuffer> | ArrayBuffer),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/users/:id/photo',
     async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      const body =
+      const binaryBody =
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
             ? await overrideResponse(info)
             : overrideResponse
           : getGetApiUsersIdPhotoResponseMock();
-      return HttpResponse.arrayBuffer(await body.arrayBuffer(), {
+      return HttpResponse.arrayBuffer(binaryBody instanceof ArrayBuffer ? binaryBody : new ArrayBuffer(0), {
         status: 200,
-        headers: { 'Content-Type': body.type || 'image/jpeg' },
+        headers: { 'Content-Type': 'image/jpeg' },
       });
     },
     options,
