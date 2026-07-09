@@ -38,4 +38,54 @@ public class TrainingRequestValidatorTests
             validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
         );
     }
+
+    [Fact]
+    public async Task Validate_WhenValidityDaysIsZero_ThrowsValidationException()
+    {
+        var validator = new TrainingRequestValidator();
+        var request = new TrainingRequest
+        {
+            Code = "FIREARMS",
+            Description = "Firearms Qualification",
+            ValidityDays = 0,
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task Validate_WhenAdvanceNoticeDaysIsEqualToValidityDays_ThrowsValidationException()
+    {
+        var validator = new TrainingRequestValidator();
+        var request = new TrainingRequest
+        {
+            Code = "FIREARMS",
+            Description = "Firearms Qualification",
+            ValidityDays = 30,
+            AdvanceNoticeDays = 30,
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task Validate_WhenAdvanceNoticeDaysIsGreaterThanValidityDays_ThrowsValidationException()
+    {
+        var validator = new TrainingRequestValidator();
+        var request = new TrainingRequest
+        {
+            Code = "FIREARMS",
+            Description = "Firearms Qualification",
+            ValidityDays = 30,
+            AdvanceNoticeDays = 60,
+        };
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
+        );
+    }
 }

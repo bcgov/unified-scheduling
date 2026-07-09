@@ -31,7 +31,7 @@ public sealed class TrainingRequestValidator : AbstractValidator<TrainingRequest
             .When(x => x.TrainingCategoryId.HasValue);
 
         RuleFor(x => x.ValidityDays)
-            .GreaterThanOrEqualTo(0)
+            .GreaterThan(0)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage(ApiValidationErrorCodes.Invalid)
             .When(x => x.ValidityDays.HasValue);
@@ -41,6 +41,12 @@ public sealed class TrainingRequestValidator : AbstractValidator<TrainingRequest
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage(ApiValidationErrorCodes.Invalid)
             .When(x => x.AdvanceNoticeDays.HasValue);
+
+        RuleFor(x => x.AdvanceNoticeDays)
+            .LessThan(x => x.ValidityDays)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage(ApiValidationErrorCodes.Invalid)
+            .When(x => x.AdvanceNoticeDays.HasValue && x.ValidityDays.HasValue);
 
         RuleFor(x => x.Order)
             .GreaterThanOrEqualTo(0)

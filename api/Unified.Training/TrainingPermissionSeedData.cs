@@ -63,12 +63,6 @@ public static class TrainingPermissionSeedData
                     Id = nameof(Permissions.TrainingsAdjustExpiry),
                     Description = "Manually override the expiry date on a training record",
                 },
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsExempt),
-                    Description = "Exempt a user from mandatory training requirements",
-                },
             ],
         };
 }

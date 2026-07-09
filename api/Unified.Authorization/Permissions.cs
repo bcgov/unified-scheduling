@@ -73,7 +73,6 @@ public enum Permissions
     TrainingsEditPast,
     TrainingsRemovePast,
     TrainingsAdjustExpiry,
-    TrainingsExempt,
 
     // --- Acting Positions ---
     ActingPositionsView,

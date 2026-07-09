@@ -40,8 +40,7 @@ public static class TrainingModule
             .AddPermissionPolicy(Permissions.TrainingsRecordsManageForOthers)
             .AddPermissionPolicy(Permissions.TrainingsEditPast)
             .AddPermissionPolicy(Permissions.TrainingsRemovePast)
-            .AddPermissionPolicy(Permissions.TrainingsAdjustExpiry)
-            .AddPermissionPolicy(Permissions.TrainingsExempt);
+            .AddPermissionPolicy(Permissions.TrainingsAdjustExpiry);
 
         return services;
     }
