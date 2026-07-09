@@ -66,6 +66,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             _dbContext,
             materializationService,
             new ShiftSeriesMaterializationHandler(_dbContext),
+            _shiftAssignmentService,
             calendarDateTimeService,
             new CalendarLifecycleService()
         );
@@ -842,7 +843,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         Assert.Equal(assignment.Id, item.AssignmentEntryId);
         Assert.Equal(SchedulingConstants.AssignmentEventTypeCode, item.EventTypeCode);
         Assert.Equal(10, item.AssignmentCategoryTypeId);
-        Assert.Equal("COURT", item.AssignmentCategoryTypeCode);
+        Assert.Equal("CourtRoom", item.AssignmentCategoryTypeCode);
         Assert.Equal(2, item.Capacity);
     }
 
@@ -860,15 +861,15 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         _dbContext.AssignmentCategoryTypes.Add(new AssignmentCategoryType
         {
             Id = 10,
-            Code = "COURT",
-            Description = "Court",
+            Code = "CourtRoom",
+            Description = "Court Room",
             EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
         });
         _dbContext.AssignmentCategoryTypes.Add(new AssignmentCategoryType
         {
             Id = 11,
-            Code = "ESCORT",
-            Description = "Escort",
+            Code = "EscortRun",
+            Description = "Transport Assignment",
             EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
         });
         _dbContext.AssignmentSubCategoryTypes.Add(new AssignmentSubCategoryType

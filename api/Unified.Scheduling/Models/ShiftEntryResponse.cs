@@ -9,4 +9,6 @@ public sealed record ShiftEntryResponse
     public int EventId { get; init; }
 
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
+
+    public IReadOnlyCollection<ShiftAssignmentEntryResponse> AssignmentLinks { get; init; } = [];
 }

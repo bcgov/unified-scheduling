@@ -13,6 +13,7 @@ public sealed class ShiftService(
     UnifiedDbContext db,
     IEventSeriesMaterializationService eventSeriesMaterializationService,
     ShiftSeriesMaterializationHandler shiftSeriesMaterializationHandler,
+    IShiftAssignmentService shiftAssignmentService,
     ICalendarDateTimeService calendarDateTimeService,
     ICalendarLifecycleService calendarLifecycleService
 ) : IShiftService
@@ -413,11 +414,14 @@ public sealed class ShiftService(
 
         db.ShiftEntries.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
+
+        var assignmentLink = await UpsertAssignmentLinkIfRequestedAsync(entity.Id, request, cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Created shift entry {ShiftEntryId}.", entity.Id);
 
-        return MapToShiftEntryResponse(entity);
+        return MapToShiftEntryResponse(entity, assignmentLink);
     }
 
     public async Task<ShiftEntryResponse?> UpdateShiftEntryAsync(
@@ -427,6 +431,8 @@ public sealed class ShiftService(
     )
     {
         logger.LogInformation("Updating shift entry {ShiftEntryId}.", id);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
         var entity = await db
             .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
@@ -451,9 +457,13 @@ public sealed class ShiftService(
 
         await db.SaveChangesAsync(cancellationToken);
 
+        var assignmentLink = await UpsertAssignmentLinkIfRequestedAsync(entity.Id, request, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
         logger.LogInformation("Updated shift entry {ShiftEntryId}.", id);
 
-        return MapToShiftEntryResponse(entity);
+        return MapToShiftEntryResponse(entity, assignmentLink);
     }
 
     public async Task<ShiftEntryResponse?> PublishShiftEntryAsync(int id, CancellationToken cancellationToken = default)
@@ -881,6 +891,44 @@ public sealed class ShiftService(
             EventId = shiftEntry.EventId,
             UserIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList(),
         };
+    }
+
+    private static ShiftEntryResponse MapToShiftEntryResponse(
+        ShiftEntry shiftEntry,
+        ShiftAssignmentEntryResponse? assignmentLink
+    )
+    {
+        var response = MapToShiftEntryResponse(shiftEntry);
+        return response with
+        {
+            AssignmentLinks = assignmentLink is null ? [] : [assignmentLink],
+        };
+    }
+
+    private async Task<ShiftAssignmentEntryResponse?> UpsertAssignmentLinkIfRequestedAsync(
+        int shiftEntryId,
+        ShiftEntryRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (request.AssignmentEntryId is null && request.AssignedUserIds is null)
+            return null;
+
+        if (request.AssignmentEntryId is null)
+            throw new InvalidOperationException("AssignmentEntryId must be provided when AssignedUserIds is provided.");
+
+        if (request.AssignedUserIds is null)
+            throw new InvalidOperationException("AssignedUserIds must be provided when AssignmentEntryId is provided.");
+
+        return await shiftAssignmentService.UpsertShiftEntryLinkAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shiftEntryId,
+                AssignmentEntryId = request.AssignmentEntryId.Value,
+                UserIds = request.AssignedUserIds,
+            },
+            cancellationToken
+        );
     }
 
     private void SyncShiftSeriesUsers(ShiftSeries shiftSeries, IReadOnlyCollection<Guid> userIds)

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Authorization;
 using Unified.Db;
+using Unified.Db.Models.Lookup;
 using Unified.Db.Models.UserManagement;
 using Unified.Scheduling.Seeders;
 using Unified.Tests.TestHelpers;
@@ -125,6 +126,51 @@ public sealed class SchedulingSeedersTests : IAsyncLifetime
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, rolePermissions.Count);
         Assert.All(rolePermissions, rolePermission => Assert.Equal(303, rolePermission.RoleId));
+    }
+
+    [Fact]
+    public async Task AssignmentLookupSeeder_SeedAsync_UsesAssignmentCategoryCodesAndIsIdempotent()
+    {
+        _dbContext.AssignmentCategoryTypes.Add(
+            new AssignmentCategoryType
+            {
+                Code = "CourtRoom",
+                Description = "Old description",
+                EffectiveDate = new DateTimeOffset(2019, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                ExpiryDate = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var seeder = new AssignmentLookupSeeder(new NullLogger<AssignmentLookupSeeder>());
+
+        await seeder.SeedAsync(_dbContext, TestContext.Current.CancellationToken);
+        await seeder.SeedAsync(_dbContext, TestContext.Current.CancellationToken);
+
+        var categoryTypes = await _dbContext
+            .AssignmentCategoryTypes.OrderBy(type => type.Code)
+            .Select(type => new { type.Code, type.Description, type.EffectiveDate, type.ExpiryDate })
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            [
+                "CourtRole",
+                "CourtRoom",
+                "EscortRun",
+                "JailRole",
+                "OtherAssignment",
+            ],
+            categoryTypes.Select(type => type.Code).ToArray()
+        );
+        Assert.Contains(categoryTypes, type => type.Code == "CourtRoom" && type.Description == "Court Room");
+        Assert.Contains(categoryTypes, type => type.Code == "CourtRole" && type.Description == "Court Assignment");
+        Assert.Contains(categoryTypes, type => type.Code == "JailRole" && type.Description == "Jail Assignment");
+        Assert.Contains(categoryTypes, type => type.Code == "EscortRun" && type.Description == "Transport Assignment");
+        Assert.Contains(categoryTypes, type => type.Code == "OtherAssignment" && type.Description == "Other Assignment");
+        Assert.All(categoryTypes, type =>
+        {
+            Assert.Equal(new DateTimeOffset(2020, 6, 10, 0, 0, 0, TimeSpan.Zero), type.EffectiveDate);
+            Assert.Null(type.ExpiryDate);
+        });
     }
 
     private static Permission CreatePermission(string id) =>

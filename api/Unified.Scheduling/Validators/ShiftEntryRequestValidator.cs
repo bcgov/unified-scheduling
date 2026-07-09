@@ -26,6 +26,20 @@ public sealed class ShiftEntryRequestValidator : AbstractValidator<ShiftEntryReq
         RuleFor(request => request.LocationId).GreaterThan(0).When(request => request.LocationId.HasValue);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
+        RuleFor(request => request.AssignmentEntryId).GreaterThan(0).When(request => request.AssignmentEntryId.HasValue);
+        RuleFor(request => request.AssignedUserIds)
+            .NotNull()
+            .WithMessage("AssignedUserIds must be provided when AssignmentEntryId is provided.")
+            .When(request => request.AssignmentEntryId.HasValue);
+        RuleFor(request => request.AssignedUserIds)
+            .Null()
+            .WithMessage("AssignmentEntryId must be provided when AssignedUserIds is provided.")
+            .When(request => !request.AssignmentEntryId.HasValue);
+        RuleFor(request => request.AssignedUserIds!)
+            .NotEmpty()
+            .Must(HaveDistinctValues)
+            .When(request => request.AssignmentEntryId.HasValue);
+        RuleForEach(request => request.AssignedUserIds).NotEmpty();
     }
 
     private static bool HaveDistinctValues(IReadOnlyCollection<Guid>? userIds)

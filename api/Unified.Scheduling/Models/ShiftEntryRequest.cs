@@ -31,4 +31,8 @@ public sealed record ShiftEntryRequest
     public int? LocationId { get; init; }
 
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
+
+    public int? AssignmentEntryId { get; init; }
+
+    public IReadOnlyCollection<Guid>? AssignedUserIds { get; init; }
 }

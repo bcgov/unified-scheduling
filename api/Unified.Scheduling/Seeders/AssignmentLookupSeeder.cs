@@ -13,10 +13,11 @@ public sealed class AssignmentLookupSeeder(ILogger<AssignmentLookupSeeder> logge
 
     private static readonly (string Code, string Description)[] CategoryTypes =
     [
-        ("COURT", "Court"),
-        ("JAIL", "Jail"),
-        ("ESCORT", "Escort"),
-        ("OTHER", "Other"),
+        ("CourtRoom", "Court Room"),
+        ("CourtRole", "Court Assignment"),
+        ("JailRole", "Jail Assignment"),
+        ("EscortRun", "Transport Assignment"),
+        ("OtherAssignment", "Other Assignment"),
     ];
 
     private static readonly (string Code, string Description)[] SubCategoryTypes =

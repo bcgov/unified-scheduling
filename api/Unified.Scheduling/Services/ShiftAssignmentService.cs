@@ -19,31 +19,15 @@ public sealed class ShiftAssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var selectedUserIds = ValidateSelectedUserIds(request.UserIds);
-        var shiftEntry = await LoadShiftEntryAsync(request.ShiftEntryId, cancellationToken);
-        var assignmentEntry = await LoadAssignmentEntryAsync(request.AssignmentEntryId, cancellationToken);
+        return await CreateOrUpdateShiftEntryLinkAsync(request, updateExisting: false, cancellationToken);
+    }
 
-        ValidateCanLink(shiftEntry, assignmentEntry, selectedUserIds);
-
-        if (
-            await db.ShiftAssignmentEntries.AnyAsync(
-                link => link.ShiftEntryId == shiftEntry.Id && link.AssignmentEntryId == assignmentEntry.Id,
-                cancellationToken
-            )
-        )
-            throw new InvalidOperationException("Shift entry is already linked to this assignment entry.");
-
-        var link = CreateLink(shiftEntry.Id, assignmentEntry.Id, selectedUserIds);
-        db.ShiftAssignmentEntries.Add(link);
-        await db.SaveChangesAsync(cancellationToken);
-
-        logger.LogInformation(
-            "Linked shift entry {ShiftEntryId} to assignment entry {AssignmentEntryId}.",
-            shiftEntry.Id,
-            assignmentEntry.Id
-        );
-
-        return MapToResponse(link, assignmentEntry.Capacity);
+    public async Task<ShiftAssignmentEntryResponse> UpsertShiftEntryLinkAsync(
+        ShiftAssignmentEntryRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return await CreateOrUpdateShiftEntryLinkAsync(request, updateExisting: true, cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<ShiftAssignmentEntryResponse>> LinkShiftSeriesAsync(
@@ -134,6 +118,50 @@ public sealed class ShiftAssignmentService(
             .ToList();
     }
 
+    private async Task<ShiftAssignmentEntryResponse> CreateOrUpdateShiftEntryLinkAsync(
+        ShiftAssignmentEntryRequest request,
+        bool updateExisting,
+        CancellationToken cancellationToken
+    )
+    {
+        var selectedUserIds = ValidateSelectedUserIds(request.UserIds);
+        var shiftEntry = await LoadShiftEntryAsync(request.ShiftEntryId, cancellationToken);
+        var assignmentEntry = await LoadAssignmentEntryAsync(request.AssignmentEntryId, cancellationToken);
+
+        ValidateCanLink(shiftEntry, assignmentEntry, selectedUserIds);
+
+        var link = await db
+            .ShiftAssignmentEntries.Include(existingLink => existingLink.Users)
+            .SingleOrDefaultAsync(
+                existingLink =>
+                    existingLink.ShiftEntryId == shiftEntry.Id && existingLink.AssignmentEntryId == assignmentEntry.Id,
+                cancellationToken
+            );
+
+        if (link is not null)
+        {
+            if (!updateExisting)
+                throw new InvalidOperationException("Shift entry is already linked to this assignment entry.");
+
+            SyncLinkUsers(link, selectedUserIds);
+        }
+        else
+        {
+            link = CreateLink(shiftEntry.Id, assignmentEntry.Id, selectedUserIds);
+            db.ShiftAssignmentEntries.Add(link);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Linked shift entry {ShiftEntryId} to assignment entry {AssignmentEntryId}.",
+            shiftEntry.Id,
+            assignmentEntry.Id
+        );
+
+        return MapToResponse(link, assignmentEntry.Capacity);
+    }
+
     private async Task<ShiftEntry> LoadShiftEntryAsync(int id, CancellationToken cancellationToken) =>
         await db
             .ShiftEntries.Include(entry => entry.Event)
@@ -222,6 +250,14 @@ public sealed class ShiftAssignmentService(
             AssignmentEntryId = assignmentEntryId,
             Users = selectedUserIds.Select(userId => new ShiftAssignmentEntryUser { UserId = userId }).ToList(),
         };
+
+    private void SyncLinkUsers(ShiftAssignmentEntry link, IReadOnlyCollection<Guid> selectedUserIds)
+    {
+        db.ShiftAssignmentEntryUsers.RemoveRange(link.Users);
+        link.Users.Clear();
+        foreach (var userId in selectedUserIds)
+            link.Users.Add(new ShiftAssignmentEntryUser { ShiftAssignmentEntryId = link.Id, UserId = userId });
+    }
 
     private static ShiftAssignmentEntryResponse MapToResponse(ShiftAssignmentEntry link, int capacity)
     {

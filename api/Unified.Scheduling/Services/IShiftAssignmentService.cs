@@ -9,6 +9,11 @@ public interface IShiftAssignmentService
         CancellationToken cancellationToken = default
     );
 
+    Task<ShiftAssignmentEntryResponse> UpsertShiftEntryLinkAsync(
+        ShiftAssignmentEntryRequest request,
+        CancellationToken cancellationToken = default
+    );
+
     Task<IReadOnlyCollection<ShiftAssignmentEntryResponse>> LinkShiftSeriesAsync(
         ShiftAssignmentSeriesRequest request,
         CancellationToken cancellationToken = default
