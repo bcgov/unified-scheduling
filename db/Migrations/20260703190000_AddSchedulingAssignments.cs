@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -5,6 +6,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Unified.Db.Migrations;
 
 /// <inheritdoc />
+[DbContext(typeof(UnifiedDbContext))]
+[Migration("20260703190000_AddSchedulingAssignments")]
 public partial class AddSchedulingAssignments : Migration
 {
     /// <inheritdoc />
