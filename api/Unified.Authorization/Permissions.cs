@@ -42,9 +42,14 @@ public enum Permissions
     ScheduleViewDistribute,
 
     // --- Assignments ---
+    AssignmentsView,
     AssignmentsCreate,
+    AssignmentsAssign,
     AssignmentsEdit,
     AssignmentsExpire,
+    AssignmentTypeRead,
+    AssignmentTypeWrite,
+    AssignmentTypeExpire,
 
     // --- Duty Roster ---
     DutyRosterView,

@@ -14,6 +14,7 @@ namespace Unified.UserManagement;
 /// </summary>
 public static class UserManagementModule
 {
+    public const string ModuleName = "UserManagementModule";
     /// <summary>
     /// Add user management module services to the dependency injection container
     /// </summary>

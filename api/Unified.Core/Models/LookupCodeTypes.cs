@@ -11,4 +11,5 @@ public enum LookupCodeTypes
     PositionTypes,
     EventTypes,
     EventStatusTypes,
+    AssignmentTypes,
 }

@@ -27,6 +27,9 @@ public class UnifiedDbContext : DbContext
     public DbSet<EventStatusType> EventStatusTypes { get; set; }
     public DbSet<EventType> EventTypes { get; set; }
     public DbSet<PositionType> PositionTypes { get; set; }
+    public DbSet<AssignmentCategoryType> AssignmentCategoryTypes { get; set; }
+    public DbSet<AssignmentSubCategoryType> AssignmentSubCategoryTypes { get; set; }
+    public DbSet<AssignmentType> AssignmentTypes { get; set; }
     public DbSet<EventSeries> EventSeries { get; set; }
     public DbSet<Event> Events { get; set; }
     public DbSet<TrainingCategory> TrainingCategories { get; set; }
@@ -38,6 +41,10 @@ public class UnifiedDbContext : DbContext
     public DbSet<ShiftSeriesUser> ShiftSeriesUsers { get; set; }
     public DbSet<ShiftEntry> ShiftEntries { get; set; }
     public DbSet<ShiftEntryUser> ShiftEntryUsers { get; set; }
+    public DbSet<AssignmentSeries> AssignmentSeries { get; set; }
+    public DbSet<AssignmentEntry> AssignmentEntries { get; set; }
+    public DbSet<ShiftAssignmentEntry> ShiftAssignmentEntries { get; set; }
+    public DbSet<ShiftAssignmentEntryUser> ShiftAssignmentEntryUsers { get; set; }
 
     // Stats
     public DbSet<StatGroup> StatGroups { get; set; }

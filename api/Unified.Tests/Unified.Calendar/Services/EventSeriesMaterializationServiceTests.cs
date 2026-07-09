@@ -29,6 +29,7 @@ public class EventSeriesMaterializationServiceTests : IAsyncLifetime
         _dbContext.EventTypes.Add(CreateEventType(CalendarEventTypeCodes.General));
         _dbContext.EventTypes.Add(CreateEventType("series-type"));
         _dbContext.EventStatusTypes.Add(CreateStatusType(CalendarEventStatusTypeCodes.Draft));
+        _dbContext.EventStatusTypes.Add(CreateStatusType(CalendarEventStatusTypeCodes.Cancelled));
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var calendarDateTimeService = CreateCalendarDateTimeService();
@@ -214,25 +215,26 @@ public class EventSeriesMaterializationServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RecreateAsync_WhenRecreateAllowed_DeletesExistingSeriesEventsIncludingExceptions()
+    public async Task RecreateAsync_WhenAllowed_CreatesNewEventsWithoutReusingExistingIds()
     {
         // Arrange
-        var eventSeries = await AddSeriesAsync("FREQ=DAILY;COUNT=3");
+        var eventSeries = await AddSeriesAsync("FREQ=DAILY;COUNT=2");
         var handler = new CountingMaterializationHandler();
         await _service.MaterializeAsync(eventSeries, CreateOptions(), handler, TestContext.Current.CancellationToken);
-
-        var exceptionEvent = await _dbContext
-            .Events.OrderBy(x => x.SeriesStartAtUtc)
-            .FirstAsync(x => x.EventSeriesId == eventSeries.Id, TestContext.Current.CancellationToken);
-        exceptionEvent.StartAtUtc = exceptionEvent.StartAtUtc.AddHours(1);
-        CalendarEventExceptionHelper.UpdateExceptionFlag(exceptionEvent);
-        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        handler.CreatedContextIds.Clear();
 
         var originalEventIds = await _dbContext
             .Events.Where(x => x.EventSeriesId == eventSeries.Id)
             .Select(x => x.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
-        eventSeries.RecurrenceRule = "FREQ=DAILY;COUNT=2";
+        var exceptionEvent = await _dbContext
+            .Events.OrderBy(x => x.SeriesStartAtUtc)
+            .FirstAsync(x => x.EventSeriesId == eventSeries.Id, TestContext.Current.CancellationToken);
+        exceptionEvent.Title = "Custom occurrence";
+        exceptionEvent.StartAtUtc = exceptionEvent.StartAtUtc.AddHours(1);
+        CalendarEventExceptionHelper.UpdateExceptionFlag(exceptionEvent);
+        eventSeries.Title = "Regenerated series";
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _service.RecreateAsync(
@@ -243,22 +245,58 @@ public class EventSeriesMaterializationServiceTests : IAsyncLifetime
         );
 
         // Assert
-        Assert.Equal(3, result.RemovedCount);
+        Assert.Equal(2, result.CreatedCount);
+        Assert.Equal(0, result.UpdatedCount);
+        Assert.Equal(2, result.RemovedCount);
         Assert.Equal(originalEventIds.Order().ToArray(), result.RemovedEventIds.Order().ToArray());
         Assert.Equal(originalEventIds.Order().ToArray(), handler.RemovedEventIds.Order().ToArray());
-        Assert.False(
-            await _dbContext.Events.AnyAsync(
-                x => originalEventIds.Contains(x.Id),
-                TestContext.Current.CancellationToken
-            )
-        );
 
-        var recreatedEvents = await _dbContext
+        var regeneratedEvents = await _dbContext
             .Events.Where(x => x.EventSeriesId == eventSeries.Id)
             .OrderBy(x => x.SeriesStartAtUtc)
             .ToListAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(2, recreatedEvents.Count);
-        Assert.All(recreatedEvents, x => Assert.False(x.IsException));
+        Assert.Equal(2, regeneratedEvents.Count);
+        Assert.Empty(regeneratedEvents.Select(x => x.Id).Intersect(originalEventIds));
+        Assert.All(regeneratedEvents, x =>
+        {
+            Assert.False(x.IsException);
+            Assert.Equal("Regenerated series", x.Title);
+        });
+    }
+
+    [Fact]
+    public async Task RecreateAsync_WhenHandlerCancelsRemovedEvent_PreservesCancelledEventAndCreatesReplacement()
+    {
+        // Arrange
+        var eventSeries = await AddSeriesAsync("FREQ=DAILY;COUNT=1");
+        var handler = new CountingMaterializationHandler();
+        await _service.MaterializeAsync(eventSeries, CreateOptions(), handler, TestContext.Current.CancellationToken);
+        var originalEvent = await _dbContext.Events.SingleAsync(TestContext.Current.CancellationToken);
+        handler.CancelRemovedEventIds.Add(originalEvent.Id);
+        eventSeries.Title = "Replacement";
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _service.RecreateAsync(
+            eventSeries,
+            CreateOptions(),
+            handler,
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(1, result.CreatedCount);
+        Assert.Equal(1, result.RemovedCount);
+        var events = await _dbContext
+            .Events.Where(x => x.EventSeriesId == eventSeries.Id)
+            .OrderBy(x => x.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, events.Count);
+        Assert.Equal(originalEvent.Id, events[0].Id);
+        Assert.Equal(CalendarEventStatusTypeCodes.Cancelled, events[0].StatusTypeCode);
+        Assert.NotEqual(originalEvent.Id, events[1].Id);
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, events[1].StatusTypeCode);
+        Assert.Equal("Replacement", events[1].Title);
     }
 
     private async Task<EventSeries> AddSeriesAsync(string recurrenceRule)
@@ -324,6 +362,8 @@ public class EventSeriesMaterializationServiceTests : IAsyncLifetime
 
         public List<int> RemovedEventIds { get; } = [];
 
+        public HashSet<int> CancelRemovedEventIds { get; } = [];
+
         public Task<IEventSeriesMaterializationContext> CreateContextAsync(
             EventSeries eventSeries,
             CancellationToken cancellationToken
@@ -367,6 +407,8 @@ public class EventSeriesMaterializationServiceTests : IAsyncLifetime
         )
         {
             RemovedEventIds.Add(eventEntity.Id);
+            if (CancelRemovedEventIds.Contains(eventEntity.Id))
+                eventEntity.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
             return Task.CompletedTask;
         }
     }

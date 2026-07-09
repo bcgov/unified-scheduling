@@ -27,14 +27,6 @@ public interface IEventSeriesMaterializationHandler
         CancellationToken cancellationToken
     );
 
-    Task OnEventUpdatedAsync(
-        EventSeries eventSeries,
-        Event eventEntity,
-        SeriesEntry occurrence,
-        IEventSeriesMaterializationContext context,
-        CancellationToken cancellationToken
-    );
-
     Task OnEventRemovedAsync(
         EventSeries eventSeries,
         Event eventEntity,

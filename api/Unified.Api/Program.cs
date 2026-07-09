@@ -73,7 +73,7 @@ ModuleDependencyValidator.Validate(UnifiedModules.All, featureFlagsOptions);
     // Modules
     builder
         .Services.AddInfrastructureModule()
-        .AddCoreModule()
+        .AddCoreModule(featureFlagsOptions.CalendarModule, featureFlagsOptions.SchedulingModule)
         .AddDbModule(builder.Configuration)
         .AddUserManagementModule();
 

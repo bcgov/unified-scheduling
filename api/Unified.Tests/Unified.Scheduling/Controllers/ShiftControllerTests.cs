@@ -75,7 +75,7 @@ public class ShiftControllerTests
 
         // Assert
         var createdResult = Assert.IsType<CreatedResult>(result.Result);
-        Assert.Equal("/api/scheduling/shift-series/7", createdResult.Location);
+        Assert.Equal("/api/scheduling/shifts/series/7", createdResult.Location);
         Assert.Same(created, createdResult.Value);
         Assert.Same(request, service.LastShiftSeriesRequest);
     }
@@ -314,7 +314,7 @@ public class ShiftControllerTests
 
         // Assert
         var createdResult = Assert.IsType<CreatedResult>(result.Result);
-        Assert.Equal("/api/scheduling/shift-entries/8", createdResult.Location);
+        Assert.Equal("/api/scheduling/shifts/entries/8", createdResult.Location);
         Assert.Same(created, createdResult.Value);
         Assert.Same(request, service.LastShiftEntryRequest);
     }

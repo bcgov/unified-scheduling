@@ -9,12 +9,23 @@ namespace Unified.Core;
 
 public static class CoreModule
 {
-    public static IServiceCollection AddCoreModule(this IServiceCollection services)
+    public static IServiceCollection AddCoreModule(
+        this IServiceCollection services,
+        bool calendarModuleEnabled,
+        bool schedulingModuleEnabled
+    )
     {
         services.AddScoped<ILookupService, LookupService>();
         services.AddScoped<ILookupStrategy, PositionTypeLookupStrategy>();
-        services.AddScoped<ILookupStrategy, EventTypeLookupStrategy>();
-        services.AddScoped<ILookupStrategy, EventStatusTypeLookupStrategy>();
+        if (calendarModuleEnabled)
+        {
+            services.AddScoped<ILookupStrategy, EventTypeLookupStrategy>();
+            services.AddScoped<ILookupStrategy, EventStatusTypeLookupStrategy>();
+        }
+        if (schedulingModuleEnabled)
+        {
+            services.AddScoped<ILookupStrategy, AssignmentTypeLookupStrategy>();
+        }
         services.AddScoped<PositionTypeSeeder>();
 
         return services;

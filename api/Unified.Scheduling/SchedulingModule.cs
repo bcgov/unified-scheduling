@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
 using Unified.Calendar;
-using Unified.Common.Seeding;
 using Unified.Infrastructure.Modules;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.Seeders;
@@ -15,9 +14,10 @@ namespace Unified.Scheduling;
 public static class SchedulingModule
 {
     public const string ModuleName = "SchedulingModule";
+    private const string UserManagementModuleName = "UserManagementModule";
 
     public static UnifiedModuleDescriptor Descriptor { get; } =
-        new(ModuleName, featureFlags => featureFlags.SchedulingModule, [CalendarModule.ModuleName]);
+        new(ModuleName, featureFlags => featureFlags.SchedulingModule, [CalendarModule.ModuleName, UserManagementModuleName]);
 
     public static IMvcBuilder AddSchedulingApplicationPart(this IMvcBuilder mvcBuilder, bool isEnabled)
     {
@@ -33,11 +33,22 @@ public static class SchedulingModule
     public static IServiceCollection AddSchedulingModule(this IServiceCollection services)
     {
         services.AddScoped<IShiftService, ShiftService>();
+        services.AddScoped<IAssignmentService, AssignmentService>();
+        services.AddScoped<IAssignmentTypeService, AssignmentTypeService>();
+        services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
         services.AddScoped<ShiftSeriesMaterializationHandler>();
+        services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();
         services.AddScoped<ShiftEntryRequestValidator>();
+        services.AddScoped<AssignmentSeriesRequestValidator>();
+        services.AddScoped<AssignmentEntryRequestValidator>();
+        services.AddScoped<AssignmentTypeRequestValidator>();
+        services.AddScoped<ShiftAssignmentEntryRequestValidator>();
+        services.AddScoped<ShiftAssignmentSeriesRequestValidator>();
         services.AddScoped<SchedulingCalendarRequestValidator>();
         services.AddScoped<ShiftEventTypeSeeder>();
+        services.AddScoped<AssignmentLookupSeeder>();
+        services.AddScoped<SchedulingRolePermissionSeeder>();
         services.AddSingleton(SchedulingPermissionSeedData.Configuration);
 
         services
@@ -45,7 +56,15 @@ public static class SchedulingModule
             .AddPermissionPolicy(Permissions.ShiftsView)
             .AddPermissionPolicy(Permissions.ShiftsCreateAndAssign)
             .AddPermissionPolicy(Permissions.ShiftsEdit)
-            .AddPermissionPolicy(Permissions.ShiftsExpire);
+            .AddPermissionPolicy(Permissions.ShiftsExpire)
+            .AddPermissionPolicy(Permissions.AssignmentsView)
+            .AddPermissionPolicy(Permissions.AssignmentsCreate)
+            .AddPermissionPolicy(Permissions.AssignmentsAssign)
+            .AddPermissionPolicy(Permissions.AssignmentsEdit)
+            .AddPermissionPolicy(Permissions.AssignmentsExpire)
+            .AddPermissionPolicy(Permissions.AssignmentTypeRead)
+            .AddPermissionPolicy(Permissions.AssignmentTypeWrite)
+            .AddPermissionPolicy(Permissions.AssignmentTypeExpire);
 
         return services;
     }
