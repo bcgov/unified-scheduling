@@ -116,11 +116,13 @@ public sealed class ShiftService(
             cancellationToken
         );
 
+        var assignmentLinks = await LinkAssignmentSeriesIfRequestedAsync(entity.Id, request, cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Created shift series {ShiftSeriesId}.", entity.Id);
 
-        return await MapToShiftSeriesResponseAsync(entity, cancellationToken, materializationResult);
+        return await MapToShiftSeriesResponseAsync(entity, cancellationToken, materializationResult, assignmentLinks);
     }
 
     public async Task<ShiftSeriesResponse?> UpdateShiftSeriesAsync(
@@ -185,11 +187,14 @@ public sealed class ShiftService(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        var assignmentLinks = await LinkAssignmentSeriesIfRequestedAsync(entity.Id, request, cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Updated shift series {ShiftSeriesId}.", id);
 
-        return await MapToShiftSeriesResponseAsync(entity, cancellationToken, materializationResult);
+        return await MapToShiftSeriesResponseAsync(entity, cancellationToken, materializationResult, assignmentLinks);
     }
 
     public async Task<ShiftSeriesResponse?> PublishShiftSeriesAsync(
@@ -777,7 +782,8 @@ public sealed class ShiftService(
     private async Task<ShiftSeriesResponse> MapToShiftSeriesResponseAsync(
         ShiftSeries shiftSeries,
         CancellationToken cancellationToken,
-        EventSeriesMaterializationResult? materializationResult = null
+        EventSeriesMaterializationResult? materializationResult = null,
+        IReadOnlyCollection<ShiftAssignmentEntryResponse>? assignmentLinks = null
     )
     {
         var entryIds = await LoadShiftSeriesEntryIdsAsync([shiftSeries], cancellationToken);
@@ -800,7 +806,10 @@ public sealed class ShiftService(
                 .EventSeries.AsNoTracking()
                 .SingleOrDefaultAsync(series => series.Id == shiftSeries.EventSeriesId, cancellationToken);
 
-        return MapToShiftSeriesResponse(shiftSeries, eventSeries, ids);
+        return MapToShiftSeriesResponse(shiftSeries, eventSeries, ids) with
+        {
+            AssignmentLinks = assignmentLinks ?? [],
+        };
     }
 
     private async Task<Dictionary<int, EventSeries>> LoadEventSeriesByIdAsync(
@@ -926,6 +935,26 @@ public sealed class ShiftService(
                 ShiftEntryId = shiftEntryId,
                 AssignmentEntryId = request.AssignmentEntryId.Value,
                 UserIds = request.AssignedUserIds,
+            },
+            cancellationToken
+        );
+    }
+
+    private async Task<IReadOnlyCollection<ShiftAssignmentEntryResponse>> LinkAssignmentSeriesIfRequestedAsync(
+        int shiftSeriesId,
+        ShiftSeriesRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (request.AssignmentSeriesId is null)
+            return [];
+
+        return await shiftAssignmentService.LinkShiftSeriesAsync(
+            new ShiftAssignmentSeriesRequest
+            {
+                ShiftSeriesId = shiftSeriesId,
+                AssignmentSeriesId = request.AssignmentSeriesId.Value,
+                UserIds = GetDistinctUserIds(request.UserIds),
             },
             cancellationToken
         );

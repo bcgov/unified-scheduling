@@ -41,4 +41,6 @@ public sealed record ShiftSeriesResponse
     public IReadOnlyCollection<int> EventIds { get; init; } = [];
 
     public IReadOnlyCollection<int> ShiftEntryIds { get; init; } = [];
+
+    public IReadOnlyCollection<ShiftAssignmentEntryResponse> AssignmentLinks { get; init; } = [];
 }

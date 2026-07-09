@@ -92,6 +92,11 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         Assert.Equal(CalendarEventStatusTypeCodes.Active, entry.Event!.StatusTypeCode);
         Assert.Equal(SchedulingConstants.AssignmentEventTypeCode, entry.Event.EventTypeCode);
         Assert.Equal(2, entry.Capacity);
+        Assert.Equal("Assignment", result.Title);
+        Assert.Equal(entry.Event.StartAtUtc, result.StartAtUtc);
+        Assert.Equal(entry.Event.EndAtUtc, result.EndAtUtc);
+        Assert.Equal(entry.Event.LocationId, result.LocationId);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, result.StatusTypeCode);
     }
 
     [Fact]
@@ -103,6 +108,8 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         );
 
         Assert.Equal(2, result.AssignmentEntryIds.Count);
+        Assert.Equal(2, result.Entries.Count);
+        Assert.All(result.Entries, entry => Assert.Equal(CalendarEventStatusTypeCodes.Active, entry.StatusTypeCode));
         var entries = await _dbContext
             .AssignmentEntries.Include(x => x.Event)
             .Where(x => x.AssignmentSeriesId == result.Id)
@@ -118,6 +125,66 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
                 Assert.Equal(CalendarEventStatusTypeCodes.Active, entry.Event!.StatusTypeCode);
             }
         );
+    }
+
+    [Fact]
+    public async Task GetAssignmentEntriesAsync_WhenLocationStatusAndRangeProvided_ReturnsMatchingEntries()
+    {
+        await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(startAtUtc: new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero)),
+            TestContext.Current.CancellationToken
+        );
+        await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(startAtUtc: new DateTimeOffset(2026, 6, 3, 16, 0, 0, TimeSpan.Zero)),
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _assignmentService.GetAssignmentEntriesAsync(
+            new AssignmentEntryQueryParams
+            {
+                LocationId = 5,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                StartAtUtc = new DateTimeOffset(2026, 6, 1, 15, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var entry = Assert.Single(result);
+        Assert.Equal(new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero), entry.StartAtUtc);
+        Assert.Equal(5, entry.LocationId);
+    }
+
+    [Fact]
+    public async Task GetAssignmentSeriesAsync_WhenRangeProvided_ReturnsSeriesWithActiveOverlappingEntries()
+    {
+        var matching = await _assignmentService.CreateAssignmentSeriesAsync(
+            CreateAssignmentSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"),
+            TestContext.Current.CancellationToken
+        );
+        await _assignmentService.CreateAssignmentSeriesAsync(
+            CreateAssignmentSeriesRequest(
+                recurrenceRule: "FREQ=DAILY;COUNT=1",
+                startAtUtc: new DateTimeOffset(2026, 6, 5, 16, 0, 0, TimeSpan.Zero)
+            ),
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _assignmentService.GetAssignmentSeriesAsync(
+            new AssignmentSeriesQueryParams
+            {
+                LocationId = 5,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                StartAtUtc = new DateTimeOffset(2026, 6, 2, 15, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, 2, 23, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var series = Assert.Single(result);
+        Assert.Equal(matching.Id, series.Id);
+        Assert.NotEmpty(series.Entries);
+        Assert.Contains(series.Entries, entry => entry.StartAtUtc == new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero));
     }
 
     [Fact]

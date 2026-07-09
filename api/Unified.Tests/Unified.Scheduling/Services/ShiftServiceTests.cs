@@ -110,6 +110,51 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateShiftSeriesAsync_WhenAssignmentSeriesProvided_LinksMatchingEntriesInTransaction()
+    {
+        // Arrange
+        var assignmentSeries = await AddAssignmentSeriesAsync(
+            [
+                new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+            ]
+        );
+        var request = CreateShiftSeriesRequest(
+            recurrenceRule: "FREQ=DAILY;COUNT=2",
+            assignmentSeriesId: assignmentSeries.Id
+        );
+
+        // Act
+        var result = await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(2, result.AssignmentLinks.Count);
+
+        var links = await _dbContext
+            .ShiftAssignmentEntries.Include(link => link.Users)
+            .OrderBy(link => link.ShiftEntryId)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, links.Count);
+        Assert.All(links, link => Assert.Equal([UserA], link.Users.Select(user => user.UserId).ToArray()));
+    }
+
+    [Fact]
+    public async Task CreateShiftSeriesAsync_WhenAssignmentSeriesLinkInvalid_RollsBackShiftSeries()
+    {
+        // Arrange
+        var request = CreateShiftSeriesRequest(assignmentSeriesId: 999);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken)
+        );
+        _dbContext.ChangeTracker.Clear();
+        Assert.Empty(_dbContext.ShiftSeries);
+        Assert.Empty(_dbContext.ShiftEntries);
+        Assert.Empty(_dbContext.ShiftAssignmentEntries);
+    }
+
+    [Fact]
     public async Task CreateShiftSeriesAsync_WhenRRuleIsUnbounded_ThrowsInvalidOperationExceptionAndRollsBack()
     {
         // Arrange
@@ -1731,6 +1776,63 @@ public class ShiftServiceTests : IAsyncLifetime
         return assignmentEntry;
     }
 
+    private async Task<AssignmentSeries> AddAssignmentSeriesAsync(IReadOnlyCollection<DateTimeOffset> startTimesUtc)
+    {
+        var eventSeries = new EventSeries
+        {
+            Title = "Linked assignment series",
+            StartAtUtc = startTimesUtc.Min(),
+            EndAtUtc = startTimesUtc.Min().AddHours(7),
+            RecurrenceRule = $"FREQ=DAILY;COUNT={startTimesUtc.Count}",
+            TimeZoneId = "America/Vancouver",
+            EventTypeCode = SchedulingConstants.AssignmentEventTypeCode,
+            StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+            LocationId = 5,
+        };
+        var assignmentSeries = new AssignmentSeries
+        {
+            EventSeries = eventSeries,
+            AssignmentCategoryTypeId = 10,
+            AssignmentSubCategoryTypeId = 20,
+            AssignmentTypeId = 30,
+            Capacity = 1,
+        };
+
+        _dbContext.AssignmentSeries.Add(assignmentSeries);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        foreach (var startAtUtc in startTimesUtc)
+        {
+            _dbContext.AssignmentEntries.Add(
+                new AssignmentEntry
+                {
+                    AssignmentSeriesId = assignmentSeries.Id,
+                    Event = new Event
+                    {
+                        EventSeriesId = eventSeries.Id,
+                        Title = "Linked assignment",
+                        StartAtUtc = startAtUtc,
+                        EndAtUtc = startAtUtc.AddHours(7),
+                        SeriesStartAtUtc = startAtUtc,
+                        SeriesEndAtUtc = startAtUtc.AddHours(7),
+                        TimeZoneId = "America/Vancouver",
+                        EventTypeCode = SchedulingConstants.AssignmentEventTypeCode,
+                        StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                        SourceModule = SchedulingConstants.SourceModule,
+                        LocationId = 5,
+                    },
+                    AssignmentCategoryTypeId = 10,
+                    AssignmentSubCategoryTypeId = 20,
+                    AssignmentTypeId = 30,
+                    Capacity = 1,
+                }
+            );
+        }
+
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return assignmentSeries;
+    }
+
     private void SyncTestShiftEntryUsers(ShiftEntry shiftEntry, IReadOnlyCollection<Guid> userIds)
     {
         _dbContext.ShiftEntryUsers.RemoveRange(shiftEntry.Users);
@@ -1743,7 +1845,8 @@ public class ShiftServiceTests : IAsyncLifetime
         string title = "Series",
         IReadOnlyCollection<Guid>? userIds = null,
         string recurrenceRule = "FREQ=DAILY;COUNT=1",
-        string? statusTypeCode = null
+        string? statusTypeCode = null,
+        int? assignmentSeriesId = null
     ) =>
         new()
         {
@@ -1758,6 +1861,7 @@ public class ShiftServiceTests : IAsyncLifetime
             StatusTypeCode = statusTypeCode,
             LocationId = 5,
             UserIds = userIds ?? [UserA],
+            AssignmentSeriesId = assignmentSeriesId,
         };
 
     private static ShiftEntryRequest CreateShiftEntryRequest(

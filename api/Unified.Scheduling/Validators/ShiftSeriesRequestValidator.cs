@@ -22,6 +22,9 @@ public sealed class ShiftSeriesRequestValidator : AbstractValidator<ShiftSeriesR
         RuleFor(request => request.LocationId).GreaterThan(0).When(request => request.LocationId.HasValue);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
+        RuleFor(request => request.AssignmentSeriesId)
+            .GreaterThan(0)
+            .When(request => request.AssignmentSeriesId.HasValue);
     }
 
     private static bool HaveDistinctValues(IReadOnlyCollection<Guid>? userIds)

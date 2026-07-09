@@ -43,6 +43,26 @@ public sealed class AssignmentService(
 
         if (queryParams?.AssignmentTypeId is int assignmentTypeId)
             query = query.Where(series => series.AssignmentTypeId == assignmentTypeId);
+        if (queryParams?.LocationId is int locationId)
+            query = query.Where(series => series.EventSeries != null && series.EventSeries.LocationId == locationId);
+        if (!string.IsNullOrWhiteSpace(queryParams?.StatusTypeCode))
+        {
+            var statusTypeCode = queryParams.StatusTypeCode.Trim();
+            query = query.Where(series => series.EventSeries != null && series.EventSeries.StatusTypeCode == statusTypeCode);
+        }
+        if (queryParams?.StartAtUtc.HasValue == true || queryParams?.EndAtUtc.HasValue == true)
+        {
+            var rangeStart = queryParams?.StartAtUtc;
+            var rangeEnd = queryParams?.EndAtUtc;
+            query = query.Where(series =>
+                series.AssignmentEntries.Any(entry =>
+                    entry.Event != null
+                    && entry.Event.StatusTypeCode == CalendarEventStatusTypeCodes.Active
+                    && (!rangeEnd.HasValue || entry.Event.StartAtUtc < rangeEnd.Value)
+                    && (!rangeStart.HasValue || (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) > rangeStart.Value)
+                )
+            );
+        }
 
         var results = await query.OrderBy(series => series.EventSeriesId).ThenBy(series => series.Id).ToListAsync(cancellationToken);
         return await MapToAssignmentSeriesResponsesAsync(results, cancellationToken);
@@ -227,6 +247,23 @@ public sealed class AssignmentService(
             query = query.Where(entry => entry.EventId == eventId);
         if (queryParams?.AssignmentTypeId is int assignmentTypeId)
             query = query.Where(entry => entry.AssignmentTypeId == assignmentTypeId);
+        if (queryParams?.LocationId is int locationId)
+            query = query.Where(entry => entry.Event != null && entry.Event.LocationId == locationId);
+        if (!string.IsNullOrWhiteSpace(queryParams?.StatusTypeCode))
+        {
+            var statusTypeCode = queryParams.StatusTypeCode.Trim();
+            query = query.Where(entry => entry.Event != null && entry.Event.StatusTypeCode == statusTypeCode);
+        }
+        if (queryParams?.StartAtUtc.HasValue == true || queryParams?.EndAtUtc.HasValue == true)
+        {
+            var rangeStart = queryParams?.StartAtUtc;
+            var rangeEnd = queryParams?.EndAtUtc;
+            query = query.Where(entry =>
+                entry.Event != null
+                && (!rangeEnd.HasValue || entry.Event.StartAtUtc < rangeEnd.Value)
+                && (!rangeStart.HasValue || (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) > rangeStart.Value)
+            );
+        }
 
         var results = await query.OrderBy(entry => entry.EventId).ThenBy(entry => entry.Id).ToListAsync(cancellationToken);
         return results.Select(MapToAssignmentEntryResponse).ToList();
@@ -389,8 +426,8 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken
     )
     {
-        var entryIds = await LoadAssignmentSeriesEntryIdsAsync(assignmentSeries, cancellationToken);
-        return assignmentSeries.Select(series => MapToAssignmentSeriesResponse(series, entryIds.GetValueOrDefault(series.Id, []))).ToList();
+        var entries = await LoadAssignmentSeriesEntriesAsync(assignmentSeries, cancellationToken);
+        return assignmentSeries.Select(series => MapToAssignmentSeriesResponse(series, entries.GetValueOrDefault(series.Id, []))).ToList();
     }
 
     private async Task<AssignmentSeriesResponse> MapToAssignmentSeriesResponseAsync(
@@ -399,12 +436,12 @@ public sealed class AssignmentService(
         EventSeriesMaterializationResult? materializationResult = null
     )
     {
-        var entryIds = await LoadAssignmentSeriesEntryIdsAsync([assignmentSeries], cancellationToken);
+        var entryIds = await LoadAssignmentSeriesEntriesAsync([assignmentSeries], cancellationToken);
         var ids = entryIds.GetValueOrDefault(assignmentSeries.Id, []);
         if (materializationResult is not null)
         {
             var currentEventIds = materializationResult.CreatedEventIds.Concat(materializationResult.UpdatedEventIds).ToHashSet();
-            ids = ids.OrderByDescending(entry => currentEventIds.Contains(entry.EventId)).ThenBy(entry => entry.AssignmentEntryId).ToList();
+            ids = ids.OrderByDescending(entry => currentEventIds.Contains(entry.EventId)).ThenBy(entry => entry.Id).ToList();
         }
 
         if (assignmentSeries.EventSeries is null)
@@ -413,7 +450,7 @@ public sealed class AssignmentService(
         return MapToAssignmentSeriesResponse(assignmentSeries, ids);
     }
 
-    private async Task<Dictionary<int, List<AssignmentSeriesEntryIds>>> LoadAssignmentSeriesEntryIdsAsync(
+    private async Task<Dictionary<int, List<AssignmentEntryResponse>>> LoadAssignmentSeriesEntriesAsync(
         IReadOnlyCollection<AssignmentSeries> assignmentSeries,
         CancellationToken cancellationToken
     )
@@ -422,21 +459,20 @@ public sealed class AssignmentService(
             return [];
 
         var assignmentSeriesIds = assignmentSeries.Select(series => series.Id).ToList();
-        var ids = await db
-            .AssignmentEntries.AsNoTracking()
-            .Include(entry => entry.Event)
+        var entries = await IncludeAssignmentEntryGraph(db.AssignmentEntries.AsNoTracking())
             .Where(entry => entry.AssignmentSeriesId.HasValue && assignmentSeriesIds.Contains(entry.AssignmentSeriesId.Value))
             .Where(entry => entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .OrderBy(entry => entry.Id)
-            .Select(entry => new AssignmentSeriesEntryIds(entry.AssignmentSeriesId!.Value, entry.Id, entry.EventId))
             .ToListAsync(cancellationToken);
 
-        return ids.GroupBy(entry => entry.AssignmentSeriesId).ToDictionary(group => group.Key, group => group.ToList());
+        return entries
+            .GroupBy(entry => entry.AssignmentSeriesId!.Value)
+            .ToDictionary(group => group.Key, group => group.Select(MapToAssignmentEntryResponse).ToList());
     }
 
     private static AssignmentSeriesResponse MapToAssignmentSeriesResponse(
         AssignmentSeries assignmentSeries,
-        IReadOnlyCollection<AssignmentSeriesEntryIds> entryIds
+        IReadOnlyCollection<AssignmentEntryResponse> entries
     ) =>
         new()
         {
@@ -464,8 +500,9 @@ public sealed class AssignmentService(
             AssignmentTypeId = assignmentSeries.AssignmentTypeId,
             AssignmentTypeCode = assignmentSeries.AssignmentType?.Code,
             Capacity = assignmentSeries.Capacity,
-            EventIds = entryIds.Select(entry => entry.EventId).ToList(),
-            AssignmentEntryIds = entryIds.Select(entry => entry.AssignmentEntryId).ToList(),
+            EventIds = entries.Select(entry => entry.EventId).ToList(),
+            AssignmentEntryIds = entries.Select(entry => entry.Id).ToList(),
+            Entries = entries,
         };
 
     private static IQueryable<AssignmentEntry> IncludeAssignmentEntryGraph(IQueryable<AssignmentEntry> query) =>
@@ -490,6 +527,23 @@ public sealed class AssignmentService(
             Id = assignmentEntry.Id,
             AssignmentSeriesId = assignmentEntry.AssignmentSeriesId,
             EventId = assignmentEntry.EventId,
+            Title = assignmentEntry.Event?.Title,
+            Description = assignmentEntry.Event?.Description,
+            Notes = assignmentEntry.Event?.Notes,
+            Color = assignmentEntry.Event?.Color,
+            StartAtUtc = assignmentEntry.Event?.StartAtUtc,
+            EndAtUtc = assignmentEntry.Event?.EndAtUtc,
+            SeriesStartAtUtc = assignmentEntry.Event?.SeriesStartAtUtc,
+            SeriesEndAtUtc = assignmentEntry.Event?.SeriesEndAtUtc,
+            TimeZoneId = assignmentEntry.Event?.TimeZoneId,
+            AllDay = assignmentEntry.Event?.AllDay ?? false,
+            IsException = assignmentEntry.Event?.IsException ?? false,
+            EventTypeCode = assignmentEntry.Event?.EventTypeCode,
+            StatusTypeCode = assignmentEntry.Event?.StatusTypeCode,
+            CancelledAt = assignmentEntry.Event?.CancelledAt,
+            CancelledByUserId = assignmentEntry.Event?.CancelledByUserId,
+            CancellationReason = assignmentEntry.Event?.CancellationReason,
+            LocationId = assignmentEntry.Event?.LocationId,
             AssignmentCategoryTypeId = assignmentEntry.AssignmentCategoryTypeId,
             AssignmentCategoryTypeCode = assignmentEntry.AssignmentCategoryType?.Code,
             AssignmentSubCategoryTypeId = assignmentEntry.AssignmentSubCategoryTypeId,
@@ -621,8 +675,6 @@ public sealed class AssignmentService(
         if (eventEntity.SourceModule != SchedulingConstants.SourceModule)
             throw new InvalidOperationException($"Event {eventEntity.Id} is not owned by Scheduling.");
     }
-
-    private sealed record AssignmentSeriesEntryIds(int AssignmentSeriesId, int AssignmentEntryId, int EventId);
 
     private sealed record EventSeriesCopiedValues(
         string Title,
