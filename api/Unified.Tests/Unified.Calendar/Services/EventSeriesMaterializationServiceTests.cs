@@ -257,11 +257,14 @@ public class EventSeriesMaterializationServiceTests : IAsyncLifetime
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(2, regeneratedEvents.Count);
         Assert.Empty(regeneratedEvents.Select(x => x.Id).Intersect(originalEventIds));
-        Assert.All(regeneratedEvents, x =>
-        {
-            Assert.False(x.IsException);
-            Assert.Equal("Regenerated series", x.Title);
-        });
+        Assert.All(
+            regeneratedEvents,
+            x =>
+            {
+                Assert.False(x.IsException);
+                Assert.Equal("Regenerated series", x.Title);
+            }
+        );
     }
 
     [Fact]

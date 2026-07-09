@@ -64,10 +64,7 @@ public class ModuleDependencyValidatorTests
 
         // Assert
         Assert.Equal(SchedulingModule.ModuleName, module.Name);
-        Assert.Equal(
-            [CalendarModule.ModuleName, UserManagementModule.ModuleName],
-            module.RequiredModuleNames
-        );
+        Assert.Equal([CalendarModule.ModuleName, UserManagementModule.ModuleName], module.RequiredModuleNames);
     }
 
     [Fact]

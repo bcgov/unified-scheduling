@@ -17,7 +17,11 @@ public static class SchedulingModule
     private const string UserManagementModuleName = "UserManagementModule";
 
     public static UnifiedModuleDescriptor Descriptor { get; } =
-        new(ModuleName, featureFlags => featureFlags.SchedulingModule, [CalendarModule.ModuleName, UserManagementModuleName]);
+        new(
+            ModuleName,
+            featureFlags => featureFlags.SchedulingModule,
+            [CalendarModule.ModuleName, UserManagementModuleName]
+        );
 
     public static IMvcBuilder AddSchedulingApplicationPart(this IMvcBuilder mvcBuilder, bool isEnabled)
     {

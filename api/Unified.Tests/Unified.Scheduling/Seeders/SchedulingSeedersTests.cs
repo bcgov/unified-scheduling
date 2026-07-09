@@ -36,9 +36,24 @@ public sealed class SchedulingSeedersTests : IAsyncLifetime
     public async Task SchedulingRolePermissionSeeder_SeedAsync_UsesRoleNamesAndIsIdempotent()
     {
         _dbContext.Roles.AddRange(
-            new Role { Id = 101, Name = "Administrator", Description = "Administrator" },
-            new Role { Id = 202, Name = "Manager", Description = "Manager" },
-            new Role { Id = 303, Name = "Staff", Description = "Staff" }
+            new Role
+            {
+                Id = 101,
+                Name = "Administrator",
+                Description = "Administrator",
+            },
+            new Role
+            {
+                Id = 202,
+                Name = "Manager",
+                Description = "Manager",
+            },
+            new Role
+            {
+                Id = 303,
+                Name = "Staff",
+                Description = "Staff",
+            }
         );
         _dbContext.Permissions.AddRange(
             CreatePermission(nameof(Permissions.AssignmentsView)),
@@ -110,7 +125,14 @@ public sealed class SchedulingSeedersTests : IAsyncLifetime
     [Fact]
     public async Task SchedulingRolePermissionSeeder_SeedAsync_WhenRoleMissing_SkipsMissingRole()
     {
-        _dbContext.Roles.Add(new Role { Id = 303, Name = "Staff", Description = "Staff" });
+        _dbContext.Roles.Add(
+            new Role
+            {
+                Id = 303,
+                Name = "Staff",
+                Description = "Staff",
+            }
+        );
         _dbContext.Permissions.AddRange(
             CreatePermission(nameof(Permissions.ShiftsView)),
             CreatePermission(nameof(Permissions.AssignmentsView)),
@@ -148,29 +170,35 @@ public sealed class SchedulingSeedersTests : IAsyncLifetime
 
         var categoryTypes = await _dbContext
             .AssignmentCategoryTypes.OrderBy(type => type.Code)
-            .Select(type => new { type.Code, type.Description, type.EffectiveDate, type.ExpiryDate })
+            .Select(type => new
+            {
+                type.Code,
+                type.Description,
+                type.EffectiveDate,
+                type.ExpiryDate,
+            })
             .ToListAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(
-            [
-                "CourtRole",
-                "CourtRoom",
-                "EscortRun",
-                "JailRole",
-                "OtherAssignment",
-            ],
+            ["CourtRole", "CourtRoom", "EscortRun", "JailRole", "OtherAssignment"],
             categoryTypes.Select(type => type.Code).ToArray()
         );
         Assert.Contains(categoryTypes, type => type.Code == "CourtRoom" && type.Description == "Court Room");
         Assert.Contains(categoryTypes, type => type.Code == "CourtRole" && type.Description == "Court Assignment");
         Assert.Contains(categoryTypes, type => type.Code == "JailRole" && type.Description == "Jail Assignment");
         Assert.Contains(categoryTypes, type => type.Code == "EscortRun" && type.Description == "Transport Assignment");
-        Assert.Contains(categoryTypes, type => type.Code == "OtherAssignment" && type.Description == "Other Assignment");
-        Assert.All(categoryTypes, type =>
-        {
-            Assert.Equal(new DateTimeOffset(2020, 6, 10, 0, 0, 0, TimeSpan.Zero), type.EffectiveDate);
-            Assert.Null(type.ExpiryDate);
-        });
+        Assert.Contains(
+            categoryTypes,
+            type => type.Code == "OtherAssignment" && type.Description == "Other Assignment"
+        );
+        Assert.All(
+            categoryTypes,
+            type =>
+            {
+                Assert.Equal(new DateTimeOffset(2020, 6, 10, 0, 0, 0, TimeSpan.Zero), type.EffectiveDate);
+                Assert.Null(type.ExpiryDate);
+            }
+        );
     }
 
     private static Permission CreatePermission(string id) =>

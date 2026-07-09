@@ -184,7 +184,10 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         var series = Assert.Single(result);
         Assert.Equal(matching.Id, series.Id);
         Assert.NotEmpty(series.Entries);
-        Assert.Contains(series.Entries, entry => entry.StartAtUtc == new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero));
+        Assert.Contains(
+            series.Entries,
+            entry => entry.StartAtUtc == new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero)
+        );
     }
 
     [Fact]
@@ -298,8 +301,14 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             UserIds = [UserA],
         };
 
-        var firstResult = await _shiftAssignmentService.LinkShiftSeriesAsync(request, TestContext.Current.CancellationToken);
-        var secondResult = await _shiftAssignmentService.LinkShiftSeriesAsync(request, TestContext.Current.CancellationToken);
+        var firstResult = await _shiftAssignmentService.LinkShiftSeriesAsync(
+            request,
+            TestContext.Current.CancellationToken
+        );
+        var secondResult = await _shiftAssignmentService.LinkShiftSeriesAsync(
+            request,
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal(2, firstResult.Count);
         Assert.Empty(secondResult);
@@ -309,9 +318,9 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
     [Fact]
     public async Task LinkShiftSeriesAsync_WhenShiftOvernightTouchesAssignmentLocalDate_CreatesLink()
     {
-        var shiftSeries = await AddShiftSeriesWithEntriesAsync(
-            [new DateTimeOffset(2026, 6, 2, 6, 0, 0, TimeSpan.Zero)]
-        );
+        var shiftSeries = await AddShiftSeriesWithEntriesAsync([
+            new DateTimeOffset(2026, 6, 2, 6, 0, 0, TimeSpan.Zero),
+        ]);
         var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
             CreateAssignmentSeriesRequest(
                 recurrenceRule: "FREQ=DAILY;COUNT=1",
@@ -337,9 +346,9 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
     [Fact]
     public async Task LinkShiftSeriesAsync_WhenAllDayAssignmentUsesExclusiveEnd_DoesNotIncludeNextDay()
     {
-        var shiftSeries = await AddShiftSeriesWithEntriesAsync(
-            [new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero)]
-        );
+        var shiftSeries = await AddShiftSeriesWithEntriesAsync([
+            new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+        ]);
         var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
             CreateAssignmentSeriesRequest(
                 recurrenceRule: "FREQ=DAILY;COUNT=1",
@@ -366,9 +375,9 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
     [Fact]
     public async Task LinkShiftSeriesAsync_WhenLocalDatesDiffer_CreatesNoLinks()
     {
-        var shiftSeries = await AddShiftSeriesWithEntriesAsync(
-            [new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero)]
-        );
+        var shiftSeries = await AddShiftSeriesWithEntriesAsync([
+            new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
+        ]);
         var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
             CreateAssignmentSeriesRequest(
                 recurrenceRule: "FREQ=DAILY;COUNT=1",
@@ -393,9 +402,9 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
     [Fact]
     public async Task LinkShiftSeriesAsync_WhenAssignmentDateRangeTouchesShiftLocalDate_CreatesLink()
     {
-        var shiftSeries = await AddShiftSeriesWithEntriesAsync(
-            [new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero)]
-        );
+        var shiftSeries = await AddShiftSeriesWithEntriesAsync([
+            new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+        ]);
         var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
             CreateAssignmentSeriesRequest(
                 recurrenceRule: "FREQ=DAILY;COUNT=1",
@@ -474,9 +483,9 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
     [Fact]
     public async Task LinkShiftSeriesAsync_WhenAllDayAssignmentSameLocalDate_CreatesLink()
     {
-        var shiftSeries = await AddShiftSeriesWithEntriesAsync(
-            [new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero)]
-        );
+        var shiftSeries = await AddShiftSeriesWithEntriesAsync([
+            new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
+        ]);
         var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
             CreateAssignmentSeriesRequest(
                 recurrenceRule: "FREQ=DAILY;COUNT=1",
@@ -545,12 +554,20 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             .AssignmentEntries.Include(entry => entry.Event)
             .Where(entry => entry.AssignmentSeriesId == created.Id)
             .OrderBy(entry => entry.Event!.SeriesStartAtUtc)
-            .Select(entry => new { entry.Id, entry.EventId, entry.Capacity, entry.Event!.Title })
+            .Select(entry => new
+            {
+                entry.Id,
+                entry.EventId,
+                entry.Capacity,
+                entry.Event!.Title,
+            })
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal([3, 3, 3], capacities.Select(entry => entry.Capacity).ToArray());
         Assert.All(capacities, entry => Assert.Equal("Assignment series", entry.Title));
         Assert.Empty(capacities.Select(entry => entry.Id).Intersect(originalEntries.Select(entry => entry.Id)));
-        Assert.Empty(capacities.Select(entry => entry.EventId).Intersect(originalEntries.Select(entry => entry.EventId)));
+        Assert.Empty(
+            capacities.Select(entry => entry.EventId).Intersect(originalEntries.Select(entry => entry.EventId))
+        );
         Assert.Equal(
             0,
             await _dbContext.AssignmentEntries.CountAsync(
@@ -577,7 +594,11 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
 
         var result = await _assignmentService.UpdateAssignmentSeriesAsync(
             created.Id,
-            CreateAssignmentSeriesRequest(title: "Updated assignment series", recurrenceRule: "FREQ=DAILY;COUNT=2", capacity: 3),
+            CreateAssignmentSeriesRequest(
+                title: "Updated assignment series",
+                recurrenceRule: "FREQ=DAILY;COUNT=2",
+                capacity: 3
+            ),
             TestContext.Current.CancellationToken
         );
 
@@ -666,11 +687,14 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             .OrderBy(e => e.SeriesStartAtUtc)
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(2, events.Count);
-        Assert.All(events, e =>
-        {
-            Assert.True(e.AllDay);
-            Assert.Equal("UTC", e.TimeZoneId);
-        });
+        Assert.All(
+            events,
+            e =>
+            {
+                Assert.True(e.AllDay);
+                Assert.Equal("UTC", e.TimeZoneId);
+            }
+        );
         Assert.Equal(new DateTimeOffset(2026, 6, 2, 7, 0, 0, TimeSpan.Zero), events[0].SeriesStartAtUtc);
     }
 
@@ -747,10 +771,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         linkedHistoricalEntry.AssignmentSubCategoryTypeId = 21;
         linkedHistoricalEntry.AssignmentTypeId = 31;
         linkedHistoricalEntry.Capacity = 9;
-        var shift = await AddShiftEntryAsync(
-            startAtUtc: linkedHistoricalEntry.Event.StartAtUtc,
-            userIds: [UserA]
-        );
+        var shift = await AddShiftEntryAsync(startAtUtc: linkedHistoricalEntry.Event.StartAtUtc, userIds: [UserA]);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         await _shiftAssignmentService.LinkShiftEntryAsync(
             new ShiftAssignmentEntryRequest
@@ -856,7 +877,12 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         await _shiftAssignmentService.LinkShiftEntryAsync(
-            new ShiftAssignmentEntryRequest { ShiftEntryId = shift.Id, AssignmentEntryId = assignment.Id, UserIds = [UserA] },
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = assignment.Id,
+                UserIds = [UserA],
+            },
             TestContext.Current.CancellationToken
         );
         shift.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
@@ -875,13 +901,23 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _shiftAssignmentService.LinkShiftEntryAsync(
-                new ShiftAssignmentEntryRequest { ShiftEntryId = shift.Id, AssignmentEntryId = newAssignment.Id, UserIds = [UserA] },
+                new ShiftAssignmentEntryRequest
+                {
+                    ShiftEntryId = shift.Id,
+                    AssignmentEntryId = newAssignment.Id,
+                    UserIds = [UserA],
+                },
                 TestContext.Current.CancellationToken
             )
         );
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _shiftAssignmentService.LinkShiftEntryAsync(
-                new ShiftAssignmentEntryRequest { ShiftEntryId = newShift.Id, AssignmentEntryId = assignment.Id, UserIds = [UserA] },
+                new ShiftAssignmentEntryRequest
+                {
+                    ShiftEntryId = newShift.Id,
+                    AssignmentEntryId = assignment.Id,
+                    UserIds = [UserA],
+                },
                 TestContext.Current.CancellationToken
             )
         );
@@ -925,56 +961,74 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             CreateStatusType(CalendarEventStatusTypeCodes.Active),
             CreateStatusType(CalendarEventStatusTypeCodes.Cancelled)
         );
-        _dbContext.AssignmentCategoryTypes.Add(new AssignmentCategoryType
-        {
-            Id = 10,
-            Code = "CourtRoom",
-            Description = "Court Room",
-            EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
-        });
-        _dbContext.AssignmentCategoryTypes.Add(new AssignmentCategoryType
-        {
-            Id = 11,
-            Code = "EscortRun",
-            Description = "Transport Assignment",
-            EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
-        });
-        _dbContext.AssignmentSubCategoryTypes.Add(new AssignmentSubCategoryType
-        {
-            Id = 20,
-            Code = "PROVINCIAL",
-            Description = "Provincial",
-            EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
-        });
-        _dbContext.AssignmentSubCategoryTypes.Add(new AssignmentSubCategoryType
-        {
-            Id = 21,
-            Code = "SUPREME",
-            Description = "Supreme",
-            EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
-        });
-        _dbContext.AssignmentTypes.Add(new AssignmentType
-        {
-            Id = 30,
-            Code = "CONTROL",
-            Description = "Control",
-            EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
-        });
-        _dbContext.AssignmentTypes.Add(new AssignmentType
-        {
-            Id = 31,
-            Code = "SECURITY",
-            Description = "Security",
-            EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
-        });
-        _dbContext.Locations.Add(new Location
-        {
-            Id = 5,
-            AgencyId = "A5",
-            Name = "Location 5",
-            Timezone = "America/Vancouver",
-        });
-        _dbContext.Users.AddRange(CreateUser(UserA, "UserA"), CreateUser(UserB, "UserB"), CreateUser(CancelledByUser, "CancelUser"));
+        _dbContext.AssignmentCategoryTypes.Add(
+            new AssignmentCategoryType
+            {
+                Id = 10,
+                Code = "CourtRoom",
+                Description = "Court Room",
+                EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        _dbContext.AssignmentCategoryTypes.Add(
+            new AssignmentCategoryType
+            {
+                Id = 11,
+                Code = "EscortRun",
+                Description = "Transport Assignment",
+                EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        _dbContext.AssignmentSubCategoryTypes.Add(
+            new AssignmentSubCategoryType
+            {
+                Id = 20,
+                Code = "PROVINCIAL",
+                Description = "Provincial",
+                EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        _dbContext.AssignmentSubCategoryTypes.Add(
+            new AssignmentSubCategoryType
+            {
+                Id = 21,
+                Code = "SUPREME",
+                Description = "Supreme",
+                EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        _dbContext.AssignmentTypes.Add(
+            new AssignmentType
+            {
+                Id = 30,
+                Code = "CONTROL",
+                Description = "Control",
+                EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        _dbContext.AssignmentTypes.Add(
+            new AssignmentType
+            {
+                Id = 31,
+                Code = "SECURITY",
+                Description = "Security",
+                EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        _dbContext.Locations.Add(
+            new Location
+            {
+                Id = 5,
+                AgencyId = "A5",
+                Name = "Location 5",
+                Timezone = "America/Vancouver",
+            }
+        );
+        _dbContext.Users.AddRange(
+            CreateUser(UserA, "UserA"),
+            CreateUser(UserB, "UserB"),
+            CreateUser(CancelledByUser, "CancelUser")
+        );
 
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
@@ -999,7 +1053,8 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
 
         foreach (
             var startAtUtc in startTimesUtc
-                ?? [
+                ??
+                [
                     new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
                     new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
                 ]
@@ -1052,7 +1107,10 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         return shiftEntry;
     }
 
-    private async Task<IReadOnlyCollection<ShiftAssignmentEntryResponse>> LinkSeriesAsync(int shiftSeriesId, int assignmentSeriesId) =>
+    private async Task<IReadOnlyCollection<ShiftAssignmentEntryResponse>> LinkSeriesAsync(
+        int shiftSeriesId,
+        int assignmentSeriesId
+    ) =>
         await _shiftAssignmentService.LinkShiftSeriesAsync(
             new ShiftAssignmentSeriesRequest
             {

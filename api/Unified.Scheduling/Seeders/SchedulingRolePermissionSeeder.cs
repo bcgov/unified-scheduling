@@ -71,7 +71,9 @@ public sealed class SchedulingRolePermissionSeeder(ILogger<SchedulingRolePermiss
             .ToListAsync(cancellationToken);
         var existingPermissionIdSet = existingPermissionIds.ToHashSet(StringComparer.Ordinal);
 
-        foreach (var permissionId in permissionIds.Where(permissionId => !existingPermissionIdSet.Contains(permissionId)))
+        foreach (
+            var permissionId in permissionIds.Where(permissionId => !existingPermissionIdSet.Contains(permissionId))
+        )
         {
             dbContext.RolePermissions.Add(new RolePermission { RoleId = roleId, PermissionId = permissionId });
         }

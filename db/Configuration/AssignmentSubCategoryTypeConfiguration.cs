@@ -4,7 +4,8 @@ using Unified.Db.Models.Lookup;
 
 namespace Unified.Db.Configuration;
 
-public class AssignmentSubCategoryTypeConfiguration : BaseEntityConfiguration<AssignmentSubCategoryType>
+public class AssignmentSubCategoryTypeConfiguration
+    : BaseEntityConfiguration<AssignmentSubCategoryType>
 {
     public override void Configure(EntityTypeBuilder<AssignmentSubCategoryType> builder)
     {

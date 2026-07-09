@@ -36,9 +36,14 @@ public sealed class ShiftAssignmentService(
     )
     {
         var selectedUserIds = ValidateSelectedUserIds(request.UserIds);
-        var shiftSeriesExists = await db.ShiftSeries.AnyAsync(series => series.Id == request.ShiftSeriesId, cancellationToken);
-        var assignmentSeriesExists = await db
-            .AssignmentSeries.AnyAsync(series => series.Id == request.AssignmentSeriesId, cancellationToken);
+        var shiftSeriesExists = await db.ShiftSeries.AnyAsync(
+            series => series.Id == request.ShiftSeriesId,
+            cancellationToken
+        );
+        var assignmentSeriesExists = await db.AssignmentSeries.AnyAsync(
+            series => series.Id == request.AssignmentSeriesId,
+            cancellationToken
+        );
 
         if (!shiftSeriesExists)
             throw new KeyNotFoundException($"Shift series {request.ShiftSeriesId} not found.");
@@ -189,7 +194,10 @@ public sealed class ShiftAssignmentService(
 
         if (assignmentEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Cancelled)
         {
-            logger.LogInformation("Blocked link to cancelled assignment entry {AssignmentEntryId}.", assignmentEntry.Id);
+            logger.LogInformation(
+                "Blocked link to cancelled assignment entry {AssignmentEntryId}.",
+                assignmentEntry.Id
+            );
             throw new InvalidOperationException("Cancelled assignment entries cannot be linked.");
         }
 

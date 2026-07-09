@@ -16,7 +16,11 @@ public class AssignmentEntryConfiguration : BaseEntityConfiguration<AssignmentEn
             .WithMany(b => b.AssignmentEntries)
             .HasForeignKey(b => b.AssignmentSeriesId)
             .OnDelete(DeleteBehavior.SetNull);
-        builder.HasOne(b => b.Event).WithMany().HasForeignKey(b => b.EventId).OnDelete(DeleteBehavior.Restrict);
+        builder
+            .HasOne(b => b.Event)
+            .WithMany()
+            .HasForeignKey(b => b.EventId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder
             .HasOne(b => b.AssignmentCategoryType)
             .WithMany()
@@ -27,7 +31,11 @@ public class AssignmentEntryConfiguration : BaseEntityConfiguration<AssignmentEn
             .WithMany()
             .HasForeignKey(b => b.AssignmentSubCategoryTypeId)
             .OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne(b => b.AssignmentType).WithMany().HasForeignKey(b => b.AssignmentTypeId).OnDelete(DeleteBehavior.Restrict);
+        builder
+            .HasOne(b => b.AssignmentType)
+            .WithMany()
+            .HasForeignKey(b => b.AssignmentTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(b => b.AssignmentSeriesId);
         builder.HasIndex(b => b.EventId).IsUnique();
@@ -37,7 +45,11 @@ public class AssignmentEntryConfiguration : BaseEntityConfiguration<AssignmentEn
 
         builder.ToTable(
             "AssignmentEntries",
-            table => table.HasCheckConstraint("CK_AssignmentEntries_CapacityAtLeastOne", "\"Capacity\" >= 1")
+            table =>
+                table.HasCheckConstraint(
+                    "CK_AssignmentEntries_CapacityAtLeastOne",
+                    "\"Capacity\" >= 1"
+                )
         );
 
         base.Configure(builder);

@@ -50,7 +50,6 @@ namespace Unified.Db.Migrations
                 WHERE "Id" IN ('AssignmentsCreateAndAssign', 'ShiftAssignment');
                 """
             );
-
         }
 
         /// <inheritdoc />
@@ -95,7 +94,6 @@ namespace Unified.Db.Migrations
                 WHERE "Id" IN ('AssignmentsCreate', 'AssignmentsAssign');
                 """
             );
-
         }
     }
 }

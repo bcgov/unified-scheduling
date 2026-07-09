@@ -26,7 +26,9 @@ public sealed class AssignmentTypeService(ILogger<AssignmentTypeService> logger,
         CancellationToken cancellationToken = default
     )
     {
-        var assignmentType = await db.AssignmentTypes.AsNoTracking().SingleOrDefaultAsync(type => type.Id == id, cancellationToken);
+        var assignmentType = await db
+            .AssignmentTypes.AsNoTracking()
+            .SingleOrDefaultAsync(type => type.Id == id, cancellationToken);
         return assignmentType is null ? null : MapToResponse(assignmentType);
     }
 
@@ -80,10 +82,7 @@ public sealed class AssignmentTypeService(ILogger<AssignmentTypeService> logger,
 
         if (IsExpired(assignmentType))
         {
-            logger.LogInformation(
-                "Blocked update for expired assignment type {AssignmentTypeId}.",
-                assignmentType.Id
-            );
+            logger.LogInformation("Blocked update for expired assignment type {AssignmentTypeId}.", assignmentType.Id);
             throw new InvalidOperationException("Expired assignment types cannot be updated.");
         }
 

@@ -113,12 +113,10 @@ public class ShiftServiceTests : IAsyncLifetime
     public async Task CreateShiftSeriesAsync_WhenAssignmentSeriesProvided_LinksMatchingEntriesInTransaction()
     {
         // Arrange
-        var assignmentSeries = await AddAssignmentSeriesAsync(
-            [
-                new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
-            ]
-        );
+        var assignmentSeries = await AddAssignmentSeriesAsync([
+            new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+        ]);
         var request = CreateShiftSeriesRequest(
             recurrenceRule: "FREQ=DAILY;COUNT=2",
             assignmentSeriesId: assignmentSeries.Id
@@ -243,7 +241,10 @@ public class ShiftServiceTests : IAsyncLifetime
 
         Assert.Empty(events.Select(x => x.Id).Intersect(originalEventIds));
         Assert.False(
-            await _dbContext.Events.AnyAsync(x => originalEventIds.Contains(x.Id), TestContext.Current.CancellationToken)
+            await _dbContext.Events.AnyAsync(
+                x => originalEventIds.Contains(x.Id),
+                TestContext.Current.CancellationToken
+            )
         );
         Assert.False(
             await _dbContext.ShiftEntries.AnyAsync(
@@ -363,11 +364,14 @@ public class ShiftServiceTests : IAsyncLifetime
             .Where(entry => entry.ShiftSeriesId == created.Id)
             .OrderBy(entry => entry.Event!.SeriesStartAtUtc)
             .ToListAsync(TestContext.Current.CancellationToken);
-        Assert.All(entries, entry =>
-        {
-            Assert.Equal("Updated", entry.Event!.Title);
-            Assert.Equal([UserB], entry.Users.Select(user => user.UserId).ToArray());
-        });
+        Assert.All(
+            entries,
+            entry =>
+            {
+                Assert.Equal("Updated", entry.Event!.Title);
+                Assert.Equal([UserB], entry.Users.Select(user => user.UserId).ToArray());
+            }
+        );
     }
 
     [Fact]
@@ -606,7 +610,11 @@ public class ShiftServiceTests : IAsyncLifetime
         );
         await _service.UpdateShiftSeriesAsync(
             created.Id,
-            CreateShiftSeriesRequest(title: "Updated current shift", recurrenceRule: "FREQ=DAILY;COUNT=1", userIds: [UserB]),
+            CreateShiftSeriesRequest(
+                title: "Updated current shift",
+                recurrenceRule: "FREQ=DAILY;COUNT=1",
+                userIds: [UserB]
+            ),
             TestContext.Current.CancellationToken
         );
 
@@ -1057,11 +1065,7 @@ public class ShiftServiceTests : IAsyncLifetime
     public async Task CreateShiftEntryAsync_WhenAssignmentLinkInvalid_RollsBackShiftCreation()
     {
         // Arrange
-        var request = CreateShiftEntryRequest(
-            userIds: [UserA],
-            assignmentEntryId: 999,
-            assignedUserIds: [UserA]
-        );
+        var request = CreateShiftEntryRequest(userIds: [UserA], assignmentEntryId: 999, assignedUserIds: [UserA]);
 
         // Act
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -1070,7 +1074,9 @@ public class ShiftServiceTests : IAsyncLifetime
 
         // Assert
         Assert.Empty(_dbContext.ShiftEntries);
-        Assert.Empty(_dbContext.Events.Where(eventEntity => eventEntity.EventTypeCode == SchedulingConstants.ShiftEventTypeCode));
+        Assert.Empty(
+            _dbContext.Events.Where(eventEntity => eventEntity.EventTypeCode == SchedulingConstants.ShiftEventTypeCode)
+        );
         Assert.Empty(_dbContext.ShiftAssignmentEntries);
     }
 
@@ -1234,7 +1240,12 @@ public class ShiftServiceTests : IAsyncLifetime
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             _service.UpdateShiftEntryAsync(
                 entry.Id,
-                CreateShiftEntryRequest(title: "Changed", userIds: [UserA], assignmentEntryId: 999, assignedUserIds: [UserA]),
+                CreateShiftEntryRequest(
+                    title: "Changed",
+                    userIds: [UserA],
+                    assignmentEntryId: 999,
+                    assignedUserIds: [UserA]
+                ),
                 TestContext.Current.CancellationToken
             )
         );
@@ -1259,7 +1270,11 @@ public class ShiftServiceTests : IAsyncLifetime
         // Act
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _service.CreateShiftEntryAsync(
-                CreateShiftEntryRequest(userIds: [UserA], assignmentEntryId: assignmentEntry.Id, assignedUserIds: [UserA]),
+                CreateShiftEntryRequest(
+                    userIds: [UserA],
+                    assignmentEntryId: assignmentEntry.Id,
+                    assignedUserIds: [UserA]
+                ),
                 TestContext.Current.CancellationToken
             )
         );
@@ -1279,7 +1294,11 @@ public class ShiftServiceTests : IAsyncLifetime
         // Act
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _service.CreateShiftEntryAsync(
-                CreateShiftEntryRequest(userIds: [UserA], assignmentEntryId: assignmentEntry.Id, assignedUserIds: [UserB]),
+                CreateShiftEntryRequest(
+                    userIds: [UserA],
+                    assignmentEntryId: assignmentEntry.Id,
+                    assignedUserIds: [UserB]
+                ),
                 TestContext.Current.CancellationToken
             )
         );

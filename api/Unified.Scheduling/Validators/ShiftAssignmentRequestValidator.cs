@@ -13,7 +13,8 @@ public sealed class ShiftAssignmentEntryRequestValidator : AbstractValidator<Shi
         RuleFor(request => request.UserIds).Must(HaveUniqueUsers).WithMessage("Selected users must be unique.");
     }
 
-    private static bool HaveUniqueUsers(IReadOnlyCollection<Guid> userIds) => userIds.Distinct().Count() == userIds.Count;
+    private static bool HaveUniqueUsers(IReadOnlyCollection<Guid> userIds) =>
+        userIds.Distinct().Count() == userIds.Count;
 }
 
 public sealed class ShiftAssignmentSeriesRequestValidator : AbstractValidator<ShiftAssignmentSeriesRequest>
@@ -26,5 +27,6 @@ public sealed class ShiftAssignmentSeriesRequestValidator : AbstractValidator<Sh
         RuleFor(request => request.UserIds).Must(HaveUniqueUsers).WithMessage("Selected users must be unique.");
     }
 
-    private static bool HaveUniqueUsers(IReadOnlyCollection<Guid> userIds) => userIds.Distinct().Count() == userIds.Count;
+    private static bool HaveUniqueUsers(IReadOnlyCollection<Guid> userIds) =>
+        userIds.Distinct().Count() == userIds.Count;
 }

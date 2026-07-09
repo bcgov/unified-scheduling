@@ -619,10 +619,12 @@ public sealed class ShiftService(
             .Include(assignmentEntry => assignmentEntry.AssignmentSubCategoryType)
             .Include(assignmentEntry => assignmentEntry.AssignmentType)
             .Include(assignmentEntry => assignmentEntry.ShiftAssignmentEntries)
-            .ThenInclude(link => link.Users)
+                .ThenInclude(link => link.Users)
             .Where(assignmentEntry => assignmentEntry.Event != null)
             .Where(assignmentEntry => assignmentEntry.Event!.SourceModule == SchedulingConstants.SourceModule)
-            .Where(assignmentEntry => assignmentEntry.Event!.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
+            .Where(assignmentEntry =>
+                assignmentEntry.Event!.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode
+            )
             .Where(assignmentEntry => assignmentEntry.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .Where(assignmentEntry => assignmentEntry.Event!.StartAtUtc < utcRange.EndAtUtc)
             .Where(assignmentEntry =>
@@ -650,10 +652,7 @@ public sealed class ShiftService(
                 .ToList(),
         };
 
-        logger.LogDebug(
-            "Scheduling calendar query returned {SchedulingEventCount} events.",
-            response.Events.Count
-        );
+        logger.LogDebug("Scheduling calendar query returned {SchedulingEventCount} events.", response.Events.Count);
 
         return response;
     }
@@ -908,10 +907,7 @@ public sealed class ShiftService(
     )
     {
         var response = MapToShiftEntryResponse(shiftEntry);
-        return response with
-        {
-            AssignmentLinks = assignmentLink is null ? [] : [assignmentLink],
-        };
+        return response with { AssignmentLinks = assignmentLink is null ? [] : [assignmentLink] };
     }
 
     private async Task<ShiftAssignmentEntryResponse?> UpsertAssignmentLinkIfRequestedAsync(
@@ -1038,13 +1034,7 @@ public sealed class ShiftService(
         || eventSeries.AllDay != request.AllDay;
 
     private static EventSeriesCopiedValues CaptureEventSeriesValues(EventSeries eventSeries) =>
-        new(
-            eventSeries.Title,
-            eventSeries.Description,
-            eventSeries.Notes,
-            eventSeries.Color,
-            eventSeries.LocationId
-        );
+        new(eventSeries.Title, eventSeries.Description, eventSeries.Notes, eventSeries.Color, eventSeries.LocationId);
 
     private static void ApplyEventSeriesFieldUpdatePreservingOverrides(
         Event eventEntity,

@@ -20,6 +20,8 @@ public static class SchedulingPolicies
     public const string AssignmentsEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsEdit);
     public const string AssignmentsExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsExpire);
     public const string AssignmentTypeRead = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentTypeRead);
-    public const string AssignmentTypeWrite = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentTypeWrite);
-    public const string AssignmentTypeExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentTypeExpire);
+    public const string AssignmentTypeWrite =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentTypeWrite);
+    public const string AssignmentTypeExpire =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentTypeExpire);
 }

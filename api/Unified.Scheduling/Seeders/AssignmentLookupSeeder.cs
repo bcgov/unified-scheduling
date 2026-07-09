@@ -7,7 +7,8 @@ using Unified.Db.Models.Lookup;
 
 namespace Unified.Scheduling.Seeders;
 
-public sealed class AssignmentLookupSeeder(ILogger<AssignmentLookupSeeder> logger) : SeederBase<UnifiedDbContext>(logger)
+public sealed class AssignmentLookupSeeder(ILogger<AssignmentLookupSeeder> logger)
+    : SeederBase<UnifiedDbContext>(logger)
 {
     private static readonly DateTimeOffset SeedEffectiveDate = new(2020, 6, 10, 0, 0, 0, TimeSpan.Zero);
 
