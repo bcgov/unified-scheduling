@@ -2,6 +2,8 @@ namespace Unified.Scheduling.Models;
 
 public sealed record AssignmentTypeRequest
 {
+    public int LocationId { get; init; }
+
     public string Code { get; init; } = string.Empty;
 
     public string Description { get; init; } = string.Empty;

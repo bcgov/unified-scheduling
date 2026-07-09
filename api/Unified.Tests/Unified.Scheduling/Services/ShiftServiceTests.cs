@@ -1676,6 +1676,7 @@ public class ShiftServiceTests : IAsyncLifetime
             new AssignmentType
             {
                 Id = 30,
+                LocationId = 5,
                 Code = "CONTROL",
                 Description = "Control",
                 EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),

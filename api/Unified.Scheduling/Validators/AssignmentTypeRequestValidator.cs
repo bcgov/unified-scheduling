@@ -7,6 +7,7 @@ public sealed class AssignmentTypeRequestValidator : AbstractValidator<Assignmen
 {
     public AssignmentTypeRequestValidator()
     {
+        RuleFor(request => request.LocationId).GreaterThan(0);
         RuleFor(request => request.Code).NotEmpty().MaximumLength(50);
         RuleFor(request => request.Description).NotEmpty().MaximumLength(100);
         RuleFor(request => request.EffectiveDate).NotEmpty();

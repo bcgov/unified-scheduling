@@ -52,7 +52,6 @@ public static class SchedulingModule
         services.AddScoped<SchedulingCalendarRequestValidator>();
         services.AddScoped<ShiftEventTypeSeeder>();
         services.AddScoped<AssignmentLookupSeeder>();
-        services.AddScoped<SchedulingRolePermissionSeeder>();
         services.AddSingleton(SchedulingPermissionSeedData.Configuration);
 
         services

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Unified.Core.Models;
 using Unified.Core.Services.Lookup;
 using Unified.Db;
+using Unified.Db.Models;
 using Unified.Db.Models.Lookup;
 
 namespace Unified.Tests.Core.Services.Lookup;
@@ -31,15 +32,26 @@ public class AssignmentTypeLookupStrategyTests : IAsyncLifetime
     [Fact]
     public async Task GetAllAsync_Should_Return_AssignmentTypes()
     {
+        _dbContext.Locations.Add(
+            new Location
+            {
+                Id = 5,
+                AgencyId = "A5",
+                Name = "Location 5",
+                Timezone = "America/Vancouver",
+            }
+        );
         _dbContext.AssignmentTypes.AddRange(
             new AssignmentType
             {
+                LocationId = 5,
                 Code = "court-support",
                 Description = "Court Support",
                 EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
             },
             new AssignmentType
             {
+                LocationId = 5,
                 Code = "transport",
                 Description = "Transport",
                 EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),

@@ -34,6 +34,7 @@ services:
       - Keycloak__Client=${KeycloakClient}
       - Keycloak__Secret=${KeycloakSecret}
       - Keycloak__Audience=${KeycloakAudience}
+      - DevelopmentUser__UserId=${DevelopmentUser}
     ports:
       - 5000:5000
     volumes:

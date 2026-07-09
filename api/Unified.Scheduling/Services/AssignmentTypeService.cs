@@ -10,12 +10,18 @@ public sealed class AssignmentTypeService(ILogger<AssignmentTypeService> logger,
     : IAssignmentTypeService
 {
     public async Task<IReadOnlyCollection<AssignmentTypeResponse>> GetAssignmentTypesAsync(
+        int? locationId = null,
         CancellationToken cancellationToken = default
     )
     {
-        var assignmentTypes = await db
-            .AssignmentTypes.AsNoTracking()
-            .OrderBy(type => type.Code)
+        var query = db.AssignmentTypes.AsNoTracking();
+
+        if (locationId.HasValue)
+            query = query.Where(type => type.LocationId == locationId.Value);
+
+        var assignmentTypes = await query
+            .OrderBy(type => type.LocationId)
+            .ThenBy(type => type.Code)
             .ToListAsync(cancellationToken);
 
         return assignmentTypes.Select(MapToResponse).ToList();
@@ -34,13 +40,17 @@ public sealed class AssignmentTypeService(ILogger<AssignmentTypeService> logger,
 
     public async Task<AssignmentTypeResponse?> GetAssignmentTypeByCodeAsync(
         string code,
+        int locationId,
         CancellationToken cancellationToken = default
     )
     {
         var normalizedCode = NormalizeCode(code);
         var assignmentType = await db
             .AssignmentTypes.AsNoTracking()
-            .SingleOrDefaultAsync(type => type.Code == normalizedCode, cancellationToken);
+            .SingleOrDefaultAsync(
+                type => type.Code == normalizedCode && type.LocationId == locationId,
+                cancellationToken
+            );
         return assignmentType is null ? null : MapToResponse(assignmentType);
     }
 
@@ -50,11 +60,17 @@ public sealed class AssignmentTypeService(ILogger<AssignmentTypeService> logger,
     )
     {
         var code = NormalizeCode(request.Code);
-        logger.LogInformation("Creating assignment type {AssignmentTypeCode}.", code);
-        await EnsureCodeIsUniqueAsync(code, null, cancellationToken);
+        logger.LogInformation(
+            "Creating assignment type {AssignmentTypeCode} for location {LocationId}.",
+            code,
+            request.LocationId
+        );
+        await EnsureLocationExistsAsync(request.LocationId, cancellationToken);
+        await EnsureCodeIsUniqueAsync(code, request.LocationId, null, cancellationToken);
 
         var assignmentType = new AssignmentType
         {
+            LocationId = request.LocationId,
             Code = code,
             Description = request.Description.Trim(),
             EffectiveDate = request.EffectiveDate,
@@ -87,8 +103,10 @@ public sealed class AssignmentTypeService(ILogger<AssignmentTypeService> logger,
         }
 
         var code = NormalizeCode(request.Code);
-        await EnsureCodeIsUniqueAsync(code, id, cancellationToken);
+        await EnsureLocationExistsAsync(request.LocationId, cancellationToken);
+        await EnsureCodeIsUniqueAsync(code, request.LocationId, id, cancellationToken);
 
+        assignmentType.LocationId = request.LocationId;
         assignmentType.Code = code;
         assignmentType.Description = request.Description.Trim();
         assignmentType.EffectiveDate = request.EffectiveDate;
@@ -120,15 +138,31 @@ public sealed class AssignmentTypeService(ILogger<AssignmentTypeService> logger,
         return MapToResponse(assignmentType);
     }
 
-    private async Task EnsureCodeIsUniqueAsync(string code, int? currentId, CancellationToken cancellationToken)
+    private async Task EnsureLocationExistsAsync(int locationId, CancellationToken cancellationToken)
+    {
+        var exists = await db.Locations.AnyAsync(location => location.Id == locationId, cancellationToken);
+
+        if (!exists)
+            throw new InvalidOperationException($"Location {locationId} does not exist.");
+    }
+
+    private async Task EnsureCodeIsUniqueAsync(
+        string code,
+        int locationId,
+        int? currentId,
+        CancellationToken cancellationToken
+    )
     {
         var codeExists = await db.AssignmentTypes.AnyAsync(
-            type => type.Code == code && (!currentId.HasValue || type.Id != currentId.Value),
+            type =>
+                type.Code == code
+                && type.LocationId == locationId
+                && (!currentId.HasValue || type.Id != currentId.Value),
             cancellationToken
         );
 
         if (codeExists)
-            throw new InvalidOperationException($"Assignment type code {code} already exists.");
+            throw new InvalidOperationException($"Assignment type code {code} already exists for location {locationId}.");
     }
 
     private static bool IsExpired(AssignmentType assignmentType) =>
@@ -140,6 +174,7 @@ public sealed class AssignmentTypeService(ILogger<AssignmentTypeService> logger,
         new()
         {
             Id = assignmentType.Id,
+            LocationId = assignmentType.LocationId,
             Code = assignmentType.Code,
             Description = assignmentType.Description,
             EffectiveDate = assignmentType.EffectiveDate,

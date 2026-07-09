@@ -4,6 +4,8 @@ public sealed record AssignmentTypeResponse
 {
     public int Id { get; init; }
 
+    public int LocationId { get; init; }
+
     public required string Code { get; init; }
 
     public required string Description { get; init; }

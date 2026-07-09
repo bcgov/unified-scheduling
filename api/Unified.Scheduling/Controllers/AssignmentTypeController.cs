@@ -20,8 +20,9 @@ public sealed class AssignmentTypeController(
     [Authorize(Policy = SchedulingPolicies.AssignmentTypeRead)]
     [ProducesResponseType(typeof(IEnumerable<AssignmentTypeResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<AssignmentTypeResponse>>> GetAssignmentTypes(
+        [FromQuery] int? locationId,
         CancellationToken cancellationToken
-    ) => Ok(await assignmentTypeService.GetAssignmentTypesAsync(cancellationToken));
+    ) => Ok(await assignmentTypeService.GetAssignmentTypesAsync(locationId, cancellationToken));
 
     [HttpGet("{id:int}")]
     [Authorize(Policy = SchedulingPolicies.AssignmentTypeRead)]

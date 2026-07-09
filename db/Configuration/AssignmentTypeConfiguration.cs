@@ -11,7 +11,12 @@ public class AssignmentTypeConfiguration : BaseEntityConfiguration<AssignmentTyp
         builder.Property(b => b.Id).HasIdentityOptions(startValue: 200);
         builder.Property(b => b.Code).HasMaxLength(50).IsRequired();
         builder.Property(b => b.Description).HasMaxLength(100).IsRequired();
-        builder.HasIndex(b => b.Code).IsUnique();
+        builder.HasIndex(b => new { b.LocationId, b.Code }).IsUnique();
+        builder
+            .HasOne(b => b.Location)
+            .WithMany()
+            .HasForeignKey(b => b.LocationId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.ToTable("AssignmentTypes");
         base.Configure(builder);
     }

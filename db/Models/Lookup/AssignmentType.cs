@@ -3,7 +3,7 @@ using Unified.Db.Models.Abstract;
 
 namespace Unified.Db.Models.Lookup;
 
-public class AssignmentType : BaseCodeTypeEntity
+public class AssignmentType : BaseLocationCodeTypeEntity
 {
     [Key]
     public int Id { get; set; }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
 using Unified.Infrastructure.Modules;
 using Unified.UserManagement.Models;
+using Unified.UserManagement.Options;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
@@ -35,7 +36,9 @@ public static class UserManagementModule
         services.AddScoped<RegionSeeder>();
         services.AddScoped<LocationSeeder>();
         services.AddScoped<PermissionSeeder>();
+        services.AddScoped<DevelopmentUserSeeder>();
         services.AddSingleton(UserManagementPermissionSeedData.Configuration);
+        services.AddOptions<DevelopmentUserOptions>().BindConfiguration(DevelopmentUserOptions.SectionName);
 
         services.AddScoped<UserRequestValidator>();
         services.AddScoped<AssignUserRoleRequestValidator>();

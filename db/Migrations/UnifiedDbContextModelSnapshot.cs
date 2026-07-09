@@ -372,6 +372,9 @@ namespace Unified.Db.Migrations
                     b.Property<DateTimeOffset?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("LocationId")
+                        .HasColumnType("integer");
+
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
 
@@ -380,10 +383,12 @@ namespace Unified.Db.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("LocationId", "Code")
                         .IsUnique();
 
-                    b.HasIndex("CreatedById");
+                    b.HasIndex("LocationId");
 
                     b.HasIndex("UpdatedById");
 
@@ -2258,6 +2263,12 @@ namespace Unified.Db.Migrations
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.AssignmentType", b =>
                 {
+                    b.HasOne("Unified.Db.Models.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedById")
@@ -2269,6 +2280,8 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("CreatedBy");
+
+                    b.Navigation("Location");
 
                     b.Navigation("UpdatedBy");
                 });

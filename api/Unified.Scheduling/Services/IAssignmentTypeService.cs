@@ -5,6 +5,7 @@ namespace Unified.Scheduling.Services;
 public interface IAssignmentTypeService
 {
     Task<IReadOnlyCollection<AssignmentTypeResponse>> GetAssignmentTypesAsync(
+        int? locationId = null,
         CancellationToken cancellationToken = default
     );
 
@@ -12,6 +13,7 @@ public interface IAssignmentTypeService
 
     Task<AssignmentTypeResponse?> GetAssignmentTypeByCodeAsync(
         string code,
+        int locationId,
         CancellationToken cancellationToken = default
     );
 
