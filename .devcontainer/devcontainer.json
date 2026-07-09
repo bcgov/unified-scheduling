@@ -12,7 +12,7 @@
       "dotnetRuntimeVersions": "10.0",
       "aspnetcoreRuntimeVersions": "10.0"
     },
-    "ghcr.io/devcontainers/features/node:1": {
+    "ghcr.io/devcontainers/features/node:2": {
       "version": "22"
     },
     "ghcr.io/devcontainers/features/docker-from-docker:1.10.0": {
