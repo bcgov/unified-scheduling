@@ -6,9 +6,6 @@
  */
 import { faker } from '@faker-js/faker';
 
-import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
-
 import type { StatGroupResponse } from '../models';
 
 export const getGetApiStatsGroupsResponseMock = (): StatGroupResponse[] =>
@@ -53,48 +50,3 @@ export const getGetApiStatsGroupsIdResponseMock = (
       ...overrideResponse,
     },
   ]);
-
-export const getGetApiStatsGroupsMockHandler = (
-  overrideResponse?:
-    | StatGroupResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatGroupResponse[]> | StatGroupResponse[]),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/groups',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsGroupsResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getGetApiStatsGroupsIdMockHandler = (
-  overrideResponse?:
-    | StatGroupResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatGroupResponse> | StatGroupResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/groups/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsGroupsIdResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-export const getStatGroupsMock = () => [getGetApiStatsGroupsMockHandler(), getGetApiStatsGroupsIdMockHandler()];

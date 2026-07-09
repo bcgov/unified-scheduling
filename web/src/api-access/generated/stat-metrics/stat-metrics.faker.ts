@@ -6,9 +6,6 @@
  */
 import { faker } from '@faker-js/faker';
 
-import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
-
 import type { StatMetricResponse } from '../models';
 
 export const getGetApiStatsMetricsResponseMock = (): StatMetricResponse[] =>
@@ -53,48 +50,3 @@ export const getGetApiStatsMetricsIdResponseMock = (
       ...overrideResponse,
     },
   ]);
-
-export const getGetApiStatsMetricsMockHandler = (
-  overrideResponse?:
-    | StatMetricResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatMetricResponse[]> | StatMetricResponse[]),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/metrics',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsMetricsResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getGetApiStatsMetricsIdMockHandler = (
-  overrideResponse?:
-    | StatMetricResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatMetricResponse> | StatMetricResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/metrics/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsMetricsIdResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-export const getStatMetricsMock = () => [getGetApiStatsMetricsMockHandler(), getGetApiStatsMetricsIdMockHandler()];

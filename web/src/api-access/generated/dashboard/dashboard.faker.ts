@@ -6,9 +6,6 @@
  */
 import { faker } from '@faker-js/faker';
 
-import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
-
 import type { DashboardEntryResponse, DashboardSignOffResponse, DashboardSummaryResponse } from '../models';
 
 export const getGetApiStatsDashboardEntriesResponseMock = (): DashboardEntryResponse[] =>
@@ -128,80 +125,3 @@ export const getPostApiStatsDashboardSignOffResponseMock = (
       ...overrideResponse,
     },
   ]);
-
-export const getGetApiStatsDashboardEntriesMockHandler = (
-  overrideResponse?:
-    | DashboardEntryResponse[]
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<DashboardEntryResponse[]> | DashboardEntryResponse[]),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/dashboard/entries',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsDashboardEntriesResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getGetApiStatsDashboardSummaryMockHandler = (
-  overrideResponse?:
-    | DashboardSummaryResponse
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<DashboardSummaryResponse> | DashboardSummaryResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/dashboard/summary',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsDashboardSummaryResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getPostApiStatsDashboardSignOffMockHandler = (
-  overrideResponse?:
-    | DashboardSignOffResponse
-    | ((
-        info: Parameters<Parameters<typeof http.post>[1]>[0],
-      ) => Promise<DashboardSignOffResponse> | DashboardSignOffResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.post(
-    '*/api/stats/dashboard/sign-off',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getPostApiStatsDashboardSignOffResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-export const getDashboardMock = () => [
-  getGetApiStatsDashboardEntriesMockHandler(),
-  getGetApiStatsDashboardSummaryMockHandler(),
-  getPostApiStatsDashboardSignOffMockHandler(),
-];

@@ -6,9 +6,6 @@
  */
 import { faker } from '@faker-js/faker';
 
-import { HttpResponse, http } from 'msw';
-import type { RequestHandlerOptions } from 'msw';
-
 import type { StatSignoffResponse } from '../models';
 
 export const getGetApiStatsSignoffsResponseMock = (): StatSignoffResponse[] =>
@@ -113,92 +110,3 @@ export const getGetApiStatsSignoffsIdResponseMock = (
       ...overrideResponse,
     },
   ]);
-
-export const getGetApiStatsSignoffsMockHandler = (
-  overrideResponse?:
-    | StatSignoffResponse[]
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatSignoffResponse[]> | StatSignoffResponse[]),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/signoffs',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsSignoffsResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getPostApiStatsSignoffsMockHandler = (
-  overrideResponse?:
-    | StatSignoffResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<StatSignoffResponse> | StatSignoffResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.post(
-    '*/api/stats/signoffs',
-    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getPostApiStatsSignoffsResponseMock(),
-        { status: 201 },
-      );
-    },
-    options,
-  );
-};
-
-export const getGetApiStatsSignoffsIdMockHandler = (
-  overrideResponse?:
-    | StatSignoffResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StatSignoffResponse> | StatSignoffResponse),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/stats/signoffs/:id',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiStatsSignoffsIdResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
-export const getDeleteApiStatsSignoffsIdMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
-  options?: RequestHandlerOptions,
-) => {
-  return http.delete(
-    '*/api/stats/signoffs/:id',
-    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
-      if (typeof overrideResponse === 'function') {
-        await overrideResponse(info);
-      }
-
-      return new HttpResponse(null, { status: 204 });
-    },
-    options,
-  );
-};
-export const getStatSignoffsMock = () => [
-  getGetApiStatsSignoffsMockHandler(),
-  getPostApiStatsSignoffsMockHandler(),
-  getGetApiStatsSignoffsIdMockHandler(),
-  getDeleteApiStatsSignoffsIdMockHandler(),
-];
