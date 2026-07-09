@@ -1,9 +1,9 @@
 {
   "features": {
-    "ghcr.io/devcontainers/features/docker-from-docker:1.6.5": {
-      "version": "1.6.5",
-      "resolved": "ghcr.io/devcontainers/features/docker-from-docker@sha256:5c0af58d6acc6d81e38b5a6130724330f2eb4f703120dea0016a35da4ad30861",
-      "integrity": "sha256:5c0af58d6acc6d81e38b5a6130724330f2eb4f703120dea0016a35da4ad30861"
+    "ghcr.io/devcontainers/features/docker-from-docker:1.10.0": {
+      "version": "1.10.0",
+      "resolved": "ghcr.io/devcontainers/features/docker-from-docker@sha256:c2c2cf829505ead8e4892c88c31b6594ae94a2bbb209e16e1fac456c1a3a624e",
+      "integrity": "sha256:c2c2cf829505ead8e4892c88c31b6594ae94a2bbb209e16e1fac456c1a3a624e"
     },
     "ghcr.io/devcontainers/features/dotnet:2": {
       "version": "2.5.0",
