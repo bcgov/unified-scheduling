@@ -10,5 +10,9 @@ public sealed record RoleDto
 
     public uint ConcurrencyToken { get; set; }
 
+    public DateTimeOffset? DeletedOn { get; set; }
+
+    public Guid? DeletedById { get; set; }
+
     public IReadOnlyList<PermissionDto> Permissions { get; set; } = [];
 }

@@ -2,51 +2,108 @@
 #   - https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
-  # Maintain dependencies for GitHub Actions
-  #  - Check for updates once a week
-  #  - Group all updates into a single PR
+  # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: monday
     groups:
-      all-actions:
-        patterns: [ "*" ]
+      github-actions:
+        patterns: ["*"]
 
-  # Maintain dependencies for docker
-  - package-ecosystem: "docker"
-    directory: "/docker"
+  # Docker
+  - package-ecosystem: docker
+    directory: /docker
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    groups:
+      docker-root:
+        patterns: ["*"]
 
-  - package-ecosystem: "docker"
-    directory: "/docker/api"
+  - package-ecosystem: docker
+    directory: /docker/api
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    groups:
+      docker-api:
+        patterns: ["*"]
 
-  - package-ecosystem: "docker"
-    directory: "/docker/nginx-runtime"
+  - package-ecosystem: docker
+    directory: /docker/web
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    groups:
+      docker-web:
+        patterns: ["*"]
 
-  - package-ecosystem: "docker"
-    directory: "/docker/web"
+  - package-ecosystem: docker
+    directory: /docker/vue-on-nginx
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    groups:
+      docker-vue-on-nginx:
+        patterns: ["*"]
 
-  # Maintain dependencies for Nuget
-  - package-ecosystem: "nuget"
-    directory: "/"
+  - package-ecosystem: docker
+    directory: /docker/nginx-runtime
     schedule:
-      interval: "weekly"
+      interval: weekly
+      day: monday
+    groups:
+      docker-nginx-runtime:
+        patterns: ["*"]
 
-  # Maintain dependencies for NPM
-  - package-ecosystem: "npm"
-    directory: "/web"
+  - package-ecosystem: docker
+    directory: /.devcontainer
     schedule:
-      interval: "daily"
-    cooldown:
-      default-days: 30  # Fallback cooldown if no other rule applies
-      semver-major-days: 30  # Cooldown for major version updates
-      semver-minor-days: 30  # Cooldown for minor version updates
-      semver-patch-days: 30  # Cooldown for patch updates
+      interval: weekly
+      day: monday
+    groups:
+      docker-devcontainer:
+        patterns: ["*"]
+
+  # Dev Container features
+  # directory is the repo root; Dependabot discovers .devcontainer/devcontainer.json
+  # (any valid dev container location) relative to it.
+  - package-ecosystem: devcontainers
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+
+  # NuGet
+  # Minor + patch grouped into one PR; each major gets its own PR for deliberate review.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      nuget-minor-patch:
+        update-types: ["minor", "patch"]
+    # Caps total open version-update PRs for this ecosystem (grouped and individual alike)
+    open-pull-requests-limit: 10
+
+  # NPM
+  # Minor + patch grouped into one PR; each major gets its own PR for deliberate review.
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      npm-production-minor-patch:
+        dependency-type: production
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+      npm-development-minor-patch:
+        dependency-type: development
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+    # Caps total open version-update PRs for this ecosystem (grouped and individual alike)
+    open-pull-requests-limit: 10

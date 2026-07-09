@@ -18,7 +18,7 @@ public class RolesController(
 ) : ControllerBase
 {
     /// <summary>
-    /// Returns all available roles with their assigned permissions.
+    /// Returns all roles (active and inactive) with their assigned permissions.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of roles.</returns>

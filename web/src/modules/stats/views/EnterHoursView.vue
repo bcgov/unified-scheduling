@@ -26,6 +26,7 @@ const formTitle = computed(() => {
 });
 
 const {
+  accountWarning,
   canEnterForOthers,
   seedLocationId,
   seedUserId,
@@ -111,13 +112,16 @@ const {
       </div>
     </UaCard>
 
+    <!-- Account setup warning -->
+    <UaAlert v-if="accountWarning" type="warning">{{ accountWarning }}</UaAlert>
+
     <!-- Loading state -->
-    <div v-if="isLoadingReference" class="loading-state">Loading reference data…</div>
+    <div v-if="isLoadingReference && !accountWarning" class="loading-state">Loading reference data…</div>
 
     <!-- Week load error -->
     <UaAlert v-if="loadError" type="error">{{ loadError }}</UaAlert>
 
-    <template v-else>
+    <template v-else-if="!accountWarning">
       <!-- Main two-panel layout -->
       <div class="main-layout">
         <!-- Left: Weekly grid -->

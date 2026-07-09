@@ -5,7 +5,7 @@ using Unified.Db.Models.Abstract;
 namespace Unified.Db.Models.UserManagement;
 
 [AdaptTo("[name]Dto")]
-public class Role : BaseEntity
+public class Role : BaseEntity, ISoftDeletable
 {
     [Key]
     public int Id { get; set; }

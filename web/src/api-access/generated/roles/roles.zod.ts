@@ -11,6 +11,8 @@ export const GetApiRolesResponseItem = zod.object({
   name: zod.string().optional(),
   description: zod.string().optional(),
   concurrencyToken: zod.number().optional(),
+  deletedOn: zod.iso.datetime({ offset: true }).nullish(),
+  deletedById: zod.uuid().nullish(),
   permissions: zod
     .array(
       zod.object({
@@ -60,6 +62,8 @@ export const PutApiRolesIdResponse = zod.object({
   name: zod.string().optional(),
   description: zod.string().optional(),
   concurrencyToken: zod.number().optional(),
+  deletedOn: zod.iso.datetime({ offset: true }).nullish(),
+  deletedById: zod.uuid().nullish(),
   permissions: zod
     .array(
       zod.object({

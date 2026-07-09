@@ -4,7 +4,7 @@ import { createTestApp } from '../../../helpers/createTestApp';
 import RolesPermissions from '@/modules/myteam/views/RolesPermissions.vue';
 import { server } from '../../../mocks/server';
 import { getGetApiRolesMockHandler } from '@/api-access/generated/roles/roles.msw';
-import { Permissions } from '@/api-access/generated/models';
+import { Permissions, type RoleDto } from '@/api-access/generated/models';
 
 describe('RolesPermissions', () => {
   beforeEach(() => {
@@ -37,7 +37,7 @@ describe('RolesPermissions', () => {
     const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
     await flushPromises();
     expect(wrapper.text()).toContain('No roles available');
-    expect(wrapper.text()).toContain('Create your first role to get started');
+    expect(wrapper.text()).toContain('There are no active roles.');
   });
 
   it('shows error alert when roles API fails', async () => {
@@ -181,5 +181,107 @@ describe('RolesPermissions', () => {
     const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
     await flushPromises();
     expect(wrapper.text()).toContain('Available Roles');
+  });
+
+  it('hides inactive roles by default (active filter)', async () => {
+    const app = await createTestApp();
+    const roles: RoleDto[] = [
+      { id: 1, name: 'Active Role', description: 'Active', concurrencyToken: 0, permissions: [], deletedOn: null },
+      {
+        id: 2,
+        name: 'Deleted Role',
+        description: 'Inactive',
+        concurrencyToken: 0,
+        permissions: [],
+        deletedOn: '2026-01-01T00:00:00Z',
+      },
+    ];
+    server.use(getGetApiRolesMockHandler(() => roles));
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
+    await flushPromises();
+    expect(wrapper.text()).toContain('Active Role');
+    expect(wrapper.text()).not.toContain('Deleted Role');
+  });
+
+  it('shows inactive roles when Inactive filter is selected', async () => {
+    const app = await createTestApp();
+    const roles: RoleDto[] = [
+      { id: 1, name: 'Active Role', description: 'Active', concurrencyToken: 0, permissions: [], deletedOn: null },
+      {
+        id: 2,
+        name: 'Deleted Role',
+        description: 'Inactive',
+        concurrencyToken: 0,
+        permissions: [],
+        deletedOn: '2026-01-01T00:00:00Z',
+      },
+    ];
+    server.use(getGetApiRolesMockHandler(() => roles));
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins } });
+    await flushPromises();
+
+    // Switch filter to Inactive
+    const select = wrapper.findComponent({ name: 'UaSelect' });
+    await select.setValue('inactive');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Deleted Role');
+    expect(wrapper.text()).not.toContain('Active Role');
+  });
+
+  it('hides action buttons for inactive roles', async () => {
+    const app = await createTestApp({
+      permissions: [Permissions.RolesEdit, Permissions.RolesExpire],
+    });
+    const roles: RoleDto[] = [
+      {
+        id: 1,
+        name: 'Inactive Role',
+        description: 'Inactive',
+        concurrencyToken: 0,
+        permissions: [],
+        deletedOn: '2026-01-01T00:00:00Z',
+      },
+    ];
+    server.use(getGetApiRolesMockHandler(() => roles));
+
+    // Switch to inactive filter so the role is visible
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
+    await flushPromises();
+    const select = wrapper.findComponent({ name: 'UaSelect' });
+    await select.setValue('inactive');
+    await flushPromises();
+
+    const editButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+      btn.title?.includes('Edit role'),
+    );
+    const deleteButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+      btn.title?.includes('Delete role'),
+    );
+    expect(editButtons.length).toBe(0);
+    expect(deleteButtons.length).toBe(0);
+    wrapper.unmount();
+  });
+
+  it('shows action buttons for active roles', async () => {
+    const app = await createTestApp({
+      permissions: [Permissions.RolesEdit, Permissions.RolesExpire],
+    });
+    const roles: RoleDto[] = [
+      { id: 1, name: 'Active Role', description: 'Active', concurrencyToken: 0, permissions: [], deletedOn: null },
+    ];
+    server.use(getGetApiRolesMockHandler(() => roles));
+    const wrapper = mount(RolesPermissions, { global: { plugins: app.mountPlugins }, attachTo: document.body });
+    await flushPromises();
+
+    const editButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+      btn.title?.includes('Edit role'),
+    );
+    const deleteButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+      btn.title?.includes('Delete role'),
+    );
+    expect(editButtons.length).toBeGreaterThan(0);
+    expect(deleteButtons.length).toBeGreaterThan(0);
+    wrapper.unmount();
   });
 });
