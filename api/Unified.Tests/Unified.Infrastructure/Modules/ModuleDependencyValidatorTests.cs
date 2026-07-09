@@ -2,6 +2,7 @@ using Unified.Calendar;
 using Unified.FeatureFlags;
 using Unified.Infrastructure.Modules;
 using Unified.Scheduling;
+using Unified.UserManagement;
 
 namespace Unified.Tests.Infrastructure.Modules;
 
@@ -24,7 +25,7 @@ public class ModuleDependencyValidatorTests
     }
 
     [Fact]
-    public void Validate_WhenSchedulingAndCalendarEnabled_DoesNotThrow()
+    public void Validate_WhenSchedulingAndCalendarEnabledAndUserManagementRegistered_DoesNotThrow()
     {
         // Arrange
         var featureFlags = new FeatureFlags.FeatureFlags { CalendarModule = true, SchedulingModule = true };
@@ -56,14 +57,29 @@ public class ModuleDependencyValidatorTests
     }
 
     [Fact]
-    public void SchedulingModuleDescriptor_WhenCreated_DeclaresCalendarModuleDependency()
+    public void SchedulingModuleDescriptor_WhenCreated_DeclaresCalendarAndUserManagementDependencies()
     {
         // Act
         var module = SchedulingModule.Descriptor;
 
         // Assert
         Assert.Equal(SchedulingModule.ModuleName, module.Name);
-        Assert.Equal(CalendarModule.ModuleName, Assert.Single(module.RequiredModuleNames));
+        Assert.Equal(
+            [CalendarModule.ModuleName, UserManagementModule.ModuleName],
+            module.RequiredModuleNames
+        );
+    }
+
+    [Fact]
+    public void UserManagementModuleDescriptor_WhenCreated_IsAlwaysEnabledWithoutDependencies()
+    {
+        // Act
+        var module = UserManagementModule.Descriptor;
+
+        // Assert
+        Assert.Equal(UserManagementModule.ModuleName, module.Name);
+        Assert.True(module.IsEnabled(new FeatureFlags.FeatureFlags()));
+        Assert.Empty(module.RequiredModuleNames);
     }
 
     [Fact]
@@ -108,5 +124,5 @@ public class ModuleDependencyValidatorTests
     }
 
     private static IReadOnlyCollection<UnifiedModuleDescriptor> CreateKnownModules() =>
-        [CalendarModule.Descriptor, SchedulingModule.Descriptor];
+        [CalendarModule.Descriptor, SchedulingModule.Descriptor, UserManagementModule.Descriptor];
 }

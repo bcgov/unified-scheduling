@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
+using Unified.Infrastructure.Modules;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
@@ -15,6 +16,9 @@ namespace Unified.UserManagement;
 public static class UserManagementModule
 {
     public const string ModuleName = "UserManagementModule";
+
+    public static UnifiedModuleDescriptor Descriptor { get; } = new(ModuleName, _ => true, []);
+
     /// <summary>
     /// Add user management module services to the dependency injection container
     /// </summary>
