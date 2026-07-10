@@ -24,6 +24,8 @@ public static class CoreModule
         }
         if (schedulingModuleEnabled)
         {
+            services.AddScoped<ILookupStrategy, AssignmentCategoryTypeLookupStrategy>();
+            services.AddScoped<ILookupStrategy, AssignmentSubCategoryTypeLookupStrategy>();
             services.AddScoped<ILookupStrategy, AssignmentTypeLookupStrategy>();
         }
         services.AddScoped<PositionTypeSeeder>();

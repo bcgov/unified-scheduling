@@ -66,6 +66,8 @@ public sealed class CoreModuleTests
         // Assert
         AssertContainsScopedRegistration<ILookupService, LookupService>(services);
         AssertContainsScopedRegistration<ILookupStrategy, PositionTypeLookupStrategy>(services);
+        AssertContainsScopedRegistration<ILookupStrategy, AssignmentCategoryTypeLookupStrategy>(services);
+        AssertContainsScopedRegistration<ILookupStrategy, AssignmentSubCategoryTypeLookupStrategy>(services);
         AssertContainsScopedRegistration<ILookupStrategy, AssignmentTypeLookupStrategy>(services);
         Assert.DoesNotContain(
             services,
@@ -93,6 +95,20 @@ public sealed class CoreModuleTests
                 descriptor.Lifetime == ServiceLifetime.Scoped
                 && descriptor.ServiceType == typeof(ILookupStrategy)
                 && descriptor.ImplementationType == typeof(AssignmentTypeLookupStrategy)
+        );
+        Assert.DoesNotContain(
+            services,
+            descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Scoped
+                && descriptor.ServiceType == typeof(ILookupStrategy)
+                && descriptor.ImplementationType == typeof(AssignmentCategoryTypeLookupStrategy)
+        );
+        Assert.DoesNotContain(
+            services,
+            descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Scoped
+                && descriptor.ServiceType == typeof(ILookupStrategy)
+                && descriptor.ImplementationType == typeof(AssignmentSubCategoryTypeLookupStrategy)
         );
     }
 
