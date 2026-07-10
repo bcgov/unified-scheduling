@@ -5,6 +5,18 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="Mapster" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\db\db.csproj" />
+    <ProjectReference Include="..\Unified.Authorization\Unified.Authorization.csproj" />
+    <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
+    <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

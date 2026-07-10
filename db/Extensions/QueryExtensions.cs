@@ -10,6 +10,5 @@ public static class QueryExtensions
     /// <see cref="ISoftDeletable.DeletedById"/> is set.
     /// </summary>
     public static IQueryable<T> WhereActive<T>(this IQueryable<T> query)
-        where T : ISoftDeletable =>
-        query.Where(e => e.DeletedOn == null && e.DeletedById == null);
+        where T : ISoftDeletable => query.Where(e => e.DeletedOn == null && e.DeletedById == null);
 }

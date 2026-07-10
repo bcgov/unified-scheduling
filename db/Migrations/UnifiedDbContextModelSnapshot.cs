@@ -989,7 +989,7 @@ namespace Unified.Db.Migrations
                     b.Property<bool>("Rotating")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("TrainingCategoryId")
+                    b.Property<int?>("TrainingCategoryId")
                         .HasColumnType("integer");
 
                     b.Property<Guid?>("UpdatedById")
@@ -1889,8 +1889,7 @@ namespace Unified.Db.Migrations
                     b.HasOne("Unified.Db.Models.Training.TrainingCategory", "TrainingCategory")
                         .WithMany("Trainings")
                         .HasForeignKey("TrainingCategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
                         .WithMany()

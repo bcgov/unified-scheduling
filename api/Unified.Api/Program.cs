@@ -39,6 +39,7 @@ var featureFlagsOptions =
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddCalendarApplicationPart(featureFlagsOptions.CalendarModule);
+    mvcBuilder.AddTrainingApplicationPart(featureFlagsOptions.TrainingModule);
 
     // Logging
     var enableBodyLogging =

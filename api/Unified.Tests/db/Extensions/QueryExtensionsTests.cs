@@ -47,7 +47,12 @@ public class QueryExtensionsTests
     public void WhereActive_ExcludesEntitiesWithBothFieldsSet()
     {
         var query = BuildQuery(
-            new SoftDeletableEntity { Id = 1, DeletedOn = DateTimeOffset.UtcNow, DeletedById = Guid.NewGuid() },
+            new SoftDeletableEntity
+            {
+                Id = 1,
+                DeletedOn = DateTimeOffset.UtcNow,
+                DeletedById = Guid.NewGuid(),
+            },
             new SoftDeletableEntity { Id = 2 }
         );
 
@@ -60,10 +65,7 @@ public class QueryExtensionsTests
     [Fact]
     public void WhereActive_ReturnsAllWhenNoneAreDeleted()
     {
-        var query = BuildQuery(
-            new SoftDeletableEntity { Id = 1 },
-            new SoftDeletableEntity { Id = 2 }
-        );
+        var query = BuildQuery(new SoftDeletableEntity { Id = 1 }, new SoftDeletableEntity { Id = 2 });
 
         var result = query.WhereActive().ToList();
 

@@ -20,6 +20,7 @@ public class TrainingConfiguration : BaseEntityConfiguration<TrainingEntity>
             .HasOne(b => b.TrainingCategory)
             .WithMany(c => c.Trainings)
             .HasForeignKey(b => b.TrainingCategoryId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
         base.Configure(builder);
