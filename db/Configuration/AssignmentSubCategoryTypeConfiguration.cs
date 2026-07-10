@@ -12,7 +12,11 @@ public class AssignmentSubCategoryTypeConfiguration
         builder.Property(b => b.Id).HasIdentityOptions(startValue: 200);
         builder.Property(b => b.Code).HasMaxLength(50).IsRequired();
         builder.Property(b => b.Description).HasMaxLength(100).IsRequired();
-        builder.HasIndex(b => b.Code).IsUnique();
+        builder.Property(b => b.ParentCodeTypeId).HasColumnName("AssignmentCategoryTypeId");
+
+        builder.HasIndex(b => b.ParentCodeTypeId);
+        builder.HasIndex(b => new { b.ParentCodeTypeId, b.Code }).IsUnique();
+
         builder.ToTable("AssignmentSubCategoryTypes");
         base.Configure(builder);
     }

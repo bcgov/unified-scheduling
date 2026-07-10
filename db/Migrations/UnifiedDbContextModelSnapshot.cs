@@ -372,9 +372,6 @@ namespace Unified.Db.Migrations
                     b.Property<DateTimeOffset?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("LocationId")
-                        .HasColumnType("integer");
-
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
 
@@ -385,10 +382,8 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("LocationId", "Code")
+                    b.HasIndex("Code")
                         .IsUnique();
-
-                    b.HasIndex("LocationId");
 
                     b.HasIndex("UpdatedById");
 
@@ -434,6 +429,10 @@ namespace Unified.Db.Migrations
                     b.Property<DateTimeOffset?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("ParentCodeTypeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("AssignmentCategoryTypeId");
+
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
 
@@ -442,7 +441,9 @@ namespace Unified.Db.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
+                    b.HasIndex("ParentCodeTypeId");
+
+                    b.HasIndex("ParentCodeTypeId", "Code")
                         .IsUnique();
 
                     b.HasIndex("CreatedById");
@@ -2246,6 +2247,12 @@ namespace Unified.Db.Migrations
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.AssignmentSubCategoryType", b =>
                 {
+                    b.HasOne("Unified.Db.Models.Lookup.AssignmentCategoryType", "ParentCodeType")
+                        .WithMany("ChildCodeTypes")
+                        .HasForeignKey("ParentCodeTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedById")
@@ -2255,6 +2262,8 @@ namespace Unified.Db.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedById")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ParentCodeType");
 
                     b.Navigation("CreatedBy");
 

@@ -66,6 +66,18 @@ public sealed class SchedulingSeedersTests : IAsyncLifetime
             categoryTypes.Select(type => type.Code).ToArray()
         );
         Assert.Contains(categoryTypes, type => type.Code == "CourtRoom" && type.Description == "Court Room");
+
+        var subCategoryTypes = await _dbContext
+            .AssignmentSubCategoryTypes.OrderBy(type => type.Code)
+            .Select(type => new
+            {
+                type.Code,
+                type.Description,
+                type.EffectiveDate,
+                type.ExpiryDate,
+                ParentCode = type.ParentCodeType.Code,
+            })
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Contains(categoryTypes, type => type.Code == "CourtRole" && type.Description == "Court Assignment");
         Assert.Contains(categoryTypes, type => type.Code == "JailRole" && type.Description == "Jail Assignment");
         Assert.Contains(categoryTypes, type => type.Code == "EscortRun" && type.Description == "Transport Assignment");
@@ -75,6 +87,42 @@ public sealed class SchedulingSeedersTests : IAsyncLifetime
         );
         Assert.All(
             categoryTypes,
+            type =>
+            {
+                Assert.Equal(new DateTimeOffset(2020, 6, 10, 0, 0, 0, TimeSpan.Zero), type.EffectiveDate);
+                Assert.Null(type.ExpiryDate);
+            }
+        );
+
+        Assert.Equal(
+            ["IN_CUSTODY", "OTHER", "OUT_OF_CUSTODY", "PROVINCIAL", "SUPREME"],
+            subCategoryTypes.Select(type => type.Code).ToArray()
+        );
+        Assert.Contains(
+            subCategoryTypes,
+            type => type.Code == "PROVINCIAL" && type.Description == "Provincial" && type.ParentCode == "CourtRoom"
+        );
+        Assert.Contains(
+            subCategoryTypes,
+            type => type.Code == "SUPREME" && type.Description == "Supreme" && type.ParentCode == "CourtRoom"
+        );
+        Assert.Contains(
+            subCategoryTypes,
+            type => type.Code == "IN_CUSTODY" && type.Description == "In custody" && type.ParentCode == "EscortRun"
+        );
+        Assert.Contains(
+            subCategoryTypes,
+            type =>
+                type.Code == "OUT_OF_CUSTODY"
+                && type.Description == "Out of custody"
+                && type.ParentCode == "EscortRun"
+        );
+        Assert.Contains(
+            subCategoryTypes,
+            type => type.Code == "OTHER" && type.Description == "Other" && type.ParentCode == "OtherAssignment"
+        );
+        Assert.All(
+            subCategoryTypes,
             type =>
             {
                 Assert.Equal(new DateTimeOffset(2020, 6, 10, 0, 0, 0, TimeSpan.Zero), type.EffectiveDate);

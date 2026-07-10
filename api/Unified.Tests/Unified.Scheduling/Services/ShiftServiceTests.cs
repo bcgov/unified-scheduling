@@ -1670,6 +1670,8 @@ public class ShiftServiceTests : IAsyncLifetime
                 Code = "PROVINCIAL",
                 Description = "Provincial",
                 EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                ParentCodeType = _dbContext.AssignmentCategoryTypes.Local.Single(type => type.Id == 10),
+                ParentCodeTypeId = 10,
             }
         );
         _dbContext.AssignmentTypes.Add(
