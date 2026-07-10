@@ -4,21 +4,29 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import { faker } from '@faker-js/faker';
+
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
+export const getGetApiHealthResponseMock = (): string =>
+  faker.helpers.arrayElement([faker.word.sample(), faker.word.sample(), faker.word.sample()]);
+
 export const getGetApiHealthMockHandler = (
-  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<void> | void),
+  overrideResponse?: string | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<string> | string),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
     '*/api/health',
     async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      if (typeof overrideResponse === 'function') {
-        await overrideResponse(info);
-      }
-
-      return new HttpResponse(null, { status: 200 });
+      const resolvedBody =
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiHealthResponseMock();
+      const textBody = typeof resolvedBody === 'string' ? resolvedBody : JSON.stringify(resolvedBody ?? null);
+      return HttpResponse.text(textBody, { status: 200 });
     },
     options,
   );

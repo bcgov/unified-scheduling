@@ -8,7 +8,7 @@ import { useFetchAPI } from '../../useFetchAPI.ts';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-export const getApiHealth = (options?: SecondParameter<typeof useFetchAPI<void>>) => {
-  return useFetchAPI<void>({ url: `/api/health`, method: 'GET' }, options);
+export const getApiHealth = (options?: SecondParameter<typeof useFetchAPI<string>>) => {
+  return useFetchAPI<string>({ url: `/api/health`, method: 'GET' }, options);
 };
 export type GetApiHealthResult = NonNullable<Awaited<ReturnType<typeof getApiHealth>>>;

@@ -4,3 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import { faker } from '@faker-js/faker';
+
+export const getGetApiHealthResponseMock = (): string =>
+  faker.helpers.arrayElement([faker.word.sample(), faker.word.sample(), faker.word.sample()]);

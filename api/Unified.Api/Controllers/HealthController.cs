@@ -16,7 +16,7 @@ public class HealthController : ControllerBase
 
     [HttpGet]
     [AllowAnonymous]
-    public ActionResult<object> Get()
+    public ActionResult<string> Get()
     {
         return Ok(string.Concat("Healthy - ", System.DateTime.Now.ToString("o")));
     }

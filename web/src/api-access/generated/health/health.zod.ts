@@ -6,4 +6,4 @@
  */
 import * as zod from 'zod';
 
-export const GetApiHealthResponse = zod.unknown();
+export const GetApiHealthResponse = zod.string();
