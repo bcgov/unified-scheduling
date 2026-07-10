@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { HttpResponse, http } from 'msw';
 import UserFormModal from '@/modules/myteam/components/UserFormModal.vue';
 import {
   getPostApiUsersMockHandler,
@@ -221,6 +222,91 @@ describe('UserFormModal — photo upload', () => {
 
     expect(uploadPhotoCallCount).toBe(0);
     expect(wrapper.emitted('created')).toBeTruthy();
+
+    wrapper.unmount();
+  });
+});
+
+describe('UserFormModal — retry after photo upload failure', () => {
+  it('does not create a second user when retrying after a failed photo upload', async () => {
+    const app = await createTestApp();
+
+    const createdUser = getPostApiUsersResponseMock({ id: 'retry-user-id', photoUrl: null });
+    const uploadedUser = getPostApiUsersIdUploadPhotoResponseMock({
+      id: 'retry-user-id',
+      photoUrl: '/api/users/retry-user-id/photo',
+    });
+
+    let createCallCount = 0;
+    let updateCallCount = 0;
+    let uploadAttempt = 0;
+
+    server.use(
+      getPostApiUsersMockHandler(async () => {
+        createCallCount++;
+        return createdUser;
+      }),
+      getPutApiUsersIdMockHandler(async () => {
+        updateCallCount++;
+        return getPutApiUsersIdResponseMock({ id: 'retry-user-id' });
+      }),
+      http.post('*/api/users/:id/upload-photo', async () => {
+        uploadAttempt++;
+        if (uploadAttempt === 1) {
+          return HttpResponse.json({ detail: 'The file exceeds the maximum allowed size of 400 KB.' }, { status: 400 });
+        }
+        return HttpResponse.json(uploadedUser, { status: 200 });
+      }),
+    );
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: typeof validFormData;
+      photoFile: File | null;
+      apiErrorMessage: string;
+      isEditMode: boolean;
+    };
+    Object.assign(vm.formData, validFormData);
+    vm.photoFile = new File(['fake-image'], 'avatar.jpg', { type: 'image/jpeg' });
+
+    await flushPromises();
+
+    const getSaveButton = () =>
+      Array.from(document.querySelectorAll('button')).find(
+        (b) => b.textContent?.includes('Add Member') || b.textContent?.includes('Save Changes'),
+      );
+
+    // First attempt — create succeeds, photo upload fails
+    getSaveButton()?.dispatchEvent(new Event('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(createCallCount).toBe(1);
+    expect(uploadAttempt).toBe(1);
+    expect(vm.apiErrorMessage).toContain('exceeds the maximum allowed size');
+    // Modal should not have closed — no 'created' event emitted yet
+    expect(wrapper.emitted('created')).toBeFalsy();
+    // Component should now be in edit mode against the created user
+    expect(vm.isEditMode).toBe(true);
+
+    // Retry — should update the same user, not create a new one
+    getSaveButton()?.dispatchEvent(new Event('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(createCallCount).toBe(1); // still only called once
+    expect(updateCallCount).toBe(1); // retry went through the edit path
+    expect(uploadAttempt).toBe(2);
+    // The retry is now genuinely an update against the already-created user, so it
+    // emits 'updated' rather than a second 'created' — the key guarantee is that no
+    // duplicate user was created (createCallCount stayed at 1).
+    expect(wrapper.emitted('created')).toBeFalsy();
+    expect(wrapper.emitted('updated')).toBeTruthy();
 
     wrapper.unmount();
   });

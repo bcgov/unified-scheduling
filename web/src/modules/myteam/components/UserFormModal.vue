@@ -34,7 +34,12 @@ onMounted(async () => {
   await lookupStore.load(LookupCodeTypes.PositionTypes);
 });
 
-const isEditMode = computed(() => !!props.user);
+// Tracks the user record being edited. Starts from props.user (edit mode) and is
+// set to the newly created user once a create succeeds, so that a retry (e.g. after
+// a photo upload failure) updates that same user instead of creating a duplicate.
+const currentUser = ref<UserResponse | null>(props.user ?? null);
+
+const isEditMode = computed(() => !!currentUser.value);
 
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
 const homeLocationOptions = locationsStore.selectOptions;
@@ -52,7 +57,7 @@ const photoFile = ref<File | null>(null);
 const localPhotoPreviewUrl = ref<string | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
-const photoPreviewUrl = computed(() => localPhotoPreviewUrl.value ?? props.user?.photoUrl ?? null);
+const photoPreviewUrl = computed(() => localPhotoPreviewUrl.value ?? currentUser.value?.photoUrl ?? null);
 
 const photoInitials = computed(() => {
   const f = (formData.value.firstName?.[0] ?? '').toUpperCase();
@@ -162,6 +167,10 @@ const handleSave = async () => {
   const payload = validateForm();
   if (!payload) return;
 
+  // Captured before any mutation of currentUser below, so the final emit reflects
+  // whether *this* save started as a create or an edit — not the post-create state.
+  const wasCreate = !isEditMode.value;
+
   isLoading.value = true;
   apiErrorMessage.value = '';
 
@@ -169,9 +178,9 @@ const handleSave = async () => {
     let savedUser: UserResponse | null = null;
     let userId: string | null = null;
 
-    if (isEditMode.value && props.user?.id) {
+    if (isEditMode.value && currentUser.value?.id) {
       // --- Edit mode ---
-      const { data, error } = await putApiUsersId(props.user.id, payload);
+      const { data, error } = await putApiUsersId(currentUser.value.id, payload);
 
       if (error.value) {
         if (applyServerValidationErrors(data.value)) return;
@@ -180,7 +189,7 @@ const handleSave = async () => {
       }
 
       savedUser = data.value;
-      userId = props.user.id;
+      userId = currentUser.value.id;
     } else {
       // --- Create mode ---
       const { data, error } = await postApiUsers(payload);
@@ -193,6 +202,12 @@ const handleSave = async () => {
 
       savedUser = data.value;
       userId = data.value?.id ?? null;
+
+      // Switch to edit mode against the newly created user so a retry (e.g. after a
+      // photo upload failure below) updates this user instead of creating another one.
+      if (savedUser) {
+        currentUser.value = savedUser;
+      }
     }
 
     // Upload photo if a file was selected
@@ -206,13 +221,14 @@ const handleSave = async () => {
       }
       if (photoData.value) {
         savedUser = photoData.value;
+        currentUser.value = photoData.value;
       }
     }
 
-    if (isEditMode.value) {
-      emit('updated', savedUser);
-    } else {
+    if (wasCreate) {
       emit('created', savedUser);
+    } else {
+      emit('updated', savedUser);
     }
 
     emit('close');

@@ -53,6 +53,11 @@ const handleUserCreated = async () => {
   await execute();
 };
 
+const handleUserUpdated = async () => {
+  // Refresh the user list after updating a user
+  await execute();
+};
+
 const handleCreateModalClose = () => {
   showCreateUserModal.value = false;
 };
@@ -94,7 +99,12 @@ const handleCreateModalClose = () => {
   </div>
 
   <!-- Create User Modal -->
-  <UserFormModal v-if="showCreateUserModal" @close="handleCreateModalClose" @created="handleUserCreated" />
+  <UserFormModal
+    v-if="showCreateUserModal"
+    @close="handleCreateModalClose"
+    @created="handleUserCreated"
+    @updated="handleUserUpdated"
+  />
 </template>
 
 <style scoped>
