@@ -24,7 +24,7 @@
     "pre:push": "run-s lint format build test"
   },
   "dependencies": {
-    "@bcgov/design-tokens": "^4.0.0",
+    "@bcgov/design-tokens": "^5.0.0",
     "@date-io/luxon": "^3.2.0",
     "@vueuse/core": "^14.3.0",
     "@fullcalendar/core": "^6.1.20",
