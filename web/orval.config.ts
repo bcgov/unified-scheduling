@@ -56,8 +56,13 @@ export default defineConfig({
           },
         },
       },
-
-      mock: true,
+      mock: {
+        generators: [
+          {
+            type: 'msw',
+          },
+        ],
+      },
       tsconfig: './tsconfig.app.json',
     },
     input: {
