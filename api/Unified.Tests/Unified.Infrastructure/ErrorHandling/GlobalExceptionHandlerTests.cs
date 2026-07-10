@@ -132,6 +132,31 @@ public class GlobalExceptionHandlerTests
         Assert.True(body.RootElement.TryGetProperty("traceId", out _));
     }
 
+    [Fact]
+    public async Task TryHandleAsync_Should_Map_InvalidDataException_To_400_With_FriendlyDetail()
+    {
+        // Arrange
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = new InvalidDataException(
+            "Failed to read the request form. Multipart body length limit 409600 exceeded."
+        );
+
+        // Act
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal("The uploaded file could not be processed.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "The file exceeds the maximum allowed size of 400 KB.",
+            body.RootElement.GetProperty("detail").GetString()
+        );
+    }
+
     private static GlobalExceptionHandler CreateHandler(HttpContext context)
     {
         var services = new ServiceCollection();

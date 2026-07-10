@@ -2,7 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
+using Unified.Common.Filters;
 using Unified.Common.ImageFormat;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Options;
@@ -18,12 +18,9 @@ public class UsersController(
     IUserService userService,
     UserRequestValidator userRequestValidator,
     AssignUserRoleRequestValidator assignUserRoleRequestValidator,
-    ExpireUserRoleRequestValidator expireUserRoleRequestValidator,
-    IOptions<UserManagementOptions> userManagementOptions
+    ExpireUserRoleRequestValidator expireUserRoleRequestValidator
 ) : ControllerBase
 {
-    private readonly long _uploadPhotoSizeLimitKb = userManagementOptions.Value.UploadPhotoSizeLimitKb;
-
     /// <summary>
     /// Returns users filtered by optional query parameters.
     /// </summary>
@@ -209,6 +206,10 @@ public class UsersController(
     /// <returns>The updated user if found.</returns>
     [HttpPost("{id:guid}/upload-photo")]
     [Authorize(Policy = UserManagementPolicies.UsersEdit)]
+    [RequestFormLimitsFromOptions<UserManagementOptions>(
+        nameof(UserManagementOptions.UploadPhotoSizeLimitKb),
+        multiplier: 1024
+    )]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -221,13 +222,6 @@ public class UsersController(
         if (photo is null || photo.Length == 0)
         {
             throw new InvalidOperationException("No photo provided.");
-        }
-
-        if (photo.Length > _uploadPhotoSizeLimitKb * 1024)
-        {
-            throw new InvalidOperationException(
-                $"File size {photo.Length / 1024} KB exceeds the {_uploadPhotoSizeLimitKb} KB limit."
-            );
         }
 
         using var ms = new MemoryStream();

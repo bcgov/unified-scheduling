@@ -1,11 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Unified.Common.ImageFormat;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Controllers;
 using Unified.UserManagement.Models;
-using Unified.UserManagement.Options;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
 
@@ -13,16 +11,13 @@ namespace Unified.Tests.UserManagement.Controllers;
 
 public class UsersControllerTests
 {
-    private static UsersController CreateController(FakeUserService fakeService, long uploadSizeLimitKb = 5120)
+    private static UsersController CreateController(FakeUserService fakeService)
     {
-        var options = Options.Create(new UserManagementOptions { UploadPhotoSizeLimitKb = uploadSizeLimitKb });
-
         return new UsersController(
             fakeService,
             new UserRequestValidator(),
             new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator(),
-            options
+            new ExpireUserRoleRequestValidator()
         );
     }
 
@@ -412,21 +407,6 @@ public class UsersControllerTests
         var controller = CreateController(fakeService);
         var photoBytes = "fake-image-data"u8.ToArray();
         IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "image.webp");
-
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            controller.UploadPhoto(Guid.NewGuid(), formFile, TestContext.Current.CancellationToken)
-        );
-    }
-
-    [Fact]
-    public async Task UploadPhoto_Should_Throw_When_File_Exceeds_Size_Limit()
-    {
-        // Arrange — limit set to 1 KB, file is 2 KB
-        var fakeService = new FakeUserService { UploadPhotoResult = CreateUserResponse("A", "B") };
-        var controller = CreateController(fakeService, uploadSizeLimitKb: 1);
-        var photoBytes = new byte[2 * 1024]; // 2 KB
-        IFormFile formFile = new FormFile(new MemoryStream(photoBytes), 0, photoBytes.Length, "photo", "big.jpg");
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
