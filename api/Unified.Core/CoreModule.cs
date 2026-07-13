@@ -12,15 +12,10 @@ public static class CoreModule
     public static IServiceCollection AddCoreModule(this IServiceCollection services)
     {
         services.AddScoped<ILookupService, LookupService>();
-        services.AddScoped<ITrainingLookupService, TrainingLookupService>();
 
         services.AddScoped<ILookupStrategy, PositionTypeLookupStrategy>();
         services.AddScoped<ILookupStrategy, EventTypeLookupStrategy>();
         services.AddScoped<ILookupStrategy, EventStatusTypeLookupStrategy>();
-        services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
-        services.AddScoped<ILookupStrategy>(serviceProvider =>
-            serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
-        );
 
         services.AddScoped<PositionTypeSeeder>();
 

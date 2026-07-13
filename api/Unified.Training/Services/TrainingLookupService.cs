@@ -1,7 +1,8 @@
 using Unified.Core.Models;
+using Unified.Core.Services;
 using Unified.Core.Services.Lookup;
 
-namespace Unified.Core.Services;
+namespace Unified.Training.Services;
 
 public sealed class TrainingLookupService(ITrainingLookupStrategy strategy) : ITrainingLookupService
 {

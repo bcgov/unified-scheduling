@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Unified.Core.Models;
 using Unified.Core.Services;
 
-namespace Unified.Core.Controllers;
+namespace Unified.Training.Controllers;
 
 [Authorize]
 [ApiController]

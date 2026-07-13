@@ -1,9 +1,11 @@
+using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Core.Models;
+using Unified.Core.Services.Lookup;
 using Unified.Db;
 using TrainingEntity = Unified.Db.Models.Training.Training;
 
-namespace Unified.Core.Services.Lookup;
+namespace Unified.Training.Services.Lookup;
 
 public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLookupStrategy
 {
@@ -13,9 +15,11 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         CancellationToken cancellationToken = default
     )
     {
-        return await BuildResponseQuery()
+        return await db
+            .Trainings.AsNoTracking()
             .OrderBy(t => t.Order)
             .ThenBy(t => t.Code)
+            .ProjectToType<TrainingLookupResponse>()
             .ToListAsync(cancellationToken);
     }
 
@@ -27,20 +31,16 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             .Trainings.AsNoTracking()
             .OrderBy(t => t.Order)
             .ThenBy(t => t.Code)
-            .Select(t => new LookupCodeResponse
-            {
-                Code = t.Code,
-                Description = t.Description,
-                EffectiveDate = t.EffectiveDate,
-                ExpiryDate = t.ExpiryDate,
-            })
+            .ProjectToType<LookupCodeResponse>()
             .ToListAsync(cancellationToken);
     }
 
     public async Task<TrainingLookupResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await BuildResponseQuery()
+        return await db
+            .Trainings.AsNoTracking()
             .Where(t => t.Id == id)
+            .ProjectToType<TrainingLookupResponse>()
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -53,17 +53,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
 
         var normalizedRequest = NormalizeRequest(request);
 
-        var entity = new TrainingEntity
-        {
-            Code = normalizedRequest.Code,
-            Description = normalizedRequest.Description,
-            Mandatory = normalizedRequest.Mandatory,
-            ValidityDays = normalizedRequest.ValidityDays,
-            AdvanceNoticeDays = normalizedRequest.AdvanceNoticeDays,
-            Rotating = normalizedRequest.Rotating,
-            TrainingCategoryId = normalizedRequest.TrainingCategoryId,
-            Order = normalizedRequest.Order,
-        };
+        var entity = normalizedRequest.Adapt<TrainingEntity>();
 
         db.Trainings.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -85,14 +75,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
 
         var normalizedRequest = NormalizeRequest(request);
 
-        entity.Code = normalizedRequest.Code;
-        entity.Description = normalizedRequest.Description;
-        entity.Mandatory = normalizedRequest.Mandatory;
-        entity.ValidityDays = normalizedRequest.ValidityDays;
-        entity.AdvanceNoticeDays = normalizedRequest.AdvanceNoticeDays;
-        entity.Rotating = normalizedRequest.Rotating;
-        entity.TrainingCategoryId = normalizedRequest.TrainingCategoryId;
-        entity.Order = normalizedRequest.Order;
+        normalizedRequest.Adapt(entity);
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -158,29 +141,12 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             throw new InvalidOperationException("Training category was not found.");
     }
 
-    private IQueryable<TrainingLookupResponse> BuildResponseQuery()
-    {
-        return db.Trainings.AsNoTracking().Select(t => new TrainingLookupResponse
-        {
-            Id = t.Id,
-            Code = t.Code,
-            Description = t.Description,
-            EffectiveDate = t.EffectiveDate,
-            ExpiryDate = t.ExpiryDate,
-            Mandatory = t.Mandatory,
-            ValidityDays = t.ValidityDays,
-            AdvanceNoticeDays = t.AdvanceNoticeDays,
-            Rotating = t.Rotating,
-            TrainingCategoryId = t.TrainingCategoryId,
-            TrainingCategoryName = t.TrainingCategory != null ? t.TrainingCategory.Name : null,
-            Order = t.Order,
-            CreatedOn = t.CreatedOn,
-            UpdatedOn = t.UpdatedOn,
-        });
-    }
-
     private async Task<TrainingLookupResponse> GetRequiredByIdAsync(int id, CancellationToken cancellationToken) =>
-        await BuildResponseQuery().Where(t => t.Id == id).SingleAsync(cancellationToken);
+        await db
+            .Trainings.AsNoTracking()
+            .Where(t => t.Id == id)
+            .ProjectToType<TrainingLookupResponse>()
+            .SingleAsync(cancellationToken);
 
     private static TrainingLookupRequest NormalizeRequest(TrainingLookupRequest request) =>
         request with

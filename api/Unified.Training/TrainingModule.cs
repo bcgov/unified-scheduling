@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
+using Unified.Core.Services;
+using Unified.Core.Services.Lookup;
 using Unified.Training.Services;
+using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
 
 namespace Unified.Training;
@@ -26,6 +29,12 @@ public static class TrainingModule
     public static IServiceCollection AddTrainingModule(this IServiceCollection services)
     {
         services.AddScoped<ITrainingService, TrainingService>();
+        services.AddScoped<ITrainingLookupService, TrainingLookupService>();
+        services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
+        services.AddScoped<ILookupStrategy>(serviceProvider =>
+            serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
+        );
+
         services.AddScoped<TrainingRequestValidator>();
 
         services.AddSingleton(TrainingPermissionSeedData.Configuration);

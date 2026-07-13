@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Unified.Core.Controllers;
 using Unified.Core.Models;
 using Unified.Core.Services;
+using Unified.Training.Controllers;
 
 namespace Unified.Tests.Core.Controllers;
 
