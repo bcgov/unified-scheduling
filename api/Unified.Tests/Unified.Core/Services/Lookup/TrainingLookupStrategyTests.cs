@@ -59,11 +59,7 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
 
         var result = await _strategy.GetAllAsync(TestContext.Current.CancellationToken);
 
-        Assert.Collection(
-            result,
-            first => Assert.Equal("A", first.Code),
-            second => Assert.Equal("E", second.Code)
-        );
+        Assert.Collection(result, first => Assert.Equal("A", first.Code), second => Assert.Equal("E", second.Code));
     }
 
     [Fact]
