@@ -1,6 +1,6 @@
 namespace Unified.Core.Models;
 
-public sealed record class LookupCodeResponse
+public record class LookupCodeResponse
 {
     public string Code { get; init; } = string.Empty;
 

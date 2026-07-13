@@ -6,6 +6,7 @@ import * as calendarModule from '@/modules/calendar/CalendarModule';
 import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
 import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import * as statsModule from '@/modules/stats/StatsModule';
+import * as trainingModule from '@/modules/training/TrainingModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
 
@@ -86,6 +87,10 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
   if (accessControl.isFeatureFlagEnabled('calendarModule')) {
     calendarModule.registerModule(routes);
+  }
+
+  if (accessControl.isFeatureFlagEnabled('trainingModule')) {
+    trainingModule.registerModule(routes);
   }
 
   const router = createRouter({

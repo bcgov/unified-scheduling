@@ -3,16 +3,11 @@ using Unified.Db.Models.Abstract;
 
 namespace Unified.Db.Models.Training;
 
-public class Training : BaseEntity
+public class Training : BaseCodeTypeEntity
 {
     [Key]
     public int Id { get; set; }
-
-    [Required]
-    public string Code { get; set; } = string.Empty;
-
-    public string Description { get; set; } = string.Empty;
-
+    
     public bool Mandatory { get; set; }
 
     // Signifies how long the training is valid for in days. If null, always valid.

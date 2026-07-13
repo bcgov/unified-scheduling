@@ -99,6 +99,12 @@ public class TrainingsControllerTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult(UpdateResult);
 
+        public Task<TrainingResponse?> MoveOrderAsync(
+            int id,
+            int newOrder,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(UpdateResult);
+
         public Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default) =>
             Task.FromResult(DeleteResult);
     }

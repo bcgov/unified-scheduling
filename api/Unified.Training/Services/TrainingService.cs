@@ -66,16 +66,50 @@ public sealed class TrainingService(UnifiedDbContext db) : ITrainingService
         return await GetRequiredByIdAsync(id, cancellationToken);
     }
 
-    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<TrainingResponse?> MoveOrderAsync(
+        int id,
+        int newOrder,
+        CancellationToken cancellationToken = default
+    )
     {
-        var entity = await db.Trainings.SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
-        if (entity is null)
-            return false;
+        var trainings = await db.Trainings.OrderBy(t => t.Order).ThenBy(t => t.Id).ToListAsync(cancellationToken);
 
-        db.Trainings.Remove(entity);
-        await db.SaveChangesAsync(cancellationToken);
+        if (trainings.Count == 0)
+            return null;
 
-        return true;
+        var currentIndex = trainings.FindIndex(t => t.Id == id);
+        if (currentIndex < 0)
+            return null;
+
+        var boundedNewIndex = Math.Clamp(newOrder, 0, trainings.Count - 1);
+        if (currentIndex == boundedNewIndex)
+            return await GetRequiredByIdAsync(id, cancellationToken);
+
+        var moved = trainings[currentIndex];
+        trainings.RemoveAt(currentIndex);
+        trainings.Insert(boundedNewIndex, moved);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        var hasChanges = false;
+        for (var index = 0; index < trainings.Count; index++)
+        {
+            var training = trainings[index];
+            if (training.Order == index)
+                continue;
+
+            training.Order = index;
+            hasChanges = true;
+        }
+
+        if (hasChanges)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return await GetRequiredByIdAsync(id, cancellationToken);
     }
 
     private async Task EnsureCategoryExistsAsync(int? trainingCategoryId, CancellationToken cancellationToken)

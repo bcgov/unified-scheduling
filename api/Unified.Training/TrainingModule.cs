@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
-using Unified.Training.Controllers;
 using Unified.Training.Services;
 using Unified.Training.Validators;
 
@@ -15,7 +14,7 @@ public static class TrainingModule
 {
     public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, bool isEnabled)
     {
-        var trainingAssembly = typeof(TrainingsController).Assembly;
+        var trainingAssembly = typeof(TrainingModule).Assembly;
 
         mvcBuilder.ConfigureApplicationPartManager(manager =>
             ConfigureTrainingApplicationParts(manager, trainingAssembly, isEnabled)

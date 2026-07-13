@@ -12,5 +12,5 @@ public interface ITrainingService
 
     Task<TrainingResponse?> UpdateAsync(int id, TrainingRequest request, CancellationToken cancellationToken = default);
 
-    Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task<TrainingResponse?> MoveOrderAsync(int id, int newOrder, CancellationToken cancellationToken = default);
 }
