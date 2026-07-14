@@ -28,7 +28,6 @@ public static class TrainingModule
 
     public static IServiceCollection AddTrainingModule(this IServiceCollection services)
     {
-        services.AddScoped<ITrainingService, TrainingService>();
         services.AddScoped<ITrainingLookupService, TrainingLookupService>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
