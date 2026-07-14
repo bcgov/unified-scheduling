@@ -15,4 +15,5 @@ ENV PATH="$PATH:/root/.dotnet/tools"
 WORKDIR /opt/app-root/src
 COPY ../api/ ./api/
 COPY ../db/db.csproj ./db/
+COPY ../jc-interface-client/jc-interface-client.csproj ./jc-interface-client/
 RUN dotnet restore ./api/Unified.Api/Unified.Api.csproj

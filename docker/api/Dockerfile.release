@@ -13,12 +13,14 @@ COPY api/Unified.UserManagement/Unified.UserManagement.csproj ./api/Unified.User
 COPY api/Unified.Training/Unified.Training.csproj ./api/Unified.Training/
 COPY api/Unified.Calendar/Unified.Calendar.csproj ./api/Unified.Calendar/
 COPY db/db.csproj ./db/
+COPY jc-interface-client/jc-interface-client.csproj ./jc-interface-client/
 
 # Restore dependencies
 RUN dotnet restore ./api/Unified.Api/Unified.Api.csproj
 # Copy source code
 COPY api ./api
 COPY db ./db
+COPY jc-interface-client ./jc-interface-client
 
 # Build and publish
 WORKDIR /src/api/Unified.Api
