@@ -13,10 +13,10 @@ using Unified.Common.Helpers.Extensions;
 // using Unified.Api.infrastructure.exceptions;
 using Unified.Db;
 using Unified.Db.Models;
+using Unified.Db.Models.Lookup;
 using Unified.Db.Models.UserManagement;
 using Unified.JCInterface.Options;
 // using Unified.Db.Models.jc;
-// using Unified.Db.Models.lookupcodes;
 using Region = Unified.Db.Models.Region;
 
 namespace Unified.JCInterface.Services
@@ -51,7 +51,7 @@ namespace Unified.JCInterface.Services
             // SkipLocationUpdates = Configuration.GetBoolValue("SkipLocationUpdates").Equals("true");
             ExpireRegions = jcInterfaceOptions.ExpireRegions;
             ExpireLocations = jcInterfaceOptions.ExpireLocations;
-            // ExpireRooms = jcInterfaceOptions.ExpireRooms;
+            ExpireRooms = jcInterfaceOptions.ExpireCourtRooms;
             AssociateUsersWithNoLocationToVictoria = jcInterfaceOptions.AssociateUsersWithNoLocationToVictoria;
             // UpdateEvery = jcInterfaceOptions.UpdateEvery;
             NonJcInterfaceLocationRegions = jcInterfaceOptions.NonJCInterfaceLocationRegions;
@@ -175,54 +175,63 @@ namespace Unified.JCInterface.Services
             await AssociateAdhocLocationToRegion();
         }
 
-        // public async Task SyncCourtRooms()
-        // {
-        //     var courtRoomsLookups = await LocationClient.LocationsRoomsAsync();
-        //     //To list so we don't need to re-query on each select.
-        //     var locations = Db.Location.ToList();
-        //     var courtRooms = courtRoomsLookups.SelectToList(cr =>
-        //         new ss.db.models.LookupCode
-        //         {
-        //             Type = LookupTypes.CourtRoom,
-        //             Code = cr.Code,
-        //             LocationId = locations.FirstOrDefault(l => l.JustinCode == cr.Flex)
-        //                 ?.Id,
-        //             CreatedById = User.SystemUser
-        //         }).WhereToList(cr => cr.LocationId != null);
+        public async Task SyncCourtRoomsAsync()
+        {
+            var courtRoomsLookups = await LocationClient.LocationsRoomsAsync();
+            //To list so we don't need to re-query on each select.
+            var locations = Db.Locations.ToList();
+            var courtRooms = courtRoomsLookups
+                .SelectToList(cr => new CourtRoom
+                {
+                    Code = cr.Code,
+                    LocationId = locations.FirstOrDefault(l => l.JustinCode == cr.Flex)?.Id,
+                    EffectiveDate = DateTimeOffset.UtcNow,
+                    CreatedById = User.SystemUser,
+                })
+                .WhereToList(cr => cr.LocationId != null);
 
-        //     //Some court rooms, don't have a location. This should probably be fixed in the JC-Interface
-        //     var courtRoomNoLocation = courtRoomsLookups.WhereToList(crl => locations.All(l => l.JustinCode != crl.Flex));
-        //     Logger.LogDebug("Court rooms without a location: ");
-        //     Logger.LogDebug(JsonConvert.SerializeObject(courtRoomNoLocation));
+            //Some court rooms, don't have a location. This should probably be fixed in the JC-Interface
+            var courtRoomNoLocation = courtRoomsLookups.WhereToList(crl =>
+                locations.All(l => l.JustinCode != crl.Flex)
+            );
+            Logger.LogDebug("Court rooms without a location: ");
+            Logger.LogDebug(JsonConvert.SerializeObject(courtRoomNoLocation));
 
-        //     await Db.LookupCode.UpsertRange(courtRooms)
-        //          .On(v => new { v.Type, v.Code, v.LocationId })
-        //          .WhenMatched((cr, crNew) => new ss.db.models.LookupCode
-        //          {
-        //              Code = crNew.Code,
-        //              LocationId = crNew.LocationId,
-        //              UpdatedOn = DateTime.UtcNow
-        //          })
-        //          .RunAsync();
+            await Db
+                .CourtRooms.UpsertRange(courtRooms)
+                .On(v => new { v.Code, v.LocationId })
+                .WhenMatched(
+                    (cr, crNew) =>
+                        new CourtRoom
+                        {
+                            Code = crNew.Code,
+                            LocationId = crNew.LocationId,
+                            EffectiveDate =
+                                cr.EffectiveDate == default || cr.EffectiveDate == DateTimeOffset.MaxValue
+                                    ? DateTimeOffset.UtcNow
+                                    : cr.EffectiveDate,
+                            UpdatedOn = DateTime.UtcNow,
+                        }
+                )
+                .RunAsync();
 
-        //     //Any court rooms that aren't from this list, expire/disable for now. This is for CourtRooms that may have been deleted.
-        //     if (ExpireRooms)
-        //     {
-        //         var disableCourtRooms = Db.LookupCode.WhereToList(lc =>
-        //             lc.ExpiryDate == null &&
-        //             lc.Type == LookupTypes.CourtRoom &&
-        //             !courtRooms.Any(cr => cr.Type == lc.Type && cr.Code == lc.Code && cr.LocationId == lc.LocationId));
+            //Any court rooms that aren't from this list, expire/disable for now. This is for CourtRooms that may have been deleted.
+            if (ExpireRooms)
+            {
+                var disableCourtRooms = Db.CourtRooms.WhereToList(cr =>
+                    cr.ExpiryDate == null && !courtRooms.Any(c => c.Code == cr.Code && c.LocationId == cr.LocationId)
+                );
 
-        //         foreach (var disableCourtRoom in disableCourtRooms)
-        //         {
-        //             Logger.LogDebug($"Expiring CourtRoom {disableCourtRoom.Id}: {disableCourtRoom.Code}");
-        //             disableCourtRoom.ExpiryDate = DateTime.UtcNow;
-        //             disableCourtRoom.UpdatedOn = DateTime.UtcNow;
-        //             disableCourtRoom.UpdatedById = User.SystemUser;
-        //         }
-        //         await Db.SaveChangesAsync();
-        //     }
-        // }
+                foreach (var disableCourtRoom in disableCourtRooms)
+                {
+                    Logger.LogDebug($"Expiring CourtRoom {disableCourtRoom.Id}: {disableCourtRoom.Code}");
+                    disableCourtRoom.ExpiryDate = DateTime.UtcNow;
+                    disableCourtRoom.UpdatedOn = DateTime.UtcNow;
+                    disableCourtRoom.UpdatedById = User.SystemUser;
+                }
+                await Db.SaveChangesAsync();
+            }
+        }
 
         private async Task<List<Location>> GenerateLocationsAndLinkToRegions()
         {

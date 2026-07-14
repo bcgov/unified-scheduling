@@ -32,4 +32,12 @@ public class JCInterfaceController : ControllerBase
         await _jcDataUpdaterService.SyncLocationsAsync();
         return Ok();
     }
+
+    [HttpPost("sync-court-rooms")]
+    [AllowAnonymous]
+    public async Task<ActionResult> SyncCourtRooms()
+    {
+        await _jcDataUpdaterService.SyncCourtRoomsAsync();
+        return Ok();
+    }
 }
