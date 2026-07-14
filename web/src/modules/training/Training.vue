@@ -28,9 +28,19 @@ const {
   execute,
 } = getApiTrainings({
   options: {
-    immediate: canViewTrainings.value,
+    immediate: false,
   },
 });
+
+watch(
+  canViewTrainings,
+  (canView) => {
+    if (canView) {
+      void execute();
+    }
+  },
+  { immediate: true },
+);
 
 const trainingRows = computed(() => trainings.value ?? []);
 const showCreateTrainingModal = ref(false);
