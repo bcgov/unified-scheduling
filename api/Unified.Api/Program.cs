@@ -14,6 +14,7 @@ using Unified.Hangfire;
 using Unified.Hangfire.Options;
 using Unified.Infrastructure;
 using Unified.Infrastructure.Options;
+using Unified.JCInterface;
 using Unified.Stats;
 using Unified.Training;
 using Unified.UserManagement;
@@ -84,7 +85,7 @@ var hangfireOptions =
         .AddConfiguredSeedData(
             builder.Configuration,
             UserManagementSeedDataSets.All.Concat(StatsSeedDataSets.All).Concat(TrainingSeedDataSets.All)
-        );
+        ).AddJCInterfaceModule();
 
     builder.Services.AddSingleton<MigrationAndSeedService>();
     builder.Services.AddTransient(typeof(SeederFactory<>));

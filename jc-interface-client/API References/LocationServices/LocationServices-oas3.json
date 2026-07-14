@@ -1,0 +1,817 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "JC-Interface - Location Services",
+    "version": "0.0.1"
+  },
+  "servers": [],
+  "paths": {
+    "/regions": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/regions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "message": "No items matching the given criteria were found."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a list of available regions.\n",
+        "operationId": "GET_regions"
+      }
+    },
+    "/regions/{regionId}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/region"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific region.\n",
+        "operationId": "GET_regions-regionId"
+      },
+      "parameters": [
+        {
+          "name": "regionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/regions/{regionId}/locations": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/locations"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "message": "No items matching the given criteria were found."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a list of available locations that can be filtered based on their Justin Agency ID.\n",
+        "operationId": "GET_regions-regionId-locations",
+        "parameters": [
+          {
+            "name": "justinAgencyId",
+            "in": "query",
+            "description": "The Justin Agency ID on which to filter the locations.\n",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "returnActive",
+            "in": "query",
+            "required": true,
+            "description": "Instructs the API to return active records.  The default is true.\n",
+            "schema": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "returnInactive",
+            "in": "query",
+            "required": true,
+            "description": "Instructs the API to return inactive records.  The default is false.\n",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ]
+      },
+      "parameters": [
+        {
+          "name": "regionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/regions/{regionId}/locations/codes": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/codes"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "message": "No items matching the given criteria were found."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a list of available codes.\n",
+        "operationId": "GET_regions-regionId-locations-codes"
+      },
+      "parameters": [
+        {
+          "name": "regionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/regions/{regionId}/locations/{locationId}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/location"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific location.\n",
+        "operationId": "GET_regions-regionId-locations-locationId"
+      },
+      "parameters": [
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "regionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/regions/{regionId}/locations/{locationId}/parentLocation": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/parentLocation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific parentLocation.\n",
+        "operationId": "GET_regions-regionId-locations-locationId-parentLocation"
+      },
+      "parameters": [
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "regionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/regions/{regionId}/locations/{locationId}/rooms": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rooms"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "message": "No items matching the given criteria were found."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a list of available rooms.\n",
+        "operationId": "GET_regions-regionId-locations-locationId-rooms"
+      },
+      "parameters": [
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "regionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/regions/{regionId}/locations/{locationId}/rooms/{roomId}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/room"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific room.\n",
+        "operationId": "GET_regions-regionId-locations-locationId-rooms-roomId"
+      },
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "regionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/regions/{regionId}/locations/{locationId}/rooms/{roomId}/darsCode": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/darsCode"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific darsCode.\n",
+        "operationId": "GET_regions-regionId-locations-locationId-rooms-roomId-darsCode"
+      },
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "regionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/locations": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/locations"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "message": "No items matching the given criteria were found."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a list of available locations that can be filtered based on their Justin Agency ID.\n",
+        "operationId": "GET_locations",
+        "parameters": [
+          {
+            "name": "justinAgencyId",
+            "in": "query",
+            "description": "The Justin Agency ID on which to filter the locations.\n",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "returnActive",
+            "in": "query",
+            "required": true,
+            "description": "Instructs the API to return active records.  The default is true.\n",
+            "schema": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "returnInactive",
+            "in": "query",
+            "required": true,
+            "description": "Instructs the API to return inactive records.  The default is false.\n",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "/locations/rooms": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rooms"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "message": "No items matching the given criteria were found."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a list of available rooms.\n",
+        "operationId": "GET_locations-rooms"
+      }
+    },
+    "/locations/{locationId}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/location"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific location.\n",
+        "operationId": "GET_locations-locationId"
+      },
+      "parameters": [
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/locations/{locationId}/region": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/region"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific region.\n",
+        "operationId": "GET_locations-locationId-region"
+      },
+      "parameters": [
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/locations/{locationId}/parentLocation": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/parentLocation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific parentLocation.\n",
+        "operationId": "GET_locations-locationId-parentLocation"
+      },
+      "parameters": [
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/locations/{locationId}/rooms": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/rooms"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "message": "No items matching the given criteria were found."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Get a list of available rooms.\n",
+        "operationId": "GET_locations-locationId-rooms"
+      },
+      "parameters": [
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/locations/{locationId}/rooms/{roomId}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/room"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific room.\n",
+        "operationId": "GET_locations-locationId-rooms-roomId"
+      },
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/locations/{locationId}/rooms/{roomId}/darsCode": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/darsCode"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "description": "Get the specific darsCode.\n",
+        "operationId": "GET_locations-locationId-rooms-roomId-darsCode"
+      },
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "locationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    }
+  },
+  "components": {
+    "schemas": {
+      "region": {
+        "type": "object",
+        "properties": {
+          "regionId": {
+            "type": "integer"
+          },
+          "regionName": {
+            "type": "string"
+          },
+          "regionLocations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "regionId",
+          "regionName",
+          "regionLocations"
+        ]
+      },
+      "regions": {
+        "description": "regions",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/region"
+        }
+      },
+      "codeValue": {
+        "description": "A code value as defined in the JUTIN/CEIS web services.",
+        "type": "object",
+        "properties": {
+          "codeType": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "shortDesc": {
+            "type": "string"
+          },
+          "longDesc": {
+            "type": "string"
+          },
+          "flex": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "codeType",
+          "code",
+          "shortDesc",
+          "longDesc",
+          "flex"
+        ]
+      },
+      "parentLocation": {
+        "$ref": "#/components/schemas/codeValue"
+      },
+      "location": {
+        "$ref": "#/components/schemas/codeValue"
+      },
+      "locations": {
+        "description": "locations",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/location"
+        }
+      },
+      "room": {
+        "$ref": "#/components/schemas/codeValue"
+      },
+      "rooms": {
+        "description": "rooms",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/room"
+        }
+      },
+      "darsCode": {
+        "type": "object",
+        "properties": {
+          "darsCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "darsCode"
+        ]
+      },
+      "codes": {
+        "description": "codes",
+        "type": "array",
+        "items": {
+          "type": "integer"
+        }
+      }
+    },
+    "responses": {},
+    "parameters": {},
+    "examples": {},
+    "requestBodies": {},
+    "headers": {},
+    "securitySchemes": {
+      "basic": {
+        "type": "http",
+        "scheme": "basic"
+      }
+    },
+    "links": {},
+    "callbacks": {}
+  }
+}
