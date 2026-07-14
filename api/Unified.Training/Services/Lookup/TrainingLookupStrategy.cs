@@ -54,6 +54,10 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         var normalizedRequest = NormalizeRequest(request);
 
         var entity = normalizedRequest.Adapt<TrainingEntity>();
+        if (entity.EffectiveDate == default)
+        {
+            entity.EffectiveDate = DateTimeOffset.UtcNow;
+        }
 
         db.Trainings.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
