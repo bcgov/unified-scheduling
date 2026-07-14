@@ -6,7 +6,7 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { mdiPlus } from '@mdi/js';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { TrainingResponse } from '@/api-access/training';
 import TrainingCreateModal from './components/TrainingCreateModal.vue';
 import TrainingEditModal from './components/TrainingEditModal.vue';
