@@ -126,6 +126,10 @@ The TypeScript API client in `src/api-access/generated/` is **generated** — do
 
 Run `npm run gen:api` (with the API running) to regenerate. Run `npm run gen:api:clean` to wipe and regenerate from scratch.
 
+### Generated Code — Do Not Review
+
+`jc-interface-client/` is a generated API contract client — do not review, lint, or suggest changes to files in this folder.
+
 ## Key Conventions
 
 ### Shared UI Components (`Ua*`)
