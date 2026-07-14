@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Unified.Core.Models;
 using Unified.Db;
 using Unified.Db.Models.Training;
 using Unified.Tests.TestHelpers;
+using Unified.Training.Models;
 using Unified.Training.Services.Lookup;
+using LookupCodeTypes = Unified.Core.Models.LookupCodeTypes;
 using TrainingEntity = Unified.Db.Models.Training.Training;
 
 namespace Unified.Tests.Core.Services.Lookup;

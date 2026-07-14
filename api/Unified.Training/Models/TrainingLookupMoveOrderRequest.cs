@@ -1,4 +1,4 @@
-namespace Unified.Core.Models;
+namespace Unified.Training.Models;
 
 public sealed record TrainingLookupMoveOrderRequest
 {

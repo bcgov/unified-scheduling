@@ -1,8 +1,8 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Core.Models;
-using Unified.Core.Services.Lookup;
 using Unified.Db;
+using Unified.Training.Models;
 using TrainingEntity = Unified.Db.Models.Training.Training;
 
 namespace Unified.Training.Services.Lookup;

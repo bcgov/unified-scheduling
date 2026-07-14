@@ -2,8 +2,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Unified.Core.Models;
-using Unified.Core.Services.Lookup;
+using Unified.Training.Models;
+using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
 
 namespace Unified.Training.Controllers;

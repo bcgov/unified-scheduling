@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
-using Unified.Core.Models;
-using Unified.Core.Services.Lookup;
 using Unified.Training.Controllers;
+using Unified.Training.Models;
+using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
+using LookupCodeResponse = Unified.Core.Models.LookupCodeResponse;
+using LookupCodeTypes = Unified.Core.Models.LookupCodeTypes;
 
-namespace Unified.Tests.Core.Controllers;
+namespace Unified.Tests.Training.Controllers;
 
 public class TrainingLookupControllerTests
 {
@@ -112,7 +114,7 @@ public class TrainingLookupControllerTests
                 {
                     Id = 1,
                     Code = request.Code,
-                    Description = request.Description,
+                    Description = request.Description ?? string.Empty,
                     Mandatory = request.Mandatory,
                     ValidityDays = request.ValidityDays,
                     AdvanceNoticeDays = request.AdvanceNoticeDays,
@@ -133,7 +135,7 @@ public class TrainingLookupControllerTests
                 {
                     Id = id,
                     Code = request.Code,
-                    Description = request.Description,
+                    Description = request.Description ?? string.Empty,
                     Mandatory = request.Mandatory,
                     ValidityDays = request.ValidityDays,
                     AdvanceNoticeDays = request.AdvanceNoticeDays,

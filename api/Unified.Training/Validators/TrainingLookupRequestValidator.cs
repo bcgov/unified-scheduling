@@ -1,6 +1,6 @@
 using FluentValidation;
 using Unified.Common.Validation;
-using Unified.Core.Models;
+using Unified.Training.Models;
 
 namespace Unified.Training.Validators;
 

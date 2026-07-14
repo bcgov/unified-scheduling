@@ -1,9 +1,9 @@
-namespace Unified.Core.Models;
+using Unified.Core.Models;
 
-public sealed record TrainingLookupRequest : LookupCodeRequest
+namespace Unified.Training.Models;
+
+public sealed record TrainingLookupResponse : LookupCodeEntityResponse
 {
-    public string? Description { get; init; }
-
     public bool Mandatory { get; init; }
 
     public int? ValidityDays { get; init; }
@@ -13,6 +13,8 @@ public sealed record TrainingLookupRequest : LookupCodeRequest
     public bool Rotating { get; init; }
 
     public int? TrainingCategoryId { get; init; }
+
+    public string? TrainingCategoryName { get; init; }
 
     public int Order { get; init; }
 }
