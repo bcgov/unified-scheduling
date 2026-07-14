@@ -17,6 +17,8 @@ const training: TrainingResponse = {
   id: 10,
   code: 'FIRE',
   description: 'Firearms Qualification',
+  effectiveDate: '2026-01-01T00:00:00Z',
+  expiryDate: null,
   mandatory: true,
   validityDays: 365,
   advanceNoticeDays: 30,
