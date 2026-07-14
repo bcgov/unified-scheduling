@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Core.Models;
-using Unified.Core.Services;
+using Unified.Core.Services.Lookup;
 using Unified.Training.Validators;
 
 namespace Unified.Training.Controllers;
@@ -12,7 +12,7 @@ namespace Unified.Training.Controllers;
 [ApiController]
 [Route("api/lookup/trainings")]
 public class TrainingLookupController(
-    ITrainingLookupService trainingLookupService,
+    ITrainingLookupStrategy trainingLookupStrategy,
     TrainingLookupRequestValidator trainingLookupRequestValidator
 ) : ControllerBase
 {
@@ -25,7 +25,7 @@ public class TrainingLookupController(
     [ProducesResponseType(typeof(IEnumerable<TrainingLookupResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<TrainingLookupResponse>>> GetAll(CancellationToken cancellationToken)
     {
-        var result = await trainingLookupService.GetAllAsync(cancellationToken);
+        var result = await trainingLookupStrategy.GetAllTrainingsAsync(cancellationToken);
         return Ok(result);
     }
 
@@ -35,7 +35,7 @@ public class TrainingLookupController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TrainingLookupResponse>> GetById(int id, CancellationToken cancellationToken)
     {
-        var result = await trainingLookupService.GetByIdAsync(id, cancellationToken);
+        var result = await trainingLookupStrategy.GetByIdAsync(id, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 
@@ -49,7 +49,7 @@ public class TrainingLookupController(
     {
         await trainingLookupRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var result = await trainingLookupService.CreateAsync(request, cancellationToken);
+        var result = await trainingLookupStrategy.CreateAsync(request, cancellationToken);
         return Created($"/api/lookup/trainings/{result.Id}", result);
     }
 
@@ -65,7 +65,7 @@ public class TrainingLookupController(
     {
         await trainingLookupRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var result = await trainingLookupService.UpdateAsync(id, request, cancellationToken);
+        var result = await trainingLookupStrategy.UpdateAsync(id, request, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 
@@ -87,7 +87,7 @@ public class TrainingLookupController(
             );
         }
 
-        var result = await trainingLookupService.MoveOrderAsync(id, request.NewOrder, cancellationToken);
+        var result = await trainingLookupStrategy.MoveOrderAsync(id, request.NewOrder, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 }

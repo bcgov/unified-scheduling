@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Unified.Core.Models;
-using Unified.Core.Services;
+using Unified.Core.Services.Lookup;
 using Unified.Training.Controllers;
 using Unified.Training.Validators;
 
@@ -25,8 +25,8 @@ public class TrainingLookupControllerTests
             },
         };
 
-        var service = new FakeTrainingLookupService { TrainingsResult = expected };
-        var controller = new TrainingLookupController(service, new TrainingLookupRequestValidator());
+        var strategy = new FakeTrainingLookupStrategy { TrainingsResult = expected };
+        var controller = new TrainingLookupController(strategy, new TrainingLookupRequestValidator());
 
         var result = await controller.GetAll(TestContext.Current.CancellationToken);
 
@@ -51,8 +51,8 @@ public class TrainingLookupControllerTests
             CreatedOn = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
         };
 
-        var service = new FakeTrainingLookupService { TrainingsResult = [training] };
-        var controller = new TrainingLookupController(service, new TrainingLookupRequestValidator());
+        var strategy = new FakeTrainingLookupStrategy { TrainingsResult = [training] };
+        var controller = new TrainingLookupController(strategy, new TrainingLookupRequestValidator());
 
         var result = await controller.GetById(10, TestContext.Current.CancellationToken);
 
@@ -63,8 +63,8 @@ public class TrainingLookupControllerTests
     [Fact]
     public async Task GetById_Should_Return_NotFound_When_Training_Does_Not_Exist()
     {
-        var service = new FakeTrainingLookupService();
-        var controller = new TrainingLookupController(service, new TrainingLookupRequestValidator());
+        var strategy = new FakeTrainingLookupStrategy();
+        var controller = new TrainingLookupController(strategy, new TrainingLookupRequestValidator());
 
         var result = await controller.GetById(99, TestContext.Current.CancellationToken);
 
@@ -74,8 +74,8 @@ public class TrainingLookupControllerTests
     [Fact]
     public async Task MoveOrder_Should_Return_BadRequest_When_NewOrder_Is_Negative()
     {
-        var service = new FakeTrainingLookupService();
-        var controller = new TrainingLookupController(service, new TrainingLookupRequestValidator());
+        var strategy = new FakeTrainingLookupStrategy();
+        var controller = new TrainingLookupController(strategy, new TrainingLookupRequestValidator());
 
         var result = await controller.MoveOrder(
             1,
@@ -86,13 +86,19 @@ public class TrainingLookupControllerTests
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
-    private sealed class FakeTrainingLookupService : ITrainingLookupService
+    private sealed class FakeTrainingLookupStrategy : ITrainingLookupStrategy
     {
         public IReadOnlyCollection<TrainingLookupResponse> TrainingsResult { get; init; } = [];
 
-        public Task<IReadOnlyCollection<TrainingLookupResponse>> GetAllAsync(
+        public LookupCodeTypes CodeType => LookupCodeTypes.Trainings;
+
+        public Task<IReadOnlyCollection<TrainingLookupResponse>> GetAllTrainingsAsync(
             CancellationToken cancellationToken = default
         ) => Task.FromResult(TrainingsResult);
+
+        public Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<IReadOnlyCollection<LookupCodeResponse>>(TrainingsResult);
 
         public Task<TrainingLookupResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
             Task.FromResult(TrainingsResult.SingleOrDefault(x => x.Id == id));

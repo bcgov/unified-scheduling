@@ -27,12 +27,8 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         CancellationToken cancellationToken = default
     )
     {
-        return await db
-            .Trainings.AsNoTracking()
-            .OrderBy(t => t.Order)
-            .ThenBy(t => t.Code)
-            .ProjectToType<LookupCodeResponse>()
-            .ToListAsync(cancellationToken);
+        var results = await GetAllTrainingsAsync(cancellationToken);
+        return results;
     }
 
     public async Task<TrainingLookupResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
