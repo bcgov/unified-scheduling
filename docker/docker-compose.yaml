@@ -34,11 +34,15 @@ services:
       - Keycloak__Client=${KeycloakClient}
       - Keycloak__Secret=${KeycloakSecret}
       - Keycloak__Audience=${KeycloakAudience}
+      - JCInterface__Username=${LocationServicesClientUsername}
+      - JCInterface__Password=${LocationServicesClientPassword}
+      - JCInterface__Url=${LocationServicesClientUrl}
     ports:
       - 5000:5000
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER-..}/api/:/opt/app-root/src/api/
       - ${LOCAL_WORKSPACE_FOLDER-..}/db/:/opt/app-root/src/db
+      - ${LOCAL_WORKSPACE_FOLDER-..}/jc-interface-client/:/opt/app-root/src/jc-interface-client/
       - api-dev-bin:/opt/app-root/src/api/Unified.Api/bin
       - api-dev-obj:/opt/app-root/src/api/Unified.Api/obj
       - db-dev-bin:/opt/app-root/src/db/bin
