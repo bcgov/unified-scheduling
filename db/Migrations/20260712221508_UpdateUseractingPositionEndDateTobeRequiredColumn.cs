@@ -16,10 +16,14 @@ namespace Unified.Db.Migrations
                 table: "UserActingPositions",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValue: new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                defaultValue: new DateTimeOffset(
+                    new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                    new TimeSpan(0, 0, 0, 0, 0)
+                ),
                 oldClrType: typeof(DateTimeOffset),
                 oldType: "timestamp with time zone",
-                oldNullable: true);
+                oldNullable: true
+            );
         }
 
         /// <inheritdoc />
@@ -31,7 +35,8 @@ namespace Unified.Db.Migrations
                 type: "timestamp with time zone",
                 nullable: true,
                 oldClrType: typeof(DateTimeOffset),
-                oldType: "timestamp with time zone");
+                oldType: "timestamp with time zone"
+            );
         }
     }
 }
