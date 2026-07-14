@@ -157,10 +157,7 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
         );
         Assert.Equal("Victoria Law Courts", location.Name);
         Assert.Equal("100", location.JustinCode);
-        var region = await _dbContext.Regions.SingleAsync(
-            r => r.JustinId == 1,
-            TestContext.Current.CancellationToken
-        );
+        var region = await _dbContext.Regions.SingleAsync(r => r.JustinId == 1, TestContext.Current.CancellationToken);
         Assert.Equal(region.Id, location.RegionId);
     }
 
