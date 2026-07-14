@@ -140,7 +140,14 @@ onBeforeUnmount(() => {
       </template>
 
       <template v-if="canEdit" #[`item.actions`]="{ item }">
-        <UaBtn icon variant="text" size="small" aria-label="Edit training" title="Edit training" @click="emit('edit', item)">
+        <UaBtn
+          icon
+          variant="text"
+          size="small"
+          aria-label="Edit training"
+          title="Edit training"
+          @click="emit('edit', item)"
+        >
           <v-icon :icon="mdiPencil" />
         </UaBtn>
       </template>

@@ -45,12 +45,15 @@ export const postApiTrainings = (data: TrainingRequest, options?: FetchOptions) 
 };
 
 export const putApiTrainingsId = (id: number, data: TrainingRequest, options?: FetchOptions) => {
-  return useFetchAPI<TrainingResponse>({
-    url: `/api/lookup/trainings/${id}`,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    data,
-  }, options);
+  return useFetchAPI<TrainingResponse>(
+    {
+      url: `/api/lookup/trainings/${id}`,
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      data,
+    },
+    options,
+  );
 };
 
 export type TrainingMoveOrderRequest = {

@@ -90,9 +90,7 @@ describe('Training view', () => {
     expect(wrapper.find('[data-test="training-table"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Add Training');
 
-    const addButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Add Training'));
+    const addButton = wrapper.findAll('button').find((button) => button.text().includes('Add Training'));
 
     expect(addButton).toBeDefined();
 

@@ -101,7 +101,13 @@ const handleTrainingReorder = async ({ trainingId, newOrder }: { trainingId: num
 
     <UaAlert v-if="error" type="error">Failed to load trainings: {{ error.message }}</UaAlert>
 
-    <TrainingTable :items="trainingRows" :loading="isTableLoading" :can-edit="canEditTrainings" @edit="handleEditTraining" @reorder="handleTrainingReorder" />
+    <TrainingTable
+      :items="trainingRows"
+      :loading="isTableLoading"
+      :can-edit="canEditTrainings"
+      @edit="handleEditTraining"
+      @reorder="handleTrainingReorder"
+    />
 
     <TrainingCreateModal
       v-if="showCreateTrainingModal"

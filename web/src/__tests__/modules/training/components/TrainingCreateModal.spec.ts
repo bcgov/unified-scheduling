@@ -111,18 +111,16 @@ describe('TrainingCreateModal', () => {
     (createButton as HTMLButtonElement).click();
     await flushPromises();
 
-    expect(postApiTrainingsMock).toHaveBeenCalledWith(
-      {
-        code: 'FIRE',
-        description: 'Firearms Qualification',
-        mandatory: false,
-        validityDays: null,
-        advanceNoticeDays: null,
-        rotating: false,
-        trainingCategoryId: null,
-        order: 0,
-      },
-    );
+    expect(postApiTrainingsMock).toHaveBeenCalledWith({
+      code: 'FIRE',
+      description: 'Firearms Qualification',
+      mandatory: false,
+      validityDays: null,
+      advanceNoticeDays: null,
+      rotating: false,
+      trainingCategoryId: null,
+      order: 0,
+    });
 
     expect(wrapper.emitted('created')).toBeTruthy();
     expect(wrapper.emitted('close')).toBeTruthy();

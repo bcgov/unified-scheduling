@@ -39,7 +39,10 @@ const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-const parseOptionalNonNegativeNumber = (value: string, fieldName: keyof TrainingCreateFormData): number | null | symbol => {
+const parseOptionalNonNegativeNumber = (
+  value: string,
+  fieldName: keyof TrainingCreateFormData,
+): number | null | symbol => {
   const trimmedValue = value.trim();
   if (!trimmedValue) {
     return null;
