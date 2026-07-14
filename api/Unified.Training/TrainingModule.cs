@@ -31,7 +31,6 @@ public static class TrainingModule
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );
 
-        services.AddScoped<TrainingRequestValidator>();
         services.AddScoped<TrainingLookupRequestValidator>();
 
         services.AddSingleton(TrainingPermissionSeedData.Configuration);
