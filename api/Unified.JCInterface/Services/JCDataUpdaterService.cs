@@ -68,7 +68,7 @@ namespace Unified.JCInterface.Services
                         {
                             Name = rnew.Name,
                             JustinId = rnew.JustinId,
-                            UpdatedOn = DateTime.UtcNow,
+                            UpdatedOn = DateTimeOffset.UtcNow,
                         }
                 )
                 .RunAsync();
@@ -82,8 +82,8 @@ namespace Unified.JCInterface.Services
                 foreach (var disableRegion in disableRegions)
                 {
                     logger.LogInformation("Expiring region {RegionId}", disableRegion.Id);
-                    disableRegion.ExpiryDate = DateTime.UtcNow;
-                    disableRegion.UpdatedOn = DateTime.UtcNow;
+                    disableRegion.ExpiryDate = DateTimeOffset.UtcNow;
+                    disableRegion.UpdatedOn = DateTimeOffset.UtcNow;
                     disableRegion.UpdatedById = User.SystemUser;
                 }
                 await dbContext.SaveChangesAsync();
@@ -105,7 +105,7 @@ namespace Unified.JCInterface.Services
                         {
                             Name = lnew.Name,
                             RegionId = lnew.RegionId,
-                            UpdatedOn = DateTime.UtcNow,
+                            UpdatedOn = DateTimeOffset.UtcNow,
                             Timezone = lnew.Timezone,
                         }
                 )
@@ -121,8 +121,8 @@ namespace Unified.JCInterface.Services
                 foreach (var disableLocation in disableLocations)
                 {
                     logger.LogInformation("Expiring location {LocationId}", disableLocation.Id);
-                    disableLocation.ExpiryDate = DateTime.UtcNow;
-                    disableLocation.UpdatedOn = DateTime.UtcNow;
+                    disableLocation.ExpiryDate = DateTimeOffset.UtcNow;
+                    disableLocation.UpdatedOn = DateTimeOffset.UtcNow;
                     disableLocation.UpdatedById = User.SystemUser;
                 }
                 await dbContext.SaveChangesAsync();
@@ -191,7 +191,7 @@ namespace Unified.JCInterface.Services
                                 cr.EffectiveDate == default || cr.EffectiveDate == DateTimeOffset.MaxValue
                                     ? DateTimeOffset.UtcNow
                                     : cr.EffectiveDate,
-                            UpdatedOn = DateTime.UtcNow,
+                            UpdatedOn = DateTimeOffset.UtcNow,
                         }
                 )
                 .RunAsync();
@@ -206,8 +206,8 @@ namespace Unified.JCInterface.Services
                 foreach (var disableCourtRoom in disableCourtRooms)
                 {
                     logger.LogInformation("Expiring court room {CourtRoomId}", disableCourtRoom.Id);
-                    disableCourtRoom.ExpiryDate = DateTime.UtcNow;
-                    disableCourtRoom.UpdatedOn = DateTime.UtcNow;
+                    disableCourtRoom.ExpiryDate = DateTimeOffset.UtcNow;
+                    disableCourtRoom.UpdatedOn = DateTimeOffset.UtcNow;
                     disableCourtRoom.UpdatedById = User.SystemUser;
                 }
                 await dbContext.SaveChangesAsync();
