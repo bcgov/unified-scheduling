@@ -17,6 +17,8 @@ export type TrainingResponse = {
   id: number;
   code: string;
   description: string;
+  effectiveDate: string;
+  expiryDate: string | null;
   mandatory: boolean;
   validityDays: number | null;
   advanceNoticeDays: number | null;
