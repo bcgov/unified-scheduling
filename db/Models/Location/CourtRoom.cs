@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Mapster;
 using Unified.Db.Models.Abstract;
 
-namespace Unified.Db.Models.Lookup;
+namespace Unified.Db.Models;
 
 [AdaptTo("[name]Dto")]
 public class CourtRoom : BaseCodeTypeEntity
@@ -11,6 +11,6 @@ public class CourtRoom : BaseCodeTypeEntity
     public int Id { get; set; }
 
     [AdaptIgnore]
-    public virtual Location Location { get; set; }
+    public virtual Location? Location { get; set; }
     public int? LocationId { get; set; }
 }
