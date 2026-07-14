@@ -152,6 +152,6 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         request with
         {
             Code = request.Code.Trim(),
-            Description = request.Description.Trim(),
+            Description = request.Description?.Trim() ?? string.Empty,
         };
 }

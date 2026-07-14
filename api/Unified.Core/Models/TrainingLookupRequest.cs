@@ -2,6 +2,8 @@ namespace Unified.Core.Models;
 
 public sealed record TrainingLookupRequest : LookupCodeRequest
 {
+    public string? Description { get; init; }
+
     public bool Mandatory { get; init; }
 
     public int? ValidityDays { get; init; }
