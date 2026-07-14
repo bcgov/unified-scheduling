@@ -26,6 +26,7 @@ public class UnifiedDbContext : DbContext
     public DbSet<EventStatusType> EventStatusTypes { get; set; }
     public DbSet<EventType> EventTypes { get; set; }
     public DbSet<PositionType> PositionTypes { get; set; }
+    public DbSet<CourtRoom> CourtRooms { get; set; }
     public DbSet<EventSeries> EventSeries { get; set; }
     public DbSet<Event> Events { get; set; }
     public DbSet<TrainingCategory> TrainingCategories { get; set; }
