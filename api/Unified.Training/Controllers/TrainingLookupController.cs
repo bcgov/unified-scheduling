@@ -16,9 +16,9 @@ public class TrainingLookupController(
     TrainingLookupRequestValidator trainingLookupRequestValidator
 ) : ControllerBase
 {
-    private const string TrainingsViewPolicy = "Permission:TrainingsView";
-    private const string TrainingsCreatePolicy = "Permission:TrainingsCreate";
-    private const string TrainingsEditPolicy = "Permission:TrainingsEdit";
+    private const string TrainingsViewPolicy = TrainingPolicies.TrainingsView;
+    private const string TrainingsCreatePolicy = TrainingPolicies.TrainingsCreate;
+    private const string TrainingsEditPolicy = TrainingPolicies.TrainingsEdit;
 
     [HttpGet]
     [Authorize(Policy = TrainingsViewPolicy)]
