@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Unified.Core.Models;
 using Unified.Core.Services;
 using Unified.Training.Controllers;
+using Unified.Training.Validators;
 
 namespace Unified.Tests.Core.Controllers;
 
@@ -25,7 +26,7 @@ public class TrainingLookupControllerTests
         };
 
         var service = new FakeTrainingLookupService { TrainingsResult = expected };
-        var controller = new TrainingLookupController(service);
+        var controller = new TrainingLookupController(service, new TrainingLookupRequestValidator());
 
         var result = await controller.GetAll(TestContext.Current.CancellationToken);
 
@@ -51,7 +52,7 @@ public class TrainingLookupControllerTests
         };
 
         var service = new FakeTrainingLookupService { TrainingsResult = [training] };
-        var controller = new TrainingLookupController(service);
+        var controller = new TrainingLookupController(service, new TrainingLookupRequestValidator());
 
         var result = await controller.GetById(10, TestContext.Current.CancellationToken);
 
@@ -63,7 +64,7 @@ public class TrainingLookupControllerTests
     public async Task GetById_Should_Return_NotFound_When_Training_Does_Not_Exist()
     {
         var service = new FakeTrainingLookupService();
-        var controller = new TrainingLookupController(service);
+        var controller = new TrainingLookupController(service, new TrainingLookupRequestValidator());
 
         var result = await controller.GetById(99, TestContext.Current.CancellationToken);
 
@@ -74,7 +75,7 @@ public class TrainingLookupControllerTests
     public async Task MoveOrder_Should_Return_BadRequest_When_NewOrder_Is_Negative()
     {
         var service = new FakeTrainingLookupService();
-        var controller = new TrainingLookupController(service);
+        var controller = new TrainingLookupController(service, new TrainingLookupRequestValidator());
 
         var result = await controller.MoveOrder(
             1,

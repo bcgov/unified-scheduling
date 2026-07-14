@@ -1,15 +1,20 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Core.Models;
 using Unified.Core.Services;
+using Unified.Training.Validators;
 
 namespace Unified.Training.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/lookup/trainings")]
-public class TrainingLookupController(ITrainingLookupService trainingLookupService) : ControllerBase
+public class TrainingLookupController(
+    ITrainingLookupService trainingLookupService,
+    TrainingLookupRequestValidator trainingLookupRequestValidator
+) : ControllerBase
 {
     private const string TrainingsViewPolicy = "Permission:TrainingsView";
     private const string TrainingsCreatePolicy = "Permission:TrainingsCreate";
@@ -42,6 +47,8 @@ public class TrainingLookupController(ITrainingLookupService trainingLookupServi
         CancellationToken cancellationToken
     )
     {
+        await trainingLookupRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+
         var result = await trainingLookupService.CreateAsync(request, cancellationToken);
         return Created($"/api/lookup/trainings/{result.Id}", result);
     }
@@ -56,6 +63,8 @@ public class TrainingLookupController(ITrainingLookupService trainingLookupServi
         CancellationToken cancellationToken
     )
     {
+        await trainingLookupRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+
         var result = await trainingLookupService.UpdateAsync(id, request, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }

@@ -35,6 +35,7 @@ public static class TrainingModule
         );
 
         services.AddScoped<TrainingRequestValidator>();
+        services.AddScoped<TrainingLookupRequestValidator>();
 
         services.AddSingleton(TrainingPermissionSeedData.Configuration);
 
