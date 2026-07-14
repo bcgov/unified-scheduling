@@ -2,19 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using FlexLabs.EntityFrameworkCore.Upsert;
 using JCCommon.Clients.LocationServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-// using Unified.Api.helpers;
 using Unified.Common.Helpers.Extensions;
-// using Unified.Api.infrastructure.exceptions;
 using Unified.Db;
 using Unified.Db.Models;
-using Unified.Db.Models.Lookup;
 using Unified.Db.Models.UserManagement;
 using Unified.JCInterface.Options;
-// using Unified.Db.Models.jc;
 using Region = Unified.Db.Models.Region;
 
 namespace Unified.JCInterface.Services
@@ -28,23 +25,32 @@ namespace Unified.JCInterface.Services
     {
         private JCInterfaceOptions jcInterfaceOptions { get; } = jcInterfaceOptionsMonitor.CurrentValue;
 
-        // public async Task<bool> ShouldSynchronize()
-        // {
-        //     //Only a single row here.
-        //     var jcSynchronization = await dbContext.JcSynchronization.FirstOrDefaultAsync(jc => jc.Id == 1);
-        //     if (jcSynchronization == null)
-        //     {
-        //         await dbContext.JcSynchronization.AddAsync(new JcSynchronization { Id = 1, LastSynchronization = DateTimeOffset.UtcNow });
-        //         await dbContext.SaveChangesAsync();
-        //         return true;
-        //     }
+        /// <summary>
+        /// Entry point for the Hangfire recurring job. Runs the full sync pipeline
+        /// (regions, then locations, then court rooms) in order, since locations
+        /// depend on regions and court rooms depend on locations.
+        /// </summary>
+        public async Task SyncAllAsync()
+        {
+            if (jcInterfaceOptions.SkipLocationUpdates)
+            {
+                logger.LogInformation("Skipping JC-Interface sync because SkipLocationUpdates is enabled");
+                return;
+            }
 
-        //     if(jcInterfaceOptions.SkipLocationUpdates) return false;
-        //     if (jcSynchronization.LastSynchronization.Add(jcInterfaceOptions.UpdateEvery) > DateTimeOffset.UtcNow) return false;
-        //     jcSynchronization.LastSynchronization = DateTimeOffset.UtcNow;
-        //     await dbContext.SaveChangesAsync();
-        //     return true;
-        // }
+            logger.LogInformation("Starting JC-Interface synchronization");
+
+            logger.LogInformation("Syncing regions");
+            await SyncRegionsAsync();
+
+            logger.LogInformation("Syncing locations");
+            await SyncLocationsAsync();
+
+            logger.LogInformation("Syncing court rooms");
+            await SyncCourtRoomsAsync();
+
+            logger.LogInformation("Finished JC-Interface synchronization");
+        }
 
         public async Task SyncRegionsAsync()
         {
@@ -130,22 +136,24 @@ namespace Unified.JCInterface.Services
 
             if (jcInterfaceOptions.AssociateUsersWithNoLocationToVictoria)
             {
-                var usersWithNoHomeLocation = dbContext.Users.Where(u => !u.HomeLocationId.HasValue);
                 var victoriaLocation = dbContext
                     .Locations.AsNoTracking()
                     .FirstOrDefault(l => l.Name == "Victoria Law Courts");
-                if (victoriaLocation == null)
-                    return;
-                foreach (var user in usersWithNoHomeLocation)
+
+                if (victoriaLocation != null)
                 {
-                    logger.LogInformation(
-                        "Assigning home location {LocationId} to user {UserId}",
-                        victoriaLocation.Id,
-                        user.Id
-                    );
-                    user.HomeLocationId = victoriaLocation.Id;
+                    var usersWithNoHomeLocation = dbContext.Users.Where(u => !u.HomeLocationId.HasValue);
+                    foreach (var user in usersWithNoHomeLocation)
+                    {
+                        logger.LogInformation(
+                            "Assigning home location {LocationId} to user {UserId}",
+                            victoriaLocation.Id,
+                            user.Id
+                        );
+                        user.HomeLocationId = victoriaLocation.Id;
+                    }
+                    await dbContext.SaveChangesAsync();
                 }
-                await dbContext.SaveChangesAsync();
             }
 
             //Associate Migrated Location to regions.
@@ -240,8 +248,8 @@ namespace Unified.JCInterface.Services
             var locations = await locationClient.LocationsAsync(null, true, false);
             var locationsDb = locations.SelectToList(loc =>
             {
-                var regionId = locationToRegion.ContainsKey(loc.ShortDesc)
-                    ? locationToRegion[loc.ShortDesc]
+                var regionId = locationToRegion.TryGetValue(loc.ShortDesc, out var matchedRegionId)
+                    ? matchedRegionId
                     : null as int?;
                 var location = new Location
                 {

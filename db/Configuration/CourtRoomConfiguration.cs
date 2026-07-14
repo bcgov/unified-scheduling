@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Unified.Db.Models.Lookup;
+using Unified.Db.Models;
 
 namespace Unified.Db.Configuration;
 

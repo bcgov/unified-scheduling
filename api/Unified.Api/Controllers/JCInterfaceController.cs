@@ -6,6 +6,7 @@ namespace Unified.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class JCInterfaceController : ControllerBase
 {
     private readonly ILogger<JCInterfaceController> _logger;
@@ -18,7 +19,6 @@ public class JCInterfaceController : ControllerBase
     }
 
     [HttpPost("sync-regions")]
-    [AllowAnonymous]
     public async Task<ActionResult> SyncRegions()
     {
         await _jcDataUpdaterService.SyncRegionsAsync();
@@ -26,7 +26,6 @@ public class JCInterfaceController : ControllerBase
     }
 
     [HttpPost("sync-locations")]
-    [AllowAnonymous]
     public async Task<ActionResult> SyncLocations()
     {
         await _jcDataUpdaterService.SyncLocationsAsync();
@@ -34,7 +33,6 @@ public class JCInterfaceController : ControllerBase
     }
 
     [HttpPost("sync-court-rooms")]
-    [AllowAnonymous]
     public async Task<ActionResult> SyncCourtRooms()
     {
         await _jcDataUpdaterService.SyncCourtRoomsAsync();

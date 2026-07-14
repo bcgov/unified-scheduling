@@ -42,25 +42,6 @@ public class JCInterfaceOptions
     public TimeSpan HttpTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     // ------------------------------------------------------------------
-    // Sync timing
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// How often the background timer fires to check whether a sync is due.
-    /// Defaults to 1 day.
-    /// </summary>
-    [Required]
-    public TimeSpan CheckForUpdate { get; set; } = TimeSpan.FromDays(1);
-
-    /// <summary>
-    /// Minimum time between actual sync runs. The last-sync timestamp is
-    /// persisted in the JcSynchronization DB row and compared to UtcNow.
-    /// Defaults to 23 hours 55 minutes.
-    /// </summary>
-    [Required]
-    public TimeSpan UpdateEvery { get; set; } = TimeSpan.FromMinutes(23 * 60 + 55);
-
-    // ------------------------------------------------------------------
     // Sync behaviour flags
     // ------------------------------------------------------------------
 
