@@ -45,16 +45,18 @@ export const PostApiUsersBody = zod.strictObject({
 export const PostApiUsersResponse = zod.object({
   id: zod.uuid(),
   idirName: zod.string(),
-  idirId: zod.uuid().nullable(),
+  idirId: zod.uuid().nullish(),
   isEnabled: zod.boolean(),
   firstName: zod.string(),
   lastName: zod.string(),
   email: zod.string(),
   gender: zod.enum(['Male', 'Female', 'Other']),
-  rank: zod.string().nullable(),
-  badgeNumber: zod.string().nullable(),
-  homeLocationId: zod.number().nullable(),
-  lastLogin: zod.iso.datetime({ offset: true }).nullable(),
+  rank: zod.string().nullish(),
+  badgeNumber: zod.string().nullish(),
+  homeLocationId: zod.number().nullish(),
+  lastLogin: zod.iso.datetime({ offset: true }).nullish(),
+  photoUrl: zod.string().nullish(),
+  lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 
 export const GetApiUsersIdParams = zod.strictObject({
@@ -165,6 +167,8 @@ export const PostApiUsersIdRolesExpireResponse = zod.object({
 export const GetApiUsersIdPhotoParams = zod.strictObject({
   id: zod.uuid(),
 });
+
+export const GetApiUsersIdPhotoResponse = zod.unknown();
 
 export const PostApiUsersIdUploadPhotoParams = zod.strictObject({
   id: zod.uuid(),
