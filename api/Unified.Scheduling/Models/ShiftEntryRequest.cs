@@ -24,11 +24,15 @@ public sealed record ShiftEntryRequest
 
     public bool AllDay { get; init; }
 
-    public bool IsException { get; init; }
-
     public string? StatusTypeCode { get; init; }
 
     public int? LocationId { get; init; }
 
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
+
+    public IReadOnlyCollection<int>? AssignmentEntryIds { get; init; }
+
+    public IReadOnlyCollection<Guid>? AssignedUserIds { get; init; }
+
+    public IReadOnlyCollection<AssignmentEntryLinkRequest>? AssignmentEntryLinks { get; init; }
 }

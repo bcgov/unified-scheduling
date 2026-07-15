@@ -39,6 +39,36 @@ public static class SchedulingPermissionSeedData
                     Id = nameof(Permissions.ShiftsExpire),
                     Description = "Expire shifts",
                 },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.AssignmentsView),
+                    Description = "View assignments",
+                },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.AssignmentsCreate),
+                    Description = "Create assignments",
+                },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.AssignmentsAssign),
+                    Description = "Assign shifts to assignments",
+                },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.AssignmentsEdit),
+                    Description = "Edit assignments",
+                },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.AssignmentsExpire),
+                    Description = "Expire assignments",
+                },
             ],
         };
 }

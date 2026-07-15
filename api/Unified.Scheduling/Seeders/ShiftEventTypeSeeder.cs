@@ -16,8 +16,30 @@ public sealed class ShiftEventTypeSeeder(ILogger<ShiftEventTypeSeeder> logger) :
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
+        await UpsertEventTypeAsync(
+            dbContext,
+            SchedulingConstants.ShiftEventTypeCode,
+            SchedulingConstants.ShiftEventTypeDescription,
+            cancellationToken
+        );
+        await UpsertEventTypeAsync(
+            dbContext,
+            SchedulingConstants.AssignmentEventTypeCode,
+            SchedulingConstants.AssignmentEventTypeDescription,
+            cancellationToken
+        );
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task UpsertEventTypeAsync(
+        UnifiedDbContext dbContext,
+        string code,
+        string description,
+        CancellationToken cancellationToken
+    )
+    {
         var existingEventType = await dbContext.EventTypes.FirstOrDefaultAsync(
-            eventType => eventType.Code == SchedulingConstants.ShiftEventTypeCode,
+            eventType => eventType.Code == code,
             cancellationToken
         );
 
@@ -26,20 +48,17 @@ public sealed class ShiftEventTypeSeeder(ILogger<ShiftEventTypeSeeder> logger) :
             await dbContext.EventTypes.AddAsync(
                 new EventType
                 {
-                    Code = SchedulingConstants.ShiftEventTypeCode,
-                    Description = SchedulingConstants.ShiftEventTypeDescription,
+                    Code = code,
+                    Description = description,
                     EffectiveDate = SeedEffectiveDate,
                 },
                 cancellationToken
             );
-            await dbContext.SaveChangesAsync(cancellationToken);
             return;
         }
 
-        existingEventType.Description = SchedulingConstants.ShiftEventTypeDescription;
+        existingEventType.Description = description;
         existingEventType.EffectiveDate = SeedEffectiveDate;
         existingEventType.ExpiryDate = null;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

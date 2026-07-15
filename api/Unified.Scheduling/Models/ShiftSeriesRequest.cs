@@ -25,4 +25,10 @@ public sealed record ShiftSeriesRequest
     public int? LocationId { get; init; }
 
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
+
+    public IReadOnlyCollection<int>? AssignmentSeriesIds { get; init; }
+
+    public IReadOnlyCollection<Guid>? AssignedUserIds { get; init; }
+
+    public IReadOnlyCollection<AssignmentSeriesLinkRequest>? AssignmentSeriesLinks { get; init; }
 }

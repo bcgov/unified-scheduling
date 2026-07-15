@@ -14,7 +14,9 @@ public static class SchedulingPolicies
         AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsCreateAndAssign);
     public const string ShiftsEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsEdit);
     public const string ShiftsExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsExpire);
-    public const string ShiftsImport = AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsImport);
-    public const string ShiftsViewAllFuture =
-        AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsViewAllFuture);
+    public const string AssignmentsView = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsView);
+    public const string AssignmentsCreate = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsCreate);
+    public const string AssignmentsAssign = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsAssign);
+    public const string AssignmentsEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsEdit);
+    public const string AssignmentsExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsExpire);
 }

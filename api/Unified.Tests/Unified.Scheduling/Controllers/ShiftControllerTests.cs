@@ -566,6 +566,7 @@ public class ShiftControllerTests
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
             EndAtUtc = new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero),
             StatusTypeCode = statusTypeCode,
+            LocationId = 1,
             UserIds = userIds ?? [UserA, UserB],
         };
 
@@ -580,6 +581,7 @@ public class ShiftControllerTests
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
             EndAtUtc = new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero),
             StatusTypeCode = statusTypeCode,
+            LocationId = 1,
             UserIds = userIds ?? [UserA, UserB],
         };
 

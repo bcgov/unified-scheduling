@@ -9,4 +9,10 @@ public sealed record class LookupCodeResponse
     public DateTimeOffset EffectiveDate { get; init; }
 
     public DateTimeOffset? ExpiryDate { get; init; }
+
+    public int? ParentCodeTypeId { get; init; }
+
+    public int? ChildCodeTypeId { get; init; }
+
+    public IReadOnlyCollection<int> ChildCodeTypeIds { get; init; } = [];
 }
