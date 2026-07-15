@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.9" />
     <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.2" />
+    <PackageReference Include="Hangfire.InMemory" Version="1.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Unified.Api\Unified.Api.csproj" />
@@ -25,6 +26,7 @@
     <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
     <ProjectReference Include="..\Unified.Training\Unified.Training.csproj" />
     <ProjectReference Include="..\Unified.UserManagement\Unified.UserManagement.csproj" />
+    <ProjectReference Include="..\Unified.Api\Unified.Api.csproj" />
     <ProjectReference Include="..\..\db\db.csproj" />
   </ItemGroup>
 </Project>

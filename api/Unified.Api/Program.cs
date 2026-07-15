@@ -1,9 +1,11 @@
 using System.Text.Json.Serialization;
+using Hangfire;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Unified.Api.Options;
 using Unified.Api.Services;
 using Unified.Authorization;
+using Unified.Authorization.Hangfire;
 using Unified.Calendar;
 using Unified.Core;
 using Unified.Db;
@@ -162,6 +164,19 @@ var app = builder.Build();
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    var hangfireConnectionString = builder.Configuration.GetValue<string>("DatabaseConnectionString");
+    if (!string.IsNullOrEmpty(hangfireConnectionString))
+    {
+        app.UseHangfireDashboard(
+            "/hangfire",
+            new DashboardOptions
+            {
+                Authorization = [new HangfireDashboardAuthorizationFilter()],
+                DisplayStorageConnectionString = false,
+            }
+        );
+    }
 
     app.MapControllers();
 
