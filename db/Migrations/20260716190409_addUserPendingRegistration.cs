@@ -15,45 +15,41 @@ namespace Unified.Db.Migrations
                 table: "Users",
                 type: "boolean",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_IdirId",
                 table: "Users",
                 column: "IdirId",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_IdirName",
                 table: "Users",
                 column: "IdirName",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_KeyCloakId",
                 table: "Users",
                 column: "KeyCloakId",
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Users_IdirId",
-                table: "Users");
+            migrationBuilder.DropIndex(name: "IX_Users_IdirId", table: "Users");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Users_IdirName",
-                table: "Users");
+            migrationBuilder.DropIndex(name: "IX_Users_IdirName", table: "Users");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Users_KeyCloakId",
-                table: "Users");
+            migrationBuilder.DropIndex(name: "IX_Users_KeyCloakId", table: "Users");
 
-            migrationBuilder.DropColumn(
-                name: "PendingRegistration",
-                table: "Users");
+            migrationBuilder.DropColumn(name: "PendingRegistration", table: "Users");
         }
     }
 }
