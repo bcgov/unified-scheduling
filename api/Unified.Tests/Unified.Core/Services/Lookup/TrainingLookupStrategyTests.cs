@@ -134,14 +134,20 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
 
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var movedId = await _dbContext.Trainings.Where(t => t.Code == "C").Select(t => t.Id).SingleAsync();
+        var movedId = await _dbContext
+            .Trainings.Where(t => t.Code == "C")
+            .Select(t => t.Id)
+            .SingleAsync(TestContext.Current.CancellationToken);
 
         var result = await _strategy.MoveOrderAsync(movedId, 0, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Equal("C", result.Code);
 
-        var orderedCodes = await _dbContext.Trainings.OrderBy(t => t.Order).Select(t => t.Code).ToListAsync();
+        var orderedCodes = await _dbContext
+            .Trainings.OrderBy(t => t.Order)
+            .Select(t => t.Code)
+            .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(["C", "A", "B"], orderedCodes);
     }
 
