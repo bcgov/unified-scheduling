@@ -168,9 +168,8 @@ namespace Unified.JCInterface.Services
             var courtRooms = courtRoomsLookups
                 .SelectToList(cr => new CourtRoom
                 {
-                    Code = cr.Code,
+                    Room = cr.Code,
                     LocationId = locations.FirstOrDefault(l => l.JustinCode == cr.Flex)?.Id,
-                    EffectiveDate = DateTimeOffset.UtcNow,
                     CreatedById = User.SystemUser,
                 })
                 .WhereToList(cr => cr.LocationId != null);
@@ -188,17 +187,13 @@ namespace Unified.JCInterface.Services
 
             await dbContext
                 .CourtRooms.UpsertRange(courtRooms)
-                .On(v => new { v.Code, v.LocationId })
+                .On(v => new { v.Room, v.LocationId })
                 .WhenMatched(
                     (cr, crNew) =>
                         new CourtRoom
                         {
-                            Code = crNew.Code,
+                            Room = crNew.Room,
                             LocationId = crNew.LocationId,
-                            EffectiveDate =
-                                cr.EffectiveDate == default || cr.EffectiveDate == DateTimeOffset.MaxValue
-                                    ? DateTimeOffset.UtcNow
-                                    : cr.EffectiveDate,
                             UpdatedOn = DateTimeOffset.UtcNow,
                         }
                 )
@@ -208,7 +203,7 @@ namespace Unified.JCInterface.Services
             if (jcInterfaceOptions.ExpireCourtRooms)
             {
                 var disableCourtRooms = dbContext.CourtRooms.WhereToList(cr =>
-                    cr.ExpiryDate == null && !courtRooms.Any(c => c.Code == cr.Code && c.LocationId == cr.LocationId)
+                    cr.ExpiryDate == null && !courtRooms.Any(c => c.Room == cr.Room && c.LocationId == cr.LocationId)
                 );
 
                 foreach (var disableCourtRoom in disableCourtRooms)
