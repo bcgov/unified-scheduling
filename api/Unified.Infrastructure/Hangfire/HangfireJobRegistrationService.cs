@@ -2,9 +2,7 @@ using Hangfire;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Unified.Common.Jobs;
-using Unified.Infrastructure.Options;
 
 namespace Unified.Infrastructure.Hangfire;
 
@@ -16,8 +14,7 @@ namespace Unified.Infrastructure.Hangfire;
 /// </summary>
 public sealed class HangfireJobRegistrationService(
     IServiceProvider serviceProvider,
-    ILogger<HangfireJobRegistrationService> logger,
-    IOptions<HangfireOptions> hangfireOptions
+    ILogger<HangfireJobRegistrationService> logger
 ) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -31,9 +28,6 @@ public sealed class HangfireJobRegistrationService(
 
             using var scope = serviceProvider.CreateScope();
             var allJobs = scope.ServiceProvider.GetServices<IRecurringJob>();
-            var retryCount = hangfireOptions.Value.RetryCount;
-
-            GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = retryCount });
 
             foreach (var job in allJobs)
             {
@@ -42,10 +36,7 @@ public sealed class HangfireJobRegistrationService(
                 logger.LogInformation("Registered recurring job: {JobType}", job.GetType().Name);
             }
 
-            logger.LogInformation(
-                "All Hangfire recurring jobs registered successfully with retry count {RetryCount}",
-                retryCount
-            );
+            logger.LogInformation("All Hangfire recurring jobs registered successfully");
         }
         catch (Exception ex)
         {

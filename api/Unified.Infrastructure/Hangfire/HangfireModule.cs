@@ -36,6 +36,14 @@ public static class HangfireModule
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        // Registered once here (rather than in HangfireJobRegistrationService, which runs as a
+        // hosted service and could execute more than once, e.g. in tests) to avoid adding
+        // duplicate global retry filters.
+        var retryCount =
+            configuration.GetValue<int?>($"{HangfireOptions.SectionName}:{nameof(HangfireOptions.RetryCount)}")
+            ?? AutomaticRetryAttribute.DefaultRetryAttempts;
+        GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute { Attempts = retryCount });
+
         services.AddHangfire(config =>
             config
                 .UsePostgreSqlStorage(
@@ -68,10 +76,13 @@ public static class HangfireModule
 
         // Auto-register every IRecurringJob implementation found across the "Unified.*"
         // assemblies, so modules don't need their own AddTransient<IRecurringJob, TJob>()
-        // call in Program.cs - implementing the interface is enough.
+        // call in Program.cs - implementing the interface is enough. The concrete type is
+        // also registered directly (not just as IRecurringJob) because Hangfire's JobActivator
+        // resolves and invokes jobs by their concrete type at execution time.
         foreach (var jobType in DiscoverRecurringJobTypes())
         {
-            services.AddTransient(typeof(IRecurringJob), jobType);
+            services.AddTransient(jobType);
+            services.AddTransient(typeof(IRecurringJob), sp => sp.GetRequiredService(jobType));
         }
 
         services.AddHostedService<HangfireJobRegistrationService>();
