@@ -70,9 +70,14 @@ describe('calendar module integration', () => {
       },
     ]);
 
-    vi.doMock('@/api-access/calendar', () => ({
-      postApiCalendarEvents,
-    }));
+    vi.doMock('@/api-access/calendar', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/api-access/calendar')>();
+
+      return {
+        ...actual,
+        postApiCalendarEvents,
+      };
+    });
 
     const [{ calendarEventsContribution }, { localDateOnlyToUtcInstant }] = await Promise.all([
       import('@/modules/calendar/contributions/calendarEventsContribution'),
