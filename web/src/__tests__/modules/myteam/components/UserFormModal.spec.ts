@@ -35,6 +35,7 @@ const baseUser: UserResponse = {
   lastLogin: null,
   photoUrl: null,
   lastPhotoUpdate: null,
+  pendingRegistration: false,
 };
 
 const validFormData = {

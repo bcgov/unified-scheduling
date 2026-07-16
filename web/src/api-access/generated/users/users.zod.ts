@@ -25,8 +25,8 @@ export const GetApiUsersResponseItem = zod.object({
   badgeNumber: zod.string().nullish(),
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
+  pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
-  pendingRegistration: zod.boolean(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem);
@@ -56,8 +56,8 @@ export const PostApiUsersResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
+  pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
-  pendingRegistration: zod.boolean(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 
@@ -78,8 +78,8 @@ export const GetApiUsersIdResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
+  pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
-  pendingRegistration: zod.boolean(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 
@@ -112,8 +112,8 @@ export const PutApiUsersIdResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
+  pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
-  pendingRegistration: zod.boolean(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 
@@ -195,6 +195,7 @@ export const PostApiUsersIdUploadPhotoResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
+  pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });

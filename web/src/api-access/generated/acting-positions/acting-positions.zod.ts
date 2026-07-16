@@ -16,11 +16,11 @@ export const GetApiUsersUserIdActingPositionsResponseItem = zod.object({
   positionTypeCode: zod.string().optional(),
   positionTypeDescription: zod.string().optional(),
   startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).optional(),
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
   timezone: zod.string().nullish(),
-  endAtUtc: zod.iso.datetime({ offset: true }).optional(),
 });
 export const GetApiUsersUserIdActingPositionsResponse = zod.array(GetApiUsersUserIdActingPositionsResponseItem);
 
@@ -42,11 +42,11 @@ export const PostApiUsersUserIdActingPositionsResponse = zod.object({
   positionTypeCode: zod.string().optional(),
   positionTypeDescription: zod.string().optional(),
   startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).optional(),
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
   timezone: zod.string().nullish(),
-  endAtUtc: zod.iso.datetime({ offset: true }).optional(),
 });
 
 export const PutApiUsersUserIdActingPositionsActingPositionIdParams = zod.strictObject({
@@ -68,11 +68,11 @@ export const PutApiUsersUserIdActingPositionsActingPositionIdResponse = zod.obje
   positionTypeCode: zod.string().optional(),
   positionTypeDescription: zod.string().optional(),
   startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).optional(),
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
   timezone: zod.string().nullish(),
-  endAtUtc: zod.iso.datetime({ offset: true }).optional(),
 });
 
 export const PostApiUsersUserIdActingPositionsExpireParams = zod.strictObject({
@@ -90,9 +90,9 @@ export const PostApiUsersUserIdActingPositionsExpireResponse = zod.object({
   positionTypeCode: zod.string().optional(),
   positionTypeDescription: zod.string().optional(),
   startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).optional(),
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
   timezone: zod.string().nullish(),
-  endAtUtc: zod.iso.datetime({ offset: true }).optional(),
 });
