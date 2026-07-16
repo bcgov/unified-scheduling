@@ -21,11 +21,17 @@ public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IUserAccountResolutionService _userAccountResolutionService;
 
-    public AuthController(ILogger<AuthController> logger, IConfiguration configuration)
+    public AuthController(
+        ILogger<AuthController> logger,
+        IConfiguration configuration,
+        IUserAccountResolutionService userAccountResolutionService
+    )
     {
         _logger = logger;
         _configuration = configuration;
+        _userAccountResolutionService = userAccountResolutionService;
     }
 
     /// <summary>
@@ -33,11 +39,19 @@ public class AuthController : ControllerBase
     /// </summary>
     /// <param name="redirectUri">The URI to redirect to after successful authentication.</param>
     /// <returns>A redirect response.</returns>
-    [Authorize(AuthenticationSchemes = OpenIdConnectDefaults.AuthenticationScheme)]
     [HttpGet("login")]
     public async Task<IActionResult> Login(string redirectUri = "/api")
     {
-        return Redirect(redirectUri);
+        if (!Url.IsLocalUrl(redirectUri))
+            return BadRequest("The redirect URI must be a local path.");
+
+        var safeRedirectUri = Url.Content(redirectUri);
+
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Challenge(
+            new AuthenticationProperties { RedirectUri = safeRedirectUri },
+            OpenIdConnectDefaults.AuthenticationScheme
+        );
     }
 
     /// <summary>
@@ -58,8 +72,10 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpGet("user")]
     [Authorize]
-    public ActionResult<UserInfo> GetUserInfo()
+    public async Task<ActionResult<UserInfo>> GetUserInfo(CancellationToken cancellationToken = default)
     {
+        await _userAccountResolutionService.UpdateCurrentUserLastLoginAsync(User, cancellationToken);
+
         var claims = User.Claims.Select(c => new UserClaim(c.Type, c.Value)).ToList();
 
         var permissions = claims
@@ -83,6 +99,7 @@ public class AuthController : ControllerBase
 
         var user = new UserInfo(
             User.Identity?.IsAuthenticated ?? false,
+            userId.HasValue,
             string.IsNullOrWhiteSpace(name) ? User.Identity?.Name : name,
             User.Identity?.AuthenticationType,
             claims,

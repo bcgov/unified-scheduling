@@ -47,3 +47,10 @@ To get full usage information on the script, run:
 # or
 ./manage rm
 ```
+
+# Dev Container
+
+The VS Code devcontainer starts through `.devcontainer/docker-compose.yaml`. Docker Compose creates the
+`unified-scheduling-dev` network and a local `db` service automatically, so a fresh developer does not need to
+create the Docker network manually before opening the devcontainer. Inside the devcontainer, the database is
+reachable at host `db` on port `5432`.

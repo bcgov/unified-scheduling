@@ -14,7 +14,10 @@ interface CreateTestAppOptions {
   featureFlags?: Partial<FeatureFlags>;
   loadConfig?: boolean;
   isAuthenticated?: boolean;
+  isRegistered?: boolean;
   permissions?: Permissions[];
+  supportEmail?: string | null;
+  applicationName?: string | null;
 }
 
 /**
@@ -41,6 +44,7 @@ export async function createTestApp(options: CreateTestAppOptions = {}) {
   const authStore = useAuthStore(pinia);
   authStore.setUserInfo({
     isAuthenticated: options.isAuthenticated ?? true,
+    isRegistered: options.isRegistered ?? true,
     name: 'Unit Test User',
     authenticationType: 'test',
     claims: [],
@@ -56,6 +60,14 @@ export async function createTestApp(options: CreateTestAppOptions = {}) {
       ...defaultFeatureFlags,
       ...options.featureFlags,
     };
+
+    if (options.supportEmail !== undefined) {
+      configResponse.supportEmail = options.supportEmail;
+    }
+
+    if (options.applicationName !== undefined) {
+      configResponse.applicationName = options.applicationName;
+    }
 
     server.use(getGetApiConfigMockHandler(configResponse));
 

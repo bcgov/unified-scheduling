@@ -9,6 +9,7 @@ import type { UserClaim } from './userClaim.ts';
 
 export interface UserInfo {
   isAuthenticated: boolean;
+  isRegistered: boolean;
   /** @nullable */
   name: string | null;
   /** @nullable */

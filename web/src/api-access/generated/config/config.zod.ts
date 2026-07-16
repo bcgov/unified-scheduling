@@ -15,4 +15,6 @@ export const GetApiConfigResponse = zod.object({
     myTeamsModule: zod.boolean(),
     userBadgeNumber: zod.boolean(),
   }),
+  supportEmail: zod.string().nullish(),
+  applicationName: zod.string().nullish(),
 });

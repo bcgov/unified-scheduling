@@ -8,4 +8,8 @@ import type { FeatureFlags } from './featureFlags.ts';
 
 export interface ConfigResponse {
   featureFlags: FeatureFlags;
+  /** @nullable */
+  supportEmail?: string | null;
+  /** @nullable */
+  applicationName?: string | null;
 }

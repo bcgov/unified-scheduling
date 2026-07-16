@@ -28,4 +28,5 @@ export interface UserResponse {
   photoUrl?: string | null;
   /** @nullable */
   lastPhotoUpdate?: string | null;
+  pendingRegistration: boolean;
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
 using Unified.Db.Models.UserManagement;
+using Unified.Authorization.Claims;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Options;
 using Unified.UserManagement.Seeders;
@@ -24,6 +25,7 @@ public static class UserManagementModule
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddUserManagementModule(this IServiceCollection services)
     {
+        services.AddScoped<IUserAccountResolutionService, UserAccountResolutionService>();
         // Map PhotoUrl from Photo presence — expression is EF-translatable so both
         // ProjectToType (list) and Adapt (single user) populate it automatically.
         TypeAdapterConfig<User, UserResponse>

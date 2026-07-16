@@ -298,7 +298,7 @@ public class UserServiceTests : IAsyncLifetime
         // Arrange
         var request = new UserRequestDto
         {
-            IdirName = "testuser",
+            IdirName = "TESTUSER",
             IsEnabled = true,
             FirstName = "Test",
             LastName = "User",
@@ -315,14 +315,97 @@ public class UserServiceTests : IAsyncLifetime
         // Assert
         Assert.NotEqual(Guid.Empty, result.Id);
         Assert.Equal("testuser", result.IdirName);
+        Assert.Null(result.IdirId);
         Assert.Equal("Test", result.FirstName);
         Assert.Equal("User", result.LastName);
         Assert.Equal("test.user@example.com", result.Email);
         Assert.Equal(Gender.Other, result.Gender);
         Assert.Equal("Deputy Sheriff", result.Rank);
+        Assert.True(result.PendingRegistration);
 
         var userInDb = await _dbContext.Users.FindAsync([result.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(userInDb);
+        Assert.Equal("testuser", userInDb.IdirName);
+        Assert.Null(userInDb.IdirId);
+        Assert.Null(userInDb.LastLogin);
+        Assert.True(userInDb.PendingRegistration);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Mark_User_As_PendingRegistration_When_IdirId_Is_Missing()
+    {
+        // Arrange
+        var request = new UserRequestDto
+        {
+            IdirName = "pendinguser",
+            IsEnabled = true,
+            FirstName = "Pending",
+            LastName = "User",
+            Email = "pending.user@example.com",
+            Gender = Gender.Other,
+            Rank = "Deputy Sheriff",
+            BadgeNumber = "BADGE-PENDING",
+            HomeLocationId = 1,
+        };
+
+        // Act
+        var result = await _userService.CreateAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        var userInDb = await _dbContext.Users.FindAsync([result.Id], TestContext.Current.CancellationToken);
+        Assert.NotNull(userInDb);
+        Assert.True(userInDb.PendingRegistration);
+        Assert.Null(userInDb.IdirId);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Throw_When_IdirName_Normalizes_To_Existing_User()
+    {
+        // Arrange
+        await SeedTestData();
+        var request = new UserRequestDto
+        {
+            IdirName = "  JSMITH  ",
+            IsEnabled = true,
+            FirstName = "Duplicate",
+            LastName = "User",
+            Email = "duplicate.user@example.com",
+            Gender = Gender.Other,
+            Rank = "Deputy Sheriff",
+            BadgeNumber = "BADGE-DUPLICATE",
+            HomeLocationId = 1,
+        };
+
+        // Act + Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _userService.CreateAsync(request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Throw_When_IdirName_Normalizes_To_Another_User()
+    {
+        await SeedTestData();
+        var existingUser = await _dbContext.Users.SingleAsync(
+            u => u.IdirName == "jdoe",
+            TestContext.Current.CancellationToken
+        );
+        var request = new UserRequestDto
+        {
+            IdirName = "  JSMITH ",
+            IsEnabled = true,
+            FirstName = existingUser.FirstName,
+            LastName = existingUser.LastName,
+            Email = existingUser.Email,
+            Gender = existingUser.Gender,
+            Rank = existingUser.Rank,
+            BadgeNumber = existingUser.BadgeNumber,
+            HomeLocationId = existingUser.HomeLocationId ?? 1,
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _userService.UpdateAsync(existingUser.Id, request, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -331,7 +414,7 @@ public class UserServiceTests : IAsyncLifetime
         // Arrange
         var request = new UserRequestDto
         {
-            IdirName = "  testuser  ",
+            IdirName = "  TestUser  ",
             IsEnabled = true,
             FirstName = "  Test  ",
             LastName = "  User  ",
@@ -352,6 +435,10 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("test.user@example.com", result.Email);
         Assert.Equal(Gender.Female, result.Gender);
         Assert.Equal("Sergeant", result.Rank);
+
+        var userInDb = await _dbContext.Users.FindAsync([result.Id], TestContext.Current.CancellationToken);
+        Assert.NotNull(userInDb);
+        Assert.Equal("testuser", userInDb.IdirName);
     }
 
     [Fact]
@@ -360,9 +447,11 @@ public class UserServiceTests : IAsyncLifetime
         // Arrange
         await SeedTestData();
         var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        var originalLastLogin = existingUser.LastLogin;
+        var originalIdirId = existingUser.IdirId;
         var request = new UserRequestDto
         {
-            IdirName = "updateduser",
+            IdirName = "UpdatedUser ",
             IsEnabled = false,
             FirstName = "Updated",
             LastName = "Name",
@@ -380,10 +469,18 @@ public class UserServiceTests : IAsyncLifetime
         Assert.NotNull(result);
         Assert.Equal(existingUser.Id, result.Id);
         Assert.False(result.IsEnabled);
+        Assert.Equal("updateduser", result.IdirName);
         Assert.Equal("Updated", result.FirstName);
         Assert.Equal("Name", result.LastName);
+        Assert.Equal(originalIdirId, result.IdirId);
         Assert.Equal("updated@example.com", result.Email);
         Assert.Equal(5, result.HomeLocationId);
+
+        var userInDb = await _dbContext.Users.FindAsync([existingUser.Id], TestContext.Current.CancellationToken);
+        Assert.NotNull(userInDb);
+        Assert.Equal("updateduser", userInDb.IdirName);
+        Assert.Equal(originalIdirId, userInDb.IdirId);
+        Assert.Equal(originalLastLogin, userInDb.LastLogin);
     }
 
     [Fact]
@@ -419,7 +516,7 @@ public class UserServiceTests : IAsyncLifetime
         var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
         var request = new UserRequestDto
         {
-            IdirName = "  updateduser  ",
+            IdirName = "  UpdatedUser  ",
             IsEnabled = true,
             FirstName = "  Updated  ",
             LastName = "  Name  ",
@@ -435,9 +532,47 @@ public class UserServiceTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(result);
+        Assert.Equal("updateduser", result.IdirName);
         Assert.Equal("Updated", result.FirstName);
         Assert.Equal("Name", result.LastName);
         Assert.Equal("updated@example.com", result.Email);
+
+        var userInDb = await _dbContext.Users.FindAsync([existingUser.Id], TestContext.Current.CancellationToken);
+        Assert.NotNull(userInDb);
+        Assert.Equal("updateduser", userInDb.IdirName);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Preserve_Existing_IdirId_And_PendingRegistration_When_Request_Omits_IdirId()
+    {
+        // Arrange
+        await SeedTestData();
+        var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        existingUser.PendingRegistration = true;
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var request = new UserRequestDto
+        {
+            IdirName = "updateduser",
+            IsEnabled = true,
+            FirstName = "Updated",
+            LastName = "User",
+            Email = "updated.user@example.com",
+            Gender = Gender.Other,
+            Rank = "Deputy Sheriff",
+            BadgeNumber = "BADGE-001",
+            HomeLocationId = 1,
+        };
+
+        // Act
+        var result = await _userService.UpdateAsync(existingUser.Id, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        var userInDb = await _dbContext.Users.FindAsync([existingUser.Id], TestContext.Current.CancellationToken);
+        Assert.NotNull(userInDb);
+        Assert.Equal(existingUser.IdirId, userInDb.IdirId);
+        Assert.True(userInDb.PendingRegistration);
     }
 
     [Fact]

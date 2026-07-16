@@ -41,6 +41,7 @@ describe('useAccessControl', () => {
     const { authStore, hasPermission } = useAccessControl(pinia);
     authStore.userInfo = {
       isAuthenticated: true,
+      isRegistered: true,
       name: 'Test User',
       authenticationType: 'test',
       claims: [],
@@ -56,6 +57,7 @@ describe('useAccessControl', () => {
     const { authStore, hasPermission } = useAccessControl(pinia);
     authStore.userInfo = {
       isAuthenticated: true,
+      isRegistered: true,
       name: 'Test User',
       authenticationType: 'test',
       claims: [],
@@ -71,6 +73,7 @@ describe('useAccessControl', () => {
     const { authStore, hasAnyPermission } = useAccessControl(pinia);
     authStore.userInfo = {
       isAuthenticated: true,
+      isRegistered: true,
       name: 'Test User',
       authenticationType: 'test',
       claims: [],
@@ -86,6 +89,7 @@ describe('useAccessControl', () => {
     const { authStore, hasAnyPermission } = useAccessControl(pinia);
     authStore.userInfo = {
       isAuthenticated: true,
+      isRegistered: true,
       name: 'Test User',
       authenticationType: 'test',
       claims: [],
@@ -101,6 +105,7 @@ describe('useAccessControl', () => {
     const { authStore, hasAllPermissions } = useAccessControl(pinia);
     authStore.userInfo = {
       isAuthenticated: true,
+      isRegistered: true,
       name: 'Test User',
       authenticationType: 'test',
       claims: [],
@@ -116,6 +121,7 @@ describe('useAccessControl', () => {
     const { authStore, hasAllPermissions } = useAccessControl(pinia);
     authStore.userInfo = {
       isAuthenticated: true,
+      isRegistered: true,
       name: 'Test User',
       authenticationType: 'test',
       claims: [],

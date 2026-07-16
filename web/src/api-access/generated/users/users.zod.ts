@@ -26,6 +26,7 @@ export const GetApiUsersResponseItem = zod.object({
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   photoUrl: zod.string().nullish(),
+  pendingRegistration: zod.boolean(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 export const GetApiUsersResponse = zod.array(GetApiUsersResponseItem);
@@ -56,6 +57,7 @@ export const PostApiUsersResponse = zod.object({
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   photoUrl: zod.string().nullish(),
+  pendingRegistration: zod.boolean(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 
@@ -77,6 +79,7 @@ export const GetApiUsersIdResponse = zod.object({
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   photoUrl: zod.string().nullish(),
+  pendingRegistration: zod.boolean(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 
@@ -110,6 +113,7 @@ export const PutApiUsersIdResponse = zod.object({
   homeLocationId: zod.number().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   photoUrl: zod.string().nullish(),
+  pendingRegistration: zod.boolean(),
   lastPhotoUpdate: zod.iso.datetime({ offset: true }).nullish(),
 });
 

@@ -22,7 +22,7 @@ const handleLogout = () => {
       <div style="margin-left: var(--ua-spacing-xl)">
         <img width="177" height="44" :src="bcgovLogo" alt="B.C. Government Logo" />
       </div>
-      <div class="router-link-container">
+      <div v-if="authStore.isRegistered" class="router-link-container">
         <RouterLink
           v-for="navItem in navigationStore.links"
           :key="navItem.name"
@@ -38,6 +38,7 @@ const handleLogout = () => {
 
       <div v-if="authStore.isAuthenticated" class="appbar-actions">
         <UaSelect
+          v-if="authStore.isRegistered"
           v-model="locationsStore.selectedLocationId"
           :items="locationsStore.selectOptions"
           label="Select location"

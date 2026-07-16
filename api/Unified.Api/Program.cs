@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
+using Unified.Api.Options;
 using Unified.Api.Services;
 using Unified.Authorization;
 using Unified.Calendar;
@@ -32,10 +33,13 @@ var featureFlagsOptions =
 
     builder
         .Services.Configure<RouteOptions>(options => options.LowercaseUrls = true)
-        .ConfigureHttpJsonOptions(options =>
-        {
-            options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
-        });
+        .AddOptions<ApplicationOptions>()
+        .Bind(builder.Configuration.GetSection(ApplicationOptions.SectionName));
+
+    builder.Services.ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+    });
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddCalendarApplicationPart(featureFlagsOptions.CalendarModule);

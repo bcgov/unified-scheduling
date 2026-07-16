@@ -41,6 +41,8 @@ services:
       - ${LOCAL_WORKSPACE_FOLDER-..}/db/:/opt/app-root/src/db
       - api-dev-bin:/opt/app-root/src/api/Unified.Api/bin
       - api-dev-obj:/opt/app-root/src/api/Unified.Api/obj
+      - db-dev-bin:/opt/app-root/src/db/bin
+      - db-dev-obj:/opt/app-root/src/db/obj
     depends_on:
       db:
         condition: service_healthy
@@ -70,4 +72,10 @@ services:
 volumes:
   api-dev-bin:
   api-dev-obj:
+  db-dev-bin:
+  db-dev-obj:
   postgres-data:
+
+networks:
+  default:
+    name: unified-scheduling-dev

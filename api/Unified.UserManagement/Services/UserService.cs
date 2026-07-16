@@ -8,6 +8,7 @@ using Unified.Db.Extensions;
 using Unified.Db.Models.UserManagement;
 using Unified.FeatureFlags;
 using Unified.UserManagement.Models;
+using Unified.UserManagement.Queries;
 
 namespace Unified.UserManagement.Services;
 
@@ -70,10 +71,12 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
 
     public async Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default)
     {
+        await EnsureIdirNameIsUniqueAsync(request.IdirName, cancellationToken: cancellationToken);
+
         var userEntity = new User
         {
             Id = Guid.NewGuid(),
-            IdirName = request.IdirName!.Trim(),
+            IdirName = request.IdirName!,
             IsEnabled = request.IsEnabled,
             FirstName = request.FirstName!.Trim(),
             LastName = request.LastName!.Trim(),
@@ -82,7 +85,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
             Rank = request.Rank?.Trim(),
             BadgeNumber = request.BadgeNumber?.Trim(),
             HomeLocationId = request.HomeLocationId,
-            LastLogin = DateTimeOffset.Now,
+            PendingRegistration = true,
         };
 
         DB.Users.Add(userEntity);
@@ -111,18 +114,41 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
         userEntity.FirstName = request.FirstName!.Trim();
         userEntity.LastName = request.LastName!.Trim();
         userEntity.Email = request.Email!.Trim();
-        userEntity.IdirName = request.IdirName!.Trim();
+        if (!string.IsNullOrEmpty(request.IdirName))
+        {
+            await EnsureIdirNameIsUniqueAsync(request.IdirName, userEntity.Id, cancellationToken);
+            userEntity.IdirName = request.IdirName;
+        }
         userEntity.Gender = request.Gender;
         userEntity.Rank = request.Rank?.Trim();
         userEntity.BadgeNumber = request.BadgeNumber?.Trim();
         userEntity.HomeLocationId = request.HomeLocationId;
-        userEntity.LastLogin = DateTimeOffset.Now;
 
         await DB.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Updated user {UserId}", userEntity.Id);
 
         return userEntity.Adapt<UserResponse>();
+    }
+
+    private async Task EnsureIdirNameIsUniqueAsync(
+        string? idirName,
+        Guid? excludingUserId = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var normalizedIdirUsername = UserIdirNameLookup.Normalize(idirName);
+        if (normalizedIdirUsername is null)
+        {
+            return;
+        }
+
+        var exists = await DB.Users.GetUsersByIdirName(normalizedIdirUsername, excludingUserId, cancellationToken);
+
+        if (exists)
+        {
+            throw new InvalidOperationException($"A user with IDIR name '{normalizedIdirUsername}' already exists.");
+        }
     }
 
     public async Task<IReadOnlyCollection<UserRoleResponseDto>> GetRolesAsync(
