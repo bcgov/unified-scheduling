@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { calendarEventTypes, type ApiCalendarEventResponse } from '@/api-access/calendar';
 import {
   addDays,
   buildDateRangeForPeriod,
@@ -14,8 +15,7 @@ import {
   toCalendarDateOnly,
 } from '@/utils/date';
 import { getCalendarEventDateKey } from '@/modules/calendarMatrixTest/calendarMatrixTestMappers';
-import { CalendarEventStatusTypeCode, CalendarEventType, CalendarEventTypeCode } from '@/api-access/generated/models';
-import type { ApiCalendarEventResponse } from '@/api-access/calendar';
+import { CalendarEventStatusTypeCode, CalendarEventTypeCode } from '@/api-access/generated/models';
 import { selectCalendarEvents, selectContribution } from '@/modules/calendar/calendarSelectors';
 import { mapApiCalendarEventToCalendarEventBase } from '@/modules/calendar/contributions/calendarEventMappers';
 import { buildCalendarPeriodSelectOptions, DEFAULT_CALENDAR_PERIODS } from '@/modules/calendar/calendarPeriodOptions';
@@ -174,7 +174,7 @@ describe('calendar event mappers', () => {
       } as unknown as ApiCalendarEventResponse),
     ).toMatchObject({
       id: '10',
-      type: CalendarEventType.CalendarEvent,
+      type: calendarEventTypes.calendarEvent,
       start: '2025-07-01',
       end: '2025-07-02',
       eventTypeCode: CalendarEventTypeCode.General,
@@ -191,14 +191,14 @@ describe('calendar event mappers', () => {
         endAtUtc: '2025-07-01T10:00:00Z',
         allDay: false,
         isException: true,
-        type: CalendarEventType.CalendarEvent,
+        type: calendarEventTypes.calendarEvent,
         eventTypeCode: CalendarEventTypeCode.Deadline,
         statusTypeCode: CalendarEventStatusTypeCode.Draft,
         sourceModule: 'calendar',
       }),
     ).toMatchObject({
       id: '11',
-      type: CalendarEventType.CalendarEvent,
+      type: calendarEventTypes.calendarEvent,
       start: '2025-07-01T09:00:00Z',
       end: '2025-07-01T10:00:00Z',
       isException: true,

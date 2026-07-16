@@ -6,6 +6,10 @@ import type {
   CalendarEventTypeCode,
 } from './generated/models';
 
+export const calendarEventTypes = {
+  calendarEvent: 'calendar.event' as CalendarEventType,
+} as const;
+
 type FetchOptions = Parameters<typeof useFetchAPI>[1];
 
 export interface ApiCalendarEventsRequest {

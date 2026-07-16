@@ -1,5 +1,5 @@
-import type { ApiCalendarEventResponse } from '@/api-access/calendar';
-import { CalendarEventType, CalendarEventTypeCode } from '@/api-access/generated/models';
+import { calendarEventTypes, type ApiCalendarEventResponse } from '@/api-access/calendar';
+import { CalendarEventTypeCode } from '@/api-access/generated/models';
 import { toCalendarDateOnly } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 
@@ -12,7 +12,7 @@ export function mapApiCalendarEventToCalendarEventBase(apiEvent: ApiCalendarEven
 
   return {
     id: String(apiEvent.id),
-    type: apiEvent.type ?? CalendarEventType.CalendarEvent,
+    type: apiEvent.type ?? calendarEventTypes.calendarEvent,
     sourceModule: apiEvent.sourceModule,
     title: apiEvent.title,
     description: apiEvent.description,

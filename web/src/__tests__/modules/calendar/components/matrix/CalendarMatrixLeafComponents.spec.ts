@@ -2,7 +2,8 @@ import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
-import { CalendarEventStatus, CalendarEventType } from '@/api-access/generated/models';
+import { calendarEventTypes } from '@/api-access/calendar';
+import { CalendarEventStatus } from '@/api-access/generated/models';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
 import CalendarMatrixEventBlock from '@/modules/calendar/components/matrix/CalendarMatrixEventBlock.vue';
@@ -20,7 +21,7 @@ import type {
 
 const event: CalendarEventBase = {
   id: 'event-1',
-  type: CalendarEventType.CalendarEvent,
+  type: calendarEventTypes.calendarEvent,
   sourceModule: 'calendar',
   title: 'Morning Event',
   start: '2025-01-13T09:00:00Z',
@@ -118,7 +119,7 @@ describe('CalendarMatrixCellHeader', () => {
       text: 'Header',
       title: 'Header title',
       actionId: 'open',
-      status: CalendarEventStatus.DraftItem,
+      status: CalendarEventStatus.Draft_Item,
       color: '#336699',
       action: {
         actionId: 'details',
@@ -217,7 +218,7 @@ describe('CalendarMatrixEventBlock', () => {
     expect(matrixContext.startDrag).toHaveBeenCalledWith({
       source: 'event-block',
       itemId: 'event-1',
-      itemType: CalendarEventType.CalendarEvent,
+      itemType: calendarEventTypes.calendarEvent,
       payload: event,
     });
     expect(matrixContext.clearDrag).toHaveBeenCalledOnce();
