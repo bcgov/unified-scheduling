@@ -290,4 +290,33 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
             ExpiryReason = userRole.ExpiryReason,
         };
     }
+
+    public async Task<byte[]?> GetPhotoAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await DB
+            .Users.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => x.Photo)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<UserResponse?> UploadPhotoAsync(
+        Guid id,
+        byte[] photo,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var user = await DB.Users.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        user.Photo = photo;
+        user.LastPhotoUpdate = DateTimeOffset.UtcNow;
+
+        await DB.SaveChangesAsync(cancellationToken);
+
+        return user.Adapt<UserResponse>();
+    }
 }

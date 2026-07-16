@@ -13,7 +13,7 @@ describe('UserCard', () => {
       },
     });
 
-    const user = getGetApiUsersIdResponseMock();
+    const user = getGetApiUsersIdResponseMock({ photoUrl: null });
     const fullName = `${user.firstName} ${user.lastName}`.trim();
     const initials = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`;
 

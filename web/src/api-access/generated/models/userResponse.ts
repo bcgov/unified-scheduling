@@ -10,18 +10,22 @@ export interface UserResponse {
   id: string;
   idirName: string;
   /** @nullable */
-  idirId: string | null;
+  idirId?: string | null;
   isEnabled: boolean;
   firstName: string;
   lastName: string;
   email: string;
   gender: Gender;
   /** @nullable */
-  rank: string | null;
+  rank?: string | null;
   /** @nullable */
-  badgeNumber: string | null;
+  badgeNumber?: string | null;
   /** @nullable */
-  homeLocationId: number | null;
+  homeLocationId?: number | null;
   /** @nullable */
-  lastLogin: string | null;
+  lastLogin?: string | null;
+  /** @nullable */
+  photoUrl?: string | null;
+  /** @nullable */
+  lastPhotoUpdate?: string | null;
 }

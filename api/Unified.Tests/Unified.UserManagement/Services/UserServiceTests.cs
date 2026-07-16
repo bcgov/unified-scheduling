@@ -731,4 +731,153 @@ public class UserServiceTests : IAsyncLifetime
             )
         );
     }
+
+    // --- Photo tests ---
+
+    [Fact]
+    public async Task GetPhotoAsync_Should_Return_Photo_When_User_Has_Photo()
+    {
+        // Arrange
+        var photoBytes = "fake-image-data"u8.ToArray();
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "photouser",
+            IsEnabled = true,
+            FirstName = "Photo",
+            LastName = "User",
+            Email = "photo@example.com",
+            Gender = Gender.Other,
+            Photo = photoBytes,
+        };
+        _dbContext.Users.Add(user);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _userService.GetPhotoAsync(user.Id, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(photoBytes, result);
+    }
+
+    [Fact]
+    public async Task GetPhotoAsync_Should_Return_Null_When_User_Has_No_Photo()
+    {
+        // Arrange
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "nophotouser",
+            IsEnabled = true,
+            FirstName = "No",
+            LastName = "Photo",
+            Email = "nophoto@example.com",
+            Gender = Gender.Other,
+            Photo = null,
+        };
+        _dbContext.Users.Add(user);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _userService.GetPhotoAsync(user.Id, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetPhotoAsync_Should_Return_Null_When_User_Does_Not_Exist()
+    {
+        // Act
+        var result = await _userService.GetPhotoAsync(Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UploadPhotoAsync_Should_Store_Photo_And_Return_Updated_User()
+    {
+        // Arrange
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "uploaduser",
+            IsEnabled = true,
+            FirstName = "Upload",
+            LastName = "User",
+            Email = "upload@example.com",
+            Gender = Gender.Other,
+            Photo = null,
+            LastPhotoUpdate = null,
+        };
+        _dbContext.Users.Add(user);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var photoBytes = "new-photo-bytes"u8.ToArray();
+        var beforeUpload = DateTimeOffset.UtcNow;
+
+        // Act
+        var result = await _userService.UploadPhotoAsync(user.Id, photoBytes, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(user.Id, result.Id);
+        Assert.NotNull(result.LastPhotoUpdate);
+        Assert.True(result.LastPhotoUpdate >= beforeUpload);
+
+        var persisted = await _dbContext.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
+        Assert.NotNull(persisted);
+        Assert.Equal(photoBytes, persisted!.Photo);
+        Assert.NotNull(persisted.LastPhotoUpdate);
+    }
+
+    [Fact]
+    public async Task UploadPhotoAsync_Should_Replace_Existing_Photo()
+    {
+        // Arrange
+        var originalPhoto = "original-photo"u8.ToArray();
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "replaceuser",
+            IsEnabled = true,
+            FirstName = "Replace",
+            LastName = "User",
+            Email = "replace@example.com",
+            Gender = Gender.Other,
+            Photo = originalPhoto,
+            LastPhotoUpdate = DateTimeOffset.UtcNow.AddDays(-1),
+        };
+        _dbContext.Users.Add(user);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var newPhoto = "replaced-photo"u8.ToArray();
+        var beforeUpload = DateTimeOffset.UtcNow;
+
+        // Act
+        var result = await _userService.UploadPhotoAsync(user.Id, newPhoto, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.LastPhotoUpdate >= beforeUpload);
+
+        var persisted = await _dbContext.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
+        Assert.Equal(newPhoto, persisted!.Photo);
+    }
+
+    [Fact]
+    public async Task UploadPhotoAsync_Should_Return_Null_When_User_Does_Not_Exist()
+    {
+        // Act
+        var result = await _userService.UploadPhotoAsync(
+            Guid.NewGuid(),
+            "photo"u8.ToArray(),
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Null(result);
+    }
 }

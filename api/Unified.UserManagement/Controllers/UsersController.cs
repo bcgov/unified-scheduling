@@ -2,7 +2,10 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Common.Filters;
+using Unified.Common.ImageFormat;
 using Unified.UserManagement.Models;
+using Unified.UserManagement.Options;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
 
@@ -170,5 +173,72 @@ public class UsersController(
 
         var userRole = await userService.ExpireRoleAsync(id, request, cancellationToken);
         return Ok(userRole);
+    }
+
+    /// <summary>
+    /// Returns the profile photo for a user.
+    /// </summary>
+    /// <param name="id">The user identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The photo file if found.</returns>
+    [HttpGet("{id:guid}/photo")]
+    [Produces("image/jpeg", "image/png")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPhoto(Guid id, CancellationToken cancellationToken)
+    {
+        var photo = await userService.GetPhotoAsync(id, cancellationToken);
+        if (photo is null || photo.Length == 0)
+        {
+            return NotFound();
+        }
+
+        var contentType = ImageFormatDetector.Detect(photo) ?? ImageFormatDetector.JpegContentType;
+        return File(photo, contentType);
+    }
+
+    /// <summary>
+    /// Uploads or replaces the profile photo for a user.
+    /// </summary>
+    /// <param name="id">The user identifier.</param>
+    /// <param name="photo">The photo file (JPEG or PNG).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated user if found.</returns>
+    [HttpPost("{id:guid}/upload-photo")]
+    [Authorize(Policy = UserManagementPolicies.UsersEdit)]
+    [RequestFormLimitsFromOptions<UserManagementOptions>(
+        nameof(UserManagementOptions.UploadPhotoSizeLimitKb),
+        multiplier: 1024
+    )]
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<UserResponse>> UploadPhoto(
+        Guid id,
+        IFormFile photo,
+        CancellationToken cancellationToken
+    )
+    {
+        if (photo is null || photo.Length == 0)
+        {
+            throw new InvalidOperationException("No photo provided.");
+        }
+
+        using var ms = new MemoryStream();
+        await photo.CopyToAsync(ms, cancellationToken);
+        var bytes = ms.ToArray();
+
+        if (ImageFormatDetector.Detect(bytes) is null)
+        {
+            throw new InvalidOperationException("Only JPEG and PNG images are supported.");
+        }
+
+        var user = await userService.UploadPhotoAsync(id, bytes, cancellationToken);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(user);
     }
 }
