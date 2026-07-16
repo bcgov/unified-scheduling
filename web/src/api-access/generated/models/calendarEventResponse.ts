@@ -4,7 +4,9 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { CalendarEventStatus } from './calendarEventStatus.ts';
 import type { CalendarEventStatusTypeCode } from './calendarEventStatusTypeCode.ts';
+import type { CalendarEventType } from './calendarEventType.ts';
 import type { CalendarEventTypeCode } from './calendarEventTypeCode.ts';
 
 export interface CalendarEventResponse {
