@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { putApiTrainingsId, type TrainingRequest, type TrainingResponse } from '@/api-access/training';
+import { putApiLookupTrainingsId } from '@/api-access/generated/training/training';
+import type { TrainingLookupRequest, TrainingLookupResponse } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -11,22 +12,21 @@ import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps<{
-  training: TrainingResponse;
+  training: TrainingLookupResponse;
 }>();
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'updated', training: TrainingResponse | null): void;
+  (e: 'updated', training: TrainingLookupResponse | null): void;
 }>();
 
-type TrainingFormData = {
+type TrainingFormData = TrainingLookupRequest & {
   code: string;
   description: string;
   mandatory: boolean;
+  rotating: boolean;
   validityDays: string;
   advanceNoticeDays: string;
-  rotating: boolean;
-  trainingCategoryId: number | null;
   order: string;
 };
 
@@ -34,13 +34,13 @@ const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-const populateFromTraining = (training: TrainingResponse): TrainingFormData => ({
+const populateFromTraining = (training: TrainingLookupResponse): TrainingFormData => ({
   code: training.code ?? '',
   description: training.description ?? '',
-  mandatory: training.mandatory,
+  mandatory: training.mandatory ?? false,
   validityDays: training.validityDays == null ? '' : String(training.validityDays),
   advanceNoticeDays: training.advanceNoticeDays == null ? '' : String(training.advanceNoticeDays),
-  rotating: training.rotating,
+  rotating: training.rotating ?? false,
   trainingCategoryId: training.trainingCategoryId,
   order: String(training.order ?? 0),
 });
@@ -90,7 +90,7 @@ const parseRequiredNonNegativeNumber = (value: string, fieldName: keyof Training
   return parsedValue;
 };
 
-const validateForm = (): TrainingRequest | null => {
+const validateForm = (): TrainingLookupRequest | null => {
   formErrors.value = {};
 
   const code = formData.value.code.trim();
@@ -154,7 +154,7 @@ const handleSave = async () => {
   apiErrorMessage.value = '';
 
   try {
-    const { data, error } = await putApiTrainingsId(props.training.id, payload);
+    const { data, error } = await putApiLookupTrainingsId(props.training.id, payload);
 
     if (error.value) {
       if (applyServerValidationErrors(data.value)) {

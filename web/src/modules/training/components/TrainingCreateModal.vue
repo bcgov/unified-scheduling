@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { postApiTrainings, type TrainingRequest, type TrainingResponse } from '@/api-access/training';
+import { postApiLookupTrainings } from '@/api-access/generated/training/training';
+import type { TrainingLookupRequest, TrainingLookupResponse } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -12,7 +13,7 @@ import { ref } from 'vue';
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'created', training: TrainingResponse | null): void;
+  (e: 'created', training: TrainingLookupResponse | null): void;
 }>();
 
 type TrainingCreateFormData = {
@@ -73,7 +74,7 @@ const parseRequiredNonNegativeNumber = (value: string, fieldName: keyof Training
   return parsedValue;
 };
 
-const validateForm = (): TrainingRequest | null => {
+const validateForm = (): TrainingLookupRequest | null => {
   formErrors.value = {};
 
   const code = formData.value.code.trim();
@@ -137,7 +138,7 @@ const handleSave = async () => {
   apiErrorMessage.value = '';
 
   try {
-    const { data, error } = await postApiTrainings(payload);
+    const { data, error } = await postApiLookupTrainings(payload);
 
     if (error.value) {
       if (applyServerValidationErrors(data.value)) {

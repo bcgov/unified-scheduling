@@ -3,17 +3,17 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import TrainingEditModal from '@/modules/training/components/TrainingEditModal.vue';
 import { createTestApp } from '../../../helpers/createTestApp';
-import type { TrainingResponse } from '@/api-access/training';
+import type { TrainingLookupResponse } from '@/api-access/generated/models';
 
 const { putApiTrainingsIdMock } = vi.hoisted(() => ({
   putApiTrainingsIdMock: vi.fn(),
 }));
 
-vi.mock('@/api-access/training', () => ({
-  putApiTrainingsId: putApiTrainingsIdMock,
+vi.mock('@/api-access/generated/training/training', () => ({
+  putApiLookupTrainingsId: putApiTrainingsIdMock,
 }));
 
-const training: TrainingResponse = {
+const training: TrainingLookupResponse = {
   id: 10,
   code: 'FIRE',
   description: 'Firearms Qualification',

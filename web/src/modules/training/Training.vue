@@ -1,32 +1,29 @@
 <script setup lang="ts">
-import { getApiTrainings, patchApiTrainingsIdOrder } from '@/api-access/training';
-import type { Permissions } from '@/api-access/generated/models';
+import { getApiLookupTrainings, patchApiLookupTrainingsIdOrder } from '@/api-access/generated/training/training';
+import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { mdiPlus } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
-import type { TrainingResponse } from '@/api-access/training';
+import type { TrainingLookupResponse } from '@/api-access/generated/models';
 import TrainingCreateModal from './components/TrainingCreateModal.vue';
 import TrainingEditModal from './components/TrainingEditModal.vue';
 import TrainingTable from './components/TrainingTable.vue';
 
 const accessControl = useAccessControl();
-const trainingsViewPermission = 'TrainingsView' as Permissions;
-const trainingsCreatePermission = 'TrainingsCreate' as Permissions;
-const trainingsEditPermission = 'TrainingsEdit' as Permissions;
 
-const canViewTrainings = computed(() => accessControl.hasPermission(trainingsViewPermission));
-const canCreateTrainings = computed(() => accessControl.hasPermission(trainingsCreatePermission));
-const canEditTrainings = computed(() => accessControl.hasPermission(trainingsEditPermission));
+const canViewTrainings = computed(() => accessControl.hasPermission(Permissions.TrainingsView));
+const canCreateTrainings = computed(() => accessControl.hasPermission(Permissions.TrainingsCreate));
+const canEditTrainings = computed(() => accessControl.hasPermission(Permissions.TrainingsEdit));
 
 const {
   data: trainings,
   error,
   isFetching,
   execute,
-} = getApiTrainings({
+} = getApiLookupTrainings({
   options: {
     immediate: false,
   },
@@ -44,7 +41,7 @@ watch(
 
 const trainingRows = computed(() => trainings.value ?? []);
 const showCreateTrainingModal = ref(false);
-const selectedTraining = ref<TrainingResponse | null>(null);
+const selectedTraining = ref<TrainingLookupResponse | null>(null);
 const isReordering = ref(false);
 
 const isTableLoading = computed(() => isFetching.value || isReordering.value);
@@ -62,7 +59,7 @@ const handleTrainingCreated = async () => {
   showCreateTrainingModal.value = false;
 };
 
-const handleEditTraining = (training: TrainingResponse) => {
+const handleEditTraining = (training: TrainingLookupResponse) => {
   selectedTraining.value = training;
 };
 
@@ -83,7 +80,7 @@ const handleTrainingReorder = async ({ trainingId, newOrder }: { trainingId: num
   isReordering.value = true;
 
   try {
-    const { error } = await patchApiTrainingsIdOrder(trainingId, { newOrder });
+    const { error } = await patchApiLookupTrainingsIdOrder(trainingId, { newOrder });
     if (error.value) {
       console.error('Failed to reorder trainings:', error.value.message);
     }

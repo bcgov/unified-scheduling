@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import TrainingTable from '@/modules/training/components/TrainingTable.vue';
 import { createTestApp } from '../../../helpers/createTestApp';
-import type { TrainingResponse } from '@/api-access/training';
+import type { TrainingLookupResponse } from '@/api-access/generated/models';
 
 const { useDraggableMock } = vi.hoisted(() => ({
   useDraggableMock: vi.fn(),
@@ -39,7 +39,7 @@ describe('TrainingTable', () => {
   it('emits edit when edit button is clicked', async () => {
     const app = await createTestApp();
 
-    const training: TrainingResponse = {
+    const training: TrainingLookupResponse = {
       id: 1,
       code: 'FIRE',
       description: 'Firearms Qualification',

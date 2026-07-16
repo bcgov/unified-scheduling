@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import type { Permissions } from '@/api-access/generated/models';
-import type { TrainingResponse } from '@/api-access/training';
+import type { TrainingLookupResponse } from '@/api-access/generated/models';
 import { createTestApp } from '../../helpers/createTestApp';
 import Training from '@/modules/training/Training.vue';
 
@@ -11,9 +11,9 @@ const { getApiTrainingsMock, patchApiTrainingsIdOrderMock } = vi.hoisted(() => (
   patchApiTrainingsIdOrderMock: vi.fn(),
 }));
 
-vi.mock('@/api-access/training', () => ({
-  getApiTrainings: getApiTrainingsMock,
-  patchApiTrainingsIdOrder: patchApiTrainingsIdOrderMock,
+vi.mock('@/api-access/generated/training/training', () => ({
+  getApiLookupTrainings: getApiTrainingsMock,
+  patchApiLookupTrainingsIdOrder: patchApiTrainingsIdOrderMock,
 }));
 
 describe('Training view', () => {
@@ -21,7 +21,7 @@ describe('Training view', () => {
     vi.clearAllMocks();
 
     getApiTrainingsMock.mockReturnValue({
-      data: ref<TrainingResponse[]>([]),
+      data: ref<TrainingLookupResponse[]>([]),
       error: ref<Error | null>(null),
       isFetching: ref(false),
       execute: vi.fn().mockResolvedValue(undefined),
@@ -53,7 +53,7 @@ describe('Training view', () => {
     });
 
     getApiTrainingsMock.mockReturnValue({
-      data: ref<TrainingResponse[]>([
+      data: ref<TrainingLookupResponse[]>([
         {
           id: 1,
           code: 'FIRE',
@@ -106,7 +106,7 @@ describe('Training view', () => {
     const app = await createTestApp({ permissions: ['TrainingsView'] as unknown as Permissions[] });
 
     getApiTrainingsMock.mockReturnValue({
-      data: ref<TrainingResponse[]>([]),
+      data: ref<TrainingLookupResponse[]>([]),
       error: ref<Error | null>(new Error('Unable to load training records')),
       isFetching: ref(false),
       execute: vi.fn().mockResolvedValue(undefined),
