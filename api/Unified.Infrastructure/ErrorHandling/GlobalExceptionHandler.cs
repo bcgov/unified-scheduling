@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
@@ -41,6 +42,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             ValidationException ex => HandleValidationException(ex, httpContext),
             ForbiddenException ex => HandleForbiddenException(ex, httpContext),
             KeyNotFoundException ex => HandleKeyNotFoundException(ex, httpContext),
+            InvalidDataException ex => HandleInvalidDataException(ex, httpContext),
             InvalidOperationException ex => HandleInvalidOperationException(ex, httpContext),
             DbUpdateConcurrencyException ex => HandleConcurrencyException(ex, httpContext),
             OpenIdConnectProtocolException ex => HandleAuthenticationException(ex, httpContext),
@@ -122,6 +124,37 @@ public class GlobalExceptionHandler : IExceptionHandler
             Detail = ex.Message,
             Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
+    }
+
+    private ProblemDetails HandleInvalidDataException(InvalidDataException ex, HttpContext httpContext)
+    {
+        _logger.LogInformation(ex, "Failed to read request body: {Message}", ex.Message);
+        httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+
+        return new ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "The uploaded file could not be processed.",
+            Detail = BuildFriendlyFormReadDetail(ex.Message),
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+        };
+    }
+
+    /// <summary>
+    /// Converts framework messages like "Multipart body length limit 409600 exceeded." into a
+    /// human-readable message (e.g. "The file exceeds the maximum allowed size of 400 KB.") for
+    /// display to end users. Falls back to the original message if the pattern isn't recognized.
+    /// </summary>
+    private static string BuildFriendlyFormReadDetail(string message)
+    {
+        var match = Regex.Match(message, @"Multipart body length limit (\d+) exceeded");
+        if (!match.Success || !long.TryParse(match.Groups[1].Value, out var limitBytes))
+        {
+            return message;
+        }
+
+        var limitKb = limitBytes / 1024;
+        return $"The file exceeds the maximum allowed size of {limitKb} KB.";
     }
 
     private ProblemDetails HandleConcurrencyException(DbUpdateConcurrencyException ex, HttpContext httpContext)

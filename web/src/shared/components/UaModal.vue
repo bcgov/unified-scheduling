@@ -57,7 +57,9 @@ const handleDialogVisibility = (isVisible: boolean) => {
       </div>
       <div class="ua-modal__header-strip" :class="`ua-modal__header-strip--${tone}`" />
 
-      <slot name="alerts" />
+      <div v-if="$slots.alerts" class="ua-modal__alerts">
+        <slot name="alerts" />
+      </div>
 
       <div class="ua-modal__body">
         <slot />
@@ -113,6 +115,10 @@ const handleDialogVisibility = (isVisible: boolean) => {
 
 .ua-modal__header-strip--error {
   background: rgb(var(--v-theme-error));
+}
+
+.ua-modal__alerts {
+  padding: var(--ua-spacing-sm) var(--ua-spacing-sm) 0;
 }
 
 .ua-modal__body {

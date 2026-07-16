@@ -2,9 +2,9 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Common.Helpers.Extensions;
-using Unified.Db.Extensions;
 using Unified.Common.Logging;
 using Unified.Db;
+using Unified.Db.Extensions;
 using Unified.Db.Models.UserManagement;
 using Unified.FeatureFlags;
 using Unified.UserManagement.Models;
@@ -289,5 +289,34 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
             ExpiryDate = userRole.ExpiryDate?.ToTimeZone(timezoneId),
             ExpiryReason = userRole.ExpiryReason,
         };
+    }
+
+    public async Task<byte[]?> GetPhotoAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await DB
+            .Users.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => x.Photo)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<UserResponse?> UploadPhotoAsync(
+        Guid id,
+        byte[] photo,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var user = await DB.Users.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        user.Photo = photo;
+        user.LastPhotoUpdate = DateTimeOffset.UtcNow;
+
+        await DB.SaveChangesAsync(cancellationToken);
+
+        return user.Adapt<UserResponse>();
     }
 }

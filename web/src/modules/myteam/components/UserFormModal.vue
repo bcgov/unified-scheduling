@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Gender, LookupCodeTypes, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
-import { postApiUsers, putApiUsersId } from '@/api-access/generated/users/users';
+import { postApiUsers, postApiUsersIdUploadPhoto, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -12,8 +12,8 @@ import { mapToValidationErrors, validationMessages } from '@/shared/validation/v
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
 import { mapToSelectOptions } from '@/utils/select';
-import { mdiClose, mdiContentSave } from '@mdi/js';
-import { computed, onMounted, ref } from 'vue';
+import { mdiCamera, mdiClose, mdiContentSave } from '@mdi/js';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import * as zod from 'zod';
 
 const props = defineProps<{
@@ -34,7 +34,12 @@ onMounted(async () => {
   await lookupStore.load(LookupCodeTypes.PositionTypes);
 });
 
-const isEditMode = computed(() => !!props.user);
+// Tracks the user record being edited. Starts from props.user (edit mode) and is
+// set to the newly created user once a create succeeds, so that a retry (e.g. after
+// a photo upload failure) updates that same user instead of creating a duplicate.
+const currentUser = ref<UserResponse | null>(props.user ?? null);
+
+const isEditMode = computed(() => !!currentUser.value);
 
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
 const homeLocationOptions = locationsStore.selectOptions;
@@ -46,6 +51,39 @@ const genderOptions = mapToSelectOptions(
 
 const isLoading = ref(false);
 const apiErrorMessage = ref('');
+
+// --- Photo upload ---
+const photoFile = ref<File | null>(null);
+const localPhotoPreviewUrl = ref<string | null>(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
+const photoPreviewUrl = computed(() => localPhotoPreviewUrl.value ?? currentUser.value?.photoUrl ?? null);
+
+const photoInitials = computed(() => {
+  const f = (formData.value.firstName?.[0] ?? '').toUpperCase();
+  const l = (formData.value.lastName?.[0] ?? '').toUpperCase();
+  return f + l || '?';
+});
+
+const triggerFileInput = () => fileInputRef.value?.click();
+
+const onFileChange = (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  if (localPhotoPreviewUrl.value) {
+    URL.revokeObjectURL(localPhotoPreviewUrl.value);
+  }
+  photoFile.value = file;
+  localPhotoPreviewUrl.value = URL.createObjectURL(file);
+};
+
+onUnmounted(() => {
+  if (localPhotoPreviewUrl.value) {
+    URL.revokeObjectURL(localPhotoPreviewUrl.value);
+  }
+});
 const formErrors = ref<Record<string, string>>({});
 
 type UserRequestFormData = Partial<UserRequestDto>;
@@ -129,13 +167,20 @@ const handleSave = async () => {
   const payload = validateForm();
   if (!payload) return;
 
+  // Captured before any mutation of currentUser below, so the final emit reflects
+  // whether *this* save started as a create or an edit — not the post-create state.
+  const wasCreate = !isEditMode.value;
+
   isLoading.value = true;
   apiErrorMessage.value = '';
 
   try {
-    if (isEditMode.value && props.user?.id) {
+    let savedUser: UserResponse | null = null;
+    let userId: string | null = null;
+
+    if (isEditMode.value && currentUser.value?.id) {
       // --- Edit mode ---
-      const { data, error } = await putApiUsersId(props.user.id, payload);
+      const { data, error } = await putApiUsersId(currentUser.value.id, payload);
 
       if (error.value) {
         if (applyServerValidationErrors(data.value)) return;
@@ -143,7 +188,8 @@ const handleSave = async () => {
         return;
       }
 
-      emit('updated', data.value);
+      savedUser = data.value;
+      userId = currentUser.value.id;
     } else {
       // --- Create mode ---
       const { data, error } = await postApiUsers(payload);
@@ -154,7 +200,35 @@ const handleSave = async () => {
         return;
       }
 
-      emit('created', data.value);
+      savedUser = data.value;
+      userId = data.value?.id ?? null;
+
+      // Switch to edit mode against the newly created user so a retry (e.g. after a
+      // photo upload failure below) updates this user instead of creating another one.
+      if (savedUser) {
+        currentUser.value = savedUser;
+      }
+    }
+
+    // Upload photo if a file was selected
+    if (photoFile.value && userId) {
+      const { data: photoData, error: photoError } = await postApiUsersIdUploadPhoto(userId, {
+        photo: photoFile.value,
+      });
+      if (photoError.value) {
+        apiErrorMessage.value = photoError.value.detail || 'Failed to upload photo';
+        return;
+      }
+      if (photoData.value) {
+        savedUser = photoData.value;
+        currentUser.value = photoData.value;
+      }
+    }
+
+    if (wasCreate) {
+      emit('created', savedUser);
+    } else {
+      emit('updated', savedUser);
     }
 
     emit('close');
@@ -173,6 +247,27 @@ const handleSave = async () => {
         Request failed: {{ apiErrorMessage }}
       </UaAlert>
     </template>
+
+    <!-- Photo upload -->
+    <div class="photo-upload-section">
+      <div class="photo-preview-wrapper" @click="triggerFileInput" :title="'Click to upload photo'">
+        <v-avatar size="120" color="grey-lighten-2">
+          <v-img v-if="photoPreviewUrl" :src="photoPreviewUrl" cover alt="Profile photo" />
+          <span v-else class="text-h6">{{ photoInitials }}</span>
+        </v-avatar>
+        <div class="photo-upload-overlay">
+          <v-icon :icon="mdiCamera" color="white" size="20" />
+        </div>
+      </div>
+      <span class="photo-hint">{{ photoFile ? photoFile.name : 'Click to upload photo' }}</span>
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept="image/jpeg,image/png"
+        style="display: none"
+        @change="onFileChange"
+      />
+    </div>
 
     <UaFormGrid>
       <UaTextField
@@ -305,5 +400,46 @@ const handleSave = async () => {
 
 :deep(.enabled-switch .v-selection-control) {
   min-height: 32px;
+}
+
+.photo-upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ua-spacing-sm);
+  padding: var(--ua-spacing-md) 0;
+}
+
+.photo-preview-wrapper {
+  position: relative;
+  cursor: pointer;
+  border-radius: 50%;
+  display: inline-block;
+
+  &:hover .photo-upload-overlay {
+    opacity: 1;
+  }
+}
+
+.photo-upload-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.photo-hint {
+  font-size: var(--ua-font-size-sm);
+  color: var(--ua-text-secondary);
+  max-width: 180px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

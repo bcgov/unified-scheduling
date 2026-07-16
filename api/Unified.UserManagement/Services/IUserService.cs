@@ -31,4 +31,8 @@ public interface IUserService
         ExpireUserRoleRequestDto request,
         CancellationToken cancellationToken = default
     );
+
+    Task<byte[]?> GetPhotoAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<UserResponse?> UploadPhotoAsync(Guid id, byte[] photo, CancellationToken cancellationToken = default);
 }
