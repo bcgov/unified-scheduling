@@ -194,7 +194,7 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         var courtRoom = await _dbContext.CourtRooms.SingleAsync(
-            cr => cr.Code == "101",
+            cr => cr.Room == "101",
             TestContext.Current.CancellationToken
         );
         Assert.Equal(location.Id, courtRoom.LocationId);
