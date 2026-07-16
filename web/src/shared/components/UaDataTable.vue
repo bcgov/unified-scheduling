@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends Record<string, unknown>">
+<script setup lang="ts" generic="T extends Record<PropertyKey, any>">
 import { computed, nextTick, onBeforeUnmount, ref, useAttrs, watch } from 'vue';
 import { useDraggable } from 'vue-draggable-plus';
 

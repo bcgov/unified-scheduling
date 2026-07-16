@@ -7,7 +7,7 @@ public class Training : BaseCodeTypeEntity
 {
     [Key]
     public int Id { get; set; }
-    
+
     public bool Mandatory { get; set; }
 
     // Signifies how long the training is valid for in days. If null, always valid.

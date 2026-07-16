@@ -20,14 +20,15 @@ const emit = defineEmits<{
   (e: 'updated', training: TrainingLookupResponse | null): void;
 }>();
 
-type TrainingFormData = TrainingLookupRequest & {
+type TrainingFormData = {
   code: string;
-  description: string;
-  mandatory: boolean;
-  rotating: boolean;
+  description?: string | null;
+  mandatory?: boolean;
+  rotating?: boolean;
   validityDays: string;
   advanceNoticeDays: string;
   order: string;
+  trainingCategoryId?: number | null;
 };
 
 const isLoading = ref(false);
@@ -94,7 +95,7 @@ const validateForm = (): TrainingLookupRequest | null => {
   formErrors.value = {};
 
   const code = formData.value.code.trim();
-  const description = formData.value.description.trim();
+  const description = (formData.value.description ?? '').trim();
 
   if (!code) {
     formErrors.value.code = validationMessages.required;
@@ -196,7 +197,7 @@ const handleSave = async () => {
       <UaTextarea
         id="training-description"
         label="Description"
-        :model-value="formData.description"
+        :model-value="formData.description ?? ''"
         :error-messages="formErrors.description"
         :disabled="isLoading"
         @update:model-value="(value: string) => (formData.description = value)"
