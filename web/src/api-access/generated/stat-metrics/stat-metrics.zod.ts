@@ -10,6 +10,7 @@ export const GetApiStatsMetricsResponseItem = zod.object({
   id: zod.number().optional(),
   name: zod.string().optional(),
   unitOfMeasure: zod.string().optional(),
+  isOvertime: zod.boolean().optional(),
 });
 export const GetApiStatsMetricsResponse = zod.array(GetApiStatsMetricsResponseItem);
 
@@ -21,4 +22,5 @@ export const GetApiStatsMetricsIdResponse = zod.object({
   id: zod.number().optional(),
   name: zod.string().optional(),
   unitOfMeasure: zod.string().optional(),
+  isOvertime: zod.boolean().optional(),
 });

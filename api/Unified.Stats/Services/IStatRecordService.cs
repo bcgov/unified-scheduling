@@ -38,6 +38,7 @@ public interface IStatRecordService
         SaveDayRequest request,
         Guid callerUserId,
         bool callerCanEnterForOthers,
+        bool canOverrideSignedOff = false,
         CancellationToken cancellationToken = default
     );
 }

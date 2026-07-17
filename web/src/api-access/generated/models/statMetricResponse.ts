@@ -9,4 +9,5 @@ export interface StatMetricResponse {
   id?: number;
   name?: string;
   unitOfMeasure?: string;
+  isOvertime?: boolean;
 }

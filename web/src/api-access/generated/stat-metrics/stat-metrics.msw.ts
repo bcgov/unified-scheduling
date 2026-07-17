@@ -17,16 +17,19 @@ export const getGetApiStatsMetricsResponseMock = (): StatMetricResponse[] =>
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       unitOfMeasure: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       unitOfMeasure: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       unitOfMeasure: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
     })),
   ]);
 
@@ -38,18 +41,21 @@ export const getGetApiStatsMetricsIdResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       unitOfMeasure: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       ...overrideResponse,
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       unitOfMeasure: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       ...overrideResponse,
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       unitOfMeasure: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      isOvertime: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       ...overrideResponse,
     },
   ]);

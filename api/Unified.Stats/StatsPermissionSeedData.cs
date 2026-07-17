@@ -39,6 +39,12 @@ public static class StatsPermissionSeedData
                     Id = nameof(Permissions.DashboardSubmit),
                     Description = "Submit time entries to the data pipeline from the scheduler dashboard",
                 },
+                new()
+                {
+                    Group = PermissionGroupStats,
+                    Id = nameof(Permissions.StatsOverrideSignedOff),
+                    Description = "Edit time entries that have already been signed off",
+                },
             ],
         };
 }

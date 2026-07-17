@@ -46,6 +46,7 @@ const statsRoutes: RouteRecordRaw[] = [
           return {
             name: 'StatSearch',
             query: {
+              source: 'signoffs',
               status: 'Submitted',
               fromDate: now.startOf('month').toISODate(),
               toDate: now.endOf('month').toISODate(),
