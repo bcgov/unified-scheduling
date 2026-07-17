@@ -91,11 +91,7 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
     {
         var result = await _strategy.UpdateAsync(
             999,
-            new TrainingLookupRequest
-            {
-                Code = "ABC",
-                Description = "Test",
-            },
+            new TrainingLookupRequest { Code = "ABC", Description = "Test" },
             TestContext.Current.CancellationToken
         );
 

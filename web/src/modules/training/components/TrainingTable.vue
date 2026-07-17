@@ -62,19 +62,26 @@ const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
 
 <template>
   <UaDataTable
-      v-if="items.length > 0 || loading"
-      :headers="headers"
-      :items="items"
-      :loading="loading"
-      :items-per-page="10"
-      :paginate="isPaginationEnabled"
-      :draggable="Boolean(canEdit) && !isSortedByNonOrderColumn"
-      @update:sort-by="sortBy = $event"
-      hover
-      @reorder="handleReorder"
-    >
+    v-if="items.length > 0 || loading"
+    :headers="headers"
+    :items="items"
+    :loading="loading"
+    :items-per-page="10"
+    :paginate="isPaginationEnabled"
+    :draggable="Boolean(canEdit) && !isSortedByNonOrderColumn"
+    @update:sort-by="sortBy = $event"
+    hover
+    @reorder="handleReorder"
+  >
     <template #[`item.dragHandle`]>
-      <span v-if="canEdit" class="drag-handle" :class="{ 'drag-handle--disabled': isSortedByNonOrderColumn }" role="button" aria-label="Drag to reorder" title="Drag to reorder">
+      <span
+        v-if="canEdit"
+        class="drag-handle"
+        :class="{ 'drag-handle--disabled': isSortedByNonOrderColumn }"
+        role="button"
+        aria-label="Drag to reorder"
+        title="Drag to reorder"
+      >
         <v-icon :icon="mdiDragVertical" size="18" />
       </span>
     </template>
