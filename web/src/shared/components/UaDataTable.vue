@@ -18,26 +18,38 @@ const props = withDefaults(
     loading?: boolean;
     paginate?: boolean;
     draggable?: boolean;
-    draggableHandleSelector?: string;
+    searchable?: boolean;
+    search?: string;
   }>(),
   {
     items: () => [],
     loading: false,
     paginate: true,
     draggable: false,
-    draggableHandleSelector: '.drag-handle',
+    searchable: false,
+    search: undefined,
   },
 );
 
 const emit = defineEmits<{
   (e: 'reorder', payload: UaDataTableReorderPayload<T>): void;
+  (e: 'update:search', value: string): void;
 }>();
 
 const attrs = useAttrs();
 const rootElement = ref<HTMLElement | null>(null);
 const localItems = ref<T[]>([...props.items]);
+const localSearch = ref('');
 const draggableInstance = ref<ReturnType<typeof useDraggable<T>> | null>(null);
-const isDraggableEnabled = computed(() => props.draggable && !props.paginate);
+const searchQuery = computed({
+  get: () => props.search ?? localSearch.value,
+  set: (value: string) => {
+    localSearch.value = value;
+    emit('update:search', value);
+  },
+});
+const hasActiveSearch = computed(() => searchQuery.value.trim().length > 0);
+const isDraggableEnabled = computed(() => props.draggable && !props.paginate && !hasActiveSearch.value);
 
 const forwardedAttrs = computed(() => {
   const forwarded = { ...attrs };
@@ -45,6 +57,8 @@ const forwardedAttrs = computed(() => {
   delete forwarded.loading;
   delete forwarded.page;
   delete forwarded['items-per-page'];
+  delete forwarded.search;
+  delete forwarded['search-placeholder'];
   return forwarded;
 });
 
@@ -53,6 +67,16 @@ watch(
   (newItems) => {
     localItems.value = [...newItems];
   },
+);
+
+watch(
+  () => props.search,
+  (newSearch) => {
+    if (newSearch != null) {
+      localSearch.value = newSearch;
+    }
+  },
+  { immediate: true },
 );
 
 const destroyDraggable = () => {
@@ -78,7 +102,7 @@ const initializeDraggable = async () => {
   }
 
   draggableInstance.value = useDraggable(tableBody, localItems, {
-    handle: props.draggableHandleSelector,
+    handle: '.drag-handle',
     ghostClass: 'ua-sortable-ghost',
     dragClass: 'ua-sortable-drag',
     animation: 150,
@@ -121,11 +145,25 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="rootElement" class="ua-data-table-wrapper">
+    <div v-if="searchable" class="ua-data-table__search">
+      <v-text-field
+        v-model="searchQuery"
+        label="Search"
+        placeholder="Search"
+        prepend-inner-icon="mdi-magnify"
+        clearable
+        hide-details
+        density="comfortable"
+        variant="outlined"
+      />
+    </div>
+
     <v-data-table
       class="ua-data-table"
       :class="{ 'ua-data-table--draggable': isDraggableEnabled }"
       :items="localItems"
       :loading="loading"
+      :search="searchQuery"
       :items-per-page="paginate ? undefined : -1"
       :hide-default-footer="!paginate"
       v-bind="forwardedAttrs"
@@ -140,6 +178,10 @@ onBeforeUnmount(() => {
 <style scoped>
 .ua-data-table-wrapper {
   width: 100%;
+}
+
+.ua-data-table__search {
+  margin-bottom: var(--ua-spacing-md);
 }
 
 .ua-data-table {

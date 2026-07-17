@@ -213,12 +213,26 @@ const handleSave = async () => {
 
       <span class="ua-form-label">Mandatory</span>
       <div class="toggle-row">
-        <v-switch v-model="formData.mandatory" color="success" hide-details inset :disabled="isLoading" />
+        <v-switch
+          v-model="formData.mandatory"
+          color="success"
+          hide-details
+          material
+          base-color="white"
+          :disabled="isLoading"
+        />
       </div>
 
       <span class="ua-form-label">Rotating</span>
       <div class="toggle-row">
-        <v-switch v-model="formData.rotating" color="success" hide-details inset :disabled="isLoading" />
+        <v-switch
+          v-model="formData.rotating"
+          color="success"
+          hide-details
+          material
+          base-color="white"
+          :disabled="isLoading"
+        />
       </div>
     </UaFormGrid>
 
