@@ -29,10 +29,13 @@ const emit = defineEmits<{
 }>();
 
 const sortBy = ref<{ key: string; order: string }[]>([]);
+const searchQuery = ref('');
 const isSortedByNonOrderColumn = computed(() => {
   // Allow reordering only if no sort is applied, or sorting by order column
   return sortBy.value.length > 0 && sortBy.value[0]?.key !== 'order';
 });
+const hasActiveSearch = computed(() => searchQuery.value.trim().length > 0);
+const isDragDisabled = computed(() => isSortedByNonOrderColumn.value || hasActiveSearch.value);
 const isPaginationEnabled = computed(() => !props.canEdit);
 
 const headers = [
@@ -66,9 +69,11 @@ const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
     :headers="headers"
     :items="items"
     :loading="loading"
+    searchable
+    v-model:search="searchQuery"
     :items-per-page="10"
     :paginate="isPaginationEnabled"
-    :draggable="Boolean(canEdit) && !isSortedByNonOrderColumn"
+    :draggable="Boolean(canEdit) && !isDragDisabled"
     @update:sort-by="sortBy = $event"
     hover
     @reorder="handleReorder"
@@ -77,7 +82,7 @@ const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
       <span
         v-if="canEdit"
         class="drag-handle"
-        :class="{ 'drag-handle--disabled': isSortedByNonOrderColumn }"
+        :class="{ 'drag-handle--disabled': isDragDisabled }"
         role="button"
         aria-label="Drag to reorder"
         title="Drag to reorder"
