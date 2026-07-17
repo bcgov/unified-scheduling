@@ -48,8 +48,8 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
         var definition = new AssignmentDefinition
         {
             LocationId = request.LocationId,
-            Name = NormalizeName(request.Name),
-            Description = request.Description.Trim(),
+            Name = NormalizeNameForStorage(request.Name),
+            Description = NormalizeOptionalText(request.Description),
             AssignmentCategoryTypeId = request.AssignmentCategoryTypeId,
             AssignmentSubCategoryTypeId = request.AssignmentSubCategoryTypeId,
             Color = request.Color?.Trim(),
@@ -80,8 +80,8 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
         await ValidateRequestAsync(request, id, cancellationToken);
 
         definition.LocationId = request.LocationId;
-        definition.Name = NormalizeName(request.Name);
-        definition.Description = request.Description.Trim();
+        definition.Name = NormalizeNameForStorage(request.Name);
+        definition.Description = NormalizeOptionalText(request.Description);
         definition.AssignmentCategoryTypeId = request.AssignmentCategoryTypeId;
         definition.AssignmentSubCategoryTypeId = request.AssignmentSubCategoryTypeId;
         definition.Color = request.Color?.Trim();
@@ -103,14 +103,14 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
     )
     {
         var now = DateTimeOffset.UtcNow;
-        var name = NormalizeName(request.Name);
+        var name = NormalizeNameForComparison(request.Name);
         if (await db.AssignmentDefinitions.AnyAsync(
                 definition =>
                     definition.LocationId == request.LocationId
-                    && definition.Name == name
+                    && definition.Name.ToUpper() == name
                     && (!currentId.HasValue || definition.Id != currentId.Value),
                 cancellationToken))
-            throw new InvalidOperationException($"Assignment definition name {name} already exists.");
+            throw new InvalidOperationException($"Assignment definition name {request.Name.Trim()} already exists.");
         if (!await db.Locations.AnyAsync(location => location.Id == request.LocationId, cancellationToken))
             throw new InvalidOperationException("Location does not exist.");
         if (!await IsActiveCodeAsync(db.AssignmentCategoryTypes, request.AssignmentCategoryTypeId, now, cancellationToken))
@@ -156,7 +156,15 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
             DefaultCapacity = definition.DefaultCapacity,
         };
 
-    private static string NormalizeName(string name) => name.Trim().ToUpperInvariant();
+    private static string NormalizeNameForStorage(string name) => name.Trim();
+
+    private static string NormalizeNameForComparison(string name) => name.Trim().ToUpperInvariant();
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        var normalized = value?.Trim();
+        return string.IsNullOrEmpty(normalized) ? null : normalized;
+    }
 
     private static TimeOnly? ParseTime(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : TimeOnly.Parse(value);

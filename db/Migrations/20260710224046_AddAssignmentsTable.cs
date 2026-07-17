@@ -105,7 +105,7 @@ namespace Unified.Db.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     LocationId = table.Column<int>(type: "integer", nullable: false),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     AssignmentCategoryTypeId = table.Column<int>(type: "integer", nullable: false),
                     AssignmentSubCategoryTypeId = table.Column<int>(type: "integer", nullable: false),
                     Color = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),

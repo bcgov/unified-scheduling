@@ -11,7 +11,7 @@ public sealed class AssignmentDefinition : BaseEntity
     public int Id { get; set; }
     public int LocationId { get; set; }
     public required string Name { get; set; }
-    public required string Description { get; set; }
+    public string? Description { get; set; }
     public int AssignmentCategoryTypeId { get; set; }
     public int AssignmentSubCategoryTypeId { get; set; }
     public string? Color { get; set; }

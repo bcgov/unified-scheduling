@@ -9,7 +9,7 @@ public sealed class AssignmentDefinitionConfiguration : BaseEntityConfiguration<
     public override void Configure(EntityTypeBuilder<AssignmentDefinition> builder)
     {
         builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
-        builder.Property(x => x.Description).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.Description).HasMaxLength(500);
         builder.Property(x => x.Color).HasMaxLength(100);
         builder.Property(x => x.DefaultCapacity).IsRequired();
         builder.Property(x => x.EffectiveDateUtc).IsRequired();

@@ -720,7 +720,6 @@ namespace Unified.Db.Migrations
                         .HasColumnType("time without time zone");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 

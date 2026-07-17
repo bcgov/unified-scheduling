@@ -9,7 +9,7 @@ public sealed class AssignmentDefinitionRequestValidator : AbstractValidator<Ass
     {
         RuleFor(request => request.LocationId).GreaterThan(0);
         RuleFor(request => request.Name).NotEmpty().MaximumLength(50);
-        RuleFor(request => request.Description).NotEmpty().MaximumLength(200);
+        RuleFor(request => request.Description).MaximumLength(200);
         RuleFor(request => request.AssignmentCategoryTypeId).GreaterThan(0);
         RuleFor(request => request.AssignmentSubCategoryTypeId).GreaterThan(0);
         RuleFor(request => request.Color).MaximumLength(100);

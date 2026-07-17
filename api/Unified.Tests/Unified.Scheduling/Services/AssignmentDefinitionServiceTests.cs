@@ -89,7 +89,7 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
         );
 
         var definition = Assert.Single(result);
-        Assert.Equal("CONTROL", definition.Name);
+        Assert.Equal("control", definition.Name);
         Assert.Equal(5, definition.LocationId);
         Assert.Equal("Control", definition.Description);
         Assert.Equal(10, definition.AssignmentCategoryTypeId);
@@ -117,7 +117,7 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
         var result = await _service.GetAssignmentDefinitionsAsync(5, TestContext.Current.CancellationToken);
 
         var definition = Assert.Single(result);
-        Assert.Equal("CONTROL", definition.Name);
+        Assert.Equal("control", definition.Name);
         Assert.Equal(5, definition.LocationId);
     }
 
@@ -139,18 +139,41 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
         Assert.Contains("already exists", exception.Message);
     }
 
+    [Fact]
+    public async Task CreateAssignmentDefinitionAsync_PreservesNameCasing()
+    {
+        var result = await _service.CreateAssignmentDefinitionAsync(
+            CreateRequest(name: "Office Standards"),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal("Office Standards", result.Name);
+    }
+
+    [Fact]
+    public async Task CreateAssignmentDefinitionAsync_WhenDescriptionIsNull_SavesNullDescription()
+    {
+        var result = await _service.CreateAssignmentDefinitionAsync(
+            CreateRequest(name: "No description", description: null),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Null(result.Description);
+    }
+
     private static AssignmentDefinitionRequest CreateRequest(
         string name,
         int locationId = 5,
         DateTimeOffset? effectiveDate = null,
         DateTimeOffset? expiryDate = null,
-        string? color = " blue "
+        string? color = " blue ",
+        string? description = "Control"
     ) =>
         new()
         {
             LocationId = locationId,
             Name = name,
-            Description = "Control",
+            Description = description,
             AssignmentCategoryTypeId = 10,
             AssignmentSubCategoryTypeId = 20,
             Color = color,
