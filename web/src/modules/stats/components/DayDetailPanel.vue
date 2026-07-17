@@ -111,7 +111,7 @@ const overtimeLockReason = computed(() => {
       {{ apiError }}
     </UaAlert>
     <UaAlert v-if="errors['day']" type="error">{{ errors['day'] }}</UaAlert>
-    <UaAlert v-for="(warning, idx) in warnings" :key="idx" type="warning">{{ warning }}</UaAlert>
+    <UaAlert v-for="(warning, idx) in warnings" :key="idx" type="warning" :closable="false">{{ warning }}</UaAlert>
 
     <!-- Assignment rows -->
     <div class="day-detail-panel__assignments">
