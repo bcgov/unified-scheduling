@@ -4,6 +4,8 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { TrainingLookupMoveOrderRequest, TrainingLookupRequest, TrainingLookupResponse } from '../models';
+
 import { useFetchAPI } from '../../useFetchAPI.ts';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -14,4 +16,64 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 export const getTrainingHealth = (options?: SecondParameter<typeof useFetchAPI<string>>) => {
   return useFetchAPI<string>({ url: `/api/trainings/health`, method: 'GET' }, options);
 };
+export const getApiLookupTrainings = (options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse[]>>) => {
+  return useFetchAPI<TrainingLookupResponse[]>({ url: `/api/lookup/trainings`, method: 'GET' }, options);
+};
+export const postApiLookupTrainings = (
+  trainingLookupRequest: TrainingLookupRequest,
+  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse>>,
+) => {
+  return useFetchAPI<TrainingLookupResponse>(
+    {
+      url: `/api/lookup/trainings`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: trainingLookupRequest,
+    },
+    options,
+  );
+};
+export const getApiLookupTrainingsId = (
+  id: number,
+  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse>>,
+) => {
+  return useFetchAPI<TrainingLookupResponse>({ url: `/api/lookup/trainings/${id}`, method: 'GET' }, options);
+};
+export const putApiLookupTrainingsId = (
+  id: number,
+  trainingLookupRequest: TrainingLookupRequest,
+  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse>>,
+) => {
+  return useFetchAPI<TrainingLookupResponse>(
+    {
+      url: `/api/lookup/trainings/${id}`,
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      data: trainingLookupRequest,
+    },
+    options,
+  );
+};
+export const patchApiLookupTrainingsIdOrder = (
+  id: number,
+  trainingLookupMoveOrderRequest: TrainingLookupMoveOrderRequest,
+  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse>>,
+) => {
+  return useFetchAPI<TrainingLookupResponse>(
+    {
+      url: `/api/lookup/trainings/${id}/order`,
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      data: trainingLookupMoveOrderRequest,
+    },
+    options,
+  );
+};
 export type GetTrainingHealthResult = NonNullable<Awaited<ReturnType<typeof getTrainingHealth>>>;
+export type GetApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainings>>>;
+export type PostApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof postApiLookupTrainings>>>;
+export type GetApiLookupTrainingsIdResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainingsId>>>;
+export type PutApiLookupTrainingsIdResult = NonNullable<Awaited<ReturnType<typeof putApiLookupTrainingsId>>>;
+export type PatchApiLookupTrainingsIdOrderResult = NonNullable<
+  Awaited<ReturnType<typeof patchApiLookupTrainingsIdOrder>>
+>;

@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
-using Unified.Training.Controllers;
-using Unified.Training.Services;
+using Unified.Core.Services.Lookup;
+using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
 
 namespace Unified.Training;
@@ -15,7 +15,7 @@ public static class TrainingModule
 {
     public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, bool isEnabled)
     {
-        var trainingAssembly = typeof(TrainingsController).Assembly;
+        var trainingAssembly = typeof(TrainingModule).Assembly;
 
         mvcBuilder.ConfigureApplicationPartManager(manager =>
             ConfigureTrainingApplicationParts(manager, trainingAssembly, isEnabled)
@@ -26,8 +26,12 @@ public static class TrainingModule
 
     public static IServiceCollection AddTrainingModule(this IServiceCollection services)
     {
-        services.AddScoped<ITrainingService, TrainingService>();
-        services.AddScoped<TrainingRequestValidator>();
+        services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
+        services.AddScoped<ILookupStrategy>(serviceProvider =>
+            serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
+        );
+
+        services.AddScoped<TrainingLookupRequestValidator>();
 
         services.AddSingleton(TrainingPermissionSeedData.Configuration);
 

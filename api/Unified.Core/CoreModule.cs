@@ -12,9 +12,11 @@ public static class CoreModule
     public static IServiceCollection AddCoreModule(this IServiceCollection services)
     {
         services.AddScoped<ILookupService, LookupService>();
+
         services.AddScoped<ILookupStrategy, PositionTypeLookupStrategy>();
         services.AddScoped<ILookupStrategy, EventTypeLookupStrategy>();
         services.AddScoped<ILookupStrategy, EventStatusTypeLookupStrategy>();
+
         services.AddScoped<PositionTypeSeeder>();
 
         return services;

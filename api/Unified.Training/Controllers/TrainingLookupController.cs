@@ -1,0 +1,94 @@
+using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Unified.Training.Models;
+using Unified.Training.Services.Lookup;
+using Unified.Training.Validators;
+
+namespace Unified.Training.Controllers;
+
+[Authorize]
+[ApiController]
+[Tags("Training")]
+[Route("api/lookup/trainings")]
+public class TrainingLookupController(
+    ITrainingLookupStrategy trainingLookupStrategy,
+    TrainingLookupRequestValidator trainingLookupRequestValidator
+) : ControllerBase
+{
+    private const string TrainingsViewPolicy = TrainingPolicies.TrainingsView;
+    private const string TrainingsCreatePolicy = TrainingPolicies.TrainingsCreate;
+    private const string TrainingsEditPolicy = TrainingPolicies.TrainingsEdit;
+
+    [HttpGet]
+    [Authorize(Policy = TrainingsViewPolicy)]
+    [ProducesResponseType(typeof(IEnumerable<TrainingLookupResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<TrainingLookupResponse>>> GetAll(CancellationToken cancellationToken)
+    {
+        var result = await trainingLookupStrategy.GetAllTrainingsAsync(cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:int}")]
+    [Authorize(Policy = TrainingsViewPolicy)]
+    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TrainingLookupResponse>> GetById(int id, CancellationToken cancellationToken)
+    {
+        var result = await trainingLookupStrategy.GetByIdAsync(id, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost]
+    [Authorize(Policy = TrainingsCreatePolicy)]
+    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status201Created)]
+    public async Task<ActionResult<TrainingLookupResponse>> Create(
+        [FromBody] TrainingLookupRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        await trainingLookupRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+
+        var result = await trainingLookupStrategy.CreateAsync(request, cancellationToken);
+        return Created($"/api/lookup/trainings/{result.Id}", result);
+    }
+
+    [HttpPut("{id:int}")]
+    [Authorize(Policy = TrainingsEditPolicy)]
+    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TrainingLookupResponse>> Update(
+        int id,
+        [FromBody] TrainingLookupRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        await trainingLookupRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+
+        var result = await trainingLookupStrategy.UpdateAsync(id, request, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPatch("{id:int}/order")]
+    [Authorize(Policy = TrainingsEditPolicy)]
+    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TrainingLookupResponse>> MoveOrder(
+        int id,
+        [FromBody] TrainingLookupMoveOrderRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (request.NewOrder < 0)
+        {
+            return BadRequest(
+                new ProblemDetails { Title = "Invalid order", Detail = "newOrder must be greater than or equal to 0." }
+            );
+        }
+
+        var result = await trainingLookupStrategy.MoveOrderAsync(id, request.NewOrder, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+}

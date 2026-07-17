@@ -19,7 +19,7 @@ const handleLogout = () => {
 <template>
   <div class="app-bar-wrapper">
     <v-app-bar class="app-bar" density="compact" flat>
-      <div style="margin-left: var(--ua-spacing-xl)">
+      <div class="appbar-logo">
         <img width="177" height="44" :src="bcgovLogo" alt="B.C. Government Logo" />
       </div>
       <div class="router-link-container">
@@ -86,6 +86,12 @@ const handleLogout = () => {
   position: static !important;
 }
 
+.appbar-logo {
+  margin-left: clamp(var(--ua-spacing-xs), 1.2vw, var(--ua-spacing-xl));
+  margin-right: clamp(var(--ua-spacing-xs), 0.8vw, var(--ua-spacing-md));
+  flex: 0 0 auto;
+}
+
 .gold-accent-bar {
   height: 4px;
   background-color: rgb(var(--v-theme-accent));
@@ -93,18 +99,24 @@ const handleLogout = () => {
 
 .router-link-container {
   display: flex;
-  gap: var(--ua-spacing-xl);
-  margin-left: 8rem;
+  gap: clamp(var(--ua-spacing-xs), 0.8vw, var(--ua-spacing-md));
+  margin-left: clamp(var(--ua-spacing-xs), 1.2vw, var(--ua-spacing-xl));
   align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .router-link {
   color: var(--ua-card-header-color);
-  padding-left: var(--ua-spacing-xl);
+  padding-left: clamp(var(--ua-spacing-xs), 0.6vw, var(--ua-spacing-md));
   text-decoration: none;
-  width: 120px;
+  min-width: clamp(72px, 5.5vw, 92px);
+  width: auto;
   text-align: center;
   display: inline-block;
+  white-space: nowrap;
+  font-size: clamp(0.86rem, 0.82rem + 0.2vw, 1rem);
 }
 
 .router-link--border {
@@ -121,14 +133,23 @@ const handleLogout = () => {
 .appbar-actions {
   display: flex;
   align-items: center;
-  gap: var(--ua-spacing-md);
-  margin-right: var(--ua-spacing-xl);
+  gap: clamp(var(--ua-spacing-xs), 0.8vw, var(--ua-spacing-md));
+  margin-right: clamp(var(--ua-spacing-xs), 1.2vw, var(--ua-spacing-xl));
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .location-picker {
-  width: 320px;
-  font-size: 16px;
+  width: clamp(160px, 20vw, 320px);
+  min-width: 0;
+  font-size: clamp(0.9rem, 0.85rem + 0.15vw, 1rem);
   background: var(--ua-field-bg);
+}
+
+.location-picker :deep(.v-field__input) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .avatar-btn {

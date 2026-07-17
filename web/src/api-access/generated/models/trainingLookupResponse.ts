@@ -5,10 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface TrainingResponse {
-  id: number;
-  code: string;
-  description: string;
+export interface TrainingLookupResponse {
   mandatory?: boolean;
   /** @nullable */
   validityDays?: number | null;
@@ -20,7 +17,13 @@ export interface TrainingResponse {
   /** @nullable */
   trainingCategoryName?: string | null;
   order?: number;
+  id: number;
   createdOn?: string;
   /** @nullable */
   updatedOn?: string | null;
+  code?: string;
+  description?: string;
+  effectiveDate?: string;
+  /** @nullable */
+  expiryDate?: string | null;
 }
