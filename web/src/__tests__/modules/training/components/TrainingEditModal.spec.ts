@@ -25,7 +25,6 @@ const training: TrainingLookupResponse = {
   rotating: false,
   trainingCategoryId: null,
   trainingCategoryName: 'Operational',
-  order: 2,
   createdOn: '2026-01-01T00:00:00Z',
   updatedOn: null,
 };
@@ -98,7 +97,6 @@ describe('TrainingEditModal', () => {
       advanceNoticeDays: 30,
       rotating: false,
       trainingCategoryId: null,
-      order: 2,
     });
 
     expect(wrapper.emitted('updated')).toBeTruthy();

@@ -10,6 +10,7 @@ namespace Unified.Training.Controllers;
 
 [Authorize]
 [ApiController]
+[Tags("Training")]
 [Route("api/lookup/trainings")]
 public class TrainingLookupController(
     ITrainingLookupStrategy trainingLookupStrategy,

@@ -88,6 +88,8 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         CancellationToken cancellationToken = default
     )
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
         var trainings = await db.Trainings.OrderBy(t => t.Order).ThenBy(t => t.Id).ToListAsync(cancellationToken);
 
         if (trainings.Count == 0)
@@ -105,16 +107,15 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         trainings.RemoveAt(currentIndex);
         trainings.Insert(boundedNewIndex, moved);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-
         var hasChanges = false;
         for (var index = 0; index < trainings.Count; index++)
         {
             var training = trainings[index];
-            if (training.Order == index)
+            var normalizedOrder = index;
+            if (training.Order == normalizedOrder)
                 continue;
 
-            training.Order = index;
+            training.Order = normalizedOrder;
             hasChanges = true;
         }
 

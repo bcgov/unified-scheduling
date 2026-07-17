@@ -74,7 +74,6 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
                 TrainingCategoryId = 1,
                 ValidityDays = 365,
                 Mandatory = true,
-                Order = 2,
             },
             TestContext.Current.CancellationToken
         );
@@ -85,7 +84,6 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
         Assert.Equal(1, result.TrainingCategoryId);
         Assert.Equal("Mandatory", result.TrainingCategoryName);
         Assert.True(result.Mandatory);
-        Assert.Equal(2, result.Order);
     }
 
     [Fact]
@@ -97,7 +95,6 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
             {
                 Code = "ABC",
                 Description = "Test",
-                Order = 0,
             },
             TestContext.Current.CancellationToken
         );

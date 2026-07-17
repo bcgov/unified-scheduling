@@ -4,6 +4,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { mdiCheck, mdiDragVertical, mdiPencil } from '@mdi/js';
+import { computed, ref } from 'vue';
 
 type TrainingReorderPayload = {
   trainingId: number;
@@ -26,6 +27,13 @@ const emit = defineEmits<{
   (e: 'edit', item: TrainingLookupResponse): void;
   (e: 'reorder', payload: TrainingReorderPayload): void;
 }>();
+
+const sortBy = ref<{ key: string; order: string }[]>([]);
+const isSortedByNonOrderColumn = computed(() => {
+  // Allow reordering only if no sort is applied, or sorting by order column
+  return sortBy.value.length > 0 && sortBy.value[0]?.key !== 'order';
+});
+const isPaginationEnabled = computed(() => !props.canEdit);
 
 const headers = [
   ...(props.canEdit ? [{ title: '', key: 'dragHandle', sortable: false, width: 40, align: 'center' as const }] : []),
@@ -54,17 +62,19 @@ const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
 
 <template>
   <UaDataTable
-    v-if="items.length > 0 || loading"
-    :headers="headers"
-    :items="items"
-    :loading="loading"
-    :items-per-page="10"
-    :draggable="Boolean(canEdit)"
-    hover
-    @reorder="handleReorder"
-  >
+      v-if="items.length > 0 || loading"
+      :headers="headers"
+      :items="items"
+      :loading="loading"
+      :items-per-page="10"
+      :paginate="isPaginationEnabled"
+      :draggable="Boolean(canEdit) && !isSortedByNonOrderColumn"
+      @update:sort-by="sortBy = $event"
+      hover
+      @reorder="handleReorder"
+    >
     <template #[`item.dragHandle`]>
-      <span v-if="canEdit" class="drag-handle" role="button" aria-label="Drag to reorder" title="Drag to reorder">
+      <span v-if="canEdit" class="drag-handle" :class="{ 'drag-handle--disabled': isSortedByNonOrderColumn }" role="button" aria-label="Drag to reorder" title="Drag to reorder">
         <v-icon :icon="mdiDragVertical" size="18" />
       </span>
     </template>
@@ -130,6 +140,11 @@ const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
 .drag-handle:hover {
   color: rgb(var(--v-theme-primary));
   background-color: rgba(var(--v-theme-primary), 0.1);
+}
+
+.drag-handle--disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .drag-handle:active {

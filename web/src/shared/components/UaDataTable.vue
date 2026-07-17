@@ -16,12 +16,14 @@ const props = withDefaults(
   defineProps<{
     items?: T[];
     loading?: boolean;
+    paginate?: boolean;
     draggable?: boolean;
     draggableHandleSelector?: string;
   }>(),
   {
     items: () => [],
     loading: false,
+    paginate: true,
     draggable: false,
     draggableHandleSelector: '.drag-handle',
   },
@@ -35,11 +37,14 @@ const attrs = useAttrs();
 const rootElement = ref<HTMLElement | null>(null);
 const localItems = ref<T[]>([...props.items]);
 const draggableInstance = ref<ReturnType<typeof useDraggable<T>> | null>(null);
+const isDraggableEnabled = computed(() => props.draggable && !props.paginate);
 
 const forwardedAttrs = computed(() => {
   const forwarded = { ...attrs };
   delete forwarded.items;
   delete forwarded.loading;
+  delete forwarded.page;
+  delete forwarded['items-per-page'];
   return forwarded;
 });
 
@@ -56,7 +61,7 @@ const destroyDraggable = () => {
 };
 
 const initializeDraggable = async () => {
-  if (!props.draggable || props.loading) {
+  if (!isDraggableEnabled.value || props.loading) {
     destroyDraggable();
     return;
   }
@@ -97,9 +102,9 @@ const initializeDraggable = async () => {
 };
 
 watch(
-  () => [props.draggable, props.loading] as const,
+  () => [isDraggableEnabled.value, props.loading] as const,
   () => {
-    if (!props.draggable || props.loading) {
+    if (!isDraggableEnabled.value || props.loading) {
       destroyDraggable();
       return;
     }
@@ -118,9 +123,11 @@ onBeforeUnmount(() => {
   <div ref="rootElement" class="ua-data-table-wrapper">
     <v-data-table
       class="ua-data-table"
-      :class="{ 'ua-data-table--draggable': draggable }"
+      :class="{ 'ua-data-table--draggable': isDraggableEnabled }"
       :items="localItems"
       :loading="loading"
+      :items-per-page="paginate ? undefined : -1"
+      :hide-default-footer="!paginate"
       v-bind="forwardedAttrs"
     >
       <template v-for="(_, slotName) in $slots" #[slotName]="slotProps">

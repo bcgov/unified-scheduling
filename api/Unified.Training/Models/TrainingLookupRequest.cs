@@ -15,6 +15,4 @@ public sealed record TrainingLookupRequest : LookupCodeRequest
     public bool Rotating { get; init; }
 
     public int? TrainingCategoryId { get; init; }
-
-    public int Order { get; init; }
 }

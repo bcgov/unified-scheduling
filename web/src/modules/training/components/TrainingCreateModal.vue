@@ -23,7 +23,6 @@ type TrainingCreateFormData = {
   validityDays: string;
   advanceNoticeDays: string;
   rotating: boolean;
-  order: string;
 };
 
 const formData = ref<TrainingCreateFormData>({
@@ -33,7 +32,6 @@ const formData = ref<TrainingCreateFormData>({
   validityDays: '',
   advanceNoticeDays: '',
   rotating: false,
-  order: '0',
 });
 
 const isLoading = ref(false);
@@ -58,22 +56,6 @@ const parseOptionalNonNegativeNumber = (
   return parsedValue;
 };
 
-const parseRequiredNonNegativeNumber = (value: string, fieldName: keyof TrainingCreateFormData): number | symbol => {
-  const trimmedValue = value.trim();
-  if (!trimmedValue) {
-    formErrors.value[fieldName] = validationMessages.required;
-    return Symbol(fieldName);
-  }
-
-  const parsedValue = Number(trimmedValue);
-  if (!Number.isInteger(parsedValue) || parsedValue < 0) {
-    formErrors.value[fieldName] = validationMessages.invalid;
-    return Symbol(fieldName);
-  }
-
-  return parsedValue;
-};
-
 const validateForm = (): TrainingLookupRequest | null => {
   formErrors.value = {};
 
@@ -86,15 +68,12 @@ const validateForm = (): TrainingLookupRequest | null => {
     formErrors.value.code = validationMessages.tooLong;
   }
 
-  if (!description) {
-    formErrors.value.description = validationMessages.required;
-  } else if (description.length > 200) {
+  if (description && description.length > 200) {
     formErrors.value.description = validationMessages.tooLong;
   }
 
   const validityDays = parseOptionalNonNegativeNumber(formData.value.validityDays, 'validityDays');
   const advanceNoticeDays = parseOptionalNonNegativeNumber(formData.value.advanceNoticeDays, 'advanceNoticeDays');
-  const order = parseRequiredNonNegativeNumber(formData.value.order, 'order');
 
   if (Object.keys(formErrors.value).length > 0) {
     return null;
@@ -108,7 +87,6 @@ const validateForm = (): TrainingLookupRequest | null => {
     advanceNoticeDays: advanceNoticeDays as number | null,
     rotating: formData.value.rotating,
     trainingCategoryId: null,
-    order: order as number,
   };
 };
 
@@ -184,18 +162,6 @@ const handleSave = async () => {
         :error-messages="formErrors.description"
         :disabled="isLoading"
         @update:model-value="(value: string) => (formData.description = value)"
-      />
-
-      <UaTextField
-        id="create-training-order"
-        label="Order"
-        type="number"
-        min="0"
-        step="1"
-        :model-value="formData.order"
-        :error-messages="formErrors.order"
-        :disabled="isLoading"
-        @update:model-value="(value: string) => (formData.order = value)"
       />
 
       <UaTextField

@@ -22,7 +22,6 @@ public class TrainingLookupControllerTests
                 Description = "Firearms Qualification",
                 EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
                 Mandatory = true,
-                Order = 0,
                 CreatedOn = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
             },
         };
@@ -49,7 +48,6 @@ public class TrainingLookupControllerTests
             Description = "Firearms Qualification",
             EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
             Mandatory = true,
-            Order = 0,
             CreatedOn = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
         };
 
@@ -120,7 +118,6 @@ public class TrainingLookupControllerTests
                     AdvanceNoticeDays = request.AdvanceNoticeDays,
                     Rotating = request.Rotating,
                     TrainingCategoryId = request.TrainingCategoryId,
-                    Order = request.Order,
                     CreatedOn = DateTimeOffset.UtcNow,
                 }
             );
@@ -141,7 +138,6 @@ public class TrainingLookupControllerTests
                     AdvanceNoticeDays = request.AdvanceNoticeDays,
                     Rotating = request.Rotating,
                     TrainingCategoryId = request.TrainingCategoryId,
-                    Order = request.Order,
                     CreatedOn = DateTimeOffset.UtcNow,
                 }
             );
