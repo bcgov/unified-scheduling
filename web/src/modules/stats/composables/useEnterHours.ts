@@ -22,6 +22,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { DAILY_REGULAR_TARGET_HOURS } from '../constants';
 import type { DayAssignment } from '../types';
+import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 import { getMondayOfWeek, useWeeklyRecords } from './useWeeklyRecords';
 
 export function useEnterHours(groupId: number) {
@@ -31,6 +32,7 @@ export function useEnterHours(groupId: number) {
   const route = useRoute();
 
   const canEnterForOthers = computed(() => hasPermission(Permissions.StatsRecordsEnterForOthers));
+  const canOverrideSignedOff = computed(() => hasPermission(Permissions.StatsOverrideSignedOff));
 
   const accountWarning = computed(() => {
     if (!authStore.currentUserId) {
@@ -188,6 +190,37 @@ export function useEnterHours(groupId: number) {
     dayAssignmentsMap.value[selectedDate.value] = hasOnlyEmpty ? cloned : [...current, ...cloned];
   }
 
+  // ── Warnings (non-blocking) ────────────────────────────────────────────────
+  const dayWarnings = computed<string[]>(() => {
+    const warnings: string[] = [];
+    if (!selectedDate.value) return warnings;
+
+    const assignments = selectedAssignments.value;
+    let dailyRegular = 0;
+    let hasOvertime = false;
+
+    for (const a of assignments) {
+      for (const [scmIdStr, valStr] of Object.entries(a.metricValues)) {
+        const val = parseFloat(valStr);
+        if (isNaN(val) || val <= 0) continue;
+        const scm = subCategoryMetrics.value.find((s) => s.id === Number(scmIdStr));
+        const metric = metrics.value.find((m) => m.id === scm?.metricId);
+        if (!metric) continue;
+        if (isRegularMetric(metric)) dailyRegular += val;
+        if (isOvertimeMetric(metric)) hasOvertime = true;
+      }
+    }
+
+    if (dailyRegular > DAILY_REGULAR_TARGET_HOURS) {
+      warnings.push(`Regular hours (${dailyRegular}h) exceed the ${DAILY_REGULAR_TARGET_HOURS}h daily target.`);
+    }
+    if (hasOvertime) {
+      warnings.push('Overtime hours have been entered for this day.');
+    }
+
+    return warnings;
+  });
+
   // ── Validation ────────────────────────────────────────────────────────────
   function validate(assignments: DayAssignment[]): boolean {
     const errors: Record<string, string> = {};
@@ -217,12 +250,7 @@ export function useEnterHours(groupId: number) {
 
         hasValue = true;
         const metric = metrics.value.find((m) => m.id === scm.metricId);
-        const isRegular = metric?.unitOfMeasure === 'hours' && !metric.name?.toLowerCase().includes('overtime');
-
-        if (isRegular && val > DAILY_REGULAR_TARGET_HOURS) {
-          errors[`assignment_${i}_metric_${scm.id}`] =
-            `Regular hours cannot exceed ${DAILY_REGULAR_TARGET_HOURS} per day`;
-        }
+        const isRegular = metric?.unitOfMeasure === 'hours' && !metric.isOvertime;
 
         if (metric?.unitOfMeasure === 'hours') dayTotalHours += val;
       }
@@ -313,6 +341,7 @@ export function useEnterHours(groupId: number) {
   return {
     accountWarning,
     canEnterForOthers,
+    canOverrideSignedOff,
     seedLocationId,
     seedUserId,
     isLoadingReference,
@@ -344,6 +373,7 @@ export function useEnterHours(groupId: number) {
     updateAssignment,
     copyFromOptions,
     copyFromDay,
+    dayWarnings,
     dayErrors,
     apiError,
     isSaving,

@@ -111,7 +111,13 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
             return Unauthorized();
 
-        var result = await service.SaveDayAsync(request, callerUserId, callerCanEnterForOthers, cancellationToken);
+        var result = await service.SaveDayAsync(
+            request,
+            callerUserId,
+            callerCanEnterForOthers,
+            HasOverrideSignedOffPermission(),
+            cancellationToken
+        );
         return Ok(result);
     }
 
@@ -147,4 +153,7 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         callerUserId = Guid.Empty;
         return false;
     }
+
+    private bool HasOverrideSignedOffPermission() =>
+        User.HasClaim(UnifiedClaimTypes.Permission, Permissions.StatsOverrideSignedOff.ToString());
 }

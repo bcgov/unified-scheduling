@@ -28,6 +28,7 @@ const formTitle = computed(() => {
 const {
   accountWarning,
   canEnterForOthers,
+  canOverrideSignedOff,
   seedLocationId,
   seedUserId,
   isLoadingReference,
@@ -59,6 +60,7 @@ const {
   updateAssignment,
   copyFromOptions,
   copyFromDay,
+  dayWarnings,
   dayErrors,
   apiError,
   isSaving,
@@ -161,6 +163,8 @@ const {
             :api-error="apiError"
             :header-color="cardHeaderColor"
             :day-status="dayStatusMap[selectedDate]"
+            :can-override-signed-off="canOverrideSignedOff"
+            :warnings="dayWarnings"
             :copy-from-options="copyFromOptions"
             @add-assignment="addAssignment"
             @remove-assignment="removeAssignment"

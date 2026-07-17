@@ -15,6 +15,8 @@ const {
   canViewDashboard,
   canEditEntries,
   canSignOff,
+  canOverrideSignedOff,
+  pageTitle,
   // Reference data
   groups,
   employees,
@@ -65,7 +67,7 @@ onMounted(async () => {
   </div>
 
   <div v-else class="search-view">
-    <h2 class="page-title">Search / View / Edit Data</h2>
+    <h2 class="page-title">{{ pageTitle }}</h2>
 
     <UaAlert v-if="error" type="error">{{ error }}</UaAlert>
 
@@ -117,6 +119,11 @@ onMounted(async () => {
           show-select
           hover
         >
+          <template #[`item.metricName`]="{ item }">
+            {{ item.metricName }}
+            <v-chip v-if="item.isOvertime" color="error" size="x-small" variant="tonal" class="ml-1">OT</v-chip>
+          </template>
+
           <template #[`item.status`]="{ item }">
             <v-chip :color="statusColor(item.status)" size="small" variant="tonal">
               {{ item.status === EntryStatus.SignedOff ? 'Signed Off' : item.status }}
@@ -125,7 +132,7 @@ onMounted(async () => {
 
           <template v-if="canEditEntries" #[`item.actions`]="{ item }">
             <v-btn
-              v-if="item.status !== EntryStatus.SignedOff"
+              v-if="item.status !== EntryStatus.SignedOff || canOverrideSignedOff"
               icon
               variant="text"
               size="small"

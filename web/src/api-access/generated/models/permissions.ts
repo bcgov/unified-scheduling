@@ -60,4 +60,5 @@ export const Permissions = {
   DashboardView: 'DashboardView',
   DashboardSignOff: 'DashboardSignOff',
   DashboardSubmit: 'DashboardSubmit',
+  StatsOverrideSignedOff: 'StatsOverrideSignedOff',
 } as const;

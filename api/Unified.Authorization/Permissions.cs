@@ -93,4 +93,5 @@ public enum Permissions
     DashboardView,
     DashboardSignOff,
     DashboardSubmit,
+    StatsOverrideSignedOff,
 }
