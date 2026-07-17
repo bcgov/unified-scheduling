@@ -255,8 +255,7 @@ public sealed class RoleService(
 
             DB.UserRoles.RemoveRange(activeAssignments);
 
-            roleToDelete.DeletedOn = now;
-            roleToDelete.DeletedById = currentUserId;
+            roleToDelete.SoftDelete(currentUserId);
             await DB.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
@@ -270,12 +269,11 @@ public sealed class RoleService(
             {
                 Id = roleToDelete.Id,
                 DeletedBy = currentUserId,
-                DeletedOn = now,
+                DeletedOn = roleToDelete.DeletedOn!.Value,
             };
         }
 
-        roleToDelete.DeletedOn = now;
-        roleToDelete.DeletedById = currentUserId;
+        roleToDelete.SoftDelete(currentUserId);
         await DB.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation("Deleted role {RoleId} with no active assignments", roleToDelete.Id);
@@ -284,7 +282,7 @@ public sealed class RoleService(
         {
             Id = roleToDelete.Id,
             DeletedBy = currentUserId,
-            DeletedOn = now,
+            DeletedOn = roleToDelete.DeletedOn!.Value,
         };
     }
 
