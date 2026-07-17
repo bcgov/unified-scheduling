@@ -250,7 +250,6 @@ export function useEnterHours(groupId: number) {
 
         hasValue = true;
         const metric = metrics.value.find((m) => m.id === scm.metricId);
-        const isRegular = metric?.unitOfMeasure === 'hours' && !metric.isOvertime;
 
         if (metric?.unitOfMeasure === 'hours') dayTotalHours += val;
       }
