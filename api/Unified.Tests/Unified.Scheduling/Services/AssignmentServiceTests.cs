@@ -154,13 +154,13 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         var result = await _assignmentService.CreateAssignmentEntryAsync(
             CreateAssignmentEntryRequest(
                 assignmentDefinitionId: 3,
-                startAtUtc: new DateTimeOffset(2026, 7, 22, 16, 0, 0, TimeSpan.Zero)
+                startAtUtc: new DateTimeOffset(2026, 7, 22, 0, 0, 0, TimeSpan.Zero)
             ),
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(3, result.AssignmentDefinitionId);
-        Assert.Equal(new DateTimeOffset(2026, 7, 22, 16, 0, 0, TimeSpan.Zero), result.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 7, 22, 0, 0, 0, TimeSpan.Zero), result.StartAtUtc);
     }
 
     [Fact]

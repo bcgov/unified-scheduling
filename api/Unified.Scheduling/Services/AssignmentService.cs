@@ -680,12 +680,23 @@ public sealed class AssignmentService(
     )
     {
         var definition = await GetDefinitionAsync(id, cancellationToken);
-        if (
-            definition.EffectiveDateUtc > assignmentStartAtUtc ||
-            definition.ExpiryDateUtc.HasValue && definition.ExpiryDateUtc <= assignmentStartAtUtc
-        )
+        if (!IsAssignmentDefinitionActiveForAssignmentDate(definition, assignmentStartAtUtc))
             throw new InvalidOperationException("Assignment definition is not active.");
         return definition;
+    }
+
+    private static bool IsAssignmentDefinitionActiveForAssignmentDate(
+        AssignmentDefinition definition,
+        DateTimeOffset assignmentStartAtUtc
+    )
+    {
+        var assignmentDate = DateOnly.FromDateTime(assignmentStartAtUtc.UtcDateTime);
+        var effectiveDate = DateOnly.FromDateTime(definition.EffectiveDateUtc.UtcDateTime);
+        var expiryDate = definition.ExpiryDateUtc.HasValue
+            ? DateOnly.FromDateTime(definition.ExpiryDateUtc.Value.UtcDateTime)
+            : (DateOnly?)null;
+
+        return effectiveDate <= assignmentDate && (!expiryDate.HasValue || expiryDate.Value > assignmentDate);
     }
 
     private async Task<AssignmentDefinition> GetDefinitionAsync(int id, CancellationToken cancellationToken) =>
