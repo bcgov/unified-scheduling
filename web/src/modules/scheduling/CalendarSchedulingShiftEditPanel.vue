@@ -8,9 +8,15 @@ const props = defineProps<{
   modelValue: ShiftResourceFormData;
   formErrors: Record<string, string>;
   disabled?: boolean;
+  locationOptions: SelectOption[];
   employeeOptions: SelectOption[];
   isLoadingUsers?: boolean;
+  assignmentEntryOptions?: SelectOption[];
+  assignmentSeriesOptions?: SelectOption[];
+  assignmentWarning?: string;
+  isLoadingAssignments?: boolean;
   showRecurrence: boolean;
+  showSeriesAssignment?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -26,15 +32,21 @@ const formData = computed({
 </script>
 
 <template>
-  <section class="shift-edit-panel" aria-label="Edit shift panel">
+  <section class="shift-edit-panel" aria-label="Edit Shift Panel">
     <CalendarSchedulingShiftForm
       v-model="formData"
       id-prefix="edit-shift"
       :form-errors="formErrors"
       :disabled="disabled"
       :show-recurrence="showRecurrence"
+      :location-options="locationOptions"
       :employee-options="employeeOptions"
       :is-loading-users="isLoadingUsers"
+      :assignment-entry-options="assignmentEntryOptions ?? []"
+      :assignment-series-options="assignmentSeriesOptions ?? []"
+      :assignment-warning="assignmentWarning ?? ''"
+      :is-loading-assignments="isLoadingAssignments"
+      :show-series-assignment="showSeriesAssignment"
       @recurrence-change="(value: string | null) => emit('recurrenceChange', value)"
       @recurrence-invalid="(reason: string) => emit('recurrenceInvalid', reason)"
     />

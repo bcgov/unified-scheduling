@@ -60,4 +60,3 @@ export const PostApiSchedulingCalendarEventsResponse = zod.object({
     )
     .optional(),
 });
-

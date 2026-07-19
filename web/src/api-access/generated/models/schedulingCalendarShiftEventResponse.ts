@@ -57,12 +57,9 @@ export interface SchedulingCalendarShiftEventResponse {
   /** @nullable */
   assignmentSubCategoryTypeCode?: string | null;
   /** @nullable */
-  /** @nullable */
-  /** @nullable */
   capacity?: number | null;
   /** @nullable */
   assignedUserCount?: number | null;
   linkedShiftEntryIds?: number[];
   assignedUserIds?: string[];
 }
-

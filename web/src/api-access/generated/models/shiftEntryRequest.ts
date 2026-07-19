@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { AssignmentEntryLinkRequest } from './assignmentEntryLinkRequest.ts';
 
 export interface ShiftEntryRequest {
   /** @nullable */
@@ -30,7 +31,10 @@ export interface ShiftEntryRequest {
   /** @nullable */
   locationId?: number | null;
   userIds?: string[];
-  assignmentEntryIds?: number[];
+  /** @nullable */
+  assignmentEntryIds?: number[] | null;
   /** @nullable */
   assignedUserIds?: string[] | null;
+  /** @nullable */
+  assignmentEntryLinks?: AssignmentEntryLinkRequest[] | null;
 }

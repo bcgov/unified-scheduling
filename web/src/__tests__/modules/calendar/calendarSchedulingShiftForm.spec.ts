@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildCreateShiftPayload,
+  buildCreateShiftPayloadWithErrors,
   buildUpdateShiftPayload,
+  buildUpdateShiftPayloadWithErrors,
   createInitialShiftFormDataForCreateAction,
+  normalizeShiftFormDataForScope,
+  normalizeShiftFormTimes,
+  normalizeTimeOptionValue,
+  timeOptions,
   validateShiftFormData,
   type ShiftResourceFormData,
 } from '@/modules/scheduling/calendarSchedulingShiftForm';
@@ -36,6 +42,31 @@ describe('calendarSchedulingShiftForm', () => {
     expect(result.errors).toEqual({});
   });
 
+  it('normalizes backend time-only values to select option values', () => {
+    expect(normalizeTimeOptionValue('09:00:00')).toBe('09:00');
+    expect(normalizeTimeOptionValue('17:00:00')).toBe('17:00');
+
+    expect(
+      normalizeShiftFormTimes({
+        ...baseFormData,
+        startTime: '09:00:00',
+        endTime: '17:00:00',
+      }),
+    ).toMatchObject({
+      startTime: '09:00',
+      endTime: '17:00',
+    });
+  });
+
+  it('uses 15 minute increments for scheduling time options', () => {
+    expect(timeOptions.filter((option) => String(option.code).startsWith('09:')).map((option) => option.code)).toEqual([
+      '09:00',
+      '09:15',
+      '09:30',
+      '09:45',
+    ]);
+  });
+
   it('builds create payloads without status mutation fields', () => {
     const payload = buildCreateShiftPayload({
       formData: baseFormData,
@@ -52,7 +83,275 @@ describe('calendarSchedulingShiftForm', () => {
     expect(payload?.body).not.toHaveProperty('cancellationReason');
   });
 
-  it('keeps lifecycle intent separate from update payloads', () => {
+  it('does not build create payloads without a location', () => {
+    const result = buildCreateShiftPayloadWithErrors({
+      formData: baseFormData,
+      timeZoneId: 'America/Vancouver',
+      locationId: null,
+      fallbackTitle: 'System System',
+    });
+
+    expect(result.payload).toBeNull();
+    expect(result.errors).toEqual({ locationId: 'Required' });
+  });
+
+  it('adds selected assignment entry details to shift entry payloads', () => {
+    const payload = buildCreateShiftPayload({
+      formData: {
+        ...baseFormData,
+        assignmentEntryIds: [42, 43],
+      },
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+    });
+
+    expect(payload?.kind).toBe('entry');
+    expect(payload?.body).toMatchObject({
+      assignmentEntryLinks: [
+        {
+          assignmentEntryId: 42,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+        {
+          assignmentEntryId: 43,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      ],
+    });
+  });
+
+  it('adds assignment entry link user details to shift entry payloads', () => {
+    const payload = buildCreateShiftPayload({
+      formData: {
+        ...baseFormData,
+        assignmentEntryLinks: [
+          {
+            assignmentEntryId: 42,
+            assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+          },
+        ],
+      },
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+    });
+
+    expect(payload?.kind).toBe('entry');
+    expect(payload?.body).toMatchObject({
+      assignmentEntryLinks: [
+        {
+          assignmentEntryId: 42,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      ],
+    });
+  });
+
+  it('builds update payloads when a linked shift entry start time changes', () => {
+    const payload = buildUpdateShiftPayload({
+      formData: {
+        ...baseFormData,
+        title: 'Developer User shift',
+        date: '2026-07-13',
+        startTime: '09:30',
+        endTime: '17:00',
+        statusTypeCode: 'draft',
+        locationId: 1,
+        userIds: ['d787ac4b-7969-4509-bc2b-9c85c4cbe3cb'],
+        assignmentEntryIds: [278],
+        assignmentEntryLinks: [
+          {
+            assignmentEntryId: 278,
+            assignedUserIds: ['d787ac4b-7969-4509-bc2b-9c85c4cbe3cb'],
+          },
+        ],
+      },
+      scope: 'entry',
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'Developer User shift',
+      shiftSeriesId: 203,
+    });
+
+    expect(payload?.kind).toBe('entry');
+    expect(payload?.body).toMatchObject({
+      shiftSeriesId: 203,
+      startAtUtc: '2026-07-13T16:30:00Z',
+      endAtUtc: '2026-07-14T00:00:00Z',
+      locationId: 1,
+      userIds: ['d787ac4b-7969-4509-bc2b-9c85c4cbe3cb'],
+      assignmentEntryLinks: [
+        {
+          assignmentEntryId: 278,
+          assignedUserIds: ['d787ac4b-7969-4509-bc2b-9c85c4cbe3cb'],
+        },
+      ],
+    });
+  });
+
+  it('does not validate hidden series assignment links when editing a shift entry', () => {
+    const normalized = normalizeShiftFormDataForScope(
+      {
+        ...baseFormData,
+        assignmentEntryId: null,
+        assignmentSeriesId: null,
+        startTime: '09:30',
+        assignmentEntryLinks: [
+          {
+            assignmentEntryId: 278,
+            assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+          },
+        ],
+        assignmentSeriesLinks: [
+          {
+            assignmentSeriesId: 24,
+            assignedUserIds: [],
+          },
+        ],
+      },
+      'entry',
+    );
+    const result = validateShiftFormData(normalized, { timeZoneId: 'America/Vancouver' });
+
+    expect(result.errors).toEqual({});
+    expect(result.data).toMatchObject({
+      assignmentSeriesLinks: [],
+    });
+    expect(normalized).not.toHaveProperty('assignmentEntryId');
+    expect(normalized).not.toHaveProperty('assignmentSeriesId');
+  });
+
+  it('defaults omitted linked assignment users from the selected shift users before validation', () => {
+    const normalized = normalizeShiftFormDataForScope(
+      {
+        ...baseFormData,
+        assignmentEntryLinks: [{ assignmentEntryId: 278 }],
+      },
+      'entry',
+    );
+    const result = validateShiftFormData(normalized, { timeZoneId: 'America/Vancouver' });
+
+    expect(result.errors).toEqual({});
+    expect(result.data).toMatchObject({
+      assignmentEntryLinks: [
+        {
+          assignmentEntryId: 278,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      ],
+    });
+  });
+
+  it('coerces selected assignment entry ids from select values before building shift entry payloads', () => {
+    const payload = buildUpdateShiftPayload({
+      formData: {
+        ...baseFormData,
+        assignmentEntryIds: ['42', '43'] as unknown as number[],
+      },
+      scope: 'entry',
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+      shiftSeriesId: 210,
+    });
+
+    expect(payload?.kind).toBe('entry');
+    expect(payload?.body).toMatchObject({
+      assignmentEntryLinks: [
+        {
+          assignmentEntryId: 42,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+        {
+          assignmentEntryId: 43,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      ],
+    });
+    expect(payload?.body.assignmentEntryLinks?.[0]).not.toHaveProperty('userIds');
+  });
+
+  it('adds selected assignment series to shift series payloads', () => {
+    const payload = buildCreateShiftPayload({
+      formData: {
+        ...baseFormData,
+        repeatMode: 'custom',
+        recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
+        assignmentSeriesId: 24,
+      },
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+    });
+
+    expect(payload?.kind).toBe('series');
+    expect(payload?.body).toMatchObject({
+      assignmentSeriesLinks: [
+        {
+          assignmentSeriesId: 24,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      ],
+    });
+  });
+
+  it('adds assignment series link user details to shift series payloads', () => {
+    const payload = buildCreateShiftPayload({
+      formData: {
+        ...baseFormData,
+        repeatMode: 'custom',
+        recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
+        assignmentSeriesLinks: [
+          {
+            assignmentSeriesId: 24,
+            assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+          },
+        ],
+      },
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+    });
+
+    expect(payload?.kind).toBe('series');
+    expect(payload?.body).toMatchObject({
+      assignmentSeriesLinks: [
+        {
+          assignmentSeriesId: 24,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      ],
+    });
+  });
+
+  it('coerces selected assignment series ids from select values before building shift series payloads', () => {
+    const payload = buildUpdateShiftPayload({
+      formData: {
+        ...baseFormData,
+        repeatMode: 'custom',
+        recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
+        assignmentSeriesId: '24' as unknown as number,
+      },
+      scope: 'series',
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+      shiftSeriesId: 210,
+    });
+
+    expect(payload?.kind).toBe('series');
+    expect(payload?.body).toMatchObject({
+      assignmentSeriesLinks: [
+        {
+          assignmentSeriesId: 24,
+          assignedUserIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      ],
+    });
+  });
+
+  it('keeps lifecycle fields out of update payloads', () => {
     const payload = buildUpdateShiftPayload({
       formData: {
         ...baseFormData,
@@ -67,10 +366,24 @@ describe('calendarSchedulingShiftForm', () => {
     });
 
     expect(payload?.kind).toBe('entry');
-    expect(payload?.cancel).toBe(true);
+    expect(payload).not.toHaveProperty('cancel');
     expect(payload?.body).not.toHaveProperty('statusTypeCode');
     expect(payload?.body).not.toHaveProperty('cancelledAt');
     expect(payload?.body).not.toHaveProperty('cancelledByUserId');
     expect(payload?.body).not.toHaveProperty('cancellationReason');
+  });
+
+  it('does not build update payloads without a location', () => {
+    const result = buildUpdateShiftPayloadWithErrors({
+      formData: baseFormData,
+      scope: 'entry',
+      timeZoneId: 'America/Vancouver',
+      locationId: null,
+      fallbackTitle: 'System System',
+      shiftSeriesId: 210,
+    });
+
+    expect(result.payload).toBeNull();
+    expect(result.errors).toEqual({ locationId: 'Required' });
   });
 });

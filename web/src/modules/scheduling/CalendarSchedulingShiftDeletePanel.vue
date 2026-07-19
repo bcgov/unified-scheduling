@@ -2,11 +2,20 @@
 import CalendarSchedulingShiftDetailsPanel from './CalendarSchedulingShiftDetailsPanel.vue';
 import type { ShiftDetailRow } from './calendarSchedulingShiftDetailTypes';
 
-defineProps<{
-  detailRows: ShiftDetailRow[];
-  deleteDisabledReason?: string;
-  isDeleteConfirmed: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    detailRows: ShiftDetailRow[];
+    deleteConfirmationLabel?: string;
+    deleteDisabledReason?: string;
+    deleteWarning?: string;
+    isDeleteConfirmed: boolean;
+  }>(),
+  {
+    deleteConfirmationLabel: 'I understand this shift will be permanently deleted.',
+    deleteDisabledReason: '',
+    deleteWarning: "This can't be undone.",
+  },
+);
 
 const emit = defineEmits<{
   'update:isDeleteConfirmed': [value: boolean];
@@ -14,15 +23,15 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="shift-delete-panel" aria-label="Delete shift panel">
+  <section class="shift-delete-panel" aria-label="Delete Shift Panel">
     <CalendarSchedulingShiftDetailsPanel :detail-rows="detailRows" />
 
     <p v-if="deleteDisabledReason" class="shift-delete-panel__warning">{{ deleteDisabledReason }}</p>
     <template v-else>
-      <p class="shift-delete-panel__warning">This can't be undone.</p>
+      <p class="shift-delete-panel__warning">{{ deleteWarning }}</p>
       <v-checkbox
         :model-value="isDeleteConfirmed"
-        label="I understand this shift will be permanently deleted."
+        :label="deleteConfirmationLabel"
         hide-details
         @update:model-value="(value: boolean | null) => emit('update:isDeleteConfirmed', value === true)"
       />

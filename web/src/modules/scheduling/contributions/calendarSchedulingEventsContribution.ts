@@ -1,11 +1,11 @@
 import { getApiUsersUserIdActingPositions } from '@/api-access/generated/acting-positions/acting-positions';
 import { postApiSchedulingCalendarEvents } from '@/api-access/generated/scheduling-calendar/scheduling-calendar';
-import { getApiUsers } from '@/api-access/generated/users/users';
 import type { ActingPositionResponseDto, SchedulingCalendarRequest, UserResponse } from '@/api-access/generated/models';
 import type { CalendarResourceBase } from '@/modules/calendar/calendarTypes';
 import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type { CalendarSchedulingEvent } from '../calendarSchedulingData';
+import { useSchedulingUsersStore } from '../useSchedulingUsersStore';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
@@ -16,18 +16,35 @@ export interface CalendarSchedulingUserResource extends CalendarResourceBase {
 
 interface CalendarSchedulingResourceData {
   users: UserResponse[];
+  allUsers: UserResponse[];
   actingPositionsByUserId: Map<string, ActingPositionResponseDto[]>;
 }
 
 const resourceDataCache = new Map<string, Promise<CalendarSchedulingResourceData>>();
 
+export function clearSchedulingResourceDataCache() {
+  resourceDataCache.clear();
+}
+
 export const calendarSchedulingEventsContribution: CalendarModuleContribution = {
   moduleId: 'scheduling',
   contributionId: 'scheduling.shift-events',
   isAvailable(runtimeContext) {
-    return runtimeContext.featureFlags.calendarSchedulingModule ?? true;
+    return runtimeContext.featureFlags.schedulingModule ?? true;
   },
   async load(context, options) {
+    if (!context.locationId) {
+      return {
+        moduleId: 'scheduling',
+        contributionId: 'scheduling.shift-events',
+        events: [],
+        resources: [],
+        data: {
+          events: [],
+        },
+      };
+    }
+
     const filters = toSchedulingFilters(context.filters);
     const userIds = extractUserIds(context.filters);
 
@@ -48,6 +65,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
 
     const events = data.events ?? [];
     const resourceUsers = filterResourceUsers(resourceData.users, userIds);
+    const usersById = new Map(resourceData.allUsers.map((user) => [user.id, user]));
 
     return {
       moduleId: data.moduleId ?? 'scheduling',
@@ -80,6 +98,17 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
           userIds: event.userIds ?? [],
           eventId: event.eventId,
           shiftSeriesId: event.shiftSeriesId ?? undefined,
+          assignmentEntryId: event.assignmentEntryId === undefined ? undefined : String(event.assignmentEntryId),
+          assignmentSeriesId: event.assignmentSeriesId == null ? undefined : String(event.assignmentSeriesId),
+          capacity: event.capacity ?? undefined,
+          assignedCount: event.assignedUserCount ?? undefined,
+          assignedShiftIds: event.linkedShiftEntryIds?.map(String) ?? [],
+          assignedUserIds: event.assignedUserIds ?? [],
+          assignedUsers: mapAssignedUsers(event.assignedUserIds ?? [], usersById),
+          assignmentCategoryTypeId: event.assignmentCategoryTypeId ?? undefined,
+          assignmentCategoryTypeCode: event.assignmentCategoryTypeCode ?? undefined,
+          assignmentSubCategoryTypeId: event.assignmentSubCategoryTypeId ?? undefined,
+          assignmentSubCategoryTypeCode: event.assignmentSubCategoryTypeCode ?? undefined,
         },
       })),
       resources: resourceUsers.map<CalendarSchedulingUserResource>((user) =>
@@ -91,6 +120,13 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
 
 function eventHasConflict(event: unknown) {
   return typeof event === 'object' && event !== null && 'isConflict' in event && event.isConflict === true;
+}
+
+function mapAssignedUsers(assignedUserIds: string[], usersById: ReadonlyMap<string, UserResponse>) {
+  return assignedUserIds.flatMap((userId) => {
+    const user = usersById.get(userId);
+    return user ? [mapUserToCalendarSchedulingResource(user, [])] : [];
+  });
 }
 
 function filterResourceUsers(users: UserResponse[], userIds?: string[]) {
@@ -214,27 +250,6 @@ async function loadSchedulingCalendarData(request: SchedulingCalendarRequest, si
   return data.value ?? {};
 }
 
-async function loadSchedulingCalendarUsers(locationId?: number, signal?: AbortSignal): Promise<UserResponse[]> {
-  const { data, error, execute } = getApiUsers(
-    {
-      IsEnabled: true,
-      LocationId: locationId,
-    },
-    {
-      fetchOptions: { signal },
-      options: { immediate: false },
-    },
-  );
-
-  await execute();
-
-  if (error.value) {
-    throw error.value;
-  }
-
-  return data.value ?? [];
-}
-
 async function loadSchedulingResourceData(
   locationId?: number,
   signal?: AbortSignal,
@@ -264,11 +279,25 @@ async function loadSchedulingResourceDataFromApi(
   locationId?: number,
   signal?: AbortSignal,
 ): Promise<CalendarSchedulingResourceData> {
-  const users = await loadSchedulingCalendarUsers(locationId, signal);
+  if (locationId == null) {
+    return {
+      users: [],
+      allUsers: [],
+      actingPositionsByUserId: new Map(),
+    };
+  }
+
+  void signal;
+  const schedulingUsersStore = useSchedulingUsersStore();
+  const [users, allUsers] = await Promise.all([
+    schedulingUsersStore.ensureUsersForLocation(locationId),
+    schedulingUsersStore.ensureAllUsers(),
+  ]);
   const actingPositionsByUserId = await loadActingPositionsByUser(users, signal);
 
   return {
     users,
+    allUsers,
     actingPositionsByUserId,
   };
 }

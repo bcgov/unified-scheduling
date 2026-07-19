@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
+import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import type { SelectOption, SelectValue } from '@/types/select';
-import { computed } from 'vue';
-import {
-  cancelOptions,
-  publishOptions,
-  repeatOptions,
-  timeOptions,
-  type ShiftResourceFormData,
-} from './calendarSchedulingShiftForm';
+import { mdiDelete } from '@mdi/js';
+import { computed, watch } from 'vue';
+import { publishOptions, repeatOptions, timeOptions, type ShiftResourceFormData } from './calendarSchedulingShiftForm';
 
 const props = withDefaults(
   defineProps<{
@@ -20,15 +16,27 @@ const props = withDefaults(
     formErrors?: Record<string, string>;
     disabled?: boolean;
     showRecurrence?: boolean;
+    locationOptions: SelectOption[];
     employeeOptions: SelectOption[];
     isLoadingUsers?: boolean;
+    assignmentEntryOptions?: SelectOption[];
+    assignmentSeriesOptions?: SelectOption[];
+    assignmentWarning?: string;
+    isLoadingAssignments?: boolean;
+    showSeriesAssignment?: boolean;
     idPrefix?: string;
   }>(),
   {
     formErrors: () => ({}),
     disabled: false,
     showRecurrence: true,
+    locationOptions: () => [],
     isLoadingUsers: false,
+    assignmentEntryOptions: () => [],
+    assignmentSeriesOptions: () => [],
+    assignmentWarning: '',
+    isLoadingAssignments: false,
+    showSeriesAssignment: false,
     idPrefix: 'shift-form',
   },
 );
@@ -46,7 +54,45 @@ const formData = computed({
 
 const statusTypeCode = computed(() => String(formData.value.statusTypeCode ?? '').toLowerCase());
 const isDraftStatus = computed(() => statusTypeCode.value === 'draft');
-const isActiveStatus = computed(() => statusTypeCode.value === 'active');
+const showAssignmentEntryLinks = computed(() => !props.showSeriesAssignment);
+const selectedAssignmentEntryIds = computed(
+  () =>
+    new Set((formData.value.assignmentEntryLinks ?? []).flatMap((link) => parsePositiveNumber(link.assignmentEntryId))),
+);
+const selectedAssignmentSeriesIds = computed(
+  () =>
+    new Set(
+      (formData.value.assignmentSeriesLinks ?? []).flatMap((link) => parsePositiveNumber(link.assignmentSeriesId)),
+    ),
+);
+const availableAssignmentEntryOptions = computed(() =>
+  props.assignmentEntryOptions.filter((option) => !selectedAssignmentEntryIds.value.has(Number(option.code))),
+);
+const availableAssignmentSeriesOptions = computed(() =>
+  props.assignmentSeriesOptions.filter((option) => !selectedAssignmentSeriesIds.value.has(Number(option.code))),
+);
+const currentShiftUserOptions = computed(() => {
+  const selectedUserIds = new Set(
+    (formData.value.userIds ?? []).filter((userId): userId is string => typeof userId === 'string'),
+  );
+
+  return props.employeeOptions.filter((option) => typeof option.code === 'string' && selectedUserIds.has(option.code));
+});
+const locationOptionsWithSelected = computed(() => {
+  const locationId = parsePositiveNumber(formData.value.locationId);
+  if (!locationId || props.locationOptions.some((option) => Number(option.code) === locationId)) {
+    return props.locationOptions;
+  }
+
+  return [{ code: locationId, description: 'Unknown location' }, ...props.locationOptions];
+});
+
+watch(
+  () => formData.value.userIds,
+  () => {
+    pruneLinkUsersToCurrentShiftUsers();
+  },
+);
 
 function updateField<TKey extends keyof ShiftResourceFormData>(key: TKey, value: ShiftResourceFormData[TKey]) {
   formData.value = {
@@ -59,6 +105,175 @@ function updateSelectField<TKey extends keyof ShiftResourceFormData>(key: TKey, 
   updateField(key, (value ?? null) as ShiftResourceFormData[TKey]);
 }
 
+function updateLocation(value: SelectValue | undefined) {
+  const locationId = parsePositiveNumber(value);
+  if (locationId === parsePositiveNumber(formData.value.locationId)) {
+    return;
+  }
+
+  formData.value = {
+    ...formData.value,
+    locationId,
+    userIds: [],
+    assignmentEntryId: null,
+    assignmentEntryIds: [],
+    assignmentEntryLinks: [],
+    assignmentSeriesId: null,
+    assignmentSeriesLinks: [],
+  };
+}
+
+function updateSelectedAssignmentEntry(value: SelectValue | undefined) {
+  const assignmentEntryId = parsePositiveNumber(value);
+  if (!assignmentEntryId || selectedAssignmentEntryIds.value.has(assignmentEntryId)) {
+    return;
+  }
+
+  const nextLinks = [
+    ...(formData.value.assignmentEntryLinks ?? []),
+    {
+      assignmentEntryId,
+      assignedUserIds: getCurrentShiftUserIds(),
+    },
+  ];
+  updateField('assignmentEntryLinks', nextLinks);
+  updateField(
+    'assignmentEntryIds',
+    nextLinks.map((link) => link.assignmentEntryId).filter((id): id is number => typeof id === 'number'),
+  );
+}
+
+function updateSelectedAssignmentSeries(value: SelectValue | undefined) {
+  const assignmentSeriesId = parsePositiveNumber(value);
+  if (!assignmentSeriesId || selectedAssignmentSeriesIds.value.has(assignmentSeriesId)) {
+    return;
+  }
+
+  const nextLinks = [
+    ...(formData.value.assignmentSeriesLinks ?? []),
+    {
+      assignmentSeriesId,
+      assignedUserIds: getCurrentShiftUserIds(),
+    },
+  ];
+  updateField('assignmentSeriesLinks', nextLinks);
+  updateField(
+    'assignmentSeriesId',
+    nextLinks.length === 1 && typeof nextLinks[0]?.assignmentSeriesId === 'number'
+      ? nextLinks[0].assignmentSeriesId
+      : null,
+  );
+}
+
+function removeAssignmentEntryLink(index: number) {
+  const nextLinks = [...(formData.value.assignmentEntryLinks ?? [])];
+  nextLinks.splice(index, 1);
+  updateField('assignmentEntryLinks', nextLinks);
+  updateField(
+    'assignmentEntryIds',
+    nextLinks.map((link) => link.assignmentEntryId).filter((id): id is number => typeof id === 'number'),
+  );
+}
+
+function removeAssignmentSeriesLink(index: number) {
+  const nextLinks = [...(formData.value.assignmentSeriesLinks ?? [])];
+  nextLinks.splice(index, 1);
+  updateField('assignmentSeriesLinks', nextLinks);
+  updateField(
+    'assignmentSeriesId',
+    nextLinks.length === 1 && typeof nextLinks[0]?.assignmentSeriesId === 'number'
+      ? nextLinks[0].assignmentSeriesId
+      : null,
+  );
+}
+
+function updateAssignmentEntryLinkUsers(index: number, value: SelectValue | undefined) {
+  const nextLinks = [...(formData.value.assignmentEntryLinks ?? [])];
+  const link = nextLinks[index];
+  if (!link) {
+    return;
+  }
+
+  nextLinks[index] = { ...link, assignedUserIds: parseStringArray(value) };
+  updateField('assignmentEntryLinks', nextLinks);
+}
+
+function updateAssignmentSeriesLinkUsers(index: number, value: SelectValue | undefined) {
+  const nextLinks = [...(formData.value.assignmentSeriesLinks ?? [])];
+  const link = nextLinks[index];
+  if (!link) {
+    return;
+  }
+
+  nextLinks[index] = { ...link, assignedUserIds: parseStringArray(value) };
+  updateField('assignmentSeriesLinks', nextLinks);
+}
+
+function pruneLinkUsersToCurrentShiftUsers() {
+  const currentShiftUserIds = new Set(getCurrentShiftUserIds());
+  const nextEntryLinks = (formData.value.assignmentEntryLinks ?? []).map((link) => ({
+    ...link,
+    assignedUserIds: (link.assignedUserIds ?? []).filter((userId) => currentShiftUserIds.has(userId)),
+  }));
+  const nextSeriesLinks = (formData.value.assignmentSeriesLinks ?? []).map((link) => ({
+    ...link,
+    assignedUserIds: (link.assignedUserIds ?? []).filter((userId) => currentShiftUserIds.has(userId)),
+  }));
+
+  if (JSON.stringify(nextEntryLinks) !== JSON.stringify(formData.value.assignmentEntryLinks ?? [])) {
+    updateField('assignmentEntryLinks', nextEntryLinks);
+  }
+
+  if (JSON.stringify(nextSeriesLinks) !== JSON.stringify(formData.value.assignmentSeriesLinks ?? [])) {
+    updateField('assignmentSeriesLinks', nextSeriesLinks);
+  }
+}
+
+function formatAssignmentEntryLinkTitle(assignmentEntryId?: number) {
+  return formatAssignmentLinkTitle(props.assignmentEntryOptions, assignmentEntryId, 'Assignment');
+}
+
+function formatAssignmentSeriesLinkTitle(assignmentSeriesId?: number) {
+  return formatAssignmentLinkTitle(props.assignmentSeriesOptions, assignmentSeriesId, 'Assignment series');
+}
+
+function getAssignmentEntryLinkUserError(index: number) {
+  return (
+    props.formErrors[`assignmentEntryLinks.${index}.assignedUserIds`] ||
+    props.formErrors[`assignmentEntryLinks.${index}.userIds`] ||
+    props.formErrors.assignmentEntryLinks ||
+    ''
+  );
+}
+
+function getAssignmentSeriesLinkUserError(index: number) {
+  return (
+    props.formErrors[`assignmentSeriesLinks.${index}.assignedUserIds`] ||
+    props.formErrors[`assignmentSeriesLinks.${index}.userIds`] ||
+    props.formErrors.assignmentSeriesLinks ||
+    ''
+  );
+}
+
+function formatAssignmentLinkTitle(options: SelectOption[], id: unknown, fallback: string) {
+  const parsedId = parsePositiveNumber(id);
+  const option = options.find((candidate) => Number(candidate.code) === parsedId);
+  return option?.description || (parsedId ? `${fallback} ${parsedId}` : fallback);
+}
+
+function getCurrentShiftUserIds() {
+  return (formData.value.userIds ?? []).filter((userId): userId is string => typeof userId === 'string');
+}
+
+function parseStringArray(value: SelectValue | undefined) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function parsePositiveNumber(value: unknown) {
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 function handleRecurrenceChange(value: string | null) {
   updateField('recurrenceRule', value);
   emit('recurrenceChange', value);
@@ -66,7 +281,7 @@ function handleRecurrenceChange(value: string | null) {
 </script>
 
 <template>
-  <UaFormGrid label-width="110px">
+  <UaFormGrid label-width="150px">
     <UaTextField
       :id="`${idPrefix}-date`"
       label="Date"
@@ -83,7 +298,7 @@ function handleRecurrenceChange(value: string | null) {
         <span class="shift-form__time-caption">Start</span>
         <UaSelect
           :model-value="formData.startTime"
-          aria-label="Start time"
+          aria-label="Start Time"
           :items="timeOptions"
           :error="Boolean(formErrors.startTime)"
           :disabled="disabled"
@@ -97,7 +312,7 @@ function handleRecurrenceChange(value: string | null) {
         <span class="shift-form__time-caption">End</span>
         <UaSelect
           :model-value="formData.endTime"
-          aria-label="End time"
+          aria-label="End Time"
           :items="timeOptions"
           :error="Boolean(formErrors.endTime)"
           :disabled="disabled"
@@ -151,29 +366,177 @@ function handleRecurrenceChange(value: string | null) {
       </template>
     </template>
 
-    <label class="shift-form__label" :for="`${idPrefix}-employee`">Employee</label>
-    <UaSelect
-      :id="`${idPrefix}-employee`"
-      :model-value="formData.userIds"
-      aria-label="Employee"
-      :items="employeeOptions"
-      :disabled="disabled || isLoadingUsers"
-      :loading="isLoadingUsers"
-      multiple
-      chips
-      closable-chips
-      clearable
-      @update:model-value="(value: SelectValue | undefined) => updateSelectField('userIds', value)"
-    />
+    <label class="shift-form__label" :for="`${idPrefix}-location`">Location</label>
+    <div class="shift-form__location-field">
+      <UaSelect
+        :id="`${idPrefix}-location`"
+        :model-value="formData.locationId"
+        aria-label="Location"
+        :items="locationOptionsWithSelected"
+        :error="Boolean(formErrors.locationId)"
+        :disabled="disabled"
+        @update:model-value="updateLocation"
+      />
+      <p v-if="formErrors.locationId" class="shift-form__field-error">
+        {{ formErrors.locationId }}
+      </p>
+    </div>
 
-    <UaTextField
-      :id="`${idPrefix}-assignment`"
-      label="Assignment"
-      :model-value="formData.assignmentLabel"
-      placeholder=""
-      :disabled="true"
-      @update:model-value="(value: string) => updateField('assignmentLabel', value)"
-    />
+    <label class="shift-form__label" :for="`${idPrefix}-employee`">Employee</label>
+    <div class="shift-form__employee-field">
+      <UaSelect
+        :id="`${idPrefix}-employee`"
+        :model-value="formData.userIds"
+        aria-label="Employee"
+        :items="employeeOptions"
+        :error="Boolean(formErrors.userIds)"
+        :disabled="disabled || isLoadingUsers"
+        :loading="isLoadingUsers"
+        multiple
+        chips
+        closable-chips
+        clearable
+        @update:model-value="(value: SelectValue | undefined) => updateSelectField('userIds', value)"
+      />
+      <p v-if="formErrors.userIds" class="shift-form__field-error">
+        {{ formErrors.userIds }}
+      </p>
+    </div>
+
+    <template v-if="showAssignmentEntryLinks">
+      <label class="shift-form__label" :for="`${idPrefix}-assignment`">Assignment(s)</label>
+      <div class="shift-form__assignment-field">
+        <UaSelect
+          :id="`${idPrefix}-assignment`"
+          :model-value="null"
+          :items="availableAssignmentEntryOptions"
+          :error="Boolean(formErrors.assignmentEntryIds)"
+          :disabled="disabled || isLoadingAssignments"
+          :loading="isLoadingAssignments"
+          clearable
+          @update:model-value="updateSelectedAssignmentEntry"
+        />
+        <p class="shift-form__helper-text">Select an assignment to add it as a linked assignment for this shift.</p>
+        <p v-if="formErrors.assignmentEntryIds" class="shift-form__field-error">
+          {{ formErrors.assignmentEntryIds }}
+        </p>
+      </div>
+
+      <template v-if="(formData.assignmentEntryLinks ?? []).length">
+        <span aria-hidden="true"></span>
+        <h3 class="shift-form__section-heading">Linked assignments</h3>
+      </template>
+
+      <template
+        v-for="(link, index) in formData.assignmentEntryLinks ?? []"
+        :key="`assignment-entry-link-${link.assignmentEntryId}`"
+      >
+        <span aria-hidden="true"></span>
+        <section class="shift-form__link-section">
+          <div class="shift-form__link-section-header">
+            <h3 class="shift-form__link-section-title">Assignment {{ index + 1 }}</h3>
+            <UaBtn
+              v-if="!disabled"
+              variant="text"
+              :aria-label="`Remove Assignment ${index + 1}`"
+              @click="removeAssignmentEntryLink(index)"
+            >
+              <v-icon :icon="mdiDelete" size="18" />
+            </UaBtn>
+          </div>
+          <p class="shift-form__link-section-summary">{{ formatAssignmentEntryLinkTitle(link.assignmentEntryId) }}</p>
+          <p class="shift-form__helper-text">Users are limited to employees currently selected on this shift.</p>
+          <UaSelect
+            :model-value="link.assignedUserIds"
+            :items="currentShiftUserOptions"
+            label="Users"
+            multiple
+            chips
+            closable-chips
+            :disabled="disabled"
+            :error="Boolean(getAssignmentEntryLinkUserError(index))"
+            @update:model-value="(value: SelectValue | undefined) => updateAssignmentEntryLinkUsers(index, value)"
+          />
+          <p v-if="getAssignmentEntryLinkUserError(index)" class="shift-form__field-error">
+            At least one user is required.
+          </p>
+        </section>
+      </template>
+    </template>
+
+    <template v-if="showSeriesAssignment">
+      <label class="shift-form__label" :for="`${idPrefix}-series-assignment`">Series Assignments</label>
+      <div class="shift-form__assignment-field">
+        <UaSelect
+          :id="`${idPrefix}-series-assignment`"
+          :model-value="null"
+          :items="availableAssignmentSeriesOptions"
+          :error="Boolean(formErrors.assignmentSeriesId)"
+          :disabled="disabled || isLoadingAssignments"
+          :loading="isLoadingAssignments"
+          clearable
+          @update:model-value="updateSelectedAssignmentSeries"
+        />
+        <p class="shift-form__helper-text">
+          Select a recurring assignment to add it as a linked recurring assignment for this shift series.
+        </p>
+        <p v-if="formErrors.assignmentSeriesId" class="shift-form__field-error">
+          {{ formErrors.assignmentSeriesId }}
+        </p>
+      </div>
+    </template>
+
+    <template v-if="showSeriesAssignment">
+      <template v-if="(formData.assignmentSeriesLinks ?? []).length">
+        <span aria-hidden="true"></span>
+        <h3 class="shift-form__section-heading">Linked recurring assignments</h3>
+      </template>
+
+      <template
+        v-for="(link, index) in formData.assignmentSeriesLinks ?? []"
+        :key="`assignment-series-link-${link.assignmentSeriesId}`"
+      >
+        <span aria-hidden="true"></span>
+        <section class="shift-form__link-section">
+          <div class="shift-form__link-section-header">
+            <h3 class="shift-form__link-section-title">Recurring Assignment {{ index + 1 }}</h3>
+            <UaBtn
+              v-if="!disabled"
+              variant="text"
+              :aria-label="`Remove Recurring Assignment ${index + 1}`"
+              @click="removeAssignmentSeriesLink(index)"
+            >
+              <v-icon :icon="mdiDelete" size="18" />
+            </UaBtn>
+          </div>
+          <p class="shift-form__link-section-summary">
+            {{ formatAssignmentSeriesLinkTitle(link.assignmentSeriesId) }}
+          </p>
+          <p class="shift-form__helper-text">Users are limited to employees currently selected on this shift series.</p>
+          <UaSelect
+            :model-value="link.assignedUserIds"
+            :items="currentShiftUserOptions"
+            label="Users"
+            multiple
+            chips
+            closable-chips
+            :disabled="disabled"
+            :error="Boolean(getAssignmentSeriesLinkUserError(index))"
+            @update:model-value="(value: SelectValue | undefined) => updateAssignmentSeriesLinkUsers(index, value)"
+          />
+          <p v-if="getAssignmentSeriesLinkUserError(index)" class="shift-form__field-error">
+            At least one user is required.
+          </p>
+        </section>
+      </template>
+    </template>
+
+    <template v-if="assignmentWarning">
+      <span aria-hidden="true"></span>
+      <p class="shift-form__warning-text">
+        {{ assignmentWarning }}
+      </p>
+    </template>
 
     <UaTextField
       :id="`${idPrefix}-training`"
@@ -197,22 +560,6 @@ function handleRecurrenceChange(value: string | null) {
       />
       <p v-if="formErrors.publish" class="shift-form__field-error">
         {{ formErrors.publish }}
-      </p>
-    </div>
-
-    <label v-if="isActiveStatus" class="shift-form__label" :for="`${idPrefix}-cancel`">Cancel</label>
-    <div v-if="isActiveStatus" class="shift-form__status-field">
-      <UaSelect
-        :id="`${idPrefix}-cancel`"
-        :model-value="formData.cancel"
-        aria-label="Cancel"
-        :items="cancelOptions"
-        :error="Boolean(formErrors.cancel)"
-        :disabled="disabled"
-        @update:model-value="(value: SelectValue | undefined) => updateSelectField('cancel', value)"
-      />
-      <p v-if="formErrors.cancel" class="shift-form__field-error">
-        {{ formErrors.cancel }}
       </p>
     </div>
 
@@ -244,7 +591,10 @@ function handleRecurrenceChange(value: string | null) {
 
 .shift-form__time-field,
 .shift-form__repeat-field,
-.shift-form__status-field {
+.shift-form__status-field,
+.shift-form__location-field,
+.shift-form__employee-field,
+.shift-form__assignment-field {
   display: grid;
   gap: var(--ua-spacing-xs);
 }
@@ -265,10 +615,50 @@ function handleRecurrenceChange(value: string | null) {
   margin: 0;
 }
 
+.shift-form__section-heading {
+  color: var(--ua-text-primary);
+  font-size: var(--ua-font-size-base);
+  font-weight: var(--ua-font-weight-bold);
+  margin: 0;
+}
+
 .shift-form__field-error {
   color: rgb(var(--v-theme-error));
   font-size: var(--ua-font-size-sm);
   margin: var(--ua-spacing-xs) 0 0;
+}
+
+.shift-form__warning-text {
+  color: rgb(var(--v-theme-warning));
+  font-size: var(--ua-font-size-sm);
+  margin: 0;
+}
+
+.shift-form__link-section {
+  border: 1px solid var(--ua-border-color);
+  border-radius: var(--ua-border-radius);
+  display: grid;
+  gap: var(--ua-spacing-sm);
+  padding: var(--ua-spacing-md);
+}
+
+.shift-form__link-section-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.shift-form__link-section-title {
+  color: var(--ua-text-primary);
+  font-size: var(--ua-font-size-base);
+  font-weight: var(--ua-font-weight-bold);
+  margin: 0;
+}
+
+.shift-form__link-section-summary {
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-sm);
+  margin: 0;
 }
 
 @media (max-width: 640px) {

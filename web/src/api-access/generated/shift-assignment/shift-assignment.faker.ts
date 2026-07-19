@@ -16,7 +16,10 @@ export const getPostApiSchedulingShiftAssignmentsEntriesResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       capacity: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignedUserCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -30,7 +33,10 @@ export const getPostApiSchedulingShiftAssignmentsEntriesResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       capacity: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignedUserCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -44,7 +50,10 @@ export const getPostApiSchedulingShiftAssignmentsEntriesResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       capacity: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignedUserCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -56,7 +65,9 @@ export const getPostApiSchedulingShiftAssignmentsEntriesResponseMock = (
     },
   ]);
 
-export const getPostApiSchedulingShiftAssignmentsSeriesResponseMock = (): ShiftAssignmentSeriesLinkResponse =>
+export const getPostApiSchedulingShiftAssignmentsSeriesResponseMock = (
+  overrideResponse: Partial<Extract<ShiftAssignmentSeriesLinkResponse, object>> = {},
+): ShiftAssignmentSeriesLinkResponse =>
   faker.helpers.arrayElement([
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -71,11 +82,99 @@ export const getPostApiSchedulingShiftAssignmentsSeriesResponseMock = (): ShiftA
         undefined,
       ]),
       entryLinks: faker.helpers.arrayElement([
-        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, () =>
-          getPostApiSchedulingShiftAssignmentsEntriesResponseMock(),
-        ),
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          capacity: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignedUserCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          userIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.uuid(),
+            ),
+            undefined,
+          ]),
+        })),
         undefined,
       ]),
       exceptionCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignedUserIds: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
+        undefined,
+      ]),
+      shiftAssignmentEntryIds: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
+        undefined,
+      ]),
+      entryLinks: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          capacity: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignedUserCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          userIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.uuid(),
+            ),
+            undefined,
+          ]),
+        })),
+        undefined,
+      ]),
+      exceptionCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignedUserIds: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
+        undefined,
+      ]),
+      shiftAssignmentEntryIds: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
+        undefined,
+      ]),
+      entryLinks: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftAssignmentSeriesLinkId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
+          isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          capacity: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignedUserCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          userIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.uuid(),
+            ),
+            undefined,
+          ]),
+        })),
+        undefined,
+      ]),
+      exceptionCount: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      ...overrideResponse,
     },
   ]);

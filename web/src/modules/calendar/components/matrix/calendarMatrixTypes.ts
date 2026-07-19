@@ -92,6 +92,7 @@ export interface CalendarMatrixCell {
   date: string;
   headers?: CalendarMatrixCellHeader[];
   groups: CalendarMatrixEventGroup[];
+  payload?: unknown;
 }
 
 export interface CalendarMatrixCellHeader {

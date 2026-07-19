@@ -9,6 +9,7 @@ export interface ShiftAssignmentEntryResponse {
   id?: number;
   shiftEntryId?: number;
   assignmentEntryId?: number;
+  /** @nullable */
   shiftAssignmentSeriesLinkId?: number | null;
   isException?: boolean;
   capacity?: number;

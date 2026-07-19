@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from 'vue';
 import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import { formatCalendarEventTimeRange } from '@/utils/date';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
@@ -10,7 +12,7 @@ import { mapToValidationErrors } from '@/shared/validation/validationErrors';
 import { CalendarEventStatusTypeCode } from '@/api-access/generated/models';
 import CalendarSchedulingShiftForm from './CalendarSchedulingShiftForm.vue';
 import {
-  buildCreateShiftPayload,
+  buildCreateShiftPayloadWithErrors,
   createInitialShiftFormData,
   createInitialShiftFormDataForCreateAction,
   normalizeShiftFormTimes,
@@ -23,12 +25,16 @@ import {
   publishShiftEntry,
   publishShiftSeries,
 } from './calendarSchedulingShiftApi';
+import { useSchedulingAssignmentOptions } from './useSchedulingAssignmentOptions';
 import { useSchedulingEmployeeOptions } from './useSchedulingEmployeeOptions';
+import type { SelectOption } from '@/types/select';
 
 type ResourceModalTabId = 'schedule' | 'template' | 'loan' | 'time-off';
 
 const props = defineProps<{
   initialDate?: string;
+  initialAssignmentEntryId?: number;
+  initialAssignmentEvents?: CalendarEventBase[];
   resource?: CalendarMatrixResource;
   timeZone?: string;
 }>();
@@ -44,7 +50,7 @@ const modalTabs: Array<{ id: ResourceModalTabId; label: string }> = [
   { id: 'schedule', label: 'Schedule' },
   { id: 'template', label: 'Template' },
   { id: 'loan', label: 'Loan' },
-  { id: 'time-off', label: 'Time off' },
+  { id: 'time-off', label: 'Time Off' },
 ];
 
 const activeTab = ref<ResourceModalTabId>('schedule');
@@ -64,17 +70,48 @@ const activeLocationId = computed<number | null>(() => {
 });
 
 const formData = ref<ShiftResourceFormData>(createInitialFormData(props.resource, props.initialDate));
-const { employeeOptions, isLoadingUsers } = useSchedulingEmployeeOptions(activeLocationId, formData, {
+const formLocationId = computed(() => normalizeLocationId(formData.value.locationId));
+const { employeeOptions, isLoadingUsers } = useSchedulingEmployeeOptions(formLocationId, formData, {
   resource: toRef(props, 'resource'),
   onError: (message) => {
     apiError.value = message;
   },
 });
 const timeZoneId = computed(() => props.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+const isSeriesScope = computed(() => formData.value.repeatMode === 'custom' && Boolean(formData.value.recurrenceRule));
+const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLoadingAssignments } =
+  useSchedulingAssignmentOptions({
+    formData,
+    activeLocationId: formLocationId,
+    activeTimeZoneId: timeZoneId,
+    isSeriesScope,
+    onError: (message) => {
+      apiError.value = message;
+    },
+  });
+const seededAssignmentEntryOptions = computed(() => mapInitialAssignmentEventsToOptions(props.initialAssignmentEvents));
+const assignmentEntryLabelsById = computed(() => {
+  const labels = new Map<number, string>();
+
+  for (const option of [...assignmentEntryOptions.value, ...seededAssignmentEntryOptions.value]) {
+    if (typeof option.code === 'number' && option.description.trim()) {
+      labels.set(option.code, option.description);
+    }
+  }
+
+  return labels;
+});
+const mergedAssignmentEntryOptions = computed(() =>
+  withSelectedAssignmentEntryOption(
+    mergeSelectOptions(seededAssignmentEntryOptions.value, assignmentEntryOptions.value),
+    formData.value.assignmentEntryLinks?.map((link) => link.assignmentEntryId).filter(isNumber),
+    assignmentEntryLabelsById.value,
+  ),
+);
 const modalTitle = computed(() => 'New Shift');
 
 watch(
-  () => [props.resource, props.initialDate] as const,
+  () => [props.resource, props.initialDate, props.initialAssignmentEntryId, props.initialAssignmentEvents] as const,
   ([resource, initialDate]) => {
     formData.value = createInitialFormData(resource, initialDate);
     activeTab.value = 'schedule';
@@ -103,7 +140,99 @@ function createInitialFormData(
       ? createInitialShiftFormData(resource, activeLocationId.value, CalendarEventStatusTypeCode.Draft)
       : createInitialShiftFormDataForCreateAction(activeLocationId.value)),
     date: initialDate ?? '',
+    assignmentEntryId: props.initialAssignmentEntryId ?? resolveInitialAssignmentEntryId(props.initialAssignmentEvents),
+    assignmentEntryIds: resolveInitialAssignmentEntryIds(props.initialAssignmentEntryId, props.initialAssignmentEvents),
+    assignmentEntryLinks: resolveInitialAssignmentEntryIds(
+      props.initialAssignmentEntryId,
+      props.initialAssignmentEvents,
+    ).map((assignmentEntryId) => ({
+      assignmentEntryId,
+      assignedUserIds: resource?.type === 'user' ? [resource.id] : [],
+    })),
   };
+}
+
+function normalizeLocationId(value: unknown) {
+  const parsedLocationId = Number(value);
+  return Number.isInteger(parsedLocationId) && parsedLocationId > 0 ? parsedLocationId : null;
+}
+
+function resolveInitialAssignmentEntryId(events?: CalendarEventBase[]) {
+  const assignmentEntryIds = resolveInitialAssignmentEntryIds(undefined, events);
+  return assignmentEntryIds.length === 1 ? assignmentEntryIds[0]! : null;
+}
+
+function resolveInitialAssignmentEntryIds(initialAssignmentEntryId?: number, events?: CalendarEventBase[]) {
+  return [
+    ...new Set([
+      ...(initialAssignmentEntryId ? [initialAssignmentEntryId] : []),
+      ...(events ?? []).map(resolveAssignmentEntryId).filter(isNumber),
+    ]),
+  ];
+}
+
+function mapInitialAssignmentEventsToOptions(events?: CalendarEventBase[]) {
+  return (events ?? []).flatMap((event) => {
+    const assignmentEntryId = resolveAssignmentEntryId(event);
+    if (!assignmentEntryId) {
+      return [];
+    }
+
+    return [
+      {
+        code: assignmentEntryId,
+        description: formatInitialAssignmentEventLabel(event),
+      },
+    ];
+  });
+}
+
+function mergeSelectOptions(primary: SelectOption[], secondary: SelectOption[]): SelectOption[] {
+  const options = new Map<SelectOption['code'], SelectOption>();
+
+  for (const option of [...primary, ...secondary]) {
+    if (!options.has(option.code)) {
+      options.set(option.code, option);
+    }
+  }
+
+  return Array.from(options.values());
+}
+
+function withSelectedAssignmentEntryOption(
+  options: SelectOption[],
+  assignmentEntryIds: number[] | undefined | null,
+  labelsById: Map<number, string>,
+) {
+  const existingCodes = new Set(options.map((option) => option.code));
+  const fallbackOptions = (assignmentEntryIds ?? [])
+    .filter((assignmentEntryId) => !existingCodes.has(assignmentEntryId))
+    .map((assignmentEntryId) => ({
+      code: assignmentEntryId,
+      description: labelsById.get(assignmentEntryId) ?? `Assignment ${assignmentEntryId}`,
+    }));
+
+  return [...fallbackOptions, ...options];
+}
+
+function resolveAssignmentEntryId(event: CalendarEventBase) {
+  const metadata = (event as { metadata?: { assignmentEntryId?: unknown } }).metadata;
+  const parsed = Number(metadata?.assignmentEntryId);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function isNumber(value: number | null | undefined): value is number {
+  return typeof value === 'number';
+}
+
+function formatInitialAssignmentEventLabel(event: CalendarEventBase) {
+  const title = event.title?.trim() || 'Assignment';
+  const timeRange = formatCalendarEventTimeRange(event.start, event.end, {
+    allDay: event.allDay,
+    timeZone: event.timeZoneId ?? timeZoneId.value,
+  });
+
+  return timeRange ? `${title} (${timeRange})` : title;
 }
 
 function selectTab(tabId: ResourceModalTabId) {
@@ -148,16 +277,24 @@ async function handleSave() {
     return;
   }
 
-  const payload = buildCreateShiftPayload({
+  const payloadResult = buildCreateShiftPayloadWithErrors({
     formData: validated,
     timeZoneId: timeZoneId.value,
-    locationId: activeLocationId.value,
+    locationId: formLocationId.value,
     fallbackTitle: props.resource?.title || 'New',
   });
-  if (!payload) {
-    apiError.value = 'Could not resolve the selected date and time.';
+  if (!payloadResult.payload) {
+    formErrors.value = {
+      ...formErrors.value,
+      ...payloadResult.errors,
+    };
+    apiError.value = payloadResult.errors.locationId
+      ? 'A location is required before saving this shift.'
+      : 'Could not build the shift request. Check the highlighted fields.';
     return;
   }
+
+  const payload = payloadResult.payload;
 
   isSaving.value = true;
   apiError.value = '';
@@ -166,7 +303,7 @@ async function handleSave() {
     const saveResult =
       payload.kind === 'series' ? await createShiftSeries(payload.body) : await createShiftEntry(payload.body);
     if (saveResult.error.value) {
-      if (applyServerValidationErrors(saveResult.data.value)) {
+      if (applyServerValidationErrors(saveResult.error.value.data)) {
         return;
       }
 
@@ -235,8 +372,45 @@ function applyServerValidationErrors(rawError: unknown) {
     return false;
   }
 
-  formErrors.value = mapped;
+  formErrors.value = normalizeShiftServerValidationErrors(mapped);
   return true;
+}
+
+function normalizeShiftServerValidationErrors(errors: Record<string, string>) {
+  return Object.entries(errors).reduce<Record<string, string>>((result, [fieldName, message]) => {
+    result[mapShiftServerValidationField(fieldName)] = message;
+    return result;
+  }, {});
+}
+
+function mapShiftServerValidationField(fieldName: string) {
+  const normalized = fieldName.toLowerCase();
+
+  if (normalized === 'startatutc') {
+    return 'startTime';
+  }
+
+  if (normalized === 'endatutc') {
+    return 'endTime';
+  }
+
+  if (normalized === 'userid' || normalized === 'userids') {
+    return 'userIds';
+  }
+
+  if (normalized === 'locationid') {
+    return 'locationId';
+  }
+
+  if (normalized === 'assignmentseriesids' || normalized === 'assignmentserieslinks') {
+    return 'assignmentSeriesId';
+  }
+
+  if (normalized === 'assignmententryids' || normalized === 'assignmententrylinks') {
+    return 'assignmentEntryIds';
+  }
+
+  return fieldName;
 }
 </script>
 <template>
@@ -248,7 +422,7 @@ function applyServerValidationErrors(rawError: unknown) {
     </template>
 
     <template #secondary-header>
-      <div class="resource-shift-modal__tabs" role="tablist" aria-label="New shift tabs">
+      <div class="resource-shift-modal__tabs" role="tablist" aria-label="New Shift Tabs">
         <button
           v-for="tab in modalTabs"
           :key="tab.id"
@@ -271,14 +445,20 @@ function applyServerValidationErrors(rawError: unknown) {
           id-prefix="new-shift"
           :form-errors="formErrors"
           :disabled="isSaving"
+          :location-options="locationsStore.selectOptions"
           :employee-options="employeeOptions"
           :is-loading-users="isLoadingUsers"
+          :assignment-entry-options="mergedAssignmentEntryOptions"
+          :assignment-series-options="assignmentSeriesOptions"
+          :assignment-warning="assignmentWarning"
+          :is-loading-assignments="isLoadingAssignments"
+          :show-series-assignment="isSeriesScope"
           @recurrence-change="handleRecurrenceChange"
           @recurrence-invalid="handleRecurrenceInvalid"
         />
       </section>
 
-      <section v-else class="resource-shift-modal__placeholder" :aria-label="`${activeTab} tab placeholder`">
+      <section v-else class="resource-shift-modal__placeholder" aria-label="Inactive Tab Placeholder">
         <h3 class="resource-shift-modal__placeholder-heading">
           {{ modalTabs.find((tab) => tab.id === activeTab)?.label }}
         </h3>

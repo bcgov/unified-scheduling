@@ -11,5 +11,6 @@ export const LookupCodeTypes = {
   PositionTypes: 'PositionTypes',
   EventTypes: 'EventTypes',
   EventStatusTypes: 'EventStatusTypes',
+  AssignmentCategoryTypes: 'AssignmentCategoryTypes',
+  AssignmentSubCategoryTypes: 'AssignmentSubCategoryTypes',
 } as const;
-

@@ -1,15 +1,16 @@
 import { computed, ref, watch, type Ref } from 'vue';
-import { getApiUsers } from '@/api-access/generated/users/users';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
 import type { SelectOption } from '@/types/select';
 import { formatUserOptionLabel, type ShiftResourceFormData } from './calendarSchedulingShiftForm';
 import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import { useSchedulingUsersStore } from './useSchedulingUsersStore';
 
 export function useSchedulingEmployeeOptions(
   locationId: Ref<number | null>,
   formData: Ref<ShiftResourceFormData>,
   options: { resource?: Ref<CalendarMatrixResource | undefined>; onError?: (message: string) => void } = {},
 ) {
+  const schedulingUsersStore = useSchedulingUsersStore();
   const isLoadingUsers = ref(false);
   const availableUsers = ref<UserResponse[]>([]);
 
@@ -37,26 +38,15 @@ export function useSchedulingEmployeeOptions(
   });
 
   async function loadEmployeeOptions(nextLocationId: number | null) {
+    if (!nextLocationId) {
+      availableUsers.value = [];
+      return;
+    }
+
     isLoadingUsers.value = true;
 
     try {
-      const { data, error, execute } = getApiUsers(
-        {
-          IsEnabled: true,
-          LocationId: nextLocationId ?? undefined,
-        },
-        {
-          options: { immediate: false },
-        },
-      );
-
-      await execute();
-
-      if (error.value) {
-        throw error.value;
-      }
-
-      availableUsers.value = data.value ?? [];
+      availableUsers.value = await schedulingUsersStore.ensureUsersForLocation(nextLocationId);
     } catch (error: unknown) {
       availableUsers.value = [];
       options.onError?.(error instanceof Error ? error.message : 'Failed to load employees.');

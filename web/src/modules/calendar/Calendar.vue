@@ -7,6 +7,7 @@ import UaCard from '@/shared/components/UaCard.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { buildDateRangeForPeriod, formatRangeLabel, getTodayDateOnly, shiftDateRange } from '@/utils/date';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
+import CalendarMatrixSkeleton from './components/matrix/CalendarMatrixSkeleton.vue';
 import { calendarDataService } from './calendarDataService';
 import { DEFAULT_CALENDAR_PERIODS } from './calendarPeriodOptions';
 import { calendarActionRegistry } from './registry/calendarActionRegistry';
@@ -21,12 +22,17 @@ import type {
 } from './calendarTypes';
 import { selectCalendarEvents } from './calendarSelectors';
 import CalendarToolbar from './components/CalendarToolbar.vue';
+import type { CalendarMatrixViewModel } from './components/matrix/calendarMatrixTypes';
+import { useCalendarAlertStore } from './calendarAlertStore';
 
 const accessControl = useAccessControl();
 const calendarStore = useCalendarStore();
+const calendarAlertStore = useCalendarAlertStore();
 const locationsStore = useLocationsStore();
 const { activeViewId, dateRange, period, filters, refreshNonce, selectedEventId } = storeToRefs(calendarStore);
+const { alerts } = storeToRefs(calendarAlertStore);
 const { selectedLocationId } = storeToRefs(locationsStore);
+const requiredLocationAlertId = 'calendar.location.required';
 
 const activeLocationId = computed<number | undefined>(() => {
   const candidate = selectedLocationId.value;
@@ -116,6 +122,9 @@ const activeViewModel = computed(() => {
 
   return activeView.value.buildModel(dataResponse.value, queryContext.value, runtimeContext.value, period.value);
 });
+const activeMatrixViewModel = computed(() =>
+  isCalendarMatrixViewModel(activeViewModel.value) ? activeViewModel.value : null,
+);
 
 const calendarEvents = computed(() => selectCalendarEvents(dataResponse.value));
 
@@ -187,6 +196,25 @@ watch(
   reloadKey,
   () => {
     void loadData();
+  },
+  { immediate: true },
+);
+
+watch(
+  activeLocationId,
+  (locationId) => {
+    if (locationId == null) {
+      calendarAlertStore.setAlert({
+        id: requiredLocationAlertId,
+        severity: 'warning',
+        message: 'Please select a location.',
+        source: 'calendar',
+        dismissible: true,
+      });
+      return;
+    }
+
+    calendarAlertStore.clearAlert(requiredLocationAlertId);
   },
   { immediate: true },
 );
@@ -265,6 +293,22 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
     await action.run(actionContext);
   }
 };
+
+const handleAlertClose = (alertId: string) => {
+  calendarAlertStore.clearAlert(alertId);
+};
+
+function isCalendarMatrixViewModel(value: unknown): value is CalendarMatrixViewModel {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'days' in value &&
+    'primaryColumn' in value &&
+    'cells' in value &&
+    Array.isArray((value as CalendarMatrixViewModel).days) &&
+    Array.isArray((value as CalendarMatrixViewModel).cells)
+  );
+}
 </script>
 
 <template>
@@ -292,7 +336,21 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
         @trigger-create-action="handleCreateAction"
       />
 
-      <div v-if="loading" class="calendar-page__state">Loading calendar…</div>
+      <div v-if="alerts.length" class="calendar-alerts" aria-live="polite">
+        <UaAlert
+          v-for="alert in alerts"
+          :key="alert.id"
+          :type="alert.severity"
+          :closable="alert.dismissible ?? true"
+          role="alert"
+          @close="handleAlertClose(alert.id)"
+        >
+          {{ alert.message }}
+        </UaAlert>
+      </div>
+
+      <CalendarMatrixSkeleton v-if="loading && activeMatrixViewModel" :model="activeMatrixViewModel" />
+      <div v-else-if="loading" class="calendar-page__state">Loading calendar…</div>
       <div v-else-if="activeView && activeViewModel" class="calendar-page__view">
         <component
           :is="activeView.component"
@@ -328,6 +386,10 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
   position: sticky;
   top: 0;
   z-index: 5;
+}
+
+.calendar-alerts {
+  padding: var(--ua-spacing-md) var(--ua-spacing-xl) 0;
 }
 
 .calendar-page__state {

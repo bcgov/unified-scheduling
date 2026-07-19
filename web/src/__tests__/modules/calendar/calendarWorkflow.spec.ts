@@ -1,6 +1,6 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent } from 'vue';
+import { defineComponent, nextTick } from 'vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 
 describe('calendar workflow', () => {
@@ -247,6 +247,86 @@ describe('calendar workflow', () => {
         { startDate: expectedRange.startDate, endDate: expectedRange.endDate, locationId: undefined, filters: {} },
         expect.any(Object),
       );
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it('renders a matrix skeleton while a matrix view is loading', async () => {
+    let resolveLoad: (value: { contributions: Record<string, never> }) => void = () => undefined;
+    const loadData = vi.fn(
+      () =>
+        new Promise<{ contributions: Record<string, never> }>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const cancel = vi.fn();
+    const TestView = defineComponent({ template: '<div data-testid="matrix-view" />' });
+
+    vi.doMock('@/modules/calendar/calendarDataService', () => ({
+      calendarDataService: { loadData, cancel },
+    }));
+
+    vi.doMock('@/modules/calendar/registry/calendarActionRegistry', () => ({
+      calendarActionRegistry: {
+        getCreateActions: vi.fn(() => []),
+        getToolbarActionsForView: vi.fn(() => []),
+        getViewDetailActions: vi.fn(() => []),
+      },
+    }));
+
+    vi.doMock('@/modules/calendar/registry/calendarRegistry', () => ({
+      calendarRegistry: {
+        getAvailableViews: vi.fn(() => [
+          {
+            id: 'matrix-view',
+            label: 'Matrix View',
+            component: TestView,
+            buildModel: () => ({
+              days: [{ date: '2025-04-07', label: 'Mon' }],
+              primaryColumn: {
+                label: 'TEAM',
+                resources: [],
+              },
+              cells: [],
+              sidePanel: {
+                label: 'ASSIGNMENTS',
+                items: [],
+              },
+            }),
+          },
+        ]),
+      },
+    }));
+
+    const [{ default: Calendar }, { useCalendarStore }] = await Promise.all([
+      import('@/modules/calendar/Calendar.vue'),
+      import('@/modules/calendar/calendarStore'),
+    ]);
+
+    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { calendarModule: true } });
+    const calendarStore = useCalendarStore(pinia);
+    calendarStore.setPeriod('week');
+    calendarStore.setDateRange('2025-04-07', '2025-04-14');
+
+    const wrapper = mount(Calendar, {
+      attachTo: document.body,
+      global: {
+        plugins: mountPlugins,
+      },
+    });
+
+    try {
+      await nextTick();
+
+      expect(wrapper.find('.calendar-matrix-skeleton').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="matrix-view"]').exists()).toBe(false);
+
+      resolveLoad({ contributions: {} });
+      await flushPromises();
+
+      expect(wrapper.find('.calendar-matrix-skeleton').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="matrix-view"]').exists()).toBe(true);
     } finally {
       wrapper.unmount();
     }

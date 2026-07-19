@@ -22,7 +22,24 @@ export function useSchedulingShiftDelete(options: {
         : options.event.value.statusTypeCode,
     ),
   );
+  const isCancelAction = computed(
+    () =>
+      String(
+        options.selectedOpenScope.value === 'series'
+          ? options.selectedSeries.value?.statusTypeCode
+          : options.event.value.statusTypeCode,
+      ).toLowerCase() === 'active',
+  );
   const canDeleteShift = computed(() => !deleteDisabledReason.value && isDeleteConfirmed.value);
+  const deleteActionLabel = computed(() => (isCancelAction.value ? 'Cancel' : 'Delete'));
+  const deleteConfirmationLabel = computed(() =>
+    isCancelAction.value
+      ? 'I understand this published shift will be cancelled.'
+      : 'I understand this shift will be permanently deleted.',
+  );
+  const deleteWarning = computed(() =>
+    isCancelAction.value ? 'This published shift will be cancelled.' : "This can't be undone.",
+  );
 
   function clearDeleteState() {
     deleteError.value = '';
@@ -38,8 +55,13 @@ export function useSchedulingShiftDelete(options: {
     deleteError.value = '';
 
     try {
-      const deleted =
-        options.selectedOpenScope.value === 'series' ? await deleteShiftSeries() : await deleteShiftEntry();
+      const deleted = isCancelAction.value
+        ? options.selectedOpenScope.value === 'series'
+          ? await cancelShiftSeries()
+          : await cancelShiftEntry()
+        : options.selectedOpenScope.value === 'series'
+          ? await deleteShiftSeries()
+          : await deleteShiftEntry();
 
       return deleted;
     } catch (error: unknown) {
@@ -84,10 +106,48 @@ export function useSchedulingShiftDelete(options: {
     return true;
   }
 
+  async function cancelShiftEntry() {
+    const id = resolveShiftEntryId(options.event.value);
+    if (!id) {
+      deleteError.value = 'Could not determine the shift entry to cancel.';
+      return false;
+    }
+
+    const result = await shiftApi.cancelShiftEntry(id);
+
+    if (result.error.value) {
+      deleteError.value = result.error.value.message || 'Failed to cancel shift entry.';
+      return false;
+    }
+
+    return true;
+  }
+
+  async function cancelShiftSeries() {
+    const id = resolveShiftSeriesId(options.event.value);
+    if (!id) {
+      deleteError.value = 'Could not determine the shift series to cancel.';
+      return false;
+    }
+
+    const result = await shiftApi.cancelShiftSeries(id);
+
+    if (result.error.value) {
+      deleteError.value = result.error.value.message || 'Failed to cancel shift series.';
+      return false;
+    }
+
+    return true;
+  }
+
   return {
     canDeleteShift,
+    deleteActionLabel,
+    deleteConfirmationLabel,
     deleteDisabledReason,
     deleteError,
+    deleteWarning,
+    isCancelAction,
     isDeleteConfirmed,
     isDeleting,
     clearDeleteState,
@@ -98,9 +158,11 @@ export function useSchedulingShiftDelete(options: {
 export function getShiftDeleteDisabledReason(scope: ShiftOpenScope | null, statusTypeCode?: string | null) {
   const normalizedStatus = String(statusTypeCode ?? '').toLowerCase();
 
-  if (normalizedStatus && normalizedStatus !== 'draft') {
-    return scope === 'series' ? 'Only draft shift series can be deleted.' : 'Only draft shift entries can be deleted.';
+  if (!normalizedStatus || normalizedStatus === 'draft' || normalizedStatus === 'active') {
+    return '';
   }
 
-  return '';
+  return scope === 'series'
+    ? 'Only draft or published shift series can be deleted.'
+    : 'Only draft or published shift entries can be deleted.';
 }

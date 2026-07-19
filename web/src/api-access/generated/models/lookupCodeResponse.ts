@@ -11,4 +11,9 @@ export interface LookupCodeResponse {
   effectiveDate?: string;
   /** @nullable */
   expiryDate?: string | null;
+  /** @nullable */
+  parentCodeTypeId?: number | null;
+  /** @nullable */
+  childCodeTypeId?: number | null;
+  childCodeTypeIds?: number[];
 }

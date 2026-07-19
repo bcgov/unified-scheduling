@@ -4,12 +4,14 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { ShiftAssignmentEntryResponse } from './shiftAssignmentEntryResponse.ts';
 
 export interface AssignmentEntryResponse {
   id?: number;
   /** @nullable */
   assignmentSeriesId?: number | null;
   eventId?: number;
+  assignmentDefinitionId?: number;
   /** @nullable */
   title?: string | null;
   /** @nullable */
@@ -48,10 +50,9 @@ export interface AssignmentEntryResponse {
   assignmentSubCategoryTypeId?: number;
   /** @nullable */
   assignmentSubCategoryTypeCode?: string | null;
-  /** @nullable */
   capacity?: number;
   assignedUserCount?: number;
   linkedShiftEntryIds?: number[];
   assignedUserIds?: string[];
+  assignmentLinks?: ShiftAssignmentEntryResponse[];
 }
-

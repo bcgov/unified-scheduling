@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import CalendarSchedulingShiftDeletePanel from '@/modules/scheduling/CalendarSchedulingShiftDeletePanel.vue';
 import CalendarSchedulingShiftDetailsPanel from '@/modules/scheduling/CalendarSchedulingShiftDetailsPanel.vue';
 import CalendarSchedulingShiftEditPanel from '@/modules/scheduling/CalendarSchedulingShiftEditPanel.vue';
+import CalendarSchedulingShiftForm from '@/modules/scheduling/CalendarSchedulingShiftForm.vue';
 import { getShiftDeleteDisabledReason } from '@/modules/scheduling/useSchedulingShiftDelete';
 import type { ShiftResourceFormData } from '@/modules/scheduling/calendarSchedulingShiftForm';
 
@@ -102,22 +103,24 @@ describe('CalendarSchedulingShiftEditPanel', () => {
       props: {
         modelValue: formData,
         formErrors: { date: 'Required' },
+        locationOptions: [{ code: 1, description: 'HQ' }],
         employeeOptions: [{ code: 'user-1', description: 'Alex Alpha' }],
         showRecurrence: false,
       },
       global: {
         stubs: {
           CalendarSchedulingShiftForm: {
-            props: ['modelValue', 'formErrors', 'employeeOptions', 'showRecurrence'],
+            props: ['modelValue', 'formErrors', 'locationOptions', 'employeeOptions', 'showRecurrence'],
             emits: ['recurrenceChange', 'recurrenceInvalid'],
             template:
-              "<button class=\"form-stub\" @click=\"$emit('recurrenceChange', null); $emit('recurrenceInvalid', 'Invalid recurrence')\">{{ formErrors.date }} {{ employeeOptions[0].description }} {{ showRecurrence }}</button>",
+              "<button class=\"form-stub\" @click=\"$emit('recurrenceChange', null); $emit('recurrenceInvalid', 'Invalid recurrence')\">{{ formErrors.date }} {{ locationOptions[0].description }} {{ employeeOptions[0].description }} {{ showRecurrence }}</button>",
           },
         },
       },
     });
 
     expect(wrapper.text()).toContain('Required');
+    expect(wrapper.text()).toContain('HQ');
     expect(wrapper.text()).toContain('Alex Alpha');
     expect(wrapper.text()).toContain('false');
 
@@ -125,6 +128,58 @@ describe('CalendarSchedulingShiftEditPanel', () => {
 
     expect(wrapper.emitted('recurrenceChange')?.[0]).toEqual([null]);
     expect(wrapper.emitted('recurrenceInvalid')?.[0]).toEqual(['Invalid recurrence']);
+  });
+});
+
+describe('CalendarSchedulingShiftForm', () => {
+  it('clears employees and linked assignments when location changes', async () => {
+    const formData: ShiftResourceFormData = {
+      locationId: 1,
+      userIds: ['user-1'],
+      assignmentEntryId: 42,
+      assignmentEntryIds: [42],
+      assignmentEntryLinks: [{ assignmentEntryId: 42, assignedUserIds: ['user-1'] }],
+      assignmentSeriesId: 84,
+      assignmentSeriesLinks: [{ assignmentSeriesId: 84, assignedUserIds: ['user-1'] }],
+      date: '2026-07-03',
+      repeatMode: 'never',
+      publish: 'no',
+      cancel: 'no',
+    };
+    const wrapper = mount(CalendarSchedulingShiftForm, {
+      props: {
+        modelValue: formData,
+        locationOptions: [
+          { code: 1, description: 'HQ' },
+          { code: 2, description: 'Branch' },
+        ],
+        employeeOptions: [{ code: 'user-1', description: 'Alex Alpha' }],
+        showRecurrence: false,
+      },
+      global: {
+        stubs: {
+          UaSelect: {
+            props: ['id', 'modelValue', 'items'],
+            emits: ['update:modelValue'],
+            template:
+              '<button v-if="id === \'shift-form-location\'" class="location-select" @click="$emit(\'update:modelValue\', 2)">Location</button><div v-else />',
+          },
+        },
+      },
+    });
+
+    await wrapper.get('.location-select').trigger('click');
+
+    const emitted = wrapper.emitted('update:modelValue')?.[0]?.[0] as ShiftResourceFormData;
+    expect(emitted).toMatchObject({
+      locationId: 2,
+      userIds: [],
+      assignmentEntryId: null,
+      assignmentEntryIds: [],
+      assignmentEntryLinks: [],
+      assignmentSeriesId: null,
+      assignmentSeriesLinks: [],
+    });
   });
 });
 

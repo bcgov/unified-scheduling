@@ -38,6 +38,8 @@ export const GetApiSchedulingShiftSeriesResponseItem = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -60,8 +62,16 @@ export const PostApiSchedulingShiftSeriesBody = zod.strictObject({
   statusTypeCode: zod.string().nullish(),
   locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
-  assignmentSeriesIds: zod.array(zod.number()).optional(),
-  assignedUserIds: zod.array(zod.uuid()).optional(),
+  assignmentSeriesIds: zod.array(zod.number()).nullish(),
+  assignedUserIds: zod.array(zod.uuid()).nullish(),
+  assignmentSeriesLinks: zod
+    .array(
+      zod.strictObject({
+        assignmentSeriesId: zod.number().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PostApiSchedulingShiftSeriesResponse = zod.object({
@@ -91,6 +101,8 @@ export const PostApiSchedulingShiftSeriesResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -130,6 +142,8 @@ export const GetApiSchedulingShiftSeriesIdResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -155,8 +169,16 @@ export const PutApiSchedulingShiftSeriesIdBody = zod.strictObject({
   statusTypeCode: zod.string().nullish(),
   locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
-  assignmentSeriesIds: zod.array(zod.number()).optional(),
-  assignedUserIds: zod.array(zod.uuid()).optional(),
+  assignmentSeriesIds: zod.array(zod.number()).nullish(),
+  assignedUserIds: zod.array(zod.uuid()).nullish(),
+  assignmentSeriesLinks: zod
+    .array(
+      zod.strictObject({
+        assignmentSeriesId: zod.number().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PutApiSchedulingShiftSeriesIdResponse = zod.object({
@@ -186,6 +208,8 @@ export const PutApiSchedulingShiftSeriesIdResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -231,6 +255,8 @@ export const PostApiSchedulingShiftSeriesIdPublishResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -277,6 +303,8 @@ export const PostApiSchedulingShiftSeriesIdExpireResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -295,6 +323,12 @@ export const GetApiSchedulingShiftEntriesResponseItem = zod.object({
   id: zod.number().optional(),
   shiftSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  title: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  timeZoneId: zod.string().nullish(),
+  statusTypeCode: zod.string().nullish(),
+  locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentLinks: zod
     .array(
@@ -302,6 +336,8 @@ export const GetApiSchedulingShiftEntriesResponseItem = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -326,14 +362,28 @@ export const PostApiSchedulingShiftEntriesBody = zod.strictObject({
   statusTypeCode: zod.string().nullish(),
   locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
-  assignmentEntryIds: zod.array(zod.number()).optional(),
+  assignmentEntryIds: zod.array(zod.number()).nullish(),
   assignedUserIds: zod.array(zod.uuid()).nullish(),
+  assignmentEntryLinks: zod
+    .array(
+      zod.strictObject({
+        assignmentEntryId: zod.number().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PostApiSchedulingShiftEntriesResponse = zod.object({
   id: zod.number().optional(),
   shiftSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  title: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  timeZoneId: zod.string().nullish(),
+  statusTypeCode: zod.string().nullish(),
+  locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentLinks: zod
     .array(
@@ -341,6 +391,8 @@ export const PostApiSchedulingShiftEntriesResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -357,6 +409,12 @@ export const GetApiSchedulingShiftEntriesIdResponse = zod.object({
   id: zod.number().optional(),
   shiftSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  title: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  timeZoneId: zod.string().nullish(),
+  statusTypeCode: zod.string().nullish(),
+  locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentLinks: zod
     .array(
@@ -364,6 +422,8 @@ export const GetApiSchedulingShiftEntriesIdResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -391,14 +451,28 @@ export const PutApiSchedulingShiftEntriesIdBody = zod.strictObject({
   statusTypeCode: zod.string().nullish(),
   locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
-  assignmentEntryIds: zod.array(zod.number()).optional(),
+  assignmentEntryIds: zod.array(zod.number()).nullish(),
   assignedUserIds: zod.array(zod.uuid()).nullish(),
+  assignmentEntryLinks: zod
+    .array(
+      zod.strictObject({
+        assignmentEntryId: zod.number().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PutApiSchedulingShiftEntriesIdResponse = zod.object({
   id: zod.number().optional(),
   shiftSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  title: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  timeZoneId: zod.string().nullish(),
+  statusTypeCode: zod.string().nullish(),
+  locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentLinks: zod
     .array(
@@ -406,6 +480,8 @@ export const PutApiSchedulingShiftEntriesIdResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -428,6 +504,12 @@ export const PostApiSchedulingShiftEntriesIdPublishResponse = zod.object({
   id: zod.number().optional(),
   shiftSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  title: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  timeZoneId: zod.string().nullish(),
+  statusTypeCode: zod.string().nullish(),
+  locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentLinks: zod
     .array(
@@ -435,6 +517,8 @@ export const PostApiSchedulingShiftEntriesIdPublishResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),
@@ -458,6 +542,12 @@ export const PostApiSchedulingShiftEntriesIdExpireResponse = zod.object({
   id: zod.number().optional(),
   shiftSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  title: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  timeZoneId: zod.string().nullish(),
+  statusTypeCode: zod.string().nullish(),
+  locationId: zod.number().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentLinks: zod
     .array(
@@ -465,6 +555,8 @@ export const PostApiSchedulingShiftEntriesIdExpireResponse = zod.object({
         id: zod.number().optional(),
         shiftEntryId: zod.number().optional(),
         assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
         capacity: zod.number().optional(),
         assignedUserCount: zod.number().optional(),
         userIds: zod.array(zod.uuid()).optional(),

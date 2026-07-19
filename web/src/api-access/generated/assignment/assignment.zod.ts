@@ -17,6 +17,7 @@ export const GetApiSchedulingAssignmentsSeriesQueryParams = zod.strictObject({
 export const GetApiSchedulingAssignmentsSeriesResponseItem = zod.object({
   id: zod.number().optional(),
   eventSeriesId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
   title: zod.string().nullish(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
@@ -45,6 +46,7 @@ export const GetApiSchedulingAssignmentsSeriesResponseItem = zod.object({
         id: zod.number().optional(),
         assignmentSeriesId: zod.number().nullish(),
         eventId: zod.number().optional(),
+        assignmentDefinitionId: zod.number().optional(),
         title: zod.string().nullish(),
         description: zod.string().nullish(),
         notes: zod.string().nullish(),
@@ -76,7 +78,6 @@ export const GetApiSchedulingAssignmentsSeriesResponseItem = zod.object({
 });
 export const GetApiSchedulingAssignmentsSeriesResponse = zod.array(GetApiSchedulingAssignmentsSeriesResponseItem);
 
-
 export const PostApiSchedulingAssignmentsSeriesBody = zod.strictObject({
   assignmentDefinitionId: zod.number().optional(),
   title: zod.string().optional(),
@@ -90,13 +91,22 @@ export const PostApiSchedulingAssignmentsSeriesBody = zod.strictObject({
   allDay: zod.boolean().optional(),
   locationId: zod.number().nullish(),
   capacity: zod.number().nullish(),
-  shiftSeriesIds: zod.array(zod.number()).optional(),
+  shiftSeriesIds: zod.array(zod.number()).nullish(),
   assignedUserIds: zod.array(zod.uuid()).nullish(),
+  shiftSeriesLinks: zod
+    .array(
+      zod.strictObject({
+        shiftSeriesId: zod.number().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PostApiSchedulingAssignmentsSeriesResponse = zod.object({
   id: zod.number().optional(),
   eventSeriesId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
   title: zod.string().nullish(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
@@ -125,6 +135,7 @@ export const PostApiSchedulingAssignmentsSeriesResponse = zod.object({
         id: zod.number().optional(),
         assignmentSeriesId: zod.number().nullish(),
         eventId: zod.number().optional(),
+        assignmentDefinitionId: zod.number().optional(),
         title: zod.string().nullish(),
         description: zod.string().nullish(),
         notes: zod.string().nullish(),
@@ -162,6 +173,7 @@ export const GetApiSchedulingAssignmentsSeriesIdParams = zod.strictObject({
 export const GetApiSchedulingAssignmentsSeriesIdResponse = zod.object({
   id: zod.number().optional(),
   eventSeriesId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
   title: zod.string().nullish(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
@@ -190,6 +202,7 @@ export const GetApiSchedulingAssignmentsSeriesIdResponse = zod.object({
         id: zod.number().optional(),
         assignmentSeriesId: zod.number().nullish(),
         eventId: zod.number().optional(),
+        assignmentDefinitionId: zod.number().optional(),
         title: zod.string().nullish(),
         description: zod.string().nullish(),
         notes: zod.string().nullish(),
@@ -220,13 +233,39 @@ export const GetApiSchedulingAssignmentsSeriesIdResponse = zod.object({
     .optional(),
 });
 
+export const PutApiSchedulingAssignmentsSeriesIdParams = zod.strictObject({
+  id: zod.number(),
+});
 
-
-export const PutApiSchedulingAssignmentsSeriesIdBody = PostApiSchedulingAssignmentsSeriesBody;
+export const PutApiSchedulingAssignmentsSeriesIdBody = zod.strictObject({
+  assignmentDefinitionId: zod.number().optional(),
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  color: zod.string().nullish(),
+  recurrenceRule: zod.string().nullish(),
+  timeZoneId: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  allDay: zod.boolean().optional(),
+  locationId: zod.number().nullish(),
+  capacity: zod.number().nullish(),
+  shiftSeriesIds: zod.array(zod.number()).nullish(),
+  assignedUserIds: zod.array(zod.uuid()).nullish(),
+  shiftSeriesLinks: zod
+    .array(
+      zod.strictObject({
+        shiftSeriesId: zod.number().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .nullish(),
+});
 
 export const PutApiSchedulingAssignmentsSeriesIdResponse = zod.object({
   id: zod.number().optional(),
   eventSeriesId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
   title: zod.string().nullish(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
@@ -255,6 +294,7 @@ export const PutApiSchedulingAssignmentsSeriesIdResponse = zod.object({
         id: zod.number().optional(),
         assignmentSeriesId: zod.number().nullish(),
         eventId: zod.number().optional(),
+        assignmentDefinitionId: zod.number().optional(),
         title: zod.string().nullish(),
         description: zod.string().nullish(),
         notes: zod.string().nullish(),
@@ -285,7 +325,79 @@ export const PutApiSchedulingAssignmentsSeriesIdResponse = zod.object({
     .optional(),
 });
 
+export const PostApiSchedulingAssignmentsSeriesIdExpireParams = zod.strictObject({
+  id: zod.number(),
+});
 
+export const PostApiSchedulingAssignmentsSeriesIdExpireBody = zod.union([
+  zod.null(),
+  zod.strictObject({
+    cancellationReason: zod.string().nullish(),
+  }),
+]);
+
+export const PostApiSchedulingAssignmentsSeriesIdExpireResponse = zod.object({
+  id: zod.number().optional(),
+  eventSeriesId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
+  title: zod.string().nullish(),
+  description: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  color: zod.string().nullish(),
+  recurrenceRule: zod.string().nullish(),
+  timeZoneId: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  allDay: zod.boolean().optional(),
+  eventTypeCode: zod.string().nullish(),
+  statusTypeCode: zod.string().nullish(),
+  cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
+  cancelledByUserId: zod.uuid().nullish(),
+  cancellationReason: zod.string().nullish(),
+  locationId: zod.number().nullish(),
+  assignmentCategoryTypeId: zod.number().optional(),
+  assignmentCategoryTypeCode: zod.string().nullish(),
+  assignmentSubCategoryTypeId: zod.number().optional(),
+  assignmentSubCategoryTypeCode: zod.string().nullish(),
+  capacity: zod.number().optional(),
+  eventIds: zod.array(zod.number()).optional(),
+  assignmentEntryIds: zod.array(zod.number()).optional(),
+  entries: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        assignmentSeriesId: zod.number().nullish(),
+        eventId: zod.number().optional(),
+        assignmentDefinitionId: zod.number().optional(),
+        title: zod.string().nullish(),
+        description: zod.string().nullish(),
+        notes: zod.string().nullish(),
+        color: zod.string().nullish(),
+        startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        timeZoneId: zod.string().nullish(),
+        allDay: zod.boolean().optional(),
+        isException: zod.boolean().optional(),
+        eventTypeCode: zod.string().nullish(),
+        statusTypeCode: zod.string().nullish(),
+        cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
+        cancelledByUserId: zod.uuid().nullish(),
+        cancellationReason: zod.string().nullish(),
+        locationId: zod.number().nullish(),
+        assignmentCategoryTypeId: zod.number().optional(),
+        assignmentCategoryTypeCode: zod.string().nullish(),
+        assignmentSubCategoryTypeId: zod.number().optional(),
+        assignmentSubCategoryTypeCode: zod.string().nullish(),
+        capacity: zod.number().optional(),
+        assignedUserCount: zod.number().optional(),
+        linkedShiftEntryIds: zod.array(zod.number()).optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
+});
 
 export const GetApiSchedulingAssignmentsEntriesQueryParams = zod.strictObject({
   AssignmentSeriesId: zod.number().optional(),
@@ -300,6 +412,7 @@ export const GetApiSchedulingAssignmentsEntriesResponseItem = zod.object({
   id: zod.number().optional(),
   assignmentSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
   title: zod.string().nullish(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
@@ -328,7 +441,6 @@ export const GetApiSchedulingAssignmentsEntriesResponseItem = zod.object({
 });
 export const GetApiSchedulingAssignmentsEntriesResponse = zod.array(GetApiSchedulingAssignmentsEntriesResponseItem);
 
-
 export const PostApiSchedulingAssignmentsEntriesBody = zod.strictObject({
   assignmentSeriesId: zod.number().nullish(),
   assignmentDefinitionId: zod.number().optional(),
@@ -344,14 +456,23 @@ export const PostApiSchedulingAssignmentsEntriesBody = zod.strictObject({
   allDay: zod.boolean().optional(),
   locationId: zod.number().nullish(),
   capacity: zod.number().nullish(),
-  shiftEntryIds: zod.array(zod.number()).optional(),
+  shiftEntryIds: zod.array(zod.number()).nullish(),
   assignedUserIds: zod.array(zod.uuid()).nullish(),
+  shiftEntryLinks: zod
+    .array(
+      zod.strictObject({
+        shiftEntryId: zod.number().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PostApiSchedulingAssignmentsEntriesResponse = zod.object({
   id: zod.number().optional(),
   assignmentSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
   title: zod.string().nullish(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
@@ -387,6 +508,7 @@ export const GetApiSchedulingAssignmentsEntriesIdResponse = zod.object({
   id: zod.number().optional(),
   assignmentSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
   title: zod.string().nullish(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
@@ -414,14 +536,42 @@ export const GetApiSchedulingAssignmentsEntriesIdResponse = zod.object({
   assignedUserIds: zod.array(zod.uuid()).optional(),
 });
 
+export const PutApiSchedulingAssignmentsEntriesIdParams = zod.strictObject({
+  id: zod.number(),
+});
 
-
-export const PutApiSchedulingAssignmentsEntriesIdBody = PostApiSchedulingAssignmentsEntriesBody;
+export const PutApiSchedulingAssignmentsEntriesIdBody = zod.strictObject({
+  assignmentSeriesId: zod.number().nullish(),
+  assignmentDefinitionId: zod.number().optional(),
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  color: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  timeZoneId: zod.string().nullish(),
+  allDay: zod.boolean().optional(),
+  locationId: zod.number().nullish(),
+  capacity: zod.number().nullish(),
+  shiftEntryIds: zod.array(zod.number()).nullish(),
+  assignedUserIds: zod.array(zod.uuid()).nullish(),
+  shiftEntryLinks: zod
+    .array(
+      zod.strictObject({
+        shiftEntryId: zod.number().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .nullish(),
+});
 
 export const PutApiSchedulingAssignmentsEntriesIdResponse = zod.object({
   id: zod.number().optional(),
   assignmentSeriesId: zod.number().nullish(),
   eventId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
   title: zod.string().nullish(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
@@ -449,4 +599,45 @@ export const PutApiSchedulingAssignmentsEntriesIdResponse = zod.object({
   assignedUserIds: zod.array(zod.uuid()).optional(),
 });
 
+export const PostApiSchedulingAssignmentsEntriesIdExpireParams = zod.strictObject({
+  id: zod.number(),
+});
 
+export const PostApiSchedulingAssignmentsEntriesIdExpireBody = zod.union([
+  zod.null(),
+  zod.strictObject({
+    cancellationReason: zod.string().nullish(),
+  }),
+]);
+
+export const PostApiSchedulingAssignmentsEntriesIdExpireResponse = zod.object({
+  id: zod.number().optional(),
+  assignmentSeriesId: zod.number().nullish(),
+  eventId: zod.number().optional(),
+  assignmentDefinitionId: zod.number().optional(),
+  title: zod.string().nullish(),
+  description: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  color: zod.string().nullish(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  timeZoneId: zod.string().nullish(),
+  allDay: zod.boolean().optional(),
+  isException: zod.boolean().optional(),
+  eventTypeCode: zod.string().nullish(),
+  statusTypeCode: zod.string().nullish(),
+  cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
+  cancelledByUserId: zod.uuid().nullish(),
+  cancellationReason: zod.string().nullish(),
+  locationId: zod.number().nullish(),
+  assignmentCategoryTypeId: zod.number().optional(),
+  assignmentCategoryTypeCode: zod.string().nullish(),
+  assignmentSubCategoryTypeId: zod.number().optional(),
+  assignmentSubCategoryTypeCode: zod.string().nullish(),
+  capacity: zod.number().optional(),
+  assignedUserCount: zod.number().optional(),
+  linkedShiftEntryIds: zod.array(zod.number()).optional(),
+  assignedUserIds: zod.array(zod.uuid()).optional(),
+});

@@ -13,6 +13,7 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -94,6 +95,7 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -184,6 +186,7 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -265,6 +268,7 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -355,6 +359,7 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -436,6 +441,7 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -532,6 +538,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -613,6 +620,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -704,6 +712,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -785,6 +794,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -876,6 +886,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -957,6 +968,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -1054,6 +1066,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -1135,6 +1148,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -1226,6 +1240,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -1307,6 +1322,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -1398,6 +1414,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -1479,6 +1496,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -1576,6 +1594,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -1657,6 +1676,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -1748,6 +1768,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -1829,6 +1850,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -1920,6 +1942,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -2001,6 +2024,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -2098,6 +2122,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -2179,6 +2204,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -2270,6 +2296,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -2351,6 +2378,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -2442,6 +2470,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       eventSeriesId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -2523,6 +2552,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
             undefined,
           ]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           title: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
@@ -2622,6 +2652,7 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -2709,6 +2740,7 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -2796,6 +2828,7 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -2889,6 +2922,7 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -2977,6 +3011,7 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3065,6 +3100,7 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3159,6 +3195,7 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3247,6 +3284,7 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3335,6 +3373,7 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3429,6 +3468,7 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3517,6 +3557,7 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3605,6 +3646,7 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3699,6 +3741,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3787,6 +3830,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3875,6 +3919,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
         undefined,
       ]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       title: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -3957,5 +4002,3 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ...overrideResponse,
     },
   ]);
-
-

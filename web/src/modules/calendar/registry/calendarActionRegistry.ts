@@ -18,6 +18,7 @@ import type { CalendarQueryContext, CalendarRuntimeContext } from '../calendarTy
 import type {
   CalendarMatrixCellDropContext,
   CalendarMatrixDragPayload,
+  CalendarMatrixViewModel,
 } from '../components/matrix/calendarMatrixTypes';
 
 export class CalendarActionRegistry {
@@ -85,10 +86,12 @@ export class CalendarActionRegistry {
   getDropActions(
     drag: CalendarMatrixDragPayload,
     drop: CalendarMatrixCellDropContext,
+    model: CalendarMatrixViewModel,
     runtimeContext: CalendarRuntimeContext,
   ) {
+    const context = { drag, drop, model };
     return this.sortActions([...this.dropActions.values()]).filter(
-      (action) => action.isAvailable?.(drag, drop, runtimeContext) ?? true,
+      (action) => action.isAvailable?.(context, runtimeContext) ?? true,
     );
   }
 

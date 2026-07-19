@@ -2,7 +2,8 @@ import { ref, type ComputedRef, type Ref } from 'vue';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import { mapToValidationErrors } from '@/shared/validation/validationErrors';
 import {
-  buildUpdateShiftPayload,
+  buildUpdateShiftPayloadWithErrors,
+  normalizeShiftFormDataForScope,
   normalizeShiftFormTimes,
   validateShiftFormData,
   type ShiftResourceFormData,
@@ -40,17 +41,29 @@ export function useSchedulingShiftMutation(options: {
   }
 
   function validateForm(): ShiftResourceFormData | null {
+    apiError.value = '';
     formErrors.value = {};
-    options.formData.value = normalizeShiftFormTimes(options.formData.value);
+    const scope = options.selectedOpenScope.value === 'series' ? 'series' : 'entry';
+    options.formData.value = normalizeShiftFormDataForScope(normalizeShiftFormTimes(options.formData.value), scope);
 
     const result = validateShiftFormData(options.formData.value, {
       timeZoneId: options.activeTimeZoneId.value,
       recurrenceError: recurrenceError.value,
-      requireCancel: true,
+      requireCancel: false,
     });
 
     if (!result.data) {
       formErrors.value = result.errors;
+      apiError.value = 'Could not save the shift. Check the highlighted fields.';
+      console.debug('[CalendarSchedulingShiftMutation] Shift edit validation failed.', {
+        scope,
+        errors: result.errors,
+        formData: options.formData.value,
+        recurrenceError: recurrenceError.value,
+        timeZoneId: options.activeTimeZoneId.value,
+        locationId: options.activeLocationId.value,
+        eventId: options.event.value.id,
+      });
       return null;
     }
 
@@ -63,7 +76,7 @@ export function useSchedulingShiftMutation(options: {
       return false;
     }
 
-    const payload = buildUpdateShiftPayload({
+    const payloadResult = buildUpdateShiftPayloadWithErrors({
       formData: validated,
       scope: options.selectedOpenScope.value === 'series' ? 'series' : 'entry',
       timeZoneId: options.activeTimeZoneId.value,
@@ -73,21 +86,23 @@ export function useSchedulingShiftMutation(options: {
       existingRecurrenceRule: options.existingRecurrenceRule.value,
     });
 
-    if (!payload) {
-      apiError.value = 'Could not resolve the selected date and time.';
+    if (!payloadResult.payload) {
+      formErrors.value = {
+        ...formErrors.value,
+        ...payloadResult.errors,
+      };
+      apiError.value = payloadResult.errors.locationId
+        ? 'A location is required before saving this shift.'
+        : 'Could not build the shift update request. Check the highlighted fields.';
       return false;
     }
+
+    const payload = payloadResult.payload;
 
     isSaving.value = true;
     apiError.value = '';
 
     try {
-      if (payload.cancel) {
-        return payload.kind === 'series'
-          ? await cancelShiftSeries(resolveShiftSeriesId(options.event.value), payload.cancel)
-          : await cancelShiftEntry(resolveShiftEntryId(options.event.value), payload.cancel);
-      }
-
       const saved =
         payload.kind === 'series'
           ? await updateShiftSeries(resolveShiftSeriesId(options.event.value), payload.body)
@@ -117,7 +132,7 @@ export function useSchedulingShiftMutation(options: {
     const result = await shiftApi.updateShiftSeries(id, body);
 
     if (result.error.value) {
-      if (applyServerValidationErrors(result.data.value)) {
+      if (applyServerValidationErrors(result.error.value.data)) {
         return null;
       }
 
@@ -137,7 +152,7 @@ export function useSchedulingShiftMutation(options: {
     const result = await shiftApi.updateShiftEntry(id, body);
 
     if (result.error.value) {
-      if (applyServerValidationErrors(result.data.value)) {
+      if (applyServerValidationErrors(result.error.value.data)) {
         return null;
       }
 
@@ -178,44 +193,51 @@ export function useSchedulingShiftMutation(options: {
     return true;
   }
 
-  async function cancelShiftSeries(id: number | null, shouldCancel: boolean) {
-    if (!shouldCancel || !id) {
-      return true;
-    }
-
-    const cancelResult = await shiftApi.cancelShiftSeries(id);
-
-    if (cancelResult.error.value) {
-      apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
-      return false;
-    }
-
-    return true;
-  }
-
-  async function cancelShiftEntry(id: number | null, shouldCancel: boolean) {
-    if (!shouldCancel || !id) {
-      return true;
-    }
-
-    const cancelResult = await shiftApi.cancelShiftEntry(id);
-
-    if (cancelResult.error.value) {
-      apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
-      return false;
-    }
-
-    return true;
-  }
-
   function applyServerValidationErrors(rawError: unknown) {
     const mapped = mapToValidationErrors(rawError);
     if (!mapped) {
       return false;
     }
 
-    formErrors.value = mapped;
+    formErrors.value = normalizeShiftServerValidationErrors(mapped);
     return true;
+  }
+
+  function normalizeShiftServerValidationErrors(errors: Record<string, string>) {
+    return Object.entries(errors).reduce<Record<string, string>>((result, [fieldName, message]) => {
+      result[mapShiftServerValidationField(fieldName)] = message;
+      return result;
+    }, {});
+  }
+
+  function mapShiftServerValidationField(fieldName: string) {
+    const normalized = fieldName.toLowerCase();
+
+    if (normalized === 'startatutc') {
+      return 'startTime';
+    }
+
+    if (normalized === 'endatutc') {
+      return 'endTime';
+    }
+
+    if (normalized === 'userid' || normalized === 'userids') {
+      return 'userIds';
+    }
+
+    if (normalized === 'locationid') {
+      return 'locationId';
+    }
+
+    if (normalized === 'assignmentseriesids' || normalized === 'assignmentserieslinks') {
+      return 'assignmentSeriesId';
+    }
+
+    if (normalized === 'assignmententryids' || normalized === 'assignmententrylinks') {
+      return 'assignmentEntryIds';
+    }
+
+    return fieldName;
   }
 
   return {

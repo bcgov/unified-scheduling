@@ -288,6 +288,40 @@ describe('CalendarMatrixEventBlock', () => {
     expect(wrapper.find('.calendar-matrix-event-block__action.is-static').exists()).toBe(true);
     expect(wrapper.classes()).toEqual(expect.arrayContaining(['is-active', 'has-primary-variant']));
   });
+
+  it('uses a light color background and color bar for active colored events', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixEventBlock, {
+      props: {
+        event: { ...event, id: 'event-3' },
+        showColorBar: true,
+        display: {
+          color: '#123456',
+          status: 'active',
+        },
+      },
+    });
+
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['is-active', 'has-color-bar']));
+    expect(wrapper.attributes('style')).toContain('--calendar-event-border-color: #123456');
+    expect(wrapper.attributes('style')).toContain('--calendar-event-bg: rgba(18, 52, 86, 0.16)');
+  });
+
+  it('emits click without selecting the event when selection on click is disabled', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixEventBlock, {
+      props: {
+        event: { ...event, id: 'event-4' },
+        selectOnClick: false,
+      },
+      global: {
+        provide: { [calendarMatrixContextKey as symbol]: matrixContext },
+      },
+    });
+
+    await wrapper.get('button.calendar-matrix-event-block__main').trigger('click');
+
+    expect(matrixContext.selectEvent).not.toHaveBeenCalled();
+    expect(wrapper.emitted('eventClick')?.[0]).toEqual([{ ...event, id: 'event-4' }]);
+  });
 });
 
 describe('CalendarMatrixResourceRow', () => {

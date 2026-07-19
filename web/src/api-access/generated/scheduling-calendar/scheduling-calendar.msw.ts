@@ -398,5 +398,3 @@ export const getPostApiSchedulingCalendarEventsMockHandler = (
   );
 };
 export const getSchedulingCalendarMock = () => [getPostApiSchedulingCalendarEventsMockHandler()];
-
-

@@ -2,9 +2,13 @@ import { calendarActionRegistry } from '@/modules/calendar/registry/calendarActi
 import { calendarRegistry } from '@/modules/calendar/registry/calendarRegistry';
 import {
   calendarAddAssignmentAction,
+  calendarAddAssignmentResourceAction,
   calendarAddResourceAction,
   calendarDropAction,
+  calendarDropUserOnAssignmentResourceAction,
   calendarEventBlockAction,
+  calendarScheduleStaffAction,
+  calendarSchedulingEventDetailAction,
   calendarSchedulingCreateShiftAction,
   calendarSchedulingHeaderDetailAction,
   calendarSchedulingHeaderResolveConflictAction,
@@ -14,7 +18,11 @@ import {
 } from './calendarSchedulingActions';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
 import { calendarAssignmentViewContribution } from './calendarAssignmentViewContribution';
-import { calendarSchedulingEventsContribution } from './contributions/calendarSchedulingEventsContribution';
+import { calendarSchedulingAssignmentsContribution } from './contributions/calendarSchedulingAssignmentsContribution';
+import {
+  calendarSchedulingEventsContribution,
+  clearSchedulingResourceDataCache,
+} from './contributions/calendarSchedulingEventsContribution';
 
 let isRegistered = false;
 
@@ -24,21 +32,34 @@ export function registerCalendarSchedulingModule() {
   }
 
   calendarRegistry.registerModuleContribution(calendarSchedulingEventsContribution);
+  calendarRegistry.registerModuleContribution(calendarSchedulingAssignmentsContribution);
   calendarRegistry.registerView(calendarShiftViewContribution);
   calendarRegistry.registerView(calendarAssignmentViewContribution);
 
   calendarActionRegistry.registerCreateAction(calendarSchedulingCreateShiftAction);
   calendarActionRegistry.registerDropAction(calendarDropAction);
+  calendarActionRegistry.registerDropAction(calendarDropUserOnAssignmentResourceAction);
   calendarActionRegistry.registerMatrixSidePanelAction(calendarAddAssignmentAction);
+  calendarActionRegistry.registerMatrixSidePanelAction(calendarScheduleStaffAction);
   calendarActionRegistry.registerMatrixResourceAction(calendarAddResourceAction);
+  calendarActionRegistry.registerMatrixResourceAction(calendarAddAssignmentResourceAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderDetailAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowConflictAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderResolveConflictAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarEventBlockAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingShowConflictAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingResolveConflictAction);
+  calendarActionRegistry.registerViewDetailAction(
+    calendarShiftViewContribution.id,
+    calendarSchedulingEventDetailAction,
+  );
+  calendarActionRegistry.registerViewDetailAction(
+    calendarAssignmentViewContribution.id,
+    calendarSchedulingEventDetailAction,
+  );
 
   isRegistered = true;
 }
 
 export const registerModule = registerCalendarSchedulingModule;
+export const clearResourceDataCache = clearSchedulingResourceDataCache;

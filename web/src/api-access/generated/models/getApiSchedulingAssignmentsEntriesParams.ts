@@ -16,4 +16,3 @@ export type OriginalGetApiSchedulingAssignmentsEntriesParams = {
 };
 
 export type GetApiSchedulingAssignmentsEntriesParams = MaybeRef<OriginalGetApiSchedulingAssignmentsEntriesParams>;
-

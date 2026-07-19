@@ -4,8 +4,9 @@ import { buildCalendarAssignmentViewModel } from './calendarSchedulingMappers.ts
 
 export const calendarAssignmentViewContribution: CalendarViewDefinition = {
   id: 'calendar.matrix-assignment',
-  label: 'Matrix Assignment View',
+  label: 'Assignment View',
   order: 20,
   component: CalendarAssignmentView,
-  buildModel: (_data, queryContext, _runtimeContext, period) => buildCalendarAssignmentViewModel(queryContext, period),
+  buildModel: (data, queryContext, _runtimeContext, period) =>
+    buildCalendarAssignmentViewModel(data, queryContext, period),
 };

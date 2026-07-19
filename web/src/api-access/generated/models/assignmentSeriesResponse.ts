@@ -5,10 +5,12 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { AssignmentEntryResponse } from './assignmentEntryResponse.ts';
+import type { ShiftAssignmentSeriesLinkResponse } from './shiftAssignmentSeriesLinkResponse.ts';
 
 export interface AssignmentSeriesResponse {
   id?: number;
   eventSeriesId?: number;
+  assignmentDefinitionId?: number;
   /** @nullable */
   title?: string | null;
   /** @nullable */
@@ -44,10 +46,9 @@ export interface AssignmentSeriesResponse {
   assignmentSubCategoryTypeId?: number;
   /** @nullable */
   assignmentSubCategoryTypeCode?: string | null;
-  /** @nullable */
   capacity?: number;
   eventIds?: number[];
   assignmentEntryIds?: number[];
   entries?: AssignmentEntryResponse[];
+  shiftSeriesLinks?: ShiftAssignmentSeriesLinkResponse[];
 }
-

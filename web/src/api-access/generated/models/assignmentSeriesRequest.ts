@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { ShiftSeriesLinkRequest } from './shiftSeriesLinkRequest.ts';
 
 export interface AssignmentSeriesRequest {
   assignmentDefinitionId?: number;
@@ -26,7 +27,10 @@ export interface AssignmentSeriesRequest {
   locationId?: number | null;
   /** @nullable */
   capacity?: number | null;
-  shiftSeriesIds?: number[];
+  /** @nullable */
+  shiftSeriesIds?: number[] | null;
   /** @nullable */
   assignedUserIds?: string[] | null;
+  /** @nullable */
+  shiftSeriesLinks?: ShiftSeriesLinkRequest[] | null;
 }

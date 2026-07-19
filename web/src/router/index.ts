@@ -117,6 +117,10 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
       return { path: '/dashboard' };
     }
 
+    if (isEnteringCalendarModule(to, from)) {
+      calendarSchedulingModule.clearResourceDataCache();
+    }
+
     return true;
   });
 
@@ -127,3 +131,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
   return router;
 };
+
+function isEnteringCalendarModule(to: RouteLocationNormalized, from: RouteLocationNormalizedLoaded) {
+  return to.path.startsWith('/calendar') && !from.path.startsWith('/calendar');
+}

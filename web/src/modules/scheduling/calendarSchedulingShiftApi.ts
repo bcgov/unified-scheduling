@@ -3,6 +3,7 @@ import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeri
 import {
   deleteApiSchedulingShiftEntriesId,
   deleteApiSchedulingShiftSeriesId,
+  getApiSchedulingShiftEntriesId,
   getApiSchedulingShiftSeriesId,
   postApiSchedulingShiftEntries,
   postApiSchedulingShiftEntriesIdExpire,
@@ -40,6 +41,12 @@ export async function updateShiftSeries(id: number, body: ShiftSeriesRequest) {
 
 export async function loadShiftSeries(id: number) {
   const result = getApiSchedulingShiftSeriesId(id, { options: { immediate: false } });
+  await result.execute();
+  return result;
+}
+
+export async function loadShiftEntry(id: number) {
+  const result = getApiSchedulingShiftEntriesId(id, { options: { immediate: false } });
   await result.execute();
   return result;
 }

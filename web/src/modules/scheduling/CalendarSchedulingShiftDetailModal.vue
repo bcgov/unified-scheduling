@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { DateTime } from 'luxon';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -12,10 +13,13 @@ import CalendarSchedulingShiftEditPanel from './CalendarSchedulingShiftEditPanel
 import {
   createShiftFormDataFromEvent,
   createShiftFormDataFromSeries,
+  normalizeTimeOptionValue,
   type ShiftResourceFormData,
 } from './calendarSchedulingShiftForm';
 import type { ShiftDetailTabId, ShiftOpenScope } from './calendarSchedulingShiftDetailTypes';
-import { resolveShiftSeriesId } from './calendarSchedulingShiftIds';
+import { resolveShiftEntryId, resolveShiftSeriesId } from './calendarSchedulingShiftIds';
+import { loadShiftEntry } from './calendarSchedulingShiftApi';
+import { useSchedulingAssignmentOptions } from './useSchedulingAssignmentOptions';
 import { useSchedulingEmployeeOptions } from './useSchedulingEmployeeOptions';
 import { useSchedulingShiftDelete } from './useSchedulingShiftDelete';
 import { useSchedulingShiftDetailRows } from './useSchedulingShiftDetailRows';
@@ -40,11 +44,13 @@ const tabs: Array<{ id: ShiftDetailTabId; label: string }> = [
   { id: 'copy', label: 'Copy' },
   { id: 'delete', label: 'Delete' },
 ];
+const publishedShiftMessage = 'This shift has been published, and cannot be edited or deleted, only cancelled';
 
 const activeTab = ref<ShiftDetailTabId>('details');
 const selectedOpenScope = ref<ShiftOpenScope | null>(getInitialOpenScope());
 const placeholderNotice = ref('');
 const modalError = ref('');
+const isLoadingShiftEntry = ref(false);
 const eventRef = computed(() => props.event);
 const timeZoneId = computed(() => props.event.timeZoneId || Intl.DateTimeFormat().resolvedOptions().timeZone);
 const editFormData = ref<ShiftResourceFormData>(createEditFormData());
@@ -58,6 +64,10 @@ const activeTimeZoneId = computed(() =>
   selectedOpenScope.value === 'series' ? selectedSeries.value?.timeZoneId || timeZoneId.value : timeZoneId.value,
 );
 const activeLocationId = computed<number | null>(() => {
+  if (editFormData.value.locationId != null) {
+    return normalizeLocationId(editFormData.value.locationId);
+  }
+
   if (selectedOpenScope.value === 'series' && selectedSeries.value?.locationId != null) {
     return selectedSeries.value.locationId;
   }
@@ -78,11 +88,46 @@ const activeLocationId = computed<number | null>(() => {
 const eventBelongsToSeries = computed(() => resolveShiftSeriesId(props.event) !== null);
 const shouldShowOpenScopeChoice = computed(() => eventBelongsToSeries.value && selectedOpenScope.value === null);
 const isSeriesScope = computed(() => selectedOpenScope.value === 'series');
-const modalTitle = computed(() => (isSeriesScope.value ? 'Shift Series Details' : 'Shift Details'));
+const selectedShiftStatusTypeCode = computed(() =>
+  isSeriesScope.value && selectedSeries.value?.statusTypeCode ? selectedSeries.value.statusTypeCode : props.event.statusTypeCode,
+);
+const isPublishedShift = computed(() => String(selectedShiftStatusTypeCode.value ?? '').toLowerCase() === 'active');
+const canEditSelectedShift = computed(() => String(selectedShiftStatusTypeCode.value ?? '').toLowerCase() === 'draft');
+const visibleTabs = computed(() => tabs.filter((tab) => tab.id !== 'edit' || canEditSelectedShift.value));
+const shiftEntityLabel = computed(() => (isSeriesScope.value ? 'Shift Series' : 'Shift'));
+const modalTitle = computed(() => {
+  if (shouldShowOpenScopeChoice.value) {
+    return 'Open Shift';
+  }
+
+  if (activeTab.value === 'edit') {
+    return `Edit ${shiftEntityLabel.value}`;
+  }
+
+  if (activeTab.value === 'delete') {
+    const statusTypeCode =
+      isSeriesScope.value && selectedSeries.value?.statusTypeCode
+        ? selectedSeries.value.statusTypeCode
+        : props.event.statusTypeCode;
+
+    return `${statusTypeCode?.toLowerCase() === 'active' ? 'Cancel' : 'Delete'} ${shiftEntityLabel.value}`;
+  }
+
+  return `${shiftEntityLabel.value} Details`;
+});
+const modalWidth = computed(() => (shouldShowOpenScopeChoice.value ? 420 : 840));
 
 const { employeeOptions, isLoadingUsers } = useSchedulingEmployeeOptions(activeLocationId, editFormData, {
   onError: setApiError,
 });
+const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLoadingAssignments } =
+  useSchedulingAssignmentOptions({
+    formData: editFormData,
+    activeLocationId,
+    activeTimeZoneId,
+    isSeriesScope,
+    onError: setApiError,
+  });
 
 const {
   apiError: mutationError,
@@ -103,8 +148,11 @@ const {
 
 const {
   canDeleteShift,
+  deleteActionLabel,
+  deleteConfirmationLabel,
   deleteDisabledReason,
   deleteError,
+  deleteWarning,
   isDeleteConfirmed,
   isDeleting,
   clearDeleteState,
@@ -119,7 +167,11 @@ const { detailRows } = useSchedulingShiftDetailRows({
   event: eventRef,
   selectedOpenScope,
   selectedSeries,
+  formData: editFormData,
   employeeOptions,
+  assignmentEntryOptions,
+  assignmentSeriesOptions,
+  locationOptions: computed(() => locationsStore.selectOptions),
   activeTimeZoneId,
 });
 const apiError = computed(() => modalError.value || mutationError.value || deleteError.value);
@@ -134,7 +186,9 @@ watch(
     selectedOpenScope.value = getInitialOpenScope();
     placeholderNotice.value = '';
     clearApiError();
+    void loadSelectedShiftEntryDetails();
   },
+  { immediate: true },
 );
 
 watch(
@@ -150,15 +204,15 @@ watch(
 const placeholderHeading = computed(() => {
   switch (activeTab.value) {
     case 'edit':
-      return 'Edit shift';
+      return 'Edit Shift';
     case 'transfer':
-      return 'Transfer shift';
+      return 'Transfer Shift';
     case 'copy':
-      return 'Copy shift';
+      return 'Copy Shift';
     case 'delete':
-      return 'Delete shift';
+      return 'Delete Shift';
     default:
-      return 'Shift details';
+      return 'Shift Details';
   }
 });
 
@@ -178,10 +232,19 @@ const placeholderDescription = computed(() => {
 });
 
 function selectTab(tabId: ShiftDetailTabId) {
+  if (tabId === 'edit' && !canEditSelectedShift.value) {
+    return;
+  }
+
   activeTab.value = tabId;
   placeholderNotice.value = '';
   clearApiError();
   clearDeleteState();
+}
+
+function normalizeLocationId(value: unknown) {
+  const parsedLocationId = Number(value);
+  return Number.isInteger(parsedLocationId) && parsedLocationId > 0 ? parsedLocationId : null;
 }
 
 async function selectOpenScope(scope: ShiftOpenScope) {
@@ -199,6 +262,9 @@ async function selectOpenScope(scope: ShiftOpenScope) {
 
   selectedOpenScope.value = scope;
   editFormData.value = createEditFormData();
+  if (scope === 'event') {
+    void loadSelectedShiftEntryDetails();
+  }
   activeTab.value = 'details';
 }
 
@@ -208,6 +274,68 @@ function createEditFormData(): ShiftResourceFormData {
   }
 
   return createShiftFormDataFromEvent(props.event, timeZoneId.value);
+}
+
+async function loadSelectedShiftEntryDetails() {
+  if (selectedOpenScope.value !== 'event') {
+    return;
+  }
+
+  const shiftEntryId = resolveShiftEntryId(props.event);
+  if (!shiftEntryId) {
+    return;
+  }
+
+  isLoadingShiftEntry.value = true;
+
+  try {
+    const result = await loadShiftEntry(shiftEntryId);
+    if (result.error.value) {
+      setApiError(result.error.value.message || 'Failed to load shift assignment links.');
+      return;
+    }
+
+    const shiftEntry = result.data.value;
+    const assignmentEntryLinks = (shiftEntry?.assignmentLinks ?? []).flatMap((link) =>
+      typeof link.assignmentEntryId === 'number'
+        ? [
+            {
+              assignmentEntryId: link.assignmentEntryId,
+              assignedUserIds: link.userIds ?? editFormData.value.userIds ?? [],
+            },
+          ]
+        : [],
+    );
+    const shiftEntryTimeZoneId = shiftEntry?.timeZoneId || activeTimeZoneId.value;
+    const shiftEntryStart = shiftEntry?.startAtUtc
+      ? DateTime.fromISO(shiftEntry.startAtUtc, { zone: shiftEntryTimeZoneId })
+      : null;
+    const shiftEntryEnd = shiftEntry?.endAtUtc
+      ? DateTime.fromISO(shiftEntry.endAtUtc, { zone: shiftEntryTimeZoneId })
+      : null;
+
+    editFormData.value = {
+      ...editFormData.value,
+      title: shiftEntry?.title ?? editFormData.value.title,
+      date: shiftEntryStart?.isValid ? shiftEntryStart.toFormat('yyyy-MM-dd') : editFormData.value.date,
+      startTime: shiftEntryStart?.isValid
+        ? normalizeTimeOptionValue(shiftEntryStart.toFormat('HH:mm'))
+        : editFormData.value.startTime,
+      endTime: shiftEntryEnd?.isValid
+        ? normalizeTimeOptionValue(shiftEntryEnd.toFormat('HH:mm'))
+        : editFormData.value.endTime,
+      timeZoneId: shiftEntry?.timeZoneId ?? editFormData.value.timeZoneId,
+      statusTypeCode: shiftEntry?.statusTypeCode ?? editFormData.value.statusTypeCode,
+      locationId: shiftEntry?.locationId ?? editFormData.value.locationId,
+      userIds: shiftEntry?.userIds ?? editFormData.value.userIds,
+      assignmentEntryLinks,
+      assignmentEntryIds: assignmentEntryLinks.map((link) => link.assignmentEntryId),
+    };
+  } catch (error: unknown) {
+    setApiError(error instanceof Error ? error.message : 'Failed to load shift assignment links.');
+  } finally {
+    isLoadingShiftEntry.value = false;
+  }
 }
 
 async function handleSaveEdit() {
@@ -244,7 +372,7 @@ function clearApiError() {
 </script>
 
 <template>
-  <UaModal :title="modalTitle" width="760" @close="emit('close')">
+  <UaModal :title="modalTitle" :width="modalWidth" @close="emit('close')">
     <template #alerts>
       <UaAlert v-if="apiError" type="error" @close="clearApiError">
         {{ apiError }}
@@ -252,22 +380,25 @@ function clearApiError() {
       <UaAlert v-if="placeholderNotice" type="info" @close="placeholderNotice = ''">
         {{ placeholderNotice }}
       </UaAlert>
+      <UaAlert v-if="isPublishedShift" type="info">
+        {{ publishedShiftMessage }}
+      </UaAlert>
     </template>
 
     <div v-if="shouldShowOpenScopeChoice" class="shift-detail-modal__scope-choice">
-      <p class="shift-detail-modal__scope-choice-text">This is one event in a series, What do you want to open?</p>
+      <p class="shift-detail-modal__scope-choice-text">This is one event in a series. What do you want to open?</p>
       <div class="shift-detail-modal__scope-choice-actions">
-        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectOpenScope('event')">Only this event</UaBtn>
+        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectOpenScope('event')">Only This Event</UaBtn>
         <UaBtn color="primary" variant="flat" :loading="isLoadingSeries" @click="selectOpenScope('series')">
-          The entire series
+          The Entire Series
         </UaBtn>
       </div>
     </div>
 
     <div v-else class="shift-detail-modal">
-      <div class="shift-detail-modal__tabs" role="tablist" aria-label="Shift detail tabs">
+      <div class="shift-detail-modal__tabs" role="tablist" aria-label="Shift Detail Tabs">
         <button
-          v-for="tab in tabs"
+          v-for="tab in visibleTabs"
           :key="tab.id"
           :aria-selected="tab.id === activeTab"
           class="shift-detail-modal__tab"
@@ -280,7 +411,11 @@ function clearApiError() {
         </button>
       </div>
 
-      <CalendarSchedulingShiftDetailsPanel v-if="activeTab === 'details'" :detail-rows="detailRows" />
+      <CalendarSchedulingShiftDetailsPanel
+        v-if="activeTab === 'details'"
+        :detail-rows="detailRows"
+        :is-loading="isLoadingShiftEntry"
+      />
 
       <CalendarSchedulingShiftEditPanel
         v-else-if="activeTab === 'edit'"
@@ -288,8 +423,14 @@ function clearApiError() {
         :form-errors="formErrors"
         :disabled="isSaving"
         :show-recurrence="isSeriesScope"
+        :location-options="locationsStore.selectOptions"
         :employee-options="employeeOptions"
         :is-loading-users="isLoadingUsers"
+        :assignment-entry-options="assignmentEntryOptions"
+        :assignment-series-options="assignmentSeriesOptions"
+        :assignment-warning="assignmentWarning"
+        :is-loading-assignments="isLoadingAssignments || isLoadingShiftEntry"
+        :show-series-assignment="isSeriesScope"
         @recurrence-change="handleRecurrenceChange"
         @recurrence-invalid="handleRecurrenceInvalid"
       />
@@ -298,10 +439,12 @@ function clearApiError() {
         v-else-if="activeTab === 'delete'"
         v-model:is-delete-confirmed="isDeleteConfirmed"
         :detail-rows="detailRows"
+        :delete-confirmation-label="deleteConfirmationLabel"
         :delete-disabled-reason="deleteDisabledReason"
+        :delete-warning="deleteWarning"
       />
 
-      <section v-else class="shift-detail-modal__panel" :aria-label="`${placeholderHeading} panel`">
+      <section v-else class="shift-detail-modal__panel" :aria-label="`${placeholderHeading} Panel`">
         <div class="shift-detail-modal__placeholder">
           <h3 class="shift-detail-modal__placeholder-heading">{{ placeholderHeading }}</h3>
           <p class="shift-detail-modal__placeholder-text">{{ placeholderDescription }}</p>
@@ -317,7 +460,7 @@ function clearApiError() {
       <template v-else>
         <UaBtn variant="outlined" :disabled="isSaving" @click="emit('close')">Close</UaBtn>
         <UaBtn color="error" variant="flat" :disabled="!canDeleteShift" :loading="isSaving" @click="handleDeleteShift">
-          Delete
+          {{ deleteActionLabel }}
         </UaBtn>
       </template>
     </template>

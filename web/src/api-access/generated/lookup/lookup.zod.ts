@@ -7,7 +7,13 @@
 import * as zod from 'zod';
 
 export const GetApiLookupCodeTypeParams = zod.strictObject({
-  codeType: zod.enum(['PositionTypes', 'EventTypes', 'EventStatusTypes']),
+  codeType: zod.enum([
+    'PositionTypes',
+    'EventTypes',
+    'EventStatusTypes',
+    'AssignmentCategoryTypes',
+    'AssignmentSubCategoryTypes',
+  ]),
 });
 
 export const GetApiLookupCodeTypeResponseItem = zod.object({
@@ -15,6 +21,8 @@ export const GetApiLookupCodeTypeResponseItem = zod.object({
   description: zod.string().optional(),
   effectiveDate: zod.iso.datetime({ offset: true }).optional(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+  parentCodeTypeId: zod.number().nullish(),
+  childCodeTypeId: zod.number().nullish(),
+  childCodeTypeIds: zod.array(zod.number()).optional(),
 });
 export const GetApiLookupCodeTypeResponse = zod.array(GetApiLookupCodeTypeResponseItem);
-

@@ -4,6 +4,7 @@ export type ShiftOpenScope = 'event' | 'series';
 export type ShiftDetailRow = {
   label: string;
   value: string;
+  color?: string;
   recurrenceRule?: string | null;
   recurrenceStartDate?: string | null;
 };

@@ -16,7 +16,7 @@ export const PostApiSchedulingShiftAssignmentsEntriesResponse = zod.object({
   id: zod.number().optional(),
   shiftEntryId: zod.number().optional(),
   assignmentEntryId: zod.number().optional(),
-  shiftAssignmentSeriesLinkId: zod.number().nullable().optional(),
+  shiftAssignmentSeriesLinkId: zod.number().nullish(),
   isException: zod.boolean().optional(),
   capacity: zod.number().optional(),
   assignedUserCount: zod.number().optional(),
@@ -29,22 +29,25 @@ export const PostApiSchedulingShiftAssignmentsSeriesBody = zod.strictObject({
   assignedUserIds: zod.array(zod.uuid()).optional(),
 });
 
-export const PostApiSchedulingShiftAssignmentsSeriesResponseItem = zod.object({
-  id: zod.number().optional(),
-  shiftEntryId: zod.number().optional(),
-  assignmentEntryId: zod.number().optional(),
-  shiftAssignmentSeriesLinkId: zod.number().nullable().optional(),
-  isException: zod.boolean().optional(),
-  capacity: zod.number().optional(),
-  assignedUserCount: zod.number().optional(),
-  userIds: zod.array(zod.uuid()).optional(),
-});
 export const PostApiSchedulingShiftAssignmentsSeriesResponse = zod.object({
   id: zod.number().optional(),
   shiftSeriesId: zod.number().optional(),
   assignmentSeriesId: zod.number().optional(),
   assignedUserIds: zod.array(zod.uuid()).optional(),
   shiftAssignmentEntryIds: zod.array(zod.number()).optional(),
-  entryLinks: zod.array(PostApiSchedulingShiftAssignmentsSeriesResponseItem).optional(),
+  entryLinks: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        shiftEntryId: zod.number().optional(),
+        assignmentEntryId: zod.number().optional(),
+        shiftAssignmentSeriesLinkId: zod.number().nullish(),
+        isException: zod.boolean().optional(),
+        capacity: zod.number().optional(),
+        assignedUserCount: zod.number().optional(),
+        userIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
   exceptionCount: zod.number().optional(),
 });
