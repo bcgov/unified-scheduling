@@ -149,6 +149,37 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateAssignmentEntryAsync_WhenFutureDefinitionIsEffectiveOnAssignmentDate_CreatesAssignment()
+    {
+        var result = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(
+                assignmentDefinitionId: 3,
+                startAtUtc: new DateTimeOffset(2026, 7, 22, 16, 0, 0, TimeSpan.Zero)
+            ),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(3, result.AssignmentDefinitionId);
+        Assert.Equal(new DateTimeOffset(2026, 7, 22, 16, 0, 0, TimeSpan.Zero), result.StartAtUtc);
+    }
+
+    [Fact]
+    public async Task CreateAssignmentEntryAsync_WhenFutureDefinitionIsNotEffectiveOnAssignmentDate_ThrowsInactiveDefinition()
+    {
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _assignmentService.CreateAssignmentEntryAsync(
+                CreateAssignmentEntryRequest(
+                    assignmentDefinitionId: 3,
+                    startAtUtc: new DateTimeOffset(2026, 7, 21, 16, 0, 0, TimeSpan.Zero)
+                ),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal("Assignment definition is not active.", exception.Message);
+    }
+
+    [Fact]
     public async Task CreateAssignmentEntryAsync_WhenExplicitEndAtMidnightUtc_PreservesProvidedEndTime()
     {
         var result = await _assignmentService.CreateAssignmentEntryAsync(
@@ -375,6 +406,9 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         );
 
         Assert.Equal(2, result.Entries.Count);
+        var responseLink = Assert.Single(result.ShiftSeriesLinks);
+        Assert.Equal(shiftSeries.Id, responseLink.ShiftSeriesId);
+        Assert.Equal([UserA], responseLink.AssignedUserIds);
 
         var links = await _dbContext
             .ShiftAssignmentEntries.Include(link => link.Users)
@@ -1957,6 +1991,17 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
                 AssignmentSubCategoryTypeId = 30,
                 DefaultCapacity = 3,
                 EffectiveDateUtc = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            },
+            new AssignmentDefinition
+            {
+                Id = 3,
+                LocationId = 5,
+                Name = "FUTURE",
+                Description = "Future assignment",
+                AssignmentCategoryTypeId = 10,
+                AssignmentSubCategoryTypeId = 20,
+                DefaultCapacity = 1,
+                EffectiveDateUtc = new DateTimeOffset(2026, 7, 22, 7, 0, 0, TimeSpan.Zero),
             }
         );
 
@@ -2085,7 +2130,8 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
         IReadOnlyCollection<int>? shiftEntryIds = null,
         IReadOnlyCollection<Guid>? assignedUserIds = null,
         IReadOnlyCollection<ShiftEntryLinkRequest>? shiftEntryLinks = null,
-        string? color = null
+        string? color = null,
+        int assignmentDefinitionId = 1
     )
     {
         var start = startAtUtc ?? new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
@@ -2097,7 +2143,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             EndAtUtc = endAtUtc ?? start.AddHours(7),
             TimeZoneId = "America/Vancouver",
             LocationId = 5,
-            AssignmentDefinitionId = 1,
+            AssignmentDefinitionId = assignmentDefinitionId,
             Capacity = capacity,
             Color = color,
             ShiftEntryIds = shiftEntryLinks is null ? shiftEntryIds ?? [] : null,

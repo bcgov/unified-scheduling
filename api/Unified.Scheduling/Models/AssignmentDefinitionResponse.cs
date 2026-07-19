@@ -14,4 +14,6 @@ public sealed record AssignmentDefinitionResponse
     public string? DefaultStartTime { get; init; }
     public string? DefaultEndTime { get; init; }
     public int DefaultCapacity { get; init; }
+    public DateTimeOffset EffectiveDateUtc { get; init; }
+    public DateTimeOffset? ExpiryDateUtc { get; init; }
 }

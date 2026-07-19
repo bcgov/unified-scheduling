@@ -59,4 +59,6 @@ public sealed record AssignmentEntryResponse
     public IReadOnlyCollection<int> LinkedShiftEntryIds { get; init; } = [];
 
     public IReadOnlyCollection<Guid> AssignedUserIds { get; init; } = [];
+
+    public IReadOnlyCollection<ShiftAssignmentEntryResponse> AssignmentLinks { get; init; } = [];
 }

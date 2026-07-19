@@ -38,7 +38,9 @@ public sealed class AssignmentService(
             .Include(series => series.AssignmentDefinition)
                 .ThenInclude(definition => definition.AssignmentCategoryType)
             .Include(series => series.AssignmentDefinition)
-                .ThenInclude(definition => definition.AssignmentSubCategoryType);
+                .ThenInclude(definition => definition.AssignmentSubCategoryType)
+            .Include(series => series.ShiftAssignmentSeriesLinks)
+                .ThenInclude(link => link.Users);
 
         if (queryParams?.EventSeriesId is int eventSeriesId)
             query = query.Where(series => series.EventSeriesId == eventSeriesId);
@@ -85,6 +87,8 @@ public sealed class AssignmentService(
                 .ThenInclude(definition => definition.AssignmentCategoryType)
             .Include(series => series.AssignmentDefinition)
                 .ThenInclude(definition => definition.AssignmentSubCategoryType)
+            .Include(series => series.ShiftAssignmentSeriesLinks)
+                .ThenInclude(link => link.Users)
             .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
 
         return result is null ? null : await MapToAssignmentSeriesResponseAsync(result, cancellationToken);
@@ -95,7 +99,7 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, cancellationToken);
+        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, request.StartAtUtc, cancellationToken);
         request = ApplyDefinitionDefaults(request, definition);
         logger.LogInformation("Creating assignment series starting at {StartAtUtc}.", request.StartAtUtc);
 
@@ -136,7 +140,7 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, cancellationToken);
+        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, request.StartAtUtc, cancellationToken);
         request = request with { Color = ResolveDefinitionColor(request.Color, definition) };
         logger.LogInformation("Updating assignment series {AssignmentSeriesId}.", id);
 
@@ -289,7 +293,7 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, cancellationToken);
+        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, request.StartAtUtc, cancellationToken);
         request = ApplyDefinitionDefaults(request, definition);
         logger.LogInformation("Creating assignment entry starting at {StartAtUtc}.", request.StartAtUtc);
 
@@ -326,7 +330,7 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, cancellationToken);
+        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, request.StartAtUtc, cancellationToken);
         request = request with { Color = ResolveDefinitionColor(request.Color, definition) };
         logger.LogInformation("Updating assignment entry {AssignmentEntryId}.", id);
 
@@ -559,6 +563,16 @@ public sealed class AssignmentService(
             EventIds = entries.Select(entry => entry.EventId).ToList(),
             AssignmentEntryIds = entries.Select(entry => entry.Id).ToList(),
             Entries = entries,
+            ShiftSeriesLinks = assignmentSeries.ShiftAssignmentSeriesLinks
+                .OrderBy(link => link.ShiftSeriesId)
+                .Select(link => new ShiftAssignmentSeriesLinkResponse
+                {
+                    Id = link.Id,
+                    ShiftSeriesId = link.ShiftSeriesId,
+                    AssignmentSeriesId = link.AssignmentSeriesId,
+                    AssignedUserIds = link.Users.Select(user => user.UserId).Distinct().ToList(),
+                })
+                .ToList(),
         };
 
     private static IQueryable<AssignmentEntry> IncludeAssignmentEntryGraph(IQueryable<AssignmentEntry> query) =>
@@ -623,6 +637,20 @@ public sealed class AssignmentService(
             AssignedUserCount = assignedUserIds.Count,
             LinkedShiftEntryIds = linkedShiftEntryIds,
             AssignedUserIds = assignedUserIds,
+            AssignmentLinks = activeShiftAssignmentLinks
+                .OrderBy(link => link.ShiftEntryId)
+                .Select(link => new ShiftAssignmentEntryResponse
+                {
+                    Id = link.Id,
+                    ShiftEntryId = link.ShiftEntryId,
+                    AssignmentEntryId = link.AssignmentEntryId,
+                    ShiftAssignmentSeriesLinkId = link.ShiftAssignmentSeriesLinkId,
+                    IsException = link.IsException,
+                    Capacity = assignmentEntry.Capacity,
+                    AssignedUserCount = link.Users.Select(user => user.UserId).Distinct().Count(),
+                    UserIds = link.Users.Select(user => user.UserId).Distinct().ToList(),
+                })
+                .ToList(),
         };
     }
 
@@ -645,11 +673,17 @@ public sealed class AssignmentService(
             LocationId = request.LocationId,
         };
 
-    private async Task<AssignmentDefinition> GetActiveDefinitionAsync(int id, CancellationToken cancellationToken)
+    private async Task<AssignmentDefinition> GetActiveDefinitionAsync(
+        int id,
+        DateTimeOffset assignmentStartAtUtc,
+        CancellationToken cancellationToken
+    )
     {
         var definition = await GetDefinitionAsync(id, cancellationToken);
-        var now = DateTimeOffset.UtcNow;
-        if (definition.EffectiveDateUtc > now || definition.ExpiryDateUtc.HasValue && definition.ExpiryDateUtc <= now)
+        if (
+            definition.EffectiveDateUtc > assignmentStartAtUtc ||
+            definition.ExpiryDateUtc.HasValue && definition.ExpiryDateUtc <= assignmentStartAtUtc
+        )
             throw new InvalidOperationException("Assignment definition is not active.");
         return definition;
     }

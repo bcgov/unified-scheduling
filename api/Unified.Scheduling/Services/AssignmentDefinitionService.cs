@@ -151,6 +151,8 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
             DefaultStartTime = definition.DefaultStartTime?.ToString("HH:mm:ss"),
             DefaultEndTime = definition.DefaultEndTime?.ToString("HH:mm:ss"),
             DefaultCapacity = definition.DefaultCapacity,
+            EffectiveDateUtc = definition.EffectiveDateUtc,
+            ExpiryDateUtc = definition.ExpiryDateUtc,
         };
 
     private static string NormalizeNameForStorage(string name) => name.Trim();

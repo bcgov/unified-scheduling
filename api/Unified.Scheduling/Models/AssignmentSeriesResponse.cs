@@ -53,4 +53,6 @@ public sealed record AssignmentSeriesResponse
     public IReadOnlyCollection<int> AssignmentEntryIds { get; init; } = [];
 
     public IReadOnlyCollection<AssignmentEntryResponse> Entries { get; init; } = [];
+
+    public IReadOnlyCollection<ShiftAssignmentSeriesLinkResponse> ShiftSeriesLinks { get; init; } = [];
 }

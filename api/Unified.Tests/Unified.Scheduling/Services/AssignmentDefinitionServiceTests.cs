@@ -101,6 +101,8 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
         Assert.Equal("08:00:00", definition.DefaultStartTime);
         Assert.Equal("15:00:00", definition.DefaultEndTime);
         Assert.Equal(3, definition.DefaultCapacity);
+        Assert.Equal(new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), definition.EffectiveDateUtc);
+        Assert.Null(definition.ExpiryDateUtc);
     }
 
     [Fact]
