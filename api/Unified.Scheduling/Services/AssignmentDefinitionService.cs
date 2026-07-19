@@ -14,15 +14,12 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
         CancellationToken cancellationToken = default
     )
     {
-        var now = DateTimeOffset.UtcNow;
         var query = IncludeGraph(db.AssignmentDefinitions.AsNoTracking());
 
         if (locationId is int id)
             query = query.Where(definition => definition.LocationId == id);
 
         var definitions = await query
-            .Where(definition => definition.EffectiveDateUtc <= now)
-            .Where(definition => !definition.ExpiryDateUtc.HasValue || definition.ExpiryDateUtc > now)
             .OrderBy(definition => definition.Name)
             .ToListAsync(cancellationToken);
 

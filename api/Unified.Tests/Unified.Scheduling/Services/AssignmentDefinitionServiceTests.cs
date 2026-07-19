@@ -69,7 +69,7 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetAssignmentDefinitionsAsync_ReturnsActiveDefinitionsWithDefaultsAndLookupDetails()
+    public async Task GetAssignmentDefinitionsAsync_ReturnsDefinitionsWithDefaultsAndLookupDetails()
     {
         await _service.CreateAssignmentDefinitionAsync(
             CreateRequest(name: "control"),
@@ -88,8 +88,9 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
             cancellationToken: TestContext.Current.CancellationToken
         );
 
-        var definition = Assert.Single(result);
-        Assert.Equal("control", definition.Name);
+        Assert.Equal(["control", "expired"], result.Select(definition => definition.Name));
+
+        var definition = Assert.Single(result, definition => definition.Name == "control");
         Assert.Equal(5, definition.LocationId);
         Assert.Equal("Control", definition.Description);
         Assert.Equal(10, definition.AssignmentCategoryTypeId);
@@ -100,6 +101,34 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
         Assert.Equal("08:00:00", definition.DefaultStartTime);
         Assert.Equal("15:00:00", definition.DefaultEndTime);
         Assert.Equal(3, definition.DefaultCapacity);
+    }
+
+    [Fact]
+    public async Task GetAssignmentDefinitionsAsync_ReturnsFutureAndExpiredDefinitionsForFrontendDateFiltering()
+    {
+        await _service.CreateAssignmentDefinitionAsync(
+            CreateRequest(name: "current"),
+            TestContext.Current.CancellationToken
+        );
+        await _service.CreateAssignmentDefinitionAsync(
+            CreateRequest(
+                name: "future",
+                effectiveDate: DateTimeOffset.UtcNow.AddDays(7)
+            ),
+            TestContext.Current.CancellationToken
+        );
+        await _service.CreateAssignmentDefinitionAsync(
+            CreateRequest(
+                name: "expired",
+                effectiveDate: new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                expiryDate: new DateTimeOffset(2021, 1, 1, 0, 0, 0, TimeSpan.Zero)
+            ),
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _service.GetAssignmentDefinitionsAsync(5, TestContext.Current.CancellationToken);
+
+        Assert.Equal(["current", "expired", "future"], result.Select(definition => definition.Name));
     }
 
     [Fact]
