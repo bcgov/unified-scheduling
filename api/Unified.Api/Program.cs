@@ -82,7 +82,7 @@ var hangfireOptions =
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
         .AddUserManagementModule()
-        .AddJCInterfaceModule();
+        .AddJCInterfaceModule(builder.Configuration);
 
     builder.Services.AddSingleton<MigrationAndSeedService>();
     builder.Services.AddTransient(typeof(SeederFactory<>));
