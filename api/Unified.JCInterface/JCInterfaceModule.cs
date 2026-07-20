@@ -15,14 +15,19 @@ namespace Unified.JCInterface;
 /// </summary>
 public static class JCInterfaceModule
 {
-    public static IServiceCollection AddJCInterfaceModule(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddJCInterfaceModule(
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
     {
         // Read SkipSync directly from configuration (before the options pipeline exists)
         // so we can decide whether data-annotation validation should run at all. When
         // SkipSync is true, Url/Username/Password aren't required and shouldn't block startup.
-        var skipSync = configuration.GetValue<bool>(
-            $"{JCInterfaceOptions.SectionName}:{nameof(JCInterfaceOptions.SkipSync)}"
-        );
+        var skipSync =
+            configuration
+                .GetSection(JCInterfaceOptions.SectionName)
+                .GetValue<bool?>(nameof(JCInterfaceOptions.SkipSync))
+            ?? new JCInterfaceOptions().SkipSync;
 
         var optionsBuilder = services
             .AddOptions<JCInterfaceOptions>()
