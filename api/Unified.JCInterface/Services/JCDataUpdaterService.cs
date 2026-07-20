@@ -32,9 +32,9 @@ namespace Unified.JCInterface.Services
         /// </summary>
         public async Task SyncAllAsync()
         {
-            if (jcInterfaceOptions.SkipLocationUpdates)
+            if (jcInterfaceOptions.SkipSync)
             {
-                logger.LogInformation("Skipping JC-Interface sync because SkipLocationUpdates is enabled");
+                logger.LogInformation("Skipping JC-Interface sync because SkipSync is enabled");
                 return;
             }
 
@@ -136,21 +136,23 @@ namespace Unified.JCInterface.Services
 
             if (jcInterfaceOptions.AssociateUsersWithNoLocationToVictoria)
             {
-                var victoriaLocation = dbContext
+                var defaultLocationName = jcInterfaceOptions.DefaultUserLocationName;
+                var defaultLocation = dbContext
                     .Locations.AsNoTracking()
-                    .FirstOrDefault(l => l.Name == "Victoria Law Courts");
+                    .FirstOrDefault(l => l.Name == defaultLocationName);
 
-                if (victoriaLocation != null)
+                if (defaultLocation != null)
                 {
                     var usersWithNoHomeLocation = dbContext.Users.Where(u => !u.HomeLocationId.HasValue);
                     foreach (var user in usersWithNoHomeLocation)
                     {
                         logger.LogInformation(
-                            "Assigning home location {LocationId} to user {UserId}",
-                            victoriaLocation.Id,
-                            user.Id
+                            "Updating user {UserId} with no location to {LocationName} (location {LocationId})",
+                            user.Id,
+                            defaultLocation.Name,
+                            defaultLocation.Id
                         );
-                        user.HomeLocationId = victoriaLocation.Id;
+                        user.HomeLocationId = defaultLocation.Id;
                     }
                     await dbContext.SaveChangesAsync();
                 }
@@ -164,7 +166,7 @@ namespace Unified.JCInterface.Services
         {
             var courtRoomsLookups = await locationClient.LocationsRoomsAsync();
             //To list so we don't need to re-query on each select.
-            var locations = dbContext.Locations.ToList();
+            var locations = dbContext.Locations.AsNoTracking().ToList();
             var courtRooms = courtRoomsLookups
                 .SelectToList(cr => new CourtRoom
                 {
