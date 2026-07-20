@@ -187,6 +187,7 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
         SaveDayRequest request,
         Guid callerUserId,
         bool callerCanEnterForOthers,
+        bool canOverrideSignedOff = false,
         CancellationToken cancellationToken = default
     )
     {
@@ -215,9 +216,10 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
 
         var incomingIds = request.Records.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).ToHashSet();
 
-        // Delete records no longer present in the incoming set; signed-off records are immutable.
+        // Delete records no longer present in the incoming set; signed-off records are immutable
+        // unless the caller has the override permission.
         var toDelete = existingRecords
-            .Where(r => !incomingIds.Contains(r.Id) && r.Status != StatRecordStatus.SignedOff)
+            .Where(r => !incomingIds.Contains(r.Id) && (canOverrideSignedOff || r.Status != StatRecordStatus.SignedOff))
             .ToList();
         db.StatRecords.RemoveRange(toDelete);
         logger.LogDebug("Deleting {RecordCount} stale stat records while saving day", toDelete.Count);
@@ -230,7 +232,7 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
             {
                 // Update existing record
                 var entity = existingRecords.FirstOrDefault(r => r.Id == item.Id.Value);
-                if (entity is null || entity.Status == StatRecordStatus.SignedOff)
+                if (entity is null || (!canOverrideSignedOff && entity.Status == StatRecordStatus.SignedOff))
                 {
                     continue; // stale ID or signed-off — skip
                     logger.LogDebug("Skipping stale stat record id {StatRecordId} while saving day", item.Id.Value);

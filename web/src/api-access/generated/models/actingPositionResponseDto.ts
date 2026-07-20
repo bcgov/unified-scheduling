@@ -12,8 +12,6 @@ export interface ActingPositionResponseDto {
   positionTypeDescription?: string;
   startAtUtc?: string;
   /** @nullable */
-  endAtUtc?: string | null;
-  /** @nullable */
   expiryAtUtc?: string | null;
   /** @nullable */
   expiryReason?: string | null;
@@ -21,4 +19,5 @@ export interface ActingPositionResponseDto {
   comment?: string | null;
   /** @nullable */
   timezone?: string | null;
+  endAtUtc?: string;
 }

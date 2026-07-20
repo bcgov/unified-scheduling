@@ -4,9 +4,9 @@ using Unified.Training.Models;
 
 namespace Unified.Training.Validators;
 
-public sealed class TrainingRequestValidator : AbstractValidator<TrainingRequest>
+public sealed class TrainingLookupRequestValidator : AbstractValidator<TrainingLookupRequest>
 {
-    public TrainingRequestValidator()
+    public TrainingLookupRequestValidator()
     {
         RuleFor(x => x.Code)
             .NotEmpty()
@@ -17,9 +17,6 @@ public sealed class TrainingRequestValidator : AbstractValidator<TrainingRequest
             .WithMessage(ApiValidationErrorCodes.TooLong);
 
         RuleFor(x => x.Description)
-            .NotEmpty()
-            .WithErrorCode(ApiValidationErrorCodes.Required)
-            .WithMessage(ApiValidationErrorCodes.Required)
             .MaximumLength(200)
             .WithErrorCode(ApiValidationErrorCodes.TooLong)
             .WithMessage(ApiValidationErrorCodes.TooLong);
@@ -47,10 +44,5 @@ public sealed class TrainingRequestValidator : AbstractValidator<TrainingRequest
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage(ApiValidationErrorCodes.Invalid)
             .When(x => x.AdvanceNoticeDays.HasValue && x.ValidityDays.HasValue);
-
-        RuleFor(x => x.Order)
-            .GreaterThanOrEqualTo(0)
-            .WithErrorCode(ApiValidationErrorCodes.Invalid)
-            .WithMessage(ApiValidationErrorCodes.Invalid);
     }
 }

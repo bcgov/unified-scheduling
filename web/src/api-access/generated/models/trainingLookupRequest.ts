@@ -5,9 +5,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface TrainingRequest {
-  code: string;
-  description: string;
+export interface TrainingLookupRequest {
+  /** @nullable */
+  description?: string | null;
   mandatory?: boolean;
   /** @nullable */
   validityDays?: number | null;
@@ -17,4 +17,5 @@ export interface TrainingRequest {
   /** @nullable */
   trainingCategoryId?: number | null;
   order?: number;
+  code: string;
 }

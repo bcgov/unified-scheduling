@@ -34,7 +34,9 @@ const props = defineProps<{
   errors: Record<string, string>;
   apiError: string;
   headerColor?: string;
+  warnings?: string[];
   dayStatus?: EntryStatus;
+  canOverrideSignedOff?: boolean;
   copyFromOptions?: { date: string; label: string }[];
 }>();
 
@@ -66,7 +68,7 @@ const dailyRegularTotal = computed(() => {
   return total;
 });
 
-const isSignedOff = computed(() => props.dayStatus === EntryStatusValues.SignedOff);
+const isSignedOff = computed(() => props.dayStatus === EntryStatusValues.SignedOff && !props.canOverrideSignedOff);
 
 const overtimeLockReason = computed(() => {
   if (props.overtimeEnabled) return '';
@@ -109,6 +111,7 @@ const overtimeLockReason = computed(() => {
       {{ apiError }}
     </UaAlert>
     <UaAlert v-if="errors['day']" type="error">{{ errors['day'] }}</UaAlert>
+    <UaAlert v-for="(warning, idx) in warnings" :key="idx" type="warning" :closable="false">{{ warning }}</UaAlert>
 
     <!-- Assignment rows -->
     <div class="day-detail-panel__assignments">

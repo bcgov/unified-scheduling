@@ -980,6 +980,12 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<DateTimeOffset>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("Mandatory")
                         .HasColumnType("boolean");
 
@@ -1339,6 +1345,12 @@ namespace Unified.Db.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("LastPhotoUpdate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("Photo")
+                        .HasColumnType("bytea");
+
                     b.Property<string>("Rank")
                         .HasColumnType("text");
 
@@ -1386,7 +1398,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<DateTimeOffset?>("EndAtUtc")
+                    b.Property<DateTimeOffset>("EndAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("ExpiryAtUtc")

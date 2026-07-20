@@ -17,44 +17,95 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
     })),
   ]);
 
@@ -65,46 +116,97 @@ export const getPostApiUsersResponseMock = (
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);
@@ -116,46 +218,97 @@ export const getGetApiUsersIdResponseMock = (
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);
@@ -167,46 +320,97 @@ export const getPutApiUsersIdResponseMock = (
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
       id: faker.string.uuid(),
       idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      idirId: faker.helpers.arrayElement([faker.string.uuid(), null]),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       isEnabled: faker.datatype.boolean(),
       firstName: (() => faker.person.firstName())(),
       lastName: (() => faker.person.lastName())(),
       email: (() => faker.internet.email())(),
       gender: faker.helpers.arrayElement(Object.values(Gender)),
-      rank: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      badgeNumber: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      homeLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
-      lastLogin: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);
@@ -353,6 +557,114 @@ export const getPostApiUsersIdRolesExpireResponseMock = (
       ]),
       expiryReason: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+  ]);
+
+export const getGetApiUsersIdPhotoResponseMock = (): ArrayBuffer =>
+  faker.helpers.arrayElement([
+    new ArrayBuffer(faker.number.int({ min: 1, max: 64 })),
+    new ArrayBuffer(faker.number.int({ min: 1, max: 64 })),
+  ]);
+
+export const getPostApiUsersIdUploadPhotoResponseMock = (
+  overrideResponse: Partial<Extract<UserResponse, object>> = {},
+): UserResponse =>
+  faker.helpers.arrayElement([
+    {
+      id: faker.string.uuid(),
+      idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
+      isEnabled: faker.datatype.boolean(),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.string.uuid(),
+      idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
+      isEnabled: faker.datatype.boolean(),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.string.uuid(),
+      idirName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      idirId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
+      isEnabled: faker.datatype.boolean(),
+      firstName: (() => faker.person.firstName())(),
+      lastName: (() => faker.person.lastName())(),
+      email: (() => faker.internet.email())(),
+      gender: faker.helpers.arrayElement(Object.values(Gender)),
+      rank: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      badgeNumber: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      lastLogin: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      photoUrl: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      lastPhotoUpdate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
       ...overrideResponse,
@@ -512,6 +824,52 @@ export const getPostApiUsersIdRolesExpireMockHandler = (
     options,
   );
 };
+
+export const getGetApiUsersIdPhotoMockHandler = (
+  overrideResponse?:
+    | ArrayBuffer
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ArrayBuffer> | ArrayBuffer),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/users/:id/photo',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      const binaryBody =
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiUsersIdPhotoResponseMock();
+      return HttpResponse.arrayBuffer(binaryBody instanceof ArrayBuffer ? binaryBody : new ArrayBuffer(0), {
+        status: 200,
+        headers: { 'Content-Type': 'image/jpeg' },
+      });
+    },
+    options,
+  );
+};
+
+export const getPostApiUsersIdUploadPhotoMockHandler = (
+  overrideResponse?:
+    | UserResponse
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserResponse> | UserResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    '*/api/users/:id/upload-photo',
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPostApiUsersIdUploadPhotoResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 export const getUsersMock = () => [
   getGetApiUsersMockHandler(),
   getPostApiUsersMockHandler(),
@@ -520,4 +878,6 @@ export const getUsersMock = () => [
   getGetApiUsersIdRolesMockHandler(),
   getPostApiUsersIdRolesMockHandler(),
   getPostApiUsersIdRolesExpireMockHandler(),
+  getGetApiUsersIdPhotoMockHandler(),
+  getPostApiUsersIdUploadPhotoMockHandler(),
 ];

@@ -10,3 +10,127 @@ import * as zod from 'zod';
  * Checks the health of the Training module.
  */
 export const GetTrainingHealthResponse = zod.string();
+
+export const GetApiLookupTrainingsResponseItem = zod.object({
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.number().nullish(),
+  advanceNoticeDays: zod.number().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.number().nullish(),
+  trainingCategoryName: zod.string().nullish(),
+  order: zod.number().optional(),
+  id: zod.number(),
+  createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  code: zod.string().optional(),
+  description: zod.string().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});
+export const GetApiLookupTrainingsResponse = zod.array(GetApiLookupTrainingsResponseItem);
+
+export const PostApiLookupTrainingsBody = zod.strictObject({
+  description: zod.string().nullish(),
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.number().nullish(),
+  advanceNoticeDays: zod.number().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.number().nullish(),
+  order: zod.number().optional(),
+  code: zod.string(),
+});
+
+export const PostApiLookupTrainingsResponse = zod.object({
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.number().nullish(),
+  advanceNoticeDays: zod.number().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.number().nullish(),
+  trainingCategoryName: zod.string().nullish(),
+  order: zod.number().optional(),
+  id: zod.number(),
+  createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  code: zod.string().optional(),
+  description: zod.string().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});
+
+export const GetApiLookupTrainingsIdParams = zod.strictObject({
+  id: zod.number(),
+});
+
+export const GetApiLookupTrainingsIdResponse = zod.object({
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.number().nullish(),
+  advanceNoticeDays: zod.number().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.number().nullish(),
+  trainingCategoryName: zod.string().nullish(),
+  order: zod.number().optional(),
+  id: zod.number(),
+  createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  code: zod.string().optional(),
+  description: zod.string().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});
+
+export const PutApiLookupTrainingsIdParams = zod.strictObject({
+  id: zod.number(),
+});
+
+export const PutApiLookupTrainingsIdBody = zod.strictObject({
+  description: zod.string().nullish(),
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.number().nullish(),
+  advanceNoticeDays: zod.number().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.number().nullish(),
+  order: zod.number().optional(),
+  code: zod.string(),
+});
+
+export const PutApiLookupTrainingsIdResponse = zod.object({
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.number().nullish(),
+  advanceNoticeDays: zod.number().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.number().nullish(),
+  trainingCategoryName: zod.string().nullish(),
+  order: zod.number().optional(),
+  id: zod.number(),
+  createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  code: zod.string().optional(),
+  description: zod.string().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});
+
+export const PatchApiLookupTrainingsIdOrderParams = zod.strictObject({
+  id: zod.number(),
+});
+
+export const PatchApiLookupTrainingsIdOrderBody = zod.strictObject({
+  newOrder: zod.number(),
+});
+
+export const PatchApiLookupTrainingsIdOrderResponse = zod.object({
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.number().nullish(),
+  advanceNoticeDays: zod.number().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.number().nullish(),
+  trainingCategoryName: zod.string().nullish(),
+  order: zod.number().optional(),
+  id: zod.number(),
+  createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  code: zod.string().optional(),
+  description: zod.string().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});

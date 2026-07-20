@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -36,6 +37,31 @@ public static class InfrastructureModule
         services.AddProblemDetails();
 
         services.AddExceptionHandler<GlobalExceptionHandler>();
+
+        // Form-reading failures (e.g. multipart body length limit exceeded from
+        // RequestFormLimitsFromOptionsAttribute) are captured by MVC as a generic ModelState
+        // error message (no Exception instance is attached). Detect that specific message and
+        // rethrow as an InvalidDataException so it flows through the standard exception-handling
+        // pipeline and is handled by GlobalExceptionHandler.
+        services.Configure<ApiBehaviorOptions>(options =>
+        {
+            var defaultFactory = options.InvalidModelStateResponseFactory;
+
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var formReadError = context
+                    .ModelState.Values.SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .FirstOrDefault(m => m.StartsWith("Failed to read the request form.", StringComparison.Ordinal));
+
+                if (formReadError is not null)
+                {
+                    throw new InvalidDataException(formReadError);
+                }
+
+                return defaultFactory(context);
+            };
+        });
 
         services.AddSingleton<
             IValidateOptions<FeatureFlags.FeatureFlags>,

@@ -35,6 +35,12 @@ export function useStatSearch() {
   const canViewDashboard = computed(() => hasPermission(Permissions.DashboardView));
   const canEditEntries = computed(() => hasPermission(Permissions.StatsRecordsEnterForOthers));
   const canSignOff = computed(() => hasPermission(Permissions.DashboardSignOff));
+  const canOverrideSignedOff = computed(() => hasPermission(Permissions.StatsOverrideSignedOff));
+
+  // ── Page title ─────────────────────────────────────────────────────────
+  const pageTitle = computed(() =>
+    route.query.source === 'signoffs' ? 'Monthly End Sign Offs' : 'Search / View / Edit Data',
+  );
 
   // ── Reference data ──────────────────────────────────────────────────────
   const locationUsers = ref<{ id: string; name: string }[]>([]);
@@ -278,6 +284,8 @@ export function useStatSearch() {
     canViewDashboard,
     canEditEntries,
     canSignOff,
+    canOverrideSignedOff,
+    pageTitle,
     // Reference data
     groups,
     employees,
