@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Authorization.Claims;
 using Unified.Common.Helpers.Extensions;
-using Unified.Db.Extensions;
 using Unified.Db;
+using Unified.Db.Extensions;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Validators;
@@ -67,12 +67,7 @@ public sealed class RoleService(
     {
         logger.LogInformation("Creating role with {PermissionCount} permissions", request.PermissionIds.Count);
 
-        if (
-            await DB.Roles.WhereActive().AnyAsync(
-                r => r.Name.ToLower() == request.Name.ToLower(),
-                cancellationToken
-            )
-        )
+        if (await DB.Roles.WhereActive().AnyAsync(r => r.Name.ToLower() == request.Name.ToLower(), cancellationToken))
             throw new InvalidOperationException($"A role with name '{request.Name}' already exists.");
 
         var role = new Role { Name = request.Name, Description = request.Description };
@@ -113,10 +108,9 @@ public sealed class RoleService(
 
         if (
             !string.Equals(role.Name, request.Name, StringComparison.OrdinalIgnoreCase)
-            && await DB.Roles.WhereActive().AnyAsync(
-                r => r.Id != request.Id && r.Name.ToLower() == request.Name.ToLower(),
-                cancellationToken
-            )
+            && await DB
+                .Roles.WhereActive()
+                .AnyAsync(r => r.Id != request.Id && r.Name.ToLower() == request.Name.ToLower(), cancellationToken)
         )
             throw new InvalidOperationException($"A role with name '{request.Name}' already exists.");
 
@@ -194,10 +188,9 @@ public sealed class RoleService(
             if (request.NewRoleId == roleIdToDelete)
                 throw new InvalidOperationException("The new role cannot be the same as the role being deleted.");
 
-            var newRoleExists = await DB.Roles.WhereActive().AnyAsync(
-                r => r.Id == request.NewRoleId,
-                cancellationToken
-            );
+            var newRoleExists = await DB
+                .Roles.WhereActive()
+                .AnyAsync(r => r.Id == request.NewRoleId, cancellationToken);
             if (!newRoleExists)
                 throw new KeyNotFoundException($"New role {request.NewRoleId} not found.");
 
