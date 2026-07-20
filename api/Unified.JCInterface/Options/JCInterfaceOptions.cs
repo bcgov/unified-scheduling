@@ -87,7 +87,7 @@ public class JCInterfaceOptions
     /// Name of the location assigned to users with no HomeLocationId when
     /// <see cref="AssociateUsersWithNoLocationToVictoria"/> is enabled.
     /// </summary>
-    public const string DefaultUserLocationName = "Victoria Law Courts";
+    public string DefaultUserLocationName = "Victoria Law Courts";
 
     // ------------------------------------------------------------------
     // Lookup dictionaries
