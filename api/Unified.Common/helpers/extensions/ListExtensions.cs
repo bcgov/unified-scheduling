@@ -20,6 +20,4 @@ public static class ListExtensions
     {
         return target.Where(lambda).ToList();
     }
-
-    public static string ToStringWithPipes(this IEnumerable<string> contents) => string.Join("||", contents);
 }

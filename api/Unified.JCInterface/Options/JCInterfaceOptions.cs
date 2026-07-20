@@ -16,15 +16,18 @@ public class JCInterfaceOptions
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// Base URL of the JC Interface Location Services API.
-    /// Must end with a trailing slash (e.g. "https://jc-interface.example.com/api/v1/").
+    /// Base URL of the JC Interface Location Services API. Must be an absolute HTTPS
+    /// URL — Basic Auth credentials are sent on every request, so plain HTTP would
+    /// expose them in transit.
+    /// Only required when <see cref="SkipSync"/> is false.
     /// </summary>
     [Required(ErrorMessage = "JCInterface Url is required")]
-    [Url(ErrorMessage = "JCInterface Url must be a valid URL")]
+    [HttpsUrl(ErrorMessage = "JCInterface Url must be a valid HTTPS URL")]
     public string Url { get; set; } = string.Empty;
 
     /// <summary>
     /// Basic Auth username for the JC Interface API.
+    /// Only required when <see cref="SkipSync"/> is false.
     /// </summary>
     [Required(ErrorMessage = "JCInterface Username is required")]
     public string Username { get; set; } = string.Empty;
@@ -32,6 +35,7 @@ public class JCInterfaceOptions
     /// <summary>
     /// Basic Auth password for the JC Interface API.
     /// Store in a secret — never commit to source control.
+    /// Only required when <see cref="SkipSync"/> is false.
     /// </summary>
     [Required(ErrorMessage = "JCInterface Password is required")]
     public string Password { get; set; } = string.Empty;
@@ -47,9 +51,10 @@ public class JCInterfaceOptions
 
     /// <summary>
     /// When true the entire sync pipeline is skipped. Useful in environments
-    /// without VPN access to the JC Interface (e.g. local dev).
+    /// without VPN access to the JC Interface (e.g. local dev). When true,
+    /// Url/Username/Password are not required and are not validated at startup.
     /// </summary>
-    public bool SkipLocationUpdates { get; set; } = false;
+    public bool SkipSync { get; set; } = false;
 
     /// <summary>
     /// When true, regions absent from the JC Interface response have their
@@ -72,9 +77,17 @@ public class JCInterfaceOptions
 
     /// <summary>
     /// When true, users with no HomeLocationId are automatically assigned to
-    /// Victoria Law Courts after the location sync completes.
+    /// <see cref="DefaultUserLocationName"/> after the location sync completes.
+    /// Defaults to false since this behaviour isn't part of the JC-Interface sync
+    /// itself and should be opted into explicitly.
     /// </summary>
-    public bool AssociateUsersWithNoLocationToVictoria { get; set; } = true;
+    public bool AssociateUsersWithNoLocationToVictoria { get; set; } = false;
+
+    /// <summary>
+    /// Name of the location assigned to users with no HomeLocationId when
+    /// <see cref="AssociateUsersWithNoLocationToVictoria"/> is enabled.
+    /// </summary>
+    public const string DefaultUserLocationName = "Victoria Law Courts";
 
     // ------------------------------------------------------------------
     // Lookup dictionaries
