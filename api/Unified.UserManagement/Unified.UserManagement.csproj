@@ -14,10 +14,11 @@
     />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.11" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.16.11" />
     <ProjectReference Include="..\..\db\db.csproj" />
     <ProjectReference Include="..\Unified.Authorization\Unified.Authorization.csproj" />
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
