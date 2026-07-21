@@ -24,6 +24,14 @@ export const getGetApiConfigResponseMock = (
         myTeamsModule: faker.datatype.boolean(),
         userBadgeNumber: faker.datatype.boolean(),
       },
+      supportEmail: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      applicationName: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -35,6 +43,14 @@ export const getGetApiConfigResponseMock = (
         myTeamsModule: faker.datatype.boolean(),
         userBadgeNumber: faker.datatype.boolean(),
       },
+      supportEmail: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      applicationName: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -46,6 +62,14 @@ export const getGetApiConfigResponseMock = (
         myTeamsModule: faker.datatype.boolean(),
         userBadgeNumber: faker.datatype.boolean(),
       },
+      supportEmail: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      applicationName: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);

@@ -36,6 +36,7 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -67,6 +68,7 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -98,6 +100,7 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -135,6 +138,7 @@ export const getPostApiUsersResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -167,6 +171,7 @@ export const getPostApiUsersResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -199,6 +204,7 @@ export const getPostApiUsersResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -237,6 +243,7 @@ export const getGetApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -269,6 +276,7 @@ export const getGetApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -301,6 +309,7 @@ export const getGetApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -339,6 +348,7 @@ export const getPutApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -371,6 +381,7 @@ export const getPutApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -403,6 +414,7 @@ export const getPutApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -595,6 +607,7 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -627,6 +640,7 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -659,6 +673,7 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      pendingRegistration: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       photoUrl: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,

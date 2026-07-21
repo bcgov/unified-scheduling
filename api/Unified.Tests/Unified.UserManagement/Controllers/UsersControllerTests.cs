@@ -322,6 +322,7 @@ public class UsersControllerTests
             BadgeNumber = "BADGE-TEST",
             HomeLocationId = 1,
             LastLogin = DateTimeOffset.UtcNow,
+            PendingRegistration = false,
         };
     }
 

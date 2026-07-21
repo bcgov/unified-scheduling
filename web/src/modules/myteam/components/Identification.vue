@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
+import { mdiTimerSand } from '@mdi/js';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
 import { computed, onMounted } from 'vue';
 
 const { user } = defineProps<{
-  user: UserResponse;
+  user: UserResponse & { pendingRegistration?: boolean };
 }>();
 
 const accessControl = useAccessControl();
@@ -35,7 +36,16 @@ onMounted(async () => {
 });
 </script>
 <template>
-  <h3>Identification</h3>
+  <div class="identification-header">
+    <h3>Identification</h3>
+    <v-icon
+      v-if="user.pendingRegistration"
+      :icon="mdiTimerSand"
+      color="warning"
+      size="20"
+      title="Pending registration"
+    />
+  </div>
   <div class="identification-grid">
     <label class="identification-label">First Name</label>
     <div>{{ user?.firstName }}</div>
@@ -69,6 +79,12 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.identification-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ua-spacing-sm);
+}
+
 .identification-grid {
   display: grid;
   grid-template-columns: max-content 1fr;

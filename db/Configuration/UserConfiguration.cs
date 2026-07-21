@@ -9,6 +9,10 @@ public class UserConfiguration : BaseEntityConfiguration<User>
     public override void Configure(EntityTypeBuilder<User> builder)
     {
         builder.Property(b => b.Id).HasIdentityOptions(startValue: 200);
+        builder.Property(b => b.PendingRegistration).HasDefaultValue(false);
+        builder.HasIndex(b => b.IdirName).IsUnique();
+        builder.HasIndex(b => b.IdirId).IsUnique();
+        builder.HasIndex(b => b.KeyCloakId).IsUnique();
 
         // @TODO: Enable after adding User Roles
         // builder

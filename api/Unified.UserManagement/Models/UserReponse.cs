@@ -16,6 +16,7 @@ public sealed record UserResponse
     public string? BadgeNumber { get; init; }
     public int? HomeLocationId { get; init; }
     public DateTimeOffset? LastLogin { get; init; }
+    public bool PendingRegistration { get; init; }
     public string? PhotoUrl { get; init; }
     public DateTimeOffset? LastPhotoUpdate { get; init; }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
@@ -21,6 +22,8 @@ namespace Unified.Infrastructure;
 
 public static class AuthenticationServiceCollectionExtension
 {
+    private const string IdirIdClaimType = "keycloak/idir_user_guid";
+
     private record TokenResponse(
         [property: JsonPropertyName("access_token")] string AccessToken,
         [property: JsonPropertyName("refresh_token")] string RefreshToken,
@@ -67,6 +70,22 @@ public static class AuthenticationServiceCollectionExtension
                     },
                     OnValidatePrincipal = async cookieCtx =>
                     {
+                        if (cookieCtx.Principal is null)
+                        {
+                            cookieCtx.RejectPrincipal();
+                            return;
+                        }
+
+                        var externalSubject =
+                            cookieCtx.Principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                            ?? cookieCtx.Principal.FindFirstValue("sub");
+                        if (string.IsNullOrWhiteSpace(externalSubject))
+                        {
+                            cookieCtx.RejectPrincipal();
+                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                            return;
+                        }
+
                         var expiresAt = cookieCtx.Properties.GetTokenValue("expires_at");
                         if (
                             string.IsNullOrWhiteSpace(expiresAt)
@@ -146,6 +165,8 @@ public static class AuthenticationServiceCollectionExtension
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("email");
+                options.ClaimActions.MapJsonKey(IdirIdClaimType, "idir_user_guid");
+                options.ClaimActions.MapJsonKey("idir_username", "idir_username");
 
                 options.Events = new OpenIdConnectEvents
                 {

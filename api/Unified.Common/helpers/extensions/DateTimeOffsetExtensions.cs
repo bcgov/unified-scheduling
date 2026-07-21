@@ -1,4 +1,4 @@
-﻿namespace Unified.Common.Helpers.Extensions;
+namespace Unified.Common.Helpers.Extensions;
 
 public static class DateTimeOffsetExtensions
 {

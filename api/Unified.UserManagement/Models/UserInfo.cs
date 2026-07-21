@@ -4,6 +4,7 @@ namespace Unified.UserManagement.Models;
 
 public sealed record UserInfo(
     bool IsAuthenticated,
+    bool IsRegistered,
     string? Name,
     string? AuthenticationType,
     IReadOnlyList<UserClaim> Claims,

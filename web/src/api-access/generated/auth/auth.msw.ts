@@ -16,6 +16,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
   faker.helpers.arrayElement([
     {
       isAuthenticated: faker.datatype.boolean(),
+      isRegistered: faker.datatype.boolean(),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       authenticationType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       claims: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -29,6 +30,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
     },
     {
       isAuthenticated: faker.datatype.boolean(),
+      isRegistered: faker.datatype.boolean(),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       authenticationType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       claims: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -42,6 +44,7 @@ export const getGetApiAuthUserResponseMock = (overrideResponse: Partial<Extract<
     },
     {
       isAuthenticated: faker.datatype.boolean(),
+      isRegistered: faker.datatype.boolean(),
       name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       authenticationType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       claims: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({

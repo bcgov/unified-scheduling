@@ -7,7 +7,7 @@ const route = useRoute();
 
 <template>
   <v-app>
-    <Appbar />
+    <Appbar v-if="!route.meta.fullScreen" />
     <!-- Main Content -->
     <main class="main-content" :class="{ 'main-content--full-screen': route.meta.fullScreen }">
       <RouterView />
@@ -26,6 +26,9 @@ const route = useRoute();
 }
 
 .main-content--full-screen {
+  height: 100vh;
+  margin-top: 0;
   padding-inline: 0;
+  padding-top: 0;
 }
 </style>

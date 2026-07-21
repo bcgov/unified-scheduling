@@ -4,21 +4,22 @@ This file guides AI agents extending or working with the authorization system.
 
 ## Project purpose
 
-`Unified.Authorization` provides permission-based access control using ASP.NET Core Authorization Policies. The role-to-permission mapping is sourced from the application database via `PermissionClaimsTransformer` (DB-backed lookup is the pending integration point).
+`Unified.Authorization` provides permission-based access control using ASP.NET Core Authorization Policies. The role-to-permission mapping is sourced from the application database after `UnifiedClaimsTransformer` asks `IUserAccountResolutionService` to resolve the current local user.
 
 See [README.md § Improvements over sheriff-scheduling](README.md#improvements-over-sheriff-scheduling) for a comparison with the legacy approach.
 
 ## File map
 
-| File | Responsibility |
-|---|---|
-| `Permissions.cs` | All permission name constants (`EntityNameAction` PascalCase) |
-| `Roles.cs` | Role name constants (kept in sync with role records loaded from the application DB) |
-| `Claims/UnifiedClaimTypes.cs` | Custom claim type strings used for permission, user identity, and profile claims |
-| `Claims/UnifiedClaimsTransformer.cs` | Loads the authenticated user from the DB, expands their active roles into permission claims, and adds identity claims (`UserId`, `FirstName`, `LastName`, `HomeLocationId`) |
-| `Requirements/PermissionRequirement.cs` | `IAuthorizationRequirement` holding a single permission |
-| `Requirements/PermissionAuthorizationHandler.cs` | Evaluates the requirement; throws `ForbiddenException` on failure |
-| `AuthorizationModule.cs` | DI registration: transformer, handler, and `AddPermissionPolicy` builder extension |
+| File                                             | Responsibility                                                                                                                                                              |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Permissions.cs`                                 | All permission name constants (`EntityNameAction` PascalCase)                                                                                                               |
+| `Roles.cs`                                       | Role name constants (kept in sync with role records loaded from the application DB)                                                                                         |
+| `Claims/UnifiedClaimTypes.cs`                    | Custom claim type strings used for permission, user identity, and profile claims                                                                                            |
+| `IUserAccountResolutionService.cs`               | Contract used by the transformer to resolve or link the authenticated local user                                                                                            |
+| `Claims/UnifiedClaimsTransformer.cs`             | Calls the account-resolution service, expands active roles into permission claims, and adds identity claims (`UserId`, `IdirId`, `FirstName`, `LastName`, `HomeLocationId`) |
+| `Requirements/PermissionRequirement.cs`          | `IAuthorizationRequirement` holding a single permission                                                                                                                     |
+| `Requirements/PermissionAuthorizationHandler.cs` | Evaluates the requirement; throws `ForbiddenException` on failure                                                                                                           |
+| `AuthorizationModule.cs`                         | DI registration: transformer, handler, and `AddPermissionPolicy` builder extension                                                                                          |
 
 ## Common tasks
 
@@ -71,7 +72,7 @@ if (!result.Succeeded) return Forbid();
 
 ### Replace static data with database
 
-See `README.md` → "DB-backed permission claims" for how the transformer works. The transformer (`UnifiedClaimsTransformer`) queries `UnifiedDbContext` directly — no separate service is needed for the auth path.
+See `README.md` → "DB-backed permission claims" for how the transformer works. The transformer stays responsible for claims enrichment; `UserManagement` owns account resolution and first-login linking via `IUserAccountResolutionService`.
 
 ## Design rules
 
@@ -80,8 +81,8 @@ See `README.md` → "DB-backed permission claims" for how the transformer works.
   - Makes authorization failures in logs immediately recognisable as permission checks rather than role or feature-flag policies.
   - Allows other policy families (`"FeatureFlag:"`) to coexist without name collisions.
   - The prefix is hidden from callers via `PolicyPrefix` constant and `BuildPolicyName()` helper — no maintenance burden.
-  > **Keep the prefix. Do not remove it.**
+    > **Keep the prefix. Do not remove it.**
 - **One requirement type** (`PermissionRequirement`) covers all cases. Do not create separate requirement classes per feature.
 - **No logic in `Permissions.cs` or `Roles.cs`** — they are pure constant containers.
 - **`PermissionClaimsTransformer` must stay idempotent** — it checks for existing permission claims before adding to prevent double-application.
-- **Keep this project free of EF/DB dependencies** — data sourcing belongs in a service injected via interface (future state).
+- **Keep account-linking and persistence out of `UnifiedClaimsTransformer`** — the transformer should enrich claims only after the resolver returns a user.

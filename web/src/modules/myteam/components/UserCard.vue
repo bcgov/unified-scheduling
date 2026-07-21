@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import UaCard from '@/shared/components/UaCard.vue';
+import { mdiTimerSand } from '@mdi/js';
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
@@ -7,7 +8,7 @@ import { useAccessControl } from '@/composables/useAccessControl';
 import { useLookupStore } from '@/stores/LookupStore';
 
 const { user } = defineProps<{
-  user: Partial<UserResponse>;
+  user: Partial<UserResponse> & { pendingRegistration?: boolean };
 }>();
 
 const router = useRouter();
@@ -34,6 +35,9 @@ onMounted(async () => {
 
 <template>
   <UaCard class="user-card" @click="gotoProfile">
+    <div v-if="user.pendingRegistration" class="user-card-pending-icon" title="Pending registration">
+      <v-icon :icon="mdiTimerSand" color="warning" size="20" />
+    </div>
     <v-avatar color="grey" size="80">
       <v-img
         v-if="user.photoUrl"
@@ -60,9 +64,20 @@ onMounted(async () => {
 
 <style scoped>
 .user-card {
+  position: relative;
   width: 180px;
   height: 180px;
   cursor: pointer;
+}
+
+.user-card-pending-icon {
+  position: absolute;
+  top: var(--ua-spacing-sm);
+  right: var(--ua-spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
 }
 
 :deep(.ua-card__body) {

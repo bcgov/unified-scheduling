@@ -18,6 +18,7 @@ export const GetApiAuthLogoutResponse = zod.unknown();
 
 export const GetApiAuthUserResponse = zod.object({
   isAuthenticated: zod.boolean(),
+  isRegistered: zod.boolean(),
   name: zod.string().nullable(),
   authenticationType: zod.string().nullable(),
   claims: zod.array(

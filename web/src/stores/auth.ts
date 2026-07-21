@@ -7,6 +7,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => userInfo.value?.isAuthenticated ?? false);
 
+  const isRegistered = computed(() => userInfo.value?.isRegistered ?? false);
+
   const userName = computed(() => userInfo.value?.name ?? null);
 
   const initials = computed(() => {
@@ -31,6 +33,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     userInfo,
     isAuthenticated,
+    isRegistered,
     userName,
     initials,
     currentUserId,

@@ -10,9 +10,15 @@ public class User : BaseEntity
 {
     public static readonly Guid SystemUser = new("00000000-0000-0000-0000-000000000001");
 
+    private string _idirName = string.Empty;
+
     [Key]
     public Guid Id { get; set; }
-    public string IdirName { get; set; } = string.Empty;
+    public string IdirName
+    {
+        get => _idirName;
+        set => _idirName = NormalizeIdirName(value) ?? string.Empty;
+    }
     public Guid? IdirId { get; set; }
     public Guid? KeyCloakId { get; set; }
     public bool IsEnabled { get; set; }
@@ -26,6 +32,7 @@ public class User : BaseEntity
     public string? Rank { get; set; }
     public DateTimeOffset? LastLogin { get; set; }
     public byte[]? Photo { get; set; }
+    public bool PendingRegistration { get; set; }
     public DateTimeOffset? LastPhotoUpdate { get; set; }
 
     public virtual ICollection<UserRole> UserRoles { get; set; } = [];
@@ -47,4 +54,9 @@ public class User : BaseEntity
             .Select(rp => rp.Permission)
             .DistinctBy(p => p.Id)
             .ToList();
+
+    public static string? NormalizeIdirName(string? idirName)
+    {
+        return string.IsNullOrWhiteSpace(idirName) ? null : idirName.Trim().ToLowerInvariant();
+    }
 }

@@ -10,6 +10,9 @@ import * as trainingModule from '@/modules/training/TrainingModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
 
+const AUTH_LOGIN_PATH = '/api/auth/login';
+const UNREGISTERED_ROUTE_PATH = '/unregistered';
+
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string;
@@ -28,9 +31,12 @@ declare module 'vue-router' {
 async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormalizedLoaded) {
   const authStore = useAuthStore();
 
-  // If we already have user info, allow navigation
   if (authStore.isAuthenticated) {
-    return true;
+    if (authStore.isRegistered || to.path === UNREGISTERED_ROUTE_PATH) {
+      return true;
+    }
+
+    return { path: UNREGISTERED_ROUTE_PATH };
   }
 
   try {
@@ -39,14 +45,16 @@ async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormal
     authStore.setUserInfo(userInfo.value);
 
     if (userInfo.value?.isAuthenticated) {
-      return true;
-    } else {
-      // Not authenticated — redirect to backend login endpoint.
-      // Use the intended destination as returnUrl so the user lands
-      // on the correct page after Keycloak SSO completes.
-      redirectToLogin(to.fullPath);
-      return false;
+      const isRegistered = userInfo.value.isRegistered;
+      if (isRegistered || to.path === UNREGISTERED_ROUTE_PATH) {
+        return true;
+      }
+
+      return { path: UNREGISTERED_ROUTE_PATH };
     }
+
+    redirectToLogin(to.fullPath);
+    return false;
   } catch {
     // getUserInfo returned 401 — redirect to backend login.
     // Pass the intended destination so the user returns here after SSO.
@@ -55,14 +63,21 @@ async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormal
   }
 }
 
-const AUTH_LOGIN_PATH = '/api/auth/login';
-
 const redirectToLogin = (returnUrl: string) => {
   const redirectUri = encodeURIComponent(returnUrl);
   window.location.href = `${AUTH_LOGIN_PATH}?redirectUri=${redirectUri}`;
 };
 
 const baseRoutes: RouteRecordRaw[] = [
+  {
+    path: UNREGISTERED_ROUTE_PATH,
+    name: 'UnregisteredUser',
+    component: () => import('@/views/UnregisteredUser.vue'),
+    meta: {
+      title: 'Registration required',
+      requiresAuth: true,
+    },
+  },
   {
     path: '/',
     redirect: '/dashboard',
@@ -101,9 +116,14 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   router.beforeEach(async (to, from) => {
     if (to.meta.requiresAuth) {
       const authResult = await authGuard(to, from);
-      if (!authResult) {
-        return false;
+      if (authResult !== true) {
+        return authResult;
       }
+    }
+
+    const authStore = useAuthStore();
+    if (to.path === UNREGISTERED_ROUTE_PATH && authStore.isAuthenticated && authStore.isRegistered) {
+      return { path: '/dashboard' };
     }
 
     const moduleKey = to.meta?.module;
