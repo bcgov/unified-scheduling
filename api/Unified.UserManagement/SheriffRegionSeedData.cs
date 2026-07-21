@@ -14,14 +14,12 @@ public sealed class SheriffRegionSeedData : ISeedData<RegionSeedDefinition>
         new()
         {
             Id = 100,
-            Name = "Central Programs",
-            Code = "CP",
+            Name = "Central Programs"
         },
         new()
         {
             Id = 101,
-            Name = "Office of the Chief Sheriff",
-            Code = "OCS",
+            Name = "Office of the Chief Sheriff"
         },
     ];
 }

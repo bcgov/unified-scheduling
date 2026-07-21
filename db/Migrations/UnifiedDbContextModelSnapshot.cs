@@ -564,9 +564,6 @@ namespace Unified.Db.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Code")
-                        .HasColumnType("text");
-
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
