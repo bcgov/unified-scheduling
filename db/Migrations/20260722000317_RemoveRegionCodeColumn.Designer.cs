@@ -12,8 +12,8 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20260716160117_UpdateRegionTableCodeColumnNullable")]
-    partial class UpdateRegionTableCodeColumnNullable
+    [Migration("20260722000317_RemoveRegionCodeColumn")]
+    partial class RemoveRegionCodeColumn
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -265,6 +265,62 @@ namespace Unified.Db.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.CourtRoom", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTimeOffset?>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("LocationId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Room")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("Room", "LocationId")
+                        .IsUnique();
+
+                    b.ToTable("CourtRooms");
+                });
+
             modelBuilder.Entity("Unified.Db.Models.Location", b =>
                 {
                     b.Property<int>("Id")
@@ -510,9 +566,6 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text");
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -1595,6 +1648,29 @@ namespace Unified.Db.Migrations
                     b.Navigation("Location");
 
                     b.Navigation("StatusType");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.CourtRoom", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId");
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Location");
 
                     b.Navigation("UpdatedBy");
                 });
