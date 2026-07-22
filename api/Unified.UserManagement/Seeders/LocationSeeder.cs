@@ -72,15 +72,26 @@ public sealed class LocationSeeder(
     private static void ValidateDefinitions(IEnumerable<LocationSeedConfiguration> configurations)
     {
         var definitions = configurations
-            .SelectMany(configuration => configuration.Locations.Select(location => (Location: location, configuration.Source)))
+            .SelectMany(configuration =>
+                configuration.Locations.Select(location => (Location: location, configuration.Source))
+            )
             .ToArray();
         var errors = DuplicateErrors(definitions, item => item.Location.Id.ToString(), "Id", StringComparer.Ordinal)
-            .Concat(DuplicateErrors(definitions, item => item.Location.AgencyId, "AgencyId", StringComparer.OrdinalIgnoreCase))
+            .Concat(
+                DuplicateErrors(
+                    definitions,
+                    item => item.Location.AgencyId,
+                    "AgencyId",
+                    StringComparer.OrdinalIgnoreCase
+                )
+            )
             .ToArray();
 
         if (errors.Length > 0)
         {
-            throw new InvalidOperationException($"Duplicate location seed values detected: {string.Join(", ", errors)}");
+            throw new InvalidOperationException(
+                $"Duplicate location seed values detected: {string.Join(", ", errors)}"
+            );
         }
     }
 
@@ -89,8 +100,11 @@ public sealed class LocationSeeder(
         Func<(LocationSeedDefinition Location, string Source), string> keySelector,
         string keyName,
         IEqualityComparer<string> comparer
-    ) => definitions
-        .GroupBy(keySelector, comparer)
-        .Where(group => group.Count() > 1)
-        .Select(group => $"{keyName} '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}");
+    ) =>
+        definitions
+            .GroupBy(keySelector, comparer)
+            .Where(group => group.Count() > 1)
+            .Select(group =>
+                $"{keyName} '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}"
+            );
 }

@@ -16,8 +16,14 @@ public sealed class SeedDataCompositionTests
         var composition = GetComposition(SeedDataComposition.SheriffRegionLocationDataSet);
 
         Assert.Equal([SeedDataComposition.SheriffRegionLocationDataSet], composition.DataSets);
-        Assert.Equal([SeedDataComposition.SheriffRegionLocationDataSet], composition.RegionConfigurations.Select(x => x.Source));
-        Assert.Equal([SeedDataComposition.SheriffRegionLocationDataSet], composition.LocationConfigurations.Select(x => x.Source));
+        Assert.Equal(
+            [SeedDataComposition.SheriffRegionLocationDataSet],
+            composition.RegionConfigurations.Select(x => x.Source)
+        );
+        Assert.Equal(
+            [SeedDataComposition.SheriffRegionLocationDataSet],
+            composition.LocationConfigurations.Select(x => x.Source)
+        );
     }
 
     [Fact]
@@ -43,9 +49,15 @@ public sealed class SeedDataCompositionTests
         );
 
         Assert.Equal(3, composition.DataSets.Count);
-        Assert.Equal([SeedDataComposition.PlatformSystemUserDataSet], composition.UserConfigurations.Select(x => x.Source));
+        Assert.Equal(
+            [SeedDataComposition.PlatformSystemUserDataSet],
+            composition.UserConfigurations.Select(x => x.Source)
+        );
         Assert.Equal([SeedDataComposition.DefaultRolesDataSet], composition.RoleConfigurations.Select(x => x.Source));
-        Assert.Equal([SeedDataComposition.UserManagementPermissionsDataSet], composition.PermissionConfigurations.Select(x => x.Source));
+        Assert.Equal(
+            [SeedDataComposition.UserManagementPermissionsDataSet],
+            composition.PermissionConfigurations.Select(x => x.Source)
+        );
     }
 
     [Fact]

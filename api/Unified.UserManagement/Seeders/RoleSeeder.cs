@@ -67,11 +67,17 @@ public class RoleSeeder(ILogger<RoleSeeder> logger, IEnumerable<RoleSeedConfigur
         var definitions = configurations
             .SelectMany(configuration => configuration.Roles.Select(role => (Role: role, configuration.Source)))
             .ToArray();
-        var errors = definitions.GroupBy(item => item.Role.Id).Where(group => group.Count() > 1)
+        var errors = definitions
+            .GroupBy(item => item.Role.Id)
+            .Where(group => group.Count() > 1)
             .Select(group => $"Id '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
             .Concat(
-                definitions.GroupBy(item => item.Role.Name, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1)
-                    .Select(group => $"Name '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
+                definitions
+                    .GroupBy(item => item.Role.Name, StringComparer.OrdinalIgnoreCase)
+                    .Where(group => group.Count() > 1)
+                    .Select(group =>
+                        $"Name '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}"
+                    )
             )
             .ToArray();
         if (errors.Length > 0)

@@ -9,10 +9,8 @@ namespace Unified.UserManagement.Seeders;
 /// <summary>
 /// Aggregates configured region data sets and upserts them into the Region table.
 /// </summary>
-public sealed class RegionSeeder(
-    ILogger<RegionSeeder> logger,
-    IEnumerable<RegionSeedConfiguration> configurations
-) : SeederBase<UnifiedDbContext>(logger)
+public sealed class RegionSeeder(ILogger<RegionSeeder> logger, IEnumerable<RegionSeedConfiguration> configurations)
+    : SeederBase<UnifiedDbContext>(logger)
 {
     public override int Order => 1;
 
@@ -84,8 +82,11 @@ public sealed class RegionSeeder(
         Func<(RegionSeedDefinition Region, string Source), string> keySelector,
         string keyName,
         IEqualityComparer<string> comparer
-    ) => definitions
-        .GroupBy(keySelector, comparer)
-        .Where(group => group.Count() > 1)
-        .Select(group => $"{keyName} '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}");
+    ) =>
+        definitions
+            .GroupBy(keySelector, comparer)
+            .Where(group => group.Count() > 1)
+            .Select(group =>
+                $"{keyName} '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}"
+            );
 }
