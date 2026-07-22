@@ -136,7 +136,9 @@ public sealed class SeedDataValidationTests
             ]
         );
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(null!));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(null!, TestContext.Current.CancellationToken)
+        );
         Assert.Contains("IdirName", exception.Message);
         Assert.Contains("one", exception.Message);
         Assert.Contains("two", exception.Message);
@@ -177,7 +179,9 @@ public sealed class SeedDataValidationTests
             ]
         );
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(null!));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(null!, TestContext.Current.CancellationToken)
+        );
         Assert.Contains("Name", exception.Message);
     }
 
@@ -216,7 +220,9 @@ public sealed class SeedDataValidationTests
             ]
         );
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(null!));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(null!, TestContext.Current.CancellationToken)
+        );
         Assert.Contains("Code", exception.Message);
     }
 
@@ -257,7 +263,9 @@ public sealed class SeedDataValidationTests
             ]
         );
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(null!));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(null!, TestContext.Current.CancellationToken)
+        );
         Assert.Contains("AgencyId", exception.Message);
     }
 
@@ -296,7 +304,9 @@ public sealed class SeedDataValidationTests
             ]
         );
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(null!));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(null!, TestContext.Current.CancellationToken)
+        );
         Assert.Contains("one", exception.Message);
         Assert.Contains("two", exception.Message);
     }
