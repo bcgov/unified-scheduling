@@ -141,7 +141,7 @@ public static class SeedDataComposition
             if (!DataSetCatalog.TryGetValue(dataSetKey, out var dataSet))
             {
                 throw new InvalidOperationException(
-                    $"Seed-data set '{dataSetKey}' is not registered. Available data sets: {string.Join(", ", DataSetCatalog.Keys.Order())}"
+                    $"Seed-data set '{dataSetKey}' is not registered. Available data sets: {string.Join(\", \", DataSetCatalog.Keys.OrderBy(key => key, StringComparer.OrdinalIgnoreCase))}"
                 );
             }
 
