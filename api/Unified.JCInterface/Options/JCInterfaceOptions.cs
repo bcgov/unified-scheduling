@@ -94,13 +94,6 @@ public class JCInterfaceOptions
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// Maps Location Name → Region Name for locations that were seeded via
-    /// migration and are never returned by the JC Interface. These are linked
-    /// to their region manually during SyncLocations.
-    /// </summary>
-    public Dictionary<string, string> NonJCInterfaceLocationRegions { get; set; } = [];
-
-    /// <summary>
     /// Maps IANA Timezone ID → comma-separated JUSTIN location codes.
     /// Any location whose JustinLocationCode matches one of the codes is
     /// assigned that timezone. Locations with no match default to
