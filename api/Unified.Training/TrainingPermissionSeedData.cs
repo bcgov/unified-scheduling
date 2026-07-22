@@ -36,32 +36,26 @@ public static class TrainingPermissionSeedData
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsDelete),
-                    Description = "Delete training types",
+                    Id = nameof(Permissions.UserTrainingsView),
+                    Description = "View user training records",
                 },
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsRecordsManageForOthers),
-                    Description = "Create, update, and delete training records on behalf of other users",
+                    Id = nameof(Permissions.UserTrainingsCreate),
+                    Description = "Create user training records",
                 },
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsEditPast),
-                    Description = "Edit training records where the awarded date is in the past",
+                    Id = nameof(Permissions.UserTrainingsEdit),
+                    Description = "Edit user training records",
                 },
                 new()
                 {
                     Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsRemovePast),
-                    Description = "Remove training records where the awarded date is in the past",
-                },
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsAdjustExpiry),
-                    Description = "Manually override the expiry date on a training record",
+                    Id = nameof(Permissions.UserTrainingsDelete),
+                    Description = "Delete user training records",
                 },
             ],
         };

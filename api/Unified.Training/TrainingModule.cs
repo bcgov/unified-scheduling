@@ -5,9 +5,12 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
+using Unified.Common.PostSave;
 using Unified.Core.Services.Lookup;
+using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
+using TrainingEntity = Unified.Db.Models.Training.Training;
 
 namespace Unified.Training;
 
@@ -26,12 +29,17 @@ public static class TrainingModule
 
     public static IServiceCollection AddTrainingModule(this IServiceCollection services)
     {
+        services.AddScoped<IUserTrainingService, UserTrainingService>();
+        services.AddScoped<IEntityPostSaveDispatcher, EntityPostSaveDispatcher>();
+        services.AddScoped<IEntityPostCreateHandler<TrainingEntity>, MandatoryTrainingHandler>();
+        services.AddScoped<IEntityPostUpdateHandler<TrainingEntity>, MandatoryTrainingHandler>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );
 
         services.AddScoped<TrainingLookupRequestValidator>();
+        services.AddScoped<UserTrainingRequestValidator>();
 
         services.AddSingleton(TrainingPermissionSeedData.Configuration);
 
@@ -40,11 +48,10 @@ public static class TrainingModule
             .AddPermissionPolicy(Permissions.TrainingsView)
             .AddPermissionPolicy(Permissions.TrainingsCreate)
             .AddPermissionPolicy(Permissions.TrainingsEdit)
-            .AddPermissionPolicy(Permissions.TrainingsDelete)
-            .AddPermissionPolicy(Permissions.TrainingsRecordsManageForOthers)
-            .AddPermissionPolicy(Permissions.TrainingsEditPast)
-            .AddPermissionPolicy(Permissions.TrainingsRemovePast)
-            .AddPermissionPolicy(Permissions.TrainingsAdjustExpiry);
+            .AddPermissionPolicy(Permissions.UserTrainingsView)
+            .AddPermissionPolicy(Permissions.UserTrainingsCreate)
+            .AddPermissionPolicy(Permissions.UserTrainingsEdit)
+            .AddPermissionPolicy(Permissions.UserTrainingsDelete);
 
         return services;
     }

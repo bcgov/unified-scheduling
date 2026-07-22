@@ -17,6 +17,8 @@ public class UserTraining : BaseEntity
 
     [Required]
     public DateTimeOffset AwardedOn { get; set; }
+    [Required]
+    public DateTimeOffset EndingOn { get; set; }
 
     // The date the training expires. If null, the training does not expire.
     // Can be auto calculated based on the training's ValidityDays, but can also be manually set.

@@ -52,6 +52,14 @@ const myTeamRoutes: RouteRecordRaw[] = [
               title: 'Acting Positions',
             },
           },
+          {
+            path: 'training',
+            name: 'UserTraining',
+            component: () => import('./views/UserTrainingView.vue'),
+            meta: {
+              title: 'Training',
+            },
+          },
         ],
       },
     ],

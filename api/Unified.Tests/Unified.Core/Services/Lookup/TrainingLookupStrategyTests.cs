@@ -27,7 +27,7 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
         _dbContext.TrainingCategories.Add(new TrainingCategory { Id = 1, Name = "Mandatory" });
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        _strategy = new TrainingLookupStrategy(_dbContext);
+        _strategy = new TrainingLookupStrategy(_dbContext, new FakeEntityPostSaveDispatcher());
     }
 
     public async ValueTask DisposeAsync()

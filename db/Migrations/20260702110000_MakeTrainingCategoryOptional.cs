@@ -1,9 +1,12 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Unified.Db.Migrations
 {
+    [DbContext(typeof(UnifiedDbContext))]
+    [Migration("20260702110000_MakeTrainingCategoryOptional")]
     /// <inheritdoc />
     public partial class MakeTrainingCategoryOptional : Migration
     {
