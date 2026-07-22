@@ -171,14 +171,14 @@ namespace Unified.JCInterface.Services
                 .SelectToList(cr => new CourtRoom
                 {
                     Room = cr.Code,
-                    LocationId = locations.FirstOrDefault(l => l.JustinCode == cr.Flex)?.Id,
+                    LocationId = locations.FirstOrDefault(l => l.JustinLocationCode == cr.Flex)?.Id,
                     CreatedById = User.SystemUser,
                 })
                 .WhereToList(cr => cr.LocationId != null);
 
             //Some court rooms, don't have a location. This should probably be fixed in the JC-Interface
             var courtRoomNoLocation = courtRoomsLookups.WhereToList(crl =>
-                locations.All(l => l.JustinCode != crl.Flex)
+                locations.All(l => l.JustinLocationCode != crl.Flex)
             );
             logger.LogDebug(
                 "Found {CourtRoomNoLocationCount} court rooms without a location",
@@ -250,7 +250,7 @@ namespace Unified.JCInterface.Services
                     : null as int?;
                 var location = new Location
                 {
-                    JustinCode = loc.ShortDesc,
+                    JustinLocationCode = loc.ShortDesc,
                     Name = loc.LongDesc,
                     AgencyId = loc.Code,
                     RegionId = regionId,

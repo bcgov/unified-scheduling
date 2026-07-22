@@ -60,7 +60,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS6",
             Name = "South Okanagan Escort Centre",
             Timezone = "America/Vancouver",
-            JustinCode = "4882",
+            JustinLocationCode = "4882",
         },
         new()
         {
@@ -112,7 +112,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             Logger.LogInformation("Updating fields for location with Id {Id}...", seedLocation.Id);
             existingLocation.AgencyId = seedLocation.AgencyId;
             existingLocation.Name = seedLocation.Name;
-            existingLocation.JustinCode = seedLocation.JustinCode;
+            existingLocation.JustinLocationCode = seedLocation.JustinLocationCode;
             existingLocation.RegionId = seedLocation.RegionId;
             existingLocation.Timezone = seedLocation.Timezone;
             updatedCount++;
