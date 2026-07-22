@@ -31,6 +31,7 @@ import { calendarMatrixColorMap } from './calendarSchedulingColors';
 import { isEffectiveDateRangeActive } from './effectiveDateRangeStatus';
 import CalendarSchedulingShiftDetailsPanel from './CalendarSchedulingShiftDetailsPanel.vue';
 import type { ShiftDetailRow } from './calendarSchedulingShiftDetailTypes';
+import { toDefinitionDateInputValue, toDefinitionDateTimeOffset } from './assignmentDefinitionDateHelpers';
 
 const props = defineProps<{
   currentLocationId?: number | null;
@@ -117,9 +118,19 @@ const modalTitle = computed(() => {
   return 'Add Type Definition';
 });
 const locationOptions = computed(() => locationsStore.selectOptions);
+const activeDefinitionTimeZoneId = computed(() => {
+  const locationId = normalizeNumber(formData.value.locationId) ?? activeLocationId.value;
+  return locationId ? locationsStore.entitiesMap[locationId]?.timezone : undefined;
+});
+const assignmentDefinitionEffectiveContext = computed(() => {
+  const date = DateTime.fromISO(String(formData.value.effectiveDateUtc ?? ''), {
+    zone: activeDefinitionTimeZoneId.value || 'America/Vancouver',
+  });
+  return date.isValid ? date : DateTime.now().setZone(activeDefinitionTimeZoneId.value || 'America/Vancouver');
+});
 const assignmentCategoryOptions = computed<SelectOption[]>(() =>
   assignmentCategoryTypes.value
-    .filter((assignmentCategory) => isEffectiveDateRangeActive(assignmentCategory))
+    .filter((assignmentCategory) => isCategorySelectableForDefinitionDate(assignmentCategory))
     .filter((assignmentCategory) => typeof assignmentCategory.parentCodeTypeId === 'number')
     .map((assignmentCategory) => ({
       code: assignmentCategory.parentCodeTypeId as number,
@@ -137,7 +148,7 @@ const assignmentSubCategoryOptions = computed<SelectOption[]>(() => {
   const selectedChildIdSet = new Set(selectedChildIds);
 
   return assignmentSubCategoryTypes.value
-    .filter((assignmentSubCategory) => isEffectiveDateRangeActive(assignmentSubCategory))
+    .filter((assignmentSubCategory) => isSubCategorySelectableForDefinitionDate(assignmentSubCategory))
     .filter(
       (assignmentSubCategory) => assignmentSubCategory.parentCodeTypeId === formData.value.assignmentCategoryTypeId,
     )
@@ -291,8 +302,10 @@ function validateForm() {
     assignmentCategoryTypeId: normalizeNumber(formData.value.assignmentCategoryTypeId),
     assignmentSubCategoryTypeId: normalizeNumber(formData.value.assignmentSubCategoryTypeId),
     defaultCapacity: Number(formData.value.defaultCapacity),
-    effectiveDateUtc: toDateTimeOffset(formData.value.effectiveDateUtc),
-    expiryDateUtc: formData.value.expiryDateUtc ? toDateTimeOffset(formData.value.expiryDateUtc) : null,
+    effectiveDateUtc: toDefinitionDateTimeOffset(formData.value.effectiveDateUtc, activeDefinitionTimeZoneId.value),
+    expiryDateUtc: formData.value.expiryDateUtc
+      ? toDefinitionDateTimeOffset(formData.value.expiryDateUtc, activeDefinitionTimeZoneId.value)
+      : null,
   };
 
   const result = assignmentDefinitionCreateSchema.safeParse(candidatePayload);
@@ -410,23 +423,6 @@ function normalizeNumber(value: SelectValue | number | undefined | null): number
   return undefined;
 }
 
-function toDateTimeOffset(value?: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  return DateTime.fromISO(value).startOf('day').toUTC().toISO();
-}
-
-function toDateInputValue(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-
-  const parsed = DateTime.fromISO(value);
-  return parsed.isValid ? (parsed.toISODate() ?? '') : '';
-}
-
 function formatLocation(value: SelectValue | undefined) {
   const locationId = normalizeNumber(value);
   if (!locationId) {
@@ -485,6 +481,22 @@ function formatDate(value?: string | null) {
   return parsed.isValid ? parsed.toLocaleString(DateTime.DATE_FULL) : value;
 }
 
+function isCategorySelectableForDefinitionDate(lookup: LookupCodeResponse) {
+  if (lookup.parentCodeTypeId === formData.value.assignmentCategoryTypeId) {
+    return true;
+  }
+
+  return isEffectiveDateRangeActive(lookup, assignmentDefinitionEffectiveContext.value);
+}
+
+function isSubCategorySelectableForDefinitionDate(lookup: LookupCodeResponse) {
+  if (lookup.childCodeTypeId === formData.value.assignmentSubCategoryTypeId) {
+    return true;
+  }
+
+  return isEffectiveDateRangeActive(lookup, assignmentDefinitionEffectiveContext.value);
+}
+
 function mapAssignmentDefinitionToFormData(
   assignmentDefinition: AssignmentDefinitionResponse,
 ): AssignmentDefinitionCreateFormData {
@@ -498,8 +510,10 @@ function mapAssignmentDefinitionToFormData(
     defaultCapacity: assignmentDefinition.defaultCapacity ?? 1,
     defaultStartTime: normalizeTimeOptionValue(assignmentDefinition.defaultStartTime ?? defaultStartTime),
     defaultEndTime: normalizeTimeOptionValue(assignmentDefinition.defaultEndTime ?? defaultEndTime),
-    effectiveDateUtc: getTodayDateInputValue(),
-    expiryDateUtc: null,
+    effectiveDateUtc:
+      toDefinitionDateInputValue(assignmentDefinition.effectiveDateUtc, activeDefinitionTimeZoneId.value) ||
+      getTodayDateInputValue(),
+    expiryDateUtc: toDefinitionDateInputValue(assignmentDefinition.expiryDateUtc, activeDefinitionTimeZoneId.value) || null,
   };
 }
 </script>

@@ -3,6 +3,7 @@ import type { AssignmentDefinitionResponse } from '@/api-access/generated/models
 import type { SelectOption } from '@/types/select';
 import { DateTime } from 'luxon';
 import { computed, ref, type ComputedRef } from 'vue';
+import { isAssignmentDefinitionSelectableForAssignmentDate } from './assignmentDefinitionDateHelpers';
 
 export function useAssignmentDefinitionOptions(options: {
   activeLocationId: ComputedRef<number | null>;
@@ -84,23 +85,7 @@ export function useAssignmentDefinitionOptions(options: {
       return true;
     }
 
-    return isDateInEffectiveRange(assignmentDefinition, contextDate);
-  }
-
-  function isDateInEffectiveRange(assignmentDefinition: AssignmentDefinitionResponse, date: DateTime) {
-    const effectiveDate = parseOptionalDate(assignmentDefinition.effectiveDateUtc);
-    const expiryDate = parseOptionalDate(assignmentDefinition.expiryDateUtc);
-
-    return (!effectiveDate || effectiveDate <= date) && (!expiryDate || expiryDate > date);
-  }
-
-  function parseOptionalDate(value?: string | null) {
-    if (!value) {
-      return null;
-    }
-
-    const date = DateTime.fromISO(value, { setZone: true }).setZone(options.timeZoneId.value);
-    return date.isValid ? date : null;
+    return isAssignmentDefinitionSelectableForAssignmentDate(assignmentDefinition, contextDate, options.timeZoneId.value);
   }
 
   return {

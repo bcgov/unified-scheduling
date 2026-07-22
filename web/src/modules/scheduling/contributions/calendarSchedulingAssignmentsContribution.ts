@@ -7,6 +7,7 @@ import type { CalendarModuleContribution } from '@/modules/calendar/registry/cal
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import { DateTime } from 'luxon';
 import type { CalendarSchedulingEvent } from '../calendarSchedulingData';
+import { assignmentDefinitionOverlapsCalendarDateRange } from '../assignmentDefinitionDateHelpers';
 
 export interface CalendarSchedulingAssignmentResource extends CalendarResourceBase {
   title: string;
@@ -81,10 +82,7 @@ export const calendarSchedulingAssignmentsContribution: CalendarModuleContributi
       moduleId: 'scheduling',
       contributionId: schedulingAssignmentContributionId,
       events: entries.flatMap(mapAssignmentEntryToCalendarEvent),
-      resources: mapAssignmentResources(
-        definitions.filter((definition) => assignmentDefinitionOverlapsDateRange(definition, context)),
-        entries,
-      ),
+      resources: mapAssignmentResources(filterDefinitionsForSidePanelResources(definitions, entries, context), entries),
       data: {
         entries,
         definitions,
@@ -242,31 +240,26 @@ function mapAssignmentResources(
   return Array.from(resources.values()).sort((left, right) => left.title.localeCompare(right.title));
 }
 
-function assignmentDefinitionOverlapsDateRange(
-  definition: AssignmentDefinitionResponse,
+function filterDefinitionsForSidePanelResources(
+  definitions: AssignmentDefinitionResponse[],
+  entries: AssignmentEntryResponse[],
   context: Parameters<CalendarModuleContribution['load']>[0],
-) {
-  const timeZoneId = resolveTimeZoneId(context.filters);
-  const rangeStart = DateTime.fromISO(context.startDate, { zone: timeZoneId }).startOf('day');
-  const rangeEnd = DateTime.fromISO(context.endDate, { zone: timeZoneId }).startOf('day');
+): AssignmentDefinitionResponse[] {
+  const requiredDefinitionIds = new Set(
+    entries.flatMap((entry) => (typeof entry.assignmentDefinitionId === 'number' ? [entry.assignmentDefinitionId] : [])),
+  );
 
-  if (!rangeStart.isValid || !rangeEnd.isValid || rangeEnd <= rangeStart) {
-    return true;
-  }
-
-  const effectiveDate = parseOptionalDateTime(definition.effectiveDateUtc, timeZoneId);
-  const expiryDate = parseOptionalDateTime(definition.expiryDateUtc, timeZoneId);
-
-  return (!effectiveDate || effectiveDate < rangeEnd) && (!expiryDate || expiryDate > rangeStart);
-}
-
-function parseOptionalDateTime(value: string | null | undefined, timeZoneId: string) {
-  if (!value) {
-    return null;
-  }
-
-  const dateTime = DateTime.fromISO(value, { setZone: true }).setZone(timeZoneId);
-  return dateTime.isValid ? dateTime : null;
+  return definitions.filter(
+    (definition) =>
+      typeof definition.id === 'number' &&
+      (requiredDefinitionIds.has(definition.id) ||
+        assignmentDefinitionOverlapsCalendarDateRange(
+          definition,
+          context.startDate,
+          context.endDate,
+          resolveTimeZoneId(context.filters),
+        )),
+  );
 }
 
 function groupEntriesByDefinition(entries: AssignmentEntryResponse[]) {
