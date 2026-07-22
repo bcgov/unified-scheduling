@@ -22,18 +22,21 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Updating permissions from group configuration...");
+        logger.LogInformation("Updating permissions from configured data sets...");
 
         var createdCount = 0;
         var updatedCount = 0;
-        var groupConfigurations = configurations.ToArray();
-        var seedDefinitions = groupConfigurations.SelectMany(config => config.Permissions).ToList();
+        var dataSetConfigurations = configurations.ToArray();
+        var seedDefinitions = dataSetConfigurations.SelectMany(config => config.Permissions).ToList();
 
-        var duplicatePermissionIds = seedDefinitions
-            .GroupBy(permission => permission.Id, StringComparer.Ordinal)
+        var duplicatePermissionIds = dataSetConfigurations
+            .SelectMany(configuration =>
+                configuration.Permissions.Select(permission => (Permission: permission, configuration.Source))
+            )
+            .GroupBy(item => item.Permission.Id, StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
-            .Select(group => group.Key)
-            .OrderBy(id => id, StringComparer.Ordinal)
+            .Select(group => $"'{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (duplicatePermissionIds.Count > 0)
@@ -44,9 +47,9 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
         }
 
         logger.LogInformation(
-            "Loaded {PermissionCount} permission seed entries from {ConfigurationCount} group configurations.",
+            "Loaded {PermissionCount} permission seed entries from {ConfigurationCount} data-set configurations.",
             seedDefinitions.Count,
-            groupConfigurations.Length
+            dataSetConfigurations.Length
         );
 
         foreach (var seedDefinition in seedDefinitions)

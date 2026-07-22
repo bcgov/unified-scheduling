@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.Common.Seeding;
 using Unified.Core.Seeders;
 using Unified.Core.Services;
 using Unified.Core.Services.Lookup;
+using Unified.Db;
 
 namespace Unified.Core;
 
@@ -17,7 +19,7 @@ public static class CoreModule
         services.AddScoped<ILookupStrategy, EventTypeLookupStrategy>();
         services.AddScoped<ILookupStrategy, EventStatusTypeLookupStrategy>();
 
-        services.AddScoped<PositionTypeSeeder>();
+        services.AddSeeder<UnifiedDbContext, PositionTypeSeeder>();
 
         return services;
     }

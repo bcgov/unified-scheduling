@@ -11,98 +11,94 @@ public static class UserManagementPermissionSeedData
     private const string PermissionGroupUsers = "Users";
     private const string PermissionGroupRoles = "Roles";
     private const string PermissionGroupActingPositions = "ActingPositions";
-    public static PermissionSeedConfiguration Configuration { get; } =
+    public static IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
+    [
+        // Users
         new()
         {
-            Permissions =
-            [
-                // Users
-                new()
-                {
-                    Group = PermissionGroupUsers,
-                    Id = nameof(Permissions.UsersCreate),
-                    Description = "Create new users",
-                },
-                new()
-                {
-                    Group = PermissionGroupUsers,
-                    Id = nameof(Permissions.UsersEdit),
-                    Description = "Edit existing users",
-                },
-                new()
-                {
-                    Group = PermissionGroupUsers,
-                    Id = nameof(Permissions.UserRoleAssign),
-                    Description = "Assign roles to users",
-                },
-                new()
-                {
-                    Group = PermissionGroupUsers,
-                    Id = nameof(Permissions.UsersView),
-                    Description = "View users",
-                },
-                new()
-                {
-                    Group = PermissionGroupUsers,
-                    Id = nameof(Permissions.UsersExpire),
-                    Description = "Expire users",
-                },
-                new()
-                {
-                    Group = PermissionGroupUsers,
-                    Id = nameof(Permissions.UsersViewOtherProfiles),
-                    Description = "View other user profiles",
-                },
-                // Roles
-                new()
-                {
-                    Group = PermissionGroupRoles,
-                    Id = nameof(Permissions.RolesView),
-                    Description = "View roles",
-                },
-                new()
-                {
-                    Group = PermissionGroupRoles,
-                    Id = nameof(Permissions.RolesCreate),
-                    Description = "Create roles",
-                },
-                new()
-                {
-                    Group = PermissionGroupRoles,
-                    Id = nameof(Permissions.RolesEdit),
-                    Description = "Edit roles",
-                },
-                new()
-                {
-                    Group = PermissionGroupRoles,
-                    Id = nameof(Permissions.RolesExpire),
-                    Description = "Expire roles",
-                },
-                // Acting Positions
-                new()
-                {
-                    Group = PermissionGroupActingPositions,
-                    Id = nameof(Permissions.ActingPositionsView),
-                    Description = "View acting positions",
-                },
-                new()
-                {
-                    Group = PermissionGroupActingPositions,
-                    Id = nameof(Permissions.ActingPositionsCreate),
-                    Description = "Create acting positions",
-                },
-                new()
-                {
-                    Group = PermissionGroupActingPositions,
-                    Id = nameof(Permissions.ActingPositionsEdit),
-                    Description = "Edit acting positions",
-                },
-                new()
-                {
-                    Group = PermissionGroupActingPositions,
-                    Id = nameof(Permissions.ActingPositionsExpire),
-                    Description = "Expire acting positions",
-                },
-            ],
-        };
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersCreate),
+            Description = "Create new users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersEdit),
+            Description = "Edit existing users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UserRoleAssign),
+            Description = "Assign roles to users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersView),
+            Description = "View users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersExpire),
+            Description = "Expire users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersViewOtherProfiles),
+            Description = "View other user profiles",
+        },
+        // Roles
+        new()
+        {
+            Group = PermissionGroupRoles,
+            Id = nameof(Permissions.RolesView),
+            Description = "View roles",
+        },
+        new()
+        {
+            Group = PermissionGroupRoles,
+            Id = nameof(Permissions.RolesCreate),
+            Description = "Create roles",
+        },
+        new()
+        {
+            Group = PermissionGroupRoles,
+            Id = nameof(Permissions.RolesEdit),
+            Description = "Edit roles",
+        },
+        new()
+        {
+            Group = PermissionGroupRoles,
+            Id = nameof(Permissions.RolesExpire),
+            Description = "Expire roles",
+        },
+        // Acting Positions
+        new()
+        {
+            Group = PermissionGroupActingPositions,
+            Id = nameof(Permissions.ActingPositionsView),
+            Description = "View acting positions",
+        },
+        new()
+        {
+            Group = PermissionGroupActingPositions,
+            Id = nameof(Permissions.ActingPositionsCreate),
+            Description = "Create acting positions",
+        },
+        new()
+        {
+            Group = PermissionGroupActingPositions,
+            Id = nameof(Permissions.ActingPositionsEdit),
+            Description = "Edit acting positions",
+        },
+        new()
+        {
+            Group = PermissionGroupActingPositions,
+            Id = nameof(Permissions.ActingPositionsExpire),
+            Description = "Expire acting positions",
+        },
+    ];
 }

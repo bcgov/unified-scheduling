@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Unified.Common.Seeding;
 using Unified.Db;
 
 namespace Unified.Api.Services;
@@ -8,7 +9,11 @@ namespace Unified.Api.Services;
 /// <summary>
 /// Runs database migrations and registered seeders during application startup.
 /// </summary>
-public class MigrationAndSeedService(IServiceProvider services, ILogger<MigrationAndSeedService> logger)
+public class MigrationAndSeedService(
+    IServiceProvider services,
+    ILogger<MigrationAndSeedService> logger,
+    ResolvedSeedDataConfiguration seedDataConfiguration
+)
 {
     public IServiceProvider Services { get; } = services;
     private ILogger<MigrationAndSeedService> Logger { get; } = logger;
@@ -17,6 +22,10 @@ public class MigrationAndSeedService(IServiceProvider services, ILogger<Migratio
     {
         try
         {
+            Logger.LogInformation(
+                "Using seed-data sets: {SeedDataSets}",
+                string.Join(", ", seedDataConfiguration.DataSets)
+            );
             using var scope = Services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<UnifiedDbContext>();
             var seederFactory = scope.ServiceProvider.GetRequiredService<SeederFactory<UnifiedDbContext>>();
