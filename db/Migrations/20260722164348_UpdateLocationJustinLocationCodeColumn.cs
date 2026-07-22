@@ -13,7 +13,8 @@ namespace Unified.Db.Migrations
             migrationBuilder.RenameColumn(
                 name: "JustinCode",
                 table: "Locations",
-                newName: "JustinLocationCode");
+                newName: "JustinLocationCode"
+            );
         }
 
         /// <inheritdoc />
@@ -22,7 +23,8 @@ namespace Unified.Db.Migrations
             migrationBuilder.RenameColumn(
                 name: "JustinLocationCode",
                 table: "Locations",
-                newName: "JustinCode");
+                newName: "JustinCode"
+            );
         }
     }
 }
