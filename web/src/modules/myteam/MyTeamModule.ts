@@ -54,6 +54,14 @@ const myTeamRoutes: RouteRecordRaw[] = [
             },
           },
           {
+            path: 'training',
+            name: 'UserTraining',
+            component: () => import('./views/UserTrainingView.vue'),
+            meta: {
+              title: 'Training',
+            },
+          },
+          {
             path: 'away-locations',
             name: 'UserAwayLocations',
             component: () => import('./views/AwayLocations.vue'),
