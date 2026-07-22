@@ -23,7 +23,9 @@ public static class RecurringJobHelper
                 TimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Vancouver"),
             };
 
-            RecurringJob.AddOrUpdate(job.JobName, () => job.Execute(null), job.CronSchedule, options);
+            // Hangfire requires an argument at registration time; CancellationToken.None
+            // acts as a placeholder and Hangfire provides the live execution token.
+            RecurringJob.AddOrUpdate(job.JobName, () => job.Execute(null, CancellationToken.None), job.CronSchedule, options);
         }
         else
         {

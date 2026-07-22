@@ -33,5 +33,5 @@ public interface IRecurringJob
     /// implementations don't need to use <paramref name="context"/> directly unless they want
     /// custom formatting (e.g. <c>context.WriteLine(ConsoleTextColor, ...)</c>).
     /// </summary>
-    Task Execute(PerformContext? context);
+    Task Execute(PerformContext? context, CancellationToken cancellationToken);
 }

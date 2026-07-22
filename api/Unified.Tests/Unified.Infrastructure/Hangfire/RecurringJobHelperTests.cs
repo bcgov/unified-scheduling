@@ -40,7 +40,7 @@ public class RecurringJobHelperTests : IDisposable
 
         public string CronSchedule => cronSchedule;
 
-        public Task Execute(PerformContext? context) => Task.CompletedTask;
+        public Task Execute(PerformContext? context, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     [Fact]
