@@ -31,7 +31,6 @@ public static class SeederServiceCollectionExtensions
         where TContext : DbContext
         where TSeeder : SeederBase<TContext>
     {
-        services.TryAddScoped<TSeeder>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<SeederBase<TContext>, TSeeder>());
         return services;
     }
