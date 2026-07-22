@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
+using Unified.Common.Seeding;
+using Unified.Db;
+using Unified.Stats.Seeders;
 using Unified.Stats.Services;
 using Unified.Stats.Validators;
 
@@ -33,8 +36,11 @@ public static class StatsModule
         s.AddScoped<StatRecordRequestValidator>();
         s.AddScoped<StatSignoffRequestValidator>();
 
-        // Permission seed data
-        s.AddSingleton(StatsPermissionSeedData.Configuration);
+        s.AddSeeder<UnifiedDbContext, StatGroupSeeder>();
+        s.AddSeeder<UnifiedDbContext, StatCategorySeeder>();
+        s.AddSeeder<UnifiedDbContext, SubCategorySeeder>();
+        s.AddSeeder<UnifiedDbContext, StatMetricSeeder>();
+        s.AddSeeder<UnifiedDbContext, SubCategoryMetricSeeder>();
 
         // Register permission policies owned by this module
         s.AddAuthorizationBuilder()

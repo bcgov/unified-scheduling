@@ -9,51 +9,41 @@ namespace Unified.UserManagement.Seeders;
 /// <summary>
 /// Seeder for the Role table.
 /// </summary>
-public class RoleSeeder(ILogger<RoleSeeder> logger) : SeederBase<UnifiedDbContext>(logger)
+public class RoleSeeder(ILogger<RoleSeeder> logger, IEnumerable<RoleSeedConfiguration> configurations)
+    : SeederBase<UnifiedDbContext>(logger)
 {
     public override int Order => 2;
 
     public override string Name => "Role";
 
-    private static readonly Role[] SeedRoles =
-    [
-        new()
-        {
-            Id = 1,
-            Name = "Administrator",
-            Description = "Administrator",
-        },
-        new()
-        {
-            Id = 2,
-            Name = "Manager",
-            Description = "Manager",
-        },
-        new()
-        {
-            Id = 3,
-            Name = "Staff",
-            Description = "Staff",
-        },
-    ];
-
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
         Logger.LogInformation("Updating roles...");
 
+        ValidateDefinitions(configurations);
+        var seedRoles = configurations.SelectMany(configuration => configuration.Roles).ToArray();
+
         var createdCount = 0;
         var updatedCount = 0;
 
-        foreach (var seedRole in SeedRoles)
+        foreach (var seedRole in seedRoles)
         {
             var existingRole = await dbContext
                 .Roles.AsQueryable()
-                .FirstOrDefaultAsync(r => r.Id == seedRole.Id, cancellationToken);
+                .FirstOrDefaultAsync(role => role.Id == seedRole.Id, cancellationToken);
 
             if (existingRole is null)
             {
                 Logger.LogInformation("Role with Id {Id} does not exist, adding it...", seedRole.Id);
-                await dbContext.Roles.AddAsync(seedRole, cancellationToken);
+                await dbContext.Roles.AddAsync(
+                    new Role
+                    {
+                        Id = seedRole.Id,
+                        Name = seedRole.Name,
+                        Description = seedRole.Description,
+                    },
+                    cancellationToken
+                );
                 createdCount++;
                 continue;
             }
@@ -70,5 +60,21 @@ public class RoleSeeder(ILogger<RoleSeeder> logger) : SeederBase<UnifiedDbContex
             createdCount,
             updatedCount
         );
+    }
+
+    private static void ValidateDefinitions(IEnumerable<RoleSeedConfiguration> configurations)
+    {
+        var definitions = configurations
+            .SelectMany(configuration => configuration.Roles.Select(role => (Role: role, configuration.Source)))
+            .ToArray();
+        var errors = definitions.GroupBy(item => item.Role.Id).Where(group => group.Count() > 1)
+            .Select(group => $"Id '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
+            .Concat(
+                definitions.GroupBy(item => item.Role.Name, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1)
+                    .Select(group => $"Name '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
+            )
+            .ToArray();
+        if (errors.Length > 0)
+            throw new InvalidOperationException($"Duplicate role seed values detected: {string.Join(", ", errors)}");
     }
 }

@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
 using Unified.Authorization.Claims;
+using Unified.Common.Seeding;
+using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Options;
@@ -46,11 +48,11 @@ public static class UserManagementModule
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IActingPositionService, ActingPositionService>();
 
-        services.AddScoped<UserSeeder>();
-        services.AddScoped<RegionSeeder>();
-        services.AddScoped<LocationSeeder>();
-        services.AddScoped<PermissionSeeder>();
-        services.AddSingleton(UserManagementPermissionSeedData.Configuration);
+        services.AddSeeder<UnifiedDbContext, UserSeeder>();
+        services.AddSeeder<UnifiedDbContext, RoleSeeder>();
+        services.AddSeeder<UnifiedDbContext, PermissionSeeder>();
+        services.AddSeeder<UnifiedDbContext, RegionSeeder>();
+        services.AddSeeder<UnifiedDbContext, LocationSeeder>();
 
         services.AddScoped<UserRequestValidator>();
         services.AddScoped<AssignUserRoleRequestValidator>();

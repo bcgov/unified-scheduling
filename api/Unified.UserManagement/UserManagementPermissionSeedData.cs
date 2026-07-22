@@ -11,10 +11,7 @@ public static class UserManagementPermissionSeedData
     private const string PermissionGroupUsers = "Users";
     private const string PermissionGroupRoles = "Roles";
     private const string PermissionGroupActingPositions = "ActingPositions";
-    public static PermissionSeedConfiguration Configuration { get; } =
-        new()
-        {
-            Permissions =
+    public static IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
             [
                 // Users
                 new()
@@ -103,6 +100,5 @@ public static class UserManagementPermissionSeedData
                     Id = nameof(Permissions.ActingPositionsExpire),
                     Description = "Expire acting positions",
                 },
-            ],
-        };
+            ];
 }

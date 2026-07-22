@@ -10,10 +10,7 @@ public static class StatsPermissionSeedData
 {
     private const string PermissionGroupStats = "Stats";
 
-    public static PermissionSeedConfiguration Configuration { get; } =
-        new()
-        {
-            Permissions =
+    public static IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
             [
                 new()
                 {
@@ -45,6 +42,5 @@ public static class StatsPermissionSeedData
                     Id = nameof(Permissions.StatsOverrideSignedOff),
                     Description = "Edit time entries that have already been signed off",
                 },
-            ],
-        };
+            ];
 }
