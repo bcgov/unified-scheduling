@@ -167,7 +167,6 @@ namespace Unified.JCInterface.Services
                     await dbContext.SaveChangesAsync();
                 }
             }
-
         }
 
         public async Task SyncCourtRoomsAsync()
@@ -244,7 +243,7 @@ namespace Unified.JCInterface.Services
             //Only query regions that are still active and have a JustinId — querying an
             //expired or JC-Interface-unknown region could 404 and abort the whole sync.
             var activeRegions = dbContext.Regions.AsNoTracking().Where(r => r.ExpiryDate == null).ToList();
-            
+
             var skippedRegionCount = activeRegions.Count(r => r.JustinId == null);
             if (skippedRegionCount > 0)
             {
