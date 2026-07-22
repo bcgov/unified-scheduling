@@ -7,6 +7,8 @@ using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
+using Unified.Common.Seeding;
+using Unified.Db;
 
 namespace Unified.Calendar;
 
@@ -31,9 +33,9 @@ public static class CalendarModule
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddScoped<ICalendarEventService, CalendarEventService>();
-        services.AddScoped<EventTypeSeeder>();
-        services.AddScoped<EventStatusTypeSeeder>();
-        services.AddScoped<HolidayEventSeeder>();
+        services.AddSeeder<UnifiedDbContext, EventTypeSeeder>();
+        services.AddSeeder<UnifiedDbContext, EventStatusTypeSeeder>();
+        services.AddSeeder<UnifiedDbContext, HolidayEventSeeder>();
         services.AddScoped<CalendarEventsRequestValidator>();
 
         return services;

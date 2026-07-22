@@ -12,10 +12,7 @@ public static class UserManagementPermissionSeedData
     private const string PermissionGroupRoles = "Roles";
     private const string PermissionGroupActingPositions = "ActingPositions";
     private const string PermissionGroupAdmin = "Admin";
-    public static PermissionSeedConfiguration Configuration { get; } =
-        new()
-        {
-            Permissions =
+    public static IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
             [
                 // Users
                 new()
@@ -111,6 +108,5 @@ public static class UserManagementPermissionSeedData
                     Id = nameof(Permissions.HangfireDashboardView),
                     Description = "View the Hangfire background jobs dashboard",
                 },
-            ],
-        };
+            ];
 }

@@ -10,10 +10,7 @@ public static class TrainingPermissionSeedData
 {
     private const string PermissionGroupTraining = "Training";
 
-    public static PermissionSeedConfiguration Configuration { get; } =
-        new()
-        {
-            Permissions =
+    public static IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
             [
                 new()
                 {
@@ -63,6 +60,5 @@ public static class TrainingPermissionSeedData
                     Id = nameof(Permissions.TrainingsAdjustExpiry),
                     Description = "Manually override the expiry date on a training record",
                 },
-            ],
-        };
+            ];
 }
