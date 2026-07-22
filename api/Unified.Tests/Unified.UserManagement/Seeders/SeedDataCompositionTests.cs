@@ -75,6 +75,22 @@ public sealed class SeedDataCompositionTests
     [Theory]
     [InlineData(SeedDataComposition.StatsPermissionsDataSet, "StatsModule")]
     [InlineData(SeedDataComposition.TrainingPermissionsDataSet, "TrainingModule")]
+    public void AddConfiguredSeedData_FeatureEnabledWithoutPermissionDataSet_ThrowsConfigurationError(
+        string dataSet,
+        string feature
+    )
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            new ServiceCollection().AddConfiguredSeedData(BuildConfiguration([], feature))
+        );
+
+        Assert.Contains(dataSet, exception.Message);
+        Assert.Contains(feature, exception.Message);
+    }
+
+    [Theory]
+    [InlineData(SeedDataComposition.StatsPermissionsDataSet, "StatsModule")]
+    [InlineData(SeedDataComposition.TrainingPermissionsDataSet, "TrainingModule")]
     public void AddConfiguredSeedData_FeatureDataSetEnabled_RegistersContribution(string dataSet, string feature)
     {
         var composition = GetComposition(dataSet, feature);
