@@ -120,6 +120,26 @@ public static class SeedDataComposition
             );
         }
 
+        if (
+            configuration.GetValue<bool>("FeatureFlags:StatsModule")
+            && !selectedDataSets.Contains(StatsPermissionsDataSet, StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            throw new InvalidOperationException(
+                $"FeatureFlags:StatsModule requires seed-data set '{StatsPermissionsDataSet}' to be selected."
+            );
+        }
+
+        if (
+            configuration.GetValue<bool>("FeatureFlags:TrainingModule")
+            && !selectedDataSets.Contains(TrainingPermissionsDataSet, StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            throw new InvalidOperationException(
+                $"FeatureFlags:TrainingModule requires seed-data set '{TrainingPermissionsDataSet}' to be selected."
+            );
+        }
+
         foreach (var dataSetKey in selectedDataSets)
         {
             if (!DataSetCatalog.TryGetValue(dataSetKey, out var dataSet))
