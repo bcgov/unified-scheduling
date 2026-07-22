@@ -73,6 +73,7 @@ public static class HangfireModule
         // calls, e.g. inside JCDataUpdaterService) to that job's Console tab in the dashboard.
         GlobalJobFilters.Filters.Add(new HangfireConsoleLoggingFilter());
         services.AddSingleton<ILoggerProvider, HangfireConsoleLoggerProvider>();
+        services.AddTransient<HangfireRegistrationFailureMarkerJob>();
 
         if (hangfireOptions.ServerEnabled)
         {
