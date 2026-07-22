@@ -13,9 +13,9 @@ Use this pattern when the unified backend needs the same table-specific executab
 ## Architecture
 
 - Seeder registration: `api/Unified.Common/Seeders/SeederBase.cs`
-- Table-specific aggregator seeders: `api/Unified.UserManagement/Seeders/*Seeder.cs`
-- Seed contracts: `api/Unified.Common/Seeders/*SeedConfiguration.cs`
-- Atomic data sets: `api/Unified.UserManagement/*SeedData.cs` and module-specific `*PermissionSeedData.cs`
+- Table-specific aggregator seeders which define seed logic but not data: `api/Unified.UserManagement/Seeders/*Seeder.cs`
+- Seed data contracts: `api/Unified.Common/Seeders/*SeedConfiguration.cs`
+- Atomic data sets consumed by seeder(s): `api/Unified.UserManagement/*SeedData.cs` and module-specific `*PermissionSeedData.cs`
 - Central composition catalog responsible for parsing appsettings configuration: `api/Unified.Api/Services/SeedDataComposition.cs`
 - Deployment selection: `SeedData:DataSets` in environment-specific configuration
 
