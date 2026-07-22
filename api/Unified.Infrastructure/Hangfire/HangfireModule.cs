@@ -23,6 +23,12 @@ public static class HangfireModule
 {
     public static IServiceCollection AddHangfireModule(this IServiceCollection services, IConfiguration configuration)
     {
+        var hangfireOptions = configuration.GetSection(HangfireOptions.SectionName).Get<HangfireOptions>() ?? new();
+        if (!hangfireOptions.Enabled)
+        {
+            return services;
+        }
+
         var connectionString = configuration.GetValue<string>("DatabaseConnectionString");
         if (string.IsNullOrEmpty(connectionString))
         {
@@ -68,11 +74,14 @@ public static class HangfireModule
         GlobalJobFilters.Filters.Add(new HangfireConsoleLoggingFilter());
         services.AddSingleton<ILoggerProvider, HangfireConsoleLoggerProvider>();
 
-        services.AddHangfireServer(options =>
+        if (hangfireOptions.ServerEnabled)
         {
-            options.WorkerCount = Math.Max(1, Environment.ProcessorCount / 4);
-            options.SchedulePollingInterval = TimeSpan.FromSeconds(30);
-        });
+            services.AddHangfireServer(options =>
+            {
+                options.WorkerCount = Math.Max(1, Environment.ProcessorCount / 4);
+                options.SchedulePollingInterval = TimeSpan.FromSeconds(30);
+            });
+        }
 
         // Auto-register every IRecurringJob implementation found across the "Unified.*"
         // assemblies, so modules don't need their own AddTransient<IRecurringJob, TJob>()

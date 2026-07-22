@@ -19,6 +19,8 @@ using Unified.UserManagement;
 var builder = WebApplication.CreateBuilder(args);
 var featureFlagsOptions =
     builder.Configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
+var hangfireOptions =
+    builder.Configuration.GetSection(HangfireOptions.SectionName).Get<HangfireOptions>() ?? new HangfireOptions();
 
 {
     // Configure forwarded headers so the app sees the external scheme/host
@@ -166,7 +168,7 @@ var app = builder.Build();
     app.UseAuthorization();
 
     var hangfireConnectionString = builder.Configuration.GetValue<string>("DatabaseConnectionString");
-    if (!string.IsNullOrEmpty(hangfireConnectionString))
+    if (hangfireOptions.Enabled && hangfireOptions.DashboardEnabled && !string.IsNullOrEmpty(hangfireConnectionString))
     {
         app.UseHangfireDashboard(
             "/hangfire",
