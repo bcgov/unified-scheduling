@@ -101,9 +101,24 @@ public class JCInterfaceOptions
     public Dictionary<string, string> NonJCInterfaceLocationRegions { get; set; } = [];
 
     /// <summary>
-    /// Maps IANA Timezone ID → comma-separated partial location name tokens.
-    /// Any location whose name contains one of the tokens is assigned that
-    /// timezone. Locations with no match default to "America/Vancouver".
+    /// Maps IANA Timezone ID → comma-separated JUSTIN location codes.
+    /// Any location whose JustinLocationCode matches one of the codes is
+    /// assigned that timezone. Locations with no match default to
+    /// "America/Vancouver".
+    /// IMPORTANT: This default list can be overridden in appsettings per
+    /// application/environment.
+    /// IMPORTANT: These location codes are PROD values and may differ in
+    /// DEV/TEST.
+    /// Reference: https://wiki.justice.gov.bc.ca/wiki/spaces/CSA/pages/525730003/Locations+and+Regions
     /// </summary>
-    public Dictionary<string, string> LocationTimeZones { get; set; } = [];
+    public Dictionary<string, string> LocationTimeZones { get; set; } =
+        new()
+        {
+            // Cranbrook, Fernie, Sparwood, Golden, Invermere
+            ["America/Edmonton"] = "4711,SCCB,4731,4951,SCGD,GCC,4741,SCIN,4771",
+            // Dawson Creek, Tumbler Ridge, Chetwynd, Fort St. John
+            ["America/Dawson_Creek"] = "5731,SCDC,KPAC,5955,5721,SCFJ",
+            // Creston
+            ["America/Creston"] = "SCCS,4721",
+        };
 }

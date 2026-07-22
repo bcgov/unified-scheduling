@@ -304,15 +304,18 @@ namespace Unified.JCInterface.Services
 
         private List<Location> AssociateLocationToTimezone(List<Location> locations)
         {
+            var locationTimeZonesDict = jcInterfaceOptions.LocationTimeZones;
+
             foreach (var location in locations)
             {
-                var configurationSections = jcInterfaceOptions.LocationTimeZones;
-
-                var otherTimezone = configurationSections
+                var otherTimezone = locationTimeZonesDict
                     .FirstOrDefault(cs =>
                         cs.Value.Split(",")
                             .Select(s => s.Trim())
-                            .Any(partialName => location.Name.Contains(partialName))
+                            .Where(code => !string.IsNullOrWhiteSpace(code))
+                            .Any(code =>
+                                string.Equals(location.JustinLocationCode, code, StringComparison.OrdinalIgnoreCase)
+                            )
                     )
                     .Key;
 
