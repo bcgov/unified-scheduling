@@ -74,6 +74,9 @@ namespace Unified.JCInterface.Services
                         {
                             Name = rnew.Name,
                             JustinId = rnew.JustinId,
+                            // Reactivate the region if it was previously expired but is
+                            // present again in the JC-Interface response.
+                            ExpiryDate = null,
                             UpdatedOn = DateTimeOffset.UtcNow,
                         }
                 )
@@ -110,7 +113,14 @@ namespace Unified.JCInterface.Services
                         new Location
                         {
                             Name = lnew.Name,
+                            // Keep JustinLocationCode in sync on every upsert (not just on create) so
+                            // court room mapping continues to work if JUSTIN changes a
+                            // location's ShortDesc code.
+                            JustinLocationCode = lnew.JustinLocationCode,
                             RegionId = lnew.RegionId,
+                            // Reactivate the location if it was previously expired but is
+                            // present again in the JC-Interface response.
+                            ExpiryDate = null,
                             UpdatedOn = DateTimeOffset.UtcNow,
                             Timezone = lnew.Timezone,
                         }
@@ -196,6 +206,9 @@ namespace Unified.JCInterface.Services
                         {
                             Room = crNew.Room,
                             LocationId = crNew.LocationId,
+                            // Reactivate the court room if it was previously expired but is
+                            // present again in the JC-Interface response.
+                            ExpiryDate = null,
                             UpdatedOn = DateTimeOffset.UtcNow,
                         }
                 )
