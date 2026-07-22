@@ -10,9 +10,7 @@ namespace Unified.Db.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Code",
-                table: "Regions");
+            migrationBuilder.DropColumn(name: "Code", table: "Regions");
         }
 
         /// <inheritdoc />
@@ -23,7 +21,8 @@ namespace Unified.Db.Migrations
                 table: "Regions",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: ""
+            );
         }
     }
 }
