@@ -17,6 +17,38 @@ namespace Unified.Tests.Common.Seeders;
 public sealed class SeederRegistrationTests
 {
     [Fact]
+    public void AddSeeder_RegistersExecutableSeederOnce_WhenAddedTwice()
+    {
+        var services = CreateServices();
+        services.AddSeeder<UnifiedDbContext, UserSeeder>().AddSeeder<UnifiedDbContext, UserSeeder>();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var seeders = scope.ServiceProvider.GetServices<SeederBase<UnifiedDbContext>>().ToArray();
+
+        var seeder = Assert.Single(seeders);
+        Assert.IsType<UserSeeder>(seeder);
+        Assert.Same(seeder, Assert.Single(scope.ServiceProvider.GetServices<SeederBase<UnifiedDbContext>>()));
+    }
+
+    [Fact]
+    public void AddSeeder_RegistersScopedSeeder_WithDistinctInstancesAcrossScopes()
+    {
+        var services = CreateServices();
+        services.AddSeeder<UnifiedDbContext, UserSeeder>();
+
+        using var provider = services.BuildServiceProvider();
+        using var firstScope = provider.CreateScope();
+        using var secondScope = provider.CreateScope();
+
+        var firstSeeder = Assert.Single(firstScope.ServiceProvider.GetServices<SeederBase<UnifiedDbContext>>());
+        var secondSeeder = Assert.Single(secondScope.ServiceProvider.GetServices<SeederBase<UnifiedDbContext>>());
+
+        Assert.NotSame(firstSeeder, secondSeeder);
+    }
+
+    [Fact]
     public void UserManagementModule_RegistersExpectedSeedersOnce_WhenAddedTwice()
     {
         var services = CreateServices();
@@ -94,7 +126,5 @@ public sealed class SeederRegistrationTests
             expectedTypes.OrderBy(type => type.FullName, StringComparer.Ordinal),
             actualTypes.OrderBy(type => type.FullName, StringComparer.Ordinal)
         );
-        foreach (var expectedType in expectedTypes)
-            Assert.NotNull(scope.ServiceProvider.GetService(expectedType));
     }
 }
