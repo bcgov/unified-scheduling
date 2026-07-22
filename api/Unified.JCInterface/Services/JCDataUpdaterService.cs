@@ -168,8 +168,6 @@ namespace Unified.JCInterface.Services
                 }
             }
 
-            //Associate Migrated Location to regions.
-            await AssociateAdhocLocationToRegion();
         }
 
         public async Task SyncCourtRoomsAsync()
@@ -186,14 +184,21 @@ namespace Unified.JCInterface.Services
                 })
                 .WhereToList(cr => cr.LocationId != null);
 
-            //Some court rooms, don't have a location. This should probably be fixed in the JC-Interface
+            //Some court rooms don't have a matching location. These are excluded from the
+            //upsert above, which means an existing DB court room with the same Room/Flex
+            //could get expired below even though it still exists in the JC-Interface
+            //response — it just failed to map to a location. This should probably be fixed
+            //in the JC-Interface, but warn here so it's noticed rather than silently expired.
             var courtRoomNoLocation = courtRoomsLookups.WhereToList(crl =>
                 locations.All(l => l.JustinLocationCode != crl.Flex)
             );
-            logger.LogDebug(
-                "Found {CourtRoomNoLocationCount} court rooms without a location",
-                courtRoomNoLocation.Count
-            );
+            if (courtRoomNoLocation.Count > 0)
+            {
+                logger.LogWarning(
+                    "Found {CourtRoomNoLocationCount} court rooms without a matching location; they will not prevent expiry of existing court rooms with the same room code",
+                    courtRoomNoLocation.Count
+                );
+            }
 
             logger.LogInformation("Synchronizing {CourtRoomCount} court rooms from JC-Interface", courtRooms.Count);
 
@@ -236,13 +241,38 @@ namespace Unified.JCInterface.Services
         {
             var regionDictionary = new Dictionary<int, ICollection<int>>();
             //RegionsRegionIdLocationsCodesAsync returns a LIST of locationIds.
-            foreach (var region in dbContext.Regions)
+            //Only query regions that are still active and have a JustinId — querying an
+            //expired or JC-Interface-unknown region could 404 and abort the whole sync.
+            var activeRegions = dbContext.Regions.AsNoTracking().Where(r => r.ExpiryDate == null).ToList();
+            
+            var skippedRegionCount = activeRegions.Count(r => r.JustinId == null);
+            if (skippedRegionCount > 0)
             {
-                if (region.JustinId == null)
-                    continue;
-                regionDictionary[region.Id] = await locationClient.RegionsRegionIdLocationsCodesAsync(
-                    region.JustinId.ToString()
+                logger.LogDebug(
+                    "Skipping {SkippedRegionCount} active regions without a JustinId when linking locations to regions",
+                    skippedRegionCount
                 );
+            }
+
+            var justinRegions = activeRegions.Where(r => r.JustinId != null).ToList();
+
+            foreach (var region in justinRegions)
+            {
+                try
+                {
+                    regionDictionary[region.Id] = await locationClient.RegionsRegionIdLocationsCodesAsync(
+                        region.JustinId!.ToString()
+                    );
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Failed to fetch location codes for region {RegionId} (JustinId: {JustinId}); continuing sync",
+                        region.Id,
+                        region.JustinId
+                    );
+                }
             }
 
             //Reverse the dictionary and flatten.
@@ -283,23 +313,6 @@ namespace Unified.JCInterface.Services
                 locationWithoutRegion.Count
             );
             return locationsDb;
-        }
-
-        private async Task AssociateAdhocLocationToRegion()
-        {
-            var locationsToRegions = jcInterfaceOptions.NonJCInterfaceLocationRegions;
-
-            foreach (var locationToRegion in locationsToRegions)
-            {
-                var location = await dbContext.Locations.FirstOrDefaultAsync(l => l.Name == locationToRegion.Key);
-                if (location != null && location.RegionId == null)
-                    location.RegionId = (
-                        await dbContext
-                            .Regions.AsNoTracking()
-                            .FirstOrDefaultAsync(r => r.Name == locationToRegion.Value)
-                    )?.Id;
-            }
-            await dbContext.SaveChangesAsync();
         }
 
         private List<Location> AssociateLocationToTimezone(List<Location> locations)
