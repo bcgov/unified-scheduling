@@ -27,6 +27,12 @@ public class HangfireOptions
     public bool DashboardEnabled { get; set; } = true;
 
     /// <summary>
+    /// When true, Hangfire attempts to create/upgrade its schema at runtime.
+    /// Keep false in deployed environments that use least-privilege API credentials.
+    /// </summary>
+    public bool PrepareSchemaIfNecessary { get; set; } = false;
+
+    /// <summary>
     /// Number of automatic retry attempts applied globally to every recurring job.
     /// Defaults to Hangfire's built-in default retry count.
     /// </summary>

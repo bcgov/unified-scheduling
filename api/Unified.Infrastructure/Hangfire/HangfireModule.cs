@@ -60,7 +60,7 @@ public static class HangfireModule
                         QueuePollInterval = TimeSpan.FromSeconds(15),
                         JobExpirationCheckInterval = TimeSpan.FromMinutes(30),
                         CountersAggregateInterval = TimeSpan.FromMinutes(5),
-                        PrepareSchemaIfNecessary = true,
+                        PrepareSchemaIfNecessary = hangfireOptions.PrepareSchemaIfNecessary,
                         EnableTransactionScopeEnlistment = true,
                     }
                 )
