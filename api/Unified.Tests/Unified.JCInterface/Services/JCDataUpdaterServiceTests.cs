@@ -156,7 +156,7 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         Assert.Equal("Victoria Law Courts", location.Name);
-        Assert.Equal("100", location.JustinCode);
+        Assert.Equal("100", location.JustinLocationCode);
         var region = await _dbContext.Regions.SingleAsync(r => r.JustinId == 1, TestContext.Current.CancellationToken);
         Assert.Equal(region.Id, location.RegionId);
     }
@@ -170,7 +170,7 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
             {
                 AgencyId = "AGENCY1",
                 Name = "Victoria Law Courts",
-                JustinCode = "100",
+                JustinLocationCode = "100",
                 Timezone = "America/Vancouver",
                 CreatedById = User.SystemUser,
             }
