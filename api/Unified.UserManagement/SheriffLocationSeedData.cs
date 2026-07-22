@@ -16,7 +16,7 @@ public sealed class SheriffLocationSeedData : ISeedData<LocationSeedDefinition>
         Location(3, "SS3", "Central Float Pool"),
         Location(4, "SS4", "Integrated Threat Assessment Unit", regionId: 100),
         Location(5, "SS5", "Office of the Chief Sheriff", regionId: 101),
-        Location(6, "SS6", "South Okanagan Escort Centre", justinCode: "4882"),
+        Location(6, "SS6", "South Okanagan Escort Centre", justinLocationCode: "4882"),
         Location(7, "SS7", "Training Section", regionId: 100),
         Location(9, "SS9", "Recruitment Office", regionId: 100),
         Location(10, "SS10", "Provincial Programs", regionId: 100),
@@ -26,7 +26,7 @@ public sealed class SheriffLocationSeedData : ISeedData<LocationSeedDefinition>
         int id,
         string agencyId,
         string name,
-        string? justinCode = null,
+        string? justinLocationCode = null,
         int? regionId = null
     ) =>
         new()
@@ -34,7 +34,7 @@ public sealed class SheriffLocationSeedData : ISeedData<LocationSeedDefinition>
             Id = id,
             AgencyId = agencyId,
             Name = name,
-            JustinCode = justinCode,
+            JustinLocationCode = justinLocationCode,
             RegionId = regionId,
             Timezone = "America/Vancouver",
         };
