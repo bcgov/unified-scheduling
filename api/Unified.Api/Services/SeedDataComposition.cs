@@ -20,85 +20,87 @@ public static class SeedDataComposition
     public const string StatsPermissionsDataSet = "stats-permissions";
     public const string TrainingPermissionsDataSet = "training-permissions";
 
-    private static readonly IReadOnlyDictionary<string, SeedDataSetDescriptor> DataSetCatalog =
-        new Dictionary<string, SeedDataSetDescriptor>(StringComparer.OrdinalIgnoreCase)
-        {
-            [PlatformSystemUserDataSet] = new(
-                PlatformSystemUserDataSet,
-                services =>
-                    services.AddSingleton(
-                        new UserSeedConfiguration
-                        {
-                            Source = PlatformSystemUserDataSet,
-                            Users = PlatformSystemUserSeedData.Users,
-                        }
-                    )
-            ),
-            [DefaultRolesDataSet] = new(
-                DefaultRolesDataSet,
-                services =>
-                    services.AddSingleton(
-                        new RoleSeedConfiguration { Source = DefaultRolesDataSet, Roles = DefaultRoleSeedData.Roles }
-                    )
-            ),
-            [UserManagementPermissionsDataSet] = new(
-                UserManagementPermissionsDataSet,
-                services =>
-                    services.AddSingleton(
-                        new PermissionSeedConfiguration
-                        {
-                            Source = UserManagementPermissionsDataSet,
-                            Permissions = UserManagementPermissionSeedData.Definitions,
-                        }
-                    )
-            ),
-            [StatsPermissionsDataSet] = new(
-                StatsPermissionsDataSet,
-                services =>
-                    services.AddSingleton(
-                        new PermissionSeedConfiguration
-                        {
-                            Source = StatsPermissionsDataSet,
-                            Permissions = StatsPermissionSeedData.Definitions,
-                        }
-                    ),
-                RequiredFeature: "StatsModule",
-                AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:StatsModule")
-            ),
-            [TrainingPermissionsDataSet] = new(
-                TrainingPermissionsDataSet,
-                services =>
-                    services.AddSingleton(
-                        new PermissionSeedConfiguration
-                        {
-                            Source = TrainingPermissionsDataSet,
-                            Permissions = TrainingPermissionSeedData.Definitions,
-                        }
-                    ),
-                RequiredFeature: "TrainingModule",
-                AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:TrainingModule")
-            ),
-            [SheriffRegionLocationDataSet] = new(
-                SheriffRegionLocationDataSet,
-                services =>
-                {
-                    services.AddSingleton(
-                        new RegionSeedConfiguration
-                        {
-                            Source = SheriffRegionLocationDataSet,
-                            Regions = SheriffRegionSeedData.Regions,
-                        }
-                    );
-                    services.AddSingleton(
-                        new LocationSeedConfiguration
-                        {
-                            Source = SheriffRegionLocationDataSet,
-                            Locations = SheriffLocationSeedData.Locations,
-                        }
-                    );
-                }
-            ),
-        };
+    private static readonly IReadOnlyDictionary<string, SeedDataSetDescriptor> DataSetCatalog = new Dictionary<
+        string,
+        SeedDataSetDescriptor
+    >(StringComparer.OrdinalIgnoreCase)
+    {
+        [PlatformSystemUserDataSet] = new(
+            PlatformSystemUserDataSet,
+            services =>
+                services.AddSingleton(
+                    new UserSeedConfiguration
+                    {
+                        Source = PlatformSystemUserDataSet,
+                        Users = PlatformSystemUserSeedData.Users,
+                    }
+                )
+        ),
+        [DefaultRolesDataSet] = new(
+            DefaultRolesDataSet,
+            services =>
+                services.AddSingleton(
+                    new RoleSeedConfiguration { Source = DefaultRolesDataSet, Roles = DefaultRoleSeedData.Roles }
+                )
+        ),
+        [UserManagementPermissionsDataSet] = new(
+            UserManagementPermissionsDataSet,
+            services =>
+                services.AddSingleton(
+                    new PermissionSeedConfiguration
+                    {
+                        Source = UserManagementPermissionsDataSet,
+                        Permissions = UserManagementPermissionSeedData.Definitions,
+                    }
+                )
+        ),
+        [StatsPermissionsDataSet] = new(
+            StatsPermissionsDataSet,
+            services =>
+                services.AddSingleton(
+                    new PermissionSeedConfiguration
+                    {
+                        Source = StatsPermissionsDataSet,
+                        Permissions = StatsPermissionSeedData.Definitions,
+                    }
+                ),
+            RequiredFeature: "StatsModule",
+            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:StatsModule")
+        ),
+        [TrainingPermissionsDataSet] = new(
+            TrainingPermissionsDataSet,
+            services =>
+                services.AddSingleton(
+                    new PermissionSeedConfiguration
+                    {
+                        Source = TrainingPermissionsDataSet,
+                        Permissions = TrainingPermissionSeedData.Definitions,
+                    }
+                ),
+            RequiredFeature: "TrainingModule",
+            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:TrainingModule")
+        ),
+        [SheriffRegionLocationDataSet] = new(
+            SheriffRegionLocationDataSet,
+            services =>
+            {
+                services.AddSingleton(
+                    new RegionSeedConfiguration
+                    {
+                        Source = SheriffRegionLocationDataSet,
+                        Regions = SheriffRegionSeedData.Regions,
+                    }
+                );
+                services.AddSingleton(
+                    new LocationSeedConfiguration
+                    {
+                        Source = SheriffRegionLocationDataSet,
+                        Locations = SheriffLocationSeedData.Locations,
+                    }
+                );
+            }
+        ),
+    };
 
     public static IServiceCollection AddConfiguredSeedData(
         this IServiceCollection services,

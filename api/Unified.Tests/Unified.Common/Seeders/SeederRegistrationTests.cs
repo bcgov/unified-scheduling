@@ -24,7 +24,11 @@ public sealed class SeederRegistrationTests
 
         AssertSeederTypes(
             services,
-            typeof(UserSeeder), typeof(RoleSeeder), typeof(PermissionSeeder), typeof(RegionSeeder), typeof(LocationSeeder)
+            typeof(UserSeeder),
+            typeof(RoleSeeder),
+            typeof(PermissionSeeder),
+            typeof(RegionSeeder),
+            typeof(LocationSeeder)
         );
     }
 
@@ -33,7 +37,12 @@ public sealed class SeederRegistrationTests
     {
         var services = CreateServices();
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { [$"{CalendarSeedDataOptions.SectionName}:HolidaysFilePath"] = "SeedData/bc-holidays.json" })
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    [$"{CalendarSeedDataOptions.SectionName}:HolidaysFilePath"] = "SeedData/bc-holidays.json",
+                }
+            )
             .Build();
         services.AddCalendarModule(configuration);
 
@@ -57,7 +66,11 @@ public sealed class SeederRegistrationTests
 
         AssertSeederTypes(
             services,
-            typeof(StatGroupSeeder), typeof(StatCategorySeeder), typeof(SubCategorySeeder), typeof(StatMetricSeeder), typeof(SubCategoryMetricSeeder)
+            typeof(StatGroupSeeder),
+            typeof(StatCategorySeeder),
+            typeof(SubCategorySeeder),
+            typeof(StatMetricSeeder),
+            typeof(SubCategoryMetricSeeder)
         );
     }
 
@@ -72,7 +85,10 @@ public sealed class SeederRegistrationTests
     {
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
-        var actualTypes = scope.ServiceProvider.GetServices<SeederBase<UnifiedDbContext>>().Select(seeder => seeder.GetType()).ToArray();
+        var actualTypes = scope
+            .ServiceProvider.GetServices<SeederBase<UnifiedDbContext>>()
+            .Select(seeder => seeder.GetType())
+            .ToArray();
 
         Assert.Equal(
             expectedTypes.OrderBy(type => type.FullName, StringComparer.Ordinal),

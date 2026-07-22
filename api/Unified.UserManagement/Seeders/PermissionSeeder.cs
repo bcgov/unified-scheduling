@@ -30,7 +30,9 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
         var seedDefinitions = dataSetConfigurations.SelectMany(config => config.Permissions).ToList();
 
         var duplicatePermissionIds = dataSetConfigurations
-            .SelectMany(configuration => configuration.Permissions.Select(permission => (Permission: permission, configuration.Source)))
+            .SelectMany(configuration =>
+                configuration.Permissions.Select(permission => (Permission: permission, configuration.Source))
+            )
             .GroupBy(item => item.Permission.Id, StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
             .Select(group => $"'{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")

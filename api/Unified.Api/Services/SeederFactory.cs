@@ -12,10 +12,7 @@ public class SeederFactory<TContext>
     private readonly IEnumerable<SeederBase<TContext>> _registeredSeeders;
     private readonly List<SeederBase<TContext>> _seeders = [];
 
-    public SeederFactory(
-        ILogger<SeederFactory<TContext>> logger,
-        IEnumerable<SeederBase<TContext>> registeredSeeders
-    )
+    public SeederFactory(ILogger<SeederFactory<TContext>> logger, IEnumerable<SeederBase<TContext>> registeredSeeders)
     {
         _logger = logger;
         _registeredSeeders = registeredSeeders;

@@ -72,11 +72,17 @@ public class UserSeeder(ILogger<UserSeeder> logger, IEnumerable<UserSeedConfigur
         var definitions = configurations
             .SelectMany(configuration => configuration.Users.Select(user => (User: user, configuration.Source)))
             .ToArray();
-        var errors = definitions.GroupBy(item => item.User.Id).Where(group => group.Count() > 1)
+        var errors = definitions
+            .GroupBy(item => item.User.Id)
+            .Where(group => group.Count() > 1)
             .Select(group => $"Id '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
             .Concat(
-                definitions.GroupBy(item => item.User.IdirName, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1)
-                    .Select(group => $"IdirName '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
+                definitions
+                    .GroupBy(item => item.User.IdirName, StringComparer.OrdinalIgnoreCase)
+                    .Where(group => group.Count() > 1)
+                    .Select(group =>
+                        $"IdirName '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}"
+                    )
             )
             .ToArray();
         if (errors.Length > 0)
