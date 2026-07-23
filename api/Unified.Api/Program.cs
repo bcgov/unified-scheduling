@@ -10,6 +10,8 @@ using Unified.Calendar;
 using Unified.Core;
 using Unified.Db;
 using Unified.FeatureFlags;
+using Unified.Hangfire;
+using Unified.Hangfire.Options;
 using Unified.Infrastructure;
 using Unified.Infrastructure.Options;
 using Unified.Stats;
@@ -76,6 +78,7 @@ var hangfireOptions =
     // Modules
     builder
         .Services.AddInfrastructureModule()
+        .AddHangfireModule(builder.Configuration)
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
         .AddUserManagementModule();
