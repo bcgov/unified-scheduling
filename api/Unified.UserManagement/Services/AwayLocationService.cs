@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
 using Unified.Db.Models;
+using Unified.Db.Models.Calendar;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
 
@@ -8,6 +9,8 @@ namespace Unified.UserManagement.Services;
 
 public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationService
 {
+    private const string SourceModule = "user-management";
+
     public async Task<IReadOnlyCollection<AwayLocationResponseDto>> GetByUserIdAsync(
         Guid userId,
         CancellationToken cancellationToken = default
@@ -17,10 +20,13 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
 
         var awayLocations = await db
             .UserAwayLocations.AsNoTracking()
-            .Include(x => x.Location)
-            .Where(x => x.UserId == userId && (x.ExpiryAtUtc == null || x.ExpiryAtUtc > DateTimeOffset.UtcNow))
-            .OrderByDescending(x => x.StartAtUtc)
-            .ThenBy(x => x.LocationId)
+            .Include(x => x.Event)
+                .ThenInclude(e => e.Location)
+            .Where(x =>
+                x.UserId == userId && (x.Event.CancelledAt == null || x.Event.CancelledAt > DateTimeOffset.UtcNow)
+            )
+            .OrderByDescending(x => x.Event.StartAtUtc)
+            .ThenBy(x => x.Event.LocationId)
             .ToListAsync(cancellationToken);
 
         return awayLocations.Select(a => MapResponse(a)).ToList();
@@ -40,20 +46,30 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
         var startDateUtc = DateTimeOffset.Parse(request.StartDateTime).ToUniversalTime();
         var endDateUtc = DateTimeOffset.Parse(request.EndDateTime).ToUniversalTime();
 
-        var awayLocation = new UserAwayLocation
+        var calendarEvent = new Event
         {
-            UserId = userId,
-            LocationId = location.Id,
+            Title = $"Away - {location.Name}",
+            Notes = request.Comment?.Trim(),
             StartAtUtc = startDateUtc,
             EndAtUtc = endDateUtc,
-            Timezone = timezoneId,
-            Comment = request.Comment?.Trim(),
+            TimeZoneId = timezoneId,
+            AllDay = request.AllDay,
+            EventTypeCode = CalendarEventTypeCodes.AwayLocation,
+            StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+            SourceModule = SourceModule,
+            LocationId = location.Id,
         };
+
+        db.Events.Add(calendarEvent);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var awayLocation = new UserAwayLocation { UserId = userId, EventId = calendarEvent.Id };
 
         db.UserAwayLocations.Add(awayLocation);
         await db.SaveChangesAsync(cancellationToken);
 
-        awayLocation.Location = location;
+        calendarEvent.Location = location;
+        awayLocation.Event = calendarEvent;
         return MapResponse(awayLocation);
     }
 
@@ -67,7 +83,8 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
         await GetUserOrThrowAsync(userId, cancellationToken);
 
         var awayLocation = await db
-            .UserAwayLocations.Include(x => x.Location)
+            .UserAwayLocations.Include(x => x.Event)
+                .ThenInclude(e => e.Location)
             .SingleOrDefaultAsync(x => x.Id == awayLocationId && x.UserId == userId, cancellationToken);
 
         if (awayLocation is null)
@@ -77,14 +94,16 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
 
         var location = await GetLocationOrThrowAsync(request.LocationId, cancellationToken);
 
-        var timezoneId = request.Timezone ?? location.Timezone ?? awayLocation.Timezone;
+        var timezoneId = request.Timezone ?? location.Timezone ?? awayLocation.Event.TimeZoneId;
 
-        awayLocation.LocationId = location.Id;
-        awayLocation.StartAtUtc = DateTimeOffset.Parse(request.StartDateTime).ToUniversalTime();
-        awayLocation.EndAtUtc = DateTimeOffset.Parse(request.EndDateTime).ToUniversalTime();
-        awayLocation.Timezone = timezoneId;
-        awayLocation.Comment = request.Comment?.Trim();
-        awayLocation.Location = location;
+        awayLocation.Event.Title = $"Away - {location.Name}";
+        awayLocation.Event.LocationId = location.Id;
+        awayLocation.Event.StartAtUtc = DateTimeOffset.Parse(request.StartDateTime).ToUniversalTime();
+        awayLocation.Event.EndAtUtc = DateTimeOffset.Parse(request.EndDateTime).ToUniversalTime();
+        awayLocation.Event.TimeZoneId = timezoneId;
+        awayLocation.Event.AllDay = request.AllDay;
+        awayLocation.Event.Notes = request.Comment?.Trim();
+        awayLocation.Event.Location = location;
 
         await db.SaveChangesAsync(cancellationToken);
         return MapResponse(awayLocation);
@@ -99,7 +118,8 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
         await GetUserOrThrowAsync(userId, cancellationToken);
 
         var awayLocation = await db
-            .UserAwayLocations.Include(x => x.Location)
+            .UserAwayLocations.Include(x => x.Event)
+                .ThenInclude(e => e.Location)
             .SingleOrDefaultAsync(x => x.Id == request.AwayLocationId && x.UserId == userId, cancellationToken);
 
         if (awayLocation is null)
@@ -107,8 +127,9 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
             throw new KeyNotFoundException($"Away location {request.AwayLocationId} not found for user {userId}.");
         }
 
-        awayLocation.ExpiryAtUtc = DateTimeOffset.UtcNow;
-        awayLocation.ExpiryReason = request.ExpiryReason.Trim();
+        awayLocation.Event.CancelledAt = DateTimeOffset.UtcNow;
+        awayLocation.Event.CancellationReason = request.ExpiryReason.Trim();
+        awayLocation.Event.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
 
         await db.SaveChangesAsync(cancellationToken);
         return MapResponse(awayLocation);
@@ -145,15 +166,17 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
         new()
         {
             Id = awayLocation.Id,
+            EventId = awayLocation.EventId,
             UserId = awayLocation.UserId,
-            LocationId = awayLocation.LocationId,
-            LocationName = awayLocation.Location?.Name ?? string.Empty,
-            LocationTimezone = awayLocation.Location?.Timezone ?? string.Empty,
-            StartAtUtc = awayLocation.StartAtUtc,
-            EndAtUtc = awayLocation.EndAtUtc,
-            ExpiryAtUtc = awayLocation.ExpiryAtUtc,
-            ExpiryReason = awayLocation.ExpiryReason,
-            Comment = awayLocation.Comment,
-            Timezone = awayLocation.Timezone,
+            LocationId = awayLocation.Event.LocationId ?? 0,
+            LocationName = awayLocation.Event.Location?.Name ?? string.Empty,
+            LocationTimezone = awayLocation.Event.Location?.Timezone ?? string.Empty,
+            StartAtUtc = awayLocation.Event.StartAtUtc,
+            EndAtUtc = awayLocation.Event.EndAtUtc,
+            AllDay = awayLocation.Event.AllDay,
+            ExpiryAtUtc = awayLocation.Event.CancelledAt,
+            ExpiryReason = awayLocation.Event.CancellationReason,
+            Comment = awayLocation.Event.Notes,
+            Timezone = awayLocation.Event.TimeZoneId,
         };
 }

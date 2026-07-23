@@ -23,5 +23,12 @@ public sealed record AwayLocationRequestDto
     /// </summary>
     public string? Timezone { get; init; }
 
+    /// <summary>
+    /// True when the away location spans the full day(s) with no specific start/end time
+    /// (i.e. the "Add time" option was not used). Set explicitly by the frontend rather than
+    /// inferred from the start/end times. Defaults to false.
+    /// </summary>
+    public bool AllDay { get; init; }
+
     public string? Comment { get; init; }
 }

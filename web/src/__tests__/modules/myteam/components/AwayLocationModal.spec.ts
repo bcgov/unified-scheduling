@@ -236,8 +236,8 @@ describe('AwayLocationModal', () => {
 
     await flushPromises();
 
-    const vm = wrapper.vm as unknown as { addTime: boolean };
-    vm.addTime = true;
+    const vm = wrapper.vm as unknown as { allDay: boolean };
+    vm.allDay = false;
 
     await flushPromises();
 
@@ -280,9 +280,9 @@ describe('AwayLocationModal', () => {
         startTime: string;
         endTime: string;
       };
-      addTime: boolean;
+      allDay: boolean;
     };
-    vm.addTime = true;
+    vm.allDay = false;
     vm.formData.locationId = 1;
     vm.formData.startDate = '2026-01-10';
     vm.formData.startTime = '08:30';
@@ -318,15 +318,15 @@ describe('AwayLocationModal', () => {
 
     const vm = wrapper.vm as unknown as {
       formData: { startTime: string; endTime: string };
-      addTime: boolean;
+      allDay: boolean;
     };
-    vm.addTime = true;
+    vm.allDay = false;
     vm.formData.startTime = '08:30';
     vm.formData.endTime = '17:00';
 
     await flushPromises();
 
-    vm.addTime = false;
+    vm.allDay = true;
 
     await flushPromises();
 
@@ -362,9 +362,9 @@ describe('AwayLocationModal', () => {
 
     const vm = wrapper.vm as unknown as {
       formData: { startTime: string; endTime: string };
-      addTime: boolean;
+      allDay: boolean;
     };
-    expect(vm.addTime).toBe(true);
+    expect(vm.allDay).toBe(false);
     expect(vm.formData.startTime).toBe('08:30');
     expect(vm.formData.endTime).toBe('17:00');
 
@@ -389,6 +389,106 @@ describe('AwayLocationModal', () => {
 
     // Default timezone when no location selected
     expect(vm.timezone).toBe('America/Vancouver');
+
+    wrapper.unmount();
+  });
+
+  it('does not enable Add Time for an existing away location when allDay is true', async () => {
+    const app = await createTestApp();
+
+    const awayLocation: AwayLocationResponseDto = {
+      id: 2002,
+      userId: 'test-user-id',
+      locationId: 1,
+      locationName: 'Victoria',
+      locationTimezone: 'America/Vancouver',
+      startAtUtc: '2026-01-10T00:00:00+00:00',
+      endAtUtc: '2026-06-30T00:00:00+00:00',
+      allDay: true,
+      expiryAtUtc: null,
+      expiryReason: null,
+      comment: null,
+    };
+
+    const wrapper = mount(AwayLocationModal, {
+      props: { userId: 'test-user-id', locations, awayLocation },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { allDay: boolean };
+    expect(vm.allDay).toBe(true);
+
+    wrapper.unmount();
+  });
+
+  it('enables Add Time for an existing away location when allDay is false', async () => {
+    const app = await createTestApp();
+
+    const awayLocation: AwayLocationResponseDto = {
+      id: 2003,
+      userId: 'test-user-id',
+      locationId: 1,
+      locationName: 'Victoria',
+      locationTimezone: 'America/Vancouver',
+      startAtUtc: '2026-01-10T08:30:00+00:00',
+      endAtUtc: '2026-01-10T17:00:00+00:00',
+      allDay: false,
+      expiryAtUtc: null,
+      expiryReason: null,
+      comment: null,
+    };
+
+    const wrapper = mount(AwayLocationModal, {
+      props: { userId: 'test-user-id', locations, awayLocation },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { allDay: boolean };
+    expect(vm.allDay).toBe(false);
+
+    wrapper.unmount();
+  });
+
+  it('sends allDay=true when Add Time is off and allDay=false when Add Time is on', async () => {
+    const app = await createTestApp();
+
+    let capturedBody: unknown;
+    server.use(
+      getPostApiUsersUserIdAwayLocationsMockHandler(async (req) => {
+        capturedBody = await req.request.json();
+        return getPostApiUsersUserIdAwayLocationsResponseMock({ id: 1003 });
+      }),
+    );
+
+    const wrapper = mount(AwayLocationModal, {
+      props: { userId: 'test-user-id', locations, awayLocation: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: { locationId: number | undefined; startDate: string; endDate: string };
+    };
+    vm.formData.locationId = 1;
+    vm.formData.startDate = '2026-01-10';
+    vm.formData.endDate = '2026-06-30';
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('Save'));
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(capturedBody).toMatchObject({ allDay: true });
 
     wrapper.unmount();
   });

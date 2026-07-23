@@ -12,9 +12,11 @@ export const GetApiUsersUserIdAwayLocationsParams = zod.strictObject({
 
 export const GetApiUsersUserIdAwayLocationsResponseItem = zod.object({
   id: zod.number().optional(),
+  eventId: zod.number().optional(),
   userId: zod.uuid().optional(),
   startAtUtc: zod.iso.datetime({ offset: true }).optional(),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  allDay: zod.boolean().optional(),
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
@@ -34,6 +36,7 @@ export const PostApiUsersUserIdAwayLocationsBody = zod.strictObject({
   startDateTime: zod.string(),
   endDateTime: zod.string(),
   timezone: zod.string().nullish(),
+  allDay: zod.boolean().optional(),
   comment: zod.string().nullish(),
 });
 
@@ -47,14 +50,17 @@ export const PutApiUsersUserIdAwayLocationsAwayLocationIdBody = zod.strictObject
   startDateTime: zod.string(),
   endDateTime: zod.string(),
   timezone: zod.string().nullish(),
+  allDay: zod.boolean().optional(),
   comment: zod.string().nullish(),
 });
 
 export const PutApiUsersUserIdAwayLocationsAwayLocationIdResponse = zod.object({
   id: zod.number().optional(),
+  eventId: zod.number().optional(),
   userId: zod.uuid().optional(),
   startAtUtc: zod.iso.datetime({ offset: true }).optional(),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  allDay: zod.boolean().optional(),
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),
@@ -75,9 +81,11 @@ export const PostApiUsersUserIdAwayLocationsExpireBody = zod.strictObject({
 
 export const PostApiUsersUserIdAwayLocationsExpireResponse = zod.object({
   id: zod.number().optional(),
+  eventId: zod.number().optional(),
   userId: zod.uuid().optional(),
   startAtUtc: zod.iso.datetime({ offset: true }).optional(),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  allDay: zod.boolean().optional(),
   expiryAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   expiryReason: zod.string().nullish(),
   comment: zod.string().nullish(),

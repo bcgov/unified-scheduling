@@ -62,6 +62,7 @@ public sealed class CalendarSeedersTests : IAsyncLifetime
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(
             [
+                CalendarCodeMappings.ToDbCode(CalendarEventTypeCode.AwayLocation),
                 CalendarCodeMappings.ToDbCode(CalendarEventTypeCode.Deadline),
                 CalendarCodeMappings.ToDbCode(CalendarEventTypeCode.General),
                 CalendarCodeMappings.ToDbCode(CalendarEventTypeCode.Holiday),
@@ -89,8 +90,8 @@ public sealed class CalendarSeedersTests : IAsyncLifetime
         var eventTypes = await _dbContext
             .EventTypes.OrderBy(x => x.Code)
             .ToListAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(3, eventTypes.Count);
-        Assert.Equal(3, eventTypes.Select(x => x.Code).Distinct().Count());
+        Assert.Equal(4, eventTypes.Count);
+        Assert.Equal(4, eventTypes.Select(x => x.Code).Distinct().Count());
     }
 
     [Fact]

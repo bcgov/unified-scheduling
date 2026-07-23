@@ -1,13 +1,26 @@
 using System.ComponentModel.DataAnnotations;
-using Unified.Db.Models;
 using Unified.Db.Models.Abstract;
+using Unified.Db.Models.Calendar;
 
 namespace Unified.Db.Models.UserManagement;
 
-public class UserAwayLocation : BaseUserEvent
+/// <summary>
+/// Links a <see cref="Calendar.Event"/> record to the user it applies to.
+/// Away-location-specific fields (dates, timezone, location, comment, expiry) live on the
+/// linked <see cref="Event"/> instead of being duplicated on this table.
+/// </summary>
+public class UserAwayLocation : BaseEntity
 {
-    [Required]
-    public int LocationId { get; set; }
+    [Key]
+    public int Id { get; set; }
 
-    public virtual Location Location { get; set; } = null!;
+    [Required]
+    public int EventId { get; set; }
+
+    public virtual Event Event { get; set; } = null!;
+
+    [Required]
+    public Guid UserId { get; set; }
+
+    public virtual User User { get; set; } = null!;
 }
