@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.16" />
     <ProjectReference Include="..\..\db\db.csproj" />
     <ProjectReference Include="..\Unified.Authorization\Unified.Authorization.csproj" />
