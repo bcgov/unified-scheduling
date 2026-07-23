@@ -94,7 +94,9 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
 
         if (awayLocation.Event.CancelledAt is not null)
         {
-            throw new InvalidOperationException($"Away location {awayLocationId} is already expired and cannot be edited.");
+            throw new InvalidOperationException(
+                $"Away location {awayLocationId} is already expired and cannot be edited."
+            );
         }
 
         var location = await GetLocationOrThrowAsync(request.LocationId, cancellationToken);
