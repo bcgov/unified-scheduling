@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20260716211045_AddUserAwayLocationsTable")]
+    [Migration("20260723215833_AddUserAwayLocationsTable")]
     partial class AddUserAwayLocationsTable
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace Unified.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -983,6 +983,12 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<DateTimeOffset>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("Mandatory")
                         .HasColumnType("boolean");
 
@@ -1345,6 +1351,11 @@ namespace Unified.Db.Migrations
                     b.Property<DateTimeOffset?>("LastPhotoUpdate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("PendingRegistration")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<byte[]>("Photo")
                         .HasColumnType("bytea");
 
@@ -1362,6 +1373,15 @@ namespace Unified.Db.Migrations
                     b.HasIndex("CreatedById");
 
                     b.HasIndex("HomeLocationId");
+
+                    b.HasIndex("IdirId")
+                        .IsUnique();
+
+                    b.HasIndex("IdirName")
+                        .IsUnique();
+
+                    b.HasIndex("KeyCloakId")
+                        .IsUnique();
 
                     b.HasIndex("UpdatedById");
 
@@ -2144,7 +2164,7 @@ namespace Unified.Db.Migrations
                     b.HasOne("Unified.Db.Models.Calendar.Event", "Event")
                         .WithMany()
                         .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
@@ -2155,7 +2175,7 @@ namespace Unified.Db.Migrations
                     b.HasOne("Unified.Db.Models.UserManagement.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("CreatedBy");
