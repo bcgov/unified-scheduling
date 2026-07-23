@@ -7,6 +7,6 @@ namespace Unified.Db.Models.Abstract;
 /// </summary>
 public interface ISoftDeletable
 {
-    DateTimeOffset? DeletedOn { get; }
-    Guid? DeletedById { get; }
+    DateTimeOffset? DeletedOn { get; set; }
+    Guid? DeletedById { get; set; }
 }

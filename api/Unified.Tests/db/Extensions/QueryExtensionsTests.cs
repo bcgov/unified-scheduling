@@ -8,8 +8,8 @@ public class QueryExtensionsTests
     private sealed class SoftDeletableEntity : ISoftDeletable
     {
         public int Id { get; init; }
-        public DateTimeOffset? DeletedOn { get; init; }
-        public Guid? DeletedById { get; init; }
+        public DateTimeOffset? DeletedOn { get; set; }
+        public Guid? DeletedById { get; set; }
     }
 
     private static IQueryable<SoftDeletableEntity> BuildQuery(params SoftDeletableEntity[] items) =>
@@ -83,5 +83,21 @@ public class QueryExtensionsTests
         var result = query.WhereActive().ToList();
 
         Assert.Empty(result);
+    }
+
+    [Fact]
+    public void SoftDelete_SetsDeletedOnAndDeletedById()
+    {
+        var entity = new SoftDeletableEntity { Id = 1 };
+        var deletedById = Guid.NewGuid();
+        var before = DateTimeOffset.UtcNow;
+
+        entity.SoftDelete(deletedById);
+
+        var after = DateTimeOffset.UtcNow;
+
+        Assert.Equal(deletedById, entity.DeletedById);
+        Assert.NotNull(entity.DeletedOn);
+        Assert.InRange(entity.DeletedOn!.Value, before, after);
     }
 }
