@@ -12,14 +12,8 @@ public sealed class HangfireRegistrationFailureMarkerJob(ILogger<HangfireRegistr
     [AutomaticRetry(Attempts = 0, OnAttemptsExceeded = AttemptsExceededAction.Fail)]
     public Task Execute(string jobType, string failureSummary)
     {
-        logger.LogError(
-            "Recurring job registration failed for {JobType}: {FailureSummary}",
-            jobType,
-            failureSummary
-        );
+        logger.LogError("Recurring job registration failed for {JobType}: {FailureSummary}", jobType, failureSummary);
 
-        throw new InvalidOperationException(
-            $"Recurring job registration failed for '{jobType}'. {failureSummary}"
-        );
+        throw new InvalidOperationException($"Recurring job registration failed for '{jobType}'. {failureSummary}");
     }
 }

@@ -60,7 +60,10 @@ public sealed class HangfireJobRegistrationService(
 
             if (failedJobs.Count == 0)
             {
-                logger.LogInformation("All Hangfire recurring jobs registered successfully ({RegisteredCount} jobs)", registeredCount);
+                logger.LogInformation(
+                    "All Hangfire recurring jobs registered successfully ({RegisteredCount} jobs)",
+                    registeredCount
+                );
             }
             else
             {
@@ -82,17 +85,11 @@ public sealed class HangfireJobRegistrationService(
     {
         try
         {
-            BackgroundJob.Enqueue<HangfireRegistrationFailureMarkerJob>(job =>
-                job.Execute(jobType, failureSummary)
-            );
+            BackgroundJob.Enqueue<HangfireRegistrationFailureMarkerJob>(job => job.Execute(jobType, failureSummary));
         }
         catch (Exception ex)
         {
-            logger.LogWarning(
-                ex,
-                "Could not enqueue Hangfire registration failure marker for {JobType}",
-                jobType
-            );
+            logger.LogWarning(ex, "Could not enqueue Hangfire registration failure marker for {JobType}", jobType);
         }
     }
 }

@@ -25,7 +25,12 @@ public static class RecurringJobHelper
 
             // Hangfire requires an argument at registration time; CancellationToken.None
             // acts as a placeholder and Hangfire provides the live execution token.
-            RecurringJob.AddOrUpdate(job.JobName, () => job.Execute(null, CancellationToken.None), job.CronSchedule, options);
+            RecurringJob.AddOrUpdate(
+                job.JobName,
+                () => job.Execute(null, CancellationToken.None),
+                job.CronSchedule,
+                options
+            );
         }
         else
         {
