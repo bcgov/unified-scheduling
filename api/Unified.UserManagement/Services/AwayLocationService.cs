@@ -92,6 +92,11 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
             throw new KeyNotFoundException($"Away location {awayLocationId} not found for user {userId}.");
         }
 
+        if (awayLocation.Event.CancelledAt is not null)
+        {
+            throw new InvalidOperationException($"Away location {awayLocationId} is already expired and cannot be edited.");
+        }
+
         var location = await GetLocationOrThrowAsync(request.LocationId, cancellationToken);
 
         var timezoneId = request.Timezone ?? location.Timezone ?? awayLocation.Event.TimeZoneId;
@@ -125,6 +130,11 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
         if (awayLocation is null)
         {
             throw new KeyNotFoundException($"Away location {request.AwayLocationId} not found for user {userId}.");
+        }
+
+        if (awayLocation.Event.CancelledAt is not null)
+        {
+            throw new InvalidOperationException($"Away location {request.AwayLocationId} is already expired.");
         }
 
         awayLocation.Event.CancelledAt = DateTimeOffset.UtcNow;
