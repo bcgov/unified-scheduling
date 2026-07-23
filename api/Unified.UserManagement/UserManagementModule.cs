@@ -80,7 +80,9 @@ public static class UserManagementModule
             .AddPermissionPolicy(Permissions.ActingPositionsView)
             .AddPermissionPolicy(Permissions.ActingPositionsCreate)
             .AddPermissionPolicy(Permissions.ActingPositionsEdit)
-            .AddPermissionPolicy(Permissions.ActingPositionsExpire);
+            .AddPermissionPolicy(Permissions.ActingPositionsExpire)
+            // Admin
+            .AddPermissionPolicy(Permissions.HangfireDashboardView);
 
         return services;
     }

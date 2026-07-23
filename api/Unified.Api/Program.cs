@@ -1,13 +1,17 @@
 using System.Text.Json.Serialization;
+using Hangfire;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Unified.Api.Options;
 using Unified.Api.Services;
 using Unified.Authorization;
+using Unified.Authorization.Hangfire;
 using Unified.Calendar;
 using Unified.Core;
 using Unified.Db;
 using Unified.FeatureFlags;
+using Unified.Hangfire;
+using Unified.Hangfire.Options;
 using Unified.Infrastructure;
 using Unified.Infrastructure.Options;
 using Unified.Stats;
@@ -17,6 +21,8 @@ using Unified.UserManagement;
 var builder = WebApplication.CreateBuilder(args);
 var featureFlagsOptions =
     builder.Configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
+var hangfireOptions =
+    builder.Configuration.GetSection(HangfireOptions.SectionName).Get<HangfireOptions>() ?? new HangfireOptions();
 
 {
     // Configure forwarded headers so the app sees the external scheme/host
@@ -69,7 +75,7 @@ var featureFlagsOptions =
         options.CombineLogs = true;
     });
 
-    // Modules
+    // Modules (core infrastructure first, feature-gated modules conditionally, then Hangfire last)
     builder
         .Services.AddInfrastructureModule()
         .AddCoreModule()
@@ -110,6 +116,9 @@ var featureFlagsOptions =
     {
         builder.Services.AddTrainingModule();
     }
+
+    // Hangfire registered last so all feature-gated modules have already registered their IRecurringJob implementations
+    builder.Services.AddHangfireModule(builder.Configuration);
 }
 
 var app = builder.Build();
@@ -162,6 +171,19 @@ var app = builder.Build();
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    var hangfireConnectionString = builder.Configuration.GetValue<string>("DatabaseConnectionString");
+    if (hangfireOptions.Enabled && hangfireOptions.DashboardEnabled && !string.IsNullOrEmpty(hangfireConnectionString))
+    {
+        app.UseHangfireDashboard(
+            "/hangfire",
+            new DashboardOptions
+            {
+                Authorization = [new HangfireDashboardAuthorizationFilter()],
+                DisplayStorageConnectionString = false,
+            }
+        );
+    }
 
     app.MapControllers();
 

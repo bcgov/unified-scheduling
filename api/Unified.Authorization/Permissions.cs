@@ -94,4 +94,7 @@ public enum Permissions
     DashboardSignOff,
     DashboardSubmit,
     StatsOverrideSignedOff,
+
+    // --- Admin ---
+    HangfireDashboardView,
 }

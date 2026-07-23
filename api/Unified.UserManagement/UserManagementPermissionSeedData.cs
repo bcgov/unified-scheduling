@@ -11,6 +11,7 @@ public static class UserManagementPermissionSeedData
     private const string PermissionGroupUsers = "Users";
     private const string PermissionGroupRoles = "Roles";
     private const string PermissionGroupActingPositions = "ActingPositions";
+    private const string PermissionGroupAdmin = "Admin";
     public static PermissionSeedConfiguration Configuration { get; } =
         new()
         {
@@ -102,6 +103,13 @@ public static class UserManagementPermissionSeedData
                     Group = PermissionGroupActingPositions,
                     Id = nameof(Permissions.ActingPositionsExpire),
                     Description = "Expire acting positions",
+                },
+                // Admin
+                new()
+                {
+                    Group = PermissionGroupAdmin,
+                    Id = nameof(Permissions.HangfireDashboardView),
+                    Description = "View the Hangfire background jobs dashboard",
                 },
             ],
         };
