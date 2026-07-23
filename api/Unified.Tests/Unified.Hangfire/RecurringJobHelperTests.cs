@@ -2,9 +2,9 @@ using Hangfire;
 using Hangfire.InMemory;
 using Hangfire.Server;
 using Unified.Common.Jobs;
-using Unified.Infrastructure.Hangfire;
+using Unified.Hangfire;
 
-namespace Unified.Tests.Infrastructure.Hangfire;
+namespace Unified.Tests.Hangfire;
 
 public class RecurringJobHelperTests : IDisposable
 {
