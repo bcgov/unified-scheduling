@@ -14,13 +14,13 @@ public class UserAwayLocationConfiguration : BaseEntityConfiguration<UserAwayLoc
             .HasOne(m => m.Event)
             .WithMany()
             .HasForeignKey(m => m.EventId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder
             .HasOne(m => m.User)
             .WithMany()
             .HasForeignKey(m => m.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(b => b.EventId).IsUnique();
         builder.HasIndex(b => b.UserId);
