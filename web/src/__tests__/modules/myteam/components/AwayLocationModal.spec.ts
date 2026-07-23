@@ -179,6 +179,7 @@ describe('AwayLocationModal', () => {
 
     const awayLocation: AwayLocationResponseDto = {
       id: 1001,
+      eventId: 1,
       userId: 'test-user-id',
       locationId: 1,
       locationName: 'Victoria',
@@ -341,12 +342,13 @@ describe('AwayLocationModal', () => {
 
     const awayLocation: AwayLocationResponseDto = {
       id: 2001,
+      eventId: 1,
       userId: 'test-user-id',
       locationId: 1,
       locationName: 'Victoria',
       locationTimezone: 'America/Vancouver',
-      startAtUtc: '2026-01-10T08:30:00+00:00',
-      endAtUtc: '2026-01-10T17:00:00+00:00',
+      startAtUtc: '2026-01-10T13:30:00Z',
+      endAtUtc: '2026-01-10T22:00:00Z',
       expiryAtUtc: null,
       expiryReason: null,
       comment: null,
@@ -398,6 +400,7 @@ describe('AwayLocationModal', () => {
 
     const awayLocation: AwayLocationResponseDto = {
       id: 2002,
+      eventId: 2,
       userId: 'test-user-id',
       locationId: 1,
       locationName: 'Victoria',
@@ -429,6 +432,7 @@ describe('AwayLocationModal', () => {
 
     const awayLocation: AwayLocationResponseDto = {
       id: 2003,
+      eventId: 3,
       userId: 'test-user-id',
       locationId: 1,
       locationName: 'Victoria',
