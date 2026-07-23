@@ -2,12 +2,12 @@ namespace Unified.UserManagement.Models;
 
 public sealed record AwayLocationResponseDto
 {
-    public int Id { get; init; }
-    public int EventId { get; init; }
-    public Guid UserId { get; init; }
-    public int LocationId { get; init; }
-    public string LocationName { get; init; } = string.Empty;
-    public string LocationTimezone { get; init; } = string.Empty;
+    public required int Id { get; init; }
+    public required int EventId { get; init; }
+    public required Guid UserId { get; init; }
+    public required int LocationId { get; init; }
+    public required string LocationName { get; init; }
+    public required string LocationTimezone { get; init; }
     public DateTimeOffset StartAtUtc { get; init; }
     public DateTimeOffset? EndAtUtc { get; init; }
     public bool AllDay { get; init; }

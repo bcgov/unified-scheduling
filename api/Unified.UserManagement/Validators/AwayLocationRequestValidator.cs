@@ -43,6 +43,11 @@ public class AwayLocationRequestValidator : AbstractValidator<AwayLocationReques
             })
             .WithMessage("EndDateTime must be after StartDateTime.");
 
+        RuleFor(x => x.Timezone)
+            .Must(tz => DateTimeOffsetExtensions.IsValidIanaTimezone(tz))
+            .When(x => x.Timezone is not null)
+            .WithMessage("Timezone must be a valid IANA timezone identifier.");
+
         RuleFor(x => x.Comment)
             .MaximumLength(500)
             .WithMessage("Comment must not exceed 500 characters.")

@@ -78,6 +78,28 @@ public static class DateTimeOffsetExtensions
         return new DateTimeOffset(localDate, offset).ToUniversalTime();
     }
 
+    /// <summary>
+    /// Returns true when the string is a valid IANA or system timezone identifier
+    /// (e.g. "America/Vancouver" or "Pacific Standard Time").
+    /// </summary>
+    public static bool IsValidIanaTimezone(string? timezoneId)
+    {
+        if (string.IsNullOrWhiteSpace(timezoneId))
+        {
+            return false;
+        }
+
+        try
+        {
+            TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     public static DateTimeOffset ToTimeZone(this DateTimeOffset value, string? timezoneId)
     {
         var timezone = ResolveTimeZone(timezoneId);

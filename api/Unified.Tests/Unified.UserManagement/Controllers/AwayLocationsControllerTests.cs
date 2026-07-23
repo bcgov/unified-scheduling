@@ -368,6 +368,7 @@ public class AwayLocationsControllerTests
         new()
         {
             Id = 1001,
+            EventId = 1,
             UserId = userId,
             LocationId = locationId,
             LocationName = locationName,
@@ -390,6 +391,7 @@ public class AwayLocationsControllerTests
             new()
             {
                 Id = 1001,
+                EventId = 1,
                 UserId = Guid.NewGuid(),
                 LocationId = 1,
                 LocationName = "Victoria",
@@ -409,6 +411,7 @@ public class AwayLocationsControllerTests
             new()
             {
                 Id = 1001,
+                EventId = 2,
                 UserId = Guid.NewGuid(),
                 LocationId = 2,
                 LocationName = "Vancouver",
@@ -429,6 +432,7 @@ public class AwayLocationsControllerTests
             new()
             {
                 Id = 1001,
+                EventId = 1,
                 UserId = Guid.NewGuid(),
                 LocationId = 1,
                 LocationName = "Victoria",
