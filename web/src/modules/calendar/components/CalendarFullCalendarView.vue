@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { EventClickArg, EventInput } from '@fullcalendar/core';
+import type { EventClickInfo, EventInput } from '@fullcalendar/vue3';
 import { computed } from 'vue';
 import UaCalendar from '@/shared/components/UaCalendar.vue';
 import type { CalendarEventBase, CalendarFullCalendarViewModel } from '../calendarTypes';
@@ -30,7 +30,7 @@ const events = computed<EventInput[]>(() =>
   })),
 );
 
-const handleEventClick = (arg: EventClickArg) => {
+const handleEventClick = (arg: EventClickInfo) => {
   const calendarEvent = arg.event.extendedProps['calendarEvent'];
 
   if (calendarEvent) {
