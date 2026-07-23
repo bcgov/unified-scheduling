@@ -15,6 +15,7 @@ afterEach(() => {
 
 const awayLocation: AwayLocationResponseDto = {
   id: 1001,
+  eventId: 1,
   userId: 'test-user-id',
   locationId: 1,
   locationName: 'Victoria',

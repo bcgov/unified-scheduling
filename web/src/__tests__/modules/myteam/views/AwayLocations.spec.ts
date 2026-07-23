@@ -28,6 +28,7 @@ const user: UserResponse = {
 const awayLocationFixtures: AwayLocationResponseDto[] = [
   {
     id: 1001,
+    eventId: 1,
     userId: 'test-user-id',
     locationId: 1,
     locationName: 'Victoria',
@@ -41,6 +42,7 @@ const awayLocationFixtures: AwayLocationResponseDto[] = [
   },
   {
     id: 1002,
+    eventId: 2,
     userId: 'test-user-id',
     locationId: 2,
     locationName: 'Vancouver',
