@@ -4,19 +4,26 @@ using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db.Configuration;
 
-public class UserAwayLocationConfiguration : BaseUserEventConfiguration<UserAwayLocation>
+public class UserAwayLocationConfiguration : BaseEntityConfiguration<UserAwayLocation>
 {
     public override void Configure(EntityTypeBuilder<UserAwayLocation> builder)
     {
         builder.Property(b => b.Id).HasIdentityOptions(startValue: 1000);
 
         builder
-            .HasOne(m => m.Location)
+            .HasOne(m => m.Event)
             .WithMany()
-            .HasForeignKey(m => m.LocationId)
+            .HasForeignKey(m => m.EventId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(b => new { b.StartAtUtc, b.EndAtUtc });
+        builder
+            .HasOne(m => m.User)
+            .WithMany()
+            .HasForeignKey(m => m.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(b => b.EventId).IsUnique();
+        builder.HasIndex(b => b.UserId);
 
         base.Configure(builder);
     }

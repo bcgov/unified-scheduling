@@ -15,12 +15,14 @@ export const getGetApiUsersUserIdAwayLocationsResponseMock = (): AwayLocationRes
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -43,12 +45,14 @@ export const getGetApiUsersUserIdAwayLocationsResponseMock = (): AwayLocationRes
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -71,12 +75,14 @@ export const getGetApiUsersUserIdAwayLocationsResponseMock = (): AwayLocationRes
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -105,12 +111,14 @@ export const getPostApiUsersUserIdAwayLocationsResponseMock = (
   faker.helpers.arrayElement([
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -134,12 +142,14 @@ export const getPostApiUsersUserIdAwayLocationsResponseMock = (
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -163,12 +173,14 @@ export const getPostApiUsersUserIdAwayLocationsResponseMock = (
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -198,12 +210,14 @@ export const getPutApiUsersUserIdAwayLocationsAwayLocationIdResponseMock = (
   faker.helpers.arrayElement([
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -227,12 +241,14 @@ export const getPutApiUsersUserIdAwayLocationsAwayLocationIdResponseMock = (
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -256,12 +272,14 @@ export const getPutApiUsersUserIdAwayLocationsAwayLocationIdResponseMock = (
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -291,12 +309,14 @@ export const getPostApiUsersUserIdAwayLocationsExpireResponseMock = (
   faker.helpers.arrayElement([
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -320,12 +340,14 @@ export const getPostApiUsersUserIdAwayLocationsExpireResponseMock = (
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
@@ -349,12 +371,14 @@ export const getPostApiUsersUserIdAwayLocationsExpireResponseMock = (
     },
     {
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       startAtUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       endAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
+      allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       expiryAtUtc: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,

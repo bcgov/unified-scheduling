@@ -11,6 +11,7 @@ export interface AwayLocationRequestDto {
   endDateTime: string;
   /** @nullable */
   timezone?: string | null;
+  allDay?: boolean;
   /** @nullable */
   comment?: string | null;
 }

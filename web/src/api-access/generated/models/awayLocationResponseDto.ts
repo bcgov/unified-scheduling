@@ -7,10 +7,12 @@
 
 export interface AwayLocationResponseDto {
   id?: number;
+  eventId?: number;
   userId?: string;
   startAtUtc?: string;
   /** @nullable */
   endAtUtc?: string | null;
+  allDay?: boolean;
   /** @nullable */
   expiryAtUtc?: string | null;
   /** @nullable */

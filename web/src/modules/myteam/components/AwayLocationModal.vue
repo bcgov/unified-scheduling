@@ -49,7 +49,16 @@ const isEditMode = computed(() => !!props.awayLocation);
 const isSaving = ref(false);
 const apiError = ref('');
 const formErrors = ref<Record<string, string>>({});
-const addTime = ref(false);
+
+// Single source of truth for whether this is a full-day away location (matches the API's AllDay
+// field). The "Add Time" checkbox is just an inverted view over this value.
+const allDay = ref(true);
+const addTimeEnabled = computed({
+  get: () => !allDay.value,
+  set: (value: boolean) => {
+    allDay.value = !value;
+  },
+});
 
 const modalTitle = computed(() => (isEditMode.value ? 'Edit Away Location' : 'Add Away Location'));
 const isFullDay = computed(() => {
@@ -81,7 +90,7 @@ const createInitialFormData = (): FormData => ({
 const populateFromAwayLocation = (al: AwayLocationResponseDto): FormData => {
   const startTime = toTimeInputValue(al.startAtUtc, { setZone: false }) ?? '';
   const endTime = toTimeInputValue(al.endAtUtc, { setZone: false }) ?? '';
-  addTime.value = startTime !== '' || endTime !== '';
+  allDay.value = !!al.allDay;
 
   return {
     locationId: al.locationId,
@@ -98,7 +107,7 @@ const formData = ref<FormData>(
 );
 
 const formSchema = computed(() => {
-  const timeField = addTime.value ? zod.string().min(1, validationMessages.required) : zod.string();
+  const timeField = allDay.value ? zod.string() : zod.string().min(1, validationMessages.required);
 
   return zod
     .object({
@@ -137,15 +146,15 @@ const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
 watch(
   () => props.awayLocation,
   (al) => {
-    addTime.value = false;
+    allDay.value = true;
     formData.value = al ? populateFromAwayLocation(al) : createInitialFormData();
     apiError.value = '';
     formErrors.value = {};
   },
 );
 
-watch(addTime, (enabled) => {
-  if (!enabled) {
+watch(allDay, (isAllDay) => {
+  if (isAllDay) {
     formData.value = { ...formData.value, startTime: '', endTime: '' };
     formErrors.value = { ...formErrors.value, startTime: '', endTime: '' };
   }
@@ -155,8 +164,8 @@ function validateForm(): AwayLocationRequestDto | null {
   formErrors.value = {};
   const parsed = formSchema.value.safeParse({
     ...formData.value,
-    startTime: addTime.value ? formData.value.startTime : '',
-    endTime: addTime.value ? formData.value.endTime : '',
+    startTime: allDay.value ? '' : formData.value.startTime,
+    endTime: allDay.value ? '' : formData.value.endTime,
     comment: formData.value.comment?.trim() || null,
   });
 
@@ -169,15 +178,16 @@ function validateForm(): AwayLocationRequestDto | null {
     locationId: parsed.data.locationId,
     startDateTime: toOffsetDateTimeString(
       parsed.data.startDate,
-      addTime.value ? parsed.data.startTime : '00:00',
+      allDay.value ? '00:00' : parsed.data.startTime,
       timezone.value,
     ),
     endDateTime: toOffsetDateTimeString(
       parsed.data.endDate,
-      addTime.value ? parsed.data.endTime : '23:59',
+      allDay.value ? '23:59' : parsed.data.endTime,
       timezone.value,
     ),
     timezone: timezone.value ?? null,
+    allDay: allDay.value,
     comment: parsed.data.comment ?? null,
   };
 }
@@ -245,7 +255,7 @@ const handleSave = async () => {
       </div>
 
       <label class="ua-form-label" for="away-location-start-date">{{
-        addTime || formData.startTime ? 'Start Date & Time' : 'Start Date'
+        !allDay || formData.startTime ? 'Start Date & Time' : 'Start Date'
       }}</label>
       <div class="ua-date-time-row">
         <UaTextField
@@ -256,7 +266,7 @@ const handleSave = async () => {
           :error-messages="formErrors.startDate"
         />
         <UaTextField
-          v-if="addTime || formData.startTime"
+          v-if="!allDay || formData.startTime"
           id="away-location-start-time"
           v-model="formData.startTime"
           label=""
@@ -266,7 +276,7 @@ const handleSave = async () => {
       </div>
 
       <label class="ua-form-label" for="away-location-end-date">{{
-        addTime || formData.endTime ? 'End Date & Time' : 'End Date'
+        !allDay || formData.endTime ? 'End Date & Time' : 'End Date'
       }}</label>
       <div class="ua-date-time-row">
         <UaTextField
@@ -277,7 +287,7 @@ const handleSave = async () => {
           :error-messages="formErrors.endDate"
         />
         <UaTextField
-          v-if="addTime || formData.endTime"
+          v-if="!allDay || formData.endTime"
           id="away-location-end-time"
           v-model="formData.endTime"
           label=""
@@ -288,7 +298,7 @@ const handleSave = async () => {
 
       <span></span>
       <div class="ua-add-time-row">
-        <v-checkbox v-model="addTime" label="Add Time" density="compact" hide-details />
+        <v-checkbox v-model="addTimeEnabled" label="Add Time" density="compact" hide-details />
       </div>
 
       <UaTextarea

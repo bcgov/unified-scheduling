@@ -10,6 +10,7 @@ public static class CalendarEventTypeCodes
     public const string General = "general";
     public const string Holiday = "holiday";
     public const string Deadline = "deadline";
+    public const string AwayLocation = "awayLocation";
 }
 
 public static class CalendarEventStatusTypeCodes

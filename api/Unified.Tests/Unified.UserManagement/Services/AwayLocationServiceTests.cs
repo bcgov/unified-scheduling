@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
 using Unified.Db.Models;
+using Unified.Db.Models.Calendar;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
@@ -76,15 +77,22 @@ public class AwayLocationServiceTests : IAsyncLifetime
         int locationId = LocationId
     )
     {
-        var awayLocation = new UserAwayLocation
+        var calendarEvent = new Event
         {
-            UserId = UserId,
-            LocationId = locationId,
+            Title = "Away - Test",
             StartAtUtc = startAtUtc ?? DateTimeOffset.UtcNow.AddDays(-5),
             EndAtUtc = endAtUtc ?? DateTimeOffset.UtcNow.AddDays(25),
-            ExpiryAtUtc = expiryAtUtc,
-            Timezone = "America/Vancouver",
+            TimeZoneId = "America/Vancouver",
+            EventTypeCode = CalendarEventTypeCodes.AwayLocation,
+            StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+            SourceModule = "user-management",
+            LocationId = locationId,
+            CancelledAt = expiryAtUtc,
         };
+        _dbContext.Events.Add(calendarEvent);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var awayLocation = new UserAwayLocation { UserId = UserId, EventId = calendarEvent.Id };
 
         _dbContext.UserAwayLocations.Add(awayLocation);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -254,9 +262,50 @@ public class AwayLocationServiceTests : IAsyncLifetime
         await _service.CreateAsync(UserId, request, TestContext.Current.CancellationToken);
 
         // Assert
-        var saved = await _dbContext.UserAwayLocations.SingleAsync(TestContext.Current.CancellationToken);
+        var saved = await _dbContext
+            .UserAwayLocations.Include(x => x.Event)
+            .SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(UserId, saved.UserId);
-        Assert.Equal(LocationId, saved.LocationId);
+        Assert.Equal(LocationId, saved.Event.LocationId);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Persist_AllDay_When_True()
+    {
+        // Arrange
+        await SeedCoreEntitiesAsync();
+        var request = new AwayLocationRequestDto
+        {
+            LocationId = LocationId,
+            StartDateTime = "2026-01-10T00:00:00.000-08:00",
+            EndDateTime = "2026-06-30T00:00:00.000-07:00",
+            AllDay = true,
+        };
+
+        // Act
+        var result = await _service.CreateAsync(UserId, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.AllDay);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Default_AllDay_To_False_When_Not_Specified()
+    {
+        // Arrange
+        await SeedCoreEntitiesAsync();
+        var request = new AwayLocationRequestDto
+        {
+            LocationId = LocationId,
+            StartDateTime = "2026-01-10T08:30:00.000-08:00",
+            EndDateTime = "2026-01-10T17:00:00.000-08:00",
+        };
+
+        // Act
+        var result = await _service.CreateAsync(UserId, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.False(result.AllDay);
     }
 
     [Fact]
@@ -297,6 +346,28 @@ public class AwayLocationServiceTests : IAsyncLifetime
     #endregion
 
     #region UpdateAsync
+
+    [Fact]
+    public async Task UpdateAsync_Should_Update_AllDay()
+    {
+        // Arrange
+        await SeedCoreEntitiesAsync();
+        var seeded = await SeedAwayLocationAsync();
+
+        var request = new AwayLocationRequestDto
+        {
+            LocationId = LocationId,
+            StartDateTime = "2026-02-01T00:00:00.000-08:00",
+            EndDateTime = "2026-08-01T00:00:00.000-07:00",
+            AllDay = true,
+        };
+
+        // Act
+        var result = await _service.UpdateAsync(UserId, seeded.Id, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(result.AllDay);
+    }
 
     [Fact]
     public async Task UpdateAsync_Should_Update_And_Return_Away_Location()
