@@ -1,6 +1,6 @@
 using Hangfire.Server;
 
-namespace Unified.Infrastructure.Hangfire;
+namespace Unified.Hangfire;
 
 /// <summary>
 /// Holds the currently-executing job's <see cref="PerformContext"/> as an ambient,

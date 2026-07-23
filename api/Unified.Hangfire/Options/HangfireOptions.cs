@@ -1,6 +1,6 @@
 using Hangfire;
 
-namespace Unified.Infrastructure.Options;
+namespace Unified.Hangfire.Options;
 
 /// <summary>
 /// Configuration for Hangfire background job processing, bound from the

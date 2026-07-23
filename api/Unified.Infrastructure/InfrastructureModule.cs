@@ -17,7 +17,6 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Unified.FeatureFlags;
 using Unified.Infrastructure.ErrorHandling;
-using Unified.Infrastructure.Hangfire;
 using Unified.Infrastructure.Helpers;
 using Unified.Infrastructure.Options;
 
@@ -91,10 +90,6 @@ public static class InfrastructureModule
         var configuration = sp.GetRequiredService<IConfiguration>();
 
         services.AddUnifiedAuthentication(env, configuration);
-
-        // Background job processing (Hangfire) - a no-op if DatabaseConnectionString isn't
-        // configured, so safe to call unconditionally here alongside the other core services.
-        services.AddHangfireModule(configuration);
 
         return services;
     }

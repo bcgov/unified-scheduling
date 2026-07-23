@@ -1,7 +1,7 @@
 using Hangfire;
 using Unified.Common.Jobs;
 
-namespace Unified.Infrastructure.Hangfire;
+namespace Unified.Hangfire;
 
 /// <summary>
 /// Registers or removes a single <see cref="IRecurringJob"/> with Hangfire based on its

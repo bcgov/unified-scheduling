@@ -1,7 +1,7 @@
 using Hangfire.Console;
 using Microsoft.Extensions.Logging;
 
-namespace Unified.Infrastructure.Hangfire;
+namespace Unified.Hangfire;
 
 /// <summary>
 /// Bridges standard <c>ILogger</c> output into the Hangfire dashboard's per-job Console tab.

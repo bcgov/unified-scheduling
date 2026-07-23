@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Unified.Common.Jobs;
 
-namespace Unified.Infrastructure.Hangfire;
+namespace Unified.Hangfire;
 
 /// <summary>
 /// Background service that registers Hangfire recurring jobs after the application has

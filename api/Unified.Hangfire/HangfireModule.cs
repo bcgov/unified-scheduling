@@ -6,9 +6,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Unified.Common.Jobs;
-using Unified.Infrastructure.Options;
+using Unified.Hangfire.Options;
 
-namespace Unified.Infrastructure.Hangfire;
+namespace Unified.Hangfire;
 
 /// <summary>
 /// Registers Hangfire background job processing backed by the same PostgreSQL

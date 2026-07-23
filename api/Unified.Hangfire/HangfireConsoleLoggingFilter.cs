@@ -1,6 +1,6 @@
 using Hangfire.Server;
 
-namespace Unified.Infrastructure.Hangfire;
+namespace Unified.Hangfire;
 
 /// <summary>
 /// Global Hangfire server filter that makes the currently-executing job's

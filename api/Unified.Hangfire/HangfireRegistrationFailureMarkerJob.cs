@@ -1,7 +1,7 @@
 using Hangfire;
 using Microsoft.Extensions.Logging;
 
-namespace Unified.Infrastructure.Hangfire;
+namespace Unified.Hangfire;
 
 /// <summary>
 /// Creates an explicit failed job entry when recurring-job registration fails,
