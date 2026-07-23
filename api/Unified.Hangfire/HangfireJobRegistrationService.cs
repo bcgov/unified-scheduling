@@ -27,11 +27,11 @@ public sealed class HangfireJobRegistrationService(
             logger.LogInformation("Registering Hangfire recurring jobs...");
 
             using var scope = serviceProvider.CreateScope();
-            var allJobs = scope.ServiceProvider.GetServices<IRecurringJob>();
+            var allRegisteredJobs = scope.ServiceProvider.GetServices<IRecurringJob>();
             var failedJobs = new List<string>();
             var registeredCount = 0;
 
-            foreach (var job in allJobs)
+            foreach (var job in allRegisteredJobs)
             {
                 if (stoppingToken.IsCancellationRequested)
                 {

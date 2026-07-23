@@ -75,10 +75,9 @@ var hangfireOptions =
         options.CombineLogs = true;
     });
 
-    // Modules
+    // Modules (core infrastructure first, feature-gated modules conditionally, then Hangfire last)
     builder
         .Services.AddInfrastructureModule()
-        .AddHangfireModule(builder.Configuration)
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
         .AddUserManagementModule();
@@ -117,6 +116,9 @@ var hangfireOptions =
     {
         builder.Services.AddTrainingModule();
     }
+
+    // Hangfire registered last so all feature-gated modules have already registered their IRecurringJob implementations
+    builder.Services.AddHangfireModule(builder.Configuration);
 }
 
 var app = builder.Build();
