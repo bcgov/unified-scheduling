@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
+import { computed } from 'vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import type { SelectOption, SelectValue } from '@/types/select';
@@ -7,8 +8,9 @@ import CalendarViewTabs from './CalendarViewTabs.vue';
 import type { CalendarToolbarAction } from '../registry/calendarActionRegistryTypes';
 import type { CalendarViewDefinition } from '../registry/calendarRegistryTypes';
 import type { CalendarPeriod } from '../calendarStore';
+import { buildCalendarPeriodSelectOptions, isCalendarPeriod } from '../calendarPeriodOptions';
 
-defineProps<{
+const props = defineProps<{
   views: CalendarViewDefinition[];
   activeViewId: string;
   createActions: CalendarToolbarAction[];
@@ -17,6 +19,7 @@ defineProps<{
   rangeLabel: string;
   toolbarActions: CalendarToolbarAction[];
   activePeriod: CalendarPeriod;
+  periods: readonly CalendarPeriod[];
   isLoading?: boolean;
 }>();
 
@@ -31,20 +34,10 @@ const emit = defineEmits<{
   (event: 'triggerCreateAction', actionId: string): void;
 }>();
 
-const periodOptions: { label: string; value: CalendarPeriod }[] = [
-  { label: 'Day', value: 'day' },
-  { label: 'Week', value: 'week' },
-  { label: 'Work week', value: 'work-week' },
-  { label: 'Month', value: 'month' },
-];
-
-const periodSelectOptions: SelectOption[] = periodOptions.map((option) => ({
-  code: option.value,
-  description: option.label,
-}));
+const periodSelectOptions = computed<SelectOption[]>(() => buildCalendarPeriodSelectOptions(props.periods));
 
 function handlePeriodSelection(value: SelectValue | undefined) {
-  if (value === 'day' || value === 'week' || value === 'work-week' || value === 'month') {
+  if (isCalendarPeriod(value) && props.periods.includes(value)) {
     emit('update:period', value);
   }
 }

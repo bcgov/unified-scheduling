@@ -1,4 +1,14 @@
 import { useFetchAPI } from './useFetchAPI';
+import type {
+  CalendarEventStatus,
+  CalendarEventStatusTypeCode,
+  CalendarEventType,
+  CalendarEventTypeCode,
+} from './generated/models';
+
+export const calendarEventTypes = {
+  calendarEvent: 'calendar.event' as CalendarEventType,
+} as const;
 
 type FetchOptions = Parameters<typeof useFetchAPI>[1];
 
@@ -23,8 +33,10 @@ export interface ApiCalendarEventResponse {
   timeZoneId?: string;
   allDay: boolean;
   isException: boolean;
-  eventTypeCode: string;
-  statusTypeCode: string;
+  type?: CalendarEventType;
+  status?: CalendarEventStatus;
+  eventTypeCode: CalendarEventTypeCode;
+  statusTypeCode: CalendarEventStatusTypeCode;
   cancelledAt?: string;
   cancelledByUserId?: string;
   cancellationReason?: string;

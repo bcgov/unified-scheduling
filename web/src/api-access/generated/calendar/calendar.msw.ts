@@ -9,7 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import { CalendarEventStatusTypeCode, CalendarEventTypeCode } from '../models';
+import { CalendarEventStatus, CalendarEventStatusTypeCode, CalendarEventType, CalendarEventTypeCode } from '../models';
 import type { CalendarEventResponse } from '../models';
 
 export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] =>
@@ -49,6 +49,8 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
       ]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
+      status: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventStatus)), undefined]),
       eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
       statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
       cancelledAt: faker.helpers.arrayElement([
@@ -101,6 +103,8 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
       ]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
+      status: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventStatus)), undefined]),
       eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
       statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
       cancelledAt: faker.helpers.arrayElement([
@@ -153,6 +157,8 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
       ]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
+      status: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventStatus)), undefined]),
       eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
       statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
       cancelledAt: faker.helpers.arrayElement([

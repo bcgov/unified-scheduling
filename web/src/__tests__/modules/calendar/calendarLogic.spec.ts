@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { calendarEventTypes, type ApiCalendarEventResponse } from '@/api-access/calendar';
 import {
   addDays,
   buildDateRangeForPeriod,
@@ -12,9 +13,12 @@ import {
   startOfMonth,
   startOfWeek,
   toCalendarDateOnly,
-} from '@/modules/calendar/calendarDateUtils';
+} from '@/utils/date';
+import { getCalendarEventDateKey } from '@/modules/calendarMatrixTest/calendarMatrixTestMappers';
+import { CalendarEventStatusTypeCode, CalendarEventTypeCode } from '@/api-access/generated/models';
 import { selectCalendarEvents, selectContribution } from '@/modules/calendar/calendarSelectors';
 import { mapApiCalendarEventToCalendarEventBase } from '@/modules/calendar/contributions/calendarEventMappers';
+import { buildCalendarPeriodSelectOptions, DEFAULT_CALENDAR_PERIODS } from '@/modules/calendar/calendarPeriodOptions';
 import { buildCalendarDefaultViewModel } from '@/modules/calendar/views/calendarViewModels';
 import type {
   CalendarDataResponse,
@@ -22,7 +26,7 @@ import type {
   CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
 
-describe('calendarDateUtils', () => {
+describe('shared calendar date helpers', () => {
   it('builds ranges for every period and shifts them correctly', () => {
     expect(buildDateRangeForPeriod('2025-01-15', 'day')).toEqual({
       startDate: '2025-01-15',
@@ -80,6 +84,14 @@ describe('calendarDateUtils', () => {
     expect(formatCalendarDateOnly('2025-01-15')).toContain('2025');
     expect(addDays('2025-01-31', 1)).toBe('2025-02-01');
   });
+
+  it('resolves event date keys safely for timezone-aware matrix grouping', () => {
+    expect(getCalendarEventDateKey('2025-01-14T07:30:00Z', 'America/Vancouver')).toBe('2025-01-13');
+    expect(getCalendarEventDateKey('2025-01-13T23:30:00-08:00', 'America/Vancouver')).toBe('2025-01-13');
+    expect(getCalendarEventDateKey('2025-01-13T09:00:00', 'America/Vancouver')).toBe('2025-01-13');
+    expect(getCalendarEventDateKey('invalid', 'America/Vancouver')).toBeUndefined();
+    expect(getCalendarEventDateKey(undefined, 'America/Vancouver')).toBeUndefined();
+  });
 });
 
 describe('calendar selectors and view models', () => {
@@ -131,6 +143,21 @@ describe('calendar selectors and view models', () => {
   });
 });
 
+describe('calendar period options', () => {
+  it('excludes month by default and allows views to opt in', () => {
+    expect(buildCalendarPeriodSelectOptions(DEFAULT_CALENDAR_PERIODS)).toEqual([
+      { code: 'week', description: 'Week' },
+      { code: 'day', description: 'Day' },
+      { code: 'work-week', description: 'Work week' },
+    ]);
+
+    expect(buildCalendarPeriodSelectOptions([...DEFAULT_CALENDAR_PERIODS, 'month'])).toContainEqual({
+      code: 'month',
+      description: 'Month',
+    });
+  });
+});
+
 describe('calendar event mappers', () => {
   it('maps all-day API events and defaults empty event types', () => {
     expect(
@@ -142,16 +169,16 @@ describe('calendar event mappers', () => {
         allDay: true,
         isException: false,
         eventTypeCode: '',
-        statusTypeCode: 'active',
+        statusTypeCode: CalendarEventStatusTypeCode.Active,
         sourceModule: 'calendar',
-      }),
+      } as unknown as ApiCalendarEventResponse),
     ).toMatchObject({
       id: '10',
-      type: 'calendar.general',
+      type: calendarEventTypes.calendarEvent,
       start: '2025-07-01',
       end: '2025-07-02',
-      eventTypeCode: 'general',
-      statusTypeCode: 'active',
+      eventTypeCode: CalendarEventTypeCode.General,
+      statusTypeCode: CalendarEventStatusTypeCode.Active,
     });
   });
 
@@ -164,17 +191,18 @@ describe('calendar event mappers', () => {
         endAtUtc: '2025-07-01T10:00:00Z',
         allDay: false,
         isException: true,
-        eventTypeCode: 'deadline',
-        statusTypeCode: 'draft',
+        type: calendarEventTypes.calendarEvent,
+        eventTypeCode: CalendarEventTypeCode.Deadline,
+        statusTypeCode: CalendarEventStatusTypeCode.Draft,
         sourceModule: 'calendar',
       }),
     ).toMatchObject({
       id: '11',
-      type: 'calendar.deadline',
+      type: calendarEventTypes.calendarEvent,
       start: '2025-07-01T09:00:00Z',
       end: '2025-07-01T10:00:00Z',
       isException: true,
-      eventTypeCode: 'deadline',
+      eventTypeCode: CalendarEventTypeCode.Deadline,
     });
   });
 });

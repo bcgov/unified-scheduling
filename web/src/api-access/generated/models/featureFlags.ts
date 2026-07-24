@@ -7,6 +7,7 @@
 
 export interface FeatureFlags {
   calendarModule: boolean;
+  calendarMatrixTestModule?: boolean;
   schedulingModule: boolean;
   statsModule: boolean;
   trainingModule: boolean;

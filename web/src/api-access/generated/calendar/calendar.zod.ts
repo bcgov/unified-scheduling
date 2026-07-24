@@ -27,6 +27,8 @@ export const PostApiCalendarEventsResponseItem = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   isException: zod.boolean().optional(),
+  type: zod.enum(['calendar.event']).optional(),
+  status: zod.enum(['Active', 'Draft', 'Draft Item', 'Cancelled']).optional(),
   eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline']),
   statusTypeCode: zod.enum(['Draft', 'Active', 'Cancelled']),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
