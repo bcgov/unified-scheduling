@@ -1,0 +1,36 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+resolve_dotnet_cmd() {
+	if command -v dotnet >/dev/null 2>&1; then
+		command -v dotnet
+		return 0
+	fi
+
+	if command -v dotnet.exe >/dev/null 2>&1; then
+		command -v dotnet.exe
+		return 0
+	fi
+
+	if [ -x "/c/Program Files/dotnet/dotnet.exe" ]; then
+		printf '%s' "/c/Program Files/dotnet/dotnet.exe"
+		return 0
+	fi
+
+	printf '%s' ""
+}
+
+cd "$repo_root/web"
+npm run pre:check
+
+cd "$repo_root"
+dotnet_cmd="$(resolve_dotnet_cmd)"
+if [ -z "$dotnet_cmd" ]; then
+	echo "dotnet executable not found on PATH for this shell" >&2
+	exit 1
+fi
+
+"$dotnet_cmd" tool restore
+"$dotnet_cmd" tool run csharpier check ./api ./db
