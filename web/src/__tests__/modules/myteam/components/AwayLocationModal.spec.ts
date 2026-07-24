@@ -367,8 +367,8 @@ describe('AwayLocationModal', () => {
       allDay: boolean;
     };
     expect(vm.allDay).toBe(false);
-    expect(vm.formData.startTime).toBe('08:30');
-    expect(vm.formData.endTime).toBe('17:00');
+    expect(vm.formData.startTime).toBe('13:30');
+    expect(vm.formData.endTime).toBe('22:00');
 
     wrapper.unmount();
   });
