@@ -87,7 +87,7 @@ const trainingOptions = computed<SelectOption[]>(() =>
         ? training.code === training.description
           ? training.code
           : `${training.code} - ${training.description}`
-        : training.code ?? training.description ?? '',
+        : (training.code ?? training.description ?? ''),
   })),
 );
 

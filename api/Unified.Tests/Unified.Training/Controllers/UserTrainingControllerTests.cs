@@ -20,6 +20,7 @@ public class UserTrainingControllerTests
             UserId = UserId,
             TrainingId = 1,
             AwardedOn = DateTimeOffset.UtcNow,
+            EndingOn = DateTimeOffset.UtcNow.AddDays(1),
         };
 
     private static UserTrainingResponse SampleResponse(int id = 1) =>
@@ -129,6 +130,7 @@ public class UserTrainingControllerTests
             UserId = Guid.Empty, // invalid
             TrainingId = 1,
             AwardedOn = DateTimeOffset.UtcNow,
+            EndingOn = DateTimeOffset.UtcNow.AddDays(1),
         };
 
         await Assert.ThrowsAsync<ValidationException>(() =>

@@ -44,9 +44,7 @@ public sealed class MandatoryTrainingHandler(UnifiedDbContext db)
         var now = DateTimeOffset.UtcNow;
 
         var usersWithExistingActive = await db
-            .UserTrainings.Where(ut =>
-                ut.TrainingId == entity.Id && (ut.ExpiryDate == null || ut.ExpiryDate > now)
-            )
+            .UserTrainings.Where(ut => ut.TrainingId == entity.Id && (ut.ExpiryDate == null || ut.ExpiryDate > now))
             .Select(ut => ut.UserId)
             .ToListAsync(cancellationToken);
 
@@ -58,9 +56,7 @@ public sealed class MandatoryTrainingHandler(UnifiedDbContext db)
         if (userIdsToProvision.Count == 0)
             return;
 
-        var expiryDate = entity.ValidityDays.HasValue
-            ? now.AddDays(entity.ValidityDays.Value)
-            : (DateTimeOffset?)null;
+        var expiryDate = entity.ValidityDays.HasValue ? now.AddDays(entity.ValidityDays.Value) : (DateTimeOffset?)null;
 
         var newRecords = userIdsToProvision.Select(userId => new UserTraining
         {

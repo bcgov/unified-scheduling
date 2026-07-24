@@ -14,6 +14,7 @@ public class UserTrainingRequestValidatorTests
             UserId = Guid.NewGuid(),
             TrainingId = 1,
             AwardedOn = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            EndingOn = new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero),
         };
 
     [Fact]

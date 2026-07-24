@@ -4,107 +4,513 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import {
-  faker
-} from '@faker-js/faker';
+import { faker } from '@faker-js/faker';
 
-import {
-  HttpResponse,
-  http
-} from 'msw';
-import type {
-  RequestHandlerOptions
-} from 'msw';
+import { HttpResponse, http } from 'msw';
+import type { RequestHandlerOptions } from 'msw';
 
-import type {
-  UserTrainingResponse
-} from '../models';
+import type { UserTrainingResponse } from '../models';
 
+export const getGetApiTrainingUserTrainingsResponseMock = (): UserTrainingResponse[] =>
+  faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+  ]);
 
-export const getGetApiTrainingUserTrainingsResponseMock = (): UserTrainingResponse[] => (faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined])})), Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined])})), Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined])}))]))
+export const getPostApiTrainingUserTrainingsResponseMock = (
+  overrideResponse: Partial<Extract<UserTrainingResponse, object>> = {},
+): UserTrainingResponse =>
+  faker.helpers.arrayElement([
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+  ]);
 
-export const getPostApiTrainingUserTrainingsResponseMock = (overrideResponse: Partial<Extract<UserTrainingResponse, object>> = {}): UserTrainingResponse => (faker.helpers.arrayElement([{id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}, {id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}, {id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}]))
+export const getGetApiTrainingsUsersUserIdResponseMock = (): UserTrainingResponse[] =>
+  faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+    })),
+  ]);
 
-export const getGetApiTrainingsUsersUserIdResponseMock = (): UserTrainingResponse[] => (faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined])})), Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined])})), Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined])}))]))
+export const getGetApiTrainingsTrainingIdUsersUserIdResponseMock = (
+  overrideResponse: Partial<Extract<UserTrainingResponse, object>> = {},
+): UserTrainingResponse =>
+  faker.helpers.arrayElement([
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+  ]);
 
-export const getGetApiTrainingsTrainingIdUsersUserIdResponseMock = (overrideResponse: Partial<Extract<UserTrainingResponse, object>> = {}): UserTrainingResponse => (faker.helpers.arrayElement([{id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}, {id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}, {id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}]))
+export const getPutApiTrainingUserTrainingsIdResponseMock = (
+  overrideResponse: Partial<Extract<UserTrainingResponse, object>> = {},
+): UserTrainingResponse =>
+  faker.helpers.arrayElement([
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      id: faker.number.int(),
+      userId: faker.string.uuid(),
+      trainingId: faker.number.int(),
+      trainingCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+  ]);
 
-export const getPutApiTrainingUserTrainingsIdResponseMock = (overrideResponse: Partial<Extract<UserTrainingResponse, object>> = {}): UserTrainingResponse => (faker.helpers.arrayElement([{id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}, {id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}, {id: faker.number.int(), userId: faker.string.uuid(), trainingId: faker.number.int(), trainingCode: faker.string.alpha({length: {min: 10, max: 20}}), trainingCategoryName: faker.string.alpha({length: {min: 10, max: 20}}), awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z', expiryDate: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), noticeState: faker.string.alpha({length: {min: 10, max: 20}}), notes: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), undefined]), createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]), updatedOn: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]), undefined]), ...overrideResponse}]))
+export const getGetApiTrainingUserTrainingsMockHandler = (
+  overrideResponse?:
+    | UserTrainingResponse[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<UserTrainingResponse[]> | UserTrainingResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/training/user-trainings',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiTrainingUserTrainingsResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 
+export const getPostApiTrainingUserTrainingsMockHandler = (
+  overrideResponse?:
+    | UserTrainingResponse
+    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.post(
+    '*/api/training/user-trainings',
+    async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPostApiTrainingUserTrainingsResponseMock(),
+        { status: 201 },
+      );
+    },
+    options,
+  );
+};
 
-export const getGetApiTrainingUserTrainingsMockHandler = (overrideResponse?: UserTrainingResponse[] | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserTrainingResponse[]> | UserTrainingResponse[]), options?: RequestHandlerOptions) => {
-  return http.get('*/api/training/user-trainings', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+export const getGetApiTrainingsUsersUserIdMockHandler = (
+  overrideResponse?:
+    | UserTrainingResponse[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<UserTrainingResponse[]> | UserTrainingResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/trainings/users/:userId',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiTrainingsUsersUserIdResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 
+export const getGetApiTrainingsTrainingIdUsersUserIdMockHandler = (
+  overrideResponse?:
+    | UserTrainingResponse
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/trainings/:trainingId/users/:userId',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiTrainingsTrainingIdUsersUserIdResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 
-    return HttpResponse.json(overrideResponse !== undefined
-    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
-    : getGetApiTrainingUserTrainingsResponseMock(),
-      { status: 200
-      })
-  }, options)
-}
+export const getPutApiTrainingUserTrainingsIdMockHandler = (
+  overrideResponse?:
+    | UserTrainingResponse
+    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.put(
+    '*/api/training/user-trainings/:id',
+    async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPutApiTrainingUserTrainingsIdResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 
-export const getPostApiTrainingUserTrainingsMockHandler = (overrideResponse?: UserTrainingResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse), options?: RequestHandlerOptions) => {
-  return http.post('*/api/training/user-trainings', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+export const getDeleteApiTrainingUserTrainingsIdMockHandler = (
+  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+  options?: RequestHandlerOptions,
+) => {
+  return http.delete(
+    '*/api/training/user-trainings/:id',
+    async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+      if (typeof overrideResponse === 'function') {
+        await overrideResponse(info);
+      }
 
-
-    return HttpResponse.json(overrideResponse !== undefined
-    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
-    : getPostApiTrainingUserTrainingsResponseMock(),
-      { status: 201
-      })
-  }, options)
-}
-
-export const getGetApiTrainingsUsersUserIdMockHandler = (overrideResponse?: UserTrainingResponse[] | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserTrainingResponse[]> | UserTrainingResponse[]), options?: RequestHandlerOptions) => {
-  return http.get('*/api/trainings/users/:userId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-
-
-    return HttpResponse.json(overrideResponse !== undefined
-    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
-    : getGetApiTrainingsUsersUserIdResponseMock(),
-      { status: 200
-      })
-  }, options)
-}
-
-export const getGetApiTrainingsTrainingIdUsersUserIdMockHandler = (overrideResponse?: UserTrainingResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse), options?: RequestHandlerOptions) => {
-  return http.get('*/api/trainings/:trainingId/users/:userId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-
-
-    return HttpResponse.json(overrideResponse !== undefined
-    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
-    : getGetApiTrainingsTrainingIdUsersUserIdResponseMock(),
-      { status: 200
-      })
-  }, options)
-}
-
-export const getPutApiTrainingUserTrainingsIdMockHandler = (overrideResponse?: UserTrainingResponse | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<UserTrainingResponse> | UserTrainingResponse), options?: RequestHandlerOptions) => {
-  return http.put('*/api/training/user-trainings/:id', async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
-
-
-    return HttpResponse.json(overrideResponse !== undefined
-    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
-    : getPutApiTrainingUserTrainingsIdResponseMock(),
-      { status: 200
-      })
-  }, options)
-}
-
-export const getDeleteApiTrainingUserTrainingsIdMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
-  return http.delete('*/api/training/user-trainings/:id', async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
-  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
-
-    return new HttpResponse(null,
-      { status: 204
-      })
-  }, options)
-}
+      return new HttpResponse(null, { status: 204 });
+    },
+    options,
+  );
+};
 export const getUserTrainingMock = () => [
   getGetApiTrainingUserTrainingsMockHandler(),
   getPostApiTrainingUserTrainingsMockHandler(),
   getGetApiTrainingsUsersUserIdMockHandler(),
   getGetApiTrainingsTrainingIdUsersUserIdMockHandler(),
   getPutApiTrainingUserTrainingsIdMockHandler(),
-  getDeleteApiTrainingUserTrainingsIdMockHandler()]
+  getDeleteApiTrainingUserTrainingsIdMockHandler(),
+];

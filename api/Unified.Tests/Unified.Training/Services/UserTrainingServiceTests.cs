@@ -15,6 +15,7 @@ namespace Unified.Tests.Training.Services;
 
 public class UserTrainingServiceTests : IAsyncLifetime
 {
+    private readonly string _databaseName = $"user-training-service-{Guid.NewGuid():N}";
     private UnifiedDbContext _db = null!;
     private IHttpContextAccessor _httpContextAccessor = null!;
     private UserTrainingService _service = null!;
@@ -25,12 +26,12 @@ public class UserTrainingServiceTests : IAsyncLifetime
     private const int TrainingWithValidityId = 2;
     private static readonly DateTimeOffset Today = DateTimeOffset.UtcNow.Date;
     private static readonly DateTimeOffset Yesterday = Today.AddDays(-1);
-    private static readonly DateTimeOffset TomOrrow = Today.AddDays(1);
+    private static readonly DateTimeOffset Tomorrow = Today.AddDays(1);
 
     public async ValueTask InitializeAsync()
     {
         var options = new DbContextOptionsBuilder<UnifiedDbContext>()
-            .UseSqlite($"Data Source=:memory:;Cache=Shared;Mode=Memory;")
+            .UseSqlite($"Data Source={_databaseName};Mode=Memory;Cache=Shared")
             .Options;
 
         _db = new SqliteTestUnifiedDbContext(options);
@@ -82,7 +83,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
         _db.TrainingCategories.Add(category);
 
         _db.Trainings.Add(
-            new Unified.Db.Models.Training.Training
+            new global::Unified.Db.Models.Training.Training
             {
                 Id = TrainingId,
                 Code = "FA",
@@ -92,7 +93,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
         );
 
         _db.Trainings.Add(
-            new Unified.Db.Models.Training.Training
+            new global::Unified.Db.Models.Training.Training
             {
                 Id = TrainingWithValidityId,
                 Code = "CPR",
@@ -138,6 +139,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
         };
 
         var result = await InvokeCreateAsync(
@@ -164,6 +166,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingWithValidityId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
         };
 
         var result = await InvokeCreateAsync(
@@ -187,6 +190,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingWithValidityId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
             ExpiryDate = manualExpiry,
         };
 
@@ -209,6 +213,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
             ExpiryDate = Today.AddDays(100),
         };
 
@@ -231,6 +236,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Yesterday,
+            EndingOn = Today,
         };
 
         var result = await InvokeCreateAsync(
@@ -252,6 +258,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = OtherUserId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
         };
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
@@ -277,6 +284,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
         };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -300,6 +308,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
             OverrideConflicts = true,
         };
 
@@ -338,6 +347,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
             AllowConflictingEvents = true,
         };
 
@@ -373,6 +383,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
         };
 
         var result = await InvokeCreateAsync(
@@ -398,6 +409,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
             Notes = "Updated note",
         };
 
@@ -422,6 +434,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             UserId = CallerId,
             TrainingId = TrainingId,
             AwardedOn = Today,
+            EndingOn = Tomorrow,
         };
 
         var result = await InvokeUpdateAsync(
