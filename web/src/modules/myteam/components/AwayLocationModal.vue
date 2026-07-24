@@ -88,15 +88,15 @@ const createInitialFormData = (): FormData => ({
 });
 
 const populateFromAwayLocation = (al: AwayLocationResponseDto): FormData => {
-  const startTime = toTimeInputValue(al.startAtUtc, { setZone: false }) ?? '';
-  const endTime = toTimeInputValue(al.endAtUtc, { setZone: false }) ?? '';
+  const startTime = toTimeInputValue(al.startAtUtc) ?? '';
+  const endTime = toTimeInputValue(al.endAtUtc) ?? '';
   allDay.value = !!al.allDay;
 
   return {
     locationId: al.locationId,
-    startDate: toDateInputValue(al.startAtUtc, { setZone: false }) ?? getTodayDateInputValue(),
+    startDate: toDateInputValue(al.startAtUtc) ?? getTodayDateInputValue(),
     startTime,
-    endDate: toDateInputValue(al.endAtUtc ?? undefined, { setZone: false }) ?? '',
+    endDate: toDateInputValue(al.endAtUtc ?? undefined) ?? '',
     endTime,
     comment: al.comment ?? null,
   };
