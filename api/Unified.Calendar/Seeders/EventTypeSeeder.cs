@@ -30,6 +30,12 @@ public sealed class EventTypeSeeder(ILogger<EventTypeSeeder> logger) : SeederBas
             Description = "Deadline",
             EffectiveDate = SeedEffectiveDate,
         },
+        new()
+        {
+            Code = CalendarCodeMappings.ToDbCode(CalendarEventTypeCode.AwayLocation),
+            Description = "Away Location",
+            EffectiveDate = SeedEffectiveDate,
+        },
     ];
 
     public override int Order => 10;

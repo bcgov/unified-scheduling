@@ -8,6 +8,8 @@
 export * from './actingPositionRequestDto.ts';
 export * from './actingPositionResponseDto.ts';
 export * from './assignUserRoleRequestDto.ts';
+export * from './awayLocationRequestDto.ts';
+export * from './awayLocationResponseDto.ts';
 export * from './calendarEventResponse.ts';
 export * from './calendarEventsRequest.ts';
 export * from './calendarEventsRequestFilters.ts';
@@ -23,6 +25,7 @@ export * from './dashboardSummaryResponse.ts';
 export * from './deletedRoleDto.ts';
 export * from './deleteRoleWithReassignmentRequestDto.ts';
 export * from './expireActingPositionRequestDto.ts';
+export * from './expireAwayLocationRequestDto.ts';
 export * from './expireUserRoleRequestDto.ts';
 export * from './featureFlags.ts';
 export * from './gender.ts';
