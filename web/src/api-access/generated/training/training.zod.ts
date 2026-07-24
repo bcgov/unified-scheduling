@@ -36,7 +36,6 @@ export const PostApiLookupTrainingsBody = zod.strictObject({
   advanceNoticeDays: zod.number().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.number().nullish(),
-  order: zod.number().optional(),
   code: zod.string(),
 });
 
@@ -89,7 +88,6 @@ export const PutApiLookupTrainingsIdBody = zod.strictObject({
   advanceNoticeDays: zod.number().nullish(),
   rotating: zod.boolean().optional(),
   trainingCategoryId: zod.number().nullish(),
-  order: zod.number().optional(),
   code: zod.string(),
 });
 
