@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Unified.Db;
@@ -11,9 +12,11 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    partial class UnifiedDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722000317_RemoveRegionCodeColumn")]
+    partial class RemoveRegionCodeColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -348,7 +351,7 @@ namespace Unified.Db.Migrations
                     b.Property<DateTimeOffset?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("JustinLocationCode")
+                    b.Property<string>("JustinCode")
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
@@ -1032,12 +1035,6 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<DateTimeOffset>("EffectiveDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<bool>("Mandatory")
                         .HasColumnType("boolean");
 
@@ -1400,11 +1397,6 @@ namespace Unified.Db.Migrations
                     b.Property<DateTimeOffset?>("LastPhotoUpdate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("PendingRegistration")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
                     b.Property<byte[]>("Photo")
                         .HasColumnType("bytea");
 
@@ -1422,15 +1414,6 @@ namespace Unified.Db.Migrations
                     b.HasIndex("CreatedById");
 
                     b.HasIndex("HomeLocationId");
-
-                    b.HasIndex("IdirId")
-                        .IsUnique();
-
-                    b.HasIndex("IdirName")
-                        .IsUnique();
-
-                    b.HasIndex("KeyCloakId")
-                        .IsUnique();
 
                     b.HasIndex("UpdatedById");
 

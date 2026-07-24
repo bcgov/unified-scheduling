@@ -25,6 +25,7 @@
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
     <ProjectReference Include="..\Unified.Hangfire\Unified.Hangfire.csproj" />
     <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
+    <ProjectReference Include="..\Unified.JCInterface\Unified.JCInterface.csproj" />
     <ProjectReference Include="..\Unified.Training\Unified.Training.csproj" />
     <ProjectReference Include="..\Unified.UserManagement\Unified.UserManagement.csproj" />
     <ProjectReference Include="..\Unified.Api\Unified.Api.csproj" />

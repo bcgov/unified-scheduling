@@ -1,0 +1,262 @@
+#%RAML 0.8
+---
+title: JC-Interface - Location Services
+version: 0.0.1
+protocols: [HTTPS]
+baseUri: 
+mediaType: application/json
+securedBy: [basic]
+
+securitySchemes:
+  - basic:
+      type: Basic Authentication
+
+schemas: 
+  - region: |
+       {
+         "$schema": "http://json-schema.org/draft-04/schema#",
+         "type": "object",
+         "properties": {
+           "regionId": {
+             "id": "regionId",
+             "type": "integer"
+           },
+           "regionName": {
+             "id": "regionName",
+             "type": "string"
+           },
+          "regionLocations": {
+            "id": "regionLocations",
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+         "required": [
+           "regionId",
+           "regionName",
+           "regionLocations"
+         ]
+       }
+
+  - regions: |
+     {
+       "$schema": "http://json-schema.org/draft-04/schema#",
+       "type": "array",
+       "description": "regions",
+       "items": { "$ref": "region" }
+     }
+
+  - codeValue: |
+     {
+       "$schema": "http://json-schema.org/draft-04/schema#",
+       "type": "object",
+       "description": "A code value as defined in the JUTIN/CEIS web services.",
+       "properties": {
+         "codeType": {
+           "id": "codeType",
+           "type": "string"
+         },
+         "code": {
+           "id": "code",
+           "type": "string"
+         },
+         "shortDesc": {
+           "id": "shortDesc",
+           "type": "string"
+         },
+         "longDesc": {
+           "id": "longDesc",
+           "type": "string"
+         },
+         "flex": {
+           "id": "flex",
+           "type": "string"
+         }
+       },
+       "required": [
+         "codeType",
+         "code",
+         "shortDesc",
+         "longDesc",
+         "flex"
+       ]
+     }
+
+  - parentLocation: |
+      { "$ref": "codeValue" }
+
+  - location: |
+      { "$ref": "codeValue" }
+
+  - locations: |
+     {
+       "$schema": "http://json-schema.org/draft-04/schema#",
+       "type": "array",
+       "description": "locations",
+       "items": { "$ref": "location" }
+     }
+
+  - room: |
+      { "$ref": "codeValue" }
+
+  - rooms: |
+      {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "array",
+        "description": "rooms",
+        "items": { "$ref": "room" }
+      }
+      
+  - darsCode: |      
+       {
+         "$schema": "http://json-schema.org/draft-04/schema#",
+         "type": "object",
+         "properties": {
+           "darsCode": {
+             "id": "darsCode",
+             "type": "string"
+           }
+        },
+         "required": [
+           "darsCode"
+         ]
+       }
+
+  - codes: |
+      {
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "array",
+        "description": "codes",
+        "items": { 
+          "type": "integer" 
+        }
+      }
+
+resourceTypes:
+  - readOnlyLocationCollection:
+      get:
+        description: |
+          Get a list of available <<resourcePathName>> that can be filtered based on their Justin Agency ID.
+        queryParameters:
+          justinAgencyId:
+            displayName: justinAgencyId
+            description: |
+              The Justin Agency ID on which to filter the <<resourcePathName>>.
+            type: string
+            required: false
+          returnActive:
+            displayName: returnActive
+            description: |
+              Instructs the API to return active records.  The default is true.
+            type: boolean
+            default: true            
+          returnInactive:
+            displayName: returnInactive
+            description: |
+              Instructs the API to return inactive records.  The default is false.
+            type: boolean
+            default: false
+        responses:
+          200:
+            body:
+              application/json:
+                schema: <<resourcePathName|!pluralize>>
+          404:
+            body:
+              application/json:
+                example: |
+                  {"message": "No items matching the given criteria were found."}
+
+  - readOnlyCollection:
+      get:
+        description: |
+          Get a list of available <<resourcePathName>>.
+        responses:
+          200:
+            body:
+              application/json:
+                schema: <<resourcePathName|!pluralize>>
+          404:
+            body:
+              application/json:
+                example: |
+                  {"message": "No items matching the given criteria were found."}
+
+  - readOnlyCollectionItem:
+      get:
+        description: |
+          Get the specific <<resourcePathName|!singularize>>.
+        responses:
+          200:
+            body:
+              application/json:
+                schema: <<resourcePathName|!singularize>>
+          404:
+            body:
+              application/json:
+
+/regions:
+  displayName: Region Lookup Resources
+  description: |
+    A set of resources that provides location lookup information starting at the region level.
+
+    The information gathered here can then be used in the similarly named query parameters for log sheets.
+
+  type:
+    readOnlyCollection:
+  /{regionId}:
+    type:
+      readOnlyCollectionItem:
+    /locations:
+      type:
+        readOnlyLocationCollection:
+      /codes:
+        type:
+          readOnlyCollection:
+      /{locationId}:
+        type:
+          readOnlyCollectionItem:
+        /parentLocation:
+          type:
+            readOnlyCollectionItem:    
+        /rooms:
+          type:
+            readOnlyCollection:
+          /{roomId}:
+            type:
+              readOnlyCollectionItem:
+            /darsCode:
+              type:
+                readOnlyCollectionItem:
+
+/locations:   
+  displayName: Location Lookup Resources
+  description: |
+    A set of resources that provides location lookup information starting at the location level.
+
+    The information gathered here can then be used in the similarly named query parameters for log sheets.
+
+  type:
+    readOnlyLocationCollection:
+  /rooms:
+    type:
+      readOnlyCollection:
+  /{locationId}:
+    type:
+      readOnlyCollectionItem:
+    /region:  
+      type:
+        readOnlyCollectionItem:
+    /parentLocation:
+      type:
+        readOnlyCollectionItem:    
+    /rooms:
+      type:
+        readOnlyCollection:
+      /{roomId}:
+        type:
+          readOnlyCollectionItem:
+        /darsCode:
+          type:
+            readOnlyCollectionItem:
+

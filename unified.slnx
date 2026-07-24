@@ -12,4 +12,6 @@
   <Project Path="api/Unified.Training/Unified.Training.csproj" />
   <Project Path="api/Unified.Tests/Unified.Tests.csproj" />
   <Project Path="api/Unified.UserManagement/Unified.UserManagement.csproj" />
+  <Project Path="jc-interface-client/jc-interface-client.csproj" />
+  <Project Path="api/Unified.JCInterface/Unified.JCInterface.csproj" />
 </Solution>

@@ -23,6 +23,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS1",
             Name = "Office of Professional Standards",
             Timezone = "America/Vancouver",
+            RegionId = 4, // Vancouver
         },
         new()
         {
@@ -30,6 +31,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS2",
             Name = "Sheriff Provincial Operation Centre",
             Timezone = "America/Vancouver",
+            RegionId = 4, // Vancouver
         },
         new()
         {
@@ -37,6 +39,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS3",
             Name = "Central Float Pool",
             Timezone = "America/Vancouver",
+            RegionId = 5, // Fraser
         },
         new()
         {
@@ -44,7 +47,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS4",
             Name = "Integrated Threat Assessment Unit",
             Timezone = "America/Vancouver",
-            RegionId = 100,
+            RegionId = 6, // Interior
         },
         new()
         {
@@ -52,7 +55,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS5",
             Name = "Office of the Chief Sheriff",
             Timezone = "America/Vancouver",
-            RegionId = 101,
+            RegionId = 4, // Vancouver
         },
         new()
         {
@@ -60,7 +63,8 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS6",
             Name = "South Okanagan Escort Centre",
             Timezone = "America/Vancouver",
-            JustinCode = "4882",
+            JustinLocationCode = "4882",
+            RegionId = 6, // Interior
         },
         new()
         {
@@ -68,7 +72,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS7",
             Name = "Training Section",
             Timezone = "America/Vancouver",
-            RegionId = 100,
+            RegionId = 100, // Training
         },
         new()
         {
@@ -76,7 +80,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS9",
             Name = "Recruitment Office",
             Timezone = "America/Vancouver",
-            RegionId = 100,
+            RegionId = 100, // Central Programs
         },
         new()
         {
@@ -84,7 +88,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             AgencyId = "SS10",
             Name = "Provincial Programs",
             Timezone = "America/Vancouver",
-            RegionId = 100,
+            RegionId = 100, // Central Programs
         },
     ];
 
@@ -112,7 +116,7 @@ public class LocationSeeder(ILogger<LocationSeeder> logger) : SeederBase<Unified
             Logger.LogInformation("Updating fields for location with Id {Id}...", seedLocation.Id);
             existingLocation.AgencyId = seedLocation.AgencyId;
             existingLocation.Name = seedLocation.Name;
-            existingLocation.JustinCode = seedLocation.JustinCode;
+            existingLocation.JustinLocationCode = seedLocation.JustinLocationCode;
             existingLocation.RegionId = seedLocation.RegionId;
             existingLocation.Timezone = seedLocation.Timezone;
             updatedCount++;
