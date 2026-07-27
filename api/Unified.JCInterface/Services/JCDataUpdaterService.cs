@@ -167,6 +167,9 @@ namespace Unified.JCInterface.Services
                     await dbContext.SaveChangesAsync();
                 }
             }
+
+            // Associate seeded/migrated non-JC-interface locations to regions using explicit ID mapping.
+            await AssociateNonJcInterfaceLocationsToRegionsAsync();
         }
 
         public async Task SyncCourtRoomsAsync()
@@ -335,6 +338,61 @@ namespace Unified.JCInterface.Services
             }
 
             return locations;
+        }
+
+        private async Task AssociateNonJcInterfaceLocationsToRegionsAsync()
+        {
+            var locationToRegion = jcInterfaceOptions.NonJcInterfaceLocationRegions;
+            if (locationToRegion.Count == 0)
+            {
+                return;
+            }
+
+            var regionNames = locationToRegion.Values.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var regions = await dbContext
+                .Regions.AsNoTracking()
+                .Where(r => regionNames.Contains(r.Name))
+                .Select(r => new { r.Id, r.Name })
+                .ToListAsync();
+
+            var regionsByName = regions.ToDictionary(r => r.Name, r => r.Id, StringComparer.OrdinalIgnoreCase);
+
+            var locationNames = locationToRegion.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var mappedLocations = await dbContext
+                .Locations.Where(l => locationNames.Contains(l.Name))
+                .ToListAsync();
+
+            var updatedCount = 0;
+            foreach (var location in mappedLocations)
+            {
+                if (location.RegionId != null)
+                {
+                    continue;
+                }
+
+                var mappedRegionName = locationToRegion[location.Name];
+                if (!regionsByName.TryGetValue(mappedRegionName, out var mappedRegionId))
+                {
+                    logger.LogWarning(
+                        "Skipping NonJcInterfaceLocationRegions mapping for location {LocationName}: region {RegionName} does not exist",
+                        location.Name,
+                        mappedRegionName
+                    );
+                    continue;
+                }
+
+                location.RegionId = mappedRegionId;
+                updatedCount++;
+            }
+
+            if (updatedCount > 0)
+            {
+                await dbContext.SaveChangesAsync();
+                logger.LogInformation(
+                    "Applied NonJcInterfaceLocationRegions mappings for {UpdatedCount} locations",
+                    updatedCount
+                );
+            }
         }
     }
 }
