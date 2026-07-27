@@ -11,5 +11,6 @@
     <ProjectReference Include="..\..\db\db.csproj" />
     <ProjectReference Include="..\..\jc-interface-client\jc-interface-client.csproj" />
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
+    <ProjectReference Include="..\Unified.Hangfire\Unified.Hangfire.csproj" />
   </ItemGroup>
 </Project>

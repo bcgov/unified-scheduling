@@ -1,7 +1,7 @@
 using Hangfire;
 using Hangfire.InMemory;
 using Hangfire.Server;
-using Unified.Common.Jobs;
+using Unified.Hangfire.Jobs;
 using Unified.Hangfire;
 
 namespace Unified.Tests.Hangfire;

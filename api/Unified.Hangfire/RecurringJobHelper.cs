@@ -1,5 +1,5 @@
 using Hangfire;
-using Unified.Common.Jobs;
+using Unified.Hangfire.Jobs;
 
 namespace Unified.Hangfire;
 

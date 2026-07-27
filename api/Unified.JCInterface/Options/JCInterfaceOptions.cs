@@ -89,6 +89,14 @@ public class JCInterfaceOptions
     /// </summary>
     public string DefaultUserLocationName = "Victoria Law Courts";
 
+    /// <summary>
+    /// Cron expression controlling how often the Hangfire recurring job runs the full
+    /// sync pipeline (<see cref="Services.JCDataUpdaterService.SyncAllAsync"/>). Defaults
+    /// to once daily at 6pm America/Vancouver. Set to an empty string or "disabled" to
+    /// remove the recurring job.
+    /// </summary>
+    public string SyncCronSchedule { get; set; } = "0 0 18 * * *";
+
     // ------------------------------------------------------------------
     // Lookup dictionaries
     // ------------------------------------------------------------------

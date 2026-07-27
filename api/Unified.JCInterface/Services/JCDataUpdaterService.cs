@@ -20,10 +20,10 @@ namespace Unified.JCInterface.Services
         UnifiedDbContext dbContext,
         LocationServicesClient locationClient,
         ILogger<JCDataUpdaterService> logger,
-        IOptionsMonitor<JCInterfaceOptions> jcInterfaceOptionsMonitor
+        IOptions<JCInterfaceOptions> options
     )
     {
-        private JCInterfaceOptions jcInterfaceOptions { get; } = jcInterfaceOptionsMonitor.CurrentValue;
+        private JCInterfaceOptions jcInterfaceOptions { get; } = options.Value;
 
         /// <summary>
         /// Entry point for the Hangfire recurring job. Runs the full sync pipeline

@@ -1,14 +1,16 @@
 using Hangfire.Server;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Unified.Common.Jobs;
+namespace Unified.Hangfire.Jobs;
 
 /// <summary>
 /// Contract for a Hangfire recurring job. Implementations are discovered via DI
 /// (<c>IEnumerable&lt;IRecurringJob&gt;</c>) across all modules and registered/updated on
 /// startup by <c>Unified.Infrastructure.Hangfire.HangfireJobRegistrationService</c>.
 ///
-/// Lives in <c>Unified.Common</c> (rather than <c>Unified.Infrastructure</c>) because domain
-/// modules implementing recurring jobs (e.g. <c>Unified.Api.Jobs.JCSyncRecurringJob</c>) need to
+/// Lives in <c>Unified.Hangfire</c> (rather than <c>Unified.Infrastructure</c>) because domain
+/// modules implementing recurring jobs (e.g. <c>Unified.JCInterface.Jobs.JCSyncRecurringJob</c>) need to
 /// reference this contract without depending on Hangfire's server/dashboard wiring.
 /// </summary>
 public interface IRecurringJob
