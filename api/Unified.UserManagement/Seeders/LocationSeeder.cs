@@ -42,7 +42,7 @@ public sealed class LocationSeeder(
                         Id = seedLocation.Id,
                         AgencyId = seedLocation.AgencyId,
                         Name = seedLocation.Name,
-                        JustinCode = seedLocation.JustinCode,
+                        JustinLocationCode = seedLocation.JustinLocationCode,
                         RegionId = seedLocation.RegionId,
                         Timezone = seedLocation.Timezone,
                     },

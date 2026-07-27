@@ -17,7 +17,7 @@ public sealed record LocationSeedDefinition
 
     public required string Name { get; init; }
 
-    public string? JustinCode { get; init; }
+    public string? JustinLocationCode { get; init; }
 
     public int? RegionId { get; init; }
 

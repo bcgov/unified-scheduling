@@ -85,7 +85,8 @@ var hangfireOptions =
         .AddConfiguredSeedData(
             builder.Configuration,
             UserManagementSeedDataSets.All.Concat(StatsSeedDataSets.All).Concat(TrainingSeedDataSets.All)
-        ).AddJCInterfaceModule(builder.Configuration);
+        )
+        .AddJCInterfaceModule(builder.Configuration);
 
     builder.Services.AddSingleton<MigrationAndSeedService>();
     builder.Services.AddTransient(typeof(SeederFactory<>));
