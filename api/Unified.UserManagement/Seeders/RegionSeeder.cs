@@ -39,7 +39,6 @@ public sealed class RegionSeeder(ILogger<RegionSeeder> logger, IEnumerable<Regio
                     {
                         Id = seedRegion.Id,
                         JustinId = seedRegion.JustinId,
-                        Code = seedRegion.Code,
                         Name = seedRegion.Name,
                     },
                     cancellationToken
@@ -49,7 +48,6 @@ public sealed class RegionSeeder(ILogger<RegionSeeder> logger, IEnumerable<Regio
             }
 
             Logger.LogInformation("Updating fields for region with Id {Id}...", seedRegion.Id);
-            existingRegion.Code = seedRegion.Code;
             existingRegion.Name = seedRegion.Name;
             updatedCount++;
         }
@@ -72,8 +70,7 @@ public sealed class RegionSeeder(ILogger<RegionSeeder> logger, IEnumerable<Regio
         SeedDefinitionValidator.ThrowIfDuplicateValues(
             definitions,
             "region",
-            (region => region.Id.ToString(), "Id", StringComparer.Ordinal),
-            (region => region.Code, "Code", StringComparer.OrdinalIgnoreCase)
+            (region => region.Id.ToString(), "Id", StringComparer.Ordinal)
         );
     }
 }

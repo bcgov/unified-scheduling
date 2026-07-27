@@ -26,7 +26,6 @@ public sealed class SeedDataValidationTests
             {
                 Id = 100,
                 JustinId = 42,
-                Code = "OLD",
                 Name = "Old",
             }
         );
@@ -34,27 +33,12 @@ public sealed class SeedDataValidationTests
 
         var seeder = new RegionSeeder(
             new NullLogger<RegionSeeder>(),
-            [
-                new RegionSeedConfiguration
-                {
-                    Source = "test",
-                    Definitions =
-                    [
-                        new()
-                        {
-                            Id = 100,
-                            Code = "NEW",
-                            Name = "New",
-                        },
-                    ],
-                },
-            ]
+            [new RegionSeedConfiguration { Source = "test", Definitions = [new() { Id = 100, Name = "New" }] }]
         );
         await seeder.SeedAsync(dbContext, TestContext.Current.CancellationToken);
 
         var region = await dbContext.Regions.SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(42, region.JustinId);
-        Assert.Equal("NEW", region.Code);
         Assert.Equal("New", region.Name);
     }
 
@@ -187,44 +171,22 @@ public sealed class SeedDataValidationTests
     }
 
     [Fact]
-    public async Task RegionSeeder_DuplicateCodeAcrossDataSets_ThrowsIgnoringCase()
+    public async Task RegionSeeder_DuplicateIdAcrossDataSets_Throws()
     {
         var seeder = new RegionSeeder(
             new NullLogger<RegionSeeder>(),
             [
-                new RegionSeedConfiguration
-                {
-                    Source = "one",
-                    Definitions =
-                    [
-                        new()
-                        {
-                            Id = 1,
-                            Code = "CP",
-                            Name = "Central",
-                        },
-                    ],
-                },
-                new RegionSeedConfiguration
-                {
-                    Source = "two",
-                    Definitions =
-                    [
-                        new()
-                        {
-                            Id = 2,
-                            Code = "cp",
-                            Name = "Central Two",
-                        },
-                    ],
-                },
+                new RegionSeedConfiguration { Source = "one", Definitions = [new() { Id = 1, Name = "Central" }] },
+                new RegionSeedConfiguration { Source = "two", Definitions = [new() { Id = 1, Name = "Central Two" }] },
             ]
         );
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             seeder.SeedAsync(null!, TestContext.Current.CancellationToken)
         );
-        Assert.Contains("Code", exception.Message);
+        Assert.Contains("Id", exception.Message);
+        Assert.Contains("one", exception.Message);
+        Assert.Contains("two", exception.Message);
     }
 
     [Fact]
