@@ -188,10 +188,7 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
             "[]",
             new JCInterfaceOptions
             {
-                NonJcInterfaceLocationRegions = new Dictionary<string, string>
-                {
-                    [location.Name] = region.Name,
-                },
+                NonJcInterfaceLocationRegions = new Dictionary<string, string> { [location.Name] = region.Name },
             }
         );
 

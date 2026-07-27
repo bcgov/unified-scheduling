@@ -358,9 +358,7 @@ namespace Unified.JCInterface.Services
             var regionsByName = regions.ToDictionary(r => r.Name, r => r.Id, StringComparer.OrdinalIgnoreCase);
 
             var locationNames = locationToRegion.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var mappedLocations = await dbContext
-                .Locations.Where(l => locationNames.Contains(l.Name))
-                .ToListAsync();
+            var mappedLocations = await dbContext.Locations.Where(l => locationNames.Contains(l.Name)).ToListAsync();
 
             var updatedCount = 0;
             foreach (var location in mappedLocations)
