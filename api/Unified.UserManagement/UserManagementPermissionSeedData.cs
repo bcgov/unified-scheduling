@@ -106,13 +106,13 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
             Group = PermissionGroupActingPositions,
             Id = nameof(Permissions.ActingPositionsExpire),
             Description = "Expire acting positions",
-                },
-                // Admin
-                new()
-                {
-                    Group = PermissionGroupAdmin,
-                    Id = nameof(Permissions.HangfireDashboardView),
-                    Description = "View the Hangfire background jobs dashboard",
+        },
+        // Admin
+        new()
+        {
+            Group = PermissionGroupAdmin,
+            Id = nameof(Permissions.HangfireDashboardView),
+            Description = "View the Hangfire background jobs dashboard",
         },
     ];
 }

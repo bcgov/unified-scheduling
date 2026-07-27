@@ -119,11 +119,7 @@ public sealed class SeedDataCompositionTests
     private static SeedComposition GetComposition(params string[] dataSets) => GetComposition(dataSets, null);
 
     private static IReadOnlyList<SeedDataSetDescriptor> AllDataSets { get; } =
-    [
-        .. UserManagementSeedDataSets.All,
-        .. StatsSeedDataSets.All,
-        .. TrainingSeedDataSets.All,
-    ];
+    [.. UserManagementSeedDataSets.All, .. StatsSeedDataSets.All, .. TrainingSeedDataSets.All];
 
     private static SeedComposition GetComposition(string dataSet, string feature) => GetComposition([dataSet], feature);
 

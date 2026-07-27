@@ -13,11 +13,7 @@ public sealed class SeederFactoryTests
         var executions = new List<string>();
         var factory = new SeederFactory<DbContext>(
             NullLogger<SeederFactory<DbContext>>.Instance,
-            [
-                new TestSeeder(2, "B", executions),
-                new TestSeeder(1, "B", executions),
-                new TestSeeder(1, "A", executions),
-            ]
+            [new TestSeeder(2, "B", executions), new TestSeeder(1, "B", executions), new TestSeeder(1, "A", executions)]
         );
 
         await factory.SeedAsync(null!, TestContext.Current.CancellationToken);

@@ -8,16 +8,11 @@ public static class SeedDefinitionValidator
     public static void ThrowIfDuplicateValues<TDefinition>(
         IEnumerable<(TDefinition Definition, string Source)> definitions,
         string entityName,
-        params (
-            Func<TDefinition, string> KeySelector,
-            string KeyName,
-            IEqualityComparer<string> Comparer
-        )[] keys
+        params (Func<TDefinition, string> KeySelector, string KeyName, IEqualityComparer<string> Comparer)[] keys
     )
     {
         var definitionArray = definitions.ToArray();
-        var errors = keys
-            .SelectMany(key =>
+        var errors = keys.SelectMany(key =>
                 DuplicateErrors(definitionArray, key.KeySelector, key.KeyName, key.Comparer)
             )
             .ToArray();
