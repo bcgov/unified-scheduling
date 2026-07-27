@@ -9,6 +9,8 @@ using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
+using Unified.Common.Seeding;
+using Unified.Db;
 
 namespace Unified.Tests.Calendar;
 
@@ -29,9 +31,9 @@ public sealed class CalendarModuleTests
 
         // Assert
         AssertContainsScopedRegistration<ICalendarEventService, CalendarEventService>(services);
-        AssertContainsScopedSelfRegistration<EventTypeSeeder>(services);
-        AssertContainsScopedSelfRegistration<EventStatusTypeSeeder>(services);
-        AssertContainsScopedSelfRegistration<HolidayEventSeeder>(services);
+        AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventTypeSeeder>(services);
+        AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventStatusTypeSeeder>(services);
+        AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, HolidayEventSeeder>(services);
         AssertContainsScopedSelfRegistration<CalendarEventsRequestValidator>(services);
         Assert.Contains("api/calendar/events", calendarRoutes);
         Assert.Equal(

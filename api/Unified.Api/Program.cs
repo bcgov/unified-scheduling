@@ -80,7 +80,11 @@ var hangfireOptions =
         .Services.AddInfrastructureModule()
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
-        .AddUserManagementModule();
+        .AddUserManagementModule()
+        .AddConfiguredSeedData(
+            builder.Configuration,
+            UserManagementSeedDataSets.All.Concat(StatsSeedDataSets.All).Concat(TrainingSeedDataSets.All)
+        );
 
     builder.Services.AddSingleton<MigrationAndSeedService>();
     builder.Services.AddTransient(typeof(SeederFactory<>));

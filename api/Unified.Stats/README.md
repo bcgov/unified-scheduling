@@ -49,7 +49,7 @@ Reference data is managed exclusively through seeders. Adding, renaming, or reti
 
 ## Seeders
 
-Seeders live in `Unified.Stats/Seeders/` and extend `SeederBase<UnifiedDbContext>`. They are auto-discovered at startup by `SeederFactory` via reflection — no manual registration is required.
+Seeders live in `Unified.Stats/Seeders/`, extend `SeederBase<UnifiedDbContext>`, and are explicitly registered by `StatsModule`.
 
 ### Execution Order
 

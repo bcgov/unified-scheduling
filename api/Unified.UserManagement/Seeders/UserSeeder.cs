@@ -9,32 +9,24 @@ namespace Unified.UserManagement.Seeders;
 /// <summary>
 /// Seeder for the User table.
 /// </summary>
-public class UserSeeder(ILogger<UserSeeder> logger) : SeederBase<UnifiedDbContext>(logger)
+public class UserSeeder(ILogger<UserSeeder> logger, IEnumerable<UserSeedConfiguration> configurations)
+    : SeederBase<UnifiedDbContext>(logger)
 {
     public override int Order => 0;
 
     public override string Name => "User";
 
-    private static readonly User[] SeedUsers =
-    [
-        new()
-        {
-            Id = User.SystemUser,
-            IdirName = "SYSTEM",
-            IsEnabled = false,
-            FirstName = "System",
-            LastName = "System",
-        },
-    ];
-
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
         Logger.LogInformation("Updating users...");
 
+        ValidateDefinitions(configurations);
+        var seedUsers = configurations.SelectMany(configuration => configuration.Definitions).ToArray();
+
         var createdCount = 0;
         var updatedCount = 0;
 
-        foreach (var seedUser in SeedUsers)
+        foreach (var seedUser in seedUsers)
         {
             var existingUser = await dbContext
                 .Users.AsQueryable()
@@ -43,7 +35,17 @@ public class UserSeeder(ILogger<UserSeeder> logger) : SeederBase<UnifiedDbContex
             if (existingUser is null)
             {
                 Logger.LogInformation("User with {Id} does not exist, adding it...", seedUser.Id);
-                await dbContext.Users.AddAsync(seedUser, cancellationToken);
+                await dbContext.Users.AddAsync(
+                    new User
+                    {
+                        Id = seedUser.Id,
+                        IdirName = seedUser.IdirName,
+                        IsEnabled = seedUser.IsEnabled,
+                        FirstName = seedUser.FirstName,
+                        LastName = seedUser.LastName,
+                    },
+                    cancellationToken
+                );
                 createdCount++;
                 continue;
             }
@@ -62,6 +64,21 @@ public class UserSeeder(ILogger<UserSeeder> logger) : SeederBase<UnifiedDbContex
             "User seeding complete. Created {CreatedCount}, updated {UpdatedCount}.",
             createdCount,
             updatedCount
+        );
+    }
+
+    private static void ValidateDefinitions(IEnumerable<UserSeedConfiguration> configurations)
+    {
+        var definitions = configurations
+            .SelectMany(configuration =>
+                configuration.Definitions.Select(user => (Definition: user, configuration.Source))
+            )
+            .ToArray();
+        SeedDefinitionValidator.ThrowIfDuplicateValues(
+            definitions,
+            "user",
+            (user => user.Id.ToString(), "Id", StringComparer.Ordinal),
+            (user => user.IdirName, "IdirName", StringComparer.OrdinalIgnoreCase)
         );
     }
 }

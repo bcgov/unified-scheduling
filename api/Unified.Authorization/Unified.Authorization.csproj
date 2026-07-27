@@ -8,6 +8,7 @@
     <PackageReference Include="Mapster" Version="10.0.11" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\db\db.csproj" />
+    <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
     <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
