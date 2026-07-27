@@ -114,4 +114,10 @@ public class JCInterfaceOptions
             // Creston
             ["America/Creston"] = "SCCS,4721",
         };
+
+    /// <summary>
+    /// Maps non-JC-interface location names to region names.
+    /// Applied after JC location sync for existing DB locations whose RegionId is null.
+    /// </summary>
+    public Dictionary<string, string> NonJcInterfaceLocationRegions { get; set; } = new();
 }

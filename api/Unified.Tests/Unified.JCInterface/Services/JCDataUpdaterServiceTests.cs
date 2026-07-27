@@ -162,6 +162,51 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SyncLocationsAsync_WhenNonJcLocationRegionMappingConfigured_AssignsRegionByLocationName()
+    {
+        // Arrange
+        var region = new Region
+        {
+            JustinId = 999,
+            Name = "Mapped Region",
+            CreatedById = User.SystemUser,
+        };
+
+        var location = new Location
+        {
+            AgencyId = "SS_NON_JC",
+            Name = "Seeded Non-JC Location",
+            Timezone = "America/Vancouver",
+            CreatedById = User.SystemUser,
+        };
+
+        _dbContext.Regions.Add(region);
+        _dbContext.Locations.Add(location);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var service = CreateService(
+            "[]",
+            new JCInterfaceOptions
+            {
+                NonJcInterfaceLocationRegions = new Dictionary<string, string>
+                {
+                    [location.Name] = region.Name,
+                },
+            }
+        );
+
+        // Act
+        await service.SyncLocationsAsync();
+
+        // Assert
+        var updatedLocation = await _dbContext.Locations.SingleAsync(
+            l => l.Id == location.Id,
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(region.Id, updatedLocation.RegionId);
+    }
+
+    [Fact]
     public async Task SyncCourtRoomsAsync_WhenCalledTwice_UpsertsCourtRoomsLinkedToLocationWithoutDuplicating()
     {
         // Arrange
