@@ -1,10 +1,12 @@
-namespace Unified.Common.Seeding;
+using Unified.Common.Seeding;
 
-public sealed record RegionSeedConfiguration
+namespace Unified.UserManagement.Seeders;
+
+public sealed record RegionSeedConfiguration : ISeedConfiguration<RegionSeedDefinition>
 {
     public required string Source { get; init; }
 
-    public required IReadOnlyList<RegionSeedDefinition> Regions { get; init; }
+    public required IReadOnlyList<RegionSeedDefinition> Definitions { get; init; }
 }
 
 public sealed record RegionSeedDefinition

@@ -1,10 +1,15 @@
 using Unified.Common.Seeding;
+using Unified.UserManagement.Seeders;
 
 namespace Unified.UserManagement;
 
-public static class SheriffRegionSeedData
+public sealed class SheriffRegionSeedData : ISeedData<RegionSeedDefinition>
 {
-    public static IReadOnlyList<RegionSeedDefinition> Regions { get; } =
+    public static ISeedData<RegionSeedDefinition> Instance { get; } = new SheriffRegionSeedData();
+
+    private SheriffRegionSeedData() { }
+
+    public IReadOnlyList<RegionSeedDefinition> Definitions { get; } =
     [
         new()
         {

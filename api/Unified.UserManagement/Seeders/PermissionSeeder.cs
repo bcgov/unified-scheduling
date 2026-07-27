@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
@@ -27,11 +28,11 @@ public class PermissionSeeder(ILogger<PermissionSeeder> logger, IEnumerable<Perm
         var createdCount = 0;
         var updatedCount = 0;
         var dataSetConfigurations = configurations.ToArray();
-        var seedDefinitions = dataSetConfigurations.SelectMany(config => config.Permissions).ToList();
+        var seedDefinitions = dataSetConfigurations.SelectMany(config => config.Definitions).ToList();
 
         var duplicatePermissionIds = dataSetConfigurations
             .SelectMany(configuration =>
-                configuration.Permissions.Select(permission => (Permission: permission, configuration.Source))
+                configuration.Definitions.Select(permission => (Permission: permission, configuration.Source))
             )
             .GroupBy(item => item.Permission.Id, StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)

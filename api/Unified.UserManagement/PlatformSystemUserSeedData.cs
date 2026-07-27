@@ -1,11 +1,16 @@
 using Unified.Common.Seeding;
 using Unified.Db.Models.UserManagement;
+using Unified.UserManagement.Seeders;
 
 namespace Unified.UserManagement;
 
-public static class PlatformSystemUserSeedData
+public sealed class PlatformSystemUserSeedData : ISeedData<UserSeedDefinition>
 {
-    public static IReadOnlyList<UserSeedDefinition> Users { get; } =
+    public static ISeedData<UserSeedDefinition> Instance { get; } = new PlatformSystemUserSeedData();
+
+    private PlatformSystemUserSeedData() { }
+
+    public IReadOnlyList<UserSeedDefinition> Definitions { get; } =
     [
         new()
         {

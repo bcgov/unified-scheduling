@@ -21,7 +21,7 @@ public sealed class LocationSeeder(
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
         ValidateDefinitions(configurations);
-        var seedLocations = configurations.SelectMany(configuration => configuration.Locations).ToArray();
+        var seedLocations = configurations.SelectMany(configuration => configuration.Definitions).ToArray();
 
         var createdCount = 0;
         var updatedCount = 0;
@@ -73,38 +73,14 @@ public sealed class LocationSeeder(
     {
         var definitions = configurations
             .SelectMany(configuration =>
-                configuration.Locations.Select(location => (Location: location, configuration.Source))
+                configuration.Definitions.Select(location => (Definition: location, configuration.Source))
             )
             .ToArray();
-        var errors = DuplicateErrors(definitions, item => item.Location.Id.ToString(), "Id", StringComparer.Ordinal)
-            .Concat(
-                DuplicateErrors(
-                    definitions,
-                    item => item.Location.AgencyId,
-                    "AgencyId",
-                    StringComparer.OrdinalIgnoreCase
-                )
-            )
-            .ToArray();
-
-        if (errors.Length > 0)
-        {
-            throw new InvalidOperationException(
-                $"Duplicate location seed values detected: {string.Join(", ", errors)}"
-            );
-        }
+        SeedDefinitionValidator.ThrowIfDuplicateValues(
+            definitions,
+            "location",
+            (location => location.Id.ToString(), "Id", StringComparer.Ordinal),
+            (location => location.AgencyId, "AgencyId", StringComparer.OrdinalIgnoreCase)
+        );
     }
-
-    private static IEnumerable<string> DuplicateErrors(
-        IEnumerable<(LocationSeedDefinition Location, string Source)> definitions,
-        Func<(LocationSeedDefinition Location, string Source), string> keySelector,
-        string keyName,
-        IEqualityComparer<string> comparer
-    ) =>
-        definitions
-            .GroupBy(keySelector, comparer)
-            .Where(group => group.Count() > 1)
-            .Select(group =>
-                $"{keyName} '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}"
-            );
 }

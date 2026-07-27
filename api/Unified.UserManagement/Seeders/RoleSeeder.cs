@@ -21,7 +21,7 @@ public class RoleSeeder(ILogger<RoleSeeder> logger, IEnumerable<RoleSeedConfigur
         Logger.LogInformation("Updating roles...");
 
         ValidateDefinitions(configurations);
-        var seedRoles = configurations.SelectMany(configuration => configuration.Roles).ToArray();
+        var seedRoles = configurations.SelectMany(configuration => configuration.Definitions).ToArray();
 
         var createdCount = 0;
         var updatedCount = 0;
@@ -65,22 +65,15 @@ public class RoleSeeder(ILogger<RoleSeeder> logger, IEnumerable<RoleSeedConfigur
     private static void ValidateDefinitions(IEnumerable<RoleSeedConfiguration> configurations)
     {
         var definitions = configurations
-            .SelectMany(configuration => configuration.Roles.Select(role => (Role: role, configuration.Source)))
-            .ToArray();
-        var errors = definitions
-            .GroupBy(item => item.Role.Id)
-            .Where(group => group.Count() > 1)
-            .Select(group => $"Id '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
-            .Concat(
-                definitions
-                    .GroupBy(item => item.Role.Name, StringComparer.OrdinalIgnoreCase)
-                    .Where(group => group.Count() > 1)
-                    .Select(group =>
-                        $"Name '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}"
-                    )
+            .SelectMany(configuration =>
+                configuration.Definitions.Select(role => (Definition: role, configuration.Source))
             )
             .ToArray();
-        if (errors.Length > 0)
-            throw new InvalidOperationException($"Duplicate role seed values detected: {string.Join(", ", errors)}");
+        SeedDefinitionValidator.ThrowIfDuplicateValues(
+            definitions,
+            "role",
+            (role => role.Id.ToString(), "Id", StringComparer.Ordinal),
+            (role => role.Name, "Name", StringComparer.OrdinalIgnoreCase)
+        );
     }
 }

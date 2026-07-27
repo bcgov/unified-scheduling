@@ -21,7 +21,7 @@ public class UserSeeder(ILogger<UserSeeder> logger, IEnumerable<UserSeedConfigur
         Logger.LogInformation("Updating users...");
 
         ValidateDefinitions(configurations);
-        var seedUsers = configurations.SelectMany(configuration => configuration.Users).ToArray();
+        var seedUsers = configurations.SelectMany(configuration => configuration.Definitions).ToArray();
 
         var createdCount = 0;
         var updatedCount = 0;
@@ -70,22 +70,15 @@ public class UserSeeder(ILogger<UserSeeder> logger, IEnumerable<UserSeedConfigur
     private static void ValidateDefinitions(IEnumerable<UserSeedConfiguration> configurations)
     {
         var definitions = configurations
-            .SelectMany(configuration => configuration.Users.Select(user => (User: user, configuration.Source)))
-            .ToArray();
-        var errors = definitions
-            .GroupBy(item => item.User.Id)
-            .Where(group => group.Count() > 1)
-            .Select(group => $"Id '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}")
-            .Concat(
-                definitions
-                    .GroupBy(item => item.User.IdirName, StringComparer.OrdinalIgnoreCase)
-                    .Where(group => group.Count() > 1)
-                    .Select(group =>
-                        $"IdirName '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}"
-                    )
+            .SelectMany(configuration =>
+                configuration.Definitions.Select(user => (Definition: user, configuration.Source))
             )
             .ToArray();
-        if (errors.Length > 0)
-            throw new InvalidOperationException($"Duplicate user seed values detected: {string.Join(", ", errors)}");
+        SeedDefinitionValidator.ThrowIfDuplicateValues(
+            definitions,
+            "user",
+            (user => user.Id.ToString(), "Id", StringComparer.Ordinal),
+            (user => user.IdirName, "IdirName", StringComparer.OrdinalIgnoreCase)
+        );
     }
 }

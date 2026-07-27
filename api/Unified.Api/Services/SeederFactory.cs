@@ -9,24 +9,13 @@ public class SeederFactory<TContext>
     where TContext : DbContext
 {
     private readonly ILogger<SeederFactory<TContext>> _logger;
-    private readonly IEnumerable<SeederBase<TContext>> _registeredSeeders;
-    private readonly List<SeederBase<TContext>> _seeders = [];
+    private readonly IReadOnlyList<SeederBase<TContext>> _seeders;
 
     public SeederFactory(ILogger<SeederFactory<TContext>> logger, IEnumerable<SeederBase<TContext>> registeredSeeders)
     {
         _logger = logger;
-        _registeredSeeders = registeredSeeders;
-        LoadSeeders();
-    }
-
-    public void LoadSeeders()
-    {
-        _seeders.Clear();
-        _logger.LogInformation("Loading seeders...");
-
-        _seeders.AddRange(_registeredSeeders);
-
-        _logger.LogInformation("{Count} seeders loaded.", _seeders.Count);
+        _seeders = registeredSeeders.ToArray();
+        _logger.LogInformation("{SeederCount} seeders loaded.", _seeders.Count);
     }
 
     public async Task SeedAsync(TContext context, CancellationToken cancellationToken = default)

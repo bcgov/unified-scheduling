@@ -1,9 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Common.Seeding;
-using Unified.Stats;
-using Unified.Training;
-using Unified.UserManagement;
 
 namespace Unified.Api.Services;
 
@@ -13,100 +10,13 @@ namespace Unified.Api.Services;
 /// </summary>
 public static class SeedDataComposition
 {
-    public const string SheriffRegionLocationDataSet = "sheriff-region-location-data";
-    public const string PlatformSystemUserDataSet = "platform-system-user";
-    public const string DefaultRolesDataSet = "default-roles";
-    public const string UserManagementPermissionsDataSet = "user-management-permissions";
-    public const string StatsPermissionsDataSet = "stats-permissions";
-    public const string TrainingPermissionsDataSet = "training-permissions";
-
-    private static readonly IReadOnlyDictionary<string, SeedDataSetDescriptor> DataSetCatalog = new Dictionary<
-        string,
-        SeedDataSetDescriptor
-    >(StringComparer.OrdinalIgnoreCase)
-    {
-        [PlatformSystemUserDataSet] = new(
-            PlatformSystemUserDataSet,
-            services =>
-                services.AddSingleton(
-                    new UserSeedConfiguration
-                    {
-                        Source = PlatformSystemUserDataSet,
-                        Users = PlatformSystemUserSeedData.Users,
-                    }
-                )
-        ),
-        [DefaultRolesDataSet] = new(
-            DefaultRolesDataSet,
-            services =>
-                services.AddSingleton(
-                    new RoleSeedConfiguration { Source = DefaultRolesDataSet, Roles = DefaultRoleSeedData.Roles }
-                )
-        ),
-        [UserManagementPermissionsDataSet] = new(
-            UserManagementPermissionsDataSet,
-            services =>
-                services.AddSingleton(
-                    new PermissionSeedConfiguration
-                    {
-                        Source = UserManagementPermissionsDataSet,
-                        Permissions = UserManagementPermissionSeedData.Definitions,
-                    }
-                )
-        ),
-        [StatsPermissionsDataSet] = new(
-            StatsPermissionsDataSet,
-            services =>
-                services.AddSingleton(
-                    new PermissionSeedConfiguration
-                    {
-                        Source = StatsPermissionsDataSet,
-                        Permissions = StatsPermissionSeedData.Definitions,
-                    }
-                ),
-            RequiredFeature: "StatsModule",
-            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:StatsModule")
-        ),
-        [TrainingPermissionsDataSet] = new(
-            TrainingPermissionsDataSet,
-            services =>
-                services.AddSingleton(
-                    new PermissionSeedConfiguration
-                    {
-                        Source = TrainingPermissionsDataSet,
-                        Permissions = TrainingPermissionSeedData.Definitions,
-                    }
-                ),
-            RequiredFeature: "TrainingModule",
-            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:TrainingModule")
-        ),
-        [SheriffRegionLocationDataSet] = new(
-            SheriffRegionLocationDataSet,
-            services =>
-            {
-                services.AddSingleton(
-                    new RegionSeedConfiguration
-                    {
-                        Source = SheriffRegionLocationDataSet,
-                        Regions = SheriffRegionSeedData.Regions,
-                    }
-                );
-                services.AddSingleton(
-                    new LocationSeedConfiguration
-                    {
-                        Source = SheriffRegionLocationDataSet,
-                        Locations = SheriffLocationSeedData.Locations,
-                    }
-                );
-            }
-        ),
-    };
-
     public static IServiceCollection AddConfiguredSeedData(
         this IServiceCollection services,
-        IConfiguration configuration
+        IConfiguration configuration,
+        IEnumerable<SeedDataSetDescriptor> dataSets
     )
     {
+        var dataSetCatalog = dataSets.ToDictionary(dataSet => dataSet.Key, StringComparer.OrdinalIgnoreCase);
         var options = configuration.GetSection(SeedDataOptions.SectionName).Get<SeedDataOptions>() ?? new();
 
         var selectedDataSets = options.DataSets.ToArray();
@@ -123,7 +33,7 @@ public static class SeedDataComposition
         }
 
         foreach (
-            var dataSet in DataSetCatalog.Values.Where(dataSet =>
+            var dataSet in dataSetCatalog.Values.Where(dataSet =>
                 dataSet.RequiredFeature is not null && dataSet.IsAvailable(configuration)
             )
         )
@@ -138,10 +48,10 @@ public static class SeedDataComposition
 
         foreach (var dataSetKey in selectedDataSets)
         {
-            if (!DataSetCatalog.TryGetValue(dataSetKey, out var dataSet))
+            if (!dataSetCatalog.TryGetValue(dataSetKey, out var dataSet))
             {
                 throw new InvalidOperationException(
-                    $"Seed-data set '{dataSetKey}' is not registered. Available data sets: {string.Join(", ", DataSetCatalog.Keys.OrderBy(key => key, StringComparer.OrdinalIgnoreCase))}"
+                    $"Seed-data set '{dataSetKey}' is not registered. Available data sets: {string.Join(", ", dataSetCatalog.Keys.OrderBy(key => key, StringComparer.OrdinalIgnoreCase))}"
                 );
             }
 
@@ -158,15 +68,5 @@ public static class SeedDataComposition
         services.AddSingleton(new ResolvedSeedDataConfiguration(selectedDataSets));
 
         return services;
-    }
-
-    private sealed record SeedDataSetDescriptor(
-        string Key,
-        Action<IServiceCollection> Register,
-        string? RequiredFeature = null,
-        Func<IConfiguration, bool>? AvailableWhen = null
-    )
-    {
-        public bool IsAvailable(IConfiguration configuration) => AvailableWhen?.Invoke(configuration) ?? true;
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Db.Models;
@@ -37,7 +38,7 @@ public sealed class SeedDataValidationTests
                 new RegionSeedConfiguration
                 {
                     Source = "test",
-                    Regions =
+                    Definitions =
                     [
                         new()
                         {
@@ -71,8 +72,8 @@ public sealed class SeedDataValidationTests
             [
                 new RegionSeedConfiguration
                 {
-                    Source = "sheriff-region-location-data",
-                    Regions = SheriffRegionSeedData.Regions,
+                    Source = UserManagementSeedDataSets.SheriffRegionLocationDataSet,
+                    Definitions = SheriffRegionSeedData.Instance.Definitions,
                 },
             ]
         ).SeedAsync(dbContext, TestContext.Current.CancellationToken);
@@ -81,18 +82,18 @@ public sealed class SeedDataValidationTests
             [
                 new LocationSeedConfiguration
                 {
-                    Source = "sheriff-region-location-data",
-                    Locations = SheriffLocationSeedData.Locations,
+                    Source = UserManagementSeedDataSets.SheriffRegionLocationDataSet,
+                    Definitions = SheriffLocationSeedData.Instance.Definitions,
                 },
             ]
         ).SeedAsync(dbContext, TestContext.Current.CancellationToken);
 
         Assert.Equal(
-            SheriffRegionSeedData.Regions.Count,
+            SheriffRegionSeedData.Instance.Definitions.Count,
             await dbContext.Regions.CountAsync(TestContext.Current.CancellationToken)
         );
         Assert.Equal(
-            SheriffLocationSeedData.Locations.Count,
+            SheriffLocationSeedData.Instance.Definitions.Count,
             await dbContext.Locations.CountAsync(TestContext.Current.CancellationToken)
         );
     }
@@ -106,7 +107,7 @@ public sealed class SeedDataValidationTests
                 new UserSeedConfiguration
                 {
                     Source = "one",
-                    Users =
+                    Definitions =
                     [
                         new()
                         {
@@ -121,7 +122,7 @@ public sealed class SeedDataValidationTests
                 new UserSeedConfiguration
                 {
                     Source = "two",
-                    Users =
+                    Definitions =
                     [
                         new()
                         {
@@ -153,7 +154,7 @@ public sealed class SeedDataValidationTests
                 new RoleSeedConfiguration
                 {
                     Source = "one",
-                    Roles =
+                    Definitions =
                     [
                         new()
                         {
@@ -166,7 +167,7 @@ public sealed class SeedDataValidationTests
                 new RoleSeedConfiguration
                 {
                     Source = "two",
-                    Roles =
+                    Definitions =
                     [
                         new()
                         {
@@ -194,7 +195,7 @@ public sealed class SeedDataValidationTests
                 new RegionSeedConfiguration
                 {
                     Source = "one",
-                    Regions =
+                    Definitions =
                     [
                         new()
                         {
@@ -207,7 +208,7 @@ public sealed class SeedDataValidationTests
                 new RegionSeedConfiguration
                 {
                     Source = "two",
-                    Regions =
+                    Definitions =
                     [
                         new()
                         {
@@ -235,7 +236,7 @@ public sealed class SeedDataValidationTests
                 new LocationSeedConfiguration
                 {
                     Source = "one",
-                    Locations =
+                    Definitions =
                     [
                         new()
                         {
@@ -249,7 +250,7 @@ public sealed class SeedDataValidationTests
                 new LocationSeedConfiguration
                 {
                     Source = "two",
-                    Locations =
+                    Definitions =
                     [
                         new()
                         {
@@ -278,7 +279,7 @@ public sealed class SeedDataValidationTests
                 new PermissionSeedConfiguration
                 {
                     Source = "one",
-                    Permissions =
+                    Definitions =
                     [
                         new()
                         {
@@ -291,7 +292,7 @@ public sealed class SeedDataValidationTests
                 new PermissionSeedConfiguration
                 {
                     Source = "two",
-                    Permissions =
+                    Definitions =
                     [
                         new()
                         {

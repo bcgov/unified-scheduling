@@ -1,10 +1,12 @@
-namespace Unified.Common.Seeding;
+using Unified.Common.Seeding;
 
-public sealed record UserSeedConfiguration
+namespace Unified.UserManagement.Seeders;
+
+public sealed record UserSeedConfiguration : ISeedConfiguration<UserSeedDefinition>
 {
     public required string Source { get; init; }
 
-    public required IReadOnlyList<UserSeedDefinition> Users { get; init; }
+    public required IReadOnlyList<UserSeedDefinition> Definitions { get; init; }
 }
 
 public sealed record UserSeedDefinition

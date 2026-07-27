@@ -1,10 +1,15 @@
 using Unified.Common.Seeding;
+using Unified.UserManagement.Seeders;
 
 namespace Unified.UserManagement;
 
-public static class DefaultRoleSeedData
+public sealed class DefaultRoleSeedData : ISeedData<RoleSeedDefinition>
 {
-    public static IReadOnlyList<RoleSeedDefinition> Roles { get; } =
+    public static ISeedData<RoleSeedDefinition> Instance { get; } = new DefaultRoleSeedData();
+
+    private DefaultRoleSeedData() { }
+
+    public IReadOnlyList<RoleSeedDefinition> Definitions { get; } =
     [
         new()
         {

@@ -1,8 +1,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Api.Services;
+using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
 using Unified.Db;
+using Unified.Stats;
+using Unified.Training;
 using Unified.UserManagement;
 using Unified.UserManagement.Seeders;
 
@@ -13,15 +16,15 @@ public sealed class SeedDataCompositionTests
     [Fact]
     public void AddConfiguredSeedData_SheriffRegionLocationDataSet_RegistersRegionsAndLocations()
     {
-        var composition = GetComposition(SeedDataComposition.SheriffRegionLocationDataSet);
+        var composition = GetComposition(UserManagementSeedDataSets.SheriffRegionLocationDataSet);
 
-        Assert.Equal([SeedDataComposition.SheriffRegionLocationDataSet], composition.DataSets);
+        Assert.Equal([UserManagementSeedDataSets.SheriffRegionLocationDataSet], composition.DataSets);
         Assert.Equal(
-            [SeedDataComposition.SheriffRegionLocationDataSet],
+            [UserManagementSeedDataSets.SheriffRegionLocationDataSet],
             composition.RegionConfigurations.Select(x => x.Source)
         );
         Assert.Equal(
-            [SeedDataComposition.SheriffRegionLocationDataSet],
+            [UserManagementSeedDataSets.SheriffRegionLocationDataSet],
             composition.LocationConfigurations.Select(x => x.Source)
         );
     }
@@ -43,19 +46,22 @@ public sealed class SeedDataCompositionTests
     public void AddConfiguredSeedData_SelectedDataSets_RegistersExactlySelectedContributions()
     {
         var composition = GetComposition(
-            SeedDataComposition.PlatformSystemUserDataSet,
-            SeedDataComposition.DefaultRolesDataSet,
-            SeedDataComposition.UserManagementPermissionsDataSet
+            UserManagementSeedDataSets.PlatformSystemUserDataSet,
+            UserManagementSeedDataSets.DefaultRolesDataSet,
+            UserManagementSeedDataSets.UserManagementPermissionsDataSet
         );
 
         Assert.Equal(3, composition.DataSets.Count);
         Assert.Equal(
-            [SeedDataComposition.PlatformSystemUserDataSet],
+            [UserManagementSeedDataSets.PlatformSystemUserDataSet],
             composition.UserConfigurations.Select(x => x.Source)
         );
-        Assert.Equal([SeedDataComposition.DefaultRolesDataSet], composition.RoleConfigurations.Select(x => x.Source));
         Assert.Equal(
-            [SeedDataComposition.UserManagementPermissionsDataSet],
+            [UserManagementSeedDataSets.DefaultRolesDataSet],
+            composition.RoleConfigurations.Select(x => x.Source)
+        );
+        Assert.Equal(
+            [UserManagementSeedDataSets.UserManagementPermissionsDataSet],
             composition.PermissionConfigurations.Select(x => x.Source)
         );
     }
@@ -64,7 +70,7 @@ public sealed class SeedDataCompositionTests
     public void AddConfiguredSeedData_UnknownDataSet_ThrowsConfigurationError()
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            new ServiceCollection().AddConfiguredSeedData(BuildConfiguration("missing-data-set"))
+            new ServiceCollection().AddConfiguredSeedData(BuildConfiguration("missing-data-set"), AllDataSets)
         );
 
         Assert.Contains("missing-data-set", exception.Message);
@@ -72,12 +78,12 @@ public sealed class SeedDataCompositionTests
     }
 
     [Theory]
-    [InlineData(SeedDataComposition.StatsPermissionsDataSet, "StatsModule")]
-    [InlineData(SeedDataComposition.TrainingPermissionsDataSet, "TrainingModule")]
+    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "StatsModule")]
+    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "TrainingModule")]
     public void AddConfiguredSeedData_FeatureDataSetDisabled_ThrowsConfigurationError(string dataSet, string feature)
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            new ServiceCollection().AddConfiguredSeedData(BuildConfiguration(dataSet))
+            new ServiceCollection().AddConfiguredSeedData(BuildConfiguration(dataSet), AllDataSets)
         );
 
         Assert.Contains(dataSet, exception.Message);
@@ -85,15 +91,15 @@ public sealed class SeedDataCompositionTests
     }
 
     [Theory]
-    [InlineData(SeedDataComposition.StatsPermissionsDataSet, "StatsModule")]
-    [InlineData(SeedDataComposition.TrainingPermissionsDataSet, "TrainingModule")]
+    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "StatsModule")]
+    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "TrainingModule")]
     public void AddConfiguredSeedData_FeatureEnabledWithoutPermissionDataSet_ThrowsConfigurationError(
         string dataSet,
         string feature
     )
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            new ServiceCollection().AddConfiguredSeedData(BuildConfiguration([], feature))
+            new ServiceCollection().AddConfiguredSeedData(BuildConfiguration([], feature), AllDataSets)
         );
 
         Assert.Contains(dataSet, exception.Message);
@@ -101,8 +107,8 @@ public sealed class SeedDataCompositionTests
     }
 
     [Theory]
-    [InlineData(SeedDataComposition.StatsPermissionsDataSet, "StatsModule")]
-    [InlineData(SeedDataComposition.TrainingPermissionsDataSet, "TrainingModule")]
+    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "StatsModule")]
+    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "TrainingModule")]
     public void AddConfiguredSeedData_FeatureDataSetEnabled_RegistersContribution(string dataSet, string feature)
     {
         var composition = GetComposition(dataSet, feature);
@@ -112,6 +118,13 @@ public sealed class SeedDataCompositionTests
 
     private static SeedComposition GetComposition(params string[] dataSets) => GetComposition(dataSets, null);
 
+    private static IReadOnlyList<SeedDataSetDescriptor> AllDataSets { get; } =
+    [
+        .. UserManagementSeedDataSets.All,
+        .. StatsSeedDataSets.All,
+        .. TrainingSeedDataSets.All,
+    ];
+
     private static SeedComposition GetComposition(string dataSet, string feature) => GetComposition([dataSet], feature);
 
     private static SeedComposition GetComposition(string[] dataSets, string? enabledFeature)
@@ -119,7 +132,7 @@ public sealed class SeedDataCompositionTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddUserManagementModule();
-        services.AddConfiguredSeedData(BuildConfiguration(dataSets, enabledFeature));
+        services.AddConfiguredSeedData(BuildConfiguration(dataSets, enabledFeature), AllDataSets);
 
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();

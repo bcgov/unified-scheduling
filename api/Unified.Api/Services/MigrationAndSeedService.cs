@@ -31,7 +31,6 @@ public class MigrationAndSeedService(
             var seederFactory = scope.ServiceProvider.GetRequiredService<SeederFactory<UnifiedDbContext>>();
 
             await ExecuteMigrations(dbContext);
-            seederFactory.LoadSeeders();
             await seederFactory.SeedAsync(dbContext);
         }
         catch (Exception ex)

@@ -1,10 +1,12 @@
-namespace Unified.Common.Seeding;
+using Unified.Common.Seeding;
 
-public sealed record LocationSeedConfiguration
+namespace Unified.UserManagement.Seeders;
+
+public sealed record LocationSeedConfiguration : ISeedConfiguration<LocationSeedDefinition>
 {
     public required string Source { get; init; }
 
-    public required IReadOnlyList<LocationSeedDefinition> Locations { get; init; }
+    public required IReadOnlyList<LocationSeedDefinition> Definitions { get; init; }
 }
 
 public sealed record LocationSeedDefinition

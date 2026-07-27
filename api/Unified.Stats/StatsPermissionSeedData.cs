@@ -1,16 +1,21 @@
 using Unified.Authorization;
+using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
 
 namespace Unified.Stats;
 
 /// <summary>
-/// Static permission seed data owned by the Stats module.
+/// Permission seed data owned by the Stats module.
 /// </summary>
-public static class StatsPermissionSeedData
+public sealed class StatsPermissionSeedData : ISeedData<PermissionSeedDefinition>
 {
     private const string PermissionGroupStats = "Stats";
 
-    public static IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
+    public static ISeedData<PermissionSeedDefinition> Instance { get; } = new StatsPermissionSeedData();
+
+    private StatsPermissionSeedData() { }
+
+    public IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
     [
         new()
         {

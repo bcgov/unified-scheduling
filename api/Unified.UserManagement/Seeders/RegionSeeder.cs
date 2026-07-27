@@ -19,7 +19,7 @@ public sealed class RegionSeeder(ILogger<RegionSeeder> logger, IEnumerable<Regio
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
         ValidateDefinitions(configurations);
-        var seedRegions = configurations.SelectMany(configuration => configuration.Regions).ToArray();
+        var seedRegions = configurations.SelectMany(configuration => configuration.Definitions).ToArray();
 
         var createdCount = 0;
         var updatedCount = 0;
@@ -65,28 +65,15 @@ public sealed class RegionSeeder(ILogger<RegionSeeder> logger, IEnumerable<Regio
     private static void ValidateDefinitions(IEnumerable<RegionSeedConfiguration> configurations)
     {
         var definitions = configurations
-            .SelectMany(configuration => configuration.Regions.Select(region => (Region: region, configuration.Source)))
+            .SelectMany(configuration =>
+                configuration.Definitions.Select(region => (Definition: region, configuration.Source))
+            )
             .ToArray();
-        var errors = DuplicateErrors(definitions, item => item.Region.Id.ToString(), "Id", StringComparer.Ordinal)
-            .Concat(DuplicateErrors(definitions, item => item.Region.Code, "Code", StringComparer.OrdinalIgnoreCase))
-            .ToArray();
-
-        if (errors.Length > 0)
-        {
-            throw new InvalidOperationException($"Duplicate region seed values detected: {string.Join(", ", errors)}");
-        }
+        SeedDefinitionValidator.ThrowIfDuplicateValues(
+            definitions,
+            "region",
+            (region => region.Id.ToString(), "Id", StringComparer.Ordinal),
+            (region => region.Code, "Code", StringComparer.OrdinalIgnoreCase)
+        );
     }
-
-    private static IEnumerable<string> DuplicateErrors(
-        IEnumerable<(RegionSeedDefinition Region, string Source)> definitions,
-        Func<(RegionSeedDefinition Region, string Source), string> keySelector,
-        string keyName,
-        IEqualityComparer<string> comparer
-    ) =>
-        definitions
-            .GroupBy(keySelector, comparer)
-            .Where(group => group.Count() > 1)
-            .Select(group =>
-                $"{keyName} '{group.Key}' from {string.Join(", ", group.Select(item => item.Source).Distinct())}"
-            );
 }

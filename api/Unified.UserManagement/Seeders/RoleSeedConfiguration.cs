@@ -1,10 +1,12 @@
-namespace Unified.Common.Seeding;
+using Unified.Common.Seeding;
 
-public sealed record RoleSeedConfiguration
+namespace Unified.UserManagement.Seeders;
+
+public sealed record RoleSeedConfiguration : ISeedConfiguration<RoleSeedDefinition>
 {
     public required string Source { get; init; }
 
-    public required IReadOnlyList<RoleSeedDefinition> Roles { get; init; }
+    public required IReadOnlyList<RoleSeedDefinition> Definitions { get; init; }
 }
 
 public sealed record RoleSeedDefinition

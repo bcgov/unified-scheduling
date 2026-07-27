@@ -1,18 +1,24 @@
 using Unified.Authorization;
+using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
+using Unified.UserManagement.Seeders;
 
 namespace Unified.UserManagement;
 
 /// <summary>
-/// Static permission seed data owned by the UserManagement module.
+/// Permission seed data owned by the UserManagement module.
 /// </summary>
-public static class UserManagementPermissionSeedData
+public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedDefinition>
 {
     private const string PermissionGroupUsers = "Users";
     private const string PermissionGroupRoles = "Roles";
     private const string PermissionGroupActingPositions = "ActingPositions";
     private const string PermissionGroupAdmin = "Admin";
-    public static IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
+    public static ISeedData<PermissionSeedDefinition> Instance { get; } = new UserManagementPermissionSeedData();
+
+    private UserManagementPermissionSeedData() { }
+
+    public IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
     [
         // Users
         new()

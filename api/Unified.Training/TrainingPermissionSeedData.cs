@@ -1,16 +1,21 @@
 using Unified.Authorization;
+using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
 
 namespace Unified.Training;
 
 /// <summary>
-/// Static permission seed data owned by the Training module.
+/// Permission seed data owned by the Training module.
 /// </summary>
-public static class TrainingPermissionSeedData
+public sealed class TrainingPermissionSeedData : ISeedData<PermissionSeedDefinition>
 {
     private const string PermissionGroupTraining = "Training";
 
-    public static IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
+    public static ISeedData<PermissionSeedDefinition> Instance { get; } = new TrainingPermissionSeedData();
+
+    private TrainingPermissionSeedData() { }
+
+    public IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
     [
         new()
         {

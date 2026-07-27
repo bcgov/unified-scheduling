@@ -1,10 +1,15 @@
 using Unified.Common.Seeding;
+using Unified.UserManagement.Seeders;
 
 namespace Unified.UserManagement;
 
-public static class SheriffLocationSeedData
+public sealed class SheriffLocationSeedData : ISeedData<LocationSeedDefinition>
 {
-    public static IReadOnlyList<LocationSeedDefinition> Locations { get; } =
+    public static ISeedData<LocationSeedDefinition> Instance { get; } = new SheriffLocationSeedData();
+
+    private SheriffLocationSeedData() { }
+
+    public IReadOnlyList<LocationSeedDefinition> Definitions { get; } =
     [
         Location(1, "SS1", "Office of Professional Standards"),
         Location(2, "SS2", "Sheriff Provincial Operation Centre"),
