@@ -8,6 +8,8 @@ public sealed record UserTrainingResponse
 
     public required int TrainingId { get; init; }
 
+    public required int Version { get; init; }
+
     public required string TrainingCode { get; init; }
 
     public required string TrainingCategoryName { get; init; }

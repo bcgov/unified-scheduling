@@ -16,6 +16,9 @@ public class UserTraining : BaseEntity
     public int TrainingId { get; set; }
 
     [Required]
+    public int Version { get; set; } = 1;
+
+    [Required]
     public DateTimeOffset AwardedOn { get; set; }
     [Required]
     public DateTimeOffset EndingOn { get; set; }

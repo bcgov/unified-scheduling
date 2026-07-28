@@ -4,31 +4,27 @@ namespace Unified.Training.Services;
 
 public interface IUserTrainingService
 {
-    Task<IReadOnlyCollection<UserTrainingResponse>> GetAllAsync(
+    Task<IReadOnlyCollection<UserTrainingResponse>> GetUserTrainings(
         Guid userId,
-        Guid callerUserId,
         CancellationToken cancellationToken = default
     );
 
     Task<UserTrainingResponse?> GetByTrainingAndUserAsync(
         int trainingId,
         Guid userId,
-        Guid callerUserId,
         CancellationToken cancellationToken = default
     );
 
     Task<UserTrainingResponse> CreateAsync(
         UserTrainingRequest request,
-        Guid callerUserId,
         CancellationToken cancellationToken = default
     );
 
     Task<UserTrainingResponse?> UpdateAsync(
         int id,
         UserTrainingRequest request,
-        Guid callerUserId,
         CancellationToken cancellationToken = default
     );
 
-    Task<bool> DeleteAsync(int id, Guid callerUserId, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
 }

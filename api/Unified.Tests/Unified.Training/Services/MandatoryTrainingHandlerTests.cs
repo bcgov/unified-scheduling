@@ -179,4 +179,54 @@ public class MandatoryTrainingHandlerTests : IAsyncLifetime
         var secondPassCount = await _db.UserTrainings.CountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(firstPassCount, secondPassCount);
     }
+
+    [Fact]
+    public async Task HandleCreate_WhenValidityDaysIsNull_SetsExpiryDateToAwardedOn()
+    {
+        var mandatoryWithoutValidity = new TrainingEntity
+        {
+            Id = _training.Id,
+            Code = _training.Code,
+            Description = _training.Description,
+            Mandatory = true,
+            ValidityDays = null,
+            EffectiveDate = _training.EffectiveDate,
+        };
+
+        await _handler.HandleAsync(mandatoryWithoutValidity, TestContext.Current.CancellationToken);
+
+        var created = await _db
+            .UserTrainings.Where(ut => ut.TrainingId == _training.Id && ut.UserId == EnabledUserId1)
+            .SingleAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(created.AwardedOn, created.ExpiryDate);
+    }
+
+    [Fact]
+    public async Task HandleCreate_WhenUserHasPriorVersions_AssignsNextVersion()
+    {
+        _db.UserTrainings.Add(
+            new UserTraining
+            {
+                UserId = EnabledUserId1,
+                TrainingId = _training.Id,
+                Version = 3,
+                AwardedOn = DateTimeOffset.UtcNow.AddDays(-60),
+                EndingOn = DateTimeOffset.UtcNow.AddDays(-59),
+                ExpiryDate = DateTimeOffset.UtcNow.AddDays(-30),
+                NoticeState = UserTrainingNoticeStates.None,
+            }
+        );
+
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await _handler.HandleAsync(_training, TestContext.Current.CancellationToken);
+
+        var newlyCreated = await _db
+            .UserTrainings.Where(ut => ut.TrainingId == _training.Id && ut.UserId == EnabledUserId1)
+            .OrderByDescending(ut => ut.Id)
+            .FirstAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(4, newlyCreated.Version);
+    }
 }

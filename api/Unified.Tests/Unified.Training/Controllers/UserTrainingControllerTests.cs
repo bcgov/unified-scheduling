@@ -29,6 +29,7 @@ public class UserTrainingControllerTests
             Id = id,
             UserId = UserId,
             TrainingId = 1,
+            Version = 1,
             TrainingCode = "FA",
             TrainingCategoryName = "Safety",
             AwardedOn = DateTimeOffset.UtcNow,
@@ -42,20 +43,23 @@ public class UserTrainingControllerTests
         var service = new FakeUserTrainingService { GetAllResult = response };
         var controller = BuildController(service, callerId: UserId);
 
-        var result = await controller.GetAll(OtherUserId, TestContext.Current.CancellationToken);
+        var result = await controller.GetAllByUser(OtherUserId, TestContext.Current.CancellationToken);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Equal(response, ok.Value);
     }
 
     [Fact]
-    public async Task GetAll_WhenUserIdClaimMissing_Returns401()
+    public async Task GetAll_WhenUserIdClaimMissing_Returns200Ok()
     {
-        var controller = BuildController(new FakeUserTrainingService(), callerId: null);
+        var response = new[] { SampleResponse() };
+        var service = new FakeUserTrainingService { GetAllResult = response };
+        var controller = BuildController(service, callerId: null);
 
-        var result = await controller.GetAll(OtherUserId, TestContext.Current.CancellationToken);
+        var result = await controller.GetAllByUser(OtherUserId, TestContext.Current.CancellationToken);
 
-        Assert.IsType<UnauthorizedResult>(result.Result);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal(response, ok.Value);
     }
 
     [Fact]
@@ -112,13 +116,16 @@ public class UserTrainingControllerTests
     }
 
     [Fact]
-    public async Task Create_WhenUserIdClaimMissing_Returns401()
+    public async Task Create_WhenUserIdClaimMissing_Returns201Created()
     {
-        var controller = BuildController(new FakeUserTrainingService(), callerId: null);
+        var response = SampleResponse();
+        var service = new FakeUserTrainingService { CreateResult = response };
+        var controller = BuildController(service, callerId: null);
 
         var result = await controller.Create(ValidRequest(), TestContext.Current.CancellationToken);
 
-        Assert.IsType<UnauthorizedResult>(result.Result);
+        var created = Assert.IsType<CreatedResult>(result.Result);
+        Assert.Equal(response, created.Value);
     }
 
     [Fact]
@@ -165,13 +172,16 @@ public class UserTrainingControllerTests
     }
 
     [Fact]
-    public async Task Update_WhenUserIdClaimMissing_Returns401()
+    public async Task Update_WhenUserIdClaimMissing_Returns200Ok()
     {
-        var controller = BuildController(new FakeUserTrainingService(), callerId: null);
+        var response = SampleResponse(1);
+        var service = new FakeUserTrainingService { UpdateResult = response };
+        var controller = BuildController(service, callerId: null);
 
         var result = await controller.Update(1, ValidRequest(), TestContext.Current.CancellationToken);
 
-        Assert.IsType<UnauthorizedResult>(result.Result);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal(response, ok.Value);
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────
@@ -199,13 +209,14 @@ public class UserTrainingControllerTests
     }
 
     [Fact]
-    public async Task Delete_WhenUserIdClaimMissing_Returns401()
+    public async Task Delete_WhenUserIdClaimMissing_Returns204NoContent()
     {
-        var controller = BuildController(new FakeUserTrainingService(), callerId: null);
+        var service = new FakeUserTrainingService { DeleteResult = true };
+        var controller = BuildController(service, callerId: null);
 
         var result = await controller.Delete(1, TestContext.Current.CancellationToken);
 
-        Assert.IsType<UnauthorizedResult>(result);
+        Assert.IsType<NoContentResult>(result);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -225,33 +236,29 @@ public class UserTrainingControllerTests
         public UserTrainingResponse? UpdateResult { get; init; }
         public bool DeleteResult { get; init; }
 
-        public Task<IReadOnlyCollection<UserTrainingResponse>> GetAllAsync(
+        public Task<IReadOnlyCollection<UserTrainingResponse>> GetUserTrainings(
             Guid userId,
-            Guid callerUserId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(GetAllResult);
 
         public Task<UserTrainingResponse?> GetByTrainingAndUserAsync(
             int trainingId,
             Guid userId,
-            Guid callerUserId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(GetByTrainingAndUserResult);
 
         public Task<UserTrainingResponse> CreateAsync(
             UserTrainingRequest request,
-            Guid callerUserId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(CreateResult!);
 
         public Task<UserTrainingResponse?> UpdateAsync(
             int id,
             UserTrainingRequest request,
-            Guid callerUserId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(UpdateResult);
 
-        public Task<bool> DeleteAsync(int id, Guid callerUserId, CancellationToken cancellationToken = default) =>
+        public Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default) =>
             Task.FromResult(DeleteResult);
     }
 }

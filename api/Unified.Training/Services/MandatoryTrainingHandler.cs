@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Unified.Common.PostSave;
 using Unified.Db;
 using Unified.Db.Models.Training;
+using Unified.Training.Helpers;
 using TrainingEntity = Unified.Db.Models.Training.Training;
 
 namespace Unified.Training.Services;
@@ -56,14 +57,20 @@ public sealed class MandatoryTrainingHandler(UnifiedDbContext db)
         if (userIdsToProvision.Count == 0)
             return;
 
-        var expiryDate = entity.ValidityDays.HasValue ? now.AddDays(entity.ValidityDays.Value) : (DateTimeOffset?)null;
+        var expiryDate = UserTrainingHelper.CalculateExpiryDate(now, entity.ValidityDays);
+
+        var latestVersionsByUser = await db
+            .UserTrainings.Where(ut => ut.TrainingId == entity.Id && userIdsToProvision.Contains(ut.UserId))
+            .GroupBy(ut => ut.UserId)
+            .Select(g => new { UserId = g.Key, MaxVersion = g.Max(ut => ut.Version) })
+            .ToDictionaryAsync(x => x.UserId, x => x.MaxVersion, cancellationToken);
 
         var newRecords = userIdsToProvision.Select(userId => new UserTraining
         {
             UserId = userId,
             TrainingId = entity.Id,
+            Version = latestVersionsByUser.TryGetValue(userId, out var maxVersion) ? maxVersion + 1 : 1,
             AwardedOn = now,
-            // Hmmmm
             EndingOn = now.AddDays(1),
             ExpiryDate = expiryDate,
             NoticeState = UserTrainingNoticeStates.None,

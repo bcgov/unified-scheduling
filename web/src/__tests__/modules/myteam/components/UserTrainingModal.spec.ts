@@ -125,4 +125,55 @@ describe('UserTrainingModal', () => {
     expect(putApiTrainingUserTrainingsIdMock).not.toHaveBeenCalled();
     expect(wrapper.emitted('saved')).toBeFalsy();
   });
+
+  it('saves in renew mode with post and emits saved + close', async () => {
+    const wrapper = mount(UserTrainingModal, {
+      props: {
+        userId: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
+        mode: 'renew',
+        trainingOptions: [],
+        training: {
+          id: 222,
+          userId: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
+          trainingId: 10,
+          trainingCode: 'CPR',
+          trainingCategoryName: 'Medical',
+          awardedOn: '2026-01-20T00:00:00Z',
+          expiryDate: '2026-12-31T00:00:00Z',
+          noticeState: 'None',
+          notes: ' renew note ',
+          createdOn: '2026-01-20T00:00:00Z',
+          updatedOn: null,
+        },
+      },
+      global: {
+        stubs: {
+          UaModal: UaModalStub,
+          UaBtn: UaBtnStub,
+          UaAlert: UaAlertStub,
+          UaFormGrid: true,
+          UaTextField: true,
+          UaTextarea: true,
+          UaSelect: true,
+          VCheckbox: true,
+        },
+      },
+    });
+
+    const saveButton = wrapper.findAll('button').find((button) => button.text() === 'Save');
+    await saveButton!.trigger('click');
+    await flushPromises();
+
+    expect(postApiTrainingUserTrainingsMock).toHaveBeenCalledTimes(1);
+    expect(postApiTrainingUserTrainingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
+        trainingId: 10,
+        notes: 'renew note',
+      }),
+    );
+    expect(putApiTrainingUserTrainingsIdMock).not.toHaveBeenCalled();
+    expect(wrapper.emitted('saved')).toBeTruthy();
+    expect(wrapper.emitted('close')).toBeTruthy();
+  });
 });

@@ -15,17 +15,4 @@ public sealed record UserTrainingRequest
     public DateTimeOffset? ExpiryDate { get; init; }
 
     public string? Notes { get; init; }
-
-    /// <summary>
-    /// When <c>true</c>, any existing active training record for the same
-    /// UserId + TrainingId is superseded by this one while preserving the
-    /// older record as history.
-    /// </summary>
-    public bool OverrideConflicts { get; init; }
-
-    /// <summary>
-    /// When <c>true</c>, the record is created even when an active record
-    /// already exists for the same UserId + TrainingId (duplicate allowed).
-    /// </summary>
-    public bool AllowConflictingEvents { get; init; }
 }

@@ -16,19 +16,38 @@ import type { SelectOption } from '@/types/select';
 import { computed, ref, watch } from 'vue';
 import * as zod from 'zod';
 
-const props = defineProps<{
+type UserTrainingModalMode = 'create' | 'edit' | 'renew';
+
+const props = withDefaults(
+  defineProps<{
   userId: string;
   trainingOptions: SelectOption[];
+  mode?: UserTrainingModalMode;
   training?: UserTrainingResponse | null;
-}>();
+}>(),
+  {
+    mode: 'create',
+  },
+);
 
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'saved'): void;
 }>();
 
-const isEditMode = computed(() => !!props.training);
-const modalTitle = computed(() => (isEditMode.value ? 'Edit User Training' : 'Add User Training'));
+const isEditMode = computed(() => props.mode === 'edit' && !!props.training);
+const isRenewMode = computed(() => props.mode === 'renew' && !!props.training);
+const modalTitle = computed(() => {
+  if (isEditMode.value) {
+    return 'Edit User Training';
+  }
+
+  if (isRenewMode.value) {
+    return 'Renew User Training';
+  }
+
+  return 'Add User Training';
+});
 const isSaving = ref(false);
 const apiError = ref('');
 const formErrors = ref<Record<string, string>>({});
@@ -39,35 +58,70 @@ const createFormData = () => ({
   awardedOn: getTodayDateInputValue(),
   expiryDate: '',
   notes: '',
-  overrideConflicts: false,
-  allowConflictingEvents: false,
 });
+
+const resolveTrainingDisplay = (training: UserTrainingResponse) => {
+  if (training.trainingCode?.trim()) {
+    return training.trainingCode;
+  }
+
+  const option = props.trainingOptions.find((item) => Number(item.code) === training.trainingId);
+  return option?.description ?? '';
+};
 
 const populateFormData = (training: UserTrainingResponse) => ({
   trainingId: training.trainingId,
+  trainingCode: resolveTrainingDisplay(training),
   awardedOn: toDateInputValue(training.awardedOn) ?? getTodayDateInputValue(),
   expiryDate: toDateInputValue(training.expiryDate) ?? '',
   notes: training.notes ?? '',
-  overrideConflicts: false,
-  allowConflictingEvents: false,
-  trainingCode: training.trainingCode ?? '',
 });
 
-const formData = ref(props.training ? populateFormData(props.training) : createFormData());
+const populateRenewFormData = (training: UserTrainingResponse) => ({
+  trainingId: training.trainingId,
+  trainingCode: resolveTrainingDisplay(training),
+  awardedOn: toDateInputValue(training.awardedOn) ?? getTodayDateInputValue(),
+  expiryDate: toDateInputValue(training.expiryDate) ?? '',
+  notes: training.notes ?? '',
+});
+
+const getInitialFormData = () => {
+  if (!props.training) {
+    return createFormData();
+  }
+
+  switch (props.mode) {
+    case 'edit':
+      return populateFormData(props.training);
+    case 'renew':
+      return populateRenewFormData(props.training);
+    default:
+      return createFormData();
+  }
+};
+
+const formData = ref(getInitialFormData());
 
 const schema = zod.object({
   trainingId: zod.number({ error: 'Training is required.' }),
   awardedOn: zod.string().min(1, 'Awarded on date is required.'),
   expiryDate: zod.string(),
   notes: zod.string(),
-  overrideConflicts: zod.boolean(),
-  allowConflictingEvents: zod.boolean(),
 });
 
 watch(
-  () => props.training,
-  (training) => {
-    formData.value = training ? populateFormData(training) : createFormData();
+  () => [props.training, props.mode] as const,
+  ([training, mode]) => {
+    if (!training) {
+      formData.value = createFormData();
+    } else if (mode === 'edit') {
+      formData.value = populateFormData(training);
+    } else if (mode === 'renew') {
+      formData.value = populateRenewFormData(training);
+    } else {
+      formData.value = createFormData();
+    }
+
     apiError.value = '';
     formErrors.value = {};
   },
@@ -91,12 +145,11 @@ const buildRequest = (): UserTrainingRequest | null => {
     userId: props.userId,
     trainingId: parsed.data.trainingId,
     awardedOn: toOffsetDateTimeString(parsed.data.awardedOn, '', 'America/Vancouver'),
+    endingOn: toOffsetDateTimeString(parsed.data.awardedOn, '', 'America/Vancouver'),
     expiryDate: parsed.data.expiryDate
       ? toOffsetDateTimeString(parsed.data.expiryDate, '23:59', 'America/Vancouver')
       : null,
     notes: parsed.data.notes.trim() || null,
-    overrideConflicts: parsed.data.overrideConflicts,
-    allowConflictingEvents: parsed.data.allowConflictingEvents,
   };
 };
 
@@ -147,13 +200,14 @@ const handleSave = async () => {
         :options="props.trainingOptions"
         :error-messages="formErrors.trainingCode"
       /> -->
-      <label v-if="!isEditMode" class="ua-form-label" for="user-training-training">Training</label>
+      <label v-if="!isEditMode && !isRenewMode" class="ua-form-label" for="user-training-training">Training</label>
       <UaSelect
-        v-if="!isEditMode"
+        v-if="!isEditMode && !isRenewMode"
         id="user-training-training"
         label="Training"
         :items="props.trainingOptions"
-        :model-value="formData.trainingCode"
+        v-model="formData.trainingId"
+        :error-messages="formErrors.trainingId"
       />
       <UaTextField
         v-else
@@ -182,22 +236,6 @@ const handleSave = async () => {
 
       <UaTextarea id="user-training-notes" v-model="formData.notes" label="Notes" />
 
-      <label class="ua-form-label" for="user-training-override">Versioning</label>
-      <div>
-        <v-checkbox
-          id="user-training-override"
-          v-model="formData.overrideConflicts"
-          label="Supersede active record and keep history"
-          density="compact"
-          hide-details
-        />
-        <v-checkbox
-          v-model="formData.allowConflictingEvents"
-          label="Allow overlapping training records"
-          density="compact"
-          hide-details
-        />
-      </div>
     </UaFormGrid>
 
     <template #actions>

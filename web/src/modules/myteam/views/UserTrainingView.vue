@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { getApiLookupTrainings } from '@/api-access/generated/training/training';
 import type { TrainingLookupResponse } from '@/api-access/generated/models';
-import { getApiTrainingUserTrainings } from '@/api-access/generated/user-training/user-training';
+import { getApiTrainingsUsersUserId } from '@/api-access/generated/user-training/user-training';
 import type { UserTrainingResponse } from '@/api-access/generated/models';
 import type { UserResponse } from '@/api-access/generated/models';
-import type { Permissions } from '@/api-access/generated/models';
+import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -12,36 +12,28 @@ import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { toCalendarDateString } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
-import { mdiDelete, mdiPencil, mdiPlus } from '@mdi/js';
+import { mdiAutorenew, mdiDelete, mdiPencil, mdiPlus } from '@mdi/js';
 import { computed, ref } from 'vue';
 import DeleteUserTrainingModal from '../components/DeleteUserTrainingModal.vue';
 import UserTrainingModal from '../components/UserTrainingModal.vue';
+import UserTrainingVersionsModal from '../components/UserTrainingVersionsModal.vue';
 
 const props = defineProps<{
   user: UserResponse;
 }>();
 
 const accessControl = useAccessControl();
-const userTrainingsViewPermission = 'UserTrainingsView' as Permissions;
-const userTrainingsCreatePermission = 'UserTrainingsCreate' as Permissions;
-const userTrainingsEditPermission = 'UserTrainingsEdit' as Permissions;
-const userTrainingsDeletePermission = 'UserTrainingsDelete' as Permissions;
-
-const canViewTrainings = computed(() => accessControl.hasPermission(userTrainingsViewPermission));
-const canCreateTrainings = computed(() => accessControl.hasPermission(userTrainingsCreatePermission));
-const canEditTrainings = computed(() => accessControl.hasPermission(userTrainingsEditPermission));
-const canDeleteTrainings = computed(() => accessControl.hasPermission(userTrainingsDeletePermission));
-
-const userTrainingParams = computed(() => ({
-  userId: props.user.id,
-}));
+const canViewTrainings = computed(() => accessControl.hasPermission(Permissions.UserTrainingsView));
+const canCreateTrainings = computed(() => accessControl.hasPermission(Permissions.UserTrainingsCreate));
+const canEditTrainings = computed(() => accessControl.hasPermission(Permissions.UserTrainingsEdit));
+const canDeleteTrainings = computed(() => accessControl.hasPermission(Permissions.UserTrainingsDelete));
 
 const {
   data: userTrainings,
   error: userTrainingsError,
   isFetching: isFetchingUserTrainings,
   execute: fetchUserTrainings,
-} = getApiTrainingUserTrainings(userTrainingParams, {
+} = getApiTrainingsUsersUserId(props.user.id, {
   options: {
     immediate: false,
   },
@@ -65,8 +57,11 @@ if (canViewTrainings.value) {
 
 const showTrainingModal = ref(false);
 const selectedTraining = ref<UserTrainingResponse | null>(null);
+const trainingModalMode = ref<'create' | 'edit' | 'renew'>('create');
 const showDeleteModal = ref(false);
 const selectedDeleteTraining = ref<UserTrainingResponse | null>(null);
+const showDetailsModal = ref(false);
+const selectedDetailsTraining = ref<UserTrainingResponse | null>(null);
 
 const headers = computed(() => [
   { title: 'Training', key: 'trainingCode', sortable: true },
@@ -76,32 +71,94 @@ const headers = computed(() => [
   { title: 'Status', key: 'status', sortable: false },
   { title: 'Notice State', key: 'noticeState', sortable: true },
   { title: 'Notes', key: 'notes', sortable: false },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 140 },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 190 },
 ]);
 
 const trainingOptions = computed<SelectOption[]>(() =>
   (trainings.value ?? []).map((training: TrainingLookupResponse) => ({
     code: training.id,
-    description:
-      training.code && training.description
-        ? training.code === training.description
-          ? training.code
-          : `${training.code} - ${training.description}`
-        : (training.code ?? training.description ?? ''),
+    description: training.description?.trim() || training.code?.trim() || `Training ${training.id}`,
   })),
 );
 
+const assignedTrainingIds = computed(
+  () => new Set((userTrainings.value ?? []).map((training) => training.trainingId)),
+);
+
+const compareExpiryDesc = (left: UserTrainingResponse, right: UserTrainingResponse) => {
+  const leftExpiry = left.expiryDate ? new Date(left.expiryDate).getTime() : Number.POSITIVE_INFINITY;
+  const rightExpiry = right.expiryDate ? new Date(right.expiryDate).getTime() : Number.POSITIVE_INFINITY;
+
+  if (leftExpiry !== rightExpiry) {
+    return rightExpiry - leftExpiry;
+  }
+
+  const leftVersion = (left as UserTrainingResponse & { version?: number }).version ?? 0;
+  const rightVersion = (right as UserTrainingResponse & { version?: number }).version ?? 0;
+  if (leftVersion !== rightVersion) {
+    return rightVersion - leftVersion;
+  }
+
+  return right.id - left.id;
+};
+
+const latestUserTrainings = computed<UserTrainingResponse[]>(() => {
+  const groups = new Map<number, UserTrainingResponse[]>();
+
+  for (const training of userTrainings.value ?? []) {
+    const existing = groups.get(training.trainingId) ?? [];
+    existing.push(training);
+    groups.set(training.trainingId, existing);
+  }
+
+  return Array.from(groups.values())
+    .map((group) => [...group].sort(compareExpiryDesc)[0])
+    .filter((training): training is UserTrainingResponse => !!training)
+    .sort((left, right) => {
+      const leftCode = left.trainingCode ?? '';
+      const rightCode = right.trainingCode ?? '';
+      if (leftCode !== rightCode) {
+        return leftCode.localeCompare(rightCode);
+      }
+
+      return compareExpiryDesc(left, right);
+    });
+});
+
+const selectedTrainingVersions = computed<UserTrainingResponse[]>(() => {
+  if (!selectedDetailsTraining.value) {
+    return [];
+  }
+
+  return (userTrainings.value ?? [])
+    .filter((training) => training.trainingId === selectedDetailsTraining.value?.trainingId)
+    .sort(compareExpiryDesc);
+});
+
+const availableTrainingOptions = computed<SelectOption[]>(() =>
+  trainingOptions.value.filter((option) => !assignedTrainingIds.value.has(Number(option.code))),
+);
+
 const handleOpenAddModal = () => {
+  trainingModalMode.value = 'create';
   selectedTraining.value = null;
   showTrainingModal.value = true;
 };
 
 const handleOpenEditModal = (training: UserTrainingResponse) => {
+  trainingModalMode.value = 'edit';
+  selectedTraining.value = training;
+  showTrainingModal.value = true;
+};
+
+const handleOpenRenewModal = (training: UserTrainingResponse) => {
+  trainingModalMode.value = 'renew';
   selectedTraining.value = training;
   showTrainingModal.value = true;
 };
 
 const handleCloseTrainingModal = () => {
+  trainingModalMode.value = 'create';
   showTrainingModal.value = false;
   selectedTraining.value = null;
 };
@@ -113,6 +170,16 @@ const handleSaved = async () => {
 const handleOpenDeleteModal = (training: UserTrainingResponse) => {
   selectedDeleteTraining.value = training;
   showDeleteModal.value = true;
+};
+
+const handleOpenDetailsModal = (training: UserTrainingResponse) => {
+  selectedDetailsTraining.value = training;
+  showDetailsModal.value = true;
+};
+
+const handleCloseDetailsModal = () => {
+  selectedDetailsTraining.value = null;
+  showDetailsModal.value = false;
 };
 
 const handleCloseDeleteModal = () => {
@@ -129,7 +196,7 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
     return 'Active';
   }
 
-  return new Date(training.expiryDate).getTime() > Date.now() ? 'Active' : 'Historical';
+  return new Date(training.expiryDate).getTime() > Date.now() ? 'Active' : 'Expired';
 };
 
 const combinedError = computed(() => userTrainingsError.value ?? trainingsError.value);
@@ -155,13 +222,24 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
     </div>
 
     <UaDataTable
-      v-else-if="userTrainings && userTrainings.length"
+      v-else-if="latestUserTrainings.length"
       :headers="headers"
-      :items="userTrainings"
+      :items="latestUserTrainings"
       :items-per-page="-1"
       density="comfortable"
       hide-default-footer
     >
+      <template #[`item.trainingCode`]="{ item }">
+        <UaBtn
+          variant="text"
+          class="user-training-view__training-link"
+          :title="`View ${item.trainingCode} details`"
+          @click="handleOpenDetailsModal(item)"
+        >
+          <span class="user-training-view__training-link-text">{{ item.trainingCode }}</span>
+        </UaBtn>
+      </template>
+
       <template #[`item.awardedOn`]="{ item }">
         {{ toCalendarDateString(item.awardedOn) ?? '-' }}
       </template>
@@ -192,6 +270,17 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
             <v-icon :icon="mdiPencil" />
           </UaBtn>
           <UaBtn
+            v-if="canCreateTrainings"
+            icon
+            variant="text"
+            size="small"
+            aria-label="Renew training record"
+            title="Renew training record"
+            @click="handleOpenRenewModal(item)"
+          >
+            <v-icon :icon="mdiAutorenew" />
+          </UaBtn>
+          <UaBtn
             v-if="canDeleteTrainings"
             icon
             variant="text"
@@ -216,7 +305,8 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
     <UserTrainingModal
       v-if="showTrainingModal"
       :user-id="props.user.id"
-      :training-options="trainingOptions"
+      :mode="trainingModalMode"
+      :training-options="availableTrainingOptions"
       :training="selectedTraining"
       @close="handleCloseTrainingModal"
       @saved="handleSaved"
@@ -227,6 +317,13 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
       :training="selectedDeleteTraining"
       @close="handleCloseDeleteModal"
       @deleted="handleDeleted"
+    />
+
+    <UserTrainingVersionsModal
+      v-if="showDetailsModal && selectedDetailsTraining"
+      :training="selectedDetailsTraining"
+      :trainings="selectedTrainingVersions"
+      @close="handleCloseDetailsModal"
     />
   </div>
 </template>
@@ -252,5 +349,22 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
   display: flex;
   gap: 4px;
   justify-content: flex-end;
+}
+
+.user-training-view__training-link {
+  justify-content: flex-start;
+  padding-inline: 0;
+  min-width: 0;
+  text-transform: none;
+  color: rgb(var(--v-theme-primary));
+}
+
+.user-training-view__training-link-text {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.user-training-view__training-link:hover .user-training-view__training-link-text {
+  opacity: 0.85;
 }
 </style>

@@ -1,12 +1,7 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Unified.Authorization;
-using Unified.Authorization.Claims;
 using Unified.Db;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
-using Unified.Infrastructure.ErrorHandling;
 using Unified.Tests.TestHelpers;
 using Unified.Training.Models;
 using Unified.Training.Services;
@@ -17,7 +12,6 @@ public class UserTrainingServiceTests : IAsyncLifetime
 {
     private readonly string _databaseName = $"user-training-service-{Guid.NewGuid():N}";
     private UnifiedDbContext _db = null!;
-    private IHttpContextAccessor _httpContextAccessor = null!;
     private UserTrainingService _service = null!;
 
     private static readonly Guid CallerId = Guid.NewGuid();
@@ -38,9 +32,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
         await _db.Database.OpenConnectionAsync();
         await _db.Database.EnsureCreatedAsync();
 
-        _httpContextAccessor = new HttpContextAccessor();
-        SetCallerPermissions();
-        _service = new UserTrainingService(_db, _httpContextAccessor);
+        _service = new UserTrainingService(_db);
 
         await SeedAsync();
     }
@@ -114,7 +106,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
         await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-10), expiryDate: null);
         await SeedUserTrainingAsync(CallerId, TrainingWithValidityId, awardedOn: Today, expiryDate: Today.AddDays(365));
 
-        var result = await _service.GetAllAsync(CallerId, CallerId, TestContext.Current.CancellationToken);
+        var result = await _service.GetUserTrainings(CallerId, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, result.Count);
         Assert.Equal(TrainingWithValidityId, result.First().TrainingId);
@@ -122,13 +114,25 @@ public class UserTrainingServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetAll_WhenViewingOtherUserWithoutPermission_ThrowsForbidden()
+    public async Task GetAll_WhenViewingOtherUser_ReturnsRecords()
     {
         await SeedUserTrainingAsync(OtherUserId, TrainingId, awardedOn: Today, expiryDate: null);
 
-        await Assert.ThrowsAsync<ForbiddenException>(() =>
-            _service.GetAllAsync(OtherUserId, CallerId, TestContext.Current.CancellationToken)
-        );
+        var result = await _service.GetUserTrainings(OtherUserId, TestContext.Current.CancellationToken);
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public async Task GetByTrainingAndUser_WhenMultipleVersionsExist_ReturnsLatestVersion()
+    {
+        await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-10), expiryDate: Today.AddDays(-1));
+        await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today, expiryDate: Today.AddDays(10));
+
+        var result = await _service.GetByTrainingAndUserAsync(TrainingId, CallerId, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.Version);
+        Assert.Equal(Today, result.AwardedOn);
     }
 
     [Fact]
@@ -155,7 +159,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
         Assert.Equal(TrainingId, result.TrainingId);
         Assert.Equal("FA", result.TrainingCode);
         Assert.Equal("Safety", result.TrainingCategoryName);
-        Assert.Null(result.ExpiryDate);
+        Assert.Equal(Today, result.ExpiryDate);
     }
 
     [Fact]
@@ -251,7 +255,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Create_WhenManagingOtherUser_ThrowsForbidden()
+    public async Task Create_WhenManagingOtherUser_Succeeds()
     {
         var request = new UserTrainingRequest
         {
@@ -261,23 +265,22 @@ public class UserTrainingServiceTests : IAsyncLifetime
             EndingOn = Tomorrow,
         };
 
-        await Assert.ThrowsAsync<ForbiddenException>(() =>
-            InvokeCreateAsync(
-                request,
-                canManageForOthers: false,
-                canEditPast: false,
-                canAdjustExpiry: false,
-                TestContext.Current.CancellationToken
-            )
+        var result = await InvokeCreateAsync(
+            request,
+            canManageForOthers: false,
+            canEditPast: false,
+            canAdjustExpiry: false,
+            TestContext.Current.CancellationToken
         );
+
+        Assert.True(result.Id > 0);
+        Assert.Equal(OtherUserId, result.UserId);
     }
 
-    // ── Conflict handling ─────────────────────────────────────────────────────
-
     [Fact]
-    public async Task Create_WhenActiveConflictExists_ThrowsInvalidOperation()
+    public async Task Create_WhenPriorVersionExists_AssignsNextVersion()
     {
-        await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-30), expiryDate: null);
+        await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-20), expiryDate: Today.AddDays(-5));
 
         var request = new UserTrainingRequest
         {
@@ -285,6 +288,31 @@ public class UserTrainingServiceTests : IAsyncLifetime
             TrainingId = TrainingId,
             AwardedOn = Today,
             EndingOn = Tomorrow,
+        };
+
+        var result = await InvokeCreateAsync(
+            request,
+            canManageForOthers: false,
+            canEditPast: false,
+            canAdjustExpiry: false,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, result.Version);
+    }
+
+    [Fact]
+    public async Task Create_WhenExpiryNotAfterPreviousVersion_ThrowsInvalidOperationException()
+    {
+        await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-20), expiryDate: Today.AddDays(10));
+
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingId,
+            AwardedOn = Today,
+            EndingOn = Tomorrow,
+            ExpiryDate = Today.AddDays(5),
         };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -296,105 +324,6 @@ public class UserTrainingServiceTests : IAsyncLifetime
                 TestContext.Current.CancellationToken
             )
         );
-    }
-
-    [Fact]
-    public async Task Create_WhenActiveConflictExistsAndOverrideConflicts_SupersedesOldAndCreatesNew()
-    {
-        var old = await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-30), expiryDate: null);
-
-        var request = new UserTrainingRequest
-        {
-            UserId = CallerId,
-            TrainingId = TrainingId,
-            AwardedOn = Today,
-            EndingOn = Tomorrow,
-            OverrideConflicts = true,
-        };
-
-        var result = await InvokeCreateAsync(
-            request,
-            canManageForOthers: false,
-            canEditPast: false,
-            canAdjustExpiry: false,
-            TestContext.Current.CancellationToken
-        );
-
-        Assert.True(result.Id > 0);
-        var oldVersion = await _db.UserTrainings.SingleAsync(
-            ut => ut.Id == old.Id,
-            TestContext.Current.CancellationToken
-        );
-        Assert.Equal(Today, oldVersion.ExpiryDate);
-
-        var versions = await _db
-            .UserTrainings.Where(ut => ut.UserId == CallerId && ut.TrainingId == TrainingId)
-            .OrderBy(ut => ut.AwardedOn)
-            .ToListAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(2, versions.Count);
-        Assert.Equal(old.Id, versions[0].Id);
-        Assert.Equal(result.Id, versions[1].Id);
-    }
-
-    [Fact]
-    public async Task Create_WhenActiveConflictExistsAndAllowConflictingEvents_CreatesDuplicate()
-    {
-        await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-30), expiryDate: null);
-
-        var request = new UserTrainingRequest
-        {
-            UserId = CallerId,
-            TrainingId = TrainingId,
-            AwardedOn = Today,
-            EndingOn = Tomorrow,
-            AllowConflictingEvents = true,
-        };
-
-        var result = await InvokeCreateAsync(
-            request,
-            canManageForOthers: false,
-            canEditPast: false,
-            canAdjustExpiry: false,
-            TestContext.Current.CancellationToken
-        );
-
-        var count = await _db.UserTrainings.CountAsync(
-            ut => ut.UserId == CallerId && ut.TrainingId == TrainingId,
-            TestContext.Current.CancellationToken
-        );
-        Assert.Equal(2, count);
-        Assert.True(result.Id > 0);
-    }
-
-    [Fact]
-    public async Task Create_WhenConflictIsExpiredBeforeNewAwardedOn_DoesNotConflict()
-    {
-        // Expired before the new AwardedOn → not a conflict
-        await SeedUserTrainingAsync(
-            CallerId,
-            TrainingId,
-            awardedOn: Today.AddDays(-400),
-            expiryDate: Today.AddDays(-10)
-        );
-
-        var request = new UserTrainingRequest
-        {
-            UserId = CallerId,
-            TrainingId = TrainingId,
-            AwardedOn = Today,
-            EndingOn = Tomorrow,
-        };
-
-        var result = await InvokeCreateAsync(
-            request,
-            canManageForOthers: false,
-            canEditPast: false,
-            canAdjustExpiry: false,
-            TestContext.Current.CancellationToken
-        );
-
-        Assert.True(result.Id > 0);
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
@@ -447,6 +376,58 @@ public class UserTrainingServiceTests : IAsyncLifetime
         );
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task Update_WhenAttemptingToChangeTrainingId_ThrowsInvalidOperationException()
+    {
+        var existing = await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today, expiryDate: Today.AddDays(30));
+
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingWithValidityId,
+            AwardedOn = Today,
+            EndingOn = Tomorrow,
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            InvokeUpdateAsync(
+                existing.Id,
+                request,
+                canManageForOthers: false,
+                canEditPast: false,
+                canAdjustExpiry: false,
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task Update_WhenExpiryNotBeforeNextVersion_ThrowsInvalidOperationException()
+    {
+        var first = await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-20), expiryDate: Today.AddDays(2));
+        await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-10), expiryDate: Today.AddDays(12));
+
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingId,
+            AwardedOn = Today.AddDays(-20),
+            EndingOn = Today.AddDays(-19),
+            ExpiryDate = Today.AddDays(20),
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            InvokeUpdateAsync(
+                first.Id,
+                request,
+                canManageForOthers: false,
+                canEditPast: false,
+                canAdjustExpiry: false,
+                TestContext.Current.CancellationToken
+            )
+        );
     }
 
     // ── Delete ────────────────────────────────────────────────────────────────
@@ -509,8 +490,10 @@ public class UserTrainingServiceTests : IAsyncLifetime
         CancellationToken cancellationToken
     )
     {
-        SetCallerPermissions(canManageForOthers, canEditPast, canRemovePast: false, canAdjustExpiry);
-        return _service.CreateAsync(request, CallerId, cancellationToken);
+        _ = canManageForOthers;
+        _ = canEditPast;
+        _ = canAdjustExpiry;
+        return _service.CreateAsync(request, cancellationToken);
     }
 
     private Task<UserTrainingResponse?> InvokeUpdateAsync(
@@ -522,8 +505,10 @@ public class UserTrainingServiceTests : IAsyncLifetime
         CancellationToken cancellationToken
     )
     {
-        SetCallerPermissions(canManageForOthers, canEditPast, canRemovePast: false, canAdjustExpiry);
-        return _service.UpdateAsync(id, request, CallerId, cancellationToken);
+        _ = canManageForOthers;
+        _ = canEditPast;
+        _ = canAdjustExpiry;
+        return _service.UpdateAsync(id, request, cancellationToken);
     }
 
     private Task<bool> InvokeDeleteAsync(
@@ -533,26 +518,9 @@ public class UserTrainingServiceTests : IAsyncLifetime
         CancellationToken cancellationToken
     )
     {
-        SetCallerPermissions(canManageForOthers, canEditPast: false, canRemovePast, canAdjustExpiry: false);
-        return _service.DeleteAsync(id, CallerId, cancellationToken);
-    }
-
-    private void SetCallerPermissions(
-        bool canManageForOthers = false,
-        bool canEditPast = false,
-        bool canRemovePast = false,
-        bool canAdjustExpiry = false
-    )
-    {
-        var claims = new List<Claim> { new(UnifiedClaimTypes.UserId, CallerId.ToString()) };
-
         _ = canManageForOthers;
-        _ = canEditPast;
         _ = canRemovePast;
-        _ = canAdjustExpiry;
-
-        var identity = new ClaimsIdentity(claims, "Test");
-        _httpContextAccessor.HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+        return _service.DeleteAsync(id, cancellationToken);
     }
 
     private async Task<UserTraining> SeedUserTrainingAsync(
@@ -562,11 +530,19 @@ public class UserTrainingServiceTests : IAsyncLifetime
         DateTimeOffset? expiryDate
     )
     {
+        var nextVersion =
+            await _db
+                .UserTrainings.Where(ut => ut.UserId == userId && ut.TrainingId == trainingId)
+                .Select(ut => (int?)ut.Version)
+                .MaxAsync() ?? 0;
+
         var entity = new UserTraining
         {
             UserId = userId,
             TrainingId = trainingId,
+            Version = nextVersion + 1,
             AwardedOn = awardedOn,
+            EndingOn = awardedOn.AddDays(1),
             ExpiryDate = expiryDate,
             NoticeState = UserTrainingNoticeStates.None,
         };

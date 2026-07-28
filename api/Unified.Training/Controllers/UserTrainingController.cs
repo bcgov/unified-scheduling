@@ -2,7 +2,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Unified.Authorization.Claims;
 using Unified.Training.Models;
 using Unified.Training.Services;
 using Unified.Training.Validators;
@@ -22,23 +21,6 @@ public sealed class UserTrainingController(
     private const string UserTrainingsEditPolicy = TrainingPolicies.UserTrainingsEdit;
     private const string UserTrainingsDeletePolicy = TrainingPolicies.UserTrainingsDelete;
 
-    [HttpGet]
-    [Authorize(Policy = UserTrainingsViewPolicy)]
-    [ProducesResponseType(typeof(IEnumerable<UserTrainingResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<ActionResult<IReadOnlyCollection<UserTrainingResponse>>> GetAll(
-        [FromQuery] Guid userId,
-        CancellationToken cancellationToken
-    )
-    {
-        if (!TryGetCallerUserId(out var callerUserId))
-            return Unauthorized();
-
-        var result = await userTrainingService.GetAllAsync(userId, callerUserId, cancellationToken);
-        return Ok(result);
-    }
-
     [HttpGet("/api/trainings/users/{userId:guid}")]
     [Authorize(Policy = UserTrainingsViewPolicy)]
     [ProducesResponseType(typeof(IEnumerable<UserTrainingResponse>), StatusCodes.Status200OK)]
@@ -49,10 +31,7 @@ public sealed class UserTrainingController(
         CancellationToken cancellationToken
     )
     {
-        if (!TryGetCallerUserId(out var callerUserId))
-            return Unauthorized();
-
-        var result = await userTrainingService.GetAllAsync(userId, callerUserId, cancellationToken);
+        var result = await userTrainingService.GetUserTrainings(userId, cancellationToken);
         return Ok(result);
     }
 
@@ -68,15 +47,7 @@ public sealed class UserTrainingController(
         CancellationToken cancellationToken
     )
     {
-        if (!TryGetCallerUserId(out var callerUserId))
-            return Unauthorized();
-
-        var result = await userTrainingService.GetByTrainingAndUserAsync(
-            trainingId,
-            userId,
-            callerUserId,
-            cancellationToken
-        );
+        var result = await userTrainingService.GetByTrainingAndUserAsync(trainingId, userId, cancellationToken);
 
         return result is null ? NotFound() : Ok(result);
     }
@@ -92,12 +63,9 @@ public sealed class UserTrainingController(
         CancellationToken cancellationToken
     )
     {
-        if (!TryGetCallerUserId(out var callerUserId))
-            return Unauthorized();
-
         await validator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var result = await userTrainingService.CreateAsync(request, callerUserId, cancellationToken);
+        var result = await userTrainingService.CreateAsync(request, cancellationToken);
 
         return Created($"/api/training/user-trainings/{result.Id}", result);
     }
@@ -115,12 +83,9 @@ public sealed class UserTrainingController(
         CancellationToken cancellationToken
     )
     {
-        if (!TryGetCallerUserId(out var callerUserId))
-            return Unauthorized();
-
         await validator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var result = await userTrainingService.UpdateAsync(id, request, callerUserId, cancellationToken);
+        var result = await userTrainingService.UpdateAsync(id, request, cancellationToken);
 
         return result is null ? NotFound() : Ok(result);
     }
@@ -133,25 +98,8 @@ public sealed class UserTrainingController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        if (!TryGetCallerUserId(out var callerUserId))
-            return Unauthorized();
-
-        var deleted = await userTrainingService.DeleteAsync(id, callerUserId, cancellationToken);
+        var deleted = await userTrainingService.DeleteAsync(id, cancellationToken);
 
         return deleted ? NoContent() : NotFound();
-    }
-
-    /// <summary>
-    /// Resolves the caller's DB user ID from claims.
-    /// Returns <c>false</c> if the UserId claim is absent (unrecognised user).
-    /// </summary>
-    private bool TryGetCallerUserId(out Guid callerUserId)
-    {
-        var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
-        if (Guid.TryParse(userIdValue, out callerUserId))
-            return true;
-
-        callerUserId = Guid.Empty;
-        return false;
     }
 }
