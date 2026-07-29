@@ -44,7 +44,7 @@ export function useWeeklyRecords(
   // date string → status ('Draft', 'Submitted', or '' if no records for that date)
   // All records within a day share the same status (enforced by the backend PUT endpoint).
   const dayStatusMap = ref<Record<string, EntryStatus>>({});
-  const { isDirty, takeSnapshot, confirmIfDirty } = useUnsavedChanges(dayAssignmentsMap);
+  const { isDirty, markDirty, markClean, confirmIfDirty } = useUnsavedChanges();
 
   const isLoading = ref(false);
   const error = ref('');
@@ -221,7 +221,7 @@ export function useWeeklyRecords(
       }
       dayAssignmentsMap.value = newMap;
       dayStatusMap.value = newStatusMap;
-      takeSnapshot();
+      markClean();
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load records.';
       dayAssignmentsMap.value = {};
@@ -305,6 +305,7 @@ export function useWeeklyRecords(
     weeklyOvertimeTotal,
     isOvertimeEnabled,
     isDirty,
+    markDirty,
     confirmIfDirty,
     isLoading,
     error,

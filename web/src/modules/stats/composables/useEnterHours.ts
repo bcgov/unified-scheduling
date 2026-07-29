@@ -113,6 +113,7 @@ export function useEnterHours(groupId: number) {
     weeklyOvertimeTotal,
     isOvertimeEnabled,
     isDirty,
+    markDirty,
     confirmIfDirty,
     isLoading,
     error: loadError,
@@ -153,17 +154,20 @@ export function useEnterHours(groupId: number) {
 
   function addAssignment() {
     if (!selectedDate.value) return;
+    markDirty();
     dayAssignmentsMap.value[selectedDate.value] = [...selectedAssignments.value, createEmptyAssignment(groupId)];
   }
 
   function removeAssignment(id: string) {
     if (!selectedDate.value) return;
+    markDirty();
     const remaining = selectedAssignments.value.filter((a) => a.id !== id);
     dayAssignmentsMap.value[selectedDate.value] = remaining.length > 0 ? remaining : [createEmptyAssignment(groupId)];
   }
 
   function updateAssignment(updated: DayAssignment) {
     if (!selectedDate.value) return;
+    markDirty();
     dayAssignmentsMap.value[selectedDate.value] = selectedAssignments.value.map((a) =>
       a.id === updated.id ? updated : a,
     );
@@ -195,6 +199,7 @@ export function useEnterHours(groupId: number) {
 
     const current = selectedAssignments.value;
     const hasOnlyEmpty = current.length === 1 && !current[0].subCategoryId;
+    markDirty();
     dayAssignmentsMap.value[selectedDate.value] = hasOnlyEmpty ? cloned : [...current, ...cloned];
   }
 

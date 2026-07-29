@@ -1,26 +1,21 @@
-import { computed, onMounted, onUnmounted, ref, type Ref } from 'vue';
-import type { DayAssignment } from '../types';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 /**
- * Tracks whether the current dayAssignmentsMap has diverged from the
- * last-saved/loaded state and provides helpers to guard destructive actions.
+ * Tracks whether the user has made unsaved changes and provides helpers
+ * to guard destructive actions (navigation, week change, etc.).
  */
-export function useUnsavedChanges(dayAssignmentsMap: Ref<Record<string, DayAssignment[]>>) {
-  const savedSnapshot = ref('{}');
+export function useUnsavedChanges() {
+  const isDirty = ref(false);
 
-  function serialize(map: Record<string, DayAssignment[]>): string {
-    // Sort keys for stable comparison, strip local-only `id` field
-    const keys = Object.keys(map).sort();
-    const stripped = keys.map((k) => [k, (map[k] ?? []).map(({ id, ...rest }) => rest)]);
-    return JSON.stringify(stripped);
+  /** Mark state as dirty (user made a meaningful edit). */
+  function markDirty(): void {
+    isDirty.value = true;
   }
 
-  /** Call after a successful load or save to mark current state as "clean". */
-  function takeSnapshot(): void {
-    savedSnapshot.value = serialize(dayAssignmentsMap.value);
+  /** Mark state as clean (after a successful load or save). */
+  function markClean(): void {
+    isDirty.value = false;
   }
-
-  const isDirty = computed(() => serialize(dayAssignmentsMap.value) !== savedSnapshot.value);
 
   /**
    * Shows a native confirm dialog when there are unsaved changes.
@@ -41,5 +36,5 @@ export function useUnsavedChanges(dayAssignmentsMap: Ref<Record<string, DayAssig
   onMounted(() => window.addEventListener('beforeunload', onBeforeUnload));
   onUnmounted(() => window.removeEventListener('beforeunload', onBeforeUnload));
 
-  return { isDirty, takeSnapshot, confirmIfDirty };
+  return { isDirty, markDirty, markClean, confirmIfDirty };
 }
