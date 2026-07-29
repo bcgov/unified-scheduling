@@ -4,6 +4,7 @@ import UaCard from '@/shared/components/UaCard.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
 import { computed } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import DayDetailPanel from '../components/DayDetailPanel.vue';
 import WeeklyGrid from '../components/WeeklyGrid.vue';
 import { useEnterHours } from '../composables/useEnterHours';
@@ -32,6 +33,8 @@ const {
   seedLocationId,
   seedUserId,
   isLoadingReference,
+  isDirty,
+  confirmIfDirty,
   groups,
   categories,
   subCategories,
@@ -42,6 +45,7 @@ const {
   onLocationChange,
   selectedUserId,
   userOptions,
+  onUserChange,
   weekDates,
   dayStatusMap,
   daySummaryMap,
@@ -66,6 +70,10 @@ const {
   isSaving,
   handleSave,
 } = useEnterHours(props.groupId);
+
+onBeforeRouteLeave(() => {
+  if (!confirmIfDirty()) return false;
+});
 </script>
 
 <template>
@@ -97,7 +105,7 @@ const {
             :items="userOptions"
             :model-value="selectedUserId"
             :disabled="!!seedUserId || !selectedLocationId"
-            @update:model-value="(v) => (selectedUserId = v ? String(v) : null)"
+            @update:model-value="onUserChange"
           />
         </div>
 
@@ -113,6 +121,11 @@ const {
         </div>
       </div>
     </UaCard>
+
+    <!-- Unsaved changes warning -->
+    <UaAlert v-if="isDirty" type="warning"
+      >You have unsaved changes. Save or submit your entries before navigating away.</UaAlert
+    >
 
     <!-- Account setup warning -->
     <UaAlert v-if="accountWarning" type="warning">{{ accountWarning }}</UaAlert>

@@ -65,6 +65,7 @@ export function useEnterHours(groupId: number) {
   const selectedLocationId = ref<number | null>(seedLocationId ?? authStore.homeLocationId ?? null);
 
   const onLocationChange = (value: SelectValue | undefined) => {
+    if (!confirmIfDirty()) return;
     selectedLocationId.value = value != null ? Number(value) : null;
   };
 
@@ -76,6 +77,11 @@ export function useEnterHours(groupId: number) {
   const userOptions = computed(() =>
     locationUsers.value.map((u) => ({ code: u.id, description: `${u.firstName} ${u.lastName}` })),
   );
+
+  const onUserChange = (value: SelectValue | undefined) => {
+    if (!confirmIfDirty()) return;
+    selectedUserId.value = value ? String(value) : null;
+  };
 
   async function loadUsersForLocation(locationId: number) {
     activeLocationId = locationId;
@@ -106,6 +112,9 @@ export function useEnterHours(groupId: number) {
     weeklyRegularTotal,
     weeklyOvertimeTotal,
     isOvertimeEnabled,
+    isDirty,
+    markDirty,
+    confirmIfDirty,
     isLoading,
     error: loadError,
     loadWeek,
@@ -145,17 +154,20 @@ export function useEnterHours(groupId: number) {
 
   function addAssignment() {
     if (!selectedDate.value) return;
+    markDirty();
     dayAssignmentsMap.value[selectedDate.value] = [...selectedAssignments.value, createEmptyAssignment(groupId)];
   }
 
   function removeAssignment(id: string) {
     if (!selectedDate.value) return;
+    markDirty();
     const remaining = selectedAssignments.value.filter((a) => a.id !== id);
     dayAssignmentsMap.value[selectedDate.value] = remaining.length > 0 ? remaining : [createEmptyAssignment(groupId)];
   }
 
   function updateAssignment(updated: DayAssignment) {
     if (!selectedDate.value) return;
+    markDirty();
     dayAssignmentsMap.value[selectedDate.value] = selectedAssignments.value.map((a) =>
       a.id === updated.id ? updated : a,
     );
@@ -187,6 +199,7 @@ export function useEnterHours(groupId: number) {
 
     const current = selectedAssignments.value;
     const hasOnlyEmpty = current.length === 1 && !current[0].subCategoryId;
+    markDirty();
     dayAssignmentsMap.value[selectedDate.value] = hasOnlyEmpty ? cloned : [...current, ...cloned];
   }
 
@@ -344,6 +357,8 @@ export function useEnterHours(groupId: number) {
     seedLocationId,
     seedUserId,
     isLoadingReference,
+    isDirty,
+    confirmIfDirty,
     groups,
     categories,
     subCategories,
@@ -354,6 +369,7 @@ export function useEnterHours(groupId: number) {
     onLocationChange,
     selectedUserId,
     userOptions,
+    onUserChange,
     weekDates,
     dayStatusMap,
     daySummaryMap,
