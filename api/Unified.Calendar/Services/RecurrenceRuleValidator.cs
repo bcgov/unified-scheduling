@@ -32,12 +32,9 @@ public sealed class IcalNetRecurrenceRuleValidator(
         {
             var timeZone = timeZoneResolver.Resolve(timeZoneId);
             var localRange = validationSeries.ToLocalTimeRange(timeZoneService, timeZone);
+            var recurrenceTimeZoneId = string.IsNullOrWhiteSpace(timeZoneId) ? timeZone.Id : timeZoneId.Trim();
             rule = IcalNetRecurrenceEventFactory
-                .Create(
-                    recurrenceRule,
-                    localRange,
-                    string.IsNullOrWhiteSpace(timeZoneId) ? timeZone.Id : timeZoneId.Trim()
-                )
+                .Create(recurrenceRule, localRange, recurrenceTimeZoneId)
                 .RecurrenceRule!;
         }
         catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidOperationException)

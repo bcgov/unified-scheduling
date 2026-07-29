@@ -94,17 +94,19 @@ public sealed class IcalNetRecurrenceExpander(
         // iCal.NET 5.2.3 does not expose a public evaluator limit in the APIs used here.
         // Callers bound enumeration with CountWithin stopAfter, MaximumDuration, and ExpandAllBounded caps.
         return expansionContext
-            .CalendarEvent!.GetOccurrences(new CalDateTime(localRangeStart, expansionContext.TimeZoneId))
+            .CalendarEvent!.GetOccurrences(
+                new CalDateTime(
+                    DateTime.SpecifyKind(localRangeStart, DateTimeKind.Unspecified),
+                    expansionContext.TimeZoneId
+                )
+            )
             .Select(occurrence =>
             {
                 var occurrenceLocalStart = DateTime.SpecifyKind(
                     occurrence.Period.StartTime.Value,
                     DateTimeKind.Unspecified
                 );
-                var occurrenceStartAtUtc = timeZoneService.ToUtcInstant(
-                    occurrenceLocalStart,
-                    expansionContext.TimeZone
-                );
+                var occurrenceStartAtUtc = timeZoneService.ToUtcInstant(occurrenceLocalStart, expansionContext.TimeZone);
                 DateTimeOffset? occurrenceEndAtUtc = null;
                 if (expansionContext.LocalRange.Duration.HasValue)
                 {

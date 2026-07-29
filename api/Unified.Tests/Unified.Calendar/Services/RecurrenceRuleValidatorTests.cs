@@ -271,8 +271,8 @@ public class RecurrenceRuleValidatorTests
     }
 
     [Theory]
-    [InlineData("FREQ=DAILY;COUNT=3", "2026-03-07T09:30:00+00:00", "2026-03-07T10:30:00+00:00", "invalid")]
-    [InlineData("FREQ=DAILY;COUNT=3", "2026-10-31T08:30:00+00:00", "2026-10-31T09:30:00+00:00", "ambiguous")]
+    [InlineData("FREQ=DAILY;COUNT=3", "2025-03-08T09:30:00+00:00", "2025-03-08T10:30:00+00:00", "invalid")]
+    [InlineData("FREQ=DAILY;COUNT=3", "2025-11-01T08:30:00+00:00", "2025-11-01T09:30:00+00:00", "ambiguous")]
     public void Validate_WhenRecurrenceExpansionHitsInvalidOrAmbiguousDstLocalTime_ReturnsPredictableError(
         string recurrenceRule,
         string startAtUtc,
@@ -366,23 +366,23 @@ public class RecurrenceRuleValidatorTests
         {
             RecurrenceRule = "FREQ=WEEKLY;COUNT=27",
             TimeZoneId = "America/Vancouver",
-            StartAtUtc = new DateTimeOffset(2026, 1, 15, 17, 0, 0, TimeSpan.Zero),
-            EndAtUtc = new DateTimeOffset(2026, 1, 16, 1, 0, 0, TimeSpan.Zero),
+            StartAtUtc = new DateTimeOffset(2025, 1, 16, 17, 0, 0, TimeSpan.Zero),
+            EndAtUtc = new DateTimeOffset(2025, 1, 17, 1, 0, 0, TimeSpan.Zero),
         };
 
         // Act
         var occurrences = _expander.ExpandWithin(
             eventSeries,
             eventSeries.StartAtUtc,
-            new DateTimeOffset(2026, 7, 31, 0, 0, 0, TimeSpan.Zero)
+            new DateTimeOffset(2025, 7, 31, 0, 0, 0, TimeSpan.Zero)
         );
 
         // Assert
         var summerOccurrence = occurrences.Single(x =>
-            _timeZoneService.ToLocalUnspecified(x.StartAtUtc, timeZone).Date == new DateTime(2026, 7, 16)
+            _timeZoneService.ToLocalUnspecified(x.StartAtUtc, timeZone).Date == new DateTime(2025, 7, 17)
         );
-        Assert.Equal(new DateTimeOffset(2026, 7, 16, 16, 0, 0, TimeSpan.Zero), summerOccurrence.StartAtUtc);
-        Assert.Equal(new DateTimeOffset(2026, 7, 17, 0, 0, 0, TimeSpan.Zero), summerOccurrence.EndAtUtc);
+        Assert.Equal(new DateTimeOffset(2025, 7, 17, 16, 0, 0, TimeSpan.Zero), summerOccurrence.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2025, 7, 18, 0, 0, 0, TimeSpan.Zero), summerOccurrence.EndAtUtc);
         Assert.Equal(
             new TimeOnly(9, 0),
             TimeOnly.FromDateTime(_timeZoneService.ToLocalUnspecified(summerOccurrence.StartAtUtc, timeZone))
@@ -402,23 +402,23 @@ public class RecurrenceRuleValidatorTests
         {
             RecurrenceRule = "FREQ=WEEKLY;COUNT=17",
             TimeZoneId = "America/Vancouver",
-            StartAtUtc = new DateTimeOffset(2026, 7, 15, 16, 0, 0, TimeSpan.Zero),
-            EndAtUtc = new DateTimeOffset(2026, 7, 16, 0, 0, 0, TimeSpan.Zero),
+            StartAtUtc = new DateTimeOffset(2025, 7, 16, 16, 0, 0, TimeSpan.Zero),
+            EndAtUtc = new DateTimeOffset(2025, 7, 17, 0, 0, 0, TimeSpan.Zero),
         };
 
         // Act
         var occurrences = _expander.ExpandWithin(
             eventSeries,
             eventSeries.StartAtUtc,
-            new DateTimeOffset(2026, 11, 30, 0, 0, 0, TimeSpan.Zero)
+            new DateTimeOffset(2025, 11, 30, 0, 0, 0, TimeSpan.Zero)
         );
 
         // Assert
         var winterOccurrence = occurrences.Single(x =>
-            _timeZoneService.ToLocalUnspecified(x.StartAtUtc, timeZone).Date == new DateTime(2026, 11, 4)
+            _timeZoneService.ToLocalUnspecified(x.StartAtUtc, timeZone).Date == new DateTime(2025, 11, 5)
         );
-        Assert.Equal(new DateTimeOffset(2026, 11, 4, 17, 0, 0, TimeSpan.Zero), winterOccurrence.StartAtUtc);
-        Assert.Equal(new DateTimeOffset(2026, 11, 5, 1, 0, 0, TimeSpan.Zero), winterOccurrence.EndAtUtc);
+        Assert.Equal(new DateTimeOffset(2025, 11, 5, 17, 0, 0, TimeSpan.Zero), winterOccurrence.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2025, 11, 6, 1, 0, 0, TimeSpan.Zero), winterOccurrence.EndAtUtc);
         Assert.Equal(
             new TimeOnly(9, 0),
             TimeOnly.FromDateTime(_timeZoneService.ToLocalUnspecified(winterOccurrence.StartAtUtc, timeZone))
@@ -427,6 +427,26 @@ public class RecurrenceRuleValidatorTests
             new TimeOnly(17, 0),
             TimeOnly.FromDateTime(_timeZoneService.ToLocalUnspecified(winterOccurrence.EndAtUtc!.Value, timeZone))
         );
+    }
+
+    [Fact]
+    public void ExpandAllBounded_WhenUntilCrossesFromPdtToPst_IncludesTheFinalLocalOccurrence()
+    {
+        // Arrange
+        var eventSeries = new EventSeries
+        {
+            RecurrenceRule = "FREQ=WEEKLY;UNTIL=20251105T170000Z",
+            TimeZoneId = "America/Vancouver",
+            StartAtUtc = new DateTimeOffset(2025, 10, 22, 16, 0, 0, TimeSpan.Zero),
+            EndAtUtc = new DateTimeOffset(2025, 10, 23, 0, 0, 0, TimeSpan.Zero),
+        };
+
+        // Act
+        var occurrences = _expander.ExpandAllBounded(eventSeries, 10);
+
+        // Assert
+        Assert.Equal(3, occurrences.Count);
+        Assert.Equal(new DateTimeOffset(2025, 11, 5, 17, 0, 0, TimeSpan.Zero), occurrences.Last().StartAtUtc);
     }
 
     [Fact]
@@ -468,7 +488,7 @@ public class RecurrenceRuleValidatorTests
     }
 
     [Fact]
-    public void CountWithin_WhenStopAfterReached_ReturnsStoppedEarlyTrue()
+    public void CountWithin_WhenStopAfterReached_ReturnsStopAfterCount()
     {
         // Arrange
         var eventSeries = new EventSeries

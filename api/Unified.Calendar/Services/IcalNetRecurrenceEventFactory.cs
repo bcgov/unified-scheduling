@@ -5,7 +5,11 @@ namespace Unified.Calendar.Services;
 
 internal static class IcalNetRecurrenceEventFactory
 {
-    public static CalendarEvent Create(string recurrenceRule, EventSeriesLocalTimeRange localRange, string timeZoneId)
+    public static CalendarEvent Create(
+        string recurrenceRule,
+        EventSeriesLocalTimeRange localRange,
+        string timeZoneId
+    )
     {
         var normalizedRecurrenceRule = NormalizeRecurrenceRule(recurrenceRule);
 
