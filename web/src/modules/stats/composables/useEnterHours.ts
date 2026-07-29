@@ -23,7 +23,7 @@ import { useRoute } from 'vue-router';
 import { DAILY_REGULAR_TARGET_HOURS } from '../constants';
 import type { DayAssignment } from '../types';
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
-import { getMondayOfWeek, useWeeklyRecords } from './useWeeklyRecords';
+import { getSundayOfWeek, useWeeklyRecords } from './useWeeklyRecords';
 
 export function useEnterHours(groupId: number) {
   const authStore = useAuthStore();
@@ -122,7 +122,7 @@ export function useEnterHours(groupId: number) {
     navigateWeek,
     createEmptyAssignment,
   } = useWeeklyRecords(
-    getMondayOfWeek(seedDate ? DateTime.fromISO(seedDate) : DateTime.now()),
+    getSundayOfWeek(seedDate ? DateTime.fromISO(seedDate) : DateTime.now()),
     selectedLocationId,
     selectedUserId,
     subCategories,

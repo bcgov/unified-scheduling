@@ -17,8 +17,8 @@ const emit = defineEmits<{
   'select-day': [date: string];
 }>();
 
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const WEEKEND_INDICES = new Set([5, 6]);
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKEND_INDICES = new Set([0, 6]);
 
 const today = DateTime.now().toISODate();
 const showWeekends = ref(false);
@@ -55,10 +55,18 @@ function regularBar(date: string): number {
       <div class="weekly-grid__week-summary">
         <span>
           Regular:
-          <strong :class="{ 'text-success': weeklyRegularTotal >= WEEKLY_REGULAR_TARGET_HOURS }">
+          <strong
+            :class="{
+              'text-success': weeklyRegularTotal === WEEKLY_REGULAR_TARGET_HOURS,
+              'text-warning': weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS,
+            }"
+          >
             {{ weeklyRegularTotal }}h
           </strong>
           / {{ WEEKLY_REGULAR_TARGET_HOURS }}h
+          <span v-if="weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS" class="week-over-hint">
+            ({{ weeklyRegularTotal - WEEKLY_REGULAR_TARGET_HOURS }}h over target)
+          </span>
         </span>
         <span v-if="weeklyOvertimeTotal > 0" class="overtime-total">
           Overtime: <strong>{{ weeklyOvertimeTotal }}h</strong>
@@ -197,6 +205,16 @@ function regularBar(date: string): number {
 
 .text-success {
   color: var(--ua-stats-color-regular);
+}
+
+.text-warning {
+  color: #e65100;
+}
+
+.week-over-hint {
+  color: #e65100;
+  font-weight: normal;
+  font-style: italic;
 }
 
 .overtime-total {
