@@ -34,11 +34,15 @@ public sealed class CalendarModuleTests
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventTypeSeeder>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventStatusTypeSeeder>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, HolidayEventSeeder>(services);
-        AssertContainsScopedSelfRegistration<CalendarEventsRequestValidator>(services);
+        AssertContainsScopedSelfRegistration<CalendarDataRequestValidator>(services);
         Assert.Contains("api/calendar/events", calendarRoutes);
         Assert.Equal(
             "SeedData/bc-holidays.json",
             provider.GetRequiredService<IOptions<CalendarSeedDataOptions>>().Value.HolidaysFilePath
+        );
+        Assert.Equal(
+            "America/Toronto",
+            provider.GetRequiredService<IOptions<CalendarDateTimeOptions>>().Value.DefaultTimeZoneId
         );
     }
 
@@ -91,6 +95,7 @@ public sealed class CalendarModuleTests
                 {
                     [$"{CalendarSeedDataOptions.SectionName}:HolidaysFilePath"] = "SeedData/bc-holidays.json",
                     ["FeatureFlags:Calendar:Enabled"] = isEnabled.ToString(),
+                    [$"{CalendarDateTimeOptions.SectionName}:DefaultTimeZoneId"] = "America/Toronto",
                 }
             )
             .Build();

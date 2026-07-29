@@ -6,6 +6,7 @@ using Unified.Api.Models;
 using Unified.Api.Options;
 using Unified.Calendar.FeatureFlags;
 using Unified.Common.FeatureFlags;
+using Unified.Scheduling.FeatureFlags;
 using Unified.UserManagement.FeatureFlags;
 
 namespace Unified.Tests.Api.Controllers;
@@ -18,6 +19,7 @@ public class ConfigControllerTests
         var featureFlags = new IFeatureFlags[]
         {
             new CalendarFeatureFlags { Enabled = true },
+            new SchedulingFeatureFlags { Enabled = true },
             new UserManagementFeatureFlags
             {
                 Enabled = true,
@@ -35,6 +37,7 @@ public class ConfigControllerTests
         var response = Assert.IsType<ConfigResponse>(okResult.Value);
         Assert.NotNull(response.FeatureFlags.Calendar);
         Assert.NotNull(response.FeatureFlags.UserManagement);
+        Assert.NotNull(response.FeatureFlags.Scheduling);
         Assert.Null(response.FeatureFlags.Stats);
         Assert.Null(response.FeatureFlags.Training);
         Assert.Equal("Unified Scheduling", response.ApplicationName);

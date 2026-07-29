@@ -18,6 +18,7 @@ export * from './calendarEventStatusTypeCode.ts';
 export * from './calendarEventType.ts';
 export * from './calendarEventTypeCode.ts';
 export * from './calendarFeatureFlags.ts';
+export * from './schedulingFeatureFlags.ts';
 export * from './configResponse.ts';
 export * from './dashboardEntryResponse.ts';
 export * from './dashboardSignOffRequest.ts';

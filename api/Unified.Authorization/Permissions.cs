@@ -36,9 +36,8 @@ public enum Permissions
     ShiftsView,
     ShiftsCreateAndAssign,
     ShiftsEdit,
+    ShiftsDelete,
     ShiftsExpire,
-    ShiftsImport,
-    ShiftsViewAllFuture,
 
     // --- Schedule ---
     ScheduleViewDistribute,
