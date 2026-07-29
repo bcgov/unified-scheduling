@@ -123,7 +123,9 @@ onBeforeRouteLeave(() => {
     </UaCard>
 
     <!-- Unsaved changes warning -->
-    <UaAlert v-if="isDirty" type="warning">You have unsaved changes. Save or submit your entries before navigating away.</UaAlert>
+    <UaAlert v-if="isDirty" type="warning"
+      >You have unsaved changes. Save or submit your entries before navigating away.</UaAlert
+    >
 
     <!-- Account setup warning -->
     <UaAlert v-if="accountWarning" type="warning">{{ accountWarning }}</UaAlert>

@@ -11,10 +11,7 @@ export function useUnsavedChanges(dayAssignmentsMap: Ref<Record<string, DayAssig
   function serialize(map: Record<string, DayAssignment[]>): string {
     // Sort keys for stable comparison, strip local-only `id` field
     const keys = Object.keys(map).sort();
-    const stripped = keys.map((k) => [
-      k,
-      (map[k] ?? []).map(({ id, ...rest }) => rest),
-    ]);
+    const stripped = keys.map((k) => [k, (map[k] ?? []).map(({ id, ...rest }) => rest)]);
     return JSON.stringify(stripped);
   }
 
