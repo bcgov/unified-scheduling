@@ -17,9 +17,12 @@ import {
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 import { useUnsavedChanges } from './useUnsavedChanges';
 
-// Returns the ISO Monday date string (yyyy-MM-dd) for the week containing the given date
-export function getMondayOfWeek(date: DateTime): string {
-  return date.startOf('week').toISODate()!;
+// Returns the ISO Sunday date string (yyyy-MM-dd) for the week containing the given date (Sun–Sat)
+export function getSundayOfWeek(date: DateTime): string {
+  // Luxon startOf('week') returns Monday (ISO). Subtract 1 day to get Sunday.
+  // If today is already Sunday (weekday === 7), startOf('week') gives the previous Monday,
+  // so we need the day before that Monday's week start, which is the current day itself.
+  return date.weekday === 7 ? date.toISODate()! : date.startOf('week').minus({ days: 1 }).toISODate()!;
 }
 
 export function useWeeklyRecords(
