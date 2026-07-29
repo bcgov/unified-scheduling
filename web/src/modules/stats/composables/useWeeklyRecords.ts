@@ -15,6 +15,7 @@ import {
   WEEKLY_REGULAR_TARGET_HOURS,
 } from '../constants';
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
+import { useUnsavedChanges } from './useUnsavedChanges';
 
 // Returns the ISO Monday date string (yyyy-MM-dd) for the week containing the given date
 export function getMondayOfWeek(date: DateTime): string {
@@ -43,6 +44,8 @@ export function useWeeklyRecords(
   // date string → status ('Draft', 'Submitted', or '' if no records for that date)
   // All records within a day share the same status (enforced by the backend PUT endpoint).
   const dayStatusMap = ref<Record<string, EntryStatus>>({});
+  const { isDirty, takeSnapshot, confirmIfDirty } = useUnsavedChanges(dayAssignmentsMap);
+
   const isLoading = ref(false);
   const error = ref('');
 
@@ -218,6 +221,7 @@ export function useWeeklyRecords(
       }
       dayAssignmentsMap.value = newMap;
       dayStatusMap.value = newStatusMap;
+      takeSnapshot();
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load records.';
       dayAssignmentsMap.value = {};
@@ -275,6 +279,7 @@ export function useWeeklyRecords(
   }
 
   function navigateWeek(direction: -1 | 1): void {
+    if (!confirmIfDirty()) return;
     weekStart.value = DateTime.fromISO(weekStart.value).plus({ weeks: direction }).toISODate()!;
   }
 
@@ -299,6 +304,8 @@ export function useWeeklyRecords(
     weeklyRegularTotal,
     weeklyOvertimeTotal,
     isOvertimeEnabled,
+    isDirty,
+    confirmIfDirty,
     isLoading,
     error,
     loadWeek,

@@ -65,6 +65,7 @@ export function useEnterHours(groupId: number) {
   const selectedLocationId = ref<number | null>(seedLocationId ?? authStore.homeLocationId ?? null);
 
   const onLocationChange = (value: SelectValue | undefined) => {
+    if (!confirmIfDirty()) return;
     selectedLocationId.value = value != null ? Number(value) : null;
   };
 
@@ -76,6 +77,11 @@ export function useEnterHours(groupId: number) {
   const userOptions = computed(() =>
     locationUsers.value.map((u) => ({ code: u.id, description: `${u.firstName} ${u.lastName}` })),
   );
+
+  const onUserChange = (value: SelectValue | undefined) => {
+    if (!confirmIfDirty()) return;
+    selectedUserId.value = value ? String(value) : null;
+  };
 
   async function loadUsersForLocation(locationId: number) {
     activeLocationId = locationId;
@@ -106,6 +112,8 @@ export function useEnterHours(groupId: number) {
     weeklyRegularTotal,
     weeklyOvertimeTotal,
     isOvertimeEnabled,
+    isDirty,
+    confirmIfDirty,
     isLoading,
     error: loadError,
     loadWeek,
@@ -344,6 +352,8 @@ export function useEnterHours(groupId: number) {
     seedLocationId,
     seedUserId,
     isLoadingReference,
+    isDirty,
+    confirmIfDirty,
     groups,
     categories,
     subCategories,
@@ -354,6 +364,7 @@ export function useEnterHours(groupId: number) {
     onLocationChange,
     selectedUserId,
     userOptions,
+    onUserChange,
     weekDates,
     dayStatusMap,
     daySummaryMap,
