@@ -42,6 +42,7 @@ describe('UserTrainingModal', () => {
     const wrapper = mount(UserTrainingModal, {
       props: {
         userId: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
+        mode: 'edit',
         trainingOptions: [],
         training: {
           id: 123,

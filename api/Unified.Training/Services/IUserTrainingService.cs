@@ -15,10 +15,7 @@ public interface IUserTrainingService
         CancellationToken cancellationToken = default
     );
 
-    Task<UserTrainingResponse> CreateAsync(
-        UserTrainingRequest request,
-        CancellationToken cancellationToken = default
-    );
+    Task<UserTrainingResponse> CreateAsync(UserTrainingRequest request, CancellationToken cancellationToken = default);
 
     Task<UserTrainingResponse?> UpdateAsync(
         int id,

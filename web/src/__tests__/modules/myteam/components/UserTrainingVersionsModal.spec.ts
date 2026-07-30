@@ -35,6 +35,16 @@ const VTabsStub = defineComponent({
     '<div><button data-test="show-details" @click="$emit(\'update:modelValue\', \'details\')">details</button><button data-test="show-history" @click="$emit(\'update:modelValue\', \'history\')">history</button><slot /></div>',
 });
 
+const VRowStub = defineComponent({
+  name: 'VRow',
+  template: '<div><slot /></div>',
+});
+
+const VColStub = defineComponent({
+  name: 'VCol',
+  template: '<div><slot /></div>',
+});
+
 const sampleTraining = {
   id: 10,
   userId: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
@@ -63,8 +73,8 @@ describe('UserTrainingVersionsModal', () => {
           UaDataTable: UaDataTableStub,
           VTabs: VTabsStub,
           VTab: true,
-          VRow: true,
-          VCol: true,
+          VRow: VRowStub,
+          VCol: VColStub,
         },
       },
     });
@@ -94,8 +104,8 @@ describe('UserTrainingVersionsModal', () => {
           UaDataTable: UaDataTableStub,
           VTabs: VTabsStub,
           VTab: true,
-          VRow: true,
-          VCol: true,
+          VRow: VRowStub,
+          VCol: VColStub,
         },
       },
     });

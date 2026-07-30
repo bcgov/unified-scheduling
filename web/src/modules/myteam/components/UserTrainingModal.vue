@@ -20,11 +20,11 @@ type UserTrainingModalMode = 'create' | 'edit' | 'renew';
 
 const props = withDefaults(
   defineProps<{
-  userId: string;
-  trainingOptions: SelectOption[];
-  mode?: UserTrainingModalMode;
-  training?: UserTrainingResponse | null;
-}>(),
+    userId: string;
+    trainingOptions: SelectOption[];
+    mode?: UserTrainingModalMode;
+    training?: UserTrainingResponse | null;
+  }>(),
   {
     mode: 'create',
   },
@@ -235,7 +235,6 @@ const handleSave = async () => {
       />
 
       <UaTextarea id="user-training-notes" v-model="formData.notes" label="Notes" />
-
     </UaFormGrid>
 
     <template #actions>

@@ -18,6 +18,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
     private static readonly Guid OtherUserId = Guid.NewGuid();
     private const int TrainingId = 1;
     private const int TrainingWithValidityId = 2;
+    private const int NonRotatingTrainingId = 3;
     private static readonly DateTimeOffset Today = DateTimeOffset.UtcNow.Date;
     private static readonly DateTimeOffset Yesterday = Today.AddDays(-1);
     private static readonly DateTimeOffset Tomorrow = Today.AddDays(1);
@@ -81,6 +82,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
                 Code = "FA",
                 Description = "First Aid",
                 TrainingCategoryId = 1,
+                Rotating = true,
             }
         );
 
@@ -92,6 +94,18 @@ public class UserTrainingServiceTests : IAsyncLifetime
                 Description = "CPR",
                 TrainingCategoryId = 1,
                 ValidityDays = 365,
+                Rotating = true,
+            }
+        );
+
+        _db.Trainings.Add(
+            new global::Unified.Db.Models.Training.Training
+            {
+                Id = NonRotatingTrainingId,
+                Code = "NR",
+                Description = "Non-Rotating Training",
+                TrainingCategoryId = 1,
+                Rotating = false,
             }
         );
 
@@ -128,7 +142,11 @@ public class UserTrainingServiceTests : IAsyncLifetime
         await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-10), expiryDate: Today.AddDays(-1));
         await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today, expiryDate: Today.AddDays(10));
 
-        var result = await _service.GetByTrainingAndUserAsync(TrainingId, CallerId, TestContext.Current.CancellationToken);
+        var result = await _service.GetByTrainingAndUserAsync(
+            TrainingId,
+            CallerId,
+            TestContext.Current.CancellationToken
+        );
 
         Assert.NotNull(result);
         Assert.Equal(2, result!.Version);
@@ -326,6 +344,30 @@ public class UserTrainingServiceTests : IAsyncLifetime
         );
     }
 
+    [Fact]
+    public async Task Create_WhenTrainingIsNonRotatingAndPriorVersionExists_ThrowsInvalidOperationException()
+    {
+        await SeedUserTrainingAsync(CallerId, NonRotatingTrainingId, awardedOn: Today.AddDays(-20), expiryDate: null);
+
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = NonRotatingTrainingId,
+            AwardedOn = Today,
+            EndingOn = Tomorrow,
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            InvokeCreateAsync(
+                request,
+                canManageForOthers: false,
+                canEditPast: false,
+                canAdjustExpiry: false,
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
     // ── Update ────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -381,7 +423,12 @@ public class UserTrainingServiceTests : IAsyncLifetime
     [Fact]
     public async Task Update_WhenAttemptingToChangeTrainingId_ThrowsInvalidOperationException()
     {
-        var existing = await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today, expiryDate: Today.AddDays(30));
+        var existing = await SeedUserTrainingAsync(
+            CallerId,
+            TrainingId,
+            awardedOn: Today,
+            expiryDate: Today.AddDays(30)
+        );
 
         var request = new UserTrainingRequest
         {
@@ -406,7 +453,12 @@ public class UserTrainingServiceTests : IAsyncLifetime
     [Fact]
     public async Task Update_WhenExpiryNotBeforeNextVersion_ThrowsInvalidOperationException()
     {
-        var first = await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-20), expiryDate: Today.AddDays(2));
+        var first = await SeedUserTrainingAsync(
+            CallerId,
+            TrainingId,
+            awardedOn: Today.AddDays(-20),
+            expiryDate: Today.AddDays(2)
+        );
         await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-10), expiryDate: Today.AddDays(12));
 
         var request = new UserTrainingRequest
@@ -534,7 +586,8 @@ public class UserTrainingServiceTests : IAsyncLifetime
             await _db
                 .UserTrainings.Where(ut => ut.UserId == userId && ut.TrainingId == trainingId)
                 .Select(ut => (int?)ut.Version)
-                .MaxAsync() ?? 0;
+                .MaxAsync()
+            ?? 0;
 
         var entity = new UserTraining
         {

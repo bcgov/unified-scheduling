@@ -81,8 +81,15 @@ const trainingOptions = computed<SelectOption[]>(() =>
   })),
 );
 
-const assignedTrainingIds = computed(
-  () => new Set((userTrainings.value ?? []).map((training) => training.trainingId)),
+const assignedTrainingIds = computed(() => new Set((userTrainings.value ?? []).map((training) => training.trainingId)));
+
+const rotatingTrainingIds = computed(
+  () =>
+    new Set(
+      (trainings.value ?? [])
+        .filter((training: TrainingLookupResponse) => training.rotating)
+        .map((training: TrainingLookupResponse) => training.id),
+    ),
 );
 
 const compareExpiryDesc = (left: UserTrainingResponse, right: UserTrainingResponse) => {
@@ -199,6 +206,8 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
   return new Date(training.expiryDate).getTime() > Date.now() ? 'Active' : 'Expired';
 };
 
+const canRenewTraining = (training: UserTrainingResponse) => rotatingTrainingIds.value.has(training.trainingId);
+
 const combinedError = computed(() => userTrainingsError.value ?? trainingsError.value);
 </script>
 
@@ -270,7 +279,7 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
             <v-icon :icon="mdiPencil" />
           </UaBtn>
           <UaBtn
-            v-if="canCreateTrainings"
+            v-if="canCreateTrainings && canRenewTraining(item)"
             icon
             variant="text"
             size="small"

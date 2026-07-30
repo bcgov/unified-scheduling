@@ -8,8 +8,7 @@ using Unified.Training.Models;
 
 namespace Unified.Training.Services;
 
-public sealed class UserTrainingService(UnifiedDbContext db)
-    : IUserTrainingService
+public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingService
 {
     public async Task<IReadOnlyCollection<UserTrainingResponse>> GetUserTrainings(
         Guid userId,
@@ -31,7 +30,6 @@ public sealed class UserTrainingService(UnifiedDbContext db)
         CancellationToken cancellationToken = default
     )
     {
-
         return db
             .UserTrainings.Where(ut => ut.UserId == userId && ut.TrainingId == trainingId)
             .OrderByDescending(ut => ut.Version)
@@ -47,13 +45,17 @@ public sealed class UserTrainingService(UnifiedDbContext db)
     {
         var normalizedRequest = UserTrainingHelper.NormalizeToUtc(request);
 
+        var trainingRules = await GetTrainingRulesAsync(normalizedRequest.TrainingId, cancellationToken);
+
         var latestVersion = await GetLatestVersionAsync(
             normalizedRequest.UserId,
             normalizedRequest.TrainingId,
             cancellationToken
         );
 
-        var validityDays = await GetTrainingValidityDaysAsync(normalizedRequest.TrainingId, cancellationToken);
+        EnsureTrainingAllowsRenewal(trainingRules.Rotating, latestVersion);
+
+        var validityDays = trainingRules.ValidityDays;
         var expiryDate =
             normalizedRequest.ExpiryDate
             ?? UserTrainingHelper.CalculateExpiryDate(normalizedRequest.AwardedOn, validityDays);
@@ -84,16 +86,15 @@ public sealed class UserTrainingService(UnifiedDbContext db)
         if (normalizedRequest.UserId != entity.UserId || normalizedRequest.TrainingId != entity.TrainingId)
             throw new InvalidOperationException("UserId and TrainingId cannot be changed for an existing version.");
 
-        var validityDays = await GetTrainingValidityDaysAsync(normalizedRequest.TrainingId, cancellationToken);
+        var trainingRules = await GetTrainingRulesAsync(normalizedRequest.TrainingId, cancellationToken);
+        var validityDays = trainingRules.ValidityDays;
         var expiryDate =
             normalizedRequest.ExpiryDate
             ?? UserTrainingHelper.CalculateExpiryDate(normalizedRequest.AwardedOn, validityDays);
 
         var previousVersionExpiryDate = await db
             .UserTrainings.Where(ut =>
-                ut.UserId == entity.UserId
-                && ut.TrainingId == entity.TrainingId
-                && ut.Version < entity.Version
+                ut.UserId == entity.UserId && ut.TrainingId == entity.TrainingId && ut.Version < entity.Version
             )
             .OrderByDescending(ut => ut.Version)
             .Select(ut => ut.ExpiryDate)
@@ -101,9 +102,7 @@ public sealed class UserTrainingService(UnifiedDbContext db)
 
         var nextVersionExpiryDate = await db
             .UserTrainings.Where(ut =>
-                ut.UserId == entity.UserId
-                && ut.TrainingId == entity.TrainingId
-                && ut.Version > entity.Version
+                ut.UserId == entity.UserId && ut.TrainingId == entity.TrainingId && ut.Version > entity.Version
             )
             .OrderBy(ut => ut.Version)
             .Select(ut => ut.ExpiryDate)
@@ -158,7 +157,10 @@ public sealed class UserTrainingService(UnifiedDbContext db)
             throw new InvalidOperationException("Expiry date must be later than the previous version expiry date.");
     }
 
-    private static void EnsureExpiryIsBeforeNextVersion(DateTimeOffset? expiryDate, DateTimeOffset? nextVersionExpiryDate)
+    private static void EnsureExpiryIsBeforeNextVersion(
+        DateTimeOffset? expiryDate,
+        DateTimeOffset? nextVersionExpiryDate
+    )
     {
         if (!nextVersionExpiryDate.HasValue)
             return;
@@ -167,18 +169,31 @@ public sealed class UserTrainingService(UnifiedDbContext db)
             throw new InvalidOperationException("Expiry date must be earlier than the next version expiry date.");
     }
 
-    private async Task<UserTraining?> GetLatestVersionAsync(Guid userId, int trainingId, CancellationToken cancellationToken) =>
+    private static void EnsureTrainingAllowsRenewal(bool rotating, UserTraining? latestVersion)
+    {
+        if (latestVersion is not null && !rotating)
+            throw new InvalidOperationException("Cannot create a new version for a non-rotating training.");
+    }
+
+    private async Task<UserTraining?> GetLatestVersionAsync(
+        Guid userId,
+        int trainingId,
+        CancellationToken cancellationToken
+    ) =>
         await db
             .UserTrainings.Where(ut => ut.UserId == userId && ut.TrainingId == trainingId)
             .OrderByDescending(ut => ut.Version)
             .ThenByDescending(ut => ut.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-    private async Task<int?> GetTrainingValidityDaysAsync(int trainingId, CancellationToken cancellationToken) =>
+    private async Task<TrainingRules> GetTrainingRulesAsync(int trainingId, CancellationToken cancellationToken) =>
         await db
             .Trainings.Where(t => t.Id == trainingId)
-            .Select(t => t.ValidityDays)
-            .SingleOrDefaultAsync(cancellationToken);
+            .Select(t => new TrainingRules(t.ValidityDays, t.Rotating))
+            .SingleOrDefaultAsync(cancellationToken)
+        ?? new TrainingRules(null, false);
+
+    private sealed record TrainingRules(int? ValidityDays, bool Rotating);
 
     private async Task<UserTrainingResponse> FetchResponseAsync(int id, CancellationToken cancellationToken) =>
         await db

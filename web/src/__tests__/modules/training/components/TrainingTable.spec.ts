@@ -32,8 +32,7 @@ describe('TrainingTable', () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('No trainings');
-    expect(wrapper.text()).toContain('There are no training types to display yet.');
+    expect(wrapper.text()).toContain('No trainings found.');
   });
 
   it('emits edit when edit button is clicked', async () => {

@@ -3,11 +3,7 @@ import { mount } from '@vue/test-utils';
 import { defineComponent, ref } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  getApiTrainingsUsersUserIdMock,
-  getApiLookupTrainingsMock,
-  hasPermissionMock,
-} = vi.hoisted(() => ({
+const { getApiTrainingsUsersUserIdMock, getApiLookupTrainingsMock, hasPermissionMock } = vi.hoisted(() => ({
   getApiTrainingsUsersUserIdMock: vi.fn(),
   getApiLookupTrainingsMock: vi.fn(),
   hasPermissionMock: vi.fn(() => true),
@@ -45,7 +41,14 @@ const UaDataTableStub = defineComponent({
       default: () => [],
     },
   },
-  template: '<div class="ua-data-table-stub">rows: {{ items.length }}</div>',
+  template: `
+    <div class="ua-data-table-stub">
+      <div class="ua-data-table-stub__count">rows: {{ items.length }}</div>
+      <div v-for="item in items" :key="item.id" class="ua-data-table-stub__row">
+        <slot name="item.actions" :item="item" />
+      </div>
+    </div>
+  `,
 });
 
 describe('UserTrainingView', () => {
@@ -104,8 +107,8 @@ describe('UserTrainingView', () => {
 
     getApiLookupTrainingsMock.mockReturnValue({
       data: ref([
-        { id: 1, code: 'CPR', description: 'CPR' },
-        { id: 2, code: 'FA', description: 'First Aid' },
+        { id: 1, code: 'CPR', description: 'CPR', rotating: true },
+        { id: 2, code: 'FA', description: 'First Aid', rotating: false },
       ]),
       error: ref(null),
       isFetching: ref(false),
@@ -148,5 +151,36 @@ describe('UserTrainingView', () => {
 
     const cpr = items.find((item) => item.trainingId === 1);
     expect(cpr?.version).toBe(2);
+  });
+
+  it('shows renew action only for rotating trainings', () => {
+    const wrapper = mount(UserTrainingView, {
+      props: {
+        user: {
+          id: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
+          idirName: 'tester',
+          isEnabled: true,
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test.user@example.com',
+          gender: 'Other',
+        },
+      },
+      global: {
+        stubs: {
+          UaDataTable: UaDataTableStub,
+          UaAlert: true,
+          UaBtn: true,
+          UaPlaceholderPage: true,
+          DeleteUserTrainingModal: true,
+          UserTrainingModal: true,
+          UserTrainingVersionsModal: true,
+          VIcon: true,
+        },
+      },
+    });
+
+    const renewButtons = wrapper.findAll('ua-btn-stub[title="Renew training record"]');
+    expect(renewButtons).toHaveLength(1);
   });
 });

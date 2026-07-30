@@ -11,53 +11,53 @@ public sealed class TrainingPermissionSeedData : ISeedData<PermissionSeedDefinit
 {
     private const string PermissionGroupTraining = "Training";
 
-    public static PermissionSeedConfiguration Configuration { get; } =
+    public static ISeedData<PermissionSeedDefinition> Instance { get; } = new TrainingPermissionSeedData();
+
+    private TrainingPermissionSeedData() { }
+
+    public IReadOnlyList<PermissionSeedDefinition> Definitions { get; } =
+    [
         new()
         {
-            Permissions =
-            [
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsView),
-                    Description = "View training types",
-                },
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsCreate),
-                    Description = "Create training types",
-                },
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.TrainingsEdit),
-                    Description = "Edit training types",
-                },
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.UserTrainingsView),
-                    Description = "View user training records",
-                },
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.UserTrainingsCreate),
-                    Description = "Create user training records",
-                },
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.UserTrainingsEdit),
-                    Description = "Edit user training records",
-                },
-                new()
-                {
-                    Group = PermissionGroupTraining,
-                    Id = nameof(Permissions.UserTrainingsDelete),
-                    Description = "Delete user training records",
-                },
-            ],
-        };
+            Group = PermissionGroupTraining,
+            Id = nameof(Permissions.TrainingsView),
+            Description = "View training types",
+        },
+        new()
+        {
+            Group = PermissionGroupTraining,
+            Id = nameof(Permissions.TrainingsCreate),
+            Description = "Create training types",
+        },
+        new()
+        {
+            Group = PermissionGroupTraining,
+            Id = nameof(Permissions.TrainingsEdit),
+            Description = "Edit training types",
+        },
+        new()
+        {
+            Group = PermissionGroupTraining,
+            Id = nameof(Permissions.UserTrainingsView),
+            Description = "View user training records",
+        },
+        new()
+        {
+            Group = PermissionGroupTraining,
+            Id = nameof(Permissions.UserTrainingsCreate),
+            Description = "Create user training records",
+        },
+        new()
+        {
+            Group = PermissionGroupTraining,
+            Id = nameof(Permissions.UserTrainingsEdit),
+            Description = "Edit user training records",
+        },
+        new()
+        {
+            Group = PermissionGroupTraining,
+            Id = nameof(Permissions.UserTrainingsDelete),
+            Description = "Delete user training records",
+        },
+    ];
 }

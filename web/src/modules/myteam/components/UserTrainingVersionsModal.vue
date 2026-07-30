@@ -43,7 +43,7 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
     </v-tabs>
 
     <div v-if="activeTab === 'details'" class="user-training-details__panel" role="tabpanel">
-      <v-row  dense>
+      <v-row dense>
         <v-col cols="12" sm="4" class="user-training-details__label">Training</v-col>
         <v-col cols="12" sm="8">{{ props.training.trainingCode }}</v-col>
 
@@ -94,7 +94,6 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
       </UaDataTable>
       <p v-else class="user-training-details__empty">No historical versions found for this training.</p>
     </div>
-
   </UaModal>
 </template>
 
