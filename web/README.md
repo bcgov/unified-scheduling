@@ -19,6 +19,8 @@ This template should help get you started developing with Vue 3 in Vite.
 
 TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
 
+[TypeScript 7 does not yet expose the stable compiler API required by Vue tooling](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#typescript-and-embedded-languages). The project therefore installs TypeScript 7 as `@typescript/native` while exposing the TypeScript 6 compatibility package as `typescript` for `vue-tsc`, Volar, and ESLint. Keep this side-by-side setup until Vue tooling supports the TypeScript 7 API.
+
 ## Customize configuration
 
 See [Vite Configuration Reference](https://vite.dev/config/).
