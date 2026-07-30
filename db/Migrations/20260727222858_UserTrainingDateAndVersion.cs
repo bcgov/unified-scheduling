@@ -16,20 +16,26 @@ namespace Unified.Db.Migrations
                 table: "UserTrainings",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValue: new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)));
+                defaultValue: new DateTimeOffset(
+                    new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                    new TimeSpan(0, 0, 0, 0, 0)
+                )
+            );
 
             migrationBuilder.AddColumn<int>(
                 name: "Version",
                 table: "UserTrainings",
                 type: "integer",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 0
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserTrainings_UserId_TrainingId_Version",
                 table: "UserTrainings",
                 columns: new[] { "UserId", "TrainingId", "Version" },
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
@@ -37,15 +43,12 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_UserTrainings_UserId_TrainingId_Version",
-                table: "UserTrainings");
+                table: "UserTrainings"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "EndingOn",
-                table: "UserTrainings");
+            migrationBuilder.DropColumn(name: "EndingOn", table: "UserTrainings");
 
-            migrationBuilder.DropColumn(
-                name: "Version",
-                table: "UserTrainings");
+            migrationBuilder.DropColumn(name: "Version", table: "UserTrainings");
         }
     }
 }
