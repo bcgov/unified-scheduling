@@ -20,6 +20,7 @@ public class UserTraining : BaseEntity
 
     [Required]
     public DateTimeOffset AwardedOn { get; set; }
+
     [Required]
     public DateTimeOffset EndingOn { get; set; }
 
