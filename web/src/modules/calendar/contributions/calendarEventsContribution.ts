@@ -1,5 +1,5 @@
 import { postApiCalendarEvents } from '@/api-access/calendar';
-import { localDateOnlyToUtcInstant } from '@/utils/date';
+import { addDays } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 import type { CalendarModuleContribution } from '../registry/calendarRegistryTypes';
 import { mapApiCalendarEventToCalendarEventBase } from './calendarEventMappers';
@@ -13,8 +13,9 @@ export const calendarEventsContribution: CalendarModuleContribution = {
   async load(context, options) {
     const events = await postApiCalendarEvents(
       {
-        startDate: localDateOnlyToUtcInstant(context.startDate),
-        endDate: localDateOnlyToUtcInstant(context.endDate),
+        startDate: context.startDate,
+        // Calendar view ranges end exclusively; the API accepts an inclusive date-only range.
+        endDate: addDays(context.endDate, -1),
         locationId: context.locationId,
         filters: context.filters,
       },

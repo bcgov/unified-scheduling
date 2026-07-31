@@ -17,17 +17,17 @@ public class CalendarControllerTests
         // Arrange
         var request = new CalendarEventsRequest
         {
-            StartDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(2026, 6, 1),
+            EndDate = new DateOnly(2026, 6, 2),
         };
 
         var expected = new List<CalendarEventResponse>
         {
             new()
             {
-                Id = 10,
+                Id = "10",
                 Title = "Holiday",
-                StartAtUtc = request.StartDate,
+                StartAtUtc = new DateTimeOffset(2026, 6, 1, 7, 0, 0, TimeSpan.Zero),
                 SourceModule = "calendar",
                 EventTypeCode = CalendarEventTypeCode.Holiday,
                 StatusTypeCode = CalendarEventStatusTypeCode.Active,
@@ -49,7 +49,7 @@ public class CalendarControllerTests
         var payload = Assert.IsAssignableFrom<IReadOnlyCollection<CalendarEventResponse>>(okResult.Value);
         var item = Assert.Single(payload);
 
-        Assert.Equal(10, item.Id);
+        Assert.Equal("10", item.Id);
         Assert.Equal(request, service.LastRequest);
     }
 
@@ -59,8 +59,8 @@ public class CalendarControllerTests
         // Arrange
         var request = new CalendarEventsRequest
         {
-            StartDate = new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(2026, 6, 2),
+            EndDate = new DateOnly(2026, 6, 1),
         };
 
         var controller = new CalendarController(

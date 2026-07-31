@@ -1,6 +1,7 @@
 using FluentValidation.TestHelper;
 using Unified.Calendar.Models;
 using Unified.Calendar.Validators;
+using Unified.Common.Time;
 
 namespace Unified.Tests.Calendar.Validators;
 
@@ -14,8 +15,9 @@ public class CalendarEventsRequestValidatorTests
         // Arrange
         var request = new CalendarEventsRequest
         {
-            StartDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 8, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(2026, 6, 1),
+            EndDate = new DateOnly(2026, 6, 8),
+            TimeZoneId = "America/Vancouver",
             LocationId = 0,
         };
 
@@ -35,8 +37,8 @@ public class CalendarEventsRequestValidatorTests
         // Arrange
         var request = new CalendarEventsRequest
         {
-            StartDate = new DateTimeOffset(1900, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(1900, 1, 2, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(1900, 1, 1),
+            EndDate = new DateOnly(1900, 1, 2),
         };
 
         // Act
@@ -55,8 +57,8 @@ public class CalendarEventsRequestValidatorTests
         // Arrange
         var request = new CalendarEventsRequest
         {
-            StartDate = new DateTimeOffset(1900, 1, 2, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(1900, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(1900, 1, 2),
+            EndDate = new DateOnly(1900, 1, 1),
         };
 
         // Act
@@ -70,13 +72,13 @@ public class CalendarEventsRequestValidatorTests
     }
 
     [Fact]
-    public async Task ValidateAsync_WhenStartDateIsNotBeforeEndDate_HasError()
+    public async Task ValidateAsync_WhenRangeIsSingleDay_HasNoError()
     {
         // Arrange
         var request = new CalendarEventsRequest
         {
-            StartDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(2026, 6, 1),
+            EndDate = new DateOnly(2026, 6, 1),
         };
 
         // Act
@@ -86,7 +88,7 @@ public class CalendarEventsRequestValidatorTests
         );
 
         // Assert
-        result.ShouldHaveValidationErrorFor(x => x.StartDate);
+        result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
@@ -95,8 +97,8 @@ public class CalendarEventsRequestValidatorTests
         // Arrange
         var request = new CalendarEventsRequest
         {
-            StartDate = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2027, 1, 3, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(2026, 1, 1),
+            EndDate = new DateOnly(2027, 1, 3),
         };
 
         // Act
@@ -106,6 +108,40 @@ public class CalendarEventsRequestValidatorTests
         );
 
         // Assert
+        result.ShouldHaveValidationErrorFor(x => x.EndDate);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WhenRangeEndsOnSupportedMaximumDate_HasNoErrors()
+    {
+        var request = new CalendarEventsRequest
+        {
+            StartDate = TimeZoneDateRangeLimits.MaximumSupportedDate,
+            EndDate = TimeZoneDateRangeLimits.MaximumSupportedDate,
+        };
+
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WhenEndDateExceedsSupportedMaximum_HasError()
+    {
+        var request = new CalendarEventsRequest
+        {
+            StartDate = TimeZoneDateRangeLimits.MaximumSupportedDate,
+            EndDate = DateOnly.MaxValue,
+        };
+
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
         result.ShouldHaveValidationErrorFor(x => x.EndDate);
     }
 
@@ -115,8 +151,8 @@ public class CalendarEventsRequestValidatorTests
         // Arrange
         var request = new CalendarEventsRequest
         {
-            StartDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 8, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(2026, 6, 1),
+            EndDate = new DateOnly(2026, 6, 8),
             LocationId = -1,
         };
 
@@ -128,5 +164,23 @@ public class CalendarEventsRequestValidatorTests
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.LocationId);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WhenTimeZoneIdIsInvalid_HasError()
+    {
+        var request = new CalendarEventsRequest
+        {
+            StartDate = new DateOnly(2026, 6, 1),
+            EndDate = new DateOnly(2026, 6, 8),
+            TimeZoneId = "Not/AZone",
+        };
+
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        result.ShouldHaveValidationErrorFor(x => x.TimeZoneId);
     }
 }

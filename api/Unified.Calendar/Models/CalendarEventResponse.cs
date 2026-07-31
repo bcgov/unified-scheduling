@@ -1,8 +1,10 @@
+using Unified.Calendar.Holidays;
+
 namespace Unified.Calendar.Models;
 
 public sealed class CalendarEventResponse
 {
-    public required int Id { get; init; }
+    public required string Id { get; init; }
 
     public int? EventSeriesId { get; init; }
 
@@ -26,11 +28,15 @@ public sealed class CalendarEventResponse
 
     public bool AllDay { get; init; }
 
+    public bool IsReadOnly { get; init; }
+
     public bool IsException { get; init; }
 
     public CalendarEventType Type { get; init; } = CalendarEventType.CalendarEvent;
 
     public CalendarEventStatus Status { get; init; } = CalendarEventStatus.Active;
+
+    public StatutoryHolidayType? HolidayType { get; init; }
 
     public required CalendarEventTypeCode EventTypeCode { get; init; }
 

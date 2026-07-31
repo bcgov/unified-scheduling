@@ -9,7 +9,7 @@ import {
   formatRangeLabel,
   localDateOnlyToUtcInstant,
   parseLocalDateOnly,
-  shiftDateRange,
+  shiftCalendarAnchor,
   startOfMonth,
   startOfWeek,
   toCalendarDateOnly,
@@ -27,7 +27,7 @@ import type {
 } from '@/modules/calendar/calendarTypes';
 
 describe('shared calendar date helpers', () => {
-  it('builds ranges for every period and shifts them correctly', () => {
+  it('builds ranges for every period and shifts anchors correctly', () => {
     expect(buildDateRangeForPeriod('2025-01-15', 'day')).toEqual({
       startDate: '2025-01-15',
       endDate: '2025-01-16',
@@ -48,25 +48,10 @@ describe('shared calendar date helpers', () => {
       endDate: '2025-02-01',
     });
 
-    expect(shiftDateRange('2025-01-15', 'day', -1)).toEqual({
-      startDate: '2025-01-14',
-      endDate: '2025-01-15',
-    });
-
-    expect(shiftDateRange('2025-01-13', 'week', 1)).toEqual({
-      startDate: '2025-01-20',
-      endDate: '2025-01-27',
-    });
-
-    expect(shiftDateRange('2025-01-13', 'work-week', 1)).toEqual({
-      startDate: '2025-01-20',
-      endDate: '2025-01-25',
-    });
-
-    expect(shiftDateRange('2025-01-01', 'month', 1)).toEqual({
-      startDate: '2025-02-01',
-      endDate: '2025-03-01',
-    });
+    expect(shiftCalendarAnchor('2025-01-15', 'day', 'previous')).toBe('2025-01-14');
+    expect(shiftCalendarAnchor('2025-01-15', 'week', 'next')).toBe('2025-01-22');
+    expect(shiftCalendarAnchor('2025-01-15', 'work-week', 'next')).toBe('2025-01-22');
+    expect(shiftCalendarAnchor('2025-01-31', 'month', 'next')).toBe('2025-02-28');
   });
 
   it('formats and parses calendar dates and labels', () => {
@@ -162,12 +147,14 @@ describe('calendar event mappers', () => {
   it('maps all-day API events and defaults empty event types', () => {
     expect(
       mapApiCalendarEventToCalendarEventBase({
-        id: 10,
+        id: '10',
         title: 'Holiday',
         startAtUtc: '2025-07-01T00:00:00Z',
         endAtUtc: '2025-07-02T00:00:00Z',
         allDay: true,
+        isReadOnly: true,
         isException: false,
+        holidayType: 'CanadaDay',
         eventTypeCode: '',
         statusTypeCode: CalendarEventStatusTypeCode.Active,
         sourceModule: 'calendar',
@@ -179,17 +166,20 @@ describe('calendar event mappers', () => {
       end: '2025-07-02',
       eventTypeCode: CalendarEventTypeCode.General,
       statusTypeCode: CalendarEventStatusTypeCode.Active,
+      isReadOnly: true,
+      holidayType: 'CanadaDay',
     });
   });
 
   it('preserves timestamp values for non all-day events', () => {
     expect(
       mapApiCalendarEventToCalendarEventBase({
-        id: 11,
+        id: '11',
         title: 'Meeting',
         startAtUtc: '2025-07-01T09:00:00Z',
         endAtUtc: '2025-07-01T10:00:00Z',
         allDay: false,
+        isReadOnly: false,
         isException: true,
         type: calendarEventTypes.calendarEvent,
         eventTypeCode: CalendarEventTypeCode.Deadline,

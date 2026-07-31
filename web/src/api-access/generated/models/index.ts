@@ -50,6 +50,7 @@ export * from './saveDayRequest.ts';
 export * from './statCategoryResponse.ts';
 export * from './statGroupResponse.ts';
 export * from './statMetricResponse.ts';
+export * from './statutoryHolidayType.ts';
 export * from './statRecordRequest.ts';
 export * from './statRecordResponse.ts';
 export * from './statSignoffRequest.ts';

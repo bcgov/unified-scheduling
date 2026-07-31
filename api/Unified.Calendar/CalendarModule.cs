@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Calendar.Controllers;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
 using Unified.Common.Seeding;
+using Unified.Common.Time;
 using Unified.Db;
 
 namespace Unified.Calendar;
@@ -28,17 +30,30 @@ public static class CalendarModule
     public static IServiceCollection AddCalendarModule(this IServiceCollection services, IConfiguration configuration)
     {
         services
-            .AddOptions<CalendarSeedDataOptions>()
-            .Bind(configuration.GetSection(CalendarSeedDataOptions.SectionName))
+            .AddOptions<CalendarDateTimeOptions>()
+            .Bind(configuration.GetSection(CalendarDateTimeOptions.SectionName))
             .ValidateDataAnnotations()
+            .Validate(BeValidDefaultTimeZoneId, "CalendarDateTime:DefaultTimeZoneId must be a valid system time zone.")
             .ValidateOnStart();
+
+        services.AddSingleton<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>();
+        services.AddSingleton<ITimeZoneService, TimeZoneService>();
+        services.AddSingleton<StatutoryHolidayCalendarDataProvider>();
+        services.AddScoped<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>();
         services.AddScoped<ICalendarEventService, CalendarEventService>();
         services.AddSeeder<UnifiedDbContext, EventTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, EventStatusTypeSeeder>();
-        services.AddSeeder<UnifiedDbContext, HolidayEventSeeder>();
         services.AddScoped<CalendarEventsRequestValidator>();
 
         return services;
+    }
+
+    private static bool BeValidDefaultTimeZoneId(CalendarDateTimeOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.DefaultTimeZoneId))
+            return false;
+
+        return TimeZoneService.IsValidTimeZoneId(options.DefaultTimeZoneId);
     }
 
     private static void ConfigureCalendarApplicationParts(

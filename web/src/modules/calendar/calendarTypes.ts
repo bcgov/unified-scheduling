@@ -13,7 +13,9 @@ export interface CalendarEventBase {
   seriesStartAtUtc?: string;
   seriesEndAtUtc?: string;
   allDay?: boolean;
+  isReadOnly?: boolean;
   isException?: boolean;
+  holidayType?: string;
   eventTypeCode?: string;
   statusTypeCode?: string;
   cancelledAt?: string;

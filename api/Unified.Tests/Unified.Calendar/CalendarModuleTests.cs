@@ -2,14 +2,17 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Unified.Calendar;
 using Unified.Calendar.Controllers;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
 using Unified.Common.Seeding;
+using Unified.Common.Time;
 using Unified.Db;
 
 namespace Unified.Tests.Calendar;
@@ -30,15 +33,18 @@ public sealed class CalendarModuleTests
             .ToArray();
 
         // Assert
+        AssertContainsSingletonRegistration<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>(services);
+        AssertContainsSingletonRegistration<ITimeZoneService, TimeZoneService>(services);
+        AssertContainsSingletonSelfRegistration<StatutoryHolidayCalendarDataProvider>(services);
+        AssertContainsScopedRegistration<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>(services);
         AssertContainsScopedRegistration<ICalendarEventService, CalendarEventService>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventTypeSeeder>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventStatusTypeSeeder>(services);
-        AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, HolidayEventSeeder>(services);
         AssertContainsScopedSelfRegistration<CalendarEventsRequestValidator>(services);
         Assert.Contains("api/calendar/events", calendarRoutes);
         Assert.Equal(
-            "SeedData/bc-holidays.json",
-            provider.GetRequiredService<IOptions<CalendarSeedDataOptions>>().Value.HolidaysFilePath
+            "America/Toronto",
+            provider.GetRequiredService<IOptions<CalendarDateTimeOptions>>().Value.DefaultTimeZoneId
         );
     }
 
@@ -58,6 +64,31 @@ public sealed class CalendarModuleTests
         Assert.Empty(calendarActions);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Not/AZone")]
+    public async Task StartupValidation_WhenDefaultTimeZoneIsMissingOrInvalid_Throws(string? defaultTimeZoneId)
+    {
+        using var host = new HostBuilder()
+            .ConfigureAppConfiguration(configuration =>
+                configuration.AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        [$"{CalendarDateTimeOptions.SectionName}:DefaultTimeZoneId"] = defaultTimeZoneId,
+                    }
+                )
+            )
+            .ConfigureServices((context, services) => services.AddCalendarModule(context.Configuration))
+            .Build();
+
+        var exception = await Assert.ThrowsAsync<OptionsValidationException>(() =>
+            host.StartAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Contains(exception.Failures, failure => failure.Contains("DefaultTimeZoneId", StringComparison.Ordinal));
+    }
+
     private static void AssertContainsScopedRegistration<TService, TImplementation>(IServiceCollection services)
         where TService : class
         where TImplementation : class, TService
@@ -66,6 +97,19 @@ public sealed class CalendarModuleTests
             services,
             descriptor =>
                 descriptor.Lifetime == ServiceLifetime.Scoped
+                && descriptor.ServiceType == typeof(TService)
+                && descriptor.ImplementationType == typeof(TImplementation)
+        );
+    }
+
+    private static void AssertContainsSingletonRegistration<TService, TImplementation>(IServiceCollection services)
+        where TService : class
+        where TImplementation : class, TService
+    {
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Singleton
                 && descriptor.ServiceType == typeof(TService)
                 && descriptor.ImplementationType == typeof(TImplementation)
         );
@@ -83,13 +127,29 @@ public sealed class CalendarModuleTests
         );
     }
 
-    private static IServiceCollection CreateStartupLikeServices(bool isEnabled, out ServiceProvider provider)
+    private static void AssertContainsSingletonSelfRegistration<TService>(IServiceCollection services)
+        where TService : class
+    {
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Singleton
+                && descriptor.ServiceType == typeof(TService)
+                && descriptor.ImplementationType == typeof(TService)
+        );
+    }
+
+    private static IServiceCollection CreateStartupLikeServices(
+        bool isEnabled,
+        out ServiceProvider provider,
+        string? defaultTimeZoneId = "America/Toronto"
+    )
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    [$"{CalendarSeedDataOptions.SectionName}:HolidaysFilePath"] = "SeedData/bc-holidays.json",
+                    [$"{CalendarDateTimeOptions.SectionName}:DefaultTimeZoneId"] = defaultTimeZoneId,
                 }
             )
             .Build();

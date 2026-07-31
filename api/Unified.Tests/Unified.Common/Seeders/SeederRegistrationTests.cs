@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Calendar;
-using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Common.Seeding;
 using Unified.Core;
@@ -68,17 +67,10 @@ public sealed class SeederRegistrationTests
     public void CalendarModule_RegistersExpectedSeeders()
     {
         var services = CreateServices();
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    [$"{CalendarSeedDataOptions.SectionName}:HolidaysFilePath"] = "SeedData/bc-holidays.json",
-                }
-            )
-            .Build();
+        var configuration = new ConfigurationBuilder().Build();
         services.AddCalendarModule(configuration);
 
-        AssertSeederTypes(services, typeof(EventTypeSeeder), typeof(EventStatusTypeSeeder), typeof(HolidayEventSeeder));
+        AssertSeederTypes(services, typeof(EventTypeSeeder), typeof(EventStatusTypeSeeder));
     }
 
     [Fact]

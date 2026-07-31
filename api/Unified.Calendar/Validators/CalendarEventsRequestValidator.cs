@@ -1,13 +1,14 @@
 using FluentValidation;
 using Unified.Calendar.Models;
+using Unified.Common.Time;
 using Unified.Common.Validation;
 
 namespace Unified.Calendar.Validators;
 
 public sealed class CalendarEventsRequestValidator : AbstractValidator<CalendarEventsRequest>
 {
-    private static readonly DateTimeOffset MinimumDate = new(new DateTime(1900, 1, 1), TimeSpan.Zero);
-    private static readonly TimeSpan MaxRangeLength = TimeSpan.FromDays(366);
+    private static readonly DateOnly MinimumDate = new(1900, 1, 1);
+    private const int MaxRangeLengthDays = 366;
 
     public CalendarEventsRequestValidator()
     {
@@ -22,14 +23,31 @@ public sealed class CalendarEventsRequestValidator : AbstractValidator<CalendarE
             .WithMessage("End date must be after 1900-01-01.");
 
         RuleFor(x => x.StartDate)
-            .LessThan(x => x.EndDate)
+            .LessThanOrEqualTo(TimeZoneDateRangeLimits.MaximumSupportedDate)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
-            .WithMessage("Start date must be before end date.");
+            .WithMessage($"Start date cannot be after {TimeZoneDateRangeLimits.MaximumSupportedDate:yyyy-MM-dd}.");
 
         RuleFor(x => x.EndDate)
-            .Must((request, endDate) => endDate - request.StartDate <= MaxRangeLength)
+            .LessThanOrEqualTo(TimeZoneDateRangeLimits.MaximumSupportedDate)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage($"End date cannot be after {TimeZoneDateRangeLimits.MaximumSupportedDate:yyyy-MM-dd}.");
+
+        RuleFor(x => x.StartDate)
+            .LessThanOrEqualTo(x => x.EndDate)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage("Start date must be on or before end date.");
+
+        RuleFor(x => x.EndDate)
+            .Must((request, endDate) => endDate.DayNumber - request.StartDate.DayNumber + 1 <= MaxRangeLengthDays)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage("Date range cannot exceed 366 days.");
+
+        RuleFor(x => x.TimeZoneId)
+            .MaximumLength(100)
+            .Must(TimeZoneService.IsValidTimeZoneId)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage("TimeZoneId must be a valid system time zone.")
+            .When(x => !string.IsNullOrWhiteSpace(x.TimeZoneId));
 
         RuleFor(x => x.LocationId)
             .GreaterThanOrEqualTo(0)
