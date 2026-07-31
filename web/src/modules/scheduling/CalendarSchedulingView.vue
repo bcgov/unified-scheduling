@@ -30,6 +30,7 @@ import {
   calendarSchedulingAssignmentModalEditScope,
   calendarSchedulingAssignmentModalDate,
   calendarSchedulingAssignmentModalAssignmentDefinitionId,
+  calendarSchedulingAssignmentModalExistingEvents,
   calendarSchedulingAssignmentModalMode,
   calendarSchedulingAssignmentModalSeriesId,
   calendarSchedulingAssignmentModalShiftEntryIds,
@@ -629,6 +630,7 @@ function getEventDate(event: CalendarEventBase) {
     :assignment-series-id="calendarSchedulingAssignmentModalSeriesId"
     :initial-assignment-definition-id="calendarSchedulingAssignmentModalAssignmentDefinitionId"
     :initial-shift-entry-ids="calendarSchedulingAssignmentModalShiftEntryIds"
+    :existing-assignment-events="calendarSchedulingAssignmentModalExistingEvents"
     :time-zone="props.model.timeZone"
     @close="closeCalendarSchedulingAssignmentModal"
   />

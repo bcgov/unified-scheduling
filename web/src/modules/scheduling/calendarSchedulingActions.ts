@@ -19,6 +19,7 @@ import {
   toggleCalendarSchedulingConflict,
 } from './calendarSchedulingState';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
+import { DateTime } from 'luxon';
 
 export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
   id: calendarSchedulingActionIds.createShift,
@@ -37,7 +38,12 @@ export const calendarAddAssignmentAction: CalendarMatrixSidePanelAction = {
   order: 10,
   isAvailable: (context) => context.actionId === calendarSchedulingActionIds.addAssignment,
   execute: (context) => {
-    showCalendarSchedulingAssignmentModal(context.model.days[0]?.date);
+    showCalendarSchedulingAssignmentModal(resolveDefaultActionDate(context.model.days), {
+      existingAssignmentEvents: mergeAssignmentEvents(
+        resolveAllAssignmentEvents(context.model),
+        context.panel.items.flatMap((item) => resolveAssignmentEventsFromPayload(item.payload, item.title)),
+      ),
+    });
   },
 };
 
@@ -72,6 +78,7 @@ export const calendarAddAssignmentResourceAction: CalendarMatrixResourceAction =
   execute: (context) => {
     showCalendarSchedulingAssignmentModal(context.cell?.date ?? context.model.days[0]?.date, {
       assignmentDefinitionId: resolveResourceAssignmentDefinitionId(context.resource),
+      existingAssignmentEvents: resolveAllAssignmentEvents(context.model),
     });
   },
 };
@@ -83,9 +90,24 @@ export const calendarDropAction: CalendarDropAction = {
   order: 10,
   isAvailable: (context) => context.drag.itemType === 'assignment' && Boolean(context.drop.date),
   execute: async (context) => {
+    const assignmentDefinitionId = resolveAssignmentDefinitionId(context);
+    const modelAssignmentEvents = resolveAllAssignmentEvents(context.model);
+    const dragPayloadAssignmentEvents = resolveAssignmentEventsFromPayload(context.drag.payload);
+    const existingAssignmentEvents = mergeAssignmentEvents(modelAssignmentEvents, dragPayloadAssignmentEvents);
+    const existingAssignment = findAssignmentForDefinitionOnDate(
+      existingAssignmentEvents,
+      assignmentDefinitionId,
+      context.drop.date,
+      context.model.timeZone,
+    );
+    const shiftEntryIds = resolveShiftEntryIds(context);
+
     showCalendarSchedulingAssignmentModal(context.drop.date, {
-      assignmentDefinitionId: resolveAssignmentDefinitionId(context),
-      shiftEntryIds: resolveShiftEntryIds(context),
+      mode: existingAssignment ? 'edit' : 'create',
+      assignmentEntryId: existingAssignment ? resolveAssignmentEntryId(existingAssignment) : undefined,
+      assignmentDefinitionId: existingAssignment ? undefined : assignmentDefinitionId,
+      shiftEntryIds,
+      existingAssignmentEvents,
     });
   },
 };
@@ -105,6 +127,10 @@ export const calendarDropUserOnAssignmentResourceAction: CalendarDropAction = {
     });
   },
 };
+
+function resolveDefaultActionDate(days: ReadonlyArray<{ date: string; isToday?: boolean }>) {
+  return days.find((day) => day.isToday)?.date ?? days[0]?.date;
+}
 
 export const calendarEventBlockAction: CalendarMatrixEventBlockAction = {
   id: calendarSchedulingActionIds.addOnEvent,
@@ -360,6 +386,103 @@ function resolveAssignmentEvents(context: CalendarMatrixDropActionContext) {
       .flatMap((group) => group.events.map((item) => item.event))
       .filter((event) => isAssignmentEvent(event) && Boolean(resolveAssignmentEntryId(event))) ?? []
   );
+}
+
+function resolveAllAssignmentEvents(model: CalendarMatrixDropActionContext['model']) {
+  const eventsById = new Map<string, CalendarEventBase>();
+
+  const payloadAssignmentEvents =
+    typeof model.payload === 'object' && model.payload !== null
+      ? (model.payload as { assignmentEvents?: unknown }).assignmentEvents
+      : undefined;
+  if (Array.isArray(payloadAssignmentEvents)) {
+    for (const event of payloadAssignmentEvents) {
+      if (isCalendarEventBase(event) && isAssignmentEvent(event)) {
+        eventsById.set(event.id, event);
+      }
+    }
+  }
+
+  for (const cell of model.cells) {
+    for (const item of cell.groups.flatMap((group) => group.events)) {
+      if (isAssignmentEvent(item.event)) {
+        eventsById.set(item.event.id, item.event);
+      }
+    }
+  }
+
+  return [...eventsById.values()];
+}
+
+function resolveAssignmentEventsFromPayload(payload: unknown, fallbackTitle = 'Assignment') {
+  if (typeof payload !== 'object' || payload === null) {
+    return [];
+  }
+
+  const assignmentDefinitionId = parsePositiveNumber(
+    (payload as { assignmentDefinitionId?: unknown }).assignmentDefinitionId,
+  );
+  const entries = (payload as { entries?: unknown }).entries;
+  if (!assignmentDefinitionId || !Array.isArray(entries)) {
+    return [];
+  }
+
+  return entries.flatMap((entry): CalendarEventBase[] => {
+    if (typeof entry !== 'object' || entry === null) {
+      return [];
+    }
+
+    const assignmentEntryId = parsePositiveNumber((entry as { id?: unknown }).id);
+    const start = (entry as { startAtUtc?: unknown }).startAtUtc;
+    if (!assignmentEntryId || typeof start !== 'string' || !start) {
+      return [];
+    }
+
+    const entryTitle = (entry as { title?: unknown }).title;
+    const end = (entry as { endAtUtc?: unknown }).endAtUtc;
+    return [
+      {
+        id: `assignment-entry-${assignmentEntryId}`,
+        type: 'scheduling.assignment',
+        sourceModule: 'calendar-assignment',
+        title: typeof entryTitle === 'string' && entryTitle ? entryTitle : fallbackTitle,
+        start,
+        end: typeof end === 'string' ? end : undefined,
+        metadata: {
+          assignmentDefinitionId: String(assignmentDefinitionId),
+          assignmentEntryId: String(assignmentEntryId),
+        },
+      } as unknown as CalendarEventBase,
+    ];
+  });
+}
+
+function mergeAssignmentEvents(...eventCollections: CalendarEventBase[][]) {
+  const eventsById = new Map<string, CalendarEventBase>();
+  for (const event of eventCollections.flat()) {
+    eventsById.set(event.id, event);
+  }
+  return [...eventsById.values()];
+}
+
+function findAssignmentForDefinitionOnDate(
+  events: CalendarEventBase[],
+  assignmentDefinitionId: number | undefined,
+  date: string,
+  timeZone?: string,
+) {
+  if (!assignmentDefinitionId) {
+    return undefined;
+  }
+
+  return events.find((event) => {
+    const metadata = (event as { metadata?: { assignmentDefinitionId?: unknown } }).metadata;
+    const eventDefinitionId = Number(metadata?.assignmentDefinitionId);
+    const eventDate = DateTime.fromISO(event.start, { setZone: true })
+      .setZone(timeZone || event.timeZoneId || 'America/Vancouver')
+      .toISODate();
+    return eventDefinitionId === assignmentDefinitionId && eventDate === date;
+  });
 }
 
 function resolveAssignmentEntryId(event: CalendarEventBase) {

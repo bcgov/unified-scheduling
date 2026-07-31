@@ -3,6 +3,7 @@ import { mdiDelete, mdiPlus } from '@mdi/js';
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
 import { getApiSchedulingShiftEntries, getApiSchedulingShiftSeries } from '@/api-access/generated/shift/shift';
 import type { AssignmentDefinitionResponse } from '@/api-access/generated/models/assignmentDefinitionResponse';
+import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import type { AssignmentEntryResponse } from '@/api-access/generated/models/assignmentEntryResponse';
 import type { AssignmentSeriesResponse } from '@/api-access/generated/models/assignmentSeriesResponse';
 import type { ShiftEntryResponse } from '@/api-access/generated/models/shiftEntryResponse';
@@ -60,6 +61,7 @@ const props = defineProps<{
   initialDate?: string;
   initialAssignmentDefinitionId?: number;
   initialShiftEntryIds?: number[];
+  existingAssignmentEvents?: CalendarEventBase[];
   timeZone?: string;
 }>();
 
@@ -84,7 +86,8 @@ const assignmentDetailTabs: Array<{ id: AssignmentDetailTabId; label: string }> 
   { id: 'edit', label: 'Edit' },
   { id: 'delete', label: 'Delete' },
 ];
-const publishedAssignmentMessage = 'This assignment has been published, and cannot be edited or deleted, only cancelled';
+const publishedAssignmentMessage =
+  'This assignment has been published, and cannot be edited or deleted, only cancelled';
 const publishedShiftLinkError = 'Shift already published. To link a new assignment, please create a new shift.';
 
 const isSaving = ref(false);
@@ -163,6 +166,34 @@ const modalTitle = computed(() => {
 const calendarContextDate = computed(() =>
   DateTime.fromISO(formData.value.date || props.initialDate || '', { zone: timeZoneId.value }),
 );
+const duplicateAssignmentError = computed(() => {
+  const assignmentDefinitionId = parsePositiveNumber(formData.value.assignmentDefinitionId);
+  const assignmentDate = calendarContextDate.value;
+  if (typeof assignmentDefinitionId !== 'number' || !assignmentDate.isValid) {
+    return '';
+  }
+
+  const duplicate = (props.existingAssignmentEvents ?? []).find((event) => {
+    if (!isAssignmentEventForDefinition(event, assignmentDefinitionId as number)) {
+      return false;
+    }
+
+    const assignmentEntryId = resolveEventAssignmentEntryId(event);
+    if (assignmentEntryId && assignmentEntryId === props.assignmentEntryId) {
+      return false;
+    }
+
+    return resolveEventDate(event) === assignmentDate.toISODate();
+  });
+
+  if (!duplicate) {
+    return '';
+  }
+
+  return `Selected assignment type already added to ${assignmentDate.toLocaleString(
+    DateTime.DATE_FULL,
+  )}. Please edit or delete the existing assignment`;
+});
 const {
   assignmentDefinitions,
   assignmentDefinitionOptions,
@@ -491,8 +522,24 @@ function updateAssignmentDefinition(value: SelectValue | undefined) {
 function applyInitialSelections() {
   if (props.initialAssignmentDefinitionId && !hasAppliedInitialAssignmentDefinitionSelection.value) {
     if (
-      !assignmentDefinitionOptions.value.some((candidate) => Number(candidate.code) === props.initialAssignmentDefinitionId)
+      !assignmentDefinitionOptions.value.some(
+        (candidate) => Number(candidate.code) === props.initialAssignmentDefinitionId,
+      )
     ) {
+      const assignmentDefinition = assignmentDefinitions.value.find(
+        (candidate) => candidate.id === props.initialAssignmentDefinitionId,
+      );
+      const effectiveDate = assignmentDefinition?.effectiveDateUtc
+        ? DateTime.fromISO(assignmentDefinition.effectiveDateUtc, { setZone: true })
+            .setZone(timeZoneId.value)
+            .startOf('day')
+        : null;
+
+      if (effectiveDate?.isValid && effectiveDate > calendarContextDate.value.startOf('day')) {
+        apiError.value = `Assignment ${assignmentDefinition?.name || 'type'} is not effective until ${effectiveDate.toLocaleString(
+          DateTime.DATE_FULL,
+        )}`;
+      }
       return;
     }
 
@@ -518,14 +565,24 @@ function applyInitialSelections() {
   }
 
   if (shiftEntryIds.length) {
+    const existingLinks = (formData.value.shiftEntryLinks ?? []).flatMap((link) =>
+      typeof link.shiftEntryId === 'number'
+        ? [{ ...link, shiftEntryId: link.shiftEntryId, assignedUserIds: link.assignedUserIds ?? [] }]
+        : [],
+    );
+    const existingLinksById = new Map(existingLinks.map((link) => [link.shiftEntryId, link]));
+    const mergedShiftEntryIds = [...new Set([...existingLinks.map((link) => link.shiftEntryId), ...shiftEntryIds])];
     updateField('repeatMode', 'never');
-    updateField('shiftEntryIds', shiftEntryIds);
+    updateField('shiftEntryIds', mergedShiftEntryIds);
     updateField(
       'shiftEntryLinks',
-      shiftEntryIds.map((shiftEntryId) => ({
-        shiftEntryId,
-        assignedUserIds: getShiftEntryUserIds(shiftEntryId),
-      })),
+      mergedShiftEntryIds.map(
+        (shiftEntryId) =>
+          existingLinksById.get(shiftEntryId) ?? {
+            shiftEntryId,
+            assignedUserIds: getShiftEntryUserIds(shiftEntryId),
+          },
+      ),
     );
     updateField('shiftSeriesIds', []);
     updateField('shiftSeriesLinks', []);
@@ -1157,6 +1214,11 @@ function validateForm(): AssignmentFormData | null {
   formErrors.value = {};
   formData.value = normalizeAssignmentFormTimes(formData.value);
 
+  if (duplicateAssignmentError.value) {
+    formErrors.value.assignmentDefinitionId = duplicateAssignmentError.value;
+    return null;
+  }
+
   const result = validateAssignmentFormData(formData.value, {
     timeZoneId: timeZoneId.value,
     recurrenceError: recurrenceError.value,
@@ -1344,6 +1406,10 @@ async function loadInitialAssignment() {
         ? createFormDataFromAssignmentSeries(result.data.value as AssignmentSeriesResponse)
         : createFormDataFromAssignmentEntry(result.data.value as AssignmentEntryResponse);
       applyScopeRestrictions();
+      if (props.initialShiftEntryIds !== undefined) {
+        hasAppliedInitialShiftEntrySelection.value = false;
+        applyInitialSelections();
+      }
     }
   } catch (error: unknown) {
     apiError.value = error instanceof Error ? error.message : 'Failed to load assignment.';
@@ -1436,6 +1502,28 @@ function createFormDataFromAssignmentSeries(series: AssignmentSeriesResponse): A
 function defaultTime(value: string | undefined) {
   return normalizeTimeOptionValue(value) || '08:00';
 }
+
+function isAssignmentEventForDefinition(event: CalendarEventBase, assignmentDefinitionId: number) {
+  if (event.type !== 'scheduling.assignment' && event.eventTypeCode !== 'assignment') {
+    return false;
+  }
+
+  const metadata = (event as { metadata?: { assignmentDefinitionId?: unknown } }).metadata;
+  return Number(metadata?.assignmentDefinitionId) === assignmentDefinitionId;
+}
+
+function resolveEventAssignmentEntryId(event: CalendarEventBase) {
+  const metadata = (event as { metadata?: { assignmentEntryId?: unknown } }).metadata;
+  const assignmentEntryId = Number(metadata?.assignmentEntryId);
+  return Number.isInteger(assignmentEntryId) && assignmentEntryId > 0 ? assignmentEntryId : undefined;
+}
+
+function resolveEventDate(event: CalendarEventBase) {
+  const eventDate = DateTime.fromISO(event.start, { setZone: true }).setZone(
+    timeZoneId.value || event.timeZoneId || 'America/Vancouver',
+  );
+  return eventDate.isValid ? eventDate.toISODate() : null;
+}
 </script>
 
 <template>
@@ -1496,7 +1584,7 @@ function defaultTime(value: string | undefined) {
             id="assignment-modal-assignment"
             :model-value="formData.assignmentDefinitionId ?? null"
             :items="assignmentDefinitionOptions"
-            :error="Boolean(formErrors.assignmentDefinitionId)"
+            :error="Boolean(formErrors.assignmentDefinitionId || duplicateAssignmentError)"
             :disabled="fieldsDisabled || isLoadingAssignmentDefinitions"
             :loading="isLoadingAssignmentDefinitions"
             @update:model-value="updateAssignmentDefinition"
@@ -1512,8 +1600,8 @@ function defaultTime(value: string | undefined) {
             <v-icon :icon="mdiPlus" size="18" />
           </UaBtn>
         </div>
-        <p v-if="formErrors.assignmentDefinitionId" class="assignment-modal__field-error">
-          {{ formErrors.assignmentDefinitionId }}
+        <p v-if="formErrors.assignmentDefinitionId || duplicateAssignmentError" class="assignment-modal__field-error">
+          {{ formErrors.assignmentDefinitionId || duplicateAssignmentError }}
         </p>
       </div>
 
@@ -1802,6 +1890,7 @@ function defaultTime(value: string | undefined) {
   <CalendarSchedulingAssignmentDefinitionCreateModal
     v-if="isAssignmentDefinitionModalOpen"
     :current-location-id="activeLocationId"
+    :initial-effective-date="formData.date || props.initialDate"
     @close="handleAssignmentDefinitionClose"
     @saved="handleAssignmentDefinitionSaved"
   />

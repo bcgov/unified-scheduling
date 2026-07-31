@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { CalendarMatrixDropActionContext } from '@/modules/calendar/registry/calendarActionRegistryTypes';
 import {
+  calendarAddAssignmentAction,
   calendarAddResourceAction,
   calendarAddAssignmentResourceAction,
   calendarDropAction,
@@ -26,6 +27,62 @@ describe('calendarSchedulingActions', () => {
   beforeEach(() => {
     closeCalendarSchedulingAssignmentModal();
     closeCalendarSchedulingResourceActionModal();
+  });
+
+  it('opens the add assignment modal on today when today is in the displayed range', async () => {
+    await calendarAddAssignmentAction.execute(
+      {
+        panel: {
+          label: 'ASSIGNMENTS',
+          actionId: 'calendar-scheduling.add-assignment',
+          actionLabel: 'Add Assignment',
+          items: [],
+        },
+        actionId: 'calendar-scheduling.add-assignment',
+        model: {
+          days: [
+            { date: '2026-07-27', label: 'Mon, Jul 27' },
+            { date: '2026-07-31', label: 'Fri, Jul 31', isToday: true },
+          ],
+          primaryColumn: {
+            label: 'TEAM',
+            resources: [],
+          },
+          cells: [],
+        },
+      },
+      { featureFlags: {} },
+    );
+
+    expect(calendarSchedulingAssignmentModalDate.value).toBe('2026-07-31');
+  });
+
+  it('falls back to the first displayed day when today is outside the displayed range', async () => {
+    await calendarAddAssignmentAction.execute(
+      {
+        panel: {
+          label: 'ASSIGNMENTS',
+          actionId: 'calendar-scheduling.add-assignment',
+          actionLabel: 'Add Assignment',
+          items: [],
+        },
+        actionId: 'calendar-scheduling.add-assignment',
+        model: {
+          days: [
+            { date: '2026-08-03', label: 'Mon, Aug 3' },
+            { date: '2026-08-04', label: 'Tue, Aug 4' },
+          ],
+          primaryColumn: {
+            label: 'TEAM',
+            resources: [],
+          },
+          cells: [],
+        },
+      },
+      { featureFlags: {} },
+    );
+
+    expect(calendarSchedulingAssignmentModalDate.value).toBe('2026-08-03');
   });
 
   it('opens the assignment modal for the dropped assignment and pre-links shift entries from the target cell header', async () => {
@@ -101,6 +158,229 @@ describe('calendarSchedulingActions', () => {
 
     expect(calendarSchedulingAssignmentModalDate.value).toBe('2026-07-12');
     expect(calendarSchedulingAssignmentModalAssignmentDefinitionId.value).toBe(20);
+    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
+  });
+
+  it('edits the existing assignment from the dragged definition entries when it is not rendered in a cell', async () => {
+    const context: CalendarMatrixDropActionContext = {
+      drag: {
+        source: 'side-panel',
+        itemId: 'assignment-definition-20',
+        itemType: 'assignment',
+        payload: {
+          title: 'Court Room Monitor',
+          assignmentDefinitionId: 20,
+          entries: [
+            {
+              id: 90,
+              title: 'Court Room Monitor',
+              startAtUtc: '2026-07-12T16:00:00Z',
+              endAtUtc: '2026-07-12T17:00:00Z',
+            },
+          ],
+        },
+      },
+      drop: {
+        resourceId: 'user-1',
+        resourceType: 'user',
+        date: '2026-07-12',
+      },
+      model: {
+        timeZone: 'America/Vancouver',
+        days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
+        primaryColumn: {
+          label: 'TEAM',
+          resources: [{ id: 'user-1', type: 'user', title: 'Target User' }],
+        },
+        cells: [
+          {
+            resourceId: 'user-1',
+            date: '2026-07-12',
+            headers: [
+              {
+                id: 'shift-44',
+                text: '9:00 AM - 5:00 PM',
+                payload: {
+                  id: 'shift-44',
+                  type: 'scheduling.shift',
+                  sourceModule: 'calendar-scheduling',
+                  title: 'Shift',
+                  start: '2026-07-12T16:00:00Z',
+                  resourceIds: ['user-1'],
+                  metadata: { shiftEntryId: '44', userIds: ['user-1'] },
+                },
+              },
+            ],
+            groups: [],
+          },
+        ],
+      },
+    };
+
+    await calendarDropAction.execute(context, { featureFlags: {} });
+
+    expect(calendarSchedulingAssignmentModalMode.value).toBe('edit');
+    expect(calendarSchedulingAssignmentModalEntryId.value).toBe(90);
+    expect(calendarSchedulingAssignmentModalAssignmentDefinitionId.value).toBeUndefined();
+    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
+  });
+
+  it('edits an assignment belonging to another user when the drop target has no shift', async () => {
+    const context: CalendarMatrixDropActionContext = {
+      drag: {
+        source: 'side-panel',
+        itemId: 'assignment-definition-20',
+        itemType: 'assignment',
+        payload: {
+          title: 'Court Room Monitor',
+          assignmentDefinitionId: 20,
+        },
+      },
+      drop: {
+        resourceId: 'user-1',
+        resourceType: 'user',
+        date: '2026-07-12',
+      },
+      model: {
+        timeZone: 'America/Vancouver',
+        days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
+        primaryColumn: {
+          label: 'TEAM',
+          resources: [
+            { id: 'user-1', type: 'user', title: 'Target User' },
+            { id: 'user-2', type: 'user', title: 'Other User' },
+          ],
+        },
+        cells: [
+          {
+            resourceId: 'user-1',
+            date: '2026-07-12',
+            headers: [],
+            groups: [],
+          },
+          {
+            resourceId: 'user-2',
+            date: '2026-07-12',
+            headers: [],
+            groups: [
+              {
+                id: 'assignments',
+                events: [
+                  {
+                    event: {
+                      id: 'assignment-entry-90',
+                      type: 'scheduling.assignment',
+                      sourceModule: 'calendar-assignment',
+                      title: 'Court Room Monitor',
+                      start: '2026-07-12T16:00:00Z',
+                      metadata: {
+                        assignmentDefinitionId: '20',
+                        assignmentEntryId: '90',
+                        assignedUserIds: ['user-2'],
+                      },
+                    } as never,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    await calendarDropAction.execute(context, { featureFlags: {} });
+
+    expect(calendarSchedulingAssignmentModalMode.value).toBe('edit');
+    expect(calendarSchedulingAssignmentModalEntryId.value).toBe(90);
+    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([]);
+  });
+
+  it('uses the global assignment context when the existing assignment is linked to another user and shift', async () => {
+    const existingAssignment = {
+      id: 'assignment-entry-90',
+      type: 'scheduling.assignment',
+      sourceModule: 'calendar-assignment',
+      title: 'Court Room Monitor',
+      start: '2026-07-12T16:00:00Z',
+      metadata: {
+        assignmentDefinitionId: '20',
+        assignmentEntryId: '90',
+        assignedUserIds: ['user-2'],
+        assignedShiftIds: ['45'],
+      },
+    } as never;
+    const context: CalendarMatrixDropActionContext = {
+      drag: {
+        source: 'side-panel',
+        itemId: 'assignment-definition-20',
+        itemType: 'assignment',
+        payload: { assignmentDefinitionId: 20, title: 'Court Room Monitor' },
+      },
+      drop: {
+        resourceId: 'user-1',
+        resourceType: 'user',
+        date: '2026-07-12',
+      },
+      model: {
+        timeZone: 'America/Vancouver',
+        payload: { assignmentEvents: [existingAssignment] },
+        days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
+        primaryColumn: {
+          label: 'TEAM',
+          resources: [
+            { id: 'user-1', type: 'user', title: 'Target User' },
+            { id: 'user-2', type: 'user', title: 'Other User' },
+          ],
+        },
+        cells: [
+          {
+            resourceId: 'user-1',
+            date: '2026-07-12',
+            headers: [
+              {
+                id: 'shift-44',
+                text: '9:00 AM - 5:00 PM',
+                payload: {
+                  id: 'shift-44',
+                  type: 'scheduling.shift',
+                  sourceModule: 'calendar-scheduling',
+                  title: 'Target shift',
+                  start: '2026-07-12T16:00:00Z',
+                  resourceIds: ['user-1'],
+                  metadata: { shiftEntryId: '44', userIds: ['user-1'] },
+                },
+              },
+            ],
+            groups: [],
+          },
+          {
+            resourceId: 'user-2',
+            date: '2026-07-12',
+            headers: [
+              {
+                id: 'shift-45',
+                text: '9:00 AM - 5:00 PM',
+                payload: {
+                  id: 'shift-45',
+                  type: 'scheduling.shift',
+                  sourceModule: 'calendar-scheduling',
+                  title: 'Existing assignment shift',
+                  start: '2026-07-12T16:00:00Z',
+                  resourceIds: ['user-2'],
+                  metadata: { shiftEntryId: '45', userIds: ['user-2'] },
+                },
+              },
+            ],
+            groups: [],
+          },
+        ],
+      },
+    };
+
+    await calendarDropAction.execute(context, { featureFlags: {} });
+
+    expect(calendarSchedulingAssignmentModalMode.value).toBe('edit');
+    expect(calendarSchedulingAssignmentModalEntryId.value).toBe(90);
     expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
   });
 

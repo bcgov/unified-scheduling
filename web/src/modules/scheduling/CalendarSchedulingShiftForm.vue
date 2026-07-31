@@ -136,11 +136,13 @@ function updateSelectedAssignmentEntry(value: SelectValue | undefined) {
       assignedUserIds: getCurrentShiftUserIds(),
     },
   ];
-  updateField('assignmentEntryLinks', nextLinks);
-  updateField(
-    'assignmentEntryIds',
-    nextLinks.map((link) => link.assignmentEntryId).filter((id): id is number => typeof id === 'number'),
-  );
+  formData.value = {
+    ...formData.value,
+    assignmentEntryLinks: nextLinks,
+    assignmentEntryIds: nextLinks
+      .map((link) => link.assignmentEntryId)
+      .filter((id): id is number => typeof id === 'number'),
+  };
 }
 
 function updateSelectedAssignmentSeries(value: SelectValue | undefined) {
@@ -156,35 +158,39 @@ function updateSelectedAssignmentSeries(value: SelectValue | undefined) {
       assignedUserIds: getCurrentShiftUserIds(),
     },
   ];
-  updateField('assignmentSeriesLinks', nextLinks);
-  updateField(
-    'assignmentSeriesId',
-    nextLinks.length === 1 && typeof nextLinks[0]?.assignmentSeriesId === 'number'
-      ? nextLinks[0].assignmentSeriesId
-      : null,
-  );
+  formData.value = {
+    ...formData.value,
+    assignmentSeriesLinks: nextLinks,
+    assignmentSeriesId:
+      nextLinks.length === 1 && typeof nextLinks[0]?.assignmentSeriesId === 'number'
+        ? nextLinks[0].assignmentSeriesId
+        : null,
+  };
 }
 
 function removeAssignmentEntryLink(index: number) {
   const nextLinks = [...(formData.value.assignmentEntryLinks ?? [])];
   nextLinks.splice(index, 1);
-  updateField('assignmentEntryLinks', nextLinks);
-  updateField(
-    'assignmentEntryIds',
-    nextLinks.map((link) => link.assignmentEntryId).filter((id): id is number => typeof id === 'number'),
-  );
+  formData.value = {
+    ...formData.value,
+    assignmentEntryLinks: nextLinks,
+    assignmentEntryIds: nextLinks
+      .map((link) => link.assignmentEntryId)
+      .filter((id): id is number => typeof id === 'number'),
+  };
 }
 
 function removeAssignmentSeriesLink(index: number) {
   const nextLinks = [...(formData.value.assignmentSeriesLinks ?? [])];
   nextLinks.splice(index, 1);
-  updateField('assignmentSeriesLinks', nextLinks);
-  updateField(
-    'assignmentSeriesId',
-    nextLinks.length === 1 && typeof nextLinks[0]?.assignmentSeriesId === 'number'
-      ? nextLinks[0].assignmentSeriesId
-      : null,
-  );
+  formData.value = {
+    ...formData.value,
+    assignmentSeriesLinks: nextLinks,
+    assignmentSeriesId:
+      nextLinks.length === 1 && typeof nextLinks[0]?.assignmentSeriesId === 'number'
+        ? nextLinks[0].assignmentSeriesId
+        : null,
+  };
 }
 
 function updateAssignmentEntryLinkUsers(index: number, value: SelectValue | undefined) {

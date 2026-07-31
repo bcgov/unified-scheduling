@@ -445,11 +445,13 @@ describe('CalendarSchedulingAssignmentModal', () => {
         defaultCapacity?: number;
         defaultStartTime?: string;
         defaultEndTime?: string;
+        effectiveDateUtc?: string | null;
         locationId?: number | string;
       };
     };
 
     expect(assignmentDefinitionModalVm.formData.locationId).toBe(12);
+    expect(assignmentDefinitionModalVm.formData.effectiveDateUtc).toBe('2026-07-12');
 
     assignmentDefinitionModalVm.formData.name = 'Patrol support';
     assignmentDefinitionModalVm.formData.description = '';
@@ -720,7 +722,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
-  it('auto-populates linked shift users when an initial shift entry is provided', async () => {
+  it('selects a dragged assignment definition and auto-populates the linked shift users', async () => {
     const getAssignmentDefinitionsExecute = vi.fn().mockResolvedValue(undefined);
     const getShiftSeriesExecute = vi.fn().mockResolvedValue(undefined);
     const getShiftEntriesExecute = vi.fn().mockResolvedValue(undefined);
@@ -735,6 +737,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
               name: 'Court coverage',
               assignmentCategoryTypeId: 10,
               assignmentSubCategoryTypeId: 20,
+              locationId: 12,
               capacity: 1,
               defaultStartTime: '09:00',
               defaultEndTime: '10:00',
@@ -805,6 +808,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     const wrapper = mount(CalendarSchedulingAssignmentModal, {
       props: {
         initialDate: '2026-07-12',
+        initialAssignmentDefinitionId: 7,
         initialShiftEntryIds: [42],
         timeZone: 'America/Vancouver',
       },
@@ -815,9 +819,15 @@ describe('CalendarSchedulingAssignmentModal', () => {
     await flushPromises();
 
     const vm = wrapper.vm as unknown as {
-      formData: { shiftEntryLinks?: Array<{ shiftEntryId: number; assignedUserIds: string[] }> };
+      assignmentDefinitionOptions: Array<{ code: number }>;
+      formData: {
+        assignmentDefinitionId?: number;
+        shiftEntryLinks?: Array<{ shiftEntryId: number; assignedUserIds: string[] }>;
+      };
     };
 
+    expect(vm.assignmentDefinitionOptions.map((option) => option.code)).toContain(7);
+    expect(vm.formData.assignmentDefinitionId).toBe(7);
     expect(vm.formData.shiftEntryLinks).toEqual([
       {
         shiftEntryId: 42,
@@ -1241,7 +1251,19 @@ describe('CalendarSchedulingAssignmentModal', () => {
         execute: getShiftSeriesExecute,
       }),
       getApiSchedulingShiftEntries: vi.fn().mockReturnValue({
-        data: { value: [] },
+        data: {
+          value: [
+            {
+              id: 44,
+              startAtUtc: '2026-07-13T16:00:00Z',
+              endAtUtc: '2026-07-14T00:00:00Z',
+              timeZoneId: 'America/Vancouver',
+              locationId: 12,
+              statusTypeCode: 'Active',
+              userIds: ['user-1'],
+            },
+          ],
+        },
         error: { value: null },
         execute: getShiftEntriesExecute,
       }),
@@ -1287,10 +1309,13 @@ describe('CalendarSchedulingAssignmentModal', () => {
       await import('@/modules/scheduling/CalendarSchedulingAssignmentModal.vue');
 
     const app = await createTestApp({ loadConfig: false });
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
     const wrapper = mount(CalendarSchedulingAssignmentModal, {
       props: {
-        mode: 'view',
+        mode: 'edit',
         assignmentEntryId: 257,
+        initialShiftEntryIds: [44],
         timeZone: 'America/Vancouver',
       },
       global: { plugins: app.mountPlugins },
@@ -1303,11 +1328,13 @@ describe('CalendarSchedulingAssignmentModal', () => {
       formData: {
         startTime?: string;
         endTime?: string;
+        shiftEntryLinks?: Array<{ shiftEntryId: number; assignedUserIds: string[] }>;
       };
     };
 
     expect(vm.formData.startTime).toBe('09:00');
     expect(vm.formData.endTime).toBe('17:00');
+    expect(vm.formData.shiftEntryLinks).toEqual([{ shiftEntryId: 44, assignedUserIds: ['user-1'] }]);
 
     wrapper.unmount();
   });
@@ -1505,7 +1532,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
-  it('filters assignment type options by the selected assignment date in the modal', async () => {
+  it('filters assignment types by date and displays an error when the selected type already exists', async () => {
     vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
       getApiSchedulingAssignmentDefinitions: vi.fn().mockReturnValue(
         createFetchResult({
@@ -1558,6 +1585,19 @@ describe('CalendarSchedulingAssignmentModal', () => {
       props: {
         initialDate: '2026-07-13',
         timeZone: 'America/Vancouver',
+        existingAssignmentEvents: [
+          {
+            id: 'assignment-entry-90',
+            type: 'scheduling.assignment',
+            sourceModule: 'calendar-assignment',
+            title: 'July coverage',
+            start: '2026-07-13T16:00:00Z',
+            metadata: {
+              assignmentDefinitionId: '7',
+              assignmentEntryId: '90',
+            },
+          },
+        ],
       },
       global: { plugins: app.mountPlugins },
       attachTo: document.body,
@@ -1566,11 +1606,18 @@ describe('CalendarSchedulingAssignmentModal', () => {
     await flushPromises();
 
     const vm = wrapper.vm as unknown as {
-      formData: { date?: string };
+      formData: { date?: string; assignmentDefinitionId?: number };
       assignmentDefinitionOptions: Array<{ code: number; description: string }>;
     };
 
     expect(vm.assignmentDefinitionOptions.map((option) => option.code)).toEqual([7]);
+
+    vm.formData.assignmentDefinitionId = 7;
+    await flushPromises();
+
+    expect(document.body.textContent).toContain(
+      'Selected assignment type already added to July 13, 2026. Please edit or delete the existing assignment',
+    );
 
     vm.formData.date = '2026-08-10';
     await flushPromises();
@@ -1580,7 +1627,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
-  it('does not preselect an initial assignment definition that is invalid for the selected assignment date', async () => {
+  it('shows an error when a dropped assignment definition is not effective on the selected date', async () => {
     vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
       getApiSchedulingAssignmentDefinitions: vi.fn().mockReturnValue(
         createFetchResult({
@@ -1592,7 +1639,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
               assignmentSubCategoryTypeId: 20,
               locationId: 12,
               defaultCapacity: 1,
-              effectiveDateUtc: '2026-08-01T00:00:00Z',
+              effectiveDateUtc: '2026-08-01T07:00:00Z',
               expiryDateUtc: null,
             },
           ],
@@ -1638,8 +1685,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
 
     expect(vm.assignmentDefinitionOptions).toEqual([]);
     expect(vm.formData.assignmentDefinitionId).toBeUndefined();
-    expect(document.body.textContent).not.toContain('Future coverage');
-    expect(document.body.textContent).not.toContain(' 7 ');
+    expect(document.body.textContent).toContain('Assignment Future coverage is not effective until August 1, 2026');
 
     wrapper.unmount();
   });
@@ -1861,14 +1907,8 @@ describe('CalendarSchedulingAssignmentModal', () => {
       { locationId: 12 },
       { options: { immediate: false } },
     );
-    expect(getApiSchedulingShiftEntries).toHaveBeenCalledWith(
-      { LocationId: 12 },
-      { options: { immediate: false } },
-    );
-    expect(getApiSchedulingShiftSeries).toHaveBeenCalledWith(
-      { LocationId: 12 },
-      { options: { immediate: false } },
-    );
+    expect(getApiSchedulingShiftEntries).toHaveBeenCalledWith({ LocationId: 12 }, { options: { immediate: false } });
+    expect(getApiSchedulingShiftSeries).toHaveBeenCalledWith({ LocationId: 12 }, { options: { immediate: false } });
     expect(vm.assignmentDefinitionOptions.map((option) => option.code)).toEqual([7]);
     expect(vm.shiftEntryOptions.map((option) => option.code)).toEqual([42]);
     expect(vm.shiftSeriesOptions.map((option) => option.code)).toEqual([200]);
@@ -2000,7 +2040,9 @@ describe('CalendarSchedulingAssignmentModal', () => {
       'This assignment has been published, and cannot be edited or deleted, only cancelled',
     );
     expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent === 'Edit')).toBe(false);
-    expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent === 'Delete')).toBe(false);
+    expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent === 'Delete')).toBe(
+      false,
+    );
 
     wrapper.unmount();
   });

@@ -37,6 +37,7 @@ const props = defineProps<{
   currentLocationId?: number | null;
   assignmentDefinitionId?: number;
   mode?: 'create' | 'view' | 'edit';
+  initialEffectiveDate?: string;
 }>();
 
 const emit = defineEmits<{
@@ -90,9 +91,14 @@ const createInitialFormData = (): AssignmentDefinitionCreateFormData => ({
   defaultCapacity: 1,
   defaultStartTime,
   defaultEndTime,
-  effectiveDateUtc: getTodayDateInputValue(),
+  effectiveDateUtc: resolveInitialEffectiveDate(props.initialEffectiveDate),
   expiryDateUtc: null,
 });
+
+function resolveInitialEffectiveDate(value?: string) {
+  const parsed = value ? DateTime.fromISO(value, { setZone: true }) : null;
+  return parsed?.isValid ? (parsed.toISODate() ?? getTodayDateInputValue()) : getTodayDateInputValue();
+}
 
 const isSaving = ref(false);
 const isLoading = ref(false);
@@ -513,7 +519,8 @@ function mapAssignmentDefinitionToFormData(
     effectiveDateUtc:
       toDefinitionDateInputValue(assignmentDefinition.effectiveDateUtc, activeDefinitionTimeZoneId.value) ||
       getTodayDateInputValue(),
-    expiryDateUtc: toDefinitionDateInputValue(assignmentDefinition.expiryDateUtc, activeDefinitionTimeZoneId.value) || null,
+    expiryDateUtc:
+      toDefinitionDateInputValue(assignmentDefinition.expiryDateUtc, activeDefinitionTimeZoneId.value) || null,
   };
 }
 </script>

@@ -181,6 +181,43 @@ describe('CalendarSchedulingShiftForm', () => {
       assignmentSeriesLinks: [],
     });
   });
+
+  it('removes a linked assignment entry with a single consistent model update', async () => {
+    const formData: ShiftResourceFormData = {
+      locationId: 1,
+      userIds: ['user-1'],
+      assignmentEntryId: 42,
+      assignmentEntryIds: [42],
+      assignmentEntryLinks: [{ assignmentEntryId: 42, assignedUserIds: ['user-1'] }],
+      date: '2026-07-31',
+      repeatMode: 'never',
+      publish: 'no',
+      cancel: 'no',
+    };
+    const wrapper = mount(CalendarSchedulingShiftForm, {
+      props: {
+        modelValue: formData,
+        locationOptions: [{ code: 1, description: 'HQ' }],
+        employeeOptions: [{ code: 'user-1', description: 'Alex Alpha' }],
+        assignmentEntryOptions: [{ code: 42, description: 'Court coverage' }],
+        showRecurrence: false,
+      },
+      global: {
+        stubs: {
+          UaBtn: {
+            template: '<button v-bind="$attrs"><slot /></button>',
+          },
+        },
+      },
+    });
+
+    await wrapper.get('button[aria-label="Remove Assignment 1"]').trigger('click');
+
+    expect(wrapper.emitted('update:modelValue')).toHaveLength(1);
+    const emitted = wrapper.emitted('update:modelValue')?.[0]?.[0] as ShiftResourceFormData;
+    expect(emitted.assignmentEntryLinks).toEqual([]);
+    expect(emitted.assignmentEntryIds).toEqual([]);
+  });
 });
 
 describe('getShiftDeleteDisabledReason', () => {

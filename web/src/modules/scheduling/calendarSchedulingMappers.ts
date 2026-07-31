@@ -73,7 +73,10 @@ export function buildCalendarSchedulingViewModel(
   const timeZone = resolveMatrixTimeZone(context);
   const schedulingEvents = selectSchedulingShiftEvents(response);
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
-  const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const assignmentResources = selectSchedulingAssignmentResources(response);
+  const assignmentEvents = selectSchedulingAssignmentEvents(response).map((event) =>
+    withResolvedAssignmentDefinitionId(event, assignmentResources),
+  );
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
@@ -117,6 +120,9 @@ export function buildCalendarSchedulingViewModel(
   return {
     days,
     timeZone,
+    payload: {
+      assignmentEvents,
+    },
     primaryColumn: {
       label: 'TEAM',
       resources: scheduleResources,
@@ -374,6 +380,30 @@ function assignmentEventMatchesDefinitionFields(event: CalendarSchedulingEvent, 
   }
 
   return optionalTextValuesMatch(event.metadata.assignmentSubCategoryTypeCode, resource.assignmentSubCategoryTypeCode);
+}
+
+function withResolvedAssignmentDefinitionId(
+  event: CalendarEventBase,
+  resources: ReadonlyArray<CalendarSchedulingAssignmentResource>,
+): CalendarEventBase {
+  if (!isCalendarSchedulingEvent(event) || event.metadata.assignmentDefinitionId) {
+    return event;
+  }
+
+  const matchingResources = resources.filter((resource) => assignmentEventMatchesDefinitionFields(event, resource));
+  const matchedResource = matchingResources.length === 1 ? matchingResources[0] : undefined;
+
+  if (!matchedResource?.assignmentDefinitionId) {
+    return event;
+  }
+
+  return {
+    ...event,
+    metadata: {
+      ...event.metadata,
+      assignmentDefinitionId: String(matchedResource.assignmentDefinitionId),
+    },
+  } satisfies CalendarSchedulingEvent;
 }
 
 function normalizeAssignmentText(value?: string | null) {

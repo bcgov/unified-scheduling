@@ -10,6 +10,7 @@ export const calendarSchedulingAssignmentModalEntryId = ref<number>();
 export const calendarSchedulingAssignmentModalSeriesId = ref<number>();
 export const calendarSchedulingAssignmentModalAssignmentDefinitionId = ref<number>();
 export const calendarSchedulingAssignmentModalShiftEntryIds = ref<number[]>();
+export const calendarSchedulingAssignmentModalExistingEvents = ref<CalendarEventBase[]>([]);
 export const calendarSchedulingResourceActionResource = ref<CalendarMatrixResource>();
 export const isCalendarSchedulingResourceActionModalOpen = ref(false);
 export const calendarSchedulingResourceActionDate = ref<string>();
@@ -28,6 +29,7 @@ export function showCalendarSchedulingAssignmentModal(
     assignmentSeriesId?: number;
     assignmentDefinitionId?: number;
     shiftEntryIds?: number[];
+    existingAssignmentEvents?: CalendarEventBase[];
   },
 ) {
   calendarSchedulingAssignmentModalMode.value = options?.mode ?? 'create';
@@ -37,6 +39,7 @@ export function showCalendarSchedulingAssignmentModal(
   calendarSchedulingAssignmentModalSeriesId.value = options?.assignmentSeriesId;
   calendarSchedulingAssignmentModalAssignmentDefinitionId.value = options?.assignmentDefinitionId;
   calendarSchedulingAssignmentModalShiftEntryIds.value = options?.shiftEntryIds;
+  calendarSchedulingAssignmentModalExistingEvents.value = options?.existingAssignmentEvents ?? [];
   isCalendarSchedulingAssignmentModalOpen.value = true;
 }
 
@@ -49,6 +52,7 @@ export function closeCalendarSchedulingAssignmentModal() {
   calendarSchedulingAssignmentModalSeriesId.value = undefined;
   calendarSchedulingAssignmentModalAssignmentDefinitionId.value = undefined;
   calendarSchedulingAssignmentModalShiftEntryIds.value = undefined;
+  calendarSchedulingAssignmentModalExistingEvents.value = [];
 }
 
 export function showCalendarSchedulingResourceActionModal(

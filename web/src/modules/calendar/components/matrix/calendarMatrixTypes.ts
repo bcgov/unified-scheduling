@@ -150,6 +150,7 @@ export interface CalendarMatrixSidePanelItem {
 export interface CalendarMatrixViewModel {
   unsupportedMessage?: string;
   timeZone?: string;
+  payload?: unknown;
   days: CalendarMatrixDay[];
   primaryColumn: {
     label: string;

@@ -131,13 +131,29 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
       putApiSchedulingAssignmentDefinitionsId,
     }));
     vi.doMock('@/api-access/generated/lookup/lookup', () => ({
-      getApiLookupCodeType: vi.fn().mockImplementation((codeType: string) =>
-        createFetchResult(
-          codeType === 'AssignmentCategoryTypes'
-            ? [{ parentCodeTypeId: 10, description: 'Court', childCodeTypeIds: [20], effectiveDate: '2020-01-01T00:00:00Z' }]
-            : [{ parentCodeTypeId: 10, childCodeTypeId: 20, description: 'Registry', effectiveDate: '2020-01-01T00:00:00Z' }],
+      getApiLookupCodeType: vi
+        .fn()
+        .mockImplementation((codeType: string) =>
+          createFetchResult(
+            codeType === 'AssignmentCategoryTypes'
+              ? [
+                  {
+                    parentCodeTypeId: 10,
+                    description: 'Court',
+                    childCodeTypeIds: [20],
+                    effectiveDate: '2020-01-01T00:00:00Z',
+                  },
+                ]
+              : [
+                  {
+                    parentCodeTypeId: 10,
+                    childCodeTypeId: 20,
+                    description: 'Registry',
+                    effectiveDate: '2020-01-01T00:00:00Z',
+                  },
+                ],
+          ),
         ),
-      ),
     }));
 
     const { default: CalendarSchedulingAssignmentDefinitionCreateModal } =
@@ -185,7 +201,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     wrapper.unmount();
   });
 
-  it('defaults new assignment definitions to today with no expiry date', async () => {
+  it('defaults new assignment definitions to the supplied calendar context date', async () => {
     vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
       getApiSchedulingAssignmentDefinitionsId: vi.fn(),
       postApiSchedulingAssignmentDefinitions: vi.fn(),
@@ -204,6 +220,9 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     locationsStore.setSelectedLocationId(12);
 
     const wrapper = mount(CalendarSchedulingAssignmentDefinitionCreateModal, {
+      props: {
+        initialEffectiveDate: '2026-08-04',
+      },
       global: {
         plugins: app.mountPlugins,
         stubs: {
@@ -218,7 +237,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
       formData: { effectiveDateUtc?: string | null; expiryDateUtc?: string | null };
     };
 
-    expect(vm.formData.effectiveDateUtc).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(vm.formData.effectiveDateUtc).toBe('2026-08-04');
     expect(vm.formData.expiryDateUtc).toBeNull();
 
     wrapper.unmount();
