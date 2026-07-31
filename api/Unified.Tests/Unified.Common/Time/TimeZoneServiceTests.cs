@@ -159,14 +159,14 @@ public class TimeZoneServiceTests
         var timeZone = _service.ResolveRequired("America/Vancouver");
 
         var range = _service.ConvertInclusiveLocalDateRangeToUtcRange(
-            new DateOnly(2026, 11, 1),
-            new DateOnly(2026, 11, 1),
+            new DateOnly(2025, 11, 2),
+            new DateOnly(2025, 11, 2),
             timeZone
         );
 
         Assert.Equal(TimeSpan.FromHours(25), range.EndAtUtc - range.StartAtUtc);
-        Assert.Equal(new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero), range.StartAtUtc);
-        Assert.Equal(new DateTimeOffset(2026, 11, 2, 8, 0, 0, TimeSpan.Zero), range.EndAtUtc);
+        Assert.Equal(new DateTimeOffset(2025, 11, 2, 7, 0, 0, TimeSpan.Zero), range.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2025, 11, 3, 8, 0, 0, TimeSpan.Zero), range.EndAtUtc);
     }
 
     [Fact]
