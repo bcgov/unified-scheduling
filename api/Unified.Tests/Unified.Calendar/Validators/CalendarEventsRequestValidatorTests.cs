@@ -1,6 +1,7 @@
 using FluentValidation.TestHelper;
 using Unified.Calendar.Models;
 using Unified.Calendar.Validators;
+using Unified.Common.Time;
 
 namespace Unified.Tests.Calendar.Validators;
 
@@ -71,7 +72,7 @@ public class CalendarDataRequestValidatorTests
     }
 
     [Fact]
-    public async Task ValidateAsync_WhenStartDateIsNotBeforeEndDate_HasError()
+    public async Task ValidateAsync_WhenRangeIsSingleDay_HasNoError()
     {
         // Arrange
         var request = new CalendarDataRequest
@@ -87,7 +88,7 @@ public class CalendarDataRequestValidatorTests
         );
 
         // Assert
-        result.ShouldHaveValidationErrorFor(x => x.StartDate);
+        result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
@@ -107,6 +108,40 @@ public class CalendarDataRequestValidatorTests
         );
 
         // Assert
+        result.ShouldHaveValidationErrorFor(x => x.EndDate);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WhenRangeEndsOnSupportedMaximumDate_HasNoErrors()
+    {
+        var request = new CalendarDataRequest
+        {
+            StartDate = TimeZoneDateRangeLimits.MaximumSupportedDate,
+            EndDate = TimeZoneDateRangeLimits.MaximumSupportedDate,
+        };
+
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_WhenEndDateExceedsSupportedMaximum_HasError()
+    {
+        var request = new CalendarDataRequest
+        {
+            StartDate = TimeZoneDateRangeLimits.MaximumSupportedDate,
+            EndDate = DateOnly.MaxValue,
+        };
+
+        var result = await _validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
         result.ShouldHaveValidationErrorFor(x => x.EndDate);
     }
 

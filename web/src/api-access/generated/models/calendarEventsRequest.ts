@@ -10,6 +10,8 @@ export interface CalendarEventsRequest {
   startDate: string;
   endDate: string;
   /** @nullable */
+  timeZoneId?: string | null;
+  /** @nullable */
   locationId?: number | null;
   /** @nullable */
   filters?: CalendarEventsRequestFilters;

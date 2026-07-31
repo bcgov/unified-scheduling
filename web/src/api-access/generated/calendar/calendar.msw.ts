@@ -9,13 +9,19 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import { CalendarEventStatus, CalendarEventStatusTypeCode, CalendarEventType, CalendarEventTypeCode } from '../models';
+import {
+  CalendarEventStatus,
+  CalendarEventStatusTypeCode,
+  CalendarEventType,
+  CalendarEventTypeCode,
+  StatutoryHolidayType,
+} from '../models';
 import type { CalendarEventResponse } from '../models';
 
 export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
+      id: faker.string.alpha({ length: { min: 10, max: 20 } }),
       eventSeriesId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       title: faker.string.alpha({ length: { min: 10, max: 20 } }),
       description: faker.helpers.arrayElement([
@@ -48,9 +54,14 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
         undefined,
       ]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
       status: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventStatus)), undefined]),
+      holidayType: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(StatutoryHolidayType)), null]),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
       statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
       cancelledAt: faker.helpers.arrayElement([
@@ -69,7 +80,7 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
       locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
+      id: faker.string.alpha({ length: { min: 10, max: 20 } }),
       eventSeriesId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       title: faker.string.alpha({ length: { min: 10, max: 20 } }),
       description: faker.helpers.arrayElement([
@@ -102,9 +113,14 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
         undefined,
       ]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
       status: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventStatus)), undefined]),
+      holidayType: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(StatutoryHolidayType)), null]),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
       statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
       cancelledAt: faker.helpers.arrayElement([
@@ -123,7 +139,7 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
       locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
+      id: faker.string.alpha({ length: { min: 10, max: 20 } }),
       eventSeriesId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       title: faker.string.alpha({ length: { min: 10, max: 20 } }),
       description: faker.helpers.arrayElement([
@@ -156,9 +172,14 @@ export const getPostApiCalendarEventsResponseMock = (): CalendarEventResponse[] 
         undefined,
       ]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
       status: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventStatus)), undefined]),
+      holidayType: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(StatutoryHolidayType)), null]),
+        undefined,
+      ]),
       eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
       statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
       cancelledAt: faker.helpers.arrayElement([

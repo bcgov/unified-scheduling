@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
-import { computed } from 'vue';
+import { mdiCalendarMonthOutline, mdiChevronLeft, mdiChevronRight } from '@mdi/js';
+import { DateTime } from 'luxon';
+import { computed, ref } from 'vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import type { SelectOption, SelectValue } from '@/types/select';
@@ -17,6 +18,7 @@ const props = defineProps<{
   locationOptions: SelectOption[];
   locationValue: SelectValue;
   rangeLabel: string;
+  anchorDate: string;
   toolbarActions: CalendarToolbarAction[];
   activePeriod: CalendarPeriod;
   periods: readonly CalendarPeriod[];
@@ -27,6 +29,7 @@ const emit = defineEmits<{
   (event: 'update:activeViewId', viewId: string): void;
   (event: 'update:locationValue', value: SelectValue | undefined): void;
   (event: 'update:period', period: CalendarPeriod): void;
+  (event: 'selectDate', date: string): void;
   (event: 'previous'): void;
   (event: 'next'): void;
   (event: 'today'): void;
@@ -35,11 +38,29 @@ const emit = defineEmits<{
 }>();
 
 const periodSelectOptions = computed<SelectOption[]>(() => buildCalendarPeriodSelectOptions(props.periods));
+const datePickerOpen = ref(false);
 
 function handlePeriodSelection(value: SelectValue | undefined) {
   if (isCalendarPeriod(value) && props.periods.includes(value)) {
     emit('update:period', value);
   }
+}
+
+function handleDateSelection(value: unknown) {
+  const selectedDate = DateTime.isDateTime(value)
+    ? value.toISODate()
+    : typeof value === 'string'
+      ? DateTime.fromISO(value).toISODate()
+      : value instanceof Date
+        ? DateTime.fromJSDate(value).toISODate()
+        : null;
+
+  if (!selectedDate) {
+    return;
+  }
+
+  emit('selectDate', selectedDate);
+  datePickerOpen.value = false;
 }
 </script>
 
@@ -101,7 +122,30 @@ function handlePeriodSelection(value: SelectValue | undefined) {
         >
           <v-icon class="calendar-toolbar__nav-icon" :icon="mdiChevronLeft" />
         </UaBtn>
-        <div class="calendar-toolbar__range">{{ rangeLabel }}</div>
+        <v-menu v-model="datePickerOpen" :close-on-content-click="false" location="bottom center">
+          <template #activator="{ props: menuProps }">
+            <UaBtn
+              v-bind="menuProps"
+              class="calendar-toolbar__range"
+              variant="flat"
+              :disabled="isLoading"
+              :aria-label="`Choose date. Current range: ${rangeLabel}`"
+            >
+              <span>{{ rangeLabel }}</span>
+              <v-icon class="calendar-toolbar__range-icon" :icon="mdiCalendarMonthOutline" aria-hidden="true" />
+            </UaBtn>
+          </template>
+
+          <v-date-picker
+            class="calendar-toolbar__date-picker"
+            :model-value="anchorDate"
+            color="primary"
+            hide-header
+            show-adjacent-months
+            width="300"
+            @update:model-value="handleDateSelection"
+          />
+        </v-menu>
         <UaBtn
           class="calendar-toolbar__nav-button"
           variant="outlined"
@@ -201,6 +245,16 @@ function handlePeriodSelection(value: SelectValue | undefined) {
   min-width: 220px;
   padding: 0 var(--ua-spacing-lg);
   text-align: center;
+}
+
+.calendar-toolbar__range-icon {
+  margin-inline-start: var(--ua-spacing-sm);
+}
+
+:deep(.calendar-toolbar__date-picker) {
+  border: 1px solid var(--ua-border-color);
+  border-radius: var(--ua-border-radius);
+  max-width: calc(100vw - 2 * var(--ua-spacing-md));
 }
 
 .calendar-toolbar__nav-button {

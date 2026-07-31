@@ -19,6 +19,7 @@ const events = computed<EventInput[]>(() =>
     start: event.start,
     end: event.end,
     allDay: event.allDay,
+    editable: event.isReadOnly ? false : undefined,
     extendedProps: {
       calendarEvent: event,
       type: event.type,
@@ -26,6 +27,8 @@ const events = computed<EventInput[]>(() =>
       description: event.description,
       eventTypeCode: event.eventTypeCode,
       statusTypeCode: event.statusTypeCode,
+      isReadOnly: event.isReadOnly,
+      holidayType: event.holidayType,
     },
   })),
 );

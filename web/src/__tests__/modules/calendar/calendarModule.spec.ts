@@ -76,14 +76,16 @@ describe('calendar module integration', () => {
   it('loads contribution data and respects the feature flag gate', async () => {
     const postApiCalendarEvents = vi.fn().mockResolvedValue([
       {
-        id: 7,
+        id: 'stat-holiday:CanadaDay:2025-07-01',
         title: 'Holiday',
         startAtUtc: '2025-07-01T00:00:00Z',
         endAtUtc: '2025-07-02T00:00:00Z',
         allDay: true,
+        isReadOnly: true,
         isException: false,
-        eventTypeCode: 'holiday',
-        statusTypeCode: 'active',
+        holidayType: 'CanadaDay',
+        eventTypeCode: 'Holiday',
+        statusTypeCode: 'Active',
         sourceModule: 'calendar',
         locationId: 12,
       },
@@ -98,10 +100,7 @@ describe('calendar module integration', () => {
       };
     });
 
-    const [{ calendarEventsContribution }, { localDateOnlyToUtcInstant }] = await Promise.all([
-      import('@/modules/calendar/contributions/calendarEventsContribution'),
-      import('@/utils/date'),
-    ]);
+    const { calendarEventsContribution } = await import('@/modules/calendar/contributions/calendarEventsContribution');
 
     const isAvailable = calendarEventsContribution.isAvailable;
 
@@ -127,9 +126,11 @@ describe('calendar module integration', () => {
       contributionId: 'calendar.events',
       events: [
         expect.objectContaining({
-          id: '7',
+          id: 'stat-holiday:CanadaDay:2025-07-01',
           start: '2025-07-01',
           end: '2025-07-02',
+          isReadOnly: true,
+          holidayType: 'CanadaDay',
           locationId: 12,
         }),
       ],
@@ -137,8 +138,8 @@ describe('calendar module integration', () => {
 
     expect(postApiCalendarEvents).toHaveBeenCalledWith(
       {
-        startDate: localDateOnlyToUtcInstant('2025-07-01'),
-        endDate: localDateOnlyToUtcInstant('2025-07-08'),
+        startDate: '2025-07-01',
+        endDate: '2025-07-07',
         locationId: 12,
         filters: { owner: 'team' },
       },

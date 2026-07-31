@@ -7,14 +7,15 @@
 import * as zod from 'zod';
 
 export const PostApiCalendarEventsBody = zod.strictObject({
-  startDate: zod.iso.datetime({ offset: true }),
-  endDate: zod.iso.datetime({ offset: true }),
+  startDate: zod.iso.date(),
+  endDate: zod.iso.date(),
+  timeZoneId: zod.string().nullish(),
   locationId: zod.int().nullish(),
   filters: zod.looseObject({}).nullish(),
 });
 
 export const PostApiCalendarEventsResponseItem = zod.object({
-  id: zod.int(),
+  id: zod.string(),
   eventSeriesId: zod.int().nullish(),
   title: zod.string(),
   description: zod.string().nullish(),
@@ -26,9 +27,27 @@ export const PostApiCalendarEventsResponseItem = zod.object({
   seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
+  isReadOnly: zod.boolean().optional(),
   isException: zod.boolean().optional(),
   type: zod.enum(['calendar.event']).optional(),
   status: zod.enum(['Active', 'Draft', 'Draft Item', 'Cancelled']).optional(),
+  holidayType: zod
+    .enum([
+      'NewYearsDay',
+      'FamilyDay',
+      'GoodFriday',
+      'EasterMonday',
+      'VictoriaDay',
+      'CanadaDay',
+      'BcDay',
+      'LabourDay',
+      'TruthAndReconciliation',
+      'Thanksgiving',
+      'RemembranceDay',
+      'Christmas',
+      'BoxingDay',
+    ])
+    .nullish(),
   eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline', 'AwayLocation']),
   statusTypeCode: zod.enum(['Draft', 'Active', 'Cancelled']),
   cancelledAt: zod.iso.datetime({ offset: true }).nullish(),

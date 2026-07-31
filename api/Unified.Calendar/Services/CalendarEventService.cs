@@ -1,5 +1,7 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
 using Unified.Common.Time;
 using Unified.Db;
@@ -10,6 +12,7 @@ namespace Unified.Calendar.Services;
 public sealed class CalendarEventService(
     ILogger<CalendarEventService> logger,
     UnifiedDbContext db,
+    StatutoryHolidayCalendarDataProvider statutoryHolidayProvider,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService
 ) : ICalendarEventService
@@ -35,7 +38,7 @@ public sealed class CalendarEventService(
             timeZone
         );
 
-        var query = db
+        var persistedEvents = db
             .Events.AsNoTracking()
             .Where(e => e.SourceModule == CalendarConstants.SourceModule)
             .Where(e => e.StartAtUtc < utcRange.EndAtUtc)
@@ -47,12 +50,25 @@ public sealed class CalendarEventService(
 
         if (request.LocationId.HasValue)
         {
-            query = query.Where(e => e.LocationId == null || e.LocationId == request.LocationId.Value);
+            persistedEvents = persistedEvents.Where(e =>
+                e.LocationId == null || e.LocationId == request.LocationId.Value
+            );
         }
 
-        var eventEntities = await query.OrderBy(e => e.StartAtUtc).ThenBy(e => e.Id).ToListAsync(cancellationToken);
+        var eventEntities = await persistedEvents
+            .OrderBy(e => e.StartAtUtc)
+            .ThenBy(e => e.Id)
+            .ToListAsync(cancellationToken);
 
-        var response = new CalendarDataResponse { Events = eventEntities.Select(MapToResponse).ToList() };
+        var holidayEvents = statutoryHolidayProvider.GetEvents(request.StartDate, request.EndDate, timeZone);
+        var events = eventEntities
+            .Select(MapToResponse)
+            .Concat(holidayEvents)
+            .OrderBy(calendarEvent => calendarEvent.StartAtUtc)
+            .ThenBy(calendarEvent => calendarEvent.Title, StringComparer.Ordinal)
+            .ThenBy(calendarEvent => calendarEvent.Id, StringComparer.Ordinal)
+            .ToList();
+        var response = new CalendarDataResponse { Events = events };
 
         logger.LogDebug(
             "Calendar data query completed for local date range {StartDate} to {EndDate} with location filter {LocationId}; {EventCount} events matched.",
@@ -80,7 +96,7 @@ public sealed class CalendarEventService(
     private static CalendarEventResponse MapToResponse(Event eventEntity) =>
         new()
         {
-            Id = eventEntity.Id,
+            Id = eventEntity.Id.ToString(CultureInfo.InvariantCulture),
             EventSeriesId = eventEntity.EventSeriesId,
             Title = eventEntity.Title,
             Description = eventEntity.Description,

@@ -4,6 +4,7 @@ import type {
   CalendarEventStatusTypeCode,
   CalendarEventType,
   CalendarEventTypeCode,
+  StatutoryHolidayType,
 } from './generated/models';
 
 export const calendarEventTypes = {
@@ -15,12 +16,13 @@ type FetchOptions = Parameters<typeof useFetchAPI>[1];
 export interface ApiCalendarEventsRequest {
   startDate: string;
   endDate: string;
+  timeZoneId?: string;
   locationId?: number;
   filters?: Record<string, unknown>;
 }
 
 export interface ApiCalendarEventResponse {
-  id: number;
+  id: string;
   eventSeriesId?: number;
   title: string;
   description?: string;
@@ -32,9 +34,11 @@ export interface ApiCalendarEventResponse {
   seriesEndAtUtc?: string;
   timeZoneId?: string;
   allDay: boolean;
+  isReadOnly: boolean;
   isException: boolean;
   type?: CalendarEventType;
   status?: CalendarEventStatus;
+  holidayType?: StatutoryHolidayType;
   eventTypeCode: CalendarEventTypeCode;
   statusTypeCode: CalendarEventStatusTypeCode;
   cancelledAt?: string;

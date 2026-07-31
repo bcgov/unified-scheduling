@@ -25,7 +25,6 @@ public sealed class TimeZoneService : ITimeZoneService
             return TimeZoneInfo.Utc;
         }
     }
-
     public TimeZoneInfo ResolveRequired(string timeZoneId)
     {
         if (string.IsNullOrWhiteSpace(timeZoneId))
@@ -54,7 +53,6 @@ public sealed class TimeZoneService : ITimeZoneService
         var offset = timeZone.GetUtcOffset(localDate);
         return new DateTimeOffset(localDate, offset).ToUniversalTime();
     }
-
     public DateTime ToLocalUnspecified(DateTimeOffset utcInstant, TimeZoneInfo timeZone)
     {
         var localInstant = TimeZoneInfo.ConvertTime(utcInstant, timeZone);
@@ -84,6 +82,22 @@ public sealed class TimeZoneService : ITimeZoneService
         TimeZoneInfo timeZone
     )
     {
+        if (endDate < startDate)
+            throw new ArgumentException("End date must be on or after start date.", nameof(endDate));
+
+        if (startDate > TimeZoneDateRangeLimits.MaximumSupportedDate)
+            throw new ArgumentOutOfRangeException(
+                nameof(startDate),
+                startDate,
+                $"Start date cannot be after {TimeZoneDateRangeLimits.MaximumSupportedDate:yyyy-MM-dd}."
+            );
+
+        if (endDate > TimeZoneDateRangeLimits.MaximumSupportedDate)
+            throw new ArgumentOutOfRangeException(
+                nameof(endDate),
+                endDate,
+                $"End date cannot be after {TimeZoneDateRangeLimits.MaximumSupportedDate:yyyy-MM-dd}."
+            );
         var exclusiveEndDate = endDate.AddDays(1);
         return new UtcDateRange(
             ToUtcInstant(startDate.ToDateTime(TimeOnly.MinValue), timeZone),
