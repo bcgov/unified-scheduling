@@ -99,6 +99,7 @@ const populateFromUser = (user: UserResponse): UserRequestFormData => ({
   gender: user.gender,
   rank: user.rank ?? '',
   badgeNumber: user.badgeNumber ?? '',
+  employeeNumber: user.employeeNumber ?? '',
   homeLocationId: user.homeLocationId ?? undefined,
 });
 
@@ -332,6 +333,15 @@ const handleSave = async () => {
         :error-messages="formErrors.badgeNumber"
         :disabled="isLoading"
         @update:model-value="(v) => (formData.badgeNumber = v as string)"
+      />
+
+      <UaTextField
+        id="employee-number"
+        label="Employee Number"
+        :model-value="formData.employeeNumber"
+        :error-messages="formErrors.employeeNumber"
+        :disabled="isLoading"
+        @update:model-value="(v) => (formData.employeeNumber = v as string)"
       />
 
       <label class="ua-form-label" for="home-location">Home Location</label>
