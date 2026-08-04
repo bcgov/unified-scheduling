@@ -84,6 +84,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
             Gender = request.Gender,
             Rank = request.Rank?.Trim(),
             BadgeNumber = request.BadgeNumber?.Trim(),
+            EmployeeNumber = request.EmployeeNumber.Trim(),
             HomeLocationId = request.HomeLocationId,
             PendingRegistration = true,
         };
@@ -122,6 +123,7 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
         userEntity.Gender = request.Gender;
         userEntity.Rank = request.Rank?.Trim();
         userEntity.BadgeNumber = request.BadgeNumber?.Trim();
+        userEntity.EmployeeNumber = request.EmployeeNumber.Trim();
         userEntity.HomeLocationId = request.HomeLocationId;
 
         await DB.SaveChangesAsync(cancellationToken);
