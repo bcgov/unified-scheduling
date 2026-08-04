@@ -13,6 +13,7 @@ public class UserConfiguration : BaseEntityConfiguration<User>
         builder.HasIndex(b => b.IdirName).IsUnique();
         builder.HasIndex(b => b.IdirId).IsUnique();
         builder.HasIndex(b => b.KeyCloakId).IsUnique();
+        builder.HasIndex(b => b.EmployeeNumber).IsUnique();
 
         // @TODO: Enable after adding User Roles
         // builder
