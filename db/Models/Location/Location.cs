@@ -5,6 +5,10 @@ using Unified.Db.Models.Abstract;
 
 namespace Unified.Db.Models;
 
+// Data Migration mapping (Mapster-style):
+// TypeAdapterConfig<LegacyLocation, Location>
+//     .NewConfig()
+//     .Map(dest => dest.JustinLocationCode, src => src.JustinCode);
 [AdaptTo("[name]Dto")]
 public class Location : BaseEntity
 {
@@ -14,7 +18,7 @@ public class Location : BaseEntity
     [Required]
     public string AgencyId { get; set; }
     public string Name { get; set; }
-    public string? JustinCode { get; set; }
+    public string? JustinLocationCode { get; set; }
     public int? ParentLocationId { get; set; }
 
     [AdaptIgnore]

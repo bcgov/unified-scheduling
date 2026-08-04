@@ -10,18 +10,5 @@ public sealed class SheriffRegionSeedData : ISeedData<RegionSeedDefinition>
     private SheriffRegionSeedData() { }
 
     public IReadOnlyList<RegionSeedDefinition> Definitions { get; } =
-    [
-        new()
-        {
-            Id = 100,
-            Name = "Central Programs",
-            Code = "CP",
-        },
-        new()
-        {
-            Id = 101,
-            Name = "Office of the Chief Sheriff",
-            Code = "OCS",
-        },
-    ];
+    [new() { Id = 100, Name = "Central Programs" }, new() { Id = 101, Name = "Office of the Chief Sheriff" }];
 }

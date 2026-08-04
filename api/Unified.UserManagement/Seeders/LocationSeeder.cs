@@ -42,7 +42,7 @@ public sealed class LocationSeeder(
                         Id = seedLocation.Id,
                         AgencyId = seedLocation.AgencyId,
                         Name = seedLocation.Name,
-                        JustinCode = seedLocation.JustinCode,
+                        JustinLocationCode = seedLocation.JustinLocationCode,
                         RegionId = seedLocation.RegionId,
                         Timezone = seedLocation.Timezone,
                     },
@@ -55,7 +55,7 @@ public sealed class LocationSeeder(
             Logger.LogInformation("Updating fields for location with Id {Id}...", seedLocation.Id);
             existingLocation.AgencyId = seedLocation.AgencyId;
             existingLocation.Name = seedLocation.Name;
-            existingLocation.JustinCode = seedLocation.JustinCode;
+            existingLocation.JustinLocationCode = seedLocation.JustinLocationCode;
             existingLocation.RegionId = seedLocation.RegionId;
             existingLocation.Timezone = seedLocation.Timezone;
             updatedCount++;
