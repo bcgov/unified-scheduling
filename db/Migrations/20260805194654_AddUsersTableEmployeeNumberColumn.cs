@@ -14,8 +14,7 @@ namespace Unified.Db.Migrations
                 name: "EmployeeNumber",
                 table: "Users",
                 type: "text",
-                nullable: false,
-                defaultValue: ""
+                nullable: true
             );
 
             migrationBuilder.CreateIndex(

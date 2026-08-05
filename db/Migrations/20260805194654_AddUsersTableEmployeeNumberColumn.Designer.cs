@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20260804194114_AddUsersTableEmployeeNumberColumn")]
+    [Migration("20260805194654_AddUsersTableEmployeeNumberColumn")]
     partial class AddUsersTableEmployeeNumberColumn
     {
         /// <inheritdoc />
@@ -1371,7 +1371,6 @@ namespace Unified.Db.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("EmployeeNumber")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("FirstName")

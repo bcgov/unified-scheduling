@@ -1368,7 +1368,6 @@ namespace Unified.Db.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("EmployeeNumber")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("FirstName")
