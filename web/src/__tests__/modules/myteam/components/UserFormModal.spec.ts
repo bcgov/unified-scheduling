@@ -47,6 +47,7 @@ const validFormData = {
   gender: Gender.Female,
   rank: 'Constable',
   badgeNumber: 'B001',
+  employeeNumber: 'EMP001',
   homeLocationId: 1,
   isEnabled: true,
 };
