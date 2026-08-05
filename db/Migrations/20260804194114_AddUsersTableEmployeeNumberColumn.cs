@@ -15,25 +15,23 @@ namespace Unified.Db.Migrations
                 table: "Users",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: ""
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_EmployeeNumber",
                 table: "Users",
                 column: "EmployeeNumber",
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_Users_EmployeeNumber",
-                table: "Users");
+            migrationBuilder.DropIndex(name: "IX_Users_EmployeeNumber", table: "Users");
 
-            migrationBuilder.DropColumn(
-                name: "EmployeeNumber",
-                table: "Users");
+            migrationBuilder.DropColumn(name: "EmployeeNumber", table: "Users");
         }
     }
 }
