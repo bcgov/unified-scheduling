@@ -50,7 +50,7 @@ const handleDelete = async () => {
     <p>
       Are you sure you want to delete
       <strong>{{ training.trainingCode }}</strong>
-      awarded on
+      from
       <strong>{{ training.awardedOn.slice(0, 10) }}</strong>
       ?
     </p>
