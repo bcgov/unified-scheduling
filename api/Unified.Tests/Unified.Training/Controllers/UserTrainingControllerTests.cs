@@ -42,7 +42,7 @@ public class UserTrainingControllerTests
     {
         var response = new[] { SampleResponse(), SampleResponse(2) };
         var service = new FakeUserTrainingService { GetAllResult = response };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.GetAllByUser(OtherUserId, TestContext.Current.CancellationToken);
 
@@ -55,7 +55,7 @@ public class UserTrainingControllerTests
     {
         var response = new[] { SampleResponse() };
         var service = new FakeUserTrainingService { GetAllResult = response };
-        var controller = BuildController(service, callerId: null);
+        var controller = BuildController(service);
 
         var result = await controller.GetAllByUser(OtherUserId, TestContext.Current.CancellationToken);
 
@@ -68,7 +68,7 @@ public class UserTrainingControllerTests
     {
         var response = new[] { SampleResponse(), SampleResponse(2) };
         var service = new FakeUserTrainingService { GetAllResult = response };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.GetAllByUser(OtherUserId, TestContext.Current.CancellationToken);
 
@@ -81,7 +81,7 @@ public class UserTrainingControllerTests
     {
         var response = SampleResponse();
         var service = new FakeUserTrainingService { GetByTrainingAndUserResult = response };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.GetByTrainingAndUser(1, OtherUserId, TestContext.Current.CancellationToken);
 
@@ -93,7 +93,7 @@ public class UserTrainingControllerTests
     public async Task GetByTrainingAndUser_WhenNotFound_Returns404()
     {
         var service = new FakeUserTrainingService { GetByTrainingAndUserResult = null };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.GetByTrainingAndUser(1, OtherUserId, TestContext.Current.CancellationToken);
 
@@ -107,7 +107,7 @@ public class UserTrainingControllerTests
     {
         var response = SampleResponse();
         var service = new FakeUserTrainingService { CreateResult = response };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.Create(ValidRequest(), TestContext.Current.CancellationToken);
 
@@ -121,7 +121,7 @@ public class UserTrainingControllerTests
     {
         var response = SampleResponse();
         var service = new FakeUserTrainingService { CreateResult = response };
-        var controller = BuildController(service, callerId: null);
+        var controller = BuildController(service);
 
         var result = await controller.Create(ValidRequest(), TestContext.Current.CancellationToken);
 
@@ -132,7 +132,7 @@ public class UserTrainingControllerTests
     [Fact]
     public async Task Create_WhenRequestIsInvalid_ThrowsValidationException()
     {
-        var controller = BuildController(new FakeUserTrainingService(), callerId: UserId);
+        var controller = BuildController(new FakeUserTrainingService());
         var badRequest = new UserTrainingRequest
         {
             UserId = Guid.Empty, // invalid
@@ -153,7 +153,7 @@ public class UserTrainingControllerTests
     {
         var response = SampleResponse(42);
         var service = new FakeUserTrainingService { UpdateResult = response };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.Update(42, ValidRequest(), TestContext.Current.CancellationToken);
 
@@ -165,7 +165,7 @@ public class UserTrainingControllerTests
     public async Task Update_WhenNotFound_Returns404()
     {
         var service = new FakeUserTrainingService { UpdateResult = null };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.Update(99, ValidRequest(), TestContext.Current.CancellationToken);
 
@@ -177,7 +177,7 @@ public class UserTrainingControllerTests
     {
         var response = SampleResponse(1);
         var service = new FakeUserTrainingService { UpdateResult = response };
-        var controller = BuildController(service, callerId: null);
+        var controller = BuildController(service);
 
         var result = await controller.Update(1, ValidRequest(), TestContext.Current.CancellationToken);
 
@@ -191,7 +191,7 @@ public class UserTrainingControllerTests
     public async Task Delete_WhenFound_Returns204NoContent()
     {
         var service = new FakeUserTrainingService { DeleteResult = true };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.Delete(1, TestContext.Current.CancellationToken);
 
@@ -202,7 +202,7 @@ public class UserTrainingControllerTests
     public async Task Delete_WhenNotFound_Returns404()
     {
         var service = new FakeUserTrainingService { DeleteResult = false };
-        var controller = BuildController(service, callerId: UserId);
+        var controller = BuildController(service);
 
         var result = await controller.Delete(99, TestContext.Current.CancellationToken);
 
@@ -213,7 +213,7 @@ public class UserTrainingControllerTests
     public async Task Delete_WhenUserIdClaimMissing_Returns204NoContent()
     {
         var service = new FakeUserTrainingService { DeleteResult = true };
-        var controller = BuildController(service, callerId: null);
+        var controller = BuildController(service);
 
         var result = await controller.Delete(1, TestContext.Current.CancellationToken);
 
@@ -222,11 +222,9 @@ public class UserTrainingControllerTests
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static UserTrainingController BuildController(IUserTrainingService service, Guid? callerId)
+    private static UserTrainingController BuildController(IUserTrainingService service)
     {
-        var controller = new UserTrainingController(service, new UserTrainingRequestValidator());
-        controller.ControllerContext = ControllerContextFactory.CreateWithUserId(callerId);
-        return controller;
+        return new UserTrainingController(service, new UserTrainingRequestValidator());
     }
 
     private sealed class FakeUserTrainingService : IUserTrainingService
