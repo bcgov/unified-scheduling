@@ -111,6 +111,10 @@ const createUserFormSchema = PostApiUsersBody.extend({
   email: PostApiUsersBody.shape.email.min(1, validationMessages.required).email(validationMessages.invalidEmail),
   idirName: PostApiUsersBody.shape.idirName.min(1, validationMessages.required),
   rank: PostApiUsersBody.shape.rank.min(1, validationMessages.required),
+  employeeNumber: PostApiUsersBody.shape.employeeNumber
+    .trim()
+    .min(1, validationMessages.required)
+    .max(100, validationMessages.tooLong),
   homeLocationId: PostApiUsersBody.shape.homeLocationId.refine((value) => value !== undefined, {
     message: validationMessages.required,
   }),

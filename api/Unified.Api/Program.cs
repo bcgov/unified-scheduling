@@ -148,7 +148,7 @@ var app = builder.Build();
 
     // Run database migrations
     var migrationService = app.Services.GetRequiredService<MigrationAndSeedService>();
-    // await migrationService.ExecuteMigrationsAndSeeds();
+    await migrationService.ExecuteMigrationsAndSeeds();
 
     // Configure the HTTP request pipeline.
     app.UseExceptionHandler();
