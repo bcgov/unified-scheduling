@@ -1,4 +1,4 @@
-namespace Unified.FeatureFlags;
+namespace Unified.Common.FeatureFlags;
 
 /// <summary>
 /// Base contract for module-specific feature flags.
