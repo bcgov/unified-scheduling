@@ -21,6 +21,7 @@ const user: UserResponse = {
   gender: 'Male' as UserResponse['gender'],
   rank: null,
   badgeNumber: null,
+  employeeNumber: 'EMP001',
   homeLocationId: 1,
   lastLogin: null,
 };

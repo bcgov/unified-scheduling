@@ -31,6 +31,7 @@ const baseUser: UserResponse = {
   gender: Gender.Female,
   rank: null,
   badgeNumber: null,
+  employeeNumber: 'EMP001',
   homeLocationId: null,
   lastLogin: null,
   photoUrl: null,
