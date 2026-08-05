@@ -306,6 +306,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = Gender.Other,
             Rank = "Deputy Sheriff",
             BadgeNumber = "BADGE-NEW",
+            EmployeeNumber = "EMP-001",
             HomeLocationId = 1,
         };
 
@@ -345,6 +346,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = Gender.Other,
             Rank = "Deputy Sheriff",
             BadgeNumber = "BADGE-PENDING",
+            EmployeeNumber = "EMP-002",
             HomeLocationId = 1,
         };
 
@@ -373,6 +375,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = Gender.Other,
             Rank = "Deputy Sheriff",
             BadgeNumber = "BADGE-DUPLICATE",
+            EmployeeNumber = "EMP-003",
             HomeLocationId = 1,
         };
 
@@ -400,6 +403,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = existingUser.Gender,
             Rank = existingUser.Rank,
             BadgeNumber = existingUser.BadgeNumber,
+            EmployeeNumber = existingUser.EmployeeNumber ?? "",
             HomeLocationId = existingUser.HomeLocationId ?? 1,
         };
 
@@ -422,6 +426,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = Gender.Female,
             Rank = "  Sergeant  ",
             BadgeNumber = "  BADGE-TRIM  ",
+            EmployeeNumber = "  EMP-004  ",
             HomeLocationId = 1,
         };
 
@@ -459,6 +464,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = Gender.Male,
             Rank = "Sergeant",
             BadgeNumber = "BADGE-005",
+            EmployeeNumber = "EMP-005",
             HomeLocationId = 5,
         };
 
@@ -498,6 +504,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = Gender.Female,
             Rank = "Deputy Sheriff",
             BadgeNumber = "BADGE-001",
+            EmployeeNumber = "EMP-006",
             HomeLocationId = 1,
         };
 
@@ -524,6 +531,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = Gender.Other,
             Rank = "  Deputy Sheriff  ",
             BadgeNumber = "  BADGE-001  ",
+            EmployeeNumber = "  EMP-007  ",
             HomeLocationId = 1,
         };
 
@@ -561,6 +569,7 @@ public class UserServiceTests : IAsyncLifetime
             Gender = Gender.Other,
             Rank = "Deputy Sheriff",
             BadgeNumber = "BADGE-001",
+            EmployeeNumber = "EMP-008",
             HomeLocationId = 1,
         };
 

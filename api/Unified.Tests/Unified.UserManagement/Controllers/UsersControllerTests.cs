@@ -132,6 +132,7 @@ public class UsersControllerTests
             Gender = Gender.Male,
             Rank = "Sergeant",
             BadgeNumber = "BADGE-NEW",
+            EmployeeNumber = "EMP-001",
             HomeLocationId = 1,
         };
 
@@ -165,6 +166,7 @@ public class UsersControllerTests
             Gender = Gender.Female,
             Rank = "Sergeant",
             BadgeNumber = "BADGE-UPDATED",
+            EmployeeNumber = "EMP-002",
             HomeLocationId = 2,
         };
 
@@ -196,6 +198,7 @@ public class UsersControllerTests
             Gender = Gender.Other,
             Rank = "Constable",
             BadgeNumber = "BADGE-UPDATED",
+            EmployeeNumber = "EMP-003",
             HomeLocationId = 1,
         };
 
@@ -320,6 +323,7 @@ public class UsersControllerTests
             Gender = Gender.Other,
             Rank = "Deputy Sheriff",
             BadgeNumber = "BADGE-TEST",
+            EmployeeNumber = "EMP-TEST",
             HomeLocationId = 1,
             LastLogin = DateTimeOffset.UtcNow,
             PendingRegistration = false,
