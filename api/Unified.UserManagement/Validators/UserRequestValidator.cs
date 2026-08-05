@@ -34,13 +34,9 @@ public class UserRequestValidator : AbstractValidator<UserRequestDto>
             .WithMessage("Email must be a valid email address.")
             .When(x => x.Email is not null);
 
-        RuleFor(x => x.Gender)
-            .IsInEnum()
-            .WithMessage("Gender must be a valid value.");
+        RuleFor(x => x.Gender).IsInEnum().WithMessage("Gender must be a valid value.");
 
-        RuleFor(x => x.HomeLocationId)
-            .GreaterThan(0)
-            .WithMessage("Home location is required.");
+        RuleFor(x => x.HomeLocationId).GreaterThan(0).WithMessage("Home location is required.");
 
         RuleFor(x => x.Rank)
             .NotEmpty()

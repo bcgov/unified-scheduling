@@ -45,7 +45,10 @@ public class GlobalExceptionHandler : IExceptionHandler
             InvalidDataException ex => HandleInvalidDataException(ex, httpContext),
             InvalidOperationException ex => HandleInvalidOperationException(ex, httpContext),
             DbUpdateConcurrencyException ex => HandleConcurrencyException(ex, httpContext),
-            DbUpdateException ex when IsUniqueConstraintViolation(ex) => HandleUniqueConstraintException(ex, httpContext),
+            DbUpdateException ex when IsUniqueConstraintViolation(ex) => HandleUniqueConstraintException(
+                ex,
+                httpContext
+            ),
             OpenIdConnectProtocolException ex => HandleAuthenticationException(ex, httpContext),
             _ => HandleUnknownException(exception, httpContext),
         };
