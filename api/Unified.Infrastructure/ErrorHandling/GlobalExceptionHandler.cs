@@ -45,6 +45,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             InvalidDataException ex => HandleInvalidDataException(ex, httpContext),
             InvalidOperationException ex => HandleInvalidOperationException(ex, httpContext),
             DbUpdateConcurrencyException ex => HandleConcurrencyException(ex, httpContext),
+            DbUpdateException ex when IsUniqueConstraintViolation(ex) => HandleUniqueConstraintException(ex, httpContext),
             OpenIdConnectProtocolException ex => HandleAuthenticationException(ex, httpContext),
             _ => HandleUnknownException(exception, httpContext),
         };
@@ -155,6 +156,37 @@ public class GlobalExceptionHandler : IExceptionHandler
 
         var limitKb = limitBytes / 1024;
         return $"The file exceeds the maximum allowed size of {limitKb} KB.";
+    }
+
+    // PostgresException populates Data["SqlState"] without requiring a direct Npgsql reference
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex) =>
+        ex.InnerException?.Data["SqlState"]?.ToString() == "23505";
+
+    private ProblemDetails HandleUniqueConstraintException(DbUpdateException ex, HttpContext httpContext)
+    {
+        _logger.LogInformation(ex, "Unique constraint violation: {Message}", ex.InnerException!.Message);
+        httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+
+        var constraintName = ex.InnerException.Data["ConstraintName"]?.ToString() ?? string.Empty;
+        var detail = BuildUniqueConstraintDetail(constraintName);
+
+        return new ProblemDetails
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "Conflict.",
+            Detail = detail,
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+        };
+    }
+
+    private static string BuildUniqueConstraintDetail(string constraintName)
+    {
+        // Map known constraint names to user-readable messages
+        return constraintName switch
+        {
+            "IX_Users_EmployeeNumber" => "A user with this employee number already exists.",
+            _ => "A record with the same value already exists.",
+        };
     }
 
     private ProblemDetails HandleConcurrencyException(DbUpdateConcurrencyException ex, HttpContext httpContext)
