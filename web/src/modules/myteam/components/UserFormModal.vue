@@ -188,8 +188,8 @@ const handleSave = async () => {
       const { data, error } = await putApiUsersId(currentUser.value.id, payload);
 
       if (error.value) {
-        if (applyServerValidationErrors(data.value)) return;
-        apiErrorMessage.value = error.value.message || 'Failed to update user';
+        if (applyServerValidationErrors(error.value)) return;
+        apiErrorMessage.value = error.value.detail || 'Failed to update user';
         return;
       }
 
@@ -200,8 +200,8 @@ const handleSave = async () => {
       const { data, error } = await postApiUsers(payload);
 
       if (error.value) {
-        if (applyServerValidationErrors(data.value)) return;
-        apiErrorMessage.value = error.value.message || 'Failed to create user';
+        if (applyServerValidationErrors(error.value)) return;
+        apiErrorMessage.value = error.value.detail || 'Failed to create user';
         return;
       }
 
