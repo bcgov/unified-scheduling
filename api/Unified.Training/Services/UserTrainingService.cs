@@ -10,6 +10,8 @@ namespace Unified.Training.Services;
 
 public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingService
 {
+    private static readonly DateTimeOffset MinDateTimeOffsetUtc = DateTimeOffset.MinValue;
+
     public async Task<IReadOnlyCollection<UserTrainingResponse>> GetUserTrainings(
         Guid userId,
         CancellationToken cancellationToken = default
@@ -20,7 +22,23 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
             .OrderByDescending(ut => ut.AwardedOn)
             .ThenByDescending(ut => ut.Version)
             .ThenByDescending(ut => ut.Id)
-            .ProjectToType<UserTrainingResponse>(UserTrainingMappings.ResponseConfig)
+            .Select(ut => new UserTrainingResponse
+            {
+                Id = ut.Id,
+                UserId = ut.UserId,
+                TrainingId = ut.TrainingId,
+                Version = ut.Version,
+                TrainingCode = ut.Training.Code,
+                TrainingCategoryName =
+                    ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
+                AwardedOn = ut.AwardedOn,
+                EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
+                ExpiryDate = ut.ExpiryDate,
+                NoticeState = ut.NoticeState,
+                Notes = ut.Notes,
+                CreatedOn = ut.CreatedOn,
+                UpdatedOn = ut.UpdatedOn,
+            })
             .ToListAsync(cancellationToken);
     }
 
@@ -34,7 +52,23 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
             .UserTrainings.Where(ut => ut.UserId == userId && ut.TrainingId == trainingId)
             .OrderByDescending(ut => ut.Version)
             .ThenByDescending(ut => ut.Id)
-            .ProjectToType<UserTrainingResponse>(UserTrainingMappings.ResponseConfig)
+            .Select(ut => new UserTrainingResponse
+            {
+                Id = ut.Id,
+                UserId = ut.UserId,
+                TrainingId = ut.TrainingId,
+                Version = ut.Version,
+                TrainingCode = ut.Training.Code,
+                TrainingCategoryName =
+                    ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
+                AwardedOn = ut.AwardedOn,
+                EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
+                ExpiryDate = ut.ExpiryDate,
+                NoticeState = ut.NoticeState,
+                Notes = ut.Notes,
+                CreatedOn = ut.CreatedOn,
+                UpdatedOn = ut.UpdatedOn,
+            })
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -198,6 +232,22 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
     private async Task<UserTrainingResponse> FetchResponseAsync(int id, CancellationToken cancellationToken) =>
         await db
             .UserTrainings.Where(ut => ut.Id == id)
-            .ProjectToType<UserTrainingResponse>(UserTrainingMappings.ResponseConfig)
+            .Select(ut => new UserTrainingResponse
+            {
+                Id = ut.Id,
+                UserId = ut.UserId,
+                TrainingId = ut.TrainingId,
+                Version = ut.Version,
+                TrainingCode = ut.Training.Code,
+                TrainingCategoryName =
+                    ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
+                AwardedOn = ut.AwardedOn,
+                EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
+                ExpiryDate = ut.ExpiryDate,
+                NoticeState = ut.NoticeState,
+                Notes = ut.Notes,
+                CreatedOn = ut.CreatedOn,
+                UpdatedOn = ut.UpdatedOn,
+            })
             .SingleAsync(cancellationToken);
 }

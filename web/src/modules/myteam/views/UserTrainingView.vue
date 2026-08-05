@@ -66,7 +66,8 @@ const selectedDetailsTraining = ref<UserTrainingResponse | null>(null);
 const headers = computed(() => [
   { title: 'Training', key: 'trainingCode', sortable: true },
   { title: 'Category', key: 'trainingCategoryName', sortable: true },
-  { title: 'Awarded On', key: 'awardedOn', sortable: true },
+  { title: 'From', key: 'awardedOn', sortable: true },
+  { title: 'To', key: 'endingOn', sortable: true },
   { title: 'Expiry Date', key: 'expiryDate', sortable: true },
   { title: 'Status', key: 'status', sortable: false },
   { title: 'Notice State', key: 'noticeState', sortable: true },
@@ -251,6 +252,10 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
 
       <template #[`item.awardedOn`]="{ item }">
         {{ toCalendarDateString(item.awardedOn) ?? '-' }}
+      </template>
+
+      <template #[`item.endingOn`]="{ item }">
+        {{ toCalendarDateString(item.endingOn ?? item.awardedOn) ?? '-' }}
       </template>
 
       <template #[`item.expiryDate`]="{ item }">

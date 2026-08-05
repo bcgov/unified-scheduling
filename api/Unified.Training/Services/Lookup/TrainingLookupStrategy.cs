@@ -1,6 +1,5 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
-using Unified.Common.PostSave;
 using Unified.Core.Models;
 using Unified.Db;
 using Unified.Training.Models;
@@ -8,8 +7,7 @@ using TrainingEntity = Unified.Db.Models.Training.Training;
 
 namespace Unified.Training.Services.Lookup;
 
-public sealed class TrainingLookupStrategy(UnifiedDbContext db, IEntityPostSaveDispatcher postSaveDispatcher)
-    : ITrainingLookupStrategy
+public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLookupStrategy
 {
     public LookupCodeTypes CodeType => LookupCodeTypes.Trainings;
 
@@ -60,8 +58,6 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db, IEntityPostSaveD
         db.Trainings.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
 
-        await postSaveDispatcher.DispatchCreateAsync(entity, cancellationToken);
-
         return await GetRequiredByIdAsync(entity.Id, cancellationToken);
     }
 
@@ -78,14 +74,9 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db, IEntityPostSaveD
         await EnsureCategoryExistsAsync(request.TrainingCategoryId, cancellationToken);
 
         var normalizedRequest = NormalizeRequest(request);
-
-        // Snapshot before mutation so update handlers can compare old vs new state.
-        var previous = entity.Adapt<TrainingEntity>();
         normalizedRequest.Adapt(entity);
 
         await db.SaveChangesAsync(cancellationToken);
-
-        await postSaveDispatcher.DispatchUpdateAsync(entity, previous, cancellationToken);
 
         return await GetRequiredByIdAsync(id, cancellationToken);
     }

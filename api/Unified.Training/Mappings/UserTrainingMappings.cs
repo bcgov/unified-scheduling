@@ -16,6 +16,7 @@ public static class UserTrainingMappings
         config
             .NewConfig<UserTraining, UserTrainingResponse>()
             .Map(dest => dest.TrainingCode, src => src.Training.Code)
+            .Map(dest => dest.EndingOn, src => src.EndingOn == DateTimeOffset.MinValue ? src.AwardedOn : src.EndingOn)
             .Map(
                 dest => dest.TrainingCategoryName,
                 src => src.Training.TrainingCategory != null ? src.Training.TrainingCategory.Name : string.Empty

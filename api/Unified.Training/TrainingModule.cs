@@ -13,7 +13,6 @@ using Unified.Core.Services.Lookup;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
-using TrainingEntity = Unified.Db.Models.Training.Training;
 
 namespace Unified.Training;
 

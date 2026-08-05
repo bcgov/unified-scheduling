@@ -33,6 +33,7 @@ public class UserTrainingControllerTests
             TrainingCode = "FA",
             TrainingCategoryName = "Safety",
             AwardedOn = DateTimeOffset.UtcNow,
+            EndingOn = DateTimeOffset.UtcNow.AddDays(1),
             NoticeState = "None",
         };
 

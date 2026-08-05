@@ -56,6 +56,27 @@ public class UserTrainingRequestValidatorTests
     }
 
     [Fact]
+    public async Task Validate_WhenEndingOnIsDefault_FailsValidation()
+    {
+        var request = ValidRequest() with { EndingOn = default };
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task Validate_WhenEndingOnIsBeforeAwardedOn_FailsValidation()
+    {
+        var awardedOn = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var request = ValidRequest() with { AwardedOn = awardedOn, EndingOn = awardedOn.AddDays(-1) };
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public async Task Validate_WhenExpiryDateIsAfterAwardedOn_PassesValidation()
     {
         var awardedOn = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);

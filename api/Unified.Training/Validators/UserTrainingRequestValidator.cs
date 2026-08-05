@@ -23,6 +23,16 @@ public sealed class UserTrainingRequestValidator : AbstractValidator<UserTrainin
             .WithErrorCode(ApiValidationErrorCodes.Required)
             .WithMessage(ApiValidationErrorCodes.Required);
 
+        RuleFor(x => x.EndingOn)
+            .NotEmpty()
+            .WithErrorCode(ApiValidationErrorCodes.Required)
+            .WithMessage(ApiValidationErrorCodes.Required);
+
+        RuleFor(x => x.EndingOn)
+            .GreaterThanOrEqualTo(x => x.AwardedOn)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage("Ending date must be on or after the awarded date.");
+
         RuleFor(x => x.ExpiryDate)
             .GreaterThan(x => x.AwardedOn)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)

@@ -55,7 +55,8 @@ const formErrors = ref<Record<string, string>>({});
 const createFormData = () => ({
   trainingId: undefined as number | undefined,
   trainingCode: '',
-  awardedOn: getTodayDateInputValue(),
+  awardedOn: '',
+  endingOn: '',
   expiryDate: '',
   notes: '',
 });
@@ -69,10 +70,22 @@ const resolveTrainingDisplay = (training: UserTrainingResponse) => {
   return option?.description ?? '';
 };
 
+const isSentinelDateInputValue = (value: string | null | undefined) => value === '0001-01-01';
+
+const resolveEndingOnInputValue = (training: UserTrainingResponse) => {
+  const endingOn = toDateInputValue(training.endingOn);
+  if (endingOn && !isSentinelDateInputValue(endingOn)) {
+    return endingOn;
+  }
+
+  return toDateInputValue(training.awardedOn) ?? getTodayDateInputValue();
+};
+
 const populateFormData = (training: UserTrainingResponse) => ({
   trainingId: training.trainingId,
   trainingCode: resolveTrainingDisplay(training),
   awardedOn: toDateInputValue(training.awardedOn) ?? getTodayDateInputValue(),
+  endingOn: resolveEndingOnInputValue(training),
   expiryDate: toDateInputValue(training.expiryDate) ?? '',
   notes: training.notes ?? '',
 });
@@ -81,6 +94,7 @@ const populateRenewFormData = (training: UserTrainingResponse) => ({
   trainingId: training.trainingId,
   trainingCode: resolveTrainingDisplay(training),
   awardedOn: toDateInputValue(training.awardedOn) ?? getTodayDateInputValue(),
+  endingOn: resolveEndingOnInputValue(training),
   expiryDate: toDateInputValue(training.expiryDate) ?? '',
   notes: training.notes ?? '',
 });
@@ -104,7 +118,8 @@ const formData = ref(getInitialFormData());
 
 const schema = zod.object({
   trainingId: zod.number({ error: 'Training is required.' }),
-  awardedOn: zod.string().min(1, 'Awarded on date is required.'),
+  awardedOn: zod.string().min(1, 'From date is required.'),
+  endingOn: zod.string().min(1, 'To date is required.'),
   expiryDate: zod.string(),
   notes: zod.string(),
 });
@@ -145,7 +160,7 @@ const buildRequest = (): UserTrainingRequest | null => {
     userId: props.userId,
     trainingId: parsed.data.trainingId,
     awardedOn: toOffsetDateTimeString(parsed.data.awardedOn, '', 'America/Vancouver'),
-    endingOn: toOffsetDateTimeString(parsed.data.awardedOn, '', 'America/Vancouver'),
+    endingOn: toOffsetDateTimeString(parsed.data.endingOn, '', 'America/Vancouver'),
     expiryDate: parsed.data.expiryDate
       ? toOffsetDateTimeString(parsed.data.expiryDate, '23:59', 'America/Vancouver')
       : null,
@@ -222,8 +237,16 @@ const handleSave = async () => {
         id="user-training-awarded-on"
         v-model="formData.awardedOn"
         type="date"
-        label="Awarded On"
+        label="From"
         :error-messages="formErrors.awardedOn"
+      />
+
+      <UaTextField
+        id="user-training-ending-on"
+        v-model="formData.endingOn"
+        type="date"
+        label="To"
+        :error-messages="formErrors.endingOn"
       />
 
       <UaTextField

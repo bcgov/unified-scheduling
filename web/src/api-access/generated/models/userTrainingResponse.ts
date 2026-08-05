@@ -12,6 +12,7 @@ export interface UserTrainingResponse {
   trainingCode: string;
   trainingCategoryName: string;
   awardedOn: string;
+  endingOn?: string;
   /** @nullable */
   expiryDate?: string | null;
   noticeState: string;
