@@ -1149,6 +1149,9 @@ namespace Unified.Db.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<DateTimeOffset>("EndingOn")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -1173,6 +1176,11 @@ namespace Unified.Db.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedById");
@@ -1186,6 +1194,9 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UserId");
 
                     b.HasIndex("UserId", "TrainingId", "AwardedOn");
+
+                    b.HasIndex("UserId", "TrainingId", "Version")
+                        .IsUnique();
 
                     b.ToTable("UserTrainings");
                 });

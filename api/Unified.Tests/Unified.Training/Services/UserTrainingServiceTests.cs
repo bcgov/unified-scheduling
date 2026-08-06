@@ -177,7 +177,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
         Assert.Equal(TrainingId, result.TrainingId);
         Assert.Equal("FA", result.TrainingCode);
         Assert.Equal("Safety", result.TrainingCategoryName);
-        Assert.Equal(Today, result.ExpiryDate);
+        Assert.Null(result.ExpiryDate);
     }
 
     [Fact]

@@ -14,8 +14,8 @@ public static class UserTrainingHelper
 
     /// <summary>
     /// Auto-calculates the expiry date from the training type's <c>ValidityDays</c>.
-    /// Returns <paramref name="awardedOn"/> when the training has no validity period.
+    /// Returns <c>null</c> when the training has no validity period.
     /// </summary>
     public static DateTimeOffset? CalculateExpiryDate(DateTimeOffset awardedOn, int? validityDays) =>
-        validityDays.HasValue ? awardedOn.AddDays(validityDays.Value) : awardedOn;
+        validityDays.HasValue ? awardedOn.AddDays(validityDays.Value) : null;
 }

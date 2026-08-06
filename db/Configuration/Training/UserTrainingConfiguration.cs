@@ -10,7 +10,7 @@ public class UserTrainingConfiguration : BaseEntityConfiguration<UserTraining>
     {
         builder.Property(b => b.Id).HasIdentityOptions(startValue: 200);
 
-        builder.Property(b => b.Version).IsRequired();
+        builder.Property(b => b.Version).HasDefaultValue(1).IsRequired();
         builder.Property(b => b.NoticeState).HasMaxLength(50).IsRequired();
         builder.Property(b => b.Notes).HasMaxLength(2000);
 

@@ -56,13 +56,13 @@ public class UserTrainingHelperTests
     }
 
     [Fact]
-    public void CalculateExpiryDate_WhenValidityDaysIsNull_ReturnsAwardedOn()
+    public void CalculateExpiryDate_WhenValidityDaysIsNull_ReturnsNull()
     {
         var awardedOn = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero);
 
         var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, null);
 
-        Assert.Equal(awardedOn, expiry);
+        Assert.Null(expiry);
     }
 
     [Fact]

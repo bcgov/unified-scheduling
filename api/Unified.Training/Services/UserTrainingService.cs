@@ -184,10 +184,10 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
         DateTimeOffset? previousVersionExpiryDate
     )
     {
-        if (!previousVersionExpiryDate.HasValue)
+        if (!previousVersionExpiryDate.HasValue || !expiryDate.HasValue)
             return;
 
-        if (!expiryDate.HasValue || expiryDate <= previousVersionExpiryDate)
+        if (expiryDate <= previousVersionExpiryDate)
             throw new InvalidOperationException("Expiry date must be later than the previous version expiry date.");
     }
 
