@@ -36,11 +36,7 @@ public class UserServiceTests : IAsyncLifetime
                 new UserManagementFeatureFlags
                 {
                     Enabled = true,
-                    UserBadgeNumber = new UserBadgeNumberFlags
-                    {
-                        Enabled = userBadgeNumberEnabled,
-                        Required = false,
-                    },
+                    UserBadgeNumber = new UserBadgeNumberFlags { Enabled = userBadgeNumberEnabled, Required = false },
                 }
             ),
             NullLogger<UserService>.Instance

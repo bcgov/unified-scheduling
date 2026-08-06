@@ -108,12 +108,7 @@ public sealed class SeederRegistrationTests
     {
         var services = CreateServices();
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    ["FeatureFlags:Stats:Enabled"] = "true",
-                }
-            )
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["FeatureFlags:Stats:Enabled"] = "true" })
             .Build();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddStatsModule();

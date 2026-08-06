@@ -17,8 +17,7 @@ public sealed class UserService(
     UnifiedDbContext DB,
     IOptions<UserManagementFeatureFlags> featureFlags,
     ILogger<UserService> logger
-)
-    : IUserService
+) : IUserService
 {
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,

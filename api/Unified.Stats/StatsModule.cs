@@ -4,9 +4,9 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Common.FeatureFlags;
 using Unified.Common.Seeding;
 using Unified.Db;
-using Unified.Common.FeatureFlags;
 using Unified.Stats.FeatureFlags;
 using Unified.Stats.Seeders;
 using Unified.Stats.Services;
@@ -30,14 +30,11 @@ public static class StatsModule
 
     public static IServiceCollection AddStatsModule(this IServiceCollection s)
     {
-        s
-            .AddOptions<StatsFeatureFlags>()
+        s.AddOptions<StatsFeatureFlags>()
             .BindConfiguration(StatsFeatureFlags.Section)
             .ValidateDataAnnotations()
             .ValidateOnStart();
-        s.AddSingleton<IFeatureFlags>(sp =>
-            sp.GetRequiredService<IOptionsMonitor<StatsFeatureFlags>>().CurrentValue
-        );
+        s.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptionsMonitor<StatsFeatureFlags>>().CurrentValue);
 
         if (!IsModuleEnabled(s))
         {
