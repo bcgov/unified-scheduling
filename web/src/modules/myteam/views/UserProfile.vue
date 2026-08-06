@@ -21,7 +21,9 @@ const showBadgeNumber = computed(
   () => accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled ?? false,
 );
 const showTrainingTab = computed(
-  () => accessControl.isFeatureFlagEnabled('trainingModule') && accessControl.hasPermission(trainingsViewPermission),
+  () =>
+    accessControl.isFeatureFlagEnabled('trainingModule') &&
+    accessControl.hasPermission(Permissions.UserTrainingsView),
 );
 const showEditUserModal = ref(false);
 // Uses lastPhotoUpdate as a cache-busting query param so the browser re-fetches
