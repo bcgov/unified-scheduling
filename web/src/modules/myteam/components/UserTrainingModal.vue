@@ -205,16 +205,6 @@ const handleSave = async () => {
     </template>
 
     <UaFormGrid>
-      <!-- <UaSelect
-        v-if="!isEditMode"
-        id="user-training-training"
-        v-model="formData.trainingCode"
-        label="Training"
-        type="select"
-        :items="props.trainingOptions"
-        :options="props.trainingOptions"
-        :error-messages="formErrors.trainingCode"
-      /> -->
       <label v-if="!isEditMode && !isRenewMode" class="ua-form-label" for="user-training-training">Training</label>
       <UaSelect
         v-if="!isEditMode && !isRenewMode"
