@@ -220,12 +220,15 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
             .ThenByDescending(ut => ut.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-    private async Task<TrainingRules> GetTrainingRulesAsync(int trainingId, CancellationToken cancellationToken) =>
-        await db
+    private async Task<TrainingRules> GetTrainingRulesAsync(int trainingId, CancellationToken cancellationToken)
+    {
+        var rules = await db
             .Trainings.Where(t => t.Id == trainingId)
             .Select(t => new TrainingRules(t.ValidityDays, t.Rotating))
-            .SingleOrDefaultAsync(cancellationToken)
-        ?? new TrainingRules(null, false);
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return rules ?? throw new InvalidOperationException($"Training {trainingId} was not found.");
+    }
 
     private sealed record TrainingRules(int? ValidityDays, bool Rotating);
 
