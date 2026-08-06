@@ -9,7 +9,10 @@ namespace Unified.Stats.FeatureFlags;
 /// </summary>
 public class StatsFeatureFlags : IFeatureFlags
 {
-    public string Source => "Stats";
+    public const string SourceName = "Stats";
+    public static string Section => IFeatureFlags.GetSection(SourceName);
+
+    public string Source { get; } = SourceName;
 
     [Required(ErrorMessage = "Stats.Enabled feature flag is required.")]
     public bool Enabled { get; set; }

@@ -9,7 +9,10 @@ namespace Unified.Calendar.FeatureFlags;
 /// </summary>
 public class CalendarFeatureFlags : IFeatureFlags
 {
-    public string Source => "Calendar";
+    public const string SourceName = "Calendar";
+    public static string Section => IFeatureFlags.GetSection(SourceName);
+
+    public string Source { get; } = SourceName;
 
     [Required(ErrorMessage = "Calendar.Enabled feature flag is required.")]
     public bool Enabled { get; set; }

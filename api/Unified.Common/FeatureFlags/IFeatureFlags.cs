@@ -8,6 +8,23 @@ namespace Unified.Common.FeatureFlags;
 public interface IFeatureFlags
 {
     /// <summary>
+    /// Root configuration section for all feature flags.
+    /// </summary>
+    const string FeatureFlags = "FeatureFlags";
+
+    /// <summary>
+    /// Build a module-specific configuration section path.
+    /// </summary>
+    /// <param name="source">Module source name.</param>
+    /// <returns>Section path (e.g., FeatureFlags:UserManagement).</returns>
+    static string GetSection(string source) => FeatureFlags + ":" + source;
+
+    /// <summary>
+    /// Module-specific configuration section path.
+    /// </summary>
+    string Section => GetSection(Source);
+
+    /// <summary>
     /// Module/source name (e.g., "UserManagement", "Calendar", "Stats")
     /// Used as dictionary key when aggregating all module flags.
     /// </summary>

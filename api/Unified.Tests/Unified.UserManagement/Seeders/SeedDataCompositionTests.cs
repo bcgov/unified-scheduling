@@ -78,8 +78,8 @@ public sealed class SeedDataCompositionTests
     }
 
     [Theory]
-    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "StatsModule")]
-    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "TrainingModule")]
+    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
+    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
     public void AddConfiguredSeedData_FeatureDataSetDisabled_ThrowsConfigurationError(string dataSet, string feature)
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -91,8 +91,8 @@ public sealed class SeedDataCompositionTests
     }
 
     [Theory]
-    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "StatsModule")]
-    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "TrainingModule")]
+    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
+    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
     public void AddConfiguredSeedData_FeatureEnabledWithoutPermissionDataSet_ThrowsConfigurationError(
         string dataSet,
         string feature
@@ -107,8 +107,8 @@ public sealed class SeedDataCompositionTests
     }
 
     [Theory]
-    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "StatsModule")]
-    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "TrainingModule")]
+    [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
+    [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
     public void AddConfiguredSeedData_FeatureDataSetEnabled_RegistersContribution(string dataSet, string feature)
     {
         var composition = GetComposition(dataSet, feature);
@@ -126,7 +126,9 @@ public sealed class SeedDataCompositionTests
     private static SeedComposition GetComposition(string[] dataSets, string? enabledFeature)
     {
         var services = new ServiceCollection();
+        var moduleConfiguration = BuildConfiguration([]);
         services.AddLogging();
+        services.AddSingleton<IConfiguration>(moduleConfiguration);
         services.AddUserManagementModule();
         services.AddConfiguredSeedData(BuildConfiguration(dataSets, enabledFeature), AllDataSets);
 
@@ -151,6 +153,9 @@ public sealed class SeedDataCompositionTests
             values[$"SeedData:DataSets:{index}"] = dataSets[index];
         if (enabledFeature is not null)
             values[$"FeatureFlags:{enabledFeature}"] = "true";
+        values["FeatureFlags:UserManagement:Enabled"] = "true";
+        values["FeatureFlags:UserManagement:UserBadgeNumber:Enabled"] = "true";
+        values["FeatureFlags:UserManagement:UserBadgeNumber:Required"] = "true";
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 

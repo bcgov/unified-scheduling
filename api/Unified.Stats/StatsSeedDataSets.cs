@@ -19,8 +19,8 @@ public static class StatsSeedDataSets
                     Definitions = StatsPermissionSeedData.Instance.Definitions,
                 },
             ],
-            RequiredFeature: "StatsModule",
-            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:StatsModule")
+            RequiredFeature: "Stats:Enabled",
+            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:Stats:Enabled")
         ),
     ];
 }

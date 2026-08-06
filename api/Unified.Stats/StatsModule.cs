@@ -2,9 +2,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Common.Seeding;
 using Unified.Db;
+using Unified.Common.FeatureFlags;
+using Unified.Stats.FeatureFlags;
 using Unified.Stats.Seeders;
 using Unified.Stats.Services;
 using Unified.Stats.Validators;
@@ -13,8 +16,34 @@ namespace Unified.Stats;
 
 public static class StatsModule
 {
+    public static bool IsModuleEnabled(IServiceCollection services)
+    {
+        using var serviceProvider = services.BuildServiceProvider();
+        return IsModuleEnabled(serviceProvider);
+    }
+
+    public static bool IsModuleEnabled(IServiceProvider serviceProvider)
+    {
+        var optionsMonitor = serviceProvider.GetRequiredService<IOptionsMonitor<StatsFeatureFlags>>();
+        return optionsMonitor.CurrentValue.Enabled;
+    }
+
     public static IServiceCollection AddStatsModule(this IServiceCollection s)
     {
+        s
+            .AddOptions<StatsFeatureFlags>()
+            .BindConfiguration(StatsFeatureFlags.Section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        s.AddSingleton<IFeatureFlags>(sp =>
+            sp.GetRequiredService<IOptionsMonitor<StatsFeatureFlags>>().CurrentValue
+        );
+
+        if (!IsModuleEnabled(s))
+        {
+            return s;
+        }
+
         // Health check
         s.AddScoped<IStatsService, StatsService>();
 
@@ -54,6 +83,11 @@ public static class StatsModule
 
     public static IEndpointRouteBuilder MapStatsEndpoints(this IEndpointRouteBuilder app)
     {
+        if (!IsModuleEnabled(app.ServiceProvider))
+        {
+            return app;
+        }
+
         var g = app.MapGroup("/api/stats").WithTags("Stats");
 
         g.MapGet(

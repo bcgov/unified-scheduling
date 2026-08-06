@@ -9,7 +9,10 @@ namespace Unified.Training.FeatureFlags;
 /// </summary>
 public class TrainingFeatureFlags : IFeatureFlags
 {
-    public string Source => "Training";
+    public const string SourceName = "Training";
+    public static string Section => IFeatureFlags.GetSection(SourceName);
+
+    public string Source { get; } = SourceName;
 
     [Required(ErrorMessage = "Training.Enabled feature flag is required.")]
     public bool Enabled { get; set; }

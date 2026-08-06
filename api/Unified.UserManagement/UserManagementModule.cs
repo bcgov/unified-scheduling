@@ -2,11 +2,14 @@ using FluentValidation;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
+using Unified.Common.FeatureFlags;
+using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Options;
 using Unified.UserManagement.Seeders;
@@ -20,6 +23,18 @@ namespace Unified.UserManagement;
 /// </summary>
 public static class UserManagementModule
 {
+    public static bool IsModuleEnabled(IServiceCollection services)
+    {
+        using var serviceProvider = services.BuildServiceProvider();
+        return IsModuleEnabled(serviceProvider);
+    }
+
+    public static bool IsModuleEnabled(IServiceProvider serviceProvider)
+    {
+        var optionsMonitor = serviceProvider.GetRequiredService<IOptionsMonitor<UserManagementFeatureFlags>>();
+        return optionsMonitor.CurrentValue.Enabled;
+    }
+
     /// <summary>
     /// Add user management module services to the dependency injection container
     /// </summary>
@@ -27,6 +42,23 @@ public static class UserManagementModule
     /// <returns>Service collection for chaining</returns>
     public static IServiceCollection AddUserManagementModule(this IServiceCollection services)
     {
+        // Register UserManagement feature flags
+        services
+            .AddOptions<UserManagementFeatureFlags>()
+            .BindConfiguration(UserManagementFeatureFlags.Section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // Register as IFeatureFlags for aggregation
+        services.AddSingleton<IFeatureFlags>(sp =>
+            sp.GetRequiredService<IOptionsMonitor<UserManagementFeatureFlags>>().CurrentValue
+        );
+
+        if (!IsModuleEnabled(services))
+        {
+            return services;
+        }
+
         services.AddScoped<IUserAccountResolutionService, UserAccountResolutionService>();
         // Map PhotoUrl from Photo presence — expression is EF-translatable so both
         // ProjectToType (list) and Adapt (single user) populate it automatically.

@@ -9,7 +9,10 @@ namespace Unified.UserManagement.FeatureFlags;
 /// </summary>
 public class UserManagementFeatureFlags : IFeatureFlags
 {
-    public string Source => "UserManagement";
+    public const string SourceName = "UserManagement";
+    public static string Section => IFeatureFlags.GetSection(SourceName);
+
+    public string Source { get; } = SourceName;
 
     [Required(ErrorMessage = "UserManagement.Enabled feature flag is required.")]
     public bool Enabled { get; set; }

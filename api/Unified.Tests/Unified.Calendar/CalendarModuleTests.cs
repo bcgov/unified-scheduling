@@ -90,20 +90,18 @@ public sealed class CalendarModuleTests
                 new Dictionary<string, string?>
                 {
                     [$"{CalendarSeedDataOptions.SectionName}:HolidaysFilePath"] = "SeedData/bc-holidays.json",
+                    ["FeatureFlags:Calendar:Enabled"] = isEnabled.ToString(),
                 }
             )
             .Build();
 
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddCalendarModule();
 
         var mvcBuilder = services.AddControllers();
-        mvcBuilder.AddCalendarApplicationPart(isEnabled);
-
-        if (isEnabled)
-        {
-            services.AddCalendarModule(configuration);
-        }
+        mvcBuilder.AddCalendarApplicationPart(services);
 
         provider = services.BuildServiceProvider();
         return services;

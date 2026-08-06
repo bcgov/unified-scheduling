@@ -1,18 +1,23 @@
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Unified.Common.Helpers.Extensions;
 using Unified.Common.Logging;
 using Unified.Db;
 using Unified.Db.Extensions;
 using Unified.Db.Models.UserManagement;
-using Unified.FeatureFlags;
+using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Queries;
 
 namespace Unified.UserManagement.Services;
 
-public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags, ILogger<UserService> logger)
+public sealed class UserService(
+    UnifiedDbContext DB,
+    IOptions<UserManagementFeatureFlags> featureFlags,
+    ILogger<UserService> logger
+)
     : IUserService
 {
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
@@ -32,9 +37,9 @@ public sealed class UserService(UnifiedDbContext DB, IFeatureFlags featureFlags,
 
         if (queryParams?.Search?.Trim() is { Length: > 0 } searchText)
         {
-            query = featureFlags.Current switch
+            query = featureFlags.Value.UserBadgeNumber switch
             {
-                { UserBadgeNumber: true } => query.Where(x =>
+                { Enabled: true } => query.Where(x =>
                     x.FirstName.Contains(searchText)
                     || x.LastName.Contains(searchText)
                     || (x.BadgeNumber ?? string.Empty).Contains(searchText)

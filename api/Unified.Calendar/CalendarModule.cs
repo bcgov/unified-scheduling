@@ -1,12 +1,14 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Unified.Calendar.Controllers;
+using Unified.Calendar.FeatureFlags;
 using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
+using Unified.Common.FeatureFlags;
 using Unified.Common.Seeding;
 using Unified.Db;
 
@@ -14,8 +16,21 @@ namespace Unified.Calendar;
 
 public static class CalendarModule
 {
-    public static IMvcBuilder AddCalendarApplicationPart(this IMvcBuilder mvcBuilder, bool isEnabled)
+    public static bool IsModuleEnabled(IServiceCollection services)
     {
+        using var serviceProvider = services.BuildServiceProvider();
+        return IsModuleEnabled(serviceProvider);
+    }
+
+    public static bool IsModuleEnabled(IServiceProvider serviceProvider)
+    {
+        var optionsMonitor = serviceProvider.GetRequiredService<IOptionsMonitor<CalendarFeatureFlags>>();
+        return optionsMonitor.CurrentValue.Enabled;
+    }
+
+    public static IMvcBuilder AddCalendarApplicationPart(this IMvcBuilder mvcBuilder, IServiceCollection services)
+    {
+        var isEnabled = IsModuleEnabled(services);
         var calendarAssembly = typeof(CalendarController).Assembly;
 
         mvcBuilder.ConfigureApplicationPartManager(manager =>
@@ -25,11 +40,25 @@ public static class CalendarModule
         return mvcBuilder;
     }
 
-    public static IServiceCollection AddCalendarModule(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddCalendarModule(this IServiceCollection services)
     {
         services
+            .AddOptions<CalendarFeatureFlags>()
+            .BindConfiguration(CalendarFeatureFlags.Section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<IFeatureFlags>(sp =>
+            sp.GetRequiredService<IOptionsMonitor<CalendarFeatureFlags>>().CurrentValue
+        );
+
+        if (!IsModuleEnabled(services))
+        {
+            return services;
+        }
+
+        services
             .AddOptions<CalendarSeedDataOptions>()
-            .Bind(configuration.GetSection(CalendarSeedDataOptions.SectionName))
+            .BindConfiguration(CalendarSeedDataOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddScoped<ICalendarEventService, CalendarEventService>();
