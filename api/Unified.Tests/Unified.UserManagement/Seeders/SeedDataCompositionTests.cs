@@ -129,7 +129,7 @@ public sealed class SeedDataCompositionTests
         var moduleConfiguration = BuildConfiguration([]);
         services.AddLogging();
         services.AddSingleton<IConfiguration>(moduleConfiguration);
-        services.AddUserManagementModule();
+        services.AddUserManagementModule(moduleConfiguration);
         services.AddConfiguredSeedData(BuildConfiguration(dataSets, enabledFeature), AllDataSets);
 
         using var provider = services.BuildServiceProvider();

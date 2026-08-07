@@ -63,7 +63,7 @@ public sealed class SeederRegistrationTests
             )
             .Build();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddUserManagementModule();
+        services.AddUserManagementModule(configuration);
 
         AssertSeederTypes(
             services,
@@ -89,7 +89,7 @@ public sealed class SeederRegistrationTests
             )
             .Build();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddCalendarModule();
+        services.AddCalendarModule(configuration);
 
         AssertSeederTypes(services, typeof(EventTypeSeeder), typeof(EventStatusTypeSeeder), typeof(HolidayEventSeeder));
     }
@@ -111,7 +111,7 @@ public sealed class SeederRegistrationTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["FeatureFlags:Stats:Enabled"] = "true" })
             .Build();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddStatsModule();
+        services.AddStatsModule(configuration);
 
         AssertSeederTypes(
             services,

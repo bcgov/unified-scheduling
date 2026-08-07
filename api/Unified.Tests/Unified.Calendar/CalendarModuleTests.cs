@@ -98,10 +98,10 @@ public sealed class CalendarModuleTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddCalendarModule();
+        services.AddCalendarModule(configuration);
 
         var mvcBuilder = services.AddControllers();
-        mvcBuilder.AddCalendarApplicationPart(services);
+        mvcBuilder.AddCalendarApplicationPart(configuration);
 
         provider = services.BuildServiceProvider();
         return services;
