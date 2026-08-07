@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Controllers;
@@ -16,10 +17,13 @@ namespace Unified.Calendar;
 
 public static class CalendarModule
 {
-    public static bool IsModuleEnabled(IServiceCollection services)
+    public static bool IsModuleEnabled(IConfiguration config)
     {
-        using var serviceProvider = services.BuildServiceProvider();
-        return IsModuleEnabled(serviceProvider);
+        var enabled = config
+            .GetSection(CalendarFeatureFlags.Section)
+            .Get<CalendarFeatureFlags>()?
+            .Enabled ?? false;
+        return enabled;
     }
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider)
@@ -28,9 +32,9 @@ public static class CalendarModule
         return optionsMonitor.CurrentValue.Enabled;
     }
 
-    public static IMvcBuilder AddCalendarApplicationPart(this IMvcBuilder mvcBuilder, IServiceCollection services)
+    public static IMvcBuilder AddCalendarApplicationPart(this IMvcBuilder mvcBuilder, IConfiguration config)
     {
-        var isEnabled = IsModuleEnabled(services);
+        var isEnabled = IsModuleEnabled(config);
         var calendarAssembly = typeof(CalendarController).Assembly;
 
         mvcBuilder.ConfigureApplicationPartManager(manager =>
@@ -40,7 +44,7 @@ public static class CalendarModule
         return mvcBuilder;
     }
 
-    public static IServiceCollection AddCalendarModule(this IServiceCollection services)
+    public static IServiceCollection AddCalendarModule(this IServiceCollection services, IConfiguration config)
     {
         services
             .AddOptions<CalendarFeatureFlags>()
@@ -51,7 +55,7 @@ public static class CalendarModule
             sp.GetRequiredService<IOptionsMonitor<CalendarFeatureFlags>>().CurrentValue
         );
 
-        if (!IsModuleEnabled(services))
+        if (!IsModuleEnabled(config))
         {
             return services;
         }

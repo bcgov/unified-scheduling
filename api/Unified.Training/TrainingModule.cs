@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
@@ -16,10 +17,13 @@ namespace Unified.Training;
 
 public static class TrainingModule
 {
-    public static bool IsModuleEnabled(IServiceCollection services)
+    public static bool IsModuleEnabled(IConfiguration config)
     {
-        using var serviceProvider = services.BuildServiceProvider();
-        return IsModuleEnabled(serviceProvider);
+        var enabled = config
+            .GetSection(TrainingFeatureFlags.Section)
+            .Get<TrainingFeatureFlags>()?
+            .Enabled ?? false;
+        return enabled;
     }
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider)
@@ -28,9 +32,9 @@ public static class TrainingModule
         return optionsMonitor.CurrentValue.Enabled;
     }
 
-    public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, IServiceCollection services)
+    public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, IConfiguration config)
     {
-        var isEnabled = IsModuleEnabled(services);
+        var isEnabled = IsModuleEnabled(config);
         var trainingAssembly = typeof(TrainingModule).Assembly;
 
         mvcBuilder.ConfigureApplicationPartManager(manager =>
@@ -40,7 +44,7 @@ public static class TrainingModule
         return mvcBuilder;
     }
 
-    public static IServiceCollection AddTrainingModule(this IServiceCollection services)
+    public static IServiceCollection AddTrainingModule(this IServiceCollection services, IConfiguration config)
     {
         services
             .AddOptions<TrainingFeatureFlags>()
@@ -51,7 +55,7 @@ public static class TrainingModule
             sp.GetRequiredService<IOptionsMonitor<TrainingFeatureFlags>>().CurrentValue
         );
 
-        if (!IsModuleEnabled(services))
+        if (!IsModuleEnabled(config))
         {
             return services;
         }

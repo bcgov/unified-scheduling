@@ -74,10 +74,10 @@ var hangfireOptions =
         .Services.AddInfrastructureModule()
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
-        .AddUserManagementModule()
-        .AddCalendarModule()
-        .AddStatsModule()
-        .AddTrainingModule()
+        .AddUserManagementModule(builder.Configuration)
+        .AddCalendarModule(builder.Configuration)
+        .AddStatsModule(builder.Configuration)
+        .AddTrainingModule(builder.Configuration)
         .AddConfiguredSeedData(
             builder.Configuration,
             UserManagementSeedDataSets.All.Concat(StatsSeedDataSets.All).Concat(TrainingSeedDataSets.All)
@@ -85,8 +85,8 @@ var hangfireOptions =
         .AddJCInterfaceModule(builder.Configuration);
 
     var mvcBuilder = builder.Services.AddControllers();
-    mvcBuilder.AddCalendarApplicationPart(builder.Services);
-    mvcBuilder.AddTrainingApplicationPart(builder.Services);
+    mvcBuilder.AddCalendarApplicationPart(builder.Configuration);
+    mvcBuilder.AddTrainingApplicationPart(builder.Configuration);
 
     builder.Services.AddSingleton<MigrationAndSeedService>();
     builder.Services.AddTransient(typeof(SeederFactory<>));

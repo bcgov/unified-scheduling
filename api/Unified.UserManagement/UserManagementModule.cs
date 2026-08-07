@@ -1,6 +1,7 @@
 using FluentValidation;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
@@ -23,10 +24,13 @@ namespace Unified.UserManagement;
 /// </summary>
 public static class UserManagementModule
 {
-    public static bool IsModuleEnabled(IServiceCollection services)
+    public static bool IsModuleEnabled(IConfiguration config)
     {
-        using var serviceProvider = services.BuildServiceProvider();
-        return IsModuleEnabled(serviceProvider);
+        var enabled = config
+            .GetSection(UserManagementFeatureFlags.Section)
+            .Get<UserManagementFeatureFlags>()?
+            .Enabled ?? false;
+        return enabled;
     }
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider)
@@ -39,8 +43,9 @@ public static class UserManagementModule
     /// Add user management module services to the dependency injection container
     /// </summary>
     /// <param name="services">Service collection</param>
+    /// <param name="config">Configuration</param>
     /// <returns>Service collection for chaining</returns>
-    public static IServiceCollection AddUserManagementModule(this IServiceCollection services)
+    public static IServiceCollection AddUserManagementModule(this IServiceCollection services, IConfiguration config)
     {
         // Register UserManagement feature flags
         services
@@ -54,7 +59,7 @@ public static class UserManagementModule
             sp.GetRequiredService<IOptionsMonitor<UserManagementFeatureFlags>>().CurrentValue
         );
 
-        if (!IsModuleEnabled(services))
+        if (!IsModuleEnabled(config))
         {
             return services;
         }

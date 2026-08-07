@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
@@ -16,10 +17,13 @@ namespace Unified.Stats;
 
 public static class StatsModule
 {
-    public static bool IsModuleEnabled(IServiceCollection services)
+    public static bool IsModuleEnabled(IConfiguration config)
     {
-        using var serviceProvider = services.BuildServiceProvider();
-        return IsModuleEnabled(serviceProvider);
+        var enabled = config
+            .GetSection(StatsFeatureFlags.Section)
+            .Get<StatsFeatureFlags>()?
+            .Enabled ?? false;
+        return enabled;
     }
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider)
@@ -28,7 +32,7 @@ public static class StatsModule
         return optionsMonitor.CurrentValue.Enabled;
     }
 
-    public static IServiceCollection AddStatsModule(this IServiceCollection s)
+    public static IServiceCollection AddStatsModule(this IServiceCollection s, IConfiguration config)
     {
         s.AddOptions<StatsFeatureFlags>()
             .BindConfiguration(StatsFeatureFlags.Section)
@@ -36,7 +40,7 @@ public static class StatsModule
             .ValidateOnStart();
         s.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptionsMonitor<StatsFeatureFlags>>().CurrentValue);
 
-        if (!IsModuleEnabled(s))
+        if (!IsModuleEnabled(config))
         {
             return s;
         }
