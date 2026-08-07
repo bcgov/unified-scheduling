@@ -9,10 +9,7 @@ import { createTestApp } from '../../helpers/createTestApp';
 describe('UserProfile', () => {
   it('fetches the user by prop userId and renders profile data with badge when feature flag is enabled', async () => {
     const app = await createTestApp({
-      featureFlags: {
-        userBadgeNumber: true,
-        myTeamsModule: true,
-      },
+      featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: true, required: false } } },
     });
 
     const userId = 'test-user-id';
@@ -51,10 +48,7 @@ describe('UserProfile', () => {
 
   it('hides badge number when feature flag is disabled', async () => {
     const app = await createTestApp({
-      featureFlags: {
-        userBadgeNumber: false,
-        myTeamsModule: true,
-      },
+      featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: false, required: false } } },
     });
 
     const userId = 'test-user-id';

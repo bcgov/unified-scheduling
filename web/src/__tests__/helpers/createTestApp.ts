@@ -5,13 +5,13 @@ import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
 import LuxonAdapter from '@date-io/luxon';
 import { getGetApiConfigMockHandler, getGetApiConfigResponseMock } from '@/api-access/generated/config/config.msw';
-import type { FeatureFlags, Permissions } from '@/api-access/generated/models';
+import type { FeatureFlagsResponse, Permissions } from '@/api-access/generated/models';
 import { useConfigStore } from '@/stores/config';
 import { useAuthStore } from '@/stores/auth';
 import { server } from '../mocks/server';
 
 interface CreateTestAppOptions {
-  featureFlags?: Partial<FeatureFlags>;
+  featureFlags?: FeatureFlagsResponse;
   loadConfig?: boolean;
   isAuthenticated?: boolean;
   isRegistered?: boolean;
@@ -54,12 +54,7 @@ export async function createTestApp(options: CreateTestAppOptions = {}) {
   });
 
   if (options.loadConfig !== false) {
-    const defaultFeatureFlags = configResponse.featureFlags;
-
-    configResponse.featureFlags = {
-      ...defaultFeatureFlags,
-      ...options.featureFlags,
-    };
+    configResponse.featureFlags = options.featureFlags ?? {};
 
     if (options.supportEmail !== undefined) {
       configResponse.supportEmail = options.supportEmail;

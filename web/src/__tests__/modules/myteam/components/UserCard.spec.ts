@@ -8,9 +8,7 @@ import { createTestApp } from '../../../helpers/createTestApp';
 describe('UserCard', () => {
   it('mounts and renders user details including badge when feature flag is enabled', async () => {
     const app = await createTestApp({
-      featureFlags: {
-        userBadgeNumber: true,
-      },
+      featureFlags: { UserManagement: { enabled: false, userBadgeNumber: { enabled: true, required: false } } },
     });
 
     const user = getGetApiUsersIdResponseMock({ photoUrl: null });
@@ -36,9 +34,7 @@ describe('UserCard', () => {
 
   it('hides badge number when feature flag is disabled', async () => {
     const app = await createTestApp({
-      featureFlags: {
-        userBadgeNumber: false,
-      },
+      featureFlags: { UserManagement: { enabled: false, userBadgeNumber: { enabled: false, required: false } } },
     });
 
     const user = getGetApiUsersIdResponseMock({
