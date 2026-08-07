@@ -31,6 +31,7 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -63,6 +64,7 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -95,6 +97,7 @@ export const getGetApiUsersResponseMock = (): UserResponse[] =>
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -133,6 +136,7 @@ export const getPostApiUsersResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -166,6 +170,7 @@ export const getPostApiUsersResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -199,6 +204,7 @@ export const getPostApiUsersResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -238,6 +244,7 @@ export const getGetApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -271,6 +278,7 @@ export const getGetApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -304,6 +312,7 @@ export const getGetApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -343,6 +352,7 @@ export const getPutApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -376,6 +386,7 @@ export const getPutApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -409,6 +420,7 @@ export const getPutApiUsersIdResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -602,6 +614,7 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -635,6 +648,7 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -668,6 +682,7 @@ export const getPostApiUsersIdUploadPhotoResponseMock = (
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
       ]),
+      employeeNumber: faker.string.alpha({ length: { min: 10, max: 20 } }),
       homeLocationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
       lastLogin: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),

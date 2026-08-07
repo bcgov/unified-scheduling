@@ -81,6 +81,7 @@ onMounted(async () => {
         <div>{{ data?.firstName }} {{ data?.lastName }}</div>
         <div>{{ positionDescription }}</div>
         <div v-if="showBadgeNumber">{{ data?.badgeNumber }}</div>
+        <div v-if="data?.employeeNumber">{{ data?.employeeNumber }}</div>
       </div>
 
       <div class="profile-subnav">

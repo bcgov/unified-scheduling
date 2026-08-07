@@ -23,6 +23,7 @@ export const GetApiUsersResponseItem = zod.object({
   gender: zod.enum(['Male', 'Female', 'Other']),
   rank: zod.string().nullish(),
   badgeNumber: zod.string().nullish(),
+  employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
@@ -41,6 +42,7 @@ export const PostApiUsersBody = zod.strictObject({
   homeLocationId: zod.int(),
   rank: zod.string(),
   badgeNumber: zod.string().optional(),
+  employeeNumber: zod.string(),
 });
 
 export const PostApiUsersResponse = zod.object({
@@ -54,6 +56,7 @@ export const PostApiUsersResponse = zod.object({
   gender: zod.enum(['Male', 'Female', 'Other']),
   rank: zod.string().nullish(),
   badgeNumber: zod.string().nullish(),
+  employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
@@ -76,6 +79,7 @@ export const GetApiUsersIdResponse = zod.object({
   gender: zod.enum(['Male', 'Female', 'Other']),
   rank: zod.string().nullish(),
   badgeNumber: zod.string().nullish(),
+  employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
@@ -97,6 +101,7 @@ export const PutApiUsersIdBody = zod.strictObject({
   homeLocationId: zod.int(),
   rank: zod.string(),
   badgeNumber: zod.string().optional(),
+  employeeNumber: zod.string(),
 });
 
 export const PutApiUsersIdResponse = zod.object({
@@ -110,6 +115,7 @@ export const PutApiUsersIdResponse = zod.object({
   gender: zod.enum(['Male', 'Female', 'Other']),
   rank: zod.string().nullish(),
   badgeNumber: zod.string().nullish(),
+  employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
@@ -193,6 +199,7 @@ export const PostApiUsersIdUploadPhotoResponse = zod.object({
   gender: zod.enum(['Male', 'Female', 'Other']),
   rank: zod.string().nullish(),
   badgeNumber: zod.string().nullish(),
+  employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),

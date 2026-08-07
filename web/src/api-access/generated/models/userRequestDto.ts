@@ -16,4 +16,5 @@ export interface UserRequestDto {
   homeLocationId: number;
   rank: string;
   badgeNumber?: string;
+  employeeNumber: string;
 }

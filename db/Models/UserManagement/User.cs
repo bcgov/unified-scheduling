@@ -29,6 +29,7 @@ public class User : BaseEntity
     public int? HomeLocationId { get; set; }
     public virtual Location? HomeLocation { get; set; }
     public string? BadgeNumber { get; set; }
+    public string? EmployeeNumber { get; set; }
     public string? Rank { get; set; }
     public DateTimeOffset? LastLogin { get; set; }
     public byte[]? Photo { get; set; }

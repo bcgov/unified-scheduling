@@ -266,6 +266,7 @@ public class UnifiedClaimsTransformerTests : IAsyncLifetime
             Email = email,
             Gender = Gender.Other,
             HomeLocationId = location.Id,
+            EmployeeNumber = idirName,
             PendingRegistration = pendingRegistration,
             LastLogin = lastLogin,
             CreatedOn = DateTimeOffset.UtcNow,

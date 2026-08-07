@@ -13,4 +13,5 @@ public sealed record UserRequestDto
     public required int HomeLocationId { get; init; }
     public required string Rank { get; init; }
     public string BadgeNumber { get; init; } = string.Empty;
+    public required string EmployeeNumber { get; init; }
 }

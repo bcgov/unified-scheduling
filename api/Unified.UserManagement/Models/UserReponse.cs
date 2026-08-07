@@ -14,6 +14,7 @@ public sealed record UserResponse
     public required Gender Gender { get; init; }
     public string? Rank { get; init; }
     public string? BadgeNumber { get; init; }
+    public required string EmployeeNumber { get; init; }
     public int? HomeLocationId { get; init; }
     public DateTimeOffset? LastLogin { get; init; }
     public bool PendingRegistration { get; init; }

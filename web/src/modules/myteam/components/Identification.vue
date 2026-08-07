@@ -67,6 +67,9 @@ onMounted(async () => {
       <div>{{ user?.badgeNumber }}</div>
     </template>
 
+    <label class="identification-label">Employee Number</label>
+    <div>{{ user?.employeeNumber }}</div>
+
     <label class="identification-label">Rank</label>
     <div>{{ positionDescription }}</div>
 

@@ -20,6 +20,7 @@ export interface UserResponse {
   rank?: string | null;
   /** @nullable */
   badgeNumber?: string | null;
+  employeeNumber: string;
   /** @nullable */
   homeLocationId?: number | null;
   /** @nullable */

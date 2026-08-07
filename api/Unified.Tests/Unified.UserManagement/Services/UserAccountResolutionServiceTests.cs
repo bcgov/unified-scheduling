@@ -404,6 +404,7 @@ public class UserAccountResolutionServiceTests : IAsyncLifetime
             Email = $"{idirName}@example.com",
             Gender = Gender.Other,
             HomeLocationId = location.Id,
+            EmployeeNumber = idirName,
             PendingRegistration = pendingRegistration,
             LastLogin = lastLogin,
             CreatedOn = DateTimeOffset.UtcNow,

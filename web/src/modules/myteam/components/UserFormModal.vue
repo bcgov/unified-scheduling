@@ -99,6 +99,7 @@ const populateFromUser = (user: UserResponse): UserRequestFormData => ({
   gender: user.gender,
   rank: user.rank ?? '',
   badgeNumber: user.badgeNumber ?? '',
+  employeeNumber: user.employeeNumber ?? '',
   homeLocationId: user.homeLocationId ?? undefined,
 });
 
@@ -110,6 +111,10 @@ const createUserFormSchema = PostApiUsersBody.extend({
   email: PostApiUsersBody.shape.email.min(1, validationMessages.required).email(validationMessages.invalidEmail),
   idirName: PostApiUsersBody.shape.idirName.min(1, validationMessages.required),
   rank: PostApiUsersBody.shape.rank.min(1, validationMessages.required),
+  employeeNumber: PostApiUsersBody.shape.employeeNumber
+    .trim()
+    .min(1, validationMessages.required)
+    .max(100, validationMessages.tooLong),
   homeLocationId: PostApiUsersBody.shape.homeLocationId.refine((value) => value !== undefined, {
     message: validationMessages.required,
   }),
@@ -183,8 +188,8 @@ const handleSave = async () => {
       const { data, error } = await putApiUsersId(currentUser.value.id, payload);
 
       if (error.value) {
-        if (applyServerValidationErrors(data.value)) return;
-        apiErrorMessage.value = error.value.message || 'Failed to update user';
+        if (applyServerValidationErrors(error.value)) return;
+        apiErrorMessage.value = error.value.detail || 'Failed to update user';
         return;
       }
 
@@ -195,8 +200,8 @@ const handleSave = async () => {
       const { data, error } = await postApiUsers(payload);
 
       if (error.value) {
-        if (applyServerValidationErrors(data.value)) return;
-        apiErrorMessage.value = error.value.message || 'Failed to create user';
+        if (applyServerValidationErrors(error.value)) return;
+        apiErrorMessage.value = error.value.detail || 'Failed to create user';
         return;
       }
 
@@ -332,6 +337,15 @@ const handleSave = async () => {
         :error-messages="formErrors.badgeNumber"
         :disabled="isLoading"
         @update:model-value="(v) => (formData.badgeNumber = v as string)"
+      />
+
+      <UaTextField
+        id="employee-number"
+        label="Employee Number"
+        :model-value="formData.employeeNumber"
+        :error-messages="formErrors.employeeNumber"
+        :disabled="isLoading"
+        @update:model-value="(v) => (formData.employeeNumber = v as string)"
       />
 
       <label class="ua-form-label" for="home-location">Home Location</label>
