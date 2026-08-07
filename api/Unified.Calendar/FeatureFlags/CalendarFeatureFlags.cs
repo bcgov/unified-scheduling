@@ -16,4 +16,6 @@ public class CalendarFeatureFlags : IFeatureFlags
 
     [Required(ErrorMessage = "Calendar.Enabled feature flag is required.")]
     public bool Enabled { get; set; }
+
+    public bool CalendarMatrixTest { get; set; }
 }

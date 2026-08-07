@@ -96,7 +96,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   myTeamsModule.registerModule(routes, featureFlags);
   statsModule.registerModule(routes, featureFlags);
   calendarModule.registerModule(routes, featureFlags);
-  calendarMatrixTestModule.registerModule();
+  calendarMatrixTestModule.registerModule(routes, featureFlags);
   trainingModule.registerModule(routes, featureFlags);
 
   const router = createRouter({

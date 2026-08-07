@@ -59,6 +59,7 @@ export const getGetApiConfigResponseCalendarFeatureFlagsMock = (
     undefined,
   ]),
   enabled: faker.datatype.boolean(),
+  calendarMatrixTest: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
   ...overrideResponse,
 });
 

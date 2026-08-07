@@ -9,4 +9,5 @@ export interface CalendarFeatureFlags {
   /** @nullable */
   source?: string | null;
   enabled: boolean;
+  calendarMatrixTest?: boolean;
 }

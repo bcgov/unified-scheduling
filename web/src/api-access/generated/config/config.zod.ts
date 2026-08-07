@@ -30,6 +30,7 @@ export const GetApiConfigResponse = zod.object({
           zod.object({
             source: zod.string().nullish(),
             enabled: zod.boolean(),
+            calendarMatrixTest: zod.boolean().optional(),
           }),
         ])
         .optional(),
