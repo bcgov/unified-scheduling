@@ -8,7 +8,7 @@ export const calendarEventsContribution: CalendarModuleContribution = {
   moduleId: 'calendar',
   contributionId: 'calendar.events',
   isAvailable(runtimeContext) {
-    return runtimeContext.featureFlags.calendarModule ?? true;
+    return runtimeContext.featureFlags.Calendar?.enabled ?? true;
   },
   async load(context, options) {
     const events = await postApiCalendarEvents(

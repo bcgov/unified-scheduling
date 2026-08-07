@@ -1,9 +1,11 @@
+import { computed } from 'vue';
 import type { Pinia } from 'pinia';
 import { useConfigStore } from '@/stores/config';
 import { useAuthStore } from '@/stores/auth';
-import type { FeatureFlags, Permissions } from '@/api-access/generated/models';
+import type { Permissions, FeatureFlagsResponse } from '@/api-access/generated/models';
+import type { DeepPartial } from '@/types/deepPartial';
 
-export type AppFeatureFlagKey = keyof FeatureFlags;
+
 
 /**
  * Composable for access control including feature flags and permissions.
@@ -15,9 +17,14 @@ export type AppFeatureFlagKey = keyof FeatureFlags;
  * ```ts
  * const accessControl = useAccessControl();
  *
- *  Check if a feature is enabled
- * if (accessControl.isFeatureFlagEnabled('statsModule')) {
- *    render stats feature
+ * Check if a feature is enabled
+ * if (accessControl.featureFlags.Calendar?.enabled) {
+ *    render calendar feature
+ * }
+ *
+ * Check nested feature
+ * if (accessControl.featureFlags.UserManagement?.userBadgeNumber?.enabled) {
+ *    show badge number
  * }
  *
  *  Check for single permission
@@ -91,27 +98,14 @@ export const useAccessControl = (pinia?: Pinia) => {
     return permissions.every((p) => authStore.userInfo?.permissions.includes(p) ?? false);
   };
 
-  /**
-   * Check if a feature flag is enabled
-   *
-   * @param moduleKey - The feature flag key from FeatureFlags
-   * @returns True if the feature flag is enabled
-   *
-   * @example
-   * ```ts
-   * if (accessControl.isFeatureFlagEnabled('statsModule')) {
-   *    feature is available
-   * }
-   * ```
-   */
-  const isFeatureFlagEnabled = (moduleKey: AppFeatureFlagKey): boolean => {
-    return configStore.config?.featureFlags?.[moduleKey] ?? false;
-  };
+  const featureFlags = computed<DeepPartial<FeatureFlagsResponse>>(() =>
+    configStore.config?.featureFlags ?? {}
+  );
 
   return {
     configStore,
     authStore,
-    isFeatureFlagEnabled,
+    featureFlags,
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,

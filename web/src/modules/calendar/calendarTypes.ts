@@ -1,4 +1,4 @@
-import type { FeatureFlags } from '@/api-access/generated/models';
+import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 
 export interface CalendarEventBase {
   id: string;
@@ -39,7 +39,7 @@ export interface CalendarQueryContext {
 }
 
 export interface CalendarRuntimeContext {
-  featureFlags: Partial<FeatureFlags>;
+  featureFlags: FeatureFlagsResponse;
 }
 
 export interface CalendarContributionData<

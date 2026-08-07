@@ -14,7 +14,6 @@ export const schedulingRoutes: RouteRecordRaw[] = [
       },
     ],
     meta: {
-      module: 'schedulingModule',
       requiresAuth: true,
     },
   },

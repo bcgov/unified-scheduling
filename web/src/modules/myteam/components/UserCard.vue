@@ -13,6 +13,7 @@ const { user } = defineProps<{
 
 const router = useRouter();
 const lookupStore = useLookupStore();
+const accessControl = useAccessControl();
 
 const initials = computed(() => `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`);
 const fullName = computed(() => `${user.firstName || ''} ${user.lastName || ''}`.trim());
@@ -53,7 +54,7 @@ onMounted(async () => {
       </div>
       <div style="font-size: var(--ua-font-size-sm); text-align: center">{{ positionDescription }}</div>
       <div
-        v-if="useAccessControl().isFeatureFlagEnabled('userBadgeNumber')"
+        v-if="accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled"
         style="font-size: var(--ua-font-size-sm); text-align: center"
       >
         {{ user.badgeNumber }}

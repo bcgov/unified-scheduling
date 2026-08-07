@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
+import type { FeatureFlagsResponse } from '@/api-access/generated/models';
+import { type NavigationLink,useNavigationStore } from '@/stores/NavigationStore';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { Permissions } from '@/api-access/generated/models';
 
@@ -64,7 +65,6 @@ const myTeamRoutes: RouteRecordRaw[] = [
       },
     ],
     meta: {
-      module: 'myTeamsModule',
       requiresAuth: true,
     },
   },
@@ -86,7 +86,11 @@ const rolesAndPermissionsNavLink: NavigationLink = {
   class: 'router-link--border',
 };
 
-export function registerModule(routes: RouteRecordRaw[]) {
+export function registerModule(routes: RouteRecordRaw[], featureFlags: FeatureFlagsResponse) {
+  if (!featureFlags.UserManagement?.enabled) {
+    return;
+  }
+
   const navigationStore = useNavigationStore();
   const accessControl = useAccessControl();
 

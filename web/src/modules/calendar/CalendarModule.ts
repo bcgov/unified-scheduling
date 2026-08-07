@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
+import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 import { useNavigationStore } from '@/stores/NavigationStore';
 import { calendarCreateAction } from './actions/calendarCreateAction';
 import { calendarEventDetailModalAction } from './actions/calendarEventDetailModalAction';
@@ -11,7 +12,11 @@ import { calendarDefaultViewContribution } from './views/calendarDefaultViewCont
 
 let isRegistered = false;
 
-export function registerModule(routes: RouteRecordRaw[]) {
+export function registerModule(routes: RouteRecordRaw[], featureFlags: FeatureFlagsResponse) {
+  if (!featureFlags.Calendar?.enabled) {
+    return;
+  }
+
   if (isRegistered) {
     return;
   }

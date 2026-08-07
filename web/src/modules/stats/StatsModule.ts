@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
+import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
 import { useAuthStore } from '@/stores/auth';
 import { DateTime } from 'luxon';
@@ -7,7 +8,6 @@ const statsRoutes: RouteRecordRaw[] = [
   {
     path: '/stats',
     meta: {
-      module: 'statsModule',
       requiresAuth: true,
     },
     children: [
@@ -61,7 +61,11 @@ const statsRoutes: RouteRecordRaw[] = [
 
 const navLink: NavigationLink = { name: 'Stats', path: '/stats', class: 'router-link--border' };
 
-export function registerModule(routes: RouteRecordRaw[]) {
+export function registerModule(routes: RouteRecordRaw[], featureFlags: FeatureFlagsResponse) {
+  if (!featureFlags.Stats?.enabled) {
+    return;
+  }
+
   const navigationStore = useNavigationStore();
 
   routes.push(...statsRoutes);
