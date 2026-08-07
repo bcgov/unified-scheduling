@@ -5,8 +5,6 @@ import { useAuthStore } from '@/stores/auth';
 import type { Permissions, FeatureFlagsResponse } from '@/api-access/generated/models';
 import type { DeepPartial } from '@/types/deepPartial';
 
-
-
 /**
  * Composable for access control including feature flags and permissions.
  *
@@ -98,9 +96,7 @@ export const useAccessControl = (pinia?: Pinia) => {
     return permissions.every((p) => authStore.userInfo?.permissions.includes(p) ?? false);
   };
 
-  const featureFlags = computed<DeepPartial<FeatureFlagsResponse>>(() =>
-    configStore.config?.featureFlags ?? {}
-  );
+  const featureFlags = computed<DeepPartial<FeatureFlagsResponse>>(() => configStore.config?.featureFlags ?? {});
 
   return {
     configStore,

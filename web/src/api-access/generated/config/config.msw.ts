@@ -20,56 +20,83 @@ import type {
 export const getGetApiConfigResponseUserManagementFeatureFlagsMock = (
   overrideResponse: Partial<UserManagementFeatureFlags> = {},
 ): UserManagementFeatureFlags => ({
-  ...{
-    source: faker.helpers.arrayElement([
-      faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      undefined,
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
     ]),
-    enabled: faker.datatype.boolean(),
-    userBadgeNumber: faker.helpers.arrayElement([
-      { enabled: faker.datatype.boolean(), required: faker.datatype.boolean() },
-      undefined,
-    ]),
-  },
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
+  userBadgeNumber: faker.helpers.arrayElement([
+    {
+      enabled: faker.datatype.boolean(),
+      required: faker.datatype.boolean(),
+    },
+    undefined,
+  ]),
   ...overrideResponse,
 });
 
 export const getGetApiConfigResponseCalendarFeatureFlagsMock = (
   overrideResponse: Partial<CalendarFeatureFlags> = {},
 ): CalendarFeatureFlags => ({
-  ...{
-    source: faker.helpers.arrayElement([
-      faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      undefined,
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
     ]),
-    enabled: faker.datatype.boolean(),
-  },
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
   ...overrideResponse,
 });
 
 export const getGetApiConfigResponseStatsFeatureFlagsMock = (
   overrideResponse: Partial<StatsFeatureFlags> = {},
 ): StatsFeatureFlags => ({
-  ...{
-    source: faker.helpers.arrayElement([
-      faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      undefined,
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
     ]),
-    enabled: faker.datatype.boolean(),
-  },
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
   ...overrideResponse,
 });
 
 export const getGetApiConfigResponseTrainingFeatureFlagsMock = (
   overrideResponse: Partial<TrainingFeatureFlags> = {},
 ): TrainingFeatureFlags => ({
-  ...{
-    source: faker.helpers.arrayElement([
-      faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      undefined,
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
     ]),
-    enabled: faker.datatype.boolean(),
-  },
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
   ...overrideResponse,
 });
 

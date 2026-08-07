@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
 import type { FeatureFlagsResponse } from '@/api-access/generated/models';
-import { type NavigationLink,useNavigationStore } from '@/stores/NavigationStore';
+import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { Permissions } from '@/api-access/generated/models';
 
