@@ -16,12 +16,12 @@ import type { DeepPartial } from '@/types/deepPartial';
  * const accessControl = useAccessControl();
  *
  * Check if a feature is enabled
- * if (accessControl.featureFlags.Calendar?.enabled) {
+ * if (accessControl.featureFlags.value?.Calendar?.enabled) {
  *    render calendar feature
  * }
  *
  * Check nested feature
- * if (accessControl.featureFlags.UserManagement?.userBadgeNumber?.enabled) {
+ * if (accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled) {
  *    show badge number
  * }
  *
