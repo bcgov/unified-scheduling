@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Common.Options;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Seeding;
 using Unified.Db;
@@ -38,6 +39,7 @@ public static class StatsModule
             .BindConfiguration(StatsFeatureFlags.Section)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        s.AddSingleton<IValidateOptions<StatsFeatureFlags>, RequiredBooleanOptionsValidator<StatsFeatureFlags>>();
         s.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptionsMonitor<StatsFeatureFlags>>().CurrentValue);
 
         if (!IsModuleEnabled(config))

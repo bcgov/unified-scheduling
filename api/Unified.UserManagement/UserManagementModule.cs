@@ -15,6 +15,7 @@ using Unified.UserManagement.Models;
 using Unified.UserManagement.Options;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
+using Unified.Common.Options;
 using Unified.UserManagement.Validators;
 
 namespace Unified.UserManagement;
@@ -53,6 +54,7 @@ public static class UserManagementModule
             .BindConfiguration(UserManagementFeatureFlags.Section)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<UserManagementFeatureFlags>, RequiredBooleanOptionsValidator<UserManagementFeatureFlags>>();
 
         // Register as IFeatureFlags for aggregation
         services.AddSingleton<IFeatureFlags>(sp =>

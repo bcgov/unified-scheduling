@@ -27,7 +27,7 @@ public class ConfigController(
     [AllowAnonymous]
     public ActionResult<ConfigResponse> Get()
     {
-        logger.LogInformation("Retrieving application configuration");
+        logger.LogDebug("Retrieving application configuration");
         var featureFlagsPayload = new FeatureFlagsResponse
         {
             UserManagement = featureFlags.OfType<UserManagementFeatureFlags>().FirstOrDefault(),

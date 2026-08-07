@@ -10,6 +10,7 @@ using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
 using Unified.Common.FeatureFlags;
+using Unified.Common.Options;
 using Unified.Common.Seeding;
 using Unified.Db;
 
@@ -51,6 +52,7 @@ public static class CalendarModule
             .BindConfiguration(CalendarFeatureFlags.Section)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<CalendarFeatureFlags>, RequiredBooleanOptionsValidator<CalendarFeatureFlags>>();
         services.AddSingleton<IFeatureFlags>(sp =>
             sp.GetRequiredService<IOptionsMonitor<CalendarFeatureFlags>>().CurrentValue
         );

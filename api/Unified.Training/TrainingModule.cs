@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Common.Options;
 using Unified.Common.FeatureFlags;
 using Unified.Core.Services.Lookup;
 using Unified.Training.FeatureFlags;
@@ -51,6 +52,7 @@ public static class TrainingModule
             .BindConfiguration(TrainingFeatureFlags.Section)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<TrainingFeatureFlags>, RequiredBooleanOptionsValidator<TrainingFeatureFlags>>();
         services.AddSingleton<IFeatureFlags>(sp =>
             sp.GetRequiredService<IOptionsMonitor<TrainingFeatureFlags>>().CurrentValue
         );
