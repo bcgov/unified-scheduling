@@ -7,8 +7,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
-using Unified.Common.Options;
 using Unified.Common.FeatureFlags;
+using Unified.Common.Options;
 using Unified.Core.Services.Lookup;
 using Unified.Training.FeatureFlags;
 using Unified.Training.Services.Lookup;
@@ -20,10 +20,7 @@ public static class TrainingModule
 {
     public static bool IsModuleEnabled(IConfiguration config)
     {
-        var enabled = config
-            .GetSection(TrainingFeatureFlags.Section)
-            .Get<TrainingFeatureFlags>()?
-            .Enabled ?? false;
+        var enabled = config.GetSection(TrainingFeatureFlags.Section).Get<TrainingFeatureFlags>()?.Enabled ?? false;
         return enabled;
     }
 
@@ -52,7 +49,10 @@ public static class TrainingModule
             .BindConfiguration(TrainingFeatureFlags.Section)
             .ValidateDataAnnotations()
             .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<TrainingFeatureFlags>, RequiredBooleanOptionsValidator<TrainingFeatureFlags>>();
+        services.AddSingleton<
+            IValidateOptions<TrainingFeatureFlags>,
+            RequiredBooleanOptionsValidator<TrainingFeatureFlags>
+        >();
         services.AddSingleton<IFeatureFlags>(sp =>
             sp.GetRequiredService<IOptionsMonitor<TrainingFeatureFlags>>().CurrentValue
         );

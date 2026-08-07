@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Common.FeatureFlags;
+using Unified.Common.Options;
 using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
@@ -15,7 +16,6 @@ using Unified.UserManagement.Models;
 using Unified.UserManagement.Options;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
-using Unified.Common.Options;
 using Unified.UserManagement.Validators;
 
 namespace Unified.UserManagement;
@@ -27,10 +27,8 @@ public static class UserManagementModule
 {
     public static bool IsModuleEnabled(IConfiguration config)
     {
-        var enabled = config
-            .GetSection(UserManagementFeatureFlags.Section)
-            .Get<UserManagementFeatureFlags>()?
-            .Enabled ?? false;
+        var enabled =
+            config.GetSection(UserManagementFeatureFlags.Section).Get<UserManagementFeatureFlags>()?.Enabled ?? false;
         return enabled;
     }
 
@@ -54,7 +52,10 @@ public static class UserManagementModule
             .BindConfiguration(UserManagementFeatureFlags.Section)
             .ValidateDataAnnotations()
             .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<UserManagementFeatureFlags>, RequiredBooleanOptionsValidator<UserManagementFeatureFlags>>();
+        services.AddSingleton<
+            IValidateOptions<UserManagementFeatureFlags>,
+            RequiredBooleanOptionsValidator<UserManagementFeatureFlags>
+        >();
 
         // Register as IFeatureFlags for aggregation
         services.AddSingleton<IFeatureFlags>(sp =>

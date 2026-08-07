@@ -20,10 +20,7 @@ public static class CalendarModule
 {
     public static bool IsModuleEnabled(IConfiguration config)
     {
-        var enabled = config
-            .GetSection(CalendarFeatureFlags.Section)
-            .Get<CalendarFeatureFlags>()?
-            .Enabled ?? false;
+        var enabled = config.GetSection(CalendarFeatureFlags.Section).Get<CalendarFeatureFlags>()?.Enabled ?? false;
         return enabled;
     }
 
@@ -52,7 +49,10 @@ public static class CalendarModule
             .BindConfiguration(CalendarFeatureFlags.Section)
             .ValidateDataAnnotations()
             .ValidateOnStart();
-        services.AddSingleton<IValidateOptions<CalendarFeatureFlags>, RequiredBooleanOptionsValidator<CalendarFeatureFlags>>();
+        services.AddSingleton<
+            IValidateOptions<CalendarFeatureFlags>,
+            RequiredBooleanOptionsValidator<CalendarFeatureFlags>
+        >();
         services.AddSingleton<IFeatureFlags>(sp =>
             sp.GetRequiredService<IOptionsMonitor<CalendarFeatureFlags>>().CurrentValue
         );

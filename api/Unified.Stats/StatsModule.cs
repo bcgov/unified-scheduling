@@ -5,8 +5,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
-using Unified.Common.Options;
 using Unified.Common.FeatureFlags;
+using Unified.Common.Options;
 using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Stats.FeatureFlags;
@@ -20,10 +20,7 @@ public static class StatsModule
 {
     public static bool IsModuleEnabled(IConfiguration config)
     {
-        var enabled = config
-            .GetSection(StatsFeatureFlags.Section)
-            .Get<StatsFeatureFlags>()?
-            .Enabled ?? false;
+        var enabled = config.GetSection(StatsFeatureFlags.Section).Get<StatsFeatureFlags>()?.Enabled ?? false;
         return enabled;
     }
 
