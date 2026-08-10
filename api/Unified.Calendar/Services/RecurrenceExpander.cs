@@ -106,7 +106,10 @@ public sealed class IcalNetRecurrenceExpander(
                     occurrence.Period.StartTime.Value,
                     DateTimeKind.Unspecified
                 );
-                var occurrenceStartAtUtc = timeZoneService.ToUtcInstant(occurrenceLocalStart, expansionContext.TimeZone);
+                var occurrenceStartAtUtc = timeZoneService.ToUtcInstant(
+                    occurrenceLocalStart,
+                    expansionContext.TimeZone
+                );
                 DateTimeOffset? occurrenceEndAtUtc = null;
                 if (expansionContext.LocalRange.Duration.HasValue)
                 {

@@ -29,6 +29,7 @@ public static class DateTimeOffsetExtensions
 
         return dateTimeString.Contains('T') && DateTimeOffset.TryParse(dateTimeString, out _);
     }
+
     /// <summary>
     /// Returns true when the string is a valid IANA or system timezone identifier
     /// (e.g. "America/Vancouver" or "Pacific Standard Time").
@@ -50,5 +51,4 @@ public static class DateTimeOffsetExtensions
             return false;
         }
     }
-
 }

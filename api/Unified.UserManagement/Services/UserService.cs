@@ -18,8 +18,7 @@ public sealed class UserService(
     IOptions<UserManagementFeatureFlags> featureFlags,
     ILogger<UserService> logger,
     ITimeZoneService timeZoneService
-)
-    : IUserService
+) : IUserService
 {
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,
@@ -215,10 +214,7 @@ public sealed class UserService(
             user.HomeLocation?.Timezone
         );
         DateTimeOffset? expiryDateUtc = !string.IsNullOrEmpty(request.ExpiryDate)
-            ? timeZoneService.FromDateStringToEndOfDayInTimeZone(
-                request.ExpiryDate,
-                user.HomeLocation?.Timezone
-            )
+            ? timeZoneService.FromDateStringToEndOfDayInTimeZone(request.ExpiryDate, user.HomeLocation?.Timezone)
             : null;
 
         var roleExists = await DB.Roles.WhereActive().AnyAsync(r => r.Id == request.RoleId, cancellationToken);

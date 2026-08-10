@@ -204,10 +204,7 @@ public sealed class RoleService(
             DateTimeOffset? expiryDate = null;
             if (!string.IsNullOrWhiteSpace(request.NewRoleExpiryDate))
             {
-                expiryDate = timeZoneService.FromDateStringToEndOfDayInTimeZone(
-                    request.NewRoleExpiryDate,
-                    timezoneId
-                );
+                expiryDate = timeZoneService.FromDateStringToEndOfDayInTimeZone(request.NewRoleExpiryDate, timezoneId);
             }
 
             await using var transaction = await DB.Database.BeginTransactionAsync(cancellationToken);
