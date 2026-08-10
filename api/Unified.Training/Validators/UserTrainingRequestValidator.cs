@@ -10,39 +10,33 @@ public sealed class UserTrainingRequestValidator : AbstractValidator<UserTrainin
     {
         RuleFor(x => x.UserId)
             .NotEmpty()
-            .WithErrorCode(ApiValidationErrorCodes.Required)
-            .WithMessage(ApiValidationErrorCodes.Required);
+            .WithMessage("User ID is required.");
 
         RuleFor(x => x.TrainingId)
+            .NotEmpty()
             .GreaterThan(0)
-            .WithErrorCode(ApiValidationErrorCodes.Required)
-            .WithMessage(ApiValidationErrorCodes.Required);
+            .WithMessage("Training ID is required and must be greater than 0.");
 
         RuleFor(x => x.AwardedOn)
             .NotEmpty()
-            .WithErrorCode(ApiValidationErrorCodes.Required)
-            .WithMessage(ApiValidationErrorCodes.Required);
+            .WithMessage("Awarded date is required.");
 
         RuleFor(x => x.EndingOn)
             .NotEmpty()
-            .WithErrorCode(ApiValidationErrorCodes.Required)
-            .WithMessage(ApiValidationErrorCodes.Required);
+            .WithMessage("Ending date is required.");
 
         RuleFor(x => x.EndingOn)
             .GreaterThanOrEqualTo(x => x.AwardedOn)
-            .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage("Ending date must be on or after the awarded date.");
 
         RuleFor(x => x.ExpiryDate)
             .GreaterThan(x => x.AwardedOn)
-            .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage("Expiry date must be after the awarded date.")
             .When(x => x.ExpiryDate.HasValue);
 
         RuleFor(x => x.Notes)
             .MaximumLength(2000)
-            .WithErrorCode(ApiValidationErrorCodes.TooLong)
-            .WithMessage(ApiValidationErrorCodes.TooLong)
+            .WithMessage("Notes cannot exceed 2000 characters.")
             .When(x => x.Notes is not null);
     }
 }

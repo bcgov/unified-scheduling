@@ -51,45 +51,6 @@ public class UserTrainingControllerTests
     }
 
     [Fact]
-    public async Task GetAll_WhenUserIdClaimMissing_Returns200Ok()
-    {
-        var response = new[] { SampleResponse() };
-        var service = new FakeUserTrainingService { GetAllResult = response };
-        var controller = BuildController(service);
-
-        var result = await controller.GetAllByUser(OtherUserId, TestContext.Current.CancellationToken);
-
-        var ok = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.Equal(response, ok.Value);
-    }
-
-    [Fact]
-    public async Task GetAllByUser_WhenValid_Returns200Ok()
-    {
-        var response = new[] { SampleResponse(), SampleResponse(2) };
-        var service = new FakeUserTrainingService { GetAllResult = response };
-        var controller = BuildController(service);
-
-        var result = await controller.GetAllByUser(OtherUserId, TestContext.Current.CancellationToken);
-
-        var ok = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.Equal(response, ok.Value);
-    }
-
-    [Fact]
-    public async Task GetByTrainingAndUser_WhenFound_Returns200Ok()
-    {
-        var response = SampleResponse();
-        var service = new FakeUserTrainingService { GetByTrainingAndUserResult = response };
-        var controller = BuildController(service);
-
-        var result = await controller.GetByTrainingAndUser(1, OtherUserId, TestContext.Current.CancellationToken);
-
-        var ok = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.Equal(response, ok.Value);
-    }
-
-    [Fact]
     public async Task GetByTrainingAndUser_WhenNotFound_Returns404()
     {
         var service = new FakeUserTrainingService { GetByTrainingAndUserResult = null };

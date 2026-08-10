@@ -36,7 +36,6 @@ export * from './getApiStatsDashboardSummaryParams.ts';
 export * from './getApiStatsRecordsParams.ts';
 export * from './getApiStatsSubCategoriesParams.ts';
 export * from './getApiStatsSubCategoryMetricsParams.ts';
-export * from './getApiTrainingUserTrainingsParams.ts';
 export * from './getApiUsersParams.ts';
 export * from './iFormFile.ts';
 export * from './locationDto.ts';
