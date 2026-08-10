@@ -8,22 +8,16 @@ public sealed class UserTrainingRequestValidator : AbstractValidator<UserTrainin
 {
     public UserTrainingRequestValidator()
     {
-        RuleFor(x => x.UserId)
-            .NotEmpty()
-            .WithMessage("User ID is required.");
+        RuleFor(x => x.UserId).NotEmpty().WithMessage("User ID is required.");
 
         RuleFor(x => x.TrainingId)
             .NotEmpty()
             .GreaterThan(0)
             .WithMessage("Training ID is required and must be greater than 0.");
 
-        RuleFor(x => x.AwardedOn)
-            .NotEmpty()
-            .WithMessage("Awarded date is required.");
+        RuleFor(x => x.AwardedOn).NotEmpty().WithMessage("Awarded date is required.");
 
-        RuleFor(x => x.EndingOn)
-            .NotEmpty()
-            .WithMessage("Ending date is required.");
+        RuleFor(x => x.EndingOn).NotEmpty().WithMessage("Ending date is required.");
 
         RuleFor(x => x.EndingOn)
             .GreaterThanOrEqualTo(x => x.AwardedOn)
