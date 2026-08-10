@@ -26,8 +26,8 @@ public static class CalendarModule
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider)
     {
-        var optionsMonitor = serviceProvider.GetRequiredService<IOptionsMonitor<CalendarFeatureFlags>>();
-        return optionsMonitor.CurrentValue.Enabled;
+        var options = serviceProvider.GetRequiredService<IOptions<CalendarFeatureFlags>>();
+        return options.Value.Enabled;
     }
 
     public static IMvcBuilder AddCalendarApplicationPart(this IMvcBuilder mvcBuilder, IConfiguration config)
@@ -53,9 +53,7 @@ public static class CalendarModule
             IValidateOptions<CalendarFeatureFlags>,
             RequiredBooleanOptionsValidator<CalendarFeatureFlags>
         >();
-        services.AddSingleton<IFeatureFlags>(sp =>
-            sp.GetRequiredService<IOptionsMonitor<CalendarFeatureFlags>>().CurrentValue
-        );
+        services.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptions<CalendarFeatureFlags>>().Value);
 
         if (!IsModuleEnabled(config))
         {

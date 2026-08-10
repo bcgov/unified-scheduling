@@ -34,8 +34,8 @@ public static class UserManagementModule
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider)
     {
-        var optionsMonitor = serviceProvider.GetRequiredService<IOptionsMonitor<UserManagementFeatureFlags>>();
-        return optionsMonitor.CurrentValue.Enabled;
+        var options = serviceProvider.GetRequiredService<IOptions<UserManagementFeatureFlags>>();
+        return options.Value.Enabled;
     }
 
     /// <summary>
@@ -58,9 +58,7 @@ public static class UserManagementModule
         >();
 
         // Register as IFeatureFlags for aggregation
-        services.AddSingleton<IFeatureFlags>(sp =>
-            sp.GetRequiredService<IOptionsMonitor<UserManagementFeatureFlags>>().CurrentValue
-        );
+        services.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptions<UserManagementFeatureFlags>>().Value);
 
         if (!IsModuleEnabled(config))
         {

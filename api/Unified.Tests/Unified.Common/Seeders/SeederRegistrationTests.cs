@@ -63,7 +63,7 @@ public sealed class SeederRegistrationTests
             )
             .Build();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddUserManagementModule(configuration);
+        services.AddUserManagementModule(configuration).AddUserManagementModule(configuration);
 
         AssertSeederTypes(
             services,

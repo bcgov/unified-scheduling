@@ -14,7 +14,10 @@ const accessControl = useAccessControl();
 const locationsStore = useLocationsStore();
 const lookupStore = useLookupStore();
 const showBadgeNumber = computed(
-  () => accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled ?? false,
+  () =>
+    (accessControl.featureFlags.value?.UserManagement?.enabled &&
+      accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled) ??
+    false,
 );
 
 const locationName = computed(() => {

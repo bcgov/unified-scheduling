@@ -26,8 +26,8 @@ public static class TrainingModule
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider)
     {
-        var optionsMonitor = serviceProvider.GetRequiredService<IOptionsMonitor<TrainingFeatureFlags>>();
-        return optionsMonitor.CurrentValue.Enabled;
+        var options = serviceProvider.GetRequiredService<IOptions<TrainingFeatureFlags>>();
+        return options.Value.Enabled;
     }
 
     public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, IConfiguration config)
@@ -53,9 +53,7 @@ public static class TrainingModule
             IValidateOptions<TrainingFeatureFlags>,
             RequiredBooleanOptionsValidator<TrainingFeatureFlags>
         >();
-        services.AddSingleton<IFeatureFlags>(sp =>
-            sp.GetRequiredService<IOptionsMonitor<TrainingFeatureFlags>>().CurrentValue
-        );
+        services.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptions<TrainingFeatureFlags>>().Value);
 
         if (!IsModuleEnabled(config))
         {

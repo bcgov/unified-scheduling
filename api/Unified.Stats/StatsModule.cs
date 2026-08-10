@@ -26,8 +26,8 @@ public static class StatsModule
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider)
     {
-        var optionsMonitor = serviceProvider.GetRequiredService<IOptionsMonitor<StatsFeatureFlags>>();
-        return optionsMonitor.CurrentValue.Enabled;
+        var options = serviceProvider.GetRequiredService<IOptions<StatsFeatureFlags>>();
+        return options.Value.Enabled;
     }
 
     public static IServiceCollection AddStatsModule(this IServiceCollection s, IConfiguration config)
@@ -37,7 +37,7 @@ public static class StatsModule
             .ValidateDataAnnotations()
             .ValidateOnStart();
         s.AddSingleton<IValidateOptions<StatsFeatureFlags>, RequiredBooleanOptionsValidator<StatsFeatureFlags>>();
-        s.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptionsMonitor<StatsFeatureFlags>>().CurrentValue);
+        s.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptions<StatsFeatureFlags>>().Value);
 
         if (!IsModuleEnabled(config))
         {
