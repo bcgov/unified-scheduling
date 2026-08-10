@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Common.FeatureFlags;
+using Unified.Common.Interceptors;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
 using Unified.Db;
@@ -14,6 +15,7 @@ using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Options;
+using Unified.UserManagement.Rules;
 using Unified.UserManagement.Seeders;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
@@ -103,6 +105,9 @@ public static class UserManagementModule
         services.AddScoped<ExpireActingPositionRequestValidator>();
         services.AddScoped<AwayLocationRequestValidator>();
         services.AddScoped<ExpireAwayLocationRequestValidator>();
+
+        // Register save rules for business logic validation
+        services.AddScoped<ISaveRule, UserBadgeNumberUniqueRule>();
 
         // Register permission policies owned by this module
         services
