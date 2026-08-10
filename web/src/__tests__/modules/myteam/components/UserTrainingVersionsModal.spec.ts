@@ -53,6 +53,7 @@ const sampleTraining = {
   trainingCode: 'CPR',
   trainingCategoryName: 'Medical',
   awardedOn: '2026-01-20T00:00:00Z',
+  endingOn: '2026-01-20T00:00:00Z',
   expiryDate: '2026-02-01T00:00:00Z',
   noticeState: 'None',
   notes: 'Current version',
