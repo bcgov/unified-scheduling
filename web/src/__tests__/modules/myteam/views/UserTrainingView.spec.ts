@@ -1,4 +1,5 @@
 import UserTrainingView from '@/modules/myteam/views/UserTrainingView.vue';
+import type { UserResponse } from '@/api-access/generated/models';
 import { mount } from '@vue/test-utils';
 import { defineComponent, ref } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -51,6 +52,18 @@ const UaDataTableStub = defineComponent({
   `,
 });
 
+const makeUser = (): UserResponse =>
+  ({
+    id: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
+    idirName: 'tester',
+    isEnabled: true,
+    firstName: 'Test',
+    lastName: 'User',
+    email: 'test.user@example.com',
+    gender: 'Other',
+    employeeNumber: '12345',
+  }) as unknown as UserResponse;
+
 describe('UserTrainingView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -65,6 +78,7 @@ describe('UserTrainingView', () => {
           trainingCode: 'CPR',
           trainingCategoryName: 'Medical',
           awardedOn: '2026-01-01T00:00:00Z',
+          endingOn: '2026-01-01T00:00:00Z',
           expiryDate: '2026-01-10T00:00:00Z',
           noticeState: 'None',
           notes: 'older',
@@ -79,6 +93,7 @@ describe('UserTrainingView', () => {
           trainingCode: 'CPR',
           trainingCategoryName: 'Medical',
           awardedOn: '2026-02-01T00:00:00Z',
+          endingOn: '2026-02-01T00:00:00Z',
           expiryDate: '2026-02-10T00:00:00Z',
           noticeState: 'None',
           notes: 'latest',
@@ -93,6 +108,7 @@ describe('UserTrainingView', () => {
           trainingCode: 'FA',
           trainingCategoryName: 'Safety',
           awardedOn: '2026-02-05T00:00:00Z',
+          endingOn: '2026-02-05T00:00:00Z',
           expiryDate: null,
           noticeState: 'None',
           notes: null,
@@ -119,15 +135,7 @@ describe('UserTrainingView', () => {
   it('shows latest version per training in the table', () => {
     const wrapper = mount(UserTrainingView, {
       props: {
-        user: {
-          id: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
-          idirName: 'tester',
-          isEnabled: true,
-          firstName: 'Test',
-          lastName: 'User',
-          email: 'test.user@example.com',
-          gender: 'Other',
-        },
+        user: makeUser(),
       },
       global: {
         stubs: {
@@ -156,15 +164,7 @@ describe('UserTrainingView', () => {
   it('shows renew action only for rotating trainings', () => {
     const wrapper = mount(UserTrainingView, {
       props: {
-        user: {
-          id: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
-          idirName: 'tester',
-          isEnabled: true,
-          firstName: 'Test',
-          lastName: 'User',
-          email: 'test.user@example.com',
-          gender: 'Other',
-        },
+        user: makeUser(),
       },
       global: {
         stubs: {
