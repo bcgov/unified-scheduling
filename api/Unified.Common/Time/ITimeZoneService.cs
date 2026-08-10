@@ -6,7 +6,15 @@ namespace Unified.Common.Time;
 /// </summary>
 public interface ITimeZoneService
 {
+    TimeZoneInfo ResolveOrUtc(string? timeZoneId);
+
     TimeZoneInfo ResolveRequired(string timeZoneId);
+
+    DateTimeOffset ToTimeZone(DateTimeOffset value, string? timeZoneId);
+
+    DateTimeOffset FromDateStringToStartOfDayInTimeZone(string dateString, string? timeZoneId);
+
+    DateTimeOffset FromDateStringToEndOfDayInTimeZone(string dateString, string? timeZoneId);
 
     DateTime ToLocalUnspecified(DateTimeOffset utcInstant, TimeZoneInfo timeZone);
 

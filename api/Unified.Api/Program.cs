@@ -7,6 +7,7 @@ using Unified.Api.Services;
 using Unified.Authorization;
 using Unified.Authorization.Hangfire;
 using Unified.Calendar;
+using Unified.Common.Time;
 using Unified.Core;
 using Unified.Db;
 using Unified.Hangfire;
@@ -46,6 +47,7 @@ var hangfireOptions =
         options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
     });
 
+    builder.Services.AddSingleton<ITimeZoneService, TimeZoneService>();
     // Logging
     var enableBodyLogging =
         builder.Configuration.GetValue<bool>("HttpLogging:LogBodies")

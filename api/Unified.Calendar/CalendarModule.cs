@@ -73,7 +73,6 @@ public static class CalendarModule
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddScoped<ICalendarEventService, CalendarEventService>();
-        services.AddSingleton<ITimeZoneService, TimeZoneService>();
         services.AddSeeder<UnifiedDbContext, EventTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, EventStatusTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, HolidayEventSeeder>();

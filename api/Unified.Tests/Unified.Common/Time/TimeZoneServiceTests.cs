@@ -4,7 +4,81 @@ namespace Unified.Tests.Common.Time;
 
 public class TimeZoneServiceTests
 {
-    private readonly TimeZoneService _service = new();
+    private readonly ITimeZoneService _service = new TimeZoneService();
+
+    [Fact]
+    public void ResolveOrUtc_WhenTimeZoneExists_ReturnsTimeZone()
+    {
+        var result = _service.ResolveOrUtc("America/Vancouver");
+
+        Assert.Equal("America/Vancouver", result.Id);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("Not/A_TimeZone")]
+    public void ResolveOrUtc_WhenTimeZoneIsMissingOrInvalid_ReturnsUtc(string? timeZoneId)
+    {
+        var result = _service.ResolveOrUtc(timeZoneId);
+
+        Assert.Equal(TimeZoneInfo.Utc, result);
+    }
+
+    [Fact]
+    public void ToTimeZone_WhenUtcInstantIsInSummer_ReturnsVancouverTime()
+    {
+        var utcInstant = new DateTimeOffset(2026, 7, 1, 12, 0, 0, TimeSpan.Zero);
+
+        var result = _service.ToTimeZone(utcInstant, "America/Vancouver");
+
+        Assert.Equal(new DateTimeOffset(2026, 7, 1, 5, 0, 0, TimeSpan.FromHours(-7)), result);
+    }
+
+    [Theory]
+    [InlineData("2026-07-01", 2026, 7, 1, 7)]
+    [InlineData("2026-01-01", 2026, 1, 1, 8)]
+    public void FromDateStringToStartOfDayInTimeZone_ReturnsExpectedUtcInstant(
+        string dateString,
+        int year,
+        int month,
+        int day,
+        int hour
+    )
+    {
+        var result = _service.FromDateStringToStartOfDayInTimeZone(dateString, "America/Vancouver");
+
+        Assert.Equal(new DateTimeOffset(year, month, day, hour, 0, 0, TimeSpan.Zero), result);
+    }
+
+    [Theory]
+    [InlineData("2026-07-01", 2026, 7, 2, 6)]
+    [InlineData("2026-01-01", 2026, 1, 2, 7)]
+    public void FromDateStringToEndOfDayInTimeZone_PreservesInclusiveMillisecondBoundary(
+        string dateString,
+        int year,
+        int month,
+        int day,
+        int hour
+    )
+    {
+        var result = _service.FromDateStringToEndOfDayInTimeZone(dateString, "America/Vancouver");
+
+        Assert.Equal(new DateTimeOffset(year, month, day, hour, 59, 59, 999, TimeSpan.Zero), result);
+    }
+
+    [Theory]
+    [InlineData("not-a-date")]
+    [InlineData("2026-02-30")]
+    public void FromDateStringToStartOfDayInTimeZone_WhenDateIsInvalid_Throws(string dateString)
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _service.FromDateStringToStartOfDayInTimeZone(dateString, "America/Vancouver")
+        );
+
+        Assert.Equal($"Invalid date format. Expected yyyy-MM-dd, got {dateString}", exception.Message);
+    }
 
     [Theory]
     [InlineData(2026, 3, 8, 2, 30, "invalid")]

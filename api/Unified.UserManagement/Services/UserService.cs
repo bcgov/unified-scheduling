@@ -2,8 +2,8 @@ using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Unified.Common.Helpers.Extensions;
 using Unified.Common.Logging;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Extensions;
 using Unified.Db.Models.UserManagement;
@@ -16,8 +16,10 @@ namespace Unified.UserManagement.Services;
 public sealed class UserService(
     UnifiedDbContext DB,
     IOptions<UserManagementFeatureFlags> featureFlags,
-    ILogger<UserService> logger
-) : IUserService
+    ILogger<UserService> logger,
+    ITimeZoneService timeZoneService
+)
+    : IUserService
 {
     public async Task<IReadOnlyCollection<UserResponse>> GetAllAsync(
         UserQueryParams? queryParams = null,
@@ -208,12 +210,12 @@ public sealed class UserService(
             throw new KeyNotFoundException($"User {id} not found.");
         }
 
-        var effectiveDateUtc = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
+        var effectiveDateUtc = timeZoneService.FromDateStringToStartOfDayInTimeZone(
             request.EffectiveDate,
             user.HomeLocation?.Timezone
         );
         DateTimeOffset? expiryDateUtc = !string.IsNullOrEmpty(request.ExpiryDate)
-            ? DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(
+            ? timeZoneService.FromDateStringToEndOfDayInTimeZone(
                 request.ExpiryDate,
                 user.HomeLocation?.Timezone
             )
@@ -310,15 +312,17 @@ public sealed class UserService(
         return MapUserRoleResponse(userRole, user.HomeLocation?.Timezone);
     }
 
-    private static UserRoleResponseDto MapUserRoleResponse(UserRole userRole, string? timezoneId)
+    private UserRoleResponseDto MapUserRoleResponse(UserRole userRole, string? timezoneId)
     {
         return new UserRoleResponseDto
         {
             Id = userRole.Id,
             UserId = userRole.UserId,
             RoleId = userRole.RoleId,
-            EffectiveDate = userRole.EffectiveDate.ToTimeZone(timezoneId),
-            ExpiryDate = userRole.ExpiryDate?.ToTimeZone(timezoneId),
+            EffectiveDate = timeZoneService.ToTimeZone(userRole.EffectiveDate, timezoneId),
+            ExpiryDate = userRole.ExpiryDate is { } expiryDate
+                ? timeZoneService.ToTimeZone(expiryDate, timezoneId)
+                : null,
             ExpiryReason = userRole.ExpiryReason,
         };
     }
