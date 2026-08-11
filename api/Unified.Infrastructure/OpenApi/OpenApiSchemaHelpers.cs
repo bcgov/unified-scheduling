@@ -9,33 +9,33 @@ public static class OpenApiSchemaHelpers
 
     public static OpenApiSchema BuildSchema(Type type, HashSet<Type> visited)
     {
-        var nullableType = Nullable.GetUnderlyingType(type) ?? type;
+        var resolvedType = Nullable.GetUnderlyingType(type) ?? type;
 
-        if (nullableType == typeof(string))
+        if (resolvedType == typeof(string))
             return new OpenApiSchema { Type = JsonSchemaType.String };
 
-        if (nullableType == typeof(bool))
+        if (resolvedType == typeof(bool))
             return new OpenApiSchema { Type = JsonSchemaType.Boolean };
 
-        if (nullableType.IsPrimitive || nullableType == typeof(decimal))
+        if (resolvedType.IsPrimitive || resolvedType == typeof(decimal))
             return new OpenApiSchema { Type = JsonSchemaType.Number };
 
-        if (!visited.Add(nullableType))
+        if (!visited.Add(resolvedType))
             return new OpenApiSchema { Type = JsonSchemaType.Object };
 
-        var properties = nullableType
+        var properties = resolvedType
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.GetMethod is not null && !p.GetMethod.IsStatic)
             .ToDictionary(p => ToCamelCase(p.Name), p => (IOpenApiSchema)BuildSchema(p.PropertyType, visited));
 
-        var required = nullableType
+        var required = resolvedType
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.GetMethod is not null && !p.GetMethod.IsStatic)
             .Where(p => !IsNullable(p))
             .Select(p => ToCamelCase(p.Name))
             .ToHashSet(StringComparer.Ordinal);
 
-        visited.Remove(nullableType);
+        visited.Remove(resolvedType);
 
         return new OpenApiSchema
         {

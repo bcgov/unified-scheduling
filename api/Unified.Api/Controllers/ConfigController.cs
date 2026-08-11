@@ -24,7 +24,9 @@ public class ConfigController(
     public ActionResult<ConfigResponse> Get()
     {
         logger.LogDebug("Retrieving application configuration");
-        var featureFlagsResponse = featureFlags.ToDictionary(f => f.Source, f => (object)f);
+        var featureFlagsResponse = featureFlags
+            .DistinctBy(f => f.Source, StringComparer.Ordinal)
+            .ToDictionary(f => f.Source, f => (object)f, StringComparer.Ordinal);
 
         var response = new ConfigResponse
         {
