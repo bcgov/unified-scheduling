@@ -11,9 +11,7 @@ import type {
 } from '@/modules/calendar/registry/calendarActionRegistryTypes';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import {
-  closeCalendarSchedulingConflict,
   showCalendarSchedulingAssignmentModal,
-  showCalendarSchedulingEventActionModal,
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
   toggleCalendarSchedulingConflict,
@@ -133,42 +131,21 @@ function resolveDefaultActionDate(days: ReadonlyArray<{ date: string; isToday?: 
 }
 
 export const calendarEventBlockAction: CalendarMatrixEventBlockAction = {
-  id: calendarSchedulingActionIds.addOnEvent,
-  moduleId: 'calendar-scheduling',
-  label: 'Add On Event',
-  order: 10,
-  isAvailable: (context) =>
-    context.actionId === calendarSchedulingActionIds.addOnEvent && context.event.sourceModule === 'calendar-scheduling',
-  execute: (context) => {
-    showCalendarSchedulingEventActionModal(context.event);
-  },
-};
-
-export const calendarSchedulingShowConflictAction: CalendarMatrixEventBlockAction = {
   id: calendarSchedulingActionIds.showConflict,
   moduleId: 'calendar-scheduling',
   label: 'Show Conflict',
-  order: 20,
+  order: 10,
   isAvailable: (context) =>
-    context.actionId === calendarSchedulingActionIds.showConflict &&
-    context.event.sourceModule === 'calendar-scheduling',
+    context.actionId === calendarSchedulingActionIds.showConflict && eventHasConflicts(context.event),
   execute: (context) => {
     toggleCalendarSchedulingConflict(context.event.id);
   },
 };
 
-export const calendarSchedulingResolveConflictAction: CalendarMatrixEventBlockAction = {
-  id: calendarSchedulingActionIds.resolveConflict,
-  moduleId: 'calendar-scheduling',
-  label: 'Resolve Conflict',
-  order: 30,
-  isAvailable: (context) =>
-    context.actionId === calendarSchedulingActionIds.resolveConflict &&
-    context.event.sourceModule === 'calendar-scheduling',
-  execute: (_context) => {
-    closeCalendarSchedulingConflict();
-  },
-};
+function eventHasConflicts(event: CalendarEventBase) {
+  const metadata = (event as { metadata?: { conflicts?: unknown } }).metadata;
+  return Array.isArray(metadata?.conflicts) && metadata.conflicts.length > 0;
+}
 
 export const calendarSchedulingEventDetailAction: CalendarViewDetailAction = {
   id: 'calendar-scheduling.event-detail.modal',
@@ -204,34 +181,6 @@ export const calendarSchedulingHeaderDetailAction: CalendarMatrixCellHeaderActio
   execute: (context) => {
     if (isCalendarEventBase(context.header.payload)) {
       showCalendarSchedulingEventDetail(context.header.payload);
-    }
-  },
-};
-
-export const calendarSchedulingHeaderShowConflictAction: CalendarMatrixCellHeaderAction = {
-  id: calendarSchedulingActionIds.showConflict,
-  moduleId: 'calendar-scheduling',
-  label: 'Show Header Conflict',
-  order: 20,
-  isAvailable: (context) =>
-    context.actionId === calendarSchedulingActionIds.showConflict && isCalendarEventBase(context.header.payload),
-  execute: (context) => {
-    if (isCalendarEventBase(context.header.payload)) {
-      toggleCalendarSchedulingConflict(context.header.payload.id);
-    }
-  },
-};
-
-export const calendarSchedulingHeaderResolveConflictAction: CalendarMatrixCellHeaderAction = {
-  id: calendarSchedulingActionIds.resolveConflict,
-  moduleId: 'calendar-scheduling',
-  label: 'Resolve Header Conflict',
-  order: 30,
-  isAvailable: (context) =>
-    context.actionId === calendarSchedulingActionIds.resolveConflict && isCalendarEventBase(context.header.payload),
-  execute: (context) => {
-    if (isCalendarEventBase(context.header.payload)) {
-      closeCalendarSchedulingConflict();
     }
   },
 };

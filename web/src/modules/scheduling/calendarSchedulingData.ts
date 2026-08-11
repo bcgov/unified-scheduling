@@ -1,4 +1,4 @@
-import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
+import type { CalendarConflict, CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 
 export interface CalendarBaseItem {
@@ -42,6 +42,7 @@ export interface CalendarEventMetadata {
   assignmentCategoryTypeCode?: string;
   assignmentSubCategoryTypeId?: number;
   assignmentSubCategoryTypeCode?: string;
+  conflicts?: CalendarConflict[];
 }
 
 export type CalendarAssignmentCapacitySlotState = 'empty' | 'filled' | 'partial';
@@ -54,7 +55,6 @@ export interface CalendarAssignmentPartialCoverageShift {
 }
 
 export interface CalendarSchedulingEvent extends CalendarEventBase {
-  isConflict?: boolean;
   metadata: CalendarEventMetadata;
 }
 

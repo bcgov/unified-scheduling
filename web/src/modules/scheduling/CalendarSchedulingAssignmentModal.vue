@@ -53,8 +53,11 @@ import CalendarSchedulingShiftDetailsPanel from './CalendarSchedulingShiftDetail
 import { useAssignmentDefinitionOptions } from './useAssignmentDefinitionOptions';
 import { useSchedulingUsersStore } from './useSchedulingUsersStore';
 
+type AssignmentDetailTabId = 'details' | 'edit' | 'delete';
+
 const props = defineProps<{
   mode?: 'create' | 'view' | 'edit';
+  initialTab?: 'details' | 'edit';
   editScope?: 'event' | 'series';
   assignmentEntryId?: number;
   assignmentSeriesId?: number;
@@ -73,7 +76,6 @@ const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 const schedulingUsersStore = useSchedulingUsersStore();
 
-type AssignmentDetailTabId = 'details' | 'edit' | 'delete';
 type AssignmentDetailRow = {
   label: string;
   value: string;
@@ -105,8 +107,8 @@ const hasAppliedInitialShiftEntrySelection = ref(false);
 const hasAppliedInitialAssignmentDefinitionSelection = ref(false);
 const selectedShiftSeriesId = ref<number | null>(null);
 const selectedShiftEntryId = ref<number | null>(null);
-const modalMode = ref<'create' | 'view' | 'edit'>(props.mode ?? 'create');
-const activeTab = ref<AssignmentDetailTabId>('details');
+const modalMode = ref<'create' | 'view' | 'edit'>(resolveInitialModalMode());
+const activeTab = ref<AssignmentDetailTabId>(resolveInitialTab());
 
 const appBarLocationId = computed<number | null>(() => {
   const candidate = locationsStore.selectedLocationId;
@@ -326,10 +328,18 @@ onMounted(() => {
 });
 
 watch(
-  () => [props.initialDate, props.assignmentEntryId, props.assignmentSeriesId, props.mode, props.editScope] as const,
+  () =>
+    [
+      props.initialDate,
+      props.assignmentEntryId,
+      props.assignmentSeriesId,
+      props.mode,
+      props.initialTab,
+      props.editScope,
+    ] as const,
   ([initialDate]) => {
-    modalMode.value = props.mode ?? 'create';
-    activeTab.value = 'details';
+    modalMode.value = resolveInitialModalMode();
+    activeTab.value = resolveInitialTab();
     formData.value = createInitialFormData(initialDate);
     hasAppliedInitialShiftEntrySelection.value = false;
     hasAppliedInitialAssignmentDefinitionSelection.value = false;
@@ -340,6 +350,14 @@ watch(
     void loadInitialAssignment();
   },
 );
+
+function resolveInitialTab(): AssignmentDetailTabId {
+  return props.mode === 'view' ? (props.initialTab ?? 'details') : 'details';
+}
+
+function resolveInitialModalMode(): 'create' | 'view' | 'edit' {
+  return props.mode === 'view' && props.initialTab === 'edit' ? 'edit' : (props.mode ?? 'create');
+}
 
 watch(activeLocationId, () => {
   void Promise.all([loadAssignmentDefinitions(), loadShiftOptions(), loadUsers()]);

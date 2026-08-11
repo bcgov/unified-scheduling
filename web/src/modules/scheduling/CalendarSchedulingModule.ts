@@ -11,10 +11,6 @@ import {
   calendarSchedulingEventDetailAction,
   calendarSchedulingCreateShiftAction,
   calendarSchedulingHeaderDetailAction,
-  calendarSchedulingHeaderResolveConflictAction,
-  calendarSchedulingHeaderShowConflictAction,
-  calendarSchedulingResolveConflictAction,
-  calendarSchedulingShowConflictAction,
 } from './calendarSchedulingActions';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
 import { calendarAssignmentViewContribution } from './calendarAssignmentViewContribution';
@@ -44,11 +40,7 @@ export function registerCalendarSchedulingModule() {
   calendarActionRegistry.registerMatrixResourceAction(calendarAddResourceAction);
   calendarActionRegistry.registerMatrixResourceAction(calendarAddAssignmentResourceAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderDetailAction);
-  calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowConflictAction);
-  calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderResolveConflictAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarEventBlockAction);
-  calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingShowConflictAction);
-  calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingResolveConflictAction);
   calendarActionRegistry.registerViewDetailAction(
     calendarShiftViewContribution.id,
     calendarSchedulingEventDetailAction,

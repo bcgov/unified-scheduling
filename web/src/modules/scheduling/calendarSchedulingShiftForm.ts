@@ -3,6 +3,7 @@ import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntry
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
 import type { ShiftSeriesResponse } from '@/api-access/generated/models/shiftSeriesResponse';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
+import { formatUserName } from '@/utils/user';
 import type { AssignmentEntryLinkRequest } from '@/api-access/generated/models/assignmentEntryLinkRequest';
 import type { AssignmentSeriesLinkRequest } from '@/api-access/generated/models/assignmentSeriesLinkRequest';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
@@ -406,8 +407,7 @@ export function normalizeOptionalText(value?: string | null) {
 }
 
 export function formatUserOptionLabel(user: UserResponse) {
-  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
-  return fullName || user.idirName;
+  return formatUserName(user);
 }
 
 export function normalizeTimeOptionValue(value?: string) {

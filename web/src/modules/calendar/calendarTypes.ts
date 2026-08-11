@@ -1,4 +1,5 @@
 import type { FeatureFlags } from '@/api-access/generated/models';
+import type { ApiAuditFields } from '@/api-access/calendar';
 
 export interface CalendarEventBase {
   id: string;
@@ -30,6 +31,27 @@ export interface CalendarResourceBase {
   type: string;
   sourceModule: string;
   label: string;
+}
+
+export interface CalendarConflictEvent {
+  eventId: number;
+  eventTypeCode: string;
+  sourceModule: string;
+  title: string;
+  start: string;
+  end: string;
+}
+
+export interface CalendarConflict extends ApiAuditFields {
+  id: string;
+  entry: CalendarConflictEvent;
+  overlaps: CalendarConflictEvent;
+  resourceId: string;
+  overlapStart: string;
+  overlapEnd: string;
+  isOverridden: boolean;
+  overrideId?: number;
+  overrideNote?: string;
 }
 
 export interface CalendarQueryContext {

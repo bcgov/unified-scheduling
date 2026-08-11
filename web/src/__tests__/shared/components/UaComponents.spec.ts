@@ -1,4 +1,5 @@
 import UaAlert from '@/shared/components/UaAlert.vue';
+import UaAuditDisplay from '@/shared/components/UaAuditDisplay.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaDisplayField from '@/shared/components/UaDisplayField.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -6,9 +7,11 @@ import UaModal from '@/shared/components/UaModal.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createVuetify } from 'vuetify';
+import { getGetApiUsersIdMockHandler, getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
+import { server } from '../../mocks/server';
 import { createTestApp } from '../../helpers/createTestApp';
 
 describe('UaPageHeader', () => {
@@ -23,6 +26,50 @@ describe('UaPageHeader', () => {
       slots: { actions: '<button>Click</button>' },
     });
     expect(wrapper.text()).toContain('Click');
+  });
+});
+
+describe('UaAuditDisplay', () => {
+  it('fetches and displays the latest audit user and timestamp in the requested time zone', async () => {
+    server.use(
+      getGetApiUsersIdMockHandler(
+        getGetApiUsersIdResponseMock({
+          id: 'user-2',
+          firstName: 'Taylor',
+          lastName: 'Ng',
+          idirName: 'tng',
+        }),
+      ),
+    );
+    const wrapper = mount(UaAuditDisplay, {
+      props: {
+        audit: {
+          createdById: 'user-1',
+          createdOn: '2026-08-11T16:00:00Z',
+          updatedById: 'user-2',
+          updatedOn: '2026-08-11T17:30:00Z',
+        },
+        timeZone: 'America/Vancouver',
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Taylor Ng');
+    expect(wrapper.text()).toContain('August 11, 2026 at 10:30 AM');
+  });
+
+  it('displays Unknown user when the selected audit user ID is absent', () => {
+    const wrapper = mount(UaAuditDisplay, {
+      props: {
+        audit: {
+          createdById: null,
+          createdOn: '2026-08-11T16:00:00Z',
+        },
+        timeZone: 'America/Vancouver',
+      },
+    });
+
+    expect(wrapper.text()).toContain('Unknown user');
   });
 });
 

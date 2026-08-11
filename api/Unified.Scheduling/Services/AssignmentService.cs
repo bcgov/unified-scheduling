@@ -1,5 +1,7 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -14,7 +16,8 @@ public sealed class AssignmentService(
     IEventSeriesMaterializationService eventSeriesMaterializationService,
     AssignmentSeriesMaterializationHandler assignmentSeriesMaterializationHandler,
     IShiftAssignmentService shiftAssignmentService,
-    ICalendarLifecycleService calendarLifecycleService
+    ICalendarLifecycleService calendarLifecycleService,
+    ICalendarConflictService calendarConflictService
 ) : IAssignmentService
 {
     private static readonly EventSeriesMaterializationOptions AssignmentMaterializationOptions = new()
@@ -99,11 +102,18 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, request.StartAtUtc, cancellationToken);
+        var definition = await GetActiveDefinitionAsync(
+            request.AssignmentDefinitionId,
+            request.StartAtUtc,
+            cancellationToken
+        );
         request = ApplyDefinitionDefaults(request, definition);
         logger.LogInformation("Creating assignment series starting at {StartAtUtc}.", request.StartAtUtc);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
 
         var eventSeries = MapToEventSeries(request);
         db.EventSeries.Add(eventSeries);
@@ -128,6 +138,9 @@ public sealed class AssignmentService(
 
         await LinkShiftSeriesIfRequestedAsync(assignmentSeries.Id, request, cancellationToken);
 
+        var conflictCandidates = await LoadConflictParticipantsForSeriesAsync(assignmentSeries.Id, cancellationToken);
+        await EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Created assignment series {AssignmentSeriesId}.", assignmentSeries.Id);
@@ -140,11 +153,18 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, request.StartAtUtc, cancellationToken);
+        var definition = await GetActiveDefinitionAsync(
+            request.AssignmentDefinitionId,
+            request.StartAtUtc,
+            cancellationToken
+        );
         request = request with { Color = ResolveDefinitionColor(request.Color, definition) };
         logger.LogInformation("Updating assignment series {AssignmentSeriesId}.", id);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
 
         var assignmentSeries = await db
             .AssignmentSeries.Include(series => series.EventSeries!)
@@ -165,7 +185,9 @@ public sealed class AssignmentService(
         var oldCapacity = assignmentSeries.Capacity;
         var recurrenceChanged = HasRecurrenceChanged(assignmentSeries.EventSeries!, request);
         if (recurrenceChanged && await AssignmentSeriesHasShiftAssignmentLinksAsync(id, cancellationToken))
-            throw new InvalidOperationException("Assignment series recurrence cannot be changed after shift links exist.");
+            throw new InvalidOperationException(
+                "Assignment series recurrence cannot be changed after shift links exist."
+            );
 
         UpdateEventSeries(assignmentSeries.EventSeries!, request);
         assignmentSeries.AssignmentDefinitionId = request.AssignmentDefinitionId;
@@ -206,6 +228,16 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
 
         await LinkShiftSeriesIfRequestedAsync(assignmentSeries.Id, request, cancellationToken);
+        var updatedConflictState = await LoadConflictParticipantsForSeriesAsync(id, cancellationToken);
+        await EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
+        var affectedEventIds = await db
+            .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == id)
+            .Select(entry => entry.EventId)
+            .ToListAsync(cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(
+            affectedEventIds,
+            cancellationToken: cancellationToken
+        );
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Updated assignment series {AssignmentSeriesId}.", id);
@@ -293,7 +325,11 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, request.StartAtUtc, cancellationToken);
+        var definition = await GetActiveDefinitionAsync(
+            request.AssignmentDefinitionId,
+            request.StartAtUtc,
+            cancellationToken
+        );
         request = ApplyDefinitionDefaults(request, definition);
         logger.LogInformation("Creating assignment entry starting at {StartAtUtc}.", request.StartAtUtc);
 
@@ -301,7 +337,10 @@ public sealed class AssignmentService(
             ? await GetValidatedAssignmentSeriesAsync(request.AssignmentSeriesId.Value, cancellationToken)
             : null;
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
         var eventEntity = MapToEvent(request, assignmentSeries?.EventSeriesId);
         db.Events.Add(eventEntity);
         await db.SaveChangesAsync(cancellationToken);
@@ -318,6 +357,8 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
 
         await LinkShiftEntriesIfRequestedAsync(assignmentEntry.Id, request, cancellationToken);
+        var conflictCandidates = await LoadConflictParticipantsForEntriesAsync([assignmentEntry.Id], cancellationToken);
+        await EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Created assignment entry {AssignmentEntryId}.", assignmentEntry.Id);
@@ -330,16 +371,26 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await GetActiveDefinitionAsync(request.AssignmentDefinitionId, request.StartAtUtc, cancellationToken);
+        var definition = await GetActiveDefinitionAsync(
+            request.AssignmentDefinitionId,
+            request.StartAtUtc,
+            cancellationToken
+        );
         request = request with { Color = ResolveDefinitionColor(request.Color, definition) };
         logger.LogInformation("Updating assignment entry {AssignmentEntryId}.", id);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
 
         var assignmentEntry = await db
             .AssignmentEntries.Include(entry => entry.Event)
             .Include(entry => entry.ShiftAssignmentEntries)
                 .ThenInclude(link => link.Users)
+            .Include(entry => entry.ShiftAssignmentEntries)
+                .ThenInclude(link => link.ShiftEntry!)
+                    .ThenInclude(shiftEntry => shiftEntry.Event)
             .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken);
 
         if (assignmentEntry is null)
@@ -358,6 +409,12 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
 
         await LinkShiftEntriesIfRequestedAsync(assignmentEntry.Id, request, cancellationToken);
+        var updatedConflictState = await LoadConflictParticipantsForEntriesAsync([id], cancellationToken);
+        await EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(
+            [assignmentEntry.EventId],
+            cancellationToken: cancellationToken
+        );
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Updated assignment entry {AssignmentEntryId}.", id);
@@ -415,6 +472,92 @@ public sealed class AssignmentService(
         );
     }
 
+    private async Task<IReadOnlyCollection<CalendarConflictParticipant>> LoadConflictParticipantsForSeriesAsync(
+        int assignmentSeriesId,
+        CancellationToken cancellationToken
+    )
+    {
+        var entryIds = await db
+            .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == assignmentSeriesId)
+            .Select(entry => entry.Id)
+            .ToListAsync(cancellationToken);
+        return await LoadConflictParticipantsForEntriesAsync(entryIds, cancellationToken);
+    }
+
+    private async Task<IReadOnlyCollection<CalendarConflictParticipant>> LoadConflictParticipantsForEntriesAsync(
+        IReadOnlyCollection<int> assignmentEntryIds,
+        CancellationToken cancellationToken
+    )
+    {
+        if (assignmentEntryIds.Count == 0)
+            return [];
+
+        var entries = await db
+            .AssignmentEntries.AsNoTracking()
+            .Include(entry => entry.Event)
+            .Include(entry => entry.ShiftAssignmentEntries)
+                .ThenInclude(link => link.Users)
+            .Include(entry => entry.ShiftAssignmentEntries)
+                .ThenInclude(link => link.ShiftEntry!)
+                    .ThenInclude(shiftEntry => shiftEntry.Event)
+            .Where(entry => assignmentEntryIds.Contains(entry.Id))
+            .ToListAsync(cancellationToken);
+
+        return entries
+            .Where(entry =>
+                entry.Event != null
+                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Draft
+                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                && entry.Event.EndAtUtc.HasValue
+            )
+            .SelectMany(entry =>
+                entry
+                    .ShiftAssignmentEntries.Where(link =>
+                        link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Draft
+                        && link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                    )
+                    .SelectMany(link => link.Users)
+                    .Select(user => user.UserId)
+                    .Distinct()
+                    .Select(userId => new CalendarConflictParticipant(
+                        entry.EventId,
+                        entry.Event!.EventTypeCode,
+                        entry.Event.SourceModule,
+                        userId,
+                        entry.Event.StartAtUtc,
+                        entry.Event.EndAtUtc!.Value,
+                        entry.Event.Title
+                    ))
+            )
+            .ToList();
+    }
+
+    private async Task EnsureNoUnresolvedConflictsAsync(
+        IReadOnlyCollection<CalendarConflictParticipant> candidates,
+        CancellationToken cancellationToken
+    )
+    {
+        if (candidates.Count == 0)
+            return;
+
+        var conflicts = await calendarConflictService.CheckCandidatesAsync(
+            candidates,
+            new CalendarConflictQuery(
+                candidates.Min(candidate => candidate.Start),
+                candidates.Max(candidate => candidate.End),
+                candidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
+                candidates
+                    .Where(candidate => candidate.EventId.HasValue)
+                    .Select(candidate => candidate.EventId!.Value)
+                    .ToList()
+            ),
+            cancellationToken
+        );
+        var unresolved = conflicts.Where(conflict => !conflict.IsOverridden).ToList();
+        if (unresolved.Count > 0)
+            throw new CalendarConflictException(unresolved);
+    }
+
     private async Task LinkShiftEntriesIfRequestedAsync(
         int assignmentEntryId,
         AssignmentEntryRequest request,
@@ -463,9 +606,7 @@ public sealed class AssignmentService(
             cancellationToken
         )
         || await db.ShiftAssignmentEntries.AnyAsync(
-            link =>
-                link.AssignmentEntry != null
-                && link.AssignmentEntry.AssignmentSeriesId == assignmentSeriesId,
+            link => link.AssignmentEntry != null && link.AssignmentEntry.AssignmentSeriesId == assignmentSeriesId,
             cancellationToken
         );
 
@@ -503,7 +644,9 @@ public sealed class AssignmentService(
                 .EventSeries.AsNoTracking()
                 .SingleOrDefaultAsync(series => series.Id == assignmentSeries.EventSeriesId, cancellationToken);
         if (assignmentSeries.AssignmentDefinition is null)
-            assignmentSeries.AssignmentDefinition = await IncludeAssignmentDefinitionGraph(db.AssignmentDefinitions.AsNoTracking())
+            assignmentSeries.AssignmentDefinition = await IncludeAssignmentDefinitionGraph(
+                    db.AssignmentDefinitions.AsNoTracking()
+                )
                 .SingleAsync(definition => definition.Id == assignmentSeries.AssignmentDefinitionId, cancellationToken);
 
         return MapToAssignmentSeriesResponse(assignmentSeries, ids);
@@ -563,8 +706,8 @@ public sealed class AssignmentService(
             EventIds = entries.Select(entry => entry.EventId).ToList(),
             AssignmentEntryIds = entries.Select(entry => entry.Id).ToList(),
             Entries = entries,
-            ShiftSeriesLinks = assignmentSeries.ShiftAssignmentSeriesLinks
-                .OrderBy(link => link.ShiftSeriesId)
+            ShiftSeriesLinks = assignmentSeries
+                .ShiftAssignmentSeriesLinks.OrderBy(link => link.ShiftSeriesId)
                 .Select(link => new ShiftAssignmentSeriesLinkResponse
                 {
                     Id = link.Id,
@@ -585,7 +728,9 @@ public sealed class AssignmentService(
             .Include(entry => entry.ShiftAssignmentEntries)
                 .ThenInclude(link => link.Users);
 
-    private static IQueryable<AssignmentDefinition> IncludeAssignmentDefinitionGraph(IQueryable<AssignmentDefinition> query) =>
+    private static IQueryable<AssignmentDefinition> IncludeAssignmentDefinitionGraph(
+        IQueryable<AssignmentDefinition> query
+    ) =>
         query
             .Include(definition => definition.AssignmentCategoryType)
             .Include(definition => definition.AssignmentSubCategoryType);
@@ -703,10 +848,19 @@ public sealed class AssignmentService(
         await db.AssignmentDefinitions.SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
         ?? throw new KeyNotFoundException($"Assignment definition {id} not found.");
 
-    private static AssignmentSeriesRequest ApplyDefinitionDefaults(AssignmentSeriesRequest request, AssignmentDefinition definition)
+    private static AssignmentSeriesRequest ApplyDefinitionDefaults(
+        AssignmentSeriesRequest request,
+        AssignmentDefinition definition
+    )
     {
         var start = request.StartAtUtc;
-        var end = ResolveDefaultEndTime(start, request.EndAtUtc, request.TimeZoneId, definition.DefaultEndTime, request.AllDay);
+        var end = ResolveDefaultEndTime(
+            start,
+            request.EndAtUtc,
+            request.TimeZoneId,
+            definition.DefaultEndTime,
+            request.AllDay
+        );
 
         return request with
         {
@@ -717,10 +871,19 @@ public sealed class AssignmentService(
         };
     }
 
-    private static AssignmentEntryRequest ApplyDefinitionDefaults(AssignmentEntryRequest request, AssignmentDefinition definition)
+    private static AssignmentEntryRequest ApplyDefinitionDefaults(
+        AssignmentEntryRequest request,
+        AssignmentDefinition definition
+    )
     {
         var start = request.StartAtUtc;
-        var end = ResolveDefaultEndTime(start, request.EndAtUtc, request.TimeZoneId, definition.DefaultEndTime, request.AllDay);
+        var end = ResolveDefaultEndTime(
+            start,
+            request.EndAtUtc,
+            request.TimeZoneId,
+            definition.DefaultEndTime,
+            request.AllDay
+        );
 
         return request with
         {
@@ -749,7 +912,10 @@ public sealed class AssignmentService(
             throw new InvalidOperationException("A time zone is required when assignment definition times are used.");
         var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
         var localStart = TimeZoneInfo.ConvertTime(start, zone).DateTime;
-        var localEnd = DateTime.SpecifyKind(DateOnly.FromDateTime(localStart).ToDateTime(defaultEndTime.Value), DateTimeKind.Unspecified);
+        var localEnd = DateTime.SpecifyKind(
+            DateOnly.FromDateTime(localStart).ToDateTime(defaultEndTime.Value),
+            DateTimeKind.Unspecified
+        );
         if (localEnd <= localStart)
             localEnd = localEnd.AddDays(1);
 

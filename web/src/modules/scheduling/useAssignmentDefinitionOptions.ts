@@ -15,6 +15,7 @@ export function useAssignmentDefinitionOptions(options: {
 }) {
   const assignmentDefinitions = ref<AssignmentDefinitionResponse[]>([]);
   const isLoadingAssignmentDefinitions = ref(false);
+  let latestLoadId = 0;
 
   const assignmentDefinitionOptions = computed<SelectOption[]>(() =>
     assignmentDefinitions.value
@@ -32,7 +33,9 @@ export function useAssignmentDefinitionOptions(options: {
   );
 
   async function loadAssignmentDefinitions() {
-    if (!options.activeLocationId.value) {
+    const loadId = ++latestLoadId;
+    const locationId = options.activeLocationId.value;
+    if (!locationId) {
       assignmentDefinitions.value = [];
       return;
     }
@@ -41,10 +44,14 @@ export function useAssignmentDefinitionOptions(options: {
 
     try {
       const { data, error, execute } = getApiSchedulingAssignmentDefinitions(
-        { locationId: options.activeLocationId.value },
+        { locationId },
         { options: { immediate: false } },
       );
       await execute();
+
+      if (loadId !== latestLoadId) {
+        return;
+      }
 
       if (error.value) {
         options.onError(error.value.message || 'Failed to load assignment definitions.');
@@ -54,9 +61,15 @@ export function useAssignmentDefinitionOptions(options: {
       assignmentDefinitions.value = data.value ?? [];
       options.onLoaded?.();
     } catch (error: unknown) {
+      if (loadId !== latestLoadId) {
+        return;
+      }
+
       options.onError(error instanceof Error ? error.message : 'Failed to load assignment definitions.');
     } finally {
-      isLoadingAssignmentDefinitions.value = false;
+      if (loadId === latestLoadId) {
+        isLoadingAssignmentDefinitions.value = false;
+      }
     }
   }
 
@@ -85,7 +98,11 @@ export function useAssignmentDefinitionOptions(options: {
       return true;
     }
 
-    return isAssignmentDefinitionSelectableForAssignmentDate(assignmentDefinition, contextDate, options.timeZoneId.value);
+    return isAssignmentDefinitionSelectableForAssignmentDate(
+      assignmentDefinition,
+      contextDate,
+      options.timeZoneId.value,
+    );
   }
 
   return {

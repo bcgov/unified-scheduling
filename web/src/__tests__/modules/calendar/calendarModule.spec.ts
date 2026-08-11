@@ -58,6 +58,7 @@ describe('calendar module integration', () => {
     const postApiCalendarData = vi.fn().mockResolvedValue({
       moduleId: 'calendar',
       contributionId: 'calendar.events',
+      conflicts: [],
       events: [
         {
           id: 7,
@@ -102,6 +103,7 @@ describe('calendar module integration', () => {
     ).resolves.toEqual({
       moduleId: 'calendar',
       contributionId: 'calendar.events',
+      data: { conflicts: [] },
       events: [
         expect.objectContaining({
           id: '7',

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
 using Unified.Calendar;
+using Unified.Calendar.Conflicts;
 using Unified.Infrastructure.Modules;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.Seeders;
@@ -40,6 +41,10 @@ public static class SchedulingModule
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
+        services.AddScoped<SchedulingConflictParticipantProvider>();
+        services.AddScoped<ICalendarConflictParticipantProvider>(serviceProvider =>
+            serviceProvider.GetRequiredService<SchedulingConflictParticipantProvider>()
+        );
         services.AddScoped<ShiftSeriesMaterializationHandler>();
         services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();

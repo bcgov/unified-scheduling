@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -9,7 +10,8 @@ namespace Unified.Calendar.Services;
 public sealed class CalendarEventService(
     ILogger<CalendarEventService> logger,
     UnifiedDbContext db,
-    ICalendarDateTimeService calendarDateTimeService
+    ICalendarDateTimeService calendarDateTimeService,
+    ICalendarConflictService calendarConflictService
 ) : ICalendarEventService
 {
     public async Task<CalendarDataResponse> GetCalendarDataAsync(
@@ -50,7 +52,15 @@ public sealed class CalendarEventService(
 
         var eventEntities = await query.OrderBy(e => e.StartAtUtc).ThenBy(e => e.Id).ToListAsync(cancellationToken);
 
-        var response = new CalendarDataResponse { Events = eventEntities.Select(MapToResponse).ToList() };
+        var conflicts = await calendarConflictService.GetConflictsAsync(
+            new CalendarConflictQuery(utcRange.StartAtUtc, utcRange.EndAtUtc),
+            cancellationToken
+        );
+        var response = new CalendarDataResponse
+        {
+            Events = eventEntities.Select(MapToResponse).ToList(),
+            Conflicts = conflicts.Select(CalendarConflictResponse.FromConflict).ToList(),
+        };
 
         logger.LogDebug(
             "Calendar data query completed for local date range {StartDate} to {EndDate} with location filter {LocationId}; {EventCount} events matched.",

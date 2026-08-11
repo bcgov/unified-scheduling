@@ -1,5 +1,7 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -15,7 +17,9 @@ public sealed class ShiftService(
     ShiftSeriesMaterializationHandler shiftSeriesMaterializationHandler,
     IShiftAssignmentService shiftAssignmentService,
     ICalendarDateTimeService calendarDateTimeService,
-    ICalendarLifecycleService calendarLifecycleService
+    ICalendarLifecycleService calendarLifecycleService,
+    ICalendarConflictService calendarConflictService,
+    SchedulingConflictParticipantProvider conflictParticipantProvider
 ) : IShiftService
 {
     private static readonly EventSeriesMaterializationOptions ShiftMaterializationOptions = new()
@@ -159,7 +163,9 @@ public sealed class ShiftService(
         var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
         var recurrenceChanged = HasRecurrenceChanged(eventSeries, request);
         if (recurrenceChanged && await ShiftSeriesHasAssignmentLinksAsync(entity.Id, cancellationToken))
-            throw new InvalidOperationException("Shift series recurrence cannot be changed after assignment links exist.");
+            throw new InvalidOperationException(
+                "Shift series recurrence cannot be changed after assignment links exist."
+            );
 
         UpdateEventSeries(eventSeries, request);
 
@@ -210,6 +216,11 @@ public sealed class ShiftService(
     {
         logger.LogInformation("Publishing shift series {ShiftSeriesId}.", id);
 
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
+
         var entity = await db
             .ShiftSeries.Include(shiftSeries => shiftSeries.EventSeries!)
                 .ThenInclude(eventSeries => eventSeries.Events)
@@ -226,6 +237,12 @@ public sealed class ShiftService(
         calendarLifecycleService.PublishSeries(eventSeries, eventSeries.Events.ToList());
 
         await db.SaveChangesAsync(cancellationToken);
+        var shiftEntryIds = await db
+            .ShiftEntries.Where(shiftEntry => shiftEntry.ShiftSeriesId == id)
+            .Select(shiftEntry => shiftEntry.Id)
+            .ToListAsync(cancellationToken);
+        await EnsurePublishedShiftAssignmentsHaveNoUnresolvedConflictsAsync(shiftEntryIds, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Published shift series {ShiftSeriesId}.", id);
 
@@ -359,7 +376,10 @@ public sealed class ShiftService(
             queryParams?.UserId
         );
 
-        IQueryable<ShiftEntry> query = db.ShiftEntries.AsNoTracking().Include(shiftEntry => shiftEntry.Users).Include(shiftEntry => shiftEntry.Event);
+        IQueryable<ShiftEntry> query = db
+            .ShiftEntries.AsNoTracking()
+            .Include(shiftEntry => shiftEntry.Users)
+            .Include(shiftEntry => shiftEntry.Event);
 
         if (queryParams?.ShiftSeriesId is int shiftSeriesId)
             query = query.Where(shiftEntry => shiftEntry.ShiftSeriesId == shiftSeriesId);
@@ -499,6 +519,11 @@ public sealed class ShiftService(
     {
         logger.LogInformation("Publishing shift entry {ShiftEntryId}.", id);
 
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
+
         var entity = await db
             .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
             .Include(shiftEntry => shiftEntry.Users)
@@ -512,10 +537,65 @@ public sealed class ShiftService(
         ValidateShiftEventType(entity.Event!);
         calendarLifecycleService.Publish(entity.Event!);
         await db.SaveChangesAsync(cancellationToken);
+        await EnsurePublishedShiftAssignmentsHaveNoUnresolvedConflictsAsync([id], cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Published shift entry {ShiftEntryId}.", id);
 
         return MapToShiftEntryResponse(entity);
+    }
+
+    private async Task EnsurePublishedShiftAssignmentsHaveNoUnresolvedConflictsAsync(
+        IReadOnlyCollection<int> shiftEntryIds,
+        CancellationToken cancellationToken
+    )
+    {
+        if (shiftEntryIds.Count == 0)
+            return;
+
+        var assignmentEventIds = await db
+            .ShiftAssignmentEntries.AsNoTracking()
+            .Where(link => shiftEntryIds.Contains(link.ShiftEntryId))
+            .Select(link => link.AssignmentEntry!.EventId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        if (assignmentEventIds.Count == 0)
+            return;
+
+        var assignmentRange = await db
+            .Events.AsNoTracking()
+            .Where(eventEntity => assignmentEventIds.Contains(eventEntity.Id) && eventEntity.EndAtUtc.HasValue)
+            .Select(eventEntity => new { eventEntity.StartAtUtc, EndAtUtc = eventEntity.EndAtUtc!.Value })
+            .ToListAsync(cancellationToken);
+        if (assignmentRange.Count == 0)
+            return;
+
+        var candidates = await conflictParticipantProvider.GetParticipantsAsync(
+            new CalendarConflictQuery(
+                assignmentRange.Min(eventEntity => eventEntity.StartAtUtc),
+                assignmentRange.Max(eventEntity => eventEntity.EndAtUtc)
+            ),
+            cancellationToken
+        );
+        candidates = candidates
+            .Where(candidate => candidate.EventId.HasValue && assignmentEventIds.Contains(candidate.EventId.Value))
+            .ToList();
+        if (candidates.Count == 0)
+            return;
+
+        var conflicts = await calendarConflictService.CheckCandidatesAsync(
+            candidates,
+            new CalendarConflictQuery(
+                candidates.Min(candidate => candidate.Start),
+                candidates.Max(candidate => candidate.End),
+                candidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
+                assignmentEventIds
+            ),
+            cancellationToken
+        );
+        var unresolved = conflicts.Where(conflict => !conflict.IsOverridden).ToList();
+        if (unresolved.Count > 0)
+            throw new CalendarConflictException(unresolved);
     }
 
     public async Task<ShiftEntryResponse?> ExpireShiftEntryAsync(
@@ -748,10 +828,7 @@ public sealed class ShiftService(
             .Select(user => user.UserId)
             .Distinct()
             .ToList();
-        var linkedShiftEntryIds = activeShiftAssignmentLinks
-            .Select(link => link.ShiftEntryId)
-            .Distinct()
-            .ToList();
+        var linkedShiftEntryIds = activeShiftAssignmentLinks.Select(link => link.ShiftEntryId).Distinct().ToList();
 
         return new SchedulingCalendarShiftEventResponse
         {
@@ -948,7 +1025,9 @@ public sealed class ShiftService(
         return response with { AssignmentLinks = assignmentLinks };
     }
 
-    private static IReadOnlyCollection<ShiftAssignmentEntryResponse> MapExistingAssignmentLinks(ShiftEntry shiftEntry) =>
+    private static IReadOnlyCollection<ShiftAssignmentEntryResponse> MapExistingAssignmentLinks(
+        ShiftEntry shiftEntry
+    ) =>
         shiftEntry
             .ShiftAssignmentEntries.Where(link =>
                 link.AssignmentEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
@@ -1088,7 +1167,10 @@ public sealed class ShiftService(
         }
     }
 
-    private async Task<bool> ShiftSeriesHasAssignmentLinksAsync(int shiftSeriesId, CancellationToken cancellationToken) =>
+    private async Task<bool> ShiftSeriesHasAssignmentLinksAsync(
+        int shiftSeriesId,
+        CancellationToken cancellationToken
+    ) =>
         await db.ShiftAssignmentSeriesLinks.AnyAsync(link => link.ShiftSeriesId == shiftSeriesId, cancellationToken)
         || await db.ShiftAssignmentEntries.AnyAsync(
             link => link.ShiftEntry != null && link.ShiftEntry.ShiftSeriesId == shiftSeriesId,

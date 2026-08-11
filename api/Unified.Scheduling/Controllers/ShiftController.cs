@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Authorization.Claims;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -79,8 +81,15 @@ public sealed class ShiftController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftSeriesResponse>> PublishShiftSeries(int id, CancellationToken cancellationToken)
     {
-        var result = await shiftService.PublishShiftSeriesAsync(id, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await shiftService.PublishShiftSeriesAsync(id, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPost("shift-series/{id:int}/expire")]
@@ -177,8 +186,15 @@ public sealed class ShiftController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftEntryResponse>> PublishShiftEntry(int id, CancellationToken cancellationToken)
     {
-        var result = await shiftService.PublishShiftEntryAsync(id, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await shiftService.PublishShiftEntryAsync(id, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPost("shift-entries/{id:int}/expire")]
@@ -219,4 +235,12 @@ public sealed class ShiftController(
         var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
         return Guid.TryParse(userIdValue, out var userId) ? userId : null;
     }
+
+    private ConflictObjectResult ToConflictResult(CalendarConflictException exception) =>
+        Conflict(
+            new CalendarConflictRejectionResponse(
+                exception.Message,
+                exception.Conflicts.Select(CalendarConflictResponse.FromConflict).ToList()
+            )
+        );
 }

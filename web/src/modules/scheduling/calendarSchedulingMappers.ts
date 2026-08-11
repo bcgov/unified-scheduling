@@ -10,14 +10,19 @@ import {
   toDateTime,
 } from '@/utils/date';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
-import { selectContribution } from '@/modules/calendar/calendarSelectors';
-import type { CalendarDataResponse, CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
+import { selectCalendarConflicts, selectContribution } from '@/modules/calendar/calendarSelectors';
+import type {
+  CalendarConflict,
+  CalendarDataResponse,
+  CalendarEventBase,
+  CalendarQueryContext,
+} from '@/modules/calendar/calendarTypes';
 import {
   CalendarMatrixActionType,
+  type CalendarMatrixActionDisplay,
   type CalendarMatrixCell,
   type CalendarMatrixCellHeader,
   type CalendarMatrixDay,
-  type CalendarMatrixActionDisplay,
   type CalendarMatrixEventItem,
   type CalendarMatrixResource,
   type CalendarMatrixSidePanelItem,
@@ -74,9 +79,10 @@ export function buildCalendarSchedulingViewModel(
   const schedulingEvents = selectSchedulingShiftEvents(response);
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentResources = selectSchedulingAssignmentResources(response);
-  const assignmentEvents = selectSchedulingAssignmentEvents(response).map((event) =>
-    withResolvedAssignmentDefinitionId(event, assignmentResources),
-  );
+  const conflicts = selectCalendarConflicts(response);
+  const assignmentEvents = selectSchedulingAssignmentEvents(response)
+    .map((event) => withResolvedAssignmentDefinitionId(event, assignmentResources))
+    .map((event) => withCalendarConflicts(event, conflicts));
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
@@ -188,7 +194,10 @@ export function buildCalendarAssignmentViewModel(
   const days = buildDays(context.startDate, period);
   const timeZone = resolveMatrixTimeZone(context);
   const resources = buildAssignmentResourceRows(response);
-  const assignmentEvents = selectSchedulingAssignmentEvents(response);
+  const conflicts = selectCalendarConflicts(response);
+  const assignmentEvents = selectSchedulingAssignmentEvents(response).map((event) =>
+    withCalendarConflicts(event, conflicts),
+  );
   const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
   const cells: CalendarMatrixCell[] = [];
 
@@ -226,6 +235,9 @@ export function buildCalendarAssignmentViewModel(
   return {
     days,
     timeZone,
+    payload: {
+      assignmentEvents,
+    },
     primaryColumn: {
       label: 'ASSIGNMENTS',
       resources,
@@ -397,13 +409,42 @@ function withResolvedAssignmentDefinitionId(
     return event;
   }
 
-  return {
+  const resolvedEvent: CalendarSchedulingEvent = {
     ...event,
     metadata: {
       ...event.metadata,
       assignmentDefinitionId: String(matchedResource.assignmentDefinitionId),
     },
-  } satisfies CalendarSchedulingEvent;
+  };
+
+  return resolvedEvent;
+}
+
+function withCalendarConflicts(
+  event: CalendarEventBase,
+  conflicts: ReadonlyArray<CalendarConflict>,
+): CalendarEventBase {
+  if (!isCalendarSchedulingEvent(event) || !isAssignmentEvent(event) || !event.metadata.eventId) {
+    return event;
+  }
+
+  const eventConflicts = conflicts.filter(
+    (conflict) =>
+      conflict.entry.eventId === event.metadata.eventId || conflict.overlaps.eventId === event.metadata.eventId,
+  );
+  if (eventConflicts.length === 0) {
+    return event;
+  }
+
+  const eventWithConflicts: CalendarSchedulingEvent = {
+    ...event,
+    metadata: {
+      ...event.metadata,
+      conflicts: eventConflicts,
+    },
+  };
+
+  return eventWithConflicts;
 }
 
 function normalizeAssignmentText(value?: string | null) {
@@ -647,7 +688,6 @@ function buildCellHeader(
         }
       : undefined,
     actionId: calendarSchedulingActionIds.viewHeaderDetails,
-    action: eventHasConflict(event) ? buildPulldownAction() : undefined,
     payload: event,
   };
 }
@@ -658,10 +698,6 @@ function eventBelongsToSeries(event: CalendarEventBase) {
   }
 
   return isCalendarSchedulingEvent(event) && event.metadata.shiftSeriesId != null;
-}
-
-function eventHasConflict(event: CalendarEventBase) {
-  return 'isConflict' in event && event.isConflict === true;
 }
 
 export function getCalendarEventDateKey(
@@ -701,15 +737,6 @@ function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: s
 function resolveMatrixTimeZone(context: CalendarQueryContext) {
   const timeZone = context.filters.timeZoneId ?? context.filters.timeZone;
   return typeof timeZone === 'string' && timeZone.trim() ? timeZone : defaultCalendarSchedulingTimeZone;
-}
-
-function buildPulldownAction(): CalendarMatrixActionDisplay {
-  return {
-    actionId: calendarSchedulingActionIds.showConflict,
-    icon: mdiAlertCircle,
-    ariaLabel: 'Show Conflict Details',
-    type: CalendarMatrixActionType.Button,
-  };
 }
 
 function buildDays(startDate: string, period: CalendarPeriod): CalendarMatrixDay[] {
@@ -764,7 +791,7 @@ function toScheduleMatrixEventItems(
   events: ReadonlyArray<CalendarEventBase>,
   userShiftEvents: ReadonlyArray<CalendarEventBase>,
 ): CalendarMatrixEventItem[] {
-  return events.flatMap((event) => {
+  return [...events].sort(compareAssignmentEventsForRendering).flatMap((event) => {
     const linkedShifts = resolveLinkedShiftsForAssignment(event, [...userShiftEvents]);
     const activeLinkedShifts = linkedShifts.filter((shift) => !isCancelledStatus(shift.statusTypeCode));
     const displayLinkedShifts = activeLinkedShifts.length > 0 ? activeLinkedShifts : linkedShifts;
@@ -783,10 +810,56 @@ function toScheduleMatrixEventItems(
           color: resolveCalendarSchedulingColor(event.color),
           status,
           draggable: false,
+          action: eventHasConflicts(displayEvent) ? buildPulldownAction() : undefined,
         },
       },
     ];
   });
+}
+
+function buildPulldownAction(): CalendarMatrixActionDisplay {
+  return {
+    actionId: calendarSchedulingActionIds.showConflict,
+    icon: mdiAlertCircle,
+    ariaLabel: 'Show Conflict Details',
+    type: CalendarMatrixActionType.Button,
+  };
+}
+
+function eventHasConflicts(event: CalendarEventBase) {
+  return isCalendarSchedulingEvent(event) && Boolean(event.metadata.conflicts?.length);
+}
+
+function compareAssignmentEventsForRendering(left: CalendarEventBase, right: CalendarEventBase) {
+  const startComparison = left.start.localeCompare(right.start);
+  if (startComparison !== 0) {
+    return startComparison;
+  }
+
+  const leftAssignmentId = resolveAssignmentEntryIdForRendering(left);
+  const rightAssignmentId = resolveAssignmentEntryIdForRendering(right);
+  if (leftAssignmentId !== undefined && rightAssignmentId !== undefined) {
+    return leftAssignmentId - rightAssignmentId;
+  }
+
+  if (leftAssignmentId !== undefined) {
+    return -1;
+  }
+
+  if (rightAssignmentId !== undefined) {
+    return 1;
+  }
+
+  return left.id.localeCompare(right.id, undefined, { numeric: true });
+}
+
+function resolveAssignmentEntryIdForRendering(event: CalendarEventBase) {
+  if (!isCalendarSchedulingEvent(event)) {
+    return undefined;
+  }
+
+  const assignmentEntryId = Number(event.metadata.assignmentEntryId);
+  return Number.isInteger(assignmentEntryId) && assignmentEntryId > 0 ? assignmentEntryId : undefined;
 }
 
 function withAssignmentCapacitySlotStates(

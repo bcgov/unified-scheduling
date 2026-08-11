@@ -4,6 +4,7 @@ import type { CalendarMatrixResource } from '@/modules/calendar/components/matri
 
 export const isCalendarSchedulingAssignmentModalOpen = ref(false);
 export const calendarSchedulingAssignmentModalMode = ref<'create' | 'view' | 'edit'>('create');
+export const calendarSchedulingAssignmentModalInitialTab = ref<'details' | 'edit'>('details');
 export const calendarSchedulingAssignmentModalEditScope = ref<'event' | 'series'>('event');
 export const calendarSchedulingAssignmentModalDate = ref<string>();
 export const calendarSchedulingAssignmentModalEntryId = ref<number>();
@@ -16,7 +17,6 @@ export const isCalendarSchedulingResourceActionModalOpen = ref(false);
 export const calendarSchedulingResourceActionDate = ref<string>();
 export const calendarSchedulingResourceActionAssignmentEntryId = ref<number>();
 export const calendarSchedulingResourceActionAssignmentEvents = ref<CalendarEventBase[]>([]);
-export const calendarSchedulingEventActionEvent = ref<CalendarEventBase>();
 export const calendarSchedulingConflictEventId = ref<string>();
 export const calendarSchedulingDetailEvent = ref<CalendarEventBase>();
 
@@ -24,6 +24,7 @@ export function showCalendarSchedulingAssignmentModal(
   date?: string,
   options?: {
     mode?: 'create' | 'view' | 'edit';
+    initialTab?: 'details' | 'edit';
     editScope?: 'event' | 'series';
     assignmentEntryId?: number;
     assignmentSeriesId?: number;
@@ -33,6 +34,7 @@ export function showCalendarSchedulingAssignmentModal(
   },
 ) {
   calendarSchedulingAssignmentModalMode.value = options?.mode ?? 'create';
+  calendarSchedulingAssignmentModalInitialTab.value = options?.initialTab ?? 'details';
   calendarSchedulingAssignmentModalEditScope.value = options?.editScope ?? 'event';
   calendarSchedulingAssignmentModalDate.value = date;
   calendarSchedulingAssignmentModalEntryId.value = options?.assignmentEntryId;
@@ -46,6 +48,7 @@ export function showCalendarSchedulingAssignmentModal(
 export function closeCalendarSchedulingAssignmentModal() {
   isCalendarSchedulingAssignmentModalOpen.value = false;
   calendarSchedulingAssignmentModalMode.value = 'create';
+  calendarSchedulingAssignmentModalInitialTab.value = 'details';
   calendarSchedulingAssignmentModalEditScope.value = 'event';
   calendarSchedulingAssignmentModalDate.value = undefined;
   calendarSchedulingAssignmentModalEntryId.value = undefined;
@@ -76,14 +79,6 @@ export function closeCalendarSchedulingResourceActionModal() {
   calendarSchedulingResourceActionDate.value = undefined;
   calendarSchedulingResourceActionAssignmentEntryId.value = undefined;
   calendarSchedulingResourceActionAssignmentEvents.value = [];
-}
-
-export function showCalendarSchedulingEventActionModal(event: CalendarEventBase) {
-  calendarSchedulingEventActionEvent.value = event;
-}
-
-export function closeCalendarSchedulingEventActionModal() {
-  calendarSchedulingEventActionEvent.value = undefined;
 }
 
 export function toggleCalendarSchedulingConflict(eventId: string) {

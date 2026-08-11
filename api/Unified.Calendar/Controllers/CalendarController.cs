@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Unified.Authorization;
+using Unified.Authorization.Claims;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
@@ -15,6 +18,7 @@ namespace Unified.Calendar.Controllers;
 public sealed class CalendarController(
     ILogger<CalendarController> logger,
     ICalendarEventService calendarEventService,
+    ICalendarConflictService calendarConflictService,
     CalendarDataRequestValidator calendarDataRequestValidator
 ) : ControllerBase
 {
@@ -44,5 +48,20 @@ public sealed class CalendarController(
         );
 
         return Ok(response);
+    }
+
+    [HttpPost("conflicts/overrides")]
+    [Authorize(Policy = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsEdit))]
+    [ProducesResponseType(typeof(CalendarConflictOverrideResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CalendarConflictOverrideResponse>> CreateConflictOverride(
+        [FromBody] CalendarConflictOverrideRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
+        var userId = Guid.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : (Guid?)null;
+        return Ok(await calendarConflictService.CreateOverrideAsync(request, userId, cancellationToken));
     }
 }

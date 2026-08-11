@@ -31,6 +31,7 @@ public class UnifiedDbContext : DbContext
     public DbSet<AssignmentSubCategoryType> AssignmentSubCategoryTypes { get; set; }
     public DbSet<EventSeries> EventSeries { get; set; }
     public DbSet<Event> Events { get; set; }
+    public DbSet<CalendarConflictOverride> CalendarConflictOverrides { get; set; }
     public DbSet<TrainingCategory> TrainingCategories { get; set; }
     public DbSet<Training> Trainings { get; set; }
     public DbSet<UserTraining> UserTrainings { get; set; }

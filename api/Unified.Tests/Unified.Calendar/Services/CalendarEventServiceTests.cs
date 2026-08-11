@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Unified.Calendar;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
@@ -33,7 +34,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
         _service = new CalendarEventService(
             Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarEventService>.Instance,
             _dbContext,
-            CreateCalendarDateTimeService()
+            CreateCalendarDateTimeService(),
+            new CalendarConflictService(new CalendarConflictDetector(), [], _dbContext)
         );
     }
 

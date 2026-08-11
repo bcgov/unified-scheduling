@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Controllers;
 using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
@@ -43,6 +44,8 @@ public static class CalendarModule
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddScoped<ICalendarEventService, CalendarEventService>();
+        services.AddSingleton<ICalendarConflictDetector, CalendarConflictDetector>();
+        services.AddScoped<ICalendarConflictService, CalendarConflictService>();
         services.AddScoped<ICalendarDateTimeService, CalendarDateTimeService>();
         services.AddScoped<ICalendarLifecycleService, CalendarLifecycleService>();
         services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();

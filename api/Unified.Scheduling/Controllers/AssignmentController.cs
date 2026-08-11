@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Authorization.Claims;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -49,8 +51,15 @@ public sealed class AssignmentController(
     )
     {
         await assignmentSeriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await assignmentService.CreateAssignmentSeriesAsync(request, cancellationToken);
-        return Created($"/api/scheduling/assignments/series/{result.Id}", result);
+        try
+        {
+            var result = await assignmentService.CreateAssignmentSeriesAsync(request, cancellationToken);
+            return Created($"/api/scheduling/assignments/series/{result.Id}", result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPut("series/{id:int}")]
@@ -65,8 +74,15 @@ public sealed class AssignmentController(
     )
     {
         await assignmentSeriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await assignmentService.UpdateAssignmentSeriesAsync(id, request, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await assignmentService.UpdateAssignmentSeriesAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPost("series/{id:int}/expire")]
@@ -123,8 +139,15 @@ public sealed class AssignmentController(
     )
     {
         await assignmentEntryRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await assignmentService.CreateAssignmentEntryAsync(request, cancellationToken);
-        return Created($"/api/scheduling/assignments/entries/{result.Id}", result);
+        try
+        {
+            var result = await assignmentService.CreateAssignmentEntryAsync(request, cancellationToken);
+            return Created($"/api/scheduling/assignments/entries/{result.Id}", result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPut("entries/{id:int}")]
@@ -139,8 +162,15 @@ public sealed class AssignmentController(
     )
     {
         await assignmentEntryRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await assignmentService.UpdateAssignmentEntryAsync(id, request, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await assignmentService.UpdateAssignmentEntryAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPost("entries/{id:int}/expire")]
@@ -171,4 +201,12 @@ public sealed class AssignmentController(
         var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
         return Guid.TryParse(userIdValue, out var userId) ? userId : null;
     }
+
+    private ConflictObjectResult ToConflictResult(CalendarConflictException exception) =>
+        Conflict(
+            new CalendarConflictRejectionResponse(
+                exception.Message,
+                exception.Conflicts.Select(CalendarConflictResponse.FromConflict).ToList()
+            )
+        );
 }

@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Calendar;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Controllers;
 using Unified.Calendar.Models;
 using Unified.Calendar.Services;
@@ -41,6 +42,7 @@ public class CalendarControllerTests
         var controller = new CalendarController(
             NullLogger<CalendarController>.Instance,
             service,
+            new FakeCalendarConflictService(),
             new CalendarDataRequestValidator()
         );
 
@@ -71,6 +73,7 @@ public class CalendarControllerTests
         var controller = new CalendarController(
             NullLogger<CalendarController>.Instance,
             new FakeCalendarEventService(),
+            new FakeCalendarConflictService(),
             new CalendarDataRequestValidator()
         );
 
@@ -94,5 +97,35 @@ public class CalendarControllerTests
             LastRequest = request;
             return Task.FromResult(Result);
         }
+    }
+
+    private sealed class FakeCalendarConflictService : ICalendarConflictService
+    {
+        public IReadOnlyCollection<CalendarConflict> DetectConflicts(
+            IReadOnlyCollection<CalendarConflictParticipant> participants
+        ) => [];
+
+        public Task<IReadOnlyCollection<CalendarConflict>> GetConflictsAsync(
+            CalendarConflictQuery query,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
+
+        public Task<IReadOnlyCollection<CalendarConflict>> CheckCandidatesAsync(
+            IReadOnlyCollection<CalendarConflictParticipant> candidates,
+            CalendarConflictQuery query,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
+
+        public Task<CalendarConflictOverrideResponse> CreateOverrideAsync(
+            CalendarConflictOverrideRequest request,
+            Guid? createdById,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task InvalidateResolvedOverridesAsync(
+            IReadOnlyCollection<int> eventIds,
+            Guid? updatedById = null,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
     }
 }

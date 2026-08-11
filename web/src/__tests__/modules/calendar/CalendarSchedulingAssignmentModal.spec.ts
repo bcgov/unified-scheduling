@@ -1764,7 +1764,8 @@ describe('CalendarSchedulingAssignmentModal', () => {
 
     const wrapper = mount(CalendarSchedulingAssignmentModal, {
       props: {
-        mode: 'edit',
+        mode: 'view',
+        initialTab: 'edit',
         assignmentEntryId: 257,
         timeZone: 'America/Vancouver',
       },
@@ -1777,10 +1778,14 @@ describe('CalendarSchedulingAssignmentModal', () => {
     const vm = wrapper.vm as unknown as {
       formData: { date?: string };
       assignmentDefinitionOptions: Array<{ code: number; description: string }>;
+      activeTab: string;
+      isReadOnly: boolean;
     };
 
     expect(vm.formData.date).toBe('2026-08-10');
     expect(vm.assignmentDefinitionOptions.map((option) => option.code)).toEqual([8]);
+    expect(vm.activeTab).toBe('edit');
+    expect(vm.isReadOnly).toBe(false);
 
     wrapper.unmount();
   });

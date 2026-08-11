@@ -1,5 +1,5 @@
 import { postApiCalendarData } from '@/api-access/calendar';
-import type { CalendarEventBase } from '../calendarTypes';
+import type { CalendarConflict, CalendarEventBase } from '../calendarTypes';
 import type { CalendarModuleContribution } from '../registry/calendarRegistryTypes';
 import { mapApiCalendarEventToCalendarEventBase } from './calendarEventMappers';
 
@@ -24,6 +24,7 @@ export const calendarEventsContribution: CalendarModuleContribution = {
       moduleId: data.moduleId,
       contributionId: data.contributionId,
       events: data.events.map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
+      data: { conflicts: (data.conflicts ?? []) as CalendarConflict[] },
     };
   },
 };

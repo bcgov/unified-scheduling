@@ -31,7 +31,7 @@ import type {
   CalendarQueryContext,
   CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
-import { mdiCalendarSync } from '@mdi/js';
+import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 
 describe('shared calendar date helpers', () => {
   it('builds ranges for every period and shifts them correctly', () => {
@@ -151,6 +151,71 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it('renders assignments with the same start time in ascending assignment id order', () => {
+    const assignmentEvents: CalendarSchedulingEvent[] = [
+      {
+        id: 'scheduling.assignment-entry.211',
+        type: 'scheduling.assignment',
+        sourceModule: 'scheduling',
+        title: 'Later assignment id',
+        start: '2025-01-13T10:00:00Z',
+        end: '2025-01-13T12:00:00Z',
+        metadata: {
+          assignmentEntryId: '211',
+          assignedUserIds: ['user-1'],
+        },
+      },
+      {
+        id: 'scheduling.assignment-entry.209',
+        type: 'scheduling.assignment',
+        sourceModule: 'scheduling',
+        title: 'Earlier assignment id',
+        start: '2025-01-13T10:00:00Z',
+        end: '2025-01-13T12:00:00Z',
+        metadata: {
+          assignmentEntryId: '209',
+          assignedUserIds: ['user-1'],
+        },
+      },
+    ];
+
+    const viewModel = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'scheduling.shift-events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.shift-events',
+            events: assignmentEvents,
+            resources: [
+              {
+                id: 'user-1',
+                type: 'user',
+                sourceModule: 'scheduling',
+                label: 'Alex Alpha',
+                title: 'Alex Alpha',
+              },
+            ] as CalendarSchedulingUserResource[],
+          },
+        },
+      },
+      {
+        startDate: '2025-01-13',
+        endDate: '2025-01-20',
+        filters: { timeZone: 'America/Vancouver' },
+      },
+      'week',
+    );
+
+    const cell = viewModel.cells.find(
+      (candidate) => candidate.resourceId === 'user-1' && candidate.date === '2025-01-13',
+    );
+
+    expect(cell?.groups[0]?.events.map((item) => item.event.id)).toEqual([
+      'scheduling.assignment-entry.209',
+      'scheduling.assignment-entry.211',
+    ]);
+  });
+
   it('enriches a shift-contribution assignment with its definition before cross-user drop matching', () => {
     const assignmentEvent: CalendarSchedulingEvent = {
       id: 'scheduling.assignment-entry.90',
@@ -228,18 +293,33 @@ describe('scheduling calendar view model', () => {
     ).toBe('20');
   });
 
-  it('shows the conflict action only when a shift event has isConflict', () => {
+  it('adds a warning action to every assignment event listed in a backend conflict', () => {
     const shiftEvents: CalendarSchedulingEvent[] = [
       {
-        id: 'shift-conflict',
-        type: 'scheduling.shift',
-        sourceModule: 'calendar-scheduling',
-        title: 'Conflict shift',
-        start: '2025-01-13T09:00:00',
-        end: '2025-01-13T17:00:00',
-        resourceIds: ['user-1'],
-        isConflict: true,
-        metadata: { userIds: ['user-1'] },
+        id: 'assignment-conflict-1',
+        type: 'scheduling.assignment',
+        sourceModule: 'scheduling',
+        title: 'First conflicting assignment',
+        start: '2025-01-13T10:00:00Z',
+        end: '2025-01-13T12:00:00Z',
+        metadata: {
+          eventId: 101,
+          assignmentEntryId: '201',
+          assignedUserIds: ['user-1'],
+        },
+      },
+      {
+        id: 'assignment-conflict-2',
+        type: 'scheduling.assignment',
+        sourceModule: 'scheduling',
+        title: 'Second conflicting assignment',
+        start: '2025-01-13T11:00:00Z',
+        end: '2025-01-13T13:00:00Z',
+        metadata: {
+          eventId: 102,
+          assignmentEntryId: '202',
+          assignedUserIds: ['user-1'],
+        },
       },
       {
         id: 'shift-normal',
@@ -286,6 +366,38 @@ describe('scheduling calendar view model', () => {
               },
             ] as CalendarSchedulingUserResource[],
           },
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: {
+              conflicts: [
+                {
+                  id: 'conflict:101:102:user-1',
+                  entry: {
+                    eventId: 101,
+                    eventTypeCode: 'assignment',
+                    sourceModule: 'scheduling',
+                    title: 'First conflicting assignment',
+                    start: '2025-01-13T10:00:00Z',
+                    end: '2025-01-13T12:00:00Z',
+                  },
+                  overlaps: {
+                    eventId: 102,
+                    eventTypeCode: 'assignment',
+                    sourceModule: 'scheduling',
+                    title: 'Second conflicting assignment',
+                    start: '2025-01-13T11:00:00Z',
+                    end: '2025-01-13T13:00:00Z',
+                  },
+                  resourceId: 'user-1',
+                  overlapStart: '2025-01-13T11:00:00Z',
+                  overlapEnd: '2025-01-13T12:00:00Z',
+                  isOverridden: false,
+                },
+              ],
+            },
+          },
         },
       },
       { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
@@ -294,13 +406,31 @@ describe('scheduling calendar view model', () => {
 
     const headers = viewModel.cells.flatMap((cell) => cell.headers ?? []);
 
-    expect(headers.find((header) => header.id === 'shift-conflict')?.action?.ariaLabel).toBe('Show Conflict Details');
     expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
     expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
       icon: mdiCalendarSync,
       ariaLabel: 'Part of a shift series',
       title: 'Part of a shift series',
     });
+    const conflictCell = viewModel.cells.find((cell) => cell.resourceId === 'user-1' && cell.date === '2025-01-13');
+    expect(conflictCell?.groups[0]?.events).toHaveLength(2);
+    expect(conflictCell?.groups[0]?.events.map((item) => item.display?.action)).toEqual([
+      {
+        actionId: calendarSchedulingActionIds.showConflict,
+        icon: mdiAlertCircle,
+        ariaLabel: 'Show Conflict Details',
+        type: 'button',
+      },
+      {
+        actionId: calendarSchedulingActionIds.showConflict,
+        icon: mdiAlertCircle,
+        ariaLabel: 'Show Conflict Details',
+        type: 'button',
+      },
+    ]);
+    expect((conflictCell?.groups[0]?.events[0]?.event as CalendarSchedulingEvent).metadata.conflicts?.[0]?.id).toBe(
+      'conflict:101:102:user-1',
+    );
 
     const jan14Cell = viewModel.cells.find((cell) => cell.resourceId === 'user-1' && cell.date === '2025-01-14');
     expect(jan14Cell?.groups[0]?.action).toBeUndefined();
