@@ -7,15 +7,53 @@
 import * as zod from 'zod';
 
 export const GetApiConfigResponse = zod.object({
-  featureFlags: zod.object({
-    calendarModule: zod.boolean(),
-    calendarMatrixTestModule: zod.boolean().optional(),
-    schedulingModule: zod.boolean(),
-    statsModule: zod.boolean(),
-    trainingModule: zod.boolean(),
-    myTeamsModule: zod.boolean(),
-    userBadgeNumber: zod.boolean(),
-  }),
+  featureFlags: zod
+    .object({
+      UserManagement: zod
+        .union([
+          zod.null(),
+          zod.object({
+            source: zod.string().nullish(),
+            enabled: zod.boolean(),
+            userBadgeNumber: zod
+              .object({
+                enabled: zod.boolean(),
+                required: zod.boolean(),
+              })
+              .optional(),
+          }),
+        ])
+        .optional(),
+      Calendar: zod
+        .union([
+          zod.null(),
+          zod.object({
+            source: zod.string().nullish(),
+            enabled: zod.boolean(),
+            calendarMatrixTest: zod.boolean().optional(),
+          }),
+        ])
+        .optional(),
+      Stats: zod
+        .union([
+          zod.null(),
+          zod.object({
+            source: zod.string().nullish(),
+            enabled: zod.boolean(),
+          }),
+        ])
+        .optional(),
+      Training: zod
+        .union([
+          zod.null(),
+          zod.object({
+            source: zod.string().nullish(),
+            enabled: zod.boolean(),
+          }),
+        ])
+        .optional(),
+    })
+    .optional(),
   supportEmail: zod.string().nullish(),
   applicationName: zod.string().nullish(),
 });

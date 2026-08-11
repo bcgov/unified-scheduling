@@ -1,10 +1,15 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Common.FeatureFlags;
+using Unified.Common.Options;
 using Unified.Common.Seeding;
 using Unified.Db;
+using Unified.Stats.FeatureFlags;
 using Unified.Stats.Seeders;
 using Unified.Stats.Services;
 using Unified.Stats.Validators;
@@ -13,8 +18,32 @@ namespace Unified.Stats;
 
 public static class StatsModule
 {
-    public static IServiceCollection AddStatsModule(this IServiceCollection s)
+    public static bool IsModuleEnabled(IConfiguration config)
     {
+        var enabled = config.GetSection(StatsFeatureFlags.Section).Get<StatsFeatureFlags>()?.Enabled ?? false;
+        return enabled;
+    }
+
+    public static bool IsModuleEnabled(IServiceProvider serviceProvider)
+    {
+        var options = serviceProvider.GetRequiredService<IOptions<StatsFeatureFlags>>();
+        return options.Value.Enabled;
+    }
+
+    public static IServiceCollection AddStatsModule(this IServiceCollection s, IConfiguration config)
+    {
+        s.AddOptions<StatsFeatureFlags>()
+            .BindConfiguration(StatsFeatureFlags.Section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        s.AddSingleton<IValidateOptions<StatsFeatureFlags>, RequiredBooleanOptionsValidator<StatsFeatureFlags>>();
+        s.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptions<StatsFeatureFlags>>().Value);
+
+        if (!IsModuleEnabled(config))
+        {
+            return s;
+        }
+
         // Health check
         s.AddScoped<IStatsService, StatsService>();
 
@@ -54,6 +83,11 @@ public static class StatsModule
 
     public static IEndpointRouteBuilder MapStatsEndpoints(this IEndpointRouteBuilder app)
     {
+        if (!IsModuleEnabled(app.ServiceProvider))
+        {
+            return app;
+        }
+
         var g = app.MapGroup("/api/stats").WithTags("Stats");
 
         g.MapGet(

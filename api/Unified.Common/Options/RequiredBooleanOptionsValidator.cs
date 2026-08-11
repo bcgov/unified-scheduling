@@ -3,7 +3,7 @@ using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Unified.Infrastructure.Options;
+namespace Unified.Common.Options;
 
 /// <summary>
 /// Validates required boolean properties are explicitly configured.

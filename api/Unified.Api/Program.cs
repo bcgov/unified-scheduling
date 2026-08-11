@@ -9,7 +9,6 @@ using Unified.Authorization.Hangfire;
 using Unified.Calendar;
 using Unified.Core;
 using Unified.Db;
-using Unified.FeatureFlags;
 using Unified.Hangfire;
 using Unified.Hangfire.Options;
 using Unified.Infrastructure;
@@ -20,8 +19,6 @@ using Unified.Training;
 using Unified.UserManagement;
 
 var builder = WebApplication.CreateBuilder(args);
-var featureFlagsOptions =
-    builder.Configuration.GetSection(FeatureFlags.SectionName).Get<FeatureFlags>() ?? new FeatureFlags();
 var hangfireOptions =
     builder.Configuration.GetSection(HangfireOptions.SectionName).Get<HangfireOptions>() ?? new HangfireOptions();
 
@@ -47,10 +44,6 @@ var hangfireOptions =
     {
         options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
     });
-
-    var mvcBuilder = builder.Services.AddControllers();
-    mvcBuilder.AddCalendarApplicationPart(featureFlagsOptions.CalendarModule);
-    mvcBuilder.AddTrainingApplicationPart(featureFlagsOptions.TrainingModule);
 
     // Logging
     var enableBodyLogging =
@@ -81,12 +74,19 @@ var hangfireOptions =
         .Services.AddInfrastructureModule()
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
-        .AddUserManagementModule()
+        .AddUserManagementModule(builder.Configuration)
+        .AddCalendarModule(builder.Configuration)
+        .AddStatsModule(builder.Configuration)
+        .AddTrainingModule(builder.Configuration)
         .AddConfiguredSeedData(
             builder.Configuration,
             UserManagementSeedDataSets.All.Concat(StatsSeedDataSets.All).Concat(TrainingSeedDataSets.All)
         )
         .AddJCInterfaceModule(builder.Configuration);
+
+    var mvcBuilder = builder.Services.AddControllers();
+    mvcBuilder.AddCalendarApplicationPart(builder.Configuration);
+    mvcBuilder.AddTrainingApplicationPart(builder.Configuration);
 
     builder.Services.AddSingleton<MigrationAndSeedService>();
     builder.Services.AddTransient(typeof(SeederFactory<>));
@@ -105,23 +105,8 @@ var hangfireOptions =
         );
     });
 
-    if (featureFlagsOptions.CalendarModule)
-    {
-        builder.Services.AddCalendarModule(builder.Configuration);
-    }
-
     // Authentication & Authorization
     builder.Services.AddAuthorizationModule();
-
-    if (featureFlagsOptions.StatsModule)
-    {
-        builder.Services.AddStatsModule();
-    }
-
-    if (featureFlagsOptions.TrainingModule)
-    {
-        builder.Services.AddTrainingModule();
-    }
 
     // Hangfire registered last so all feature-gated modules have already registered their IRecurringJob implementations
     builder.Services.AddHangfireModule(builder.Configuration);
@@ -193,15 +178,9 @@ var app = builder.Build();
 
     app.MapControllers();
 
-    if (featureFlagsOptions.StatsModule)
-    {
-        app.MapStatsEndpoints();
-    }
+    app.MapStatsEndpoints();
 
-    if (featureFlagsOptions.TrainingModule)
-    {
-        app.MapTrainingEndpoints();
-    }
+    app.MapTrainingEndpoints();
 }
 
 app.Run();

@@ -3,9 +3,14 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Common.FeatureFlags;
+using Unified.Common.Options;
 using Unified.Core.Services.Lookup;
+using Unified.Training.FeatureFlags;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
 
@@ -13,8 +18,21 @@ namespace Unified.Training;
 
 public static class TrainingModule
 {
-    public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, bool isEnabled)
+    public static bool IsModuleEnabled(IConfiguration config)
     {
+        var enabled = config.GetSection(TrainingFeatureFlags.Section).Get<TrainingFeatureFlags>()?.Enabled ?? false;
+        return enabled;
+    }
+
+    public static bool IsModuleEnabled(IServiceProvider serviceProvider)
+    {
+        var options = serviceProvider.GetRequiredService<IOptions<TrainingFeatureFlags>>();
+        return options.Value.Enabled;
+    }
+
+    public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, IConfiguration config)
+    {
+        var isEnabled = IsModuleEnabled(config);
         var trainingAssembly = typeof(TrainingModule).Assembly;
 
         mvcBuilder.ConfigureApplicationPartManager(manager =>
@@ -24,8 +42,24 @@ public static class TrainingModule
         return mvcBuilder;
     }
 
-    public static IServiceCollection AddTrainingModule(this IServiceCollection services)
+    public static IServiceCollection AddTrainingModule(this IServiceCollection services, IConfiguration config)
     {
+        services
+            .AddOptions<TrainingFeatureFlags>()
+            .BindConfiguration(TrainingFeatureFlags.Section)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<
+            IValidateOptions<TrainingFeatureFlags>,
+            RequiredBooleanOptionsValidator<TrainingFeatureFlags>
+        >();
+        services.AddSingleton<IFeatureFlags>(sp => sp.GetRequiredService<IOptions<TrainingFeatureFlags>>().Value);
+
+        if (!IsModuleEnabled(config))
+        {
+            return services;
+        }
+
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
@@ -49,6 +83,11 @@ public static class TrainingModule
 
     public static IEndpointRouteBuilder MapTrainingEndpoints(this IEndpointRouteBuilder app)
     {
+        if (!IsModuleEnabled(app.ServiceProvider))
+        {
+            return app;
+        }
+
         var grpBuilder = app.MapGroup("/api/trainings").WithTags("Training");
 
         grpBuilder

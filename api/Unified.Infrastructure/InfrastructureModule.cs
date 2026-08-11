@@ -15,7 +15,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
-using Unified.FeatureFlags;
 using Unified.Infrastructure.ErrorHandling;
 using Unified.Infrastructure.Helpers;
 using Unified.Infrastructure.Options;
@@ -63,24 +62,11 @@ public static class InfrastructureModule
             };
         });
 
-        services.AddSingleton<
-            IValidateOptions<FeatureFlags.FeatureFlags>,
-            RequiredBooleanOptionsValidator<FeatureFlags.FeatureFlags>
-        >();
-
         services
             .AddOptions<KeycloakOptions>()
             .BindConfiguration(KeycloakOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
-
-        services
-            .AddOptions<FeatureFlags.FeatureFlags>()
-            .BindConfiguration(FeatureFlags.FeatureFlags.SectionName)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
-        services.AddSingleton<IFeatureFlags, FeatureFlagsAccessor>();
 
         services.AddHttpClient("TokenRefresh");
         services.AddHttpContextAccessor();

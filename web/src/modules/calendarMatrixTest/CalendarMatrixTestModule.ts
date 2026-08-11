@@ -1,3 +1,4 @@
+import type { RouteRecordRaw } from 'vue-router';
 import { calendarActionRegistry } from '@/modules/calendar/registry/calendarActionRegistry';
 import { calendarRegistry } from '@/modules/calendar/registry/calendarRegistry';
 import {
@@ -14,10 +15,14 @@ import {
 } from './calendarMatrixTestActions';
 import { calendarMatrixScheduleTestViewContribution } from './calendarMatrixTestScheduleViewContribution';
 import { calendarMatrixAssignmentTestViewContribution } from './calendarMatrixTestAssignmentViewContribution';
+import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 
 let isRegistered = false;
 
-export function registerCalendarMatrixTestModule() {
+export function registerCalendarMatrixTestModule(_routes: RouteRecordRaw[], featureFlags: FeatureFlagsResponse) {
+  if (!featureFlags.Calendar?.calendarMatrixTest) {
+    return;
+  }
   if (isRegistered) {
     return;
   }

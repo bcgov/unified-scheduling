@@ -1,39 +1,34 @@
 import { createPinia } from 'pinia';
 import { describe, expect, it } from 'vitest';
-import { getGetApiConfigResponseMock } from '@/api-access/generated/config/config.msw';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { Permissions } from '@/api-access/generated/models';
-
-const config = getGetApiConfigResponseMock();
 
 describe('useAccessControl', () => {
   it('returns true when the requested feature flag is enabled', () => {
     const pinia = createPinia();
-    const { configStore, isFeatureFlagEnabled } = useAccessControl(pinia);
+    const { configStore, featureFlags } = useAccessControl(pinia);
 
-    config.featureFlags.schedulingModule = true;
-    configStore.config = config;
+    configStore.config = { featureFlags: { Stats: { enabled: true } } };
 
-    expect(isFeatureFlagEnabled('schedulingModule')).toBe(true);
+    expect(featureFlags.value.Stats?.enabled).toBe(true);
   });
 
   it('returns false when the requested feature flag is disabled', () => {
     const pinia = createPinia();
-    const { configStore, isFeatureFlagEnabled } = useAccessControl(pinia);
+    const { configStore, featureFlags } = useAccessControl(pinia);
 
-    config.featureFlags.schedulingModule = false;
-    configStore.config = config;
+    configStore.config = { featureFlags: { Stats: { enabled: false } } };
 
-    expect(isFeatureFlagEnabled('schedulingModule')).toBe(false);
+    expect(featureFlags.value.Stats?.enabled).toBe(false);
   });
 
-  it('returns false when config is not loaded', () => {
+  it('returns empty object when config is not loaded', () => {
     const pinia = createPinia();
-    const { configStore, isFeatureFlagEnabled } = useAccessControl(pinia);
+    const { configStore, featureFlags } = useAccessControl(pinia);
 
     configStore.config = null;
 
-    expect(isFeatureFlagEnabled('schedulingModule')).toBe(false);
+    expect(featureFlags.value).toEqual({});
   });
 
   it('returns true if user has a permission', () => {

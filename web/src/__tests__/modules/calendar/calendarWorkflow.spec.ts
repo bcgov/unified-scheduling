@@ -106,7 +106,7 @@ describe('calendar workflow', () => {
       import('@/utils/date'),
     ]);
 
-    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { calendarModule: true } });
+    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { Calendar: { enabled: true } } });
     const calendarStore = useCalendarStore(pinia);
     const selectEventById = (eventId: string) => calendarStore.setSelectedEvent(eventId);
     const locationsStore = useLocationsStore(pinia);
@@ -130,7 +130,7 @@ describe('calendar workflow', () => {
       expect(wrapper.get('[data-testid="loaded-events"]').text()).toContain('Spring Holiday');
       expect(loadData).toHaveBeenCalledWith(
         {
-          featureFlags: expect.objectContaining({ calendarModule: true }),
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
         { startDate: '2025-04-07', endDate: '2025-04-14', locationId: undefined, filters: {} },
         expect.any(Object),
@@ -142,7 +142,7 @@ describe('calendar workflow', () => {
       const previousRange = shiftDateRange('2025-04-07', 'week', -1);
       expect(loadData).toHaveBeenLastCalledWith(
         {
-          featureFlags: expect.objectContaining({ calendarModule: true }),
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
         { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: undefined, filters: {} },
         expect.any(Object),
@@ -153,7 +153,7 @@ describe('calendar workflow', () => {
 
       expect(loadData).toHaveBeenLastCalledWith(
         {
-          featureFlags: expect.objectContaining({ calendarModule: true }),
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
         { startDate: '2025-04-07', endDate: '2025-04-14', locationId: undefined, filters: {} },
         expect.any(Object),
@@ -165,7 +165,7 @@ describe('calendar workflow', () => {
       const todayRange = buildDateRangeForPeriod(getTodayDateOnly(), 'week');
       expect(loadData).toHaveBeenLastCalledWith(
         {
-          featureFlags: expect.objectContaining({ calendarModule: true }),
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
         { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: undefined, filters: {} },
         expect.any(Object),
@@ -222,7 +222,7 @@ describe('calendar workflow', () => {
       import('@/utils/date'),
     ]);
 
-    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { calendarModule: true } });
+    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { Calendar: { enabled: true } } });
     const calendarStore = useCalendarStore(pinia);
     calendarStore.setPeriod('month');
     calendarStore.setDateRange('2025-04-01', '2025-05-01');
@@ -241,7 +241,7 @@ describe('calendar workflow', () => {
       expect(calendarStore.period).toBe(expectedPeriod);
       expect(loadData).toHaveBeenLastCalledWith(
         {
-          featureFlags: expect.objectContaining({ calendarModule: true }),
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
         { startDate: expectedRange.startDate, endDate: expectedRange.endDate, locationId: undefined, filters: {} },
         expect.any(Object),

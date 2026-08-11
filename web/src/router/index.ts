@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw, RouteLocationNormalized, RouteLocationNormalizedLoaded } from 'vue-router';
 import type { createPinia } from 'pinia';
-import { type AppFeatureFlagKey, useAccessControl } from '@/composables/useAccessControl';
+import type { FeatureFlagsResponse } from '@/api-access/generated/models';
+import { useAccessControl } from '@/composables/useAccessControl';
 import * as calendarModule from '@/modules/calendar/CalendarModule';
 import * as calendarMatrixTestModule from '@/modules/calendarMatrixTest/CalendarMatrixTestModule';
 import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
@@ -17,7 +18,6 @@ const UNREGISTERED_ROUTE_PATH = '/unregistered';
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string;
-    module?: AppFeatureFlagKey;
     requiresAuth?: boolean;
     fullScreen?: boolean;
   }
@@ -90,28 +90,14 @@ const routes: RouteRecordRaw[] = [...baseRoutes];
 // Initialize module routes based on access control
 export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   const accessControl = useAccessControl(pinia);
+  const featureFlags = (accessControl.featureFlags?.value ?? {}) as FeatureFlagsResponse;
 
   dashboardModule.registerModule(routes);
-
-  if (accessControl.isFeatureFlagEnabled('myTeamsModule')) {
-    myTeamsModule.registerModule(routes);
-  }
-
-  if (accessControl.isFeatureFlagEnabled('statsModule')) {
-    statsModule.registerModule(routes);
-  }
-
-  if (accessControl.isFeatureFlagEnabled('calendarModule')) {
-    calendarModule.registerModule(routes);
-  }
-
-  if (accessControl.isFeatureFlagEnabled('calendarMatrixTestModule')) {
-    calendarMatrixTestModule.registerModule();
-  }
-
-  if (accessControl.isFeatureFlagEnabled('trainingModule')) {
-    trainingModule.registerModule(routes);
-  }
+  myTeamsModule.registerModule(routes, featureFlags);
+  statsModule.registerModule(routes, featureFlags);
+  calendarModule.registerModule(routes, featureFlags);
+  calendarMatrixTestModule.registerModule(routes, featureFlags);
+  trainingModule.registerModule(routes, featureFlags);
 
   const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -128,17 +114,6 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
     const authStore = useAuthStore();
     if (to.path === UNREGISTERED_ROUTE_PATH && authStore.isAuthenticated && authStore.isRegistered) {
-      return { path: '/dashboard' };
-    }
-
-    const moduleKey = to.meta?.module;
-
-    if (!moduleKey) {
-      return true;
-    }
-
-    if (!accessControl.isFeatureFlagEnabled(moduleKey)) {
-      console.warn(`Access denied to module: ${moduleKey}`);
       return { path: '/dashboard' };
     }
 

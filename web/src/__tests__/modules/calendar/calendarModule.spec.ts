@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
+import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 
 describe('calendar module integration', () => {
   beforeEach(() => {
@@ -8,8 +9,9 @@ describe('calendar module integration', () => {
     setActivePinia(createPinia());
   });
 
-  it('registers routes, navigation and calendar contributions only once', async () => {
+  it('registers routes, navigation and calendar contributions only once when enabled', async () => {
     const routes: RouteRecordRaw[] = [];
+    const featureFlags: FeatureFlagsResponse = { Calendar: { enabled: true } };
 
     const [{ registerModule }, { useNavigationStore }, { calendarRegistry }, { calendarActionRegistry }] =
       await Promise.all([
@@ -19,8 +21,8 @@ describe('calendar module integration', () => {
         import('@/modules/calendar/registry/calendarActionRegistry'),
       ]);
 
-    registerModule(routes);
-    registerModule(routes);
+    registerModule(routes, featureFlags);
+    registerModule(routes, featureFlags);
 
     const navigationStore = useNavigationStore();
 
@@ -33,7 +35,7 @@ describe('calendar module integration', () => {
     expect(
       calendarRegistry
         .getAvailableModuleContributions(
-          { featureFlags: { calendarModule: true } },
+          { featureFlags: { Calendar: { enabled: true } } },
           { startDate: '2025-01-01', endDate: '2025-01-02', filters: {} },
         )
         .map((contribution) => contribution.contributionId),
@@ -52,6 +54,23 @@ describe('calendar module integration', () => {
         { featureFlags: {} },
       ),
     ).toHaveLength(1);
+  });
+
+  it('does not register routes when calendar feature is disabled', async () => {
+    const routes: RouteRecordRaw[] = [];
+    const featureFlags: FeatureFlagsResponse = { Calendar: { enabled: false } };
+
+    const [{ registerModule }, { useNavigationStore }] = await Promise.all([
+      import('@/modules/calendar/CalendarModule'),
+      import('@/stores/NavigationStore'),
+    ]);
+
+    registerModule(routes, featureFlags);
+
+    const navigationStore = useNavigationStore();
+
+    expect(routes).toHaveLength(0);
+    expect(navigationStore.links).toHaveLength(0);
   });
 
   it('loads contribution data and respects the feature flag gate', async () => {
@@ -90,7 +109,7 @@ describe('calendar module integration', () => {
 
     expect(isAvailable?.({ featureFlags: {} }, { startDate: '', endDate: '', filters: {} })).toBe(true);
     expect(
-      isAvailable?.({ featureFlags: { calendarModule: false } }, { startDate: '', endDate: '', filters: {} }),
+      isAvailable?.({ featureFlags: { Calendar: { enabled: false } } }, { startDate: '', endDate: '', filters: {} }),
     ).toBe(false);
 
     await expect(

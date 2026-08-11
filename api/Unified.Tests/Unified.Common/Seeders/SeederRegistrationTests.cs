@@ -52,7 +52,18 @@ public sealed class SeederRegistrationTests
     public void UserManagementModule_RegistersExpectedSeedersOnce_WhenAddedTwice()
     {
         var services = CreateServices();
-        services.AddUserManagementModule().AddUserManagementModule();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:UserManagement:Enabled"] = "true",
+                    ["FeatureFlags:UserManagement:UserBadgeNumber:Enabled"] = "true",
+                    ["FeatureFlags:UserManagement:UserBadgeNumber:Required"] = "true",
+                }
+            )
+            .Build();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddUserManagementModule(configuration).AddUserManagementModule(configuration);
 
         AssertSeederTypes(
             services,
@@ -73,9 +84,11 @@ public sealed class SeederRegistrationTests
                 new Dictionary<string, string?>
                 {
                     [$"{CalendarSeedDataOptions.SectionName}:HolidaysFilePath"] = "SeedData/bc-holidays.json",
+                    ["FeatureFlags:Calendar:Enabled"] = "true",
                 }
             )
             .Build();
+        services.AddSingleton<IConfiguration>(configuration);
         services.AddCalendarModule(configuration);
 
         AssertSeederTypes(services, typeof(EventTypeSeeder), typeof(EventStatusTypeSeeder), typeof(HolidayEventSeeder));
@@ -94,7 +107,11 @@ public sealed class SeederRegistrationTests
     public void StatsModule_RegistersExpectedSeeders()
     {
         var services = CreateServices();
-        services.AddStatsModule();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["FeatureFlags:Stats:Enabled"] = "true" })
+            .Build();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddStatsModule(configuration);
 
         AssertSeederTypes(
             services,

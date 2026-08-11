@@ -9,22 +9,124 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { ConfigResponse } from '../models';
+import type {
+  CalendarFeatureFlags,
+  ConfigResponse,
+  StatsFeatureFlags,
+  TrainingFeatureFlags,
+  UserManagementFeatureFlags,
+} from '../models';
+
+export const getGetApiConfigResponseUserManagementFeatureFlagsMock = (
+  overrideResponse: Partial<UserManagementFeatureFlags> = {},
+): UserManagementFeatureFlags => ({
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
+    ]),
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
+  userBadgeNumber: faker.helpers.arrayElement([
+    {
+      enabled: faker.datatype.boolean(),
+      required: faker.datatype.boolean(),
+    },
+    undefined,
+  ]),
+  ...overrideResponse,
+});
+
+export const getGetApiConfigResponseCalendarFeatureFlagsMock = (
+  overrideResponse: Partial<CalendarFeatureFlags> = {},
+): CalendarFeatureFlags => ({
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
+    ]),
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
+  calendarMatrixTest: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  ...overrideResponse,
+});
+
+export const getGetApiConfigResponseStatsFeatureFlagsMock = (
+  overrideResponse: Partial<StatsFeatureFlags> = {},
+): StatsFeatureFlags => ({
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
+    ]),
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
+  ...overrideResponse,
+});
+
+export const getGetApiConfigResponseTrainingFeatureFlagsMock = (
+  overrideResponse: Partial<TrainingFeatureFlags> = {},
+): TrainingFeatureFlags => ({
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
+    ]),
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
+  ...overrideResponse,
+});
 
 export const getGetApiConfigResponseMock = (
   overrideResponse: Partial<Extract<ConfigResponse, object>> = {},
 ): ConfigResponse =>
   faker.helpers.arrayElement([
     {
-      featureFlags: {
-        calendarModule: faker.datatype.boolean(),
-        calendarMatrixTestModule: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-        schedulingModule: faker.datatype.boolean(),
-        statsModule: faker.datatype.boolean(),
-        trainingModule: faker.datatype.boolean(),
-        myTeamsModule: faker.datatype.boolean(),
-        userBadgeNumber: faker.datatype.boolean(),
-      },
+      featureFlags: faker.helpers.arrayElement([
+        {
+          UserManagement: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseUserManagementFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Calendar: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseCalendarFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Stats: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseStatsFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Training: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseTrainingFeatureFlagsMock() }]),
+            undefined,
+          ]),
+        },
+        undefined,
+      ]),
       supportEmail: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -36,15 +138,27 @@ export const getGetApiConfigResponseMock = (
       ...overrideResponse,
     },
     {
-      featureFlags: {
-        calendarModule: faker.datatype.boolean(),
-        calendarMatrixTestModule: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-        schedulingModule: faker.datatype.boolean(),
-        statsModule: faker.datatype.boolean(),
-        trainingModule: faker.datatype.boolean(),
-        myTeamsModule: faker.datatype.boolean(),
-        userBadgeNumber: faker.datatype.boolean(),
-      },
+      featureFlags: faker.helpers.arrayElement([
+        {
+          UserManagement: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseUserManagementFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Calendar: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseCalendarFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Stats: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseStatsFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Training: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseTrainingFeatureFlagsMock() }]),
+            undefined,
+          ]),
+        },
+        undefined,
+      ]),
       supportEmail: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,
@@ -56,15 +170,27 @@ export const getGetApiConfigResponseMock = (
       ...overrideResponse,
     },
     {
-      featureFlags: {
-        calendarModule: faker.datatype.boolean(),
-        calendarMatrixTestModule: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-        schedulingModule: faker.datatype.boolean(),
-        statsModule: faker.datatype.boolean(),
-        trainingModule: faker.datatype.boolean(),
-        myTeamsModule: faker.datatype.boolean(),
-        userBadgeNumber: faker.datatype.boolean(),
-      },
+      featureFlags: faker.helpers.arrayElement([
+        {
+          UserManagement: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseUserManagementFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Calendar: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseCalendarFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Stats: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseStatsFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Training: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseTrainingFeatureFlagsMock() }]),
+            undefined,
+          ]),
+        },
+        undefined,
+      ]),
       supportEmail: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
         undefined,

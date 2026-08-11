@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Unified.Common.Helpers.Extensions;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.UserManagement;
-using Unified.FeatureFlags;
+using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 
@@ -14,11 +15,6 @@ public class UserServiceTests : IAsyncLifetime
 {
     private UnifiedDbContext _dbContext = null!;
     private UserService _userService = null!;
-
-    private sealed class TestFeatureFlags(FeatureFlags.FeatureFlags current) : IFeatureFlags
-    {
-        public FeatureFlags.FeatureFlags Current { get; } = current;
-    }
 
     public ValueTask InitializeAsync()
     {
@@ -36,8 +32,12 @@ public class UserServiceTests : IAsyncLifetime
     {
         return new UserService(
             _dbContext,
-            new TestFeatureFlags(
-                new FeatureFlags.FeatureFlags { StatsModule = true, UserBadgeNumber = userBadgeNumberEnabled }
+            Options.Create(
+                new UserManagementFeatureFlags
+                {
+                    Enabled = true,
+                    UserBadgeNumber = new UserBadgeNumberFlags { Enabled = userBadgeNumberEnabled, Required = false },
+                }
             ),
             NullLogger<UserService>.Instance
         );

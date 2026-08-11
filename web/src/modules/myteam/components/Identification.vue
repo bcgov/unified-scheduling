@@ -13,7 +13,12 @@ const { user } = defineProps<{
 const accessControl = useAccessControl();
 const locationsStore = useLocationsStore();
 const lookupStore = useLookupStore();
-const showBadgeNumber = computed(() => accessControl.isFeatureFlagEnabled('userBadgeNumber'));
+const showBadgeNumber = computed(
+  () =>
+    (accessControl.featureFlags.value?.UserManagement?.enabled &&
+      accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled) ??
+    false,
+);
 
 const locationName = computed(() => {
   if (user?.homeLocationId == null) {

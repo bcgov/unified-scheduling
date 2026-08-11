@@ -19,8 +19,8 @@ public static class TrainingSeedDataSets
                     Definitions = TrainingPermissionSeedData.Instance.Definitions,
                 },
             ],
-            RequiredFeature: "TrainingModule",
-            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:TrainingModule")
+            RequiredFeature: "Training:Enabled",
+            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:Training:Enabled")
         ),
     ];
 }
