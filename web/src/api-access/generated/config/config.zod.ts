@@ -21,17 +21,14 @@ export const GetApiConfigResponse = zod.object({
               })
               .optional(),
           }),
-        ])
+        })
         .optional(),
       Calendar: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-            calendarMatrixTest: zod.boolean().optional(),
-          }),
-        ])
+        .object({
+          source: zod.string(),
+          enabled: zod.boolean(),
+          calendarMatrixTest: zod.boolean(),
+        })
         .optional(),
       Scheduling: zod
         .union([
@@ -43,22 +40,16 @@ export const GetApiConfigResponse = zod.object({
         ])
         .optional(),
       Stats: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-          }),
-        ])
+        .object({
+          source: zod.string(),
+          enabled: zod.boolean(),
+        })
         .optional(),
       Training: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-          }),
-        ])
+        .object({
+          source: zod.string(),
+          enabled: zod.boolean(),
+        })
         .optional(),
     })
     .optional(),

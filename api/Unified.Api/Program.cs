@@ -13,6 +13,7 @@ using Unified.Db;
 using Unified.Hangfire;
 using Unified.Hangfire.Options;
 using Unified.Infrastructure;
+using Unified.Infrastructure.OpenApi;
 using Unified.Infrastructure.Options;
 using Unified.JCInterface;
 using Unified.Scheduling;

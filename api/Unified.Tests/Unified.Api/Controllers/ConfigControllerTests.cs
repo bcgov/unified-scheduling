@@ -35,11 +35,13 @@ public class ConfigControllerTests
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ConfigResponse>(okResult.Value);
-        Assert.NotNull(response.FeatureFlags.Calendar);
-        Assert.NotNull(response.FeatureFlags.UserManagement);
-        Assert.NotNull(response.FeatureFlags.Scheduling);
-        Assert.Null(response.FeatureFlags.Stats);
-        Assert.Null(response.FeatureFlags.Training);
+        Assert.True(response.FeatureFlags.ContainsKey(CalendarFeatureFlags.SourceName));
+        Assert.True(response.FeatureFlags.ContainsKey(UserManagementFeatureFlags.SourceName));
+        Assert.False(response.FeatureFlags.ContainsKey("Stats"));
+        Assert.False(response.FeatureFlags.ContainsKey("Training"));
+
+        Assert.IsType<CalendarFeatureFlags>(response.FeatureFlags[CalendarFeatureFlags.SourceName]);
+        Assert.IsType<UserManagementFeatureFlags>(response.FeatureFlags[UserManagementFeatureFlags.SourceName]);
         Assert.Equal("Unified Scheduling", response.ApplicationName);
         Assert.Equal("support@example.com", response.SupportEmail);
     }

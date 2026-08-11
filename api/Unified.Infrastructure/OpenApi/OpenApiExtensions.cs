@@ -4,13 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Scalar.AspNetCore;
 
-namespace Unified.Infrastructure;
+namespace Unified.Infrastructure.OpenApi;
 
 public static class OpenApiExtensions
 {
     public static IServiceCollection AddUnifiedOpenApi(this IServiceCollection services)
     {
-        services.AddOpenApi("v1");
+        services.AddTransient<FeatureFlagsDocumentTransformer>();
+        services.AddOpenApi("v1", options => options.AddDocumentTransformer<FeatureFlagsDocumentTransformer>());
         return services;
     }
 
