@@ -16,9 +16,7 @@ describe('scheduling module integration', () => {
 
     expect(routes).toHaveLength(1);
     expect(routes[0]?.path).toBe('/schedule');
-    expect(useNavigationStore().links).toEqual([
-      { name: 'Schedule', path: '/schedule', class: 'router-link--border' },
-    ]);
+    expect(useNavigationStore().links).toEqual([{ name: 'Schedule', path: '/schedule', class: 'router-link--border' }]);
   });
 
   it('does not register when disabled', () => {
