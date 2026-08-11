@@ -57,9 +57,7 @@ public sealed class SchedulingModuleTests
         var configuration = CreateConfiguration(schedulingEnabled: true, calendarEnabled: false);
         var services = new ServiceCollection();
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            services.AddSchedulingModule(configuration)
-        );
+        var exception = Assert.Throws<InvalidOperationException>(() => services.AddSchedulingModule(configuration));
 
         Assert.Equal("Scheduling requires the Calendar module to be enabled.", exception.Message);
     }
