@@ -27,13 +27,15 @@ namespace Unified.Db.Migrations
                 table: "UserTrainings",
                 type: "integer",
                 nullable: false,
-                defaultValue: 1);
+                defaultValue: 1
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserTrainings_UserId_TrainingId_Version",
                 table: "UserTrainings",
                 columns: new[] { "UserId", "TrainingId", "Version" },
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
@@ -41,15 +43,12 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_UserTrainings_UserId_TrainingId_Version",
-                table: "UserTrainings");
+                table: "UserTrainings"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "EndingOn",
-                table: "UserTrainings");
+            migrationBuilder.DropColumn(name: "EndingOn", table: "UserTrainings");
 
-            migrationBuilder.DropColumn(
-                name: "Version",
-                table: "UserTrainings");
+            migrationBuilder.DropColumn(name: "Version", table: "UserTrainings");
         }
     }
 }
