@@ -188,7 +188,7 @@ describe('calendar workflow', () => {
       expect(calendarStore.anchorDate).toBe('2025-04-16');
       expect(loadData).toHaveBeenLastCalledWith(
         {
-          featureFlags: expect.objectContaining({ calendarModule: true }),
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
         { startDate: '2025-04-14', endDate: '2025-04-21', locationId: undefined, filters: {} },
         expect.any(Object),
@@ -200,7 +200,7 @@ describe('calendar workflow', () => {
 
       expect(loadData).toHaveBeenLastCalledWith(
         {
-          featureFlags: expect.objectContaining({ calendarModule: true }),
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
         { startDate: '2025-04-16', endDate: '2025-04-17', locationId: undefined, filters: {} },
         expect.any(Object),
@@ -211,7 +211,7 @@ describe('calendar workflow', () => {
 
       expect(loadData).toHaveBeenLastCalledWith(
         {
-          featureFlags: expect.objectContaining({ calendarModule: true }),
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
         { startDate: '2025-04-14', endDate: '2025-04-19', locationId: undefined, filters: {} },
         expect.any(Object),
