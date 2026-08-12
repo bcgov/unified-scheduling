@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Xunit;
 using Unified.Common.Interceptors;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
+using Xunit;
 
 namespace Unified.Tests.Unified.Common.Interceptors;
 
@@ -91,8 +91,8 @@ public class SaveRulesInterceptorTests
         var result = default(InterceptionResult<int>);
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => interceptor.SavingChangesAsync(eventData, result).AsTask()
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            interceptor.SavingChangesAsync(eventData, result).AsTask()
         );
         Assert.Equal("Test error", ex.Message);
     }
@@ -111,8 +111,8 @@ public class SaveRulesInterceptorTests
         var result = default(InterceptionResult<int>);
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => interceptor.SavingChangesAsync(eventData, result).AsTask()
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            interceptor.SavingChangesAsync(eventData, result).AsTask()
         );
         Assert.False(rule2.ExecuteCalled, "Second rule should not have executed");
     }
@@ -171,8 +171,8 @@ public class SaveRulesInterceptorTests
         var result = default(InterceptionResult<int>);
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => interceptor.SavingChangesAsync(eventData, result).AsTask()
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            interceptor.SavingChangesAsync(eventData, result).AsTask()
         );
         Assert.True(logger.ErrorLogged, "Error should be logged");
         Assert.Contains("failed", logger.ErrorMessages.FirstOrDefault() ?? "");
@@ -236,6 +236,7 @@ public class SaveRulesInterceptorTests
         public bool ErrorLogged { get; private set; }
 
         public IDisposable? BeginScope<TState>(TState state) => null;
+
         public bool IsEnabled(LogLevel logLevel) => true;
 
         public void Log<TState>(
@@ -243,7 +244,8 @@ public class SaveRulesInterceptorTests
             EventId eventId,
             TState state,
             Exception? exception,
-            Func<TState, Exception?, string> formatter)
+            Func<TState, Exception?, string> formatter
+        )
         {
             var message = formatter(state, exception);
 

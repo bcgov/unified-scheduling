@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Xunit;
 using Unified.Common.Interceptors;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Rules;
+using Xunit;
 
 namespace Unified.Tests.UserManagement.Rules;
 
@@ -36,11 +36,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         var flags = new UserManagementFeatureFlags
         {
             Enabled = enabled,
-            UserBadgeNumber = new UserBadgeNumberFlags
-            {
-                Enabled = enabled,
-                Required = required
-            }
+            UserBadgeNumber = new UserBadgeNumberFlags { Enabled = enabled, Required = required },
         };
 
         var optionsMonitor = new FakeOptionsMonitor<UserManagementFeatureFlags>(flags);
@@ -52,17 +48,17 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
     {
         // Arrange
         var rule = CreateRule(enabled: false);
-        
-        var user = new User 
-        { 
-            Id = Guid.NewGuid(), 
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
             IdirName = "test",
             FirstName = "Test",
             LastName = "User",
             Email = "test@example.com",
             Gender = Gender.Female,
             Rank = "Rank1",
-            BadgeNumber = null 
+            BadgeNumber = null,
         };
         _dbContext.Users.Add(user);
 
@@ -85,7 +81,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             Email = "test@example.com",
             Gender = Gender.Female,
             Rank = "Rank1",
-            BadgeNumber = "BADGE123"
+            BadgeNumber = "BADGE123",
         };
         _dbContext.Users.Add(user);
 
@@ -108,13 +104,13 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             Email = "test@example.com",
             Gender = Gender.Male,
             Rank = "Rank1",
-            BadgeNumber = null
+            BadgeNumber = null,
         };
         _dbContext.Users.Add(user);
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => rule.ExecuteAsync(_dbContext, CancellationToken.None)
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            rule.ExecuteAsync(_dbContext, CancellationToken.None)
         );
         Assert.Contains("Badge number is required", ex.Message);
     }
@@ -134,7 +130,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             Email = "test@example.com",
             Gender = Gender.Female,
             Rank = "Rank1",
-            BadgeNumber = "BADGE123"
+            BadgeNumber = "BADGE123",
         };
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
@@ -144,8 +140,8 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         _dbContext.Entry(user).State = EntityState.Modified;
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => rule.ExecuteAsync(_dbContext, CancellationToken.None)
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            rule.ExecuteAsync(_dbContext, CancellationToken.None)
         );
         Assert.Contains("Badge number is required", ex.Message);
     }
@@ -166,7 +162,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             Email = "existing@example.com",
             Gender = Gender.Female,
             Rank = "Rank1",
-            BadgeNumber = "BADGE123"
+            BadgeNumber = "BADGE123",
         };
         _dbContext.Users.Add(existingUser);
         await _dbContext.SaveChangesAsync();
@@ -181,13 +177,13 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             Email = "new@example.com",
             Gender = Gender.Female,
             Rank = "Rank1",
-            BadgeNumber = "BADGE123"
+            BadgeNumber = "BADGE123",
         };
         _dbContext.Users.Add(newUser);
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => rule.ExecuteAsync(_dbContext, CancellationToken.None)
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            rule.ExecuteAsync(_dbContext, CancellationToken.None)
         );
         Assert.Contains("already exist", ex.Message);
     }
@@ -208,7 +204,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             Email = "user1@example.com",
             Gender = Gender.Female,
             Rank = "Rank1",
-            BadgeNumber = "BADGE001"
+            BadgeNumber = "BADGE001",
         };
 
         var user2 = new User
@@ -220,7 +216,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             Email = "user2@example.com",
             Gender = Gender.Female,
             Rank = "Rank1",
-            BadgeNumber = "BADGE002"
+            BadgeNumber = "BADGE002",
         };
 
         _dbContext.Users.AddRange(user1, user2);
@@ -231,14 +227,15 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         _dbContext.Entry(user2).State = EntityState.Modified;
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => rule.ExecuteAsync(_dbContext, CancellationToken.None)
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            rule.ExecuteAsync(_dbContext, CancellationToken.None)
         );
         Assert.Contains("already in use", ex.Message);
     }
 
     // Fake implementations for testing
-    private class InMemoryContextFactory(DbContextOptions<UnifiedDbContext> options) : IDbContextFactory<UnifiedDbContext>
+    private class InMemoryContextFactory(DbContextOptions<UnifiedDbContext> options)
+        : IDbContextFactory<UnifiedDbContext>
     {
         public UnifiedDbContext CreateDbContext()
         {

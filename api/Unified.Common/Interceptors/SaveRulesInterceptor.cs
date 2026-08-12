@@ -9,10 +9,8 @@ namespace Unified.Common.Interceptors;
 /// Auto-discovers rules via DI container (IEnumerable&lt;ISaveRule&gt;).
 /// Runs all rules inside the transaction - any exception causes rollback.
 /// </summary>
-public sealed class SaveRulesInterceptor(
-    IEnumerable<ISaveRule> rules,
-    ILogger<SaveRulesInterceptor> logger
-) : SaveChangesInterceptor
+public sealed class SaveRulesInterceptor(IEnumerable<ISaveRule> rules, ILogger<SaveRulesInterceptor> logger)
+    : SaveChangesInterceptor
 {
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,

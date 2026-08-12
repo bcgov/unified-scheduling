@@ -2,12 +2,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Common.ImageFormat;
 using Unified.Db.Models.UserManagement;
+using Unified.Tests.TestHelpers;
 using Unified.UserManagement.Controllers;
+using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
 using Unified.UserManagement.Validators;
-using Unified.Tests.TestHelpers;
-using Unified.UserManagement.FeatureFlags;
 
 namespace Unified.Tests.UserManagement.Controllers;
 
@@ -15,9 +15,12 @@ public class UsersControllerTests
 {
     private static UsersController CreateController(FakeUserService fakeService)
     {
-        var featureFlags = new UserManagementFeatureFlags { UserBadgeNumber = new UserBadgeNumberFlags { Enabled = false, Required = false } };
+        var featureFlags = new UserManagementFeatureFlags
+        {
+            UserBadgeNumber = new UserBadgeNumberFlags { Enabled = false, Required = false },
+        };
         var featureFlagsMonitor = new FakeOptionsMonitor<UserManagementFeatureFlags>(featureFlags);
-        
+
         return new UsersController(
             fakeService,
             new UserRequestValidator(featureFlagsMonitor),

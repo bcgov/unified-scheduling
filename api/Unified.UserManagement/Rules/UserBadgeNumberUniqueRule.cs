@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Unified.Common.Interceptors;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
-using Microsoft.Extensions.Options;
 using Unified.UserManagement.FeatureFlags;
 
 namespace Unified.UserManagement.Rules;
@@ -23,7 +23,8 @@ public sealed class UserBadgeNumberUniqueRule(
             return;
 
         // Get users being created or modified
-        var modifiedUsers = context.ChangeTracker.Entries<User>()
+        var modifiedUsers = context
+            .ChangeTracker.Entries<User>()
             .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
             .ToList();
 
@@ -42,16 +43,12 @@ public sealed class UserBadgeNumberUniqueRule(
             if (missingBadgeNumbers.Any())
             {
                 var userIds = string.Join(", ", missingBadgeNumbers.Select(e => e.Entity.Id));
-                throw new InvalidOperationException(
-                    $"Badge number is required for user(s): {userIds}."
-                );
+                throw new InvalidOperationException($"Badge number is required for user(s): {userIds}.");
             }
         }
 
         // Get users with badge numbers for uniqueness check
-        var entriesWithBadges = modifiedUsers
-            .Where(e => e.Entity.BadgeNumber != null)
-            .ToList();
+        var entriesWithBadges = modifiedUsers.Where(e => e.Entity.BadgeNumber != null).ToList();
 
         if (!entriesWithBadges.Any())
             return;
@@ -68,8 +65,8 @@ public sealed class UserBadgeNumberUniqueRule(
         using (var queryContext = contextFactory.CreateDbContext())
         {
             // Check for duplicates in the database
-            var existingBadgeNumbers = await queryContext.Users
-                .Where(u => badgeNumbers.Contains(u.BadgeNumber))
+            var existingBadgeNumbers = await queryContext
+                .Users.Where(u => badgeNumbers.Contains(u.BadgeNumber))
                 .Select(u => new { u.Id, u.BadgeNumber })
                 .ToListAsync(cancellationToken);
 
@@ -82,9 +79,7 @@ public sealed class UserBadgeNumberUniqueRule(
                     .Where(b => !string.IsNullOrWhiteSpace(b))
                     .ToList();
 
-                var duplicates = existingBadgeNumbers
-                    .Where(e => newBadgeNumbers.Contains(e.BadgeNumber))
-                    .ToList();
+                var duplicates = existingBadgeNumbers.Where(e => newBadgeNumbers.Contains(e.BadgeNumber)).ToList();
 
                 if (duplicates.Any())
                 {
@@ -105,8 +100,9 @@ public sealed class UserBadgeNumberUniqueRule(
                     if (string.IsNullOrWhiteSpace(badgeNumber))
                         continue;
 
-                    var isDuplicate = existingBadgeNumbers
-                        .Any(e => e.BadgeNumber == badgeNumber && e.Id != entry.Entity.Id);
+                    var isDuplicate = existingBadgeNumbers.Any(e =>
+                        e.BadgeNumber == badgeNumber && e.Id != entry.Entity.Id
+                    );
 
                     if (isDuplicate)
                     {
