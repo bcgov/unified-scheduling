@@ -16,7 +16,11 @@ namespace Unified.Db.Migrations
                 table: "UserTrainings",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValue: new DateTimeOffset(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)));
+                defaultValue: new DateTimeOffset(
+                    new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                    new TimeSpan(0, 0, 0, 0, 0)
+                )
+            );
 
             migrationBuilder.AddColumn<int>(
                 name: "Version",

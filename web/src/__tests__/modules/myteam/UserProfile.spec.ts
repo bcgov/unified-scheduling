@@ -79,8 +79,8 @@ describe('UserProfile', () => {
   it('shows training tab when training module and permission are enabled', async () => {
     const app = await createTestApp({
       featureFlags: {
-        trainingModule: true,
-        myTeamsModule: true,
+        Training: { enabled: true },
+        UserManagement: { enabled: true },
       },
       permissions: ['UserTrainingsView' as never],
     });
