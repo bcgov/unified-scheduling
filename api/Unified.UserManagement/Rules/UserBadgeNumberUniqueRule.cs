@@ -31,9 +31,7 @@ public sealed class UserBadgeNumberUniqueRule(
         if (!modifiedUsers.Any())
             return;
 
-        var missingBadgeNumbers = modifiedUsers
-            .Where(e => string.IsNullOrWhiteSpace(e.Entity.BadgeNumber))
-            .ToList();
+        var missingBadgeNumbers = modifiedUsers.Where(e => string.IsNullOrWhiteSpace(e.Entity.BadgeNumber)).ToList();
 
         if (missingBadgeNumbers.Any())
         {
@@ -68,9 +66,7 @@ public sealed class UserBadgeNumberUniqueRule(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var normalizedBadgeNumbers = badgeNumbers
-            .Select(badge => badge.ToUpperInvariant())
-            .ToList();
+        var normalizedBadgeNumbers = badgeNumbers.Select(badge => badge.ToUpperInvariant()).ToList();
 
         if (!badgeNumbers.Any())
             return;
@@ -78,9 +74,7 @@ public sealed class UserBadgeNumberUniqueRule(
         using var queryContext = contextFactory.CreateDbContext();
 
         var existingBadgeNumbers = await queryContext
-            .Users.Where(u =>
-                u.BadgeNumber != null && normalizedBadgeNumbers.Contains(u.BadgeNumber.ToUpper())
-            )
+            .Users.Where(u => u.BadgeNumber != null && normalizedBadgeNumbers.Contains(u.BadgeNumber.ToUpper()))
             .Select(u => new { u.Id, u.BadgeNumber })
             .ToListAsync(cancellationToken);
 
