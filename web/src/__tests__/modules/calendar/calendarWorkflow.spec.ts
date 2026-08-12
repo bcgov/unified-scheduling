@@ -3,6 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
 import { DateTime } from 'luxon';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import type { CalendarFeatureFlags } from '@/api-access/generated/models';
 
 describe('calendar workflow', () => {
   beforeEach(() => {
@@ -107,7 +108,12 @@ describe('calendar workflow', () => {
       import('@/utils/date'),
     ]);
 
-    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { Calendar: { enabled: true } } });
+    const calendarFeatureFlags: CalendarFeatureFlags = {
+      source: 'Calendar',
+      enabled: true,
+      calendarMatrixTest: false,
+    };
+    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { Calendar: calendarFeatureFlags } });
     const calendarStore = useCalendarStore(pinia);
     const selectEventById = (eventId: string) => calendarStore.setSelectedEvent(eventId);
     const locationsStore = useLocationsStore(pinia);
@@ -269,7 +275,12 @@ describe('calendar workflow', () => {
       import('@/utils/date'),
     ]);
 
-    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { Calendar: { enabled: true } } });
+    const calendarFeatureFlags: CalendarFeatureFlags = {
+      source: 'Calendar',
+      enabled: true,
+      calendarMatrixTest: false,
+    };
+    const { mountPlugins, pinia } = await createTestApp({ featureFlags: { Calendar: calendarFeatureFlags } });
     const calendarStore = useCalendarStore(pinia);
     calendarStore.setPeriod('month');
     calendarStore.setAnchorDate('2025-04-01');

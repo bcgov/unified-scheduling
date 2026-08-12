@@ -1,14 +1,15 @@
 import { createPinia } from 'pinia';
 import { describe, expect, it } from 'vitest';
 import { useAccessControl } from '@/composables/useAccessControl';
-import { Permissions } from '@/api-access/generated/models';
+import { Permissions, type StatsFeatureFlags } from '@/api-access/generated/models';
 
 describe('useAccessControl', () => {
   it('returns true when the requested feature flag is enabled', () => {
     const pinia = createPinia();
     const { configStore, featureFlags } = useAccessControl(pinia);
+    const statsFeatureFlags: StatsFeatureFlags = { source: 'Stats', enabled: true };
 
-    configStore.config = { featureFlags: { Stats: { enabled: true } } };
+    configStore.config = { featureFlags: { Stats: statsFeatureFlags } };
 
     expect(featureFlags.value.Stats?.enabled).toBe(true);
   });
@@ -16,8 +17,9 @@ describe('useAccessControl', () => {
   it('returns false when the requested feature flag is disabled', () => {
     const pinia = createPinia();
     const { configStore, featureFlags } = useAccessControl(pinia);
+    const statsFeatureFlags: StatsFeatureFlags = { source: 'Stats', enabled: false };
 
-    configStore.config = { featureFlags: { Stats: { enabled: false } } };
+    configStore.config = { featureFlags: { Stats: statsFeatureFlags } };
 
     expect(featureFlags.value.Stats?.enabled).toBe(false);
   });

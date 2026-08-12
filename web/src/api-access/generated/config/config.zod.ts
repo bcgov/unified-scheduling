@@ -25,9 +25,9 @@ export const GetApiConfigResponse = zod.object({
         .optional(),
       Calendar: zod
         .object({
-          source: zod.string(),
+          source: zod.string().nullish(),
           enabled: zod.boolean(),
-          calendarMatrixTest: zod.boolean(),
+          calendarMatrixTest: zod.boolean().optional(),
         })
         .optional(),
       Scheduling: zod
@@ -41,13 +41,13 @@ export const GetApiConfigResponse = zod.object({
         .optional(),
       Stats: zod
         .object({
-          source: zod.string(),
+          source: zod.string().nullish(),
           enabled: zod.boolean(),
         })
         .optional(),
       Training: zod
         .object({
-          source: zod.string(),
+          source: zod.string().nullish(),
           enabled: zod.boolean(),
         })
         .optional(),

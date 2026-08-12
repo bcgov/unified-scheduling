@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
-import type { FeatureFlagsResponse } from '@/api-access/generated/models';
+import type { FeatureFlagsResponse, TrainingFeatureFlags } from '@/api-access/generated/models';
 
 describe('training module', () => {
   beforeEach(() => {
@@ -11,7 +11,8 @@ describe('training module', () => {
 
   it('registers training route and navigation link when feature is enabled', async () => {
     const routes: RouteRecordRaw[] = [];
-    const featureFlags: FeatureFlagsResponse = { Training: { enabled: true } };
+    const trainingFeatureFlags: TrainingFeatureFlags = { source: 'Training', enabled: true };
+    const featureFlags: FeatureFlagsResponse = { Training: trainingFeatureFlags };
 
     const [{ registerModule }, { useNavigationStore }] = await Promise.all([
       import('@/modules/training/TrainingModule'),
@@ -38,7 +39,8 @@ describe('training module', () => {
 
   it('does not register training routes when feature is disabled', async () => {
     const routes: RouteRecordRaw[] = [];
-    const featureFlags: FeatureFlagsResponse = { Training: { enabled: false } };
+    const trainingFeatureFlags: TrainingFeatureFlags = { source: 'Training', enabled: false };
+    const featureFlags: FeatureFlagsResponse = { Training: trainingFeatureFlags };
 
     const [{ registerModule }, { useNavigationStore }] = await Promise.all([
       import('@/modules/training/TrainingModule'),

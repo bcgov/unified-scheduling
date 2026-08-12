@@ -4,10 +4,10 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { ConfigResponseFeatureFlags } from './configResponseFeatureFlags.ts';
+import type { FeatureFlagsResponse } from './featureFlagsResponse.ts';
 
 export interface ConfigResponse {
-  featureFlags?: ConfigResponseFeatureFlags;
+  featureFlags?: FeatureFlagsResponse;
   /** @nullable */
   supportEmail?: string | null;
   /** @nullable */
