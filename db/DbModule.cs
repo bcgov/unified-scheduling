@@ -36,8 +36,7 @@ public static class DbModule
             }
         );
 
-        services.AddSingleton<SaveRulesInterceptor>();
-
+        services.AddScoped<SaveRulesInterceptor>();
         services.AddSingleton(configuration);
 
         return services;
