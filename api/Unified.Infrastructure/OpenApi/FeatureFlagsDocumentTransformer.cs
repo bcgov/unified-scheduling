@@ -30,18 +30,10 @@ public sealed class FeatureFlagsDocumentTransformer(IEnumerable<IFeatureFlags> f
         {
             var flagType = flag.GetType();
             var schemaName = flagType.Name;
-            var schema = await context.GetOrCreateSchemaAsync(
-                flagType,
-                parameterDescription: null,
-                cancellationToken
-            );
+            var schema = await context.GetOrCreateSchemaAsync(flagType, parameterDescription: null, cancellationToken);
 
             document.Components.Schemas[schemaName] = schema;
-            properties[flag.Source] = new OpenApiSchemaReference(
-                schemaName,
-                document,
-                externalResource: null
-            );
+            properties[flag.Source] = new OpenApiSchemaReference(schemaName, document, externalResource: null);
         }
 
         document.Components.Schemas[FeatureFlagsResponseSchemaName] = new OpenApiSchema
