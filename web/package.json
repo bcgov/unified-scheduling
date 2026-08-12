@@ -31,11 +31,11 @@
     "@vueuse/core": "^14.4.0",
     "luxon": "^3.7.2",
     "pinia": "^4.0.2",
-    "temporal-polyfill": "^1.0.2",
-    "vue": "^3.5.40",
+    "temporal-polyfill": "^1.0.3",
+    "vue": "^3.5.41",
     "vue-draggable-plus": "^0.6.1",
     "vue-router": "^5.2.0",
-    "vuetify": "^4.1.7",
+    "vuetify": "^4.1.8",
     "zod": "^4.4.3"
   },
   "devDependencies": {
