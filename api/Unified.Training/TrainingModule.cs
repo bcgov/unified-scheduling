@@ -10,6 +10,7 @@ using Unified.Authorization;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Core.Services.Lookup;
+using Unified.Training.FeatureFlags;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
@@ -68,8 +69,6 @@ public static class TrainingModule
 
         services.AddScoped<TrainingLookupRequestValidator>();
         services.AddScoped<UserTrainingRequestValidator>();
-
-        services.AddSingleton(TrainingPermissionSeedData.Configuration);
 
         services
             .AddAuthorizationBuilder()

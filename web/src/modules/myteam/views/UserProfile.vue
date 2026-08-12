@@ -16,13 +16,13 @@ const props = defineProps<{
 const { data, error, isFetching, execute } = getApiUsersId(props.userId);
 const accessControl = useAccessControl();
 const lookupStore = useLookupStore();
-const trainingsViewPermission = 'UserTrainingsView' as Permissions;
 const showBadgeNumber = computed(
   () => accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled ?? false,
 );
 const showTrainingTab = computed(
   () =>
-    accessControl.isFeatureFlagEnabled('trainingModule') && accessControl.hasPermission(Permissions.UserTrainingsView),
+    (accessControl.featureFlags.value?.Training?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.UserTrainingsView),
 );
 const showEditUserModal = ref(false);
 // Uses lastPhotoUpdate as a cache-busting query param so the browser re-fetches

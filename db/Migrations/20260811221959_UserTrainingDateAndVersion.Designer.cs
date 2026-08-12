@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20260806212156_UserTrainingDateAndVersion")]
+    [Migration("20260811221959_UserTrainingDateAndVersion")]
     partial class UserTrainingDateAndVersion
     {
         /// <inheritdoc />
@@ -1381,6 +1381,9 @@ namespace Unified.Db.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("EmployeeNumber")
+                        .HasColumnType("text");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1434,6 +1437,9 @@ namespace Unified.Db.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedById");
+
+                    b.HasIndex("EmployeeNumber")
+                        .IsUnique();
 
                     b.HasIndex("HomeLocationId");
 
