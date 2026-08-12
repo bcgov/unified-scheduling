@@ -155,7 +155,6 @@ public sealed class SeedDataCompositionTests
             values[$"FeatureFlags:{enabledFeature}"] = "true";
         values["FeatureFlags:UserManagement:Enabled"] = "true";
         values["FeatureFlags:UserManagement:UserBadgeNumber:Enabled"] = "true";
-        values["FeatureFlags:UserManagement:UserBadgeNumber:Required"] = "true";
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 

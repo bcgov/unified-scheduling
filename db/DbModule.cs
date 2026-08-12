@@ -22,6 +22,8 @@ public static class DbModule
             );
         }
 
+        services.AddScoped<SaveRulesInterceptor>();
+
         services.AddDbContext<UnifiedDbContext>(
             (serviceProvider, options) =>
             {
@@ -36,7 +38,6 @@ public static class DbModule
             }
         );
 
-        services.AddScoped<SaveRulesInterceptor>();
         services.AddSingleton(configuration);
 
         return services;

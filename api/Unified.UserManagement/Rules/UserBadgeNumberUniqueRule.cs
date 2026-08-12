@@ -31,87 +31,77 @@ public sealed class UserBadgeNumberUniqueRule(
         if (!modifiedUsers.Any())
             return;
 
-        var flags = featureFlagsMonitor.CurrentValue.UserBadgeNumber;
+        var missingBadgeNumbers = modifiedUsers
+            .Where(e => string.IsNullOrWhiteSpace(e.Entity.BadgeNumber))
+            .ToList();
 
-        // Validate required when flag is enabled
-        if (flags.Required)
+        if (missingBadgeNumbers.Any())
         {
-            var missingBadgeNumbers = modifiedUsers
-                .Where(e => string.IsNullOrWhiteSpace(e.Entity.BadgeNumber))
-                .ToList();
-
-            if (missingBadgeNumbers.Any())
-            {
-                var userIds = string.Join(", ", missingBadgeNumbers.Select(e => e.Entity.Id));
-                throw new InvalidOperationException($"Badge number is required for user(s): {userIds}.");
-            }
+            var userIds = string.Join(", ", missingBadgeNumbers.Select(e => e.Entity.Id));
+            throw new InvalidOperationException($"Badge number is required for user(s): {userIds}.");
         }
 
-        // Get users with badge numbers for uniqueness check
-        var entriesWithBadges = modifiedUsers.Where(e => e.Entity.BadgeNumber != null).ToList();
+        var entriesWithBadges = modifiedUsers
+            .Where(e => !string.IsNullOrWhiteSpace(e.Entity.BadgeNumber))
+            .Select(e => new { Entry = e, BadgeNumber = e.Entity.BadgeNumber!.Trim() })
+            .ToList();
 
         if (!entriesWithBadges.Any())
             return;
 
+        var duplicatePendingBadgeNumbers = entriesWithBadges
+            .GroupBy(x => x.BadgeNumber, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicatePendingBadgeNumbers.Count != 0)
+        {
+            var duplicateList = string.Join(", ", duplicatePendingBadgeNumbers.Select(b => $"'{b}'"));
+            throw new InvalidOperationException(
+                $"Duplicate badge number(s) detected in pending changes: {duplicateList}."
+            );
+        }
+
         var badgeNumbers = entriesWithBadges
-            .Select(e => e.Entity.BadgeNumber)
-            .Where(b => !string.IsNullOrWhiteSpace(b))
+            .Select(x => x.BadgeNumber)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var normalizedBadgeNumbers = badgeNumbers
+            .Select(badge => badge.ToUpperInvariant())
             .ToList();
 
         if (!badgeNumbers.Any())
             return;
 
-        // Create separate DbContext for safe queries
-        using (var queryContext = contextFactory.CreateDbContext())
+        using var queryContext = contextFactory.CreateDbContext();
+
+        var existingBadgeNumbers = await queryContext
+            .Users.Where(u =>
+                u.BadgeNumber != null && normalizedBadgeNumbers.Contains(u.BadgeNumber.ToUpper())
+            )
+            .Select(u => new { u.Id, u.BadgeNumber })
+            .ToListAsync(cancellationToken);
+
+        var duplicateBadgeNumbersInSystem = entriesWithBadges
+            .Where(entry =>
+                existingBadgeNumbers.Any(existing =>
+                    string.Equals(existing.BadgeNumber, entry.BadgeNumber, StringComparison.OrdinalIgnoreCase)
+                    && existing.Id != entry.Entry.Entity.Id
+                )
+            )
+            .Select(entry => entry.BadgeNumber)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(badge => badge, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (duplicateBadgeNumbersInSystem.Count != 0)
         {
-            // Check for duplicates in the database
-            var existingBadgeNumbers = await queryContext
-                .Users.Where(u => badgeNumbers.Contains(u.BadgeNumber))
-                .Select(u => new { u.Id, u.BadgeNumber })
-                .ToListAsync(cancellationToken);
-
-            // For new users (Added state), check for any existing badge numbers
-            var newUsers = entriesWithBadges.Where(e => e.State == EntityState.Added).ToList();
-            if (newUsers.Any())
-            {
-                var newBadgeNumbers = newUsers
-                    .Select(e => e.Entity.BadgeNumber)
-                    .Where(b => !string.IsNullOrWhiteSpace(b))
-                    .ToList();
-
-                var duplicates = existingBadgeNumbers.Where(e => newBadgeNumbers.Contains(e.BadgeNumber)).ToList();
-
-                if (duplicates.Any())
-                {
-                    var duplicateList = string.Join(", ", duplicates.Select(d => $"'{d.BadgeNumber}'"));
-                    throw new InvalidOperationException(
-                        $"Badge number(s) {duplicateList} already exist in the system."
-                    );
-                }
-            }
-
-            // For modified users, check for duplicates with other users (excluding self)
-            var modifiedOnlyUsers = entriesWithBadges.Where(e => e.State == EntityState.Modified).ToList();
-            if (modifiedOnlyUsers.Any())
-            {
-                foreach (var entry in modifiedOnlyUsers)
-                {
-                    var badgeNumber = entry.Entity.BadgeNumber;
-                    if (string.IsNullOrWhiteSpace(badgeNumber))
-                        continue;
-
-                    var isDuplicate = existingBadgeNumbers.Any(e =>
-                        e.BadgeNumber == badgeNumber && e.Id != entry.Entity.Id
-                    );
-
-                    if (isDuplicate)
-                    {
-                        throw new InvalidOperationException(
-                            $"Badge number '{badgeNumber}' is already in use by another user."
-                        );
-                    }
-                }
-            }
-        } // queryContext disposed automatically
+            var duplicateList = string.Join(", ", duplicateBadgeNumbersInSystem.Select(b => $"'{b}'"));
+            throw new InvalidOperationException(
+                $"Badge number(s) {duplicateList} are already in use by other user(s)."
+            );
+        }
     }
 }

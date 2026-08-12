@@ -31,12 +31,12 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         await _dbContext.DisposeAsync();
     }
 
-    private UserBadgeNumberUniqueRule CreateRule(bool required = true, bool enabled = true)
+    private UserBadgeNumberUniqueRule CreateRule(bool enabled = true)
     {
         var flags = new UserManagementFeatureFlags
         {
             Enabled = enabled,
-            UserBadgeNumber = new UserBadgeNumberFlags { Enabled = enabled, Required = required },
+            UserBadgeNumber = new UserBadgeNumberFlags { Enabled = enabled },
         };
 
         var optionsMonitor = new FakeOptionsMonitor<UserManagementFeatureFlags>(flags);
@@ -93,7 +93,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
     public async Task ExecuteAsync_NewUserWithMissingBadgeNumber_ThrowsWhenRequired()
     {
         // Arrange
-        var rule = CreateRule(required: true);
+        var rule = CreateRule();
 
         var user = new User
         {
@@ -119,7 +119,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
     public async Task ExecuteAsync_ModifiedUserWithMissingBadgeNumber_ThrowsWhenRequired()
     {
         // Arrange
-        var rule = CreateRule(required: true);
+        var rule = CreateRule();
 
         var user = new User
         {
@@ -185,7 +185,46 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             rule.ExecuteAsync(_dbContext, CancellationToken.None)
         );
-        Assert.Contains("already exist", ex.Message);
+        Assert.Contains("already in use", ex.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DuplicateBadgeNumberWithinPendingChanges_Throws()
+    {
+        // Arrange
+        var rule = CreateRule();
+
+        var user1 = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "user1",
+            FirstName = "User",
+            LastName = "One",
+            Email = "user1@example.com",
+            Gender = Gender.Female,
+            Rank = "Rank1",
+            BadgeNumber = "BADGE123",
+        };
+
+        var user2 = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "user2",
+            FirstName = "User",
+            LastName = "Two",
+            Email = "user2@example.com",
+            Gender = Gender.Female,
+            Rank = "Rank1",
+            BadgeNumber = "badge123",
+        };
+
+        _dbContext.Users.AddRange(user1, user2);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            rule.ExecuteAsync(_dbContext, CancellationToken.None)
+        );
+        Assert.Contains("pending changes", ex.Message);
     }
 
     [Fact]
@@ -230,6 +269,74 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             rule.ExecuteAsync(_dbContext, CancellationToken.None)
         );
+        Assert.Contains("already in use", ex.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_MultipleDuplicateBadgeNumbersInDatabase_ThrowsCombinedMessage()
+    {
+        // Arrange
+        var rule = CreateRule();
+
+        var existingUser1 = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "existing1",
+            FirstName = "Existing",
+            LastName = "One",
+            Email = "existing1@example.com",
+            Gender = Gender.Female,
+            Rank = "Rank1",
+            BadgeNumber = "BADGE001",
+        };
+
+        var existingUser2 = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "existing2",
+            FirstName = "Existing",
+            LastName = "Two",
+            Email = "existing2@example.com",
+            Gender = Gender.Male,
+            Rank = "Rank1",
+            BadgeNumber = "BADGE002",
+        };
+
+        _dbContext.Users.AddRange(existingUser1, existingUser2);
+        await _dbContext.SaveChangesAsync();
+
+        var newUser1 = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "new1",
+            FirstName = "New",
+            LastName = "One",
+            Email = "new1@example.com",
+            Gender = Gender.Female,
+            Rank = "Rank1",
+            BadgeNumber = "badge001",
+        };
+
+        var newUser2 = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = "new2",
+            FirstName = "New",
+            LastName = "Two",
+            Email = "new2@example.com",
+            Gender = Gender.Male,
+            Rank = "Rank1",
+            BadgeNumber = "BADGE002",
+        };
+
+        _dbContext.Users.AddRange(newUser1, newUser2);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            rule.ExecuteAsync(_dbContext, CancellationToken.None)
+        );
+        Assert.Contains("'badge001'", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("'BADGE002'", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("already in use", ex.Message);
     }
 

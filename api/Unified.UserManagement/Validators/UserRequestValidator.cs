@@ -49,7 +49,7 @@ public class UserRequestValidator : AbstractValidator<UserRequestDto>
         RuleFor(x => x.BadgeNumber)
             .NotEmpty()
             .WithMessage("Badge number is required.")
-            .When(_ => featureFlagsMonitor.CurrentValue.UserBadgeNumber.Required)
+            .When(_ => featureFlagsMonitor.CurrentValue.UserBadgeNumber.Enabled)
             .MaximumLength(100)
             .WithMessage("Badge number must be 100 characters or less.");
 

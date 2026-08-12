@@ -17,7 +17,7 @@ public class UsersControllerTests
     {
         var featureFlags = new UserManagementFeatureFlags
         {
-            UserBadgeNumber = new UserBadgeNumberFlags { Enabled = false, Required = false },
+            UserBadgeNumber = new UserBadgeNumberFlags { Enabled = false },
         };
         var featureFlagsMonitor = new FakeOptionsMonitor<UserManagementFeatureFlags>(featureFlags);
 

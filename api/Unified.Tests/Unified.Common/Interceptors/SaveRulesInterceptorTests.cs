@@ -61,9 +61,10 @@ public class SaveRulesInterceptorTests
     public async Task SavingChangesAsync_MultipleRulesExecuteInOrder()
     {
         // Arrange
-        var rule1 = new FakeOrderedRule(1);
-        var rule2 = new FakeOrderedRule(2);
-        var rule3 = new FakeOrderedRule(3);
+        var executionOrder = new List<int>();
+        var rule1 = new FakeOrderedRule(1, executionOrder);
+        var rule2 = new FakeOrderedRule(2, executionOrder);
+        var rule3 = new FakeOrderedRule(3, executionOrder);
         var rules = new List<ISaveRule> { rule1, rule2, rule3 };
         var logger = new FakeLogger<SaveRulesInterceptor>();
         var interceptor = new SaveRulesInterceptor(rules, logger);
@@ -75,7 +76,7 @@ public class SaveRulesInterceptorTests
         await interceptor.SavingChangesAsync(eventData, result);
 
         // Assert
-        Assert.Equal(new[] { 1, 2, 3 }, FakeOrderedRule.ExecutionOrder);
+        Assert.Equal(new[] { 1, 2, 3 }, executionOrder);
     }
 
     [Fact]
@@ -215,16 +216,17 @@ public class SaveRulesInterceptorTests
     private class FakeOrderedRule : ISaveRule
     {
         private readonly int _order;
-        public static List<int> ExecutionOrder { get; set; } = [];
+        private readonly List<int> _executionOrder;
 
-        public FakeOrderedRule(int order)
+        public FakeOrderedRule(int order, List<int> executionOrder)
         {
             _order = order;
+            _executionOrder = executionOrder;
         }
 
         public Task ExecuteAsync(DbContext context, CancellationToken cancellationToken)
         {
-            ExecutionOrder.Add(_order);
+            _executionOrder.Add(_order);
             return Task.CompletedTask;
         }
     }
