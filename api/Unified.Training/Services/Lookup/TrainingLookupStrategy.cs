@@ -74,7 +74,6 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         await EnsureCategoryExistsAsync(request.TrainingCategoryId, cancellationToken);
 
         var normalizedRequest = NormalizeRequest(request);
-
         normalizedRequest.Adapt(entity);
 
         await db.SaveChangesAsync(cancellationToken);

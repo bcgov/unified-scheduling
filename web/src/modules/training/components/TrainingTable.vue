@@ -2,7 +2,6 @@
 import type { TrainingLookupResponse } from '@/api-access/generated/models';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
-import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { mdiCheck, mdiDragVertical, mdiPencil } from '@mdi/js';
 import { computed, ref } from 'vue';
 
@@ -65,7 +64,6 @@ const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
 
 <template>
   <UaDataTable
-    v-if="items.length > 0 || loading"
     :headers="headers"
     :items="items"
     :loading="loading"
@@ -128,8 +126,6 @@ const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
       <span class="no-data-text">No trainings found.</span>
     </template>
   </UaDataTable>
-
-  <UaPlaceholderPage v-else title="No trainings" description="There are no training types to display yet." />
 </template>
 
 <style scoped>

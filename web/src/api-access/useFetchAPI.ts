@@ -66,6 +66,15 @@ const fetchAPI = createFetch({
     immediate: true,
     updateDataOnError: true,
     async onFetchError(ctx) {
+      const isNoContentResponse = ctx.response?.status === 204 || ctx.response?.status === 205;
+
+      // Treat empty-body no-content responses as success even when JSON parsing is requested.
+      if (isNoContentResponse) {
+        ctx.data = undefined;
+        ctx.error = null;
+        return ctx;
+      }
+
       // Return API error payload through the error ref for component-level handling.
       if (ctx.data !== null && ctx.data !== undefined) {
         ctx.error = ctx.data as Error;

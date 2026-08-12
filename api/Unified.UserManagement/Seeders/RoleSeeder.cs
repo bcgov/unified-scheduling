@@ -55,6 +55,7 @@ public class RoleSeeder(ILogger<RoleSeeder> logger, IEnumerable<RoleSeedConfigur
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
         Logger.LogInformation(
             "Role seeding complete. Created {CreatedCount}, updated {UpdatedCount}.",
             createdCount,

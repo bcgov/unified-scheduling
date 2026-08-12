@@ -10,6 +10,7 @@ public class UserTrainingConfiguration : BaseEntityConfiguration<UserTraining>
     {
         builder.Property(b => b.Id).HasIdentityOptions(startValue: 200);
 
+        builder.Property(b => b.Version).HasDefaultValue(1).IsRequired();
         builder.Property(b => b.NoticeState).HasMaxLength(50).IsRequired();
         builder.Property(b => b.Notes).HasMaxLength(2000);
 
@@ -28,6 +29,14 @@ public class UserTrainingConfiguration : BaseEntityConfiguration<UserTraining>
         builder.HasIndex(b => b.UserId);
         builder.HasIndex(b => b.TrainingId);
         builder.HasIndex(b => b.ExpiryDate);
+        builder
+            .HasIndex(b => new
+            {
+                b.UserId,
+                b.TrainingId,
+                b.Version,
+            })
+            .IsUnique();
         builder.HasIndex(b => new
         {
             b.UserId,

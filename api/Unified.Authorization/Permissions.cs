@@ -68,11 +68,10 @@ public enum Permissions
     TrainingsView,
     TrainingsCreate,
     TrainingsEdit,
-    TrainingsDelete,
-    TrainingsRecordsManageForOthers,
-    TrainingsEditPast,
-    TrainingsRemovePast,
-    TrainingsAdjustExpiry,
+    UserTrainingsView,
+    UserTrainingsCreate,
+    UserTrainingsEdit,
+    UserTrainingsDelete,
 
     // --- Acting Positions ---
     ActingPositionsView,

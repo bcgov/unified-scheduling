@@ -19,8 +19,12 @@ const lookupStore = useLookupStore();
 const showBadgeNumber = computed(
   () => accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled ?? false,
 );
+const showTrainingTab = computed(
+  () =>
+    (accessControl.featureFlags.value?.Training?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.UserTrainingsView),
+);
 const showEditUserModal = ref(false);
-
 // Uses lastPhotoUpdate as a cache-busting query param so the browser re-fetches
 // the photo image whenever it changes after an edit.
 const photoSrc = computed(() => {
@@ -103,6 +107,13 @@ onMounted(async () => {
           :to="{ name: 'UserActingPositions', params: { userId: props.userId } }"
         >
           Acting Positions
+        </UaBtn>
+        <UaBtn
+          v-if="showTrainingTab"
+          variant="outlined"
+          :to="{ name: 'UserTraining', params: { userId: props.userId } }"
+        >
+          Training
         </UaBtn>
         <UaBtn
           v-if="accessControl.hasPermission(Permissions.AwayLocationsView)"

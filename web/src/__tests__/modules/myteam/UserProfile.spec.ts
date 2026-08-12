@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-
 import { getGetApiUsersIdMockHandler, getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
 import UserProfile from '@/modules/myteam/views/UserProfile.vue';
 import { server } from '../../mocks/server';
@@ -75,5 +74,33 @@ describe('UserProfile', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('ABC123');
+  });
+
+  it('shows training tab when training module and permission are enabled', async () => {
+    const app = await createTestApp({
+      featureFlags: {
+        Training: { enabled: true },
+        UserManagement: { enabled: true },
+      },
+      permissions: ['UserTrainingsView' as never],
+    });
+
+    const userId = 'test-user-id';
+    const user = getGetApiUsersIdResponseMock();
+
+    server.use(getGetApiUsersIdMockHandler(user));
+
+    const wrapper = mount(UserProfile, {
+      props: {
+        userId,
+      },
+      global: {
+        plugins: app.mountPlugins,
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Training');
   });
 });

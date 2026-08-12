@@ -73,3 +73,5 @@ export * from './userManagementFeatureFlags.ts';
 export * from './userRequestDto.ts';
 export * from './userResponse.ts';
 export * from './userRoleResponseDto.ts';
+export * from './userTrainingRequest.ts';
+export * from './userTrainingResponse.ts';

@@ -11,6 +11,7 @@ using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Core.Services.Lookup;
 using Unified.Training.FeatureFlags;
+using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
 
@@ -60,23 +61,24 @@ public static class TrainingModule
             return services;
         }
 
+        services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );
 
         services.AddScoped<TrainingLookupRequestValidator>();
+        services.AddScoped<UserTrainingRequestValidator>();
 
         services
             .AddAuthorizationBuilder()
             .AddPermissionPolicy(Permissions.TrainingsView)
             .AddPermissionPolicy(Permissions.TrainingsCreate)
             .AddPermissionPolicy(Permissions.TrainingsEdit)
-            .AddPermissionPolicy(Permissions.TrainingsDelete)
-            .AddPermissionPolicy(Permissions.TrainingsRecordsManageForOthers)
-            .AddPermissionPolicy(Permissions.TrainingsEditPast)
-            .AddPermissionPolicy(Permissions.TrainingsRemovePast)
-            .AddPermissionPolicy(Permissions.TrainingsAdjustExpiry);
+            .AddPermissionPolicy(Permissions.UserTrainingsView)
+            .AddPermissionPolicy(Permissions.UserTrainingsCreate)
+            .AddPermissionPolicy(Permissions.UserTrainingsEdit)
+            .AddPermissionPolicy(Permissions.UserTrainingsDelete);
 
         return services;
     }
