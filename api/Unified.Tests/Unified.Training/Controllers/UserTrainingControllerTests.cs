@@ -61,6 +61,21 @@ public class UserTrainingControllerTests
         Assert.IsType<NotFoundResult>(result.Result);
     }
 
+    [Fact]
+    public async Task CalculateExpiryDate_WhenValid_Returns200Ok()
+    {
+        var response = new UserTrainingExpiryDateResponse { ExpiryDate = DateTimeOffset.UtcNow.Date };
+        var service = new FakeUserTrainingService { CalculateExpiryDateResult = response };
+        var controller = BuildController(service);
+
+        var request = new UserTrainingExpiryDateRequest { TrainingId = 1, AwardedOn = DateTimeOffset.UtcNow };
+
+        var result = await controller.CalculateExpiryDate(request, TestContext.Current.CancellationToken);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal(response, ok.Value);
+    }
+
     // ── Create ────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -192,6 +207,7 @@ public class UserTrainingControllerTests
     {
         public IReadOnlyCollection<UserTrainingResponse> GetAllResult { get; init; } = [];
         public UserTrainingResponse? GetByTrainingAndUserResult { get; init; }
+        public UserTrainingExpiryDateResponse CalculateExpiryDateResult { get; init; } = new();
         public UserTrainingResponse? CreateResult { get; init; }
         public UserTrainingResponse? UpdateResult { get; init; }
         public bool DeleteResult { get; init; }
@@ -206,6 +222,11 @@ public class UserTrainingControllerTests
             Guid userId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(GetByTrainingAndUserResult);
+
+        public Task<UserTrainingExpiryDateResponse> CalculateExpiryDateAsync(
+            UserTrainingExpiryDateRequest request,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(CalculateExpiryDateResult);
 
         public Task<UserTrainingResponse> CreateAsync(
             UserTrainingRequest request,

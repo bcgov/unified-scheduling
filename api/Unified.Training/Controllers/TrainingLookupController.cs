@@ -24,9 +24,12 @@ public class TrainingLookupController(
     [HttpGet]
     [Authorize(Policy = TrainingsViewPolicy)]
     [ProducesResponseType(typeof(IEnumerable<TrainingLookupResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<TrainingLookupResponse>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<TrainingLookupResponse>>> GetAll(
+        [FromQuery] bool includeExpired = false,
+        CancellationToken cancellationToken = default
+    )
     {
-        var result = await trainingLookupStrategy.GetAllTrainingsAsync(cancellationToken);
+        var result = await trainingLookupStrategy.GetAllTrainingsAsync(includeExpired, cancellationToken);
         return Ok(result);
     }
 
@@ -89,6 +92,26 @@ public class TrainingLookupController(
         }
 
         var result = await trainingLookupStrategy.MoveOrderAsync(id, request.NewOrder, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPatch("{id:int}/expire")]
+    [Authorize(Policy = TrainingsEditPolicy)]
+    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TrainingLookupResponse>> Expire(int id, CancellationToken cancellationToken)
+    {
+        var result = await trainingLookupStrategy.ExpireAsync(id, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpPatch("{id:int}/unexpire")]
+    [Authorize(Policy = TrainingsEditPolicy)]
+    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TrainingLookupResponse>> Unexpire(int id, CancellationToken cancellationToken)
+    {
+        var result = await trainingLookupStrategy.UnexpireAsync(id, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 }

@@ -5,11 +5,17 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
+import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { ref } from 'vue';
+import {
+  defaultValidityDayCode,
+  getValidityDayOptions,
+  getValidityDaysFromCode,
+} from '../validityDayOptions';
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -20,7 +26,7 @@ type TrainingCreateFormData = {
   code: string;
   description: string;
   mandatory: boolean;
-  validityDays: string;
+  validityDayCode: string;
   advanceNoticeDays: string;
   rotating: boolean;
 };
@@ -29,10 +35,12 @@ const formData = ref<TrainingCreateFormData>({
   code: '',
   description: '',
   mandatory: false,
-  validityDays: '',
+  validityDayCode: defaultValidityDayCode,
   advanceNoticeDays: '',
   rotating: false,
 });
+
+const validityDayOptions = ref(getValidityDayOptions(getValidityDaysFromCode(defaultValidityDayCode)));
 
 const isLoading = ref(false);
 const apiErrorMessage = ref('');
@@ -72,7 +80,11 @@ const validateForm = (): TrainingLookupRequest | null => {
     formErrors.value.description = validationMessages.tooLong;
   }
 
-  const validityDays = parseOptionalNonNegativeNumber(formData.value.validityDays, 'validityDays');
+  const validityDays = getValidityDaysFromCode(formData.value.validityDayCode);
+  if (validityDays === undefined) {
+    formErrors.value.validityDays = validationMessages.invalid;
+  }
+
   const advanceNoticeDays = parseOptionalNonNegativeNumber(formData.value.advanceNoticeDays, 'advanceNoticeDays');
 
   if (Object.keys(formErrors.value).length > 0) {
@@ -164,16 +176,13 @@ const handleSave = async () => {
         @update:model-value="(value: string) => (formData.description = value)"
       />
 
-      <UaTextField
+      <span class="ua-form-label">Validity</span>
+      <UaSelect
         id="create-training-validity-days"
-        label="Validity (Days)"
-        type="number"
-        min="0"
-        step="1"
-        :model-value="formData.validityDays"
+        :items="validityDayOptions"
+        v-model="formData.validityDayCode"
         :error-messages="formErrors.validityDays"
         :disabled="isLoading"
-        @update:model-value="(value: string) => (formData.validityDays = value)"
       />
 
       <UaTextField

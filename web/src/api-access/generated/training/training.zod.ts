@@ -11,6 +11,12 @@ import * as zod from 'zod';
  */
 export const GetTrainingHealthResponse = zod.string();
 
+export const getApiLookupTrainingsQueryIncludeExpiredDefault = false;
+
+export const GetApiLookupTrainingsQueryParams = zod.strictObject({
+  includeExpired: zod.boolean().default(getApiLookupTrainingsQueryIncludeExpiredDefault),
+});
+
 export const GetApiLookupTrainingsResponseItem = zod.object({
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
@@ -117,6 +123,48 @@ export const PatchApiLookupTrainingsIdOrderBody = zod.strictObject({
 });
 
 export const PatchApiLookupTrainingsIdOrderResponse = zod.object({
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.int().nullish(),
+  advanceNoticeDays: zod.int().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.int().nullish(),
+  trainingCategoryName: zod.string().nullish(),
+  order: zod.int().optional(),
+  id: zod.int(),
+  createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  code: zod.string().optional(),
+  description: zod.string().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});
+
+export const PatchApiLookupTrainingsIdExpireParams = zod.strictObject({
+  id: zod.int(),
+});
+
+export const PatchApiLookupTrainingsIdExpireResponse = zod.object({
+  mandatory: zod.boolean().optional(),
+  validityDays: zod.int().nullish(),
+  advanceNoticeDays: zod.int().nullish(),
+  rotating: zod.boolean().optional(),
+  trainingCategoryId: zod.int().nullish(),
+  trainingCategoryName: zod.string().nullish(),
+  order: zod.int().optional(),
+  id: zod.int(),
+  createdOn: zod.iso.datetime({ offset: true }).optional(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  code: zod.string().optional(),
+  description: zod.string().optional(),
+  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});
+
+export const PatchApiLookupTrainingsIdUnexpireParams = zod.strictObject({
+  id: zod.int(),
+});
+
+export const PatchApiLookupTrainingsIdUnexpireResponse = zod.object({
   mandatory: zod.boolean().optional(),
   validityDays: zod.int().nullish(),
   advanceNoticeDays: zod.int().nullish(),

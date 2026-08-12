@@ -4,7 +4,12 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { TrainingLookupMoveOrderRequest, TrainingLookupRequest, TrainingLookupResponse } from '../models';
+import type {
+  GetApiLookupTrainingsParams,
+  TrainingLookupMoveOrderRequest,
+  TrainingLookupRequest,
+  TrainingLookupResponse,
+} from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI.ts';
 
@@ -16,8 +21,11 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 export const getTrainingHealth = (options?: SecondParameter<typeof useFetchAPI<string>>) => {
   return useFetchAPI<string>({ url: `/api/trainings/health`, method: 'GET' }, options);
 };
-export const getApiLookupTrainings = (options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse[]>>) => {
-  return useFetchAPI<TrainingLookupResponse[]>({ url: `/api/lookup/trainings`, method: 'GET' }, options);
+export const getApiLookupTrainings = (
+  params?: GetApiLookupTrainingsParams,
+  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse[]>>,
+) => {
+  return useFetchAPI<TrainingLookupResponse[]>({ url: `/api/lookup/trainings`, method: 'GET', params }, options);
 };
 export const postApiLookupTrainings = (
   trainingLookupRequest: TrainingLookupRequest,
@@ -69,6 +77,18 @@ export const patchApiLookupTrainingsIdOrder = (
     options,
   );
 };
+export const patchApiLookupTrainingsIdExpire = (
+  id: number,
+  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse>>,
+) => {
+  return useFetchAPI<TrainingLookupResponse>({ url: `/api/lookup/trainings/${id}/expire`, method: 'PATCH' }, options);
+};
+export const patchApiLookupTrainingsIdUnexpire = (
+  id: number,
+  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse>>,
+) => {
+  return useFetchAPI<TrainingLookupResponse>({ url: `/api/lookup/trainings/${id}/unexpire`, method: 'PATCH' }, options);
+};
 export type GetTrainingHealthResult = NonNullable<Awaited<ReturnType<typeof getTrainingHealth>>>;
 export type GetApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainings>>>;
 export type PostApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof postApiLookupTrainings>>>;
@@ -76,4 +96,10 @@ export type GetApiLookupTrainingsIdResult = NonNullable<Awaited<ReturnType<typeo
 export type PutApiLookupTrainingsIdResult = NonNullable<Awaited<ReturnType<typeof putApiLookupTrainingsId>>>;
 export type PatchApiLookupTrainingsIdOrderResult = NonNullable<
   Awaited<ReturnType<typeof patchApiLookupTrainingsIdOrder>>
+>;
+export type PatchApiLookupTrainingsIdExpireResult = NonNullable<
+  Awaited<ReturnType<typeof patchApiLookupTrainingsIdExpire>>
+>;
+export type PatchApiLookupTrainingsIdUnexpireResult = NonNullable<
+  Awaited<ReturnType<typeof patchApiLookupTrainingsIdUnexpire>>
 >;

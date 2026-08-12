@@ -29,7 +29,7 @@ public class TrainingLookupControllerTests
         var strategy = new FakeTrainingLookupStrategy { TrainingsResult = expected };
         var controller = new TrainingLookupController(strategy, new TrainingLookupRequestValidator());
 
-        var result = await controller.GetAll(TestContext.Current.CancellationToken);
+        var result = await controller.GetAll(cancellationToken: TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var payload = Assert.IsAssignableFrom<IEnumerable<TrainingLookupResponse>>(okResult.Value);
@@ -86,6 +86,54 @@ public class TrainingLookupControllerTests
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
+    [Fact]
+    public async Task Expire_Should_Return_Ok_When_Training_Exists()
+    {
+        var training = new TrainingLookupResponse
+        {
+            Id = 10,
+            Code = "FIRE",
+            Description = "Firearms Qualification",
+            EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Mandatory = true,
+            CreatedOn = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+        };
+
+        var strategy = new FakeTrainingLookupStrategy { TrainingsResult = [training] };
+        var controller = new TrainingLookupController(strategy, new TrainingLookupRequestValidator());
+
+        var result = await controller.Expire(10, TestContext.Current.CancellationToken);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<TrainingLookupResponse>(okResult.Value);
+        Assert.Equal(10, payload.Id);
+    }
+
+    [Fact]
+    public async Task Unexpire_Should_Return_Ok_When_Training_Exists()
+    {
+        var training = new TrainingLookupResponse
+        {
+            Id = 10,
+            Code = "FIRE",
+            Description = "Firearms Qualification",
+            EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            ExpiryDate = DateTimeOffset.UtcNow.AddDays(-1),
+            Mandatory = true,
+            CreatedOn = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+        };
+
+        var strategy = new FakeTrainingLookupStrategy { TrainingsResult = [training] };
+        var controller = new TrainingLookupController(strategy, new TrainingLookupRequestValidator());
+
+        var result = await controller.Unexpire(10, TestContext.Current.CancellationToken);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var payload = Assert.IsType<TrainingLookupResponse>(okResult.Value);
+        Assert.Equal(10, payload.Id);
+        Assert.Null(payload.ExpiryDate);
+    }
+
     private sealed class FakeTrainingLookupStrategy : ITrainingLookupStrategy
     {
         public IReadOnlyCollection<TrainingLookupResponse> TrainingsResult { get; init; } = [];
@@ -93,8 +141,14 @@ public class TrainingLookupControllerTests
         public LookupCodeTypes CodeType => LookupCodeTypes.Trainings;
 
         public Task<IReadOnlyCollection<TrainingLookupResponse>> GetAllTrainingsAsync(
+            bool includeExpired = false,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(TrainingsResult);
+        ) =>
+            Task.FromResult<IReadOnlyCollection<TrainingLookupResponse>>(
+                includeExpired
+                    ? TrainingsResult
+                    : TrainingsResult.Where(training => training.ExpiryDate is null).ToArray()
+            );
 
         public Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
             CancellationToken cancellationToken = default
@@ -147,5 +201,17 @@ public class TrainingLookupControllerTests
             int newOrder,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(TrainingsResult.SingleOrDefault(x => x.Id == id));
+
+        public Task<TrainingLookupResponse?> ExpireAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var training = TrainingsResult.SingleOrDefault(x => x.Id == id);
+            return Task.FromResult(training is null ? null : training with { ExpiryDate = DateTimeOffset.UtcNow });
+        }
+
+        public Task<TrainingLookupResponse?> UnexpireAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var training = TrainingsResult.SingleOrDefault(x => x.Id == id);
+            return Task.FromResult(training is null ? null : training with { ExpiryDate = null });
+        }
     }
 }

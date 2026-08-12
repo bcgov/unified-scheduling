@@ -12,7 +12,7 @@ const props = withDefaults(
     /** Disables the close button when true. */
     loading?: boolean;
     /** Optional visual tone for the header strip. */
-    tone?: 'default' | 'error';
+    tone?: 'default' | 'error' | 'warning';
   }>(),
   {
     persistent: true,
@@ -97,6 +97,11 @@ const handleDialogVisibility = (isVisible: boolean) => {
   color: rgb(var(--v-theme-on-error));
 }
 
+.ua-modal__header--warning {
+  background: rgb(var(--v-theme-warning));
+  color: rgb(var(--v-theme-on-warning));
+}
+
 .ua-modal__title {
   font-size: var(--ua-font-size-lg);
   font-weight: var(--ua-font-weight-bold);
@@ -115,6 +120,10 @@ const handleDialogVisibility = (isVisible: boolean) => {
 
 .ua-modal__header-strip--error {
   background: rgb(var(--v-theme-error));
+}
+
+.ua-modal__header-strip--warning {
+  background: rgb(var(--v-theme-warning));
 }
 
 .ua-modal__alerts {

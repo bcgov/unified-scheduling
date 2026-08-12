@@ -19,6 +19,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
     private const int TrainingId = 1;
     private const int TrainingWithValidityId = 2;
     private const int NonRotatingTrainingId = 3;
+    private const int ExpiredTrainingId = 4;
     private static readonly DateTimeOffset Today = DateTimeOffset.UtcNow.Date;
     private static readonly DateTimeOffset Yesterday = Today.AddDays(-1);
     private static readonly DateTimeOffset Tomorrow = Today.AddDays(1);
@@ -106,6 +107,18 @@ public class UserTrainingServiceTests : IAsyncLifetime
                 Description = "Non-Rotating Training",
                 TrainingCategoryId = 1,
                 Rotating = false,
+            }
+        );
+
+        _db.Trainings.Add(
+            new global::Unified.Db.Models.Training.Training
+            {
+                Id = ExpiredTrainingId,
+                Code = "OLD",
+                Description = "Expired Training",
+                TrainingCategoryId = 1,
+                Rotating = true,
+                ExpiryDate = Today.AddDays(-1),
             }
         );
 
@@ -200,7 +213,35 @@ public class UserTrainingServiceTests : IAsyncLifetime
         );
 
         Assert.NotNull(result.ExpiryDate);
-        Assert.Equal(Today.AddDays(365), result.ExpiryDate!.Value);
+        Assert.Equal(new DateTimeOffset(Today.Year, 12, 31, 0, 0, 0, TimeSpan.Zero), result.ExpiryDate!.Value);
+    }
+
+    [Fact]
+    public async Task CalculateExpiryDate_WhenTrainingHasValidityDays_ReturnsCalculatedExpiryDate()
+    {
+        var request = new UserTrainingExpiryDateRequest
+        {
+            TrainingId = TrainingWithValidityId,
+            AwardedOn = new DateTimeOffset(2025, 10, 1, 0, 0, 0, TimeSpan.Zero),
+        };
+
+        var result = await _service.CalculateExpiryDateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new DateTimeOffset(2025, 12, 31, 0, 0, 0, TimeSpan.Zero), result.ExpiryDate);
+    }
+
+    [Fact]
+    public async Task CalculateExpiryDate_WhenTrainingHasNoValidityDays_ReturnsNull()
+    {
+        var request = new UserTrainingExpiryDateRequest
+        {
+            TrainingId = TrainingId,
+            AwardedOn = new DateTimeOffset(2025, 10, 1, 0, 0, 0, TimeSpan.Zero),
+        };
+
+        var result = await _service.CalculateExpiryDateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Null(result.ExpiryDate);
     }
 
     [Fact]
@@ -353,6 +394,28 @@ public class UserTrainingServiceTests : IAsyncLifetime
         {
             UserId = CallerId,
             TrainingId = NonRotatingTrainingId,
+            AwardedOn = Today,
+            EndingOn = Tomorrow,
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            InvokeCreateAsync(
+                request,
+                canManageForOthers: false,
+                canEditPast: false,
+                canAdjustExpiry: false,
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task Create_WhenTrainingTypeIsExpired_ThrowsInvalidOperationException()
+    {
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = ExpiredTrainingId,
             AwardedOn = Today,
             EndingOn = Tomorrow,
         };
