@@ -7,6 +7,7 @@ using Unified.Api.Services;
 using Unified.Authorization;
 using Unified.Authorization.Hangfire;
 using Unified.Calendar;
+using Unified.Common.FeatureFlags;
 using Unified.Common.Time;
 using Unified.Core;
 using Unified.Db;
@@ -120,6 +121,8 @@ var hangfireOptions =
 
 var app = builder.Build();
 {
+    ValidateUniqueFeatureFlagSources(app.Services);
+
     // Must be first so Request.Scheme, Request.Host, etc. reflect the
     // external URL for all downstream middleware (OIDC, cookies, etc.).
     app.UseForwardedHeaders();
@@ -190,3 +193,22 @@ var app = builder.Build();
 }
 
 app.Run();
+
+static void ValidateUniqueFeatureFlagSources(IServiceProvider services)
+{
+    var duplicateSources = services
+        .GetServices<IFeatureFlags>()
+        .GroupBy(flag => flag.Source, StringComparer.Ordinal)
+        .Where(group => group.Count() > 1)
+        .Select(group =>
+            $"{group.Key}: {string.Join(", ", group.Select(flag => flag.GetType().Name).Distinct(StringComparer.Ordinal))}"
+        )
+        .ToArray();
+
+    if (duplicateSources.Length == 0)
+        return;
+
+    throw new InvalidOperationException(
+        $"Duplicate IFeatureFlags source registrations detected. Each source must be unique. Conflicts: {string.Join("; ", duplicateSources)}"
+    );
+}
