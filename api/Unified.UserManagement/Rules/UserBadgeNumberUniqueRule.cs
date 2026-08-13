@@ -11,9 +11,8 @@ namespace Unified.UserManagement.Rules;
 /// Validates that badge numbers are required and unique when feature flags are enabled.
 /// Runs inside a transaction - any exception causes rollback.
 /// </summary>
-public sealed class UserBadgeNumberUniqueRule(
-    IOptionsMonitor<UserManagementFeatureFlags> featureFlagsMonitor
-) : ISaveRule
+public sealed class UserBadgeNumberUniqueRule(IOptionsMonitor<UserManagementFeatureFlags> featureFlagsMonitor)
+    : ISaveRule
 {
     public async Task ExecuteAsync(DbContext context, CancellationToken cancellationToken)
     {
