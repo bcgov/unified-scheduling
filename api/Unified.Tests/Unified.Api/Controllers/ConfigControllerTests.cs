@@ -21,7 +21,7 @@ public class ConfigControllerTests
             new UserManagementFeatureFlags
             {
                 Enabled = true,
-                UserBadgeNumber = new UserBadgeNumberFlags { Enabled = true, Required = true },
+                UserBadgeNumber = new UserBadgeNumberFlags { Enabled = true },
             },
         };
         var applicationOptions = Options.Create(

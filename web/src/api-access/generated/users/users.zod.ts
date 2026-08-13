@@ -41,7 +41,7 @@ export const PostApiUsersBody = zod.strictObject({
   gender: zod.enum(['Male', 'Female', 'Other']),
   homeLocationId: zod.int(),
   rank: zod.string(),
-  badgeNumber: zod.string().optional(),
+  badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
 });
 
@@ -100,7 +100,7 @@ export const PutApiUsersIdBody = zod.strictObject({
   gender: zod.enum(['Male', 'Female', 'Other']),
   homeLocationId: zod.int(),
   rank: zod.string(),
-  badgeNumber: zod.string().optional(),
+  badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
 });
 

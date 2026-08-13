@@ -7,5 +7,4 @@
 
 export interface UserBadgeNumberFlags {
   enabled: boolean;
-  required: boolean;
 }

@@ -8,7 +8,7 @@ import { createTestApp } from '../../../helpers/createTestApp';
 describe('Identification', () => {
   it('renders user identification details including badge when feature flag is enabled', async () => {
     const app = await createTestApp({
-      featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: true, required: false } } },
+      featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: true } } },
     });
 
     const user = getGetApiUsersIdResponseMock();
@@ -49,7 +49,7 @@ describe('Identification', () => {
 
   it('hides badge number when feature flag is disabled', async () => {
     const app = await createTestApp({
-      featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: false, required: false } } },
+      featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: false } } },
     });
 
     const user = getGetApiUsersIdResponseMock({
