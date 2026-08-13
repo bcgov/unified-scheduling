@@ -38,18 +38,6 @@ public static class DbModule
             }
         );
 
-        // Register context factory for read-only queries inside save rules.
-        services.AddDbContextFactory<UnifiedDbContext>(
-            options =>
-            {
-                options.UseNpgsql(connectionString);
-                options.ConfigureWarnings(w =>
-                    w.Ignore(RelationalEventId.PendingModelChangesWarning)
-                );
-            },
-            ServiceLifetime.Scoped
-        );
-
         services.AddSingleton(configuration);
 
         return services;

@@ -12,7 +12,6 @@ namespace Unified.UserManagement.Rules;
 /// Runs inside a transaction - any exception causes rollback.
 /// </summary>
 public sealed class UserBadgeNumberUniqueRule(
-    IDbContextFactory<UnifiedDbContext> contextFactory,
     IOptionsMonitor<UserManagementFeatureFlags> featureFlagsMonitor
 ) : ISaveRule
 {
@@ -71,10 +70,10 @@ public sealed class UserBadgeNumberUniqueRule(
         if (!badgeNumbers.Any())
             return;
 
-        using var queryContext = contextFactory.CreateDbContext();
-
-        var existingBadgeNumbers = await queryContext
-            .Users.Where(u => u.BadgeNumber != null && normalizedBadgeNumbers.Contains(u.BadgeNumber.ToUpper()))
+        var existingBadgeNumbers = await context
+            .Set<User>()
+            .AsNoTracking()
+            .Where(u => u.BadgeNumber != null && normalizedBadgeNumbers.Contains(u.BadgeNumber.ToUpper()))
             .Select(u => new { u.Id, u.BadgeNumber })
             .ToListAsync(cancellationToken);
 

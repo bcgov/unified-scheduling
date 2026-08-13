@@ -59,7 +59,6 @@ namespace Unified.YourModule.Rules;
 /// Runs inside transaction - any exception causes rollback.
 /// </summary>
 public sealed class YourBusinessRuleRule(
-    IDbContextFactory<UnifiedDbContext> contextFactory,
     IOptionsMonitor<YourModuleFeatureFlags> featureFlagsMonitor
 ) : ISaveRule
 {
@@ -77,27 +76,24 @@ public sealed class YourBusinessRuleRule(
         if (!entries.Any())
             return;
 
-        // 3. Create separate DbContext for safe queries (avoids deadlock)
-        using (var queryContext = contextFactory.CreateDbContext())
+        // 3. Query with the same DbContext (safe as long as rule does not call SaveChanges)
+        var existingCodes = await context.Set<YourEntity>()
+            .AsNoTracking()
+            .Select(e => e.Code)
+            .ToListAsync(cancellationToken);
+
+        // 4. Validate and throw on error (triggers rollback)
+        var duplicateCodes = entries
+            .Select(e => e.Entity.Code)
+            .Where(code => existingCodes.Contains(code))
+            .ToList();
+
+        if (duplicateCodes.Any())
         {
-            // 4. Query database for validation data
-            var existingCodes = await queryContext.YourEntities
-                .Select(e => e.Code)
-                .ToListAsync(cancellationToken);
-
-            // 5. Validate and throw on error (triggers rollback)
-            var duplicateCodes = entries
-                .Select(e => e.Entity.Code)
-                .Where(code => existingCodes.Contains(code))
-                .ToList();
-
-            if (duplicateCodes.Any())
-            {
-                throw new InvalidOperationException(
-                    $"Code(s) {string.Join(", ", duplicateCodes)} already exist."
-                );
-            }
-        } // queryContext disposed automatically
+            throw new InvalidOperationException(
+                $"Code(s) {string.Join(", ", duplicateCodes)} already exist."
+            );
+        }
     }
 }
 ```
@@ -184,7 +180,6 @@ namespace Unified.Tests.YourModule.Rules;
 public class YourBusinessRuleRuleTests : IAsyncLifetime
 {
     private UnifiedDbContext _dbContext = null!;
-    private IDbContextFactory<UnifiedDbContext> _contextFactory = null!;
 
     public ValueTask InitializeAsync()
     {
@@ -193,7 +188,6 @@ public class YourBusinessRuleRuleTests : IAsyncLifetime
             .Options;
 
         _dbContext = new UnifiedDbContext(options);
-        _contextFactory = new InMemoryContextFactory(options);
         return ValueTask.CompletedTask;
     }
 
@@ -206,7 +200,7 @@ public class YourBusinessRuleRuleTests : IAsyncLifetime
     {
         var featureFlags = new YourModuleFeatureFlags { Enabled = true };
         var monitor = new FakeOptionsMonitor<YourModuleFeatureFlags>(featureFlags);
-        return new YourBusinessRuleRule(_contextFactory, monitor);
+        return new YourBusinessRuleRule(monitor);
     }
 
     [Fact]
@@ -240,12 +234,6 @@ public class YourBusinessRuleRuleTests : IAsyncLifetime
             () => rule.ExecuteAsync(_dbContext, CancellationToken.None)
         );
         Assert.Contains("already exist", ex.Message);
-    }
-
-    private class InMemoryContextFactory(DbContextOptions<UnifiedDbContext> options) 
-        : IDbContextFactory<UnifiedDbContext>
-    {
-        public UnifiedDbContext CreateDbContext() => new(options);
     }
 
     private class FakeOptionsMonitor<T>(T value) : IOptionsMonitor<T>
@@ -339,12 +327,14 @@ DB Constraint (final check)
 - ✅ Any exception **immediately triggers rollback** (data never committed)
 - ✅ Original exception message propagates to caller
 - ✅ Rules run sequentially, all have access to same DbContext state
+- ✅ Querying with the same DbContext is safe when rule logic is sequential and does not call SaveChanges
 
 ## Implementation Checklist
 
 - [ ] Create rule class in `YourModule/Rules/`
 - [ ] Implement `ISaveRule.ExecuteAsync()`
-- [ ] Use `IDbContextFactory<T>` for database queries
+- [ ] Query with `context.Set<TEntity>().AsNoTracking()` for read checks
+- [ ] Do not call `SaveChanges` or `SaveChangesAsync` inside rule logic
 - [ ] Throw `InvalidOperationException` with clear message on error
 - [ ] Register in `YourModuleModule.AddScoped<ISaveRule, YourRule>()`
 - [ ] Add feature flag (optional but recommended)
@@ -359,11 +349,41 @@ DB Constraint (final check)
 - [ ] Run tests: `dotnet test api/Unified.Tests/`
 - [ ] Verify locally with `dotnet build`
 
+## Agent Validation Rules (Required)
+
+Before finalizing any SaveRule change, the agent must validate all of the following:
+
+1. Lifetime safety:
+    - `SaveRulesInterceptor` is registered as scoped.
+    - `ISaveRule` implementations are registered as scoped.
+    - No singleton dependency chain is introduced from rule/interceptor.
+
+2. Rule safety:
+    - Rule does not call `SaveChanges`/`SaveChangesAsync`.
+    - Rule queries are read-only and use `AsNoTracking()` where appropriate.
+    - Rule can handle both `Added` and `Modified` entities when business logic requires both.
+
+3. Duplicate-check quality:
+    - Rule detects duplicates in pending changes (`ChangeTracker`) before database checks.
+    - Rule detects duplicates in existing persisted records.
+    - Rule aggregates all duplicates into one clear message (no first-hit-only throw).
+
+4. Test coverage (minimum):
+    - Valid case passes.
+    - Missing required field throws.
+    - Duplicate in pending changes throws.
+    - Duplicate in database throws.
+    - Multiple duplicates are aggregated in message.
+
+5. Verification commands:
+    - `dotnet build api/Unified.Api/Unified.Api.csproj`
+    - `dotnet test --project api/Unified.Tests/Unified.Tests.csproj -- --filter-class Unified.Tests.UserManagement.Rules.UserBadgeNumberUniqueRuleTests`
+
 ## Common Mistakes
 
 | Mistake | Fix |
 |---------|-----|
-| Query from main DbContext inside transaction | Use `IDbContextFactory<T>` for separate context |
+| Calling `SaveChanges` from inside a rule | Do not call `SaveChanges`; run read-only queries and throw on violations |
 | Rule doesn't throw, just logs | Throw exception so transaction rolls back |
 | Register as wrong interface | Use `services.AddScoped<ISaveRule, YourRule>()` |
 | Include sensitive data in exception message | Sanitize before throwing |

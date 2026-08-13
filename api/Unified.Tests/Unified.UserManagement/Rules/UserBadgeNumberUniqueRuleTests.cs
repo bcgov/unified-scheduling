@@ -12,7 +12,6 @@ namespace Unified.Tests.UserManagement.Rules;
 public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
 {
     private UnifiedDbContext _dbContext = null!;
-    private IDbContextFactory<UnifiedDbContext> _contextFactory = null!;
 
     public ValueTask InitializeAsync()
     {
@@ -21,7 +20,6 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             .Options;
 
         _dbContext = new UnifiedDbContext(options);
-        _contextFactory = new InMemoryContextFactory(options);
 
         return ValueTask.CompletedTask;
     }
@@ -40,7 +38,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         };
 
         var optionsMonitor = new FakeOptionsMonitor<UserManagementFeatureFlags>(flags);
-        return new UserBadgeNumberUniqueRule(_contextFactory, optionsMonitor);
+        return new UserBadgeNumberUniqueRule(optionsMonitor);
     }
 
     [Fact]
@@ -338,16 +336,6 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         Assert.Contains("'badge001'", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("'BADGE002'", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("already in use", ex.Message);
-    }
-
-    // Fake implementations for testing
-    private class InMemoryContextFactory(DbContextOptions<UnifiedDbContext> options)
-        : IDbContextFactory<UnifiedDbContext>
-    {
-        public UnifiedDbContext CreateDbContext()
-        {
-            return new UnifiedDbContext(options);
-        }
     }
 
     private class FakeOptionsMonitor<T>(T currentValue) : IOptionsMonitor<T>
