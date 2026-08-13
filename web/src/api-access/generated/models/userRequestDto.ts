@@ -15,6 +15,7 @@ export interface UserRequestDto {
   gender: Gender;
   homeLocationId: number;
   rank: string;
-  badgeNumber?: string;
+  /** @nullable */
+  badgeNumber?: string | null;
   employeeNumber: string;
 }

@@ -33,13 +33,7 @@ export const getGetApiConfigResponseUserManagementFeatureFlagsMock = (
     undefined,
   ]),
   enabled: faker.datatype.boolean(),
-  userBadgeNumber: faker.helpers.arrayElement([
-    {
-      enabled: faker.datatype.boolean(),
-      required: faker.datatype.boolean(),
-    },
-    undefined,
-  ]),
+  userBadgeNumber: faker.helpers.arrayElement([{ enabled: faker.datatype.boolean() }, undefined]),
   ...overrideResponse,
 });
 

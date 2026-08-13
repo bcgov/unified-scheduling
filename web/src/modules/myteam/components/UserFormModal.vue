@@ -9,6 +9,7 @@ import UaModal from '@/shared/components/UaModal.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
+import { useAccessControl } from '@/composables/useAccessControl';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
 import { mapToSelectOptions } from '@/utils/select';
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 
 const locationsStore = useLocationsStore();
 const lookupStore = useLookupStore();
+const accessControl = useAccessControl();
 
 onMounted(async () => {
   await lookupStore.load(LookupCodeTypes.PositionTypes);
@@ -121,6 +123,15 @@ const createUserFormSchema = PostApiUsersBody.extend({
   gender: PostApiUsersBody.shape.gender.refine((value) => !!value, {
     message: validationMessages.required,
   }),
+}).superRefine((data, ctx) => {
+  const isBadgeEnabled = accessControl.featureFlags.value?.UserManagement?.userBadgeNumber?.enabled ?? false;
+  if (isBadgeEnabled && !data.badgeNumber?.trim()) {
+    ctx.addIssue({
+      code: 'custom',
+      message: validationMessages.required,
+      path: ['badgeNumber'],
+    });
+  }
 });
 
 // In edit mode idirName is not editable so we relax that requirement

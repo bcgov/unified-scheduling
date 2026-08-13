@@ -314,3 +314,86 @@ describe('UserFormModal — retry after photo upload failure', () => {
     wrapper.unmount();
   });
 });
+
+describe('UserFormModal — badge number validation', () => {
+  it('requires badge number when badge feature is enabled', async () => {
+    const app = await createTestApp({
+      featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: true } } },
+    });
+
+    let createCallCount = 0;
+    server.use(
+      getPostApiUsersMockHandler(async () => {
+        createCallCount++;
+        return getPostApiUsersResponseMock({ id: 'enabled-no-badge' });
+      }),
+    );
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: typeof validFormData;
+      formErrors: Record<string, string>;
+    };
+    Object.assign(vm.formData, { ...validFormData, badgeNumber: '' });
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Add Member'),
+    );
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(createCallCount).toBe(0);
+    expect(vm.formErrors.badgeNumber).toBeTruthy();
+
+    wrapper.unmount();
+  });
+
+  it('allows empty badge number when badge feature is disabled', async () => {
+    const app = await createTestApp({
+      featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: false } } },
+    });
+
+    let createCallCount = 0;
+    server.use(
+      getPostApiUsersMockHandler(async () => {
+        createCallCount++;
+        return getPostApiUsersResponseMock({ id: 'disabled-no-badge' });
+      }),
+    );
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as { formData: typeof validFormData };
+    Object.assign(vm.formData, { ...validFormData, badgeNumber: '' });
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Add Member'),
+    );
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(createCallCount).toBe(1);
+    expect(wrapper.emitted('created')).toBeTruthy();
+
+    wrapper.unmount();
+  });
+});
