@@ -100,7 +100,7 @@ const handleTrainingReorder = async ({ trainingId, newOrder }: { trainingId: num
   }
 };
 
-const handleExpireTraining = async (training: TrainingLookupResponse) => {
+const handleExpireTraining = (training: TrainingLookupResponse) => {
   expireActionMode.value = 'expire';
   selectedTrainingForExpire.value = training;
 };
