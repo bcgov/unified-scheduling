@@ -139,8 +139,7 @@ const handleConfirmExpireTraining = async () => {
 
     if (error.value) {
       actionErrorMessage.value =
-        error.value.message ||
-        `Failed to ${expireActionMode.value === 'unexpire' ? 'unexpire' : 'expire'} training.`;
+        error.value.message || `Failed to ${expireActionMode.value === 'unexpire' ? 'unexpire' : 'expire'} training.`;
       console.error(
         `Failed to ${expireActionMode.value === 'unexpire' ? 'unexpire' : 'expire'} training:`,
         error.value.message,
