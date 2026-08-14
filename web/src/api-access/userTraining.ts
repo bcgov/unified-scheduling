@@ -7,6 +7,11 @@ export interface UserTrainingExpiryDateCalculationRequest {
   awardedOn: string;
 }
 
+type QueryParamValue = string | number | boolean | null | undefined;
+
+type UserTrainingExpiryDateCalculationQueryParams = UserTrainingExpiryDateCalculationRequest &
+  Record<string, QueryParamValue>;
+
 interface UserTrainingExpiryDateCalculationResponse {
   expiryDate?: string | null;
 }
@@ -19,7 +24,7 @@ export const getUserTrainingCalculatedExpiryDate = async (
     {
       url: '/api/training/user-trainings/expiry-date',
       method: 'GET',
-      params: request,
+      params: request as UserTrainingExpiryDateCalculationQueryParams,
     },
     {
       ...options,

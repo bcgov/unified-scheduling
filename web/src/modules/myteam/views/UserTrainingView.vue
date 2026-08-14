@@ -44,7 +44,7 @@ const {
   error: trainingsError,
   isFetching: isFetchingTrainings,
   execute: fetchTrainings,
-} = getApiLookupTrainings({
+} = getApiLookupTrainings(undefined, {
   options: {
     immediate: false,
   },
