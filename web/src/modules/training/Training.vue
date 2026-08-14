@@ -120,10 +120,6 @@ const handleConfirmExpireTraining = async () => {
     return;
   }
 
-  if (isExpiring.value) {
-    return;
-  }
-
   isExpiring.value = true;
 
   try {
