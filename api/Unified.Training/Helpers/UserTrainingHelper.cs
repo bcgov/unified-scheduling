@@ -5,6 +5,7 @@ namespace Unified.Training.Helpers;
 public static class UserTrainingHelper
 {
     private const int DaysPerYear = 365;
+    private static readonly TimeSpan EndOfDayTime = new(23, 59, 59);
 
     public static UserTrainingRequest NormalizeToUtc(UserTrainingRequest request) =>
         request with
@@ -36,6 +37,6 @@ public static class UserTrainingHelper
     {
         var yearCount = validityDays / DaysPerYear;
         var expiryYear = awardedOn.Year + yearCount - 1;
-        return new DateTimeOffset(expiryYear, 12, 31, 0, 0, 0, awardedOn.Offset);
+        return new DateTimeOffset(expiryYear, 12, 31, 0, 0, 0, awardedOn.Offset).Add(EndOfDayTime);
     }
 }

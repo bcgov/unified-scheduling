@@ -51,11 +51,13 @@ const selectedTrainingForExpire = ref<TrainingLookupResponse | null>(null);
 const expireActionMode = ref<'expire' | 'unexpire'>('expire');
 const isReordering = ref(false);
 const isExpiring = ref(false);
+const actionErrorMessage = ref('');
 
 const isTableLoading = computed(() => isFetching.value || isReordering.value || isExpiring.value);
 const isReorderDisabled = computed(() => trainingVisibilityFilter.value === 'all');
 
 const handleOpenCreateTraining = () => {
+  actionErrorMessage.value = '';
   showCreateTrainingModal.value = true;
 };
 
@@ -69,6 +71,7 @@ const handleTrainingCreated = async () => {
 };
 
 const handleEditTraining = (training: TrainingLookupResponse) => {
+  actionErrorMessage.value = '';
   selectedTraining.value = training;
 };
 
@@ -86,12 +89,15 @@ const handleTrainingReorder = async ({ trainingId, newOrder }: { trainingId: num
     return;
   }
 
+  actionErrorMessage.value = '';
   isReordering.value = true;
 
   try {
     const { error } = await patchApiLookupTrainingsIdOrder(trainingId, { newOrder });
     if (error.value) {
+      actionErrorMessage.value = error.value.message || 'Failed to reorder trainings.';
       console.error('Failed to reorder trainings:', error.value.message);
+      return;
     }
 
     await execute();
@@ -101,11 +107,13 @@ const handleTrainingReorder = async ({ trainingId, newOrder }: { trainingId: num
 };
 
 const handleExpireTraining = (training: TrainingLookupResponse) => {
+  actionErrorMessage.value = '';
   expireActionMode.value = 'expire';
   selectedTrainingForExpire.value = training;
 };
 
 const handleUnexpireTraining = async (training: TrainingLookupResponse) => {
+  actionErrorMessage.value = '';
   expireActionMode.value = 'unexpire';
   selectedTrainingForExpire.value = training;
 };
@@ -120,6 +128,7 @@ const handleConfirmExpireTraining = async () => {
     return;
   }
 
+  actionErrorMessage.value = '';
   isExpiring.value = true;
 
   try {
@@ -129,10 +138,14 @@ const handleConfirmExpireTraining = async () => {
         : await expireTrainingLookup(training.id);
 
     if (error.value) {
+      actionErrorMessage.value =
+        error.value.message ||
+        `Failed to ${expireActionMode.value === 'unexpire' ? 'unexpire' : 'expire'} training.`;
       console.error(
         `Failed to ${expireActionMode.value === 'unexpire' ? 'unexpire' : 'expire'} training:`,
         error.value.message,
       );
+      return;
     }
 
     await execute();
@@ -179,6 +192,9 @@ watch(includeExpiredTrainings, () => {
     </div>
 
     <UaAlert v-if="error" type="error">Failed to load trainings: {{ error.message }}</UaAlert>
+    <UaAlert v-if="actionErrorMessage" type="error" @close="actionErrorMessage = ''">
+      {{ actionErrorMessage }}
+    </UaAlert>
 
     <TrainingTable
       :items="trainingRows"

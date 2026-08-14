@@ -62,7 +62,7 @@ public class UserTrainingHelperTests
 
         var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 365);
 
-        Assert.Equal(new DateTimeOffset(2025, 12, 31, 0, 0, 0, TimeSpan.Zero), expiry);
+        Assert.Equal(new DateTimeOffset(2025, 12, 31, 23, 59, 59, TimeSpan.Zero), expiry);
     }
 
     [Fact]
@@ -72,7 +72,18 @@ public class UserTrainingHelperTests
 
         var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 730);
 
-        Assert.Equal(new DateTimeOffset(2026, 12, 31, 0, 0, 0, TimeSpan.Zero), expiry);
+        Assert.Equal(new DateTimeOffset(2026, 12, 31, 23, 59, 59, TimeSpan.Zero), expiry);
+    }
+
+    [Fact]
+    public void CalculateExpiryDate_WhenAwardedOnIsStartOfDec31_AnnualValidityIsNotImmediateExpiry()
+    {
+        var awardedOn = new DateTimeOffset(2026, 12, 31, 0, 0, 0, TimeSpan.Zero);
+
+        var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 365);
+
+        Assert.Equal(new DateTimeOffset(2026, 12, 31, 23, 59, 59, TimeSpan.Zero), expiry);
+        Assert.True(expiry > awardedOn);
     }
 
     [Fact]

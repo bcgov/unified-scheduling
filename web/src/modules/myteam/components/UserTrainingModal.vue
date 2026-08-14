@@ -193,7 +193,7 @@ const generateExpiryDate = async (force = false) => {
 
     formData.value.expiryDate = toDateInputValue(expiryDate) ?? '';
     hasManualExpiryDateOverride.value = false;
-  }
+  } catch (error: unknown) {
     expiryDateAutoGenerateError.value = error instanceof Error ? error.message : 'Failed to auto-generate expiry date.';
   } finally {
     isGeneratingExpiryDate.value = false;

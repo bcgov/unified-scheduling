@@ -213,7 +213,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
         );
 
         Assert.NotNull(result.ExpiryDate);
-        Assert.Equal(new DateTimeOffset(Today.Year, 12, 31, 0, 0, 0, TimeSpan.Zero), result.ExpiryDate!.Value);
+        Assert.Equal(new DateTimeOffset(Today.Year, 12, 31, 23, 59, 59, TimeSpan.Zero), result.ExpiryDate!.Value);
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
 
         var result = await _service.CalculateExpiryDateAsync(request, TestContext.Current.CancellationToken);
 
-        Assert.Equal(new DateTimeOffset(2025, 12, 31, 0, 0, 0, TimeSpan.Zero), result.ExpiryDate);
+        Assert.Equal(new DateTimeOffset(2025, 12, 31, 23, 59, 59, TimeSpan.Zero), result.ExpiryDate);
     }
 
     [Fact]
