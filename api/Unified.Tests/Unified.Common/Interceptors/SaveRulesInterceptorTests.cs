@@ -31,7 +31,11 @@ public class SaveRulesInterceptorTests
         var result = default(InterceptionResult<int>);
 
         // Act
-        var returnResult = await interceptor.SavingChangesAsync(eventData, result);
+        var returnResult = await interceptor.SavingChangesAsync(
+            eventData,
+            result,
+            TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.Equal(result, returnResult);
@@ -50,7 +54,11 @@ public class SaveRulesInterceptorTests
         var result = default(InterceptionResult<int>);
 
         // Act
-        var returnResult = await interceptor.SavingChangesAsync(eventData, result);
+        var returnResult = await interceptor.SavingChangesAsync(
+            eventData,
+            result,
+            TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.True(rule.ExecuteCalled);
@@ -73,7 +81,7 @@ public class SaveRulesInterceptorTests
         var result = default(InterceptionResult<int>);
 
         // Act
-        await interceptor.SavingChangesAsync(eventData, result);
+        await interceptor.SavingChangesAsync(eventData, result, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(new[] { 1, 2, 3 }, executionOrder);
@@ -93,7 +101,7 @@ public class SaveRulesInterceptorTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            interceptor.SavingChangesAsync(eventData, result).AsTask()
+            interceptor.SavingChangesAsync(eventData, result, TestContext.Current.CancellationToken).AsTask()
         );
         Assert.Equal("Test error", ex.Message);
     }
@@ -113,7 +121,7 @@ public class SaveRulesInterceptorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            interceptor.SavingChangesAsync(eventData, result).AsTask()
+            interceptor.SavingChangesAsync(eventData, result, TestContext.Current.CancellationToken).AsTask()
         );
         Assert.False(rule2.ExecuteCalled, "Second rule should not have executed");
     }
@@ -132,7 +140,11 @@ public class SaveRulesInterceptorTests
         var result = default(InterceptionResult<int>);
 
         // Act
-        var returnResult = await interceptor.SavingChangesAsync(eventData, result);
+        var returnResult = await interceptor.SavingChangesAsync(
+            eventData,
+            result,
+            TestContext.Current.CancellationToken
+        );
 
         // Assert
         Assert.False(rule.ExecuteCalled);
@@ -152,7 +164,7 @@ public class SaveRulesInterceptorTests
         var result = default(InterceptionResult<int>);
 
         // Act
-        await interceptor.SavingChangesAsync(eventData, result);
+        await interceptor.SavingChangesAsync(eventData, result, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("Running rule:", logger.DebugMessages.FirstOrDefault() ?? "");
@@ -173,7 +185,7 @@ public class SaveRulesInterceptorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            interceptor.SavingChangesAsync(eventData, result).AsTask()
+            interceptor.SavingChangesAsync(eventData, result, TestContext.Current.CancellationToken).AsTask()
         );
         Assert.True(logger.ErrorLogged, "Error should be logged");
         Assert.Contains("failed", logger.ErrorMessages.FirstOrDefault() ?? "");

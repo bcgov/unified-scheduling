@@ -61,7 +61,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         _dbContext.Users.Add(user);
 
         // Act & Assert - should not throw even with null badge
-        await rule.ExecuteAsync(_dbContext, CancellationToken.None);
+        await rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         _dbContext.Users.Add(user);
 
         // Act & Assert - should not throw
-        await rule.ExecuteAsync(_dbContext, CancellationToken.None);
+        await rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            rule.ExecuteAsync(_dbContext, CancellationToken.None)
+            rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken)
         );
         Assert.Contains("Badge number is required", ex.Message);
     }
@@ -131,7 +131,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             BadgeNumber = "BADGE123",
         };
         _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Modify to clear badge number
         user.BadgeNumber = null;
@@ -139,7 +139,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            rule.ExecuteAsync(_dbContext, CancellationToken.None)
+            rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken)
         );
         Assert.Contains("Badge number is required", ex.Message);
     }
@@ -163,7 +163,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
             BadgeNumber = "BADGE123",
         };
         _dbContext.Users.Add(existingUser);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Try to create new user with duplicate badge
         var newUser = new User
@@ -181,7 +181,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            rule.ExecuteAsync(_dbContext, CancellationToken.None)
+            rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken)
         );
         Assert.Contains("already in use", ex.Message);
     }
@@ -220,7 +220,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            rule.ExecuteAsync(_dbContext, CancellationToken.None)
+            rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken)
         );
         Assert.Contains("pending changes", ex.Message);
     }
@@ -257,7 +257,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         };
 
         _dbContext.Users.AddRange(user1, user2);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Modify user2 to have same badge as user1
         user2.BadgeNumber = "BADGE001";
@@ -265,7 +265,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            rule.ExecuteAsync(_dbContext, CancellationToken.None)
+            rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken)
         );
         Assert.Contains("already in use", ex.Message);
     }
@@ -301,7 +301,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         };
 
         _dbContext.Users.AddRange(existingUser1, existingUser2);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var newUser1 = new User
         {
@@ -331,7 +331,7 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            rule.ExecuteAsync(_dbContext, CancellationToken.None)
+            rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken)
         );
         Assert.Contains("'badge001'", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("'BADGE002'", ex.Message, StringComparison.OrdinalIgnoreCase);
