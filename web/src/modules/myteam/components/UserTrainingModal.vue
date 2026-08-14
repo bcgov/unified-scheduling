@@ -179,14 +179,21 @@ const generateExpiryDate = async (force = false) => {
   expiryDateAutoGenerateError.value = '';
 
   try {
+    const requestedTrainingId = formData.value.trainingId!;
+    const requestedAwardedOn = formData.value.awardedOn;
+
     const expiryDate = await getUserTrainingCalculatedExpiryDate({
-      trainingId: formData.value.trainingId!,
-      awardedOn: toOffsetDateTimeString(formData.value.awardedOn, '', 'America/Vancouver'),
+      trainingId: requestedTrainingId,
+      awardedOn: toOffsetDateTimeString(requestedAwardedOn, '', 'America/Vancouver'),
     });
+
+    if (requestedTrainingId !== formData.value.trainingId || requestedAwardedOn !== formData.value.awardedOn) {
+      return;
+    }
 
     formData.value.expiryDate = toDateInputValue(expiryDate) ?? '';
     hasManualExpiryDateOverride.value = false;
-  } catch (error: unknown) {
+  }
     expiryDateAutoGenerateError.value = error instanceof Error ? error.message : 'Failed to auto-generate expiry date.';
   } finally {
     isGeneratingExpiryDate.value = false;
