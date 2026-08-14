@@ -1,11 +1,13 @@
 using FluentValidation;
+using Microsoft.Extensions.Options;
+using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Models;
 
 namespace Unified.UserManagement.Validators;
 
 public class UserRequestValidator : AbstractValidator<UserRequestDto>
 {
-    public UserRequestValidator()
+    public UserRequestValidator(IOptionsMonitor<UserManagementFeatureFlags> featureFlagsMonitor)
     {
         RuleFor(x => x.IdirName)
             .NotEmpty()
@@ -45,9 +47,11 @@ public class UserRequestValidator : AbstractValidator<UserRequestDto>
             .WithMessage("Rank must be 150 characters or less.");
 
         RuleFor(x => x.BadgeNumber)
+            .NotEmpty()
+            .WithMessage("Badge number is required.")
+            .When(_ => featureFlagsMonitor.CurrentValue.UserBadgeNumber.Enabled)
             .MaximumLength(100)
-            .WithMessage("Badge number must be 100 characters or less.")
-            .When(x => x.BadgeNumber is not null);
+            .WithMessage("Badge number must be 100 characters or less.");
 
         RuleFor(x => x.EmployeeNumber)
             .NotEmpty()

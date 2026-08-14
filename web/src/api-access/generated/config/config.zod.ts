@@ -18,7 +18,6 @@ export const GetApiConfigResponse = zod.object({
             userBadgeNumber: zod
               .object({
                 enabled: zod.boolean(),
-                required: zod.boolean(),
               })
               .optional(),
           }),

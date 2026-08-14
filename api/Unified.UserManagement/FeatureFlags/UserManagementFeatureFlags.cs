@@ -28,7 +28,4 @@ public class UserBadgeNumberFlags
 {
     [Required(ErrorMessage = "UserBadgeNumber.Enabled is required.")]
     public bool Enabled { get; set; }
-
-    [Required(ErrorMessage = "UserBadgeNumber.Required is required.")]
-    public bool Required { get; set; }
 }

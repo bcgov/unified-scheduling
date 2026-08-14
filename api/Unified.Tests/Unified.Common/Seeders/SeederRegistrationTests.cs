@@ -58,7 +58,6 @@ public sealed class SeederRegistrationTests
                 {
                     ["FeatureFlags:UserManagement:Enabled"] = "true",
                     ["FeatureFlags:UserManagement:UserBadgeNumber:Enabled"] = "true",
-                    ["FeatureFlags:UserManagement:UserBadgeNumber:Required"] = "true",
                 }
             )
             .Build();

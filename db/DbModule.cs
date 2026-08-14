@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.Common.Interceptors;
 using Unified.Db.Models;
 
 namespace Unified.Db;
@@ -21,6 +22,8 @@ public static class DbModule
             );
         }
 
+        services.AddScoped<SaveRulesInterceptor>();
+
         services.AddDbContext<UnifiedDbContext>(
             (serviceProvider, options) =>
             {
@@ -28,6 +31,10 @@ public static class DbModule
                 options.ConfigureWarnings(w =>
                     w.Ignore(RelationalEventId.PendingModelChangesWarning)
                 );
+
+                // Register SaveRulesInterceptor to run all ISaveRules before SaveChanges
+                var interceptor = serviceProvider.GetRequiredService<SaveRulesInterceptor>();
+                options.AddInterceptors(interceptor);
             }
         );
 
