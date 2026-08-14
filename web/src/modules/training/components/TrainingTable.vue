@@ -49,7 +49,7 @@ const headers = [
   { title: 'Description', key: 'description', sortable: true },
   { title: 'Mandatory', key: 'mandatory', sortable: true, align: 'center' as const },
   { title: 'Validity (Days)', key: 'validityDays', sortable: true, align: 'end' as const },
-  { title: 'Advance Notice(Days)', key: 'advanceNoticeDays', sortable: true, align: 'end' as const },
+  { title: 'Advance Notice (Days)', key: 'advanceNoticeDays', sortable: true, align: 'end' as const },
   { title: 'Rotating', key: 'rotating', sortable: true, align: 'center' as const },
   { title: 'Category', key: 'trainingCategoryName', sortable: true },
   { title: 'Status', key: 'status', sortable: false, align: 'center' as const },
