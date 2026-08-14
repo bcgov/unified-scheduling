@@ -224,9 +224,7 @@ const buildRequest = (): UserTrainingRequest | null => {
     trainingId: parsed.data.trainingId,
     awardedOn: toOffsetDateTimeString(parsed.data.awardedOn, '', 'America/Vancouver'),
     endingOn: toOffsetDateTimeString(parsed.data.endingOn, '', 'America/Vancouver'),
-    expiryDate: parsed.data.expiryDate
-      ? toOffsetDateTimeString(parsed.data.expiryDate, '23:59', 'America/Vancouver')
-      : null,
+    expiryDate: parsed.data.expiryDate ? toOffsetDateTimeString(parsed.data.expiryDate, '', 'America/Vancouver') : null,
     notes: parsed.data.notes.trim() || null,
   };
 };
@@ -315,7 +313,8 @@ const handleSave = async () => {
         />
         <UaBtn
           class="user-training-modal__generate-expiry-btn"
-          variant="text"
+          variant="tonal"
+          color="primary"
           :prepend-icon="mdiRefresh"
           :disabled="!canGenerateExpiryDate || isGeneratingExpiryDate"
           :loading="isGeneratingExpiryDate"
@@ -349,6 +348,7 @@ const handleSave = async () => {
 .user-training-modal__generate-expiry-btn {
   margin-top: -2px;
   white-space: nowrap;
+  font-weight: var(--ua-font-weight-medium);
 }
 
 @media (max-width: 640px) {

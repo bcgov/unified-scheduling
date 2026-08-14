@@ -11,7 +11,12 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
-import { getValidityDayCodeFromDays, getValidityDayOptions, getValidityDaysFromCode } from '../validityDayOptions';
+import {
+  annualValidityDayCode,
+  getValidityDayCodeFromDays,
+  getValidityDayOptions,
+  getValidityDaysFromCode,
+} from '../validityDayOptions';
 
 const props = defineProps<{
   training: TrainingLookupResponse;
@@ -48,6 +53,7 @@ const populateFromTraining = (training: TrainingLookupResponse): TrainingFormDat
 
 const formData = ref<TrainingFormData>(populateFromTraining(props.training));
 const validityDayOptions = ref(getValidityDayOptions(props.training.validityDays));
+const isAnnualValiditySelected = computed(() => formData.value.validityDayCode === annualValidityDayCode);
 
 watch(
   () => props.training,
@@ -190,13 +196,18 @@ const handleSave = async () => {
       />
 
       <span class="ua-form-label">Validity</span>
-      <UaSelect
-        id="training-validity-days"
-        :items="validityDayOptions"
-        v-model="formData.validityDayCode"
-        :error-messages="formErrors.validityDays"
-        :disabled="isLoading"
-      />
+      <div class="validity-field">
+        <UaSelect
+          id="training-validity"
+          :items="validityDayOptions"
+          v-model="formData.validityDayCode"
+          :error-messages="formErrors.validityDays"
+          :disabled="isLoading"
+        />
+        <span v-if="isAnnualValiditySelected" class="validity-field__hint">
+          Annual validity expires on Dec 31 of the same calendar year as the awarded date.
+        </span>
+      </div>
 
       <UaTextField
         id="training-advance-notice-days"
@@ -267,5 +278,16 @@ const handleSave = async () => {
   display: flex;
   align-items: center;
   min-height: 40px;
+}
+
+.validity-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ua-spacing-xs);
+}
+
+.validity-field__hint {
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-sm);
 }
 </style>

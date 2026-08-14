@@ -34,6 +34,8 @@ const baseValidityDayOptions: SelectOption[] = [
 
 const getCustomCode = (validityDays: number) => `${CUSTOM_CODE_PREFIX}${validityDays}`;
 
+export const annualValidityDayCode = ANNUAL_CODE;
+
 export const getValidityDayCodeFromDays = (validityDays: number | null | undefined): string => {
   if (validityDays == null) {
     return ONE_TIME_CODE;

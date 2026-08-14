@@ -53,7 +53,7 @@ const isReordering = ref(false);
 const isExpiring = ref(false);
 
 const isTableLoading = computed(() => isFetching.value || isReordering.value || isExpiring.value);
-const isReorderDisabled = computed(() => trainingVisibilityFilter.value === 'active');
+const isReorderDisabled = computed(() => trainingVisibilityFilter.value === 'all');
 
 const handleOpenCreateTraining = () => {
   showCreateTrainingModal.value = true;
