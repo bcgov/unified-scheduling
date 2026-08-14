@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { type UserTrainingRequest, type UserTrainingResponse } from '@/api-access/generated/models';
 import {
+  getApiTrainingUserTrainingsExpiryDate,
   postApiTrainingUserTrainings,
   putApiTrainingUserTrainingsId,
 } from '@/api-access/generated/user-training/user-training';
-import { getUserTrainingCalculatedExpiryDate } from '@/api-access/userTraining';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -182,10 +182,25 @@ const generateExpiryDate = async (force = false) => {
     const requestedTrainingId = formData.value.trainingId!;
     const requestedAwardedOn = formData.value.awardedOn;
 
-    const expiryDate = await getUserTrainingCalculatedExpiryDate({
-      trainingId: requestedTrainingId,
-      awardedOn: toOffsetDateTimeString(requestedAwardedOn, '', 'America/Vancouver'),
-    });
+    const { data, error, execute } = getApiTrainingUserTrainingsExpiryDate(
+      {
+        trainingId: requestedTrainingId,
+        awardedOn: toOffsetDateTimeString(requestedAwardedOn, '', 'America/Vancouver'),
+      },
+      {
+        options: {
+          immediate: false,
+        },
+      },
+    );
+
+    await execute();
+
+    if (error.value) {
+      throw error.value;
+    }
+
+    const expiryDate = data.value?.expiryDate ?? null;
 
     if (requestedTrainingId !== formData.value.trainingId || requestedAwardedOn !== formData.value.awardedOn) {
       return;
