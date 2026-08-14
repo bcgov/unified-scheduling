@@ -36,8 +36,6 @@ public static class UserTrainingHelper
     {
         var yearCount = validityDays / DaysPerYear;
         var expiryYear = awardedOn.Year + yearCount - 1;
-        var endOfYearDate = new DateTimeOffset(expiryYear, 12, 31, 0, 0, 0, awardedOn.Offset);
-
-        return endOfYearDate.Add(awardedOn.TimeOfDay);
+        return new DateTimeOffset(expiryYear, 12, 31, 0, 0, 0, awardedOn.Offset);
     }
 }

@@ -97,21 +97,21 @@ public class TrainingLookupController(
 
     [HttpPatch("{id:int}/expire")]
     [Authorize(Policy = TrainingsEditPolicy)]
-    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<TrainingLookupResponse>> Expire(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult> Expire(int id, CancellationToken cancellationToken)
     {
         var result = await trainingLookupStrategy.ExpireAsync(id, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        return result is null ? NotFound() : NoContent();
     }
 
     [HttpPatch("{id:int}/unexpire")]
     [Authorize(Policy = TrainingsEditPolicy)]
-    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<TrainingLookupResponse>> Unexpire(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult> Unexpire(int id, CancellationToken cancellationToken)
     {
         var result = await trainingLookupStrategy.UnexpireAsync(id, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        return result is null ? NotFound() : NoContent();
     }
 }

@@ -16,12 +16,11 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         CancellationToken cancellationToken = default
     )
     {
-        var now = DateTimeOffset.UtcNow;
-
         var query = db.Trainings.AsNoTracking().AsQueryable();
 
         if (!includeExpired)
         {
+            var now = DateTimeOffset.UtcNow;
             query = query.Where(t => t.ExpiryDate == null || t.ExpiryDate > now);
         }
 

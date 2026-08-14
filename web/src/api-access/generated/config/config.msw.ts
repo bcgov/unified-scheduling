@@ -20,20 +20,14 @@ import type {
 export const getGetApiConfigResponseUserManagementFeatureFlagsMock = (
   overrideResponse: Partial<UserManagementFeatureFlags> = {},
 ): UserManagementFeatureFlags => ({
-  source: faker.helpers.arrayElement([
-    faker.helpers.arrayElement([
-      faker.string.alpha({
-        length: {
-          min: 10,
-          max: 20,
-        },
-      }),
-      null,
+  ...{
+    source: faker.helpers.arrayElement([
+      faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      undefined,
     ]),
-    undefined,
-  ]),
-  enabled: faker.datatype.boolean(),
-  userBadgeNumber: faker.helpers.arrayElement([{ enabled: faker.datatype.boolean() }, undefined]),
+    enabled: faker.datatype.boolean(),
+    userBadgeNumber: faker.helpers.arrayElement([{ enabled: faker.datatype.boolean() }, undefined]),
+  },
   ...overrideResponse,
 });
 

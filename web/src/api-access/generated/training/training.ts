@@ -77,17 +77,11 @@ export const patchApiLookupTrainingsIdOrder = (
     options,
   );
 };
-export const patchApiLookupTrainingsIdExpire = (
-  id: number,
-  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse>>,
-) => {
-  return useFetchAPI<TrainingLookupResponse>({ url: `/api/lookup/trainings/${id}/expire`, method: 'PATCH' }, options);
+export const patchApiLookupTrainingsIdExpire = (id: number, options?: SecondParameter<typeof useFetchAPI<void>>) => {
+  return useFetchAPI<void>({ url: `/api/lookup/trainings/${id}/expire`, method: 'PATCH' }, options);
 };
-export const patchApiLookupTrainingsIdUnexpire = (
-  id: number,
-  options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse>>,
-) => {
-  return useFetchAPI<TrainingLookupResponse>({ url: `/api/lookup/trainings/${id}/unexpire`, method: 'PATCH' }, options);
+export const patchApiLookupTrainingsIdUnexpire = (id: number, options?: SecondParameter<typeof useFetchAPI<void>>) => {
+  return useFetchAPI<void>({ url: `/api/lookup/trainings/${id}/unexpire`, method: 'PATCH' }, options);
 };
 export type GetTrainingHealthResult = NonNullable<Awaited<ReturnType<typeof getTrainingHealth>>>;
 export type GetApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainings>>>;

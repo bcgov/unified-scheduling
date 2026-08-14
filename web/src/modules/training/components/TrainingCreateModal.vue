@@ -11,11 +11,7 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { ref } from 'vue';
-import {
-  defaultValidityDayCode,
-  getValidityDayOptions,
-  getValidityDaysFromCode,
-} from '../validityDayOptions';
+import { defaultValidityDayCode, getValidityDayOptions, getValidityDaysFromCode } from '../validityDayOptions';
 
 const emit = defineEmits<{
   (e: 'close'): void;

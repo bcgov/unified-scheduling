@@ -87,7 +87,7 @@ public class TrainingLookupControllerTests
     }
 
     [Fact]
-    public async Task Expire_Should_Return_Ok_When_Training_Exists()
+    public async Task Expire_Should_Return_NoContent_When_Training_Exists()
     {
         var training = new TrainingLookupResponse
         {
@@ -104,13 +104,11 @@ public class TrainingLookupControllerTests
 
         var result = await controller.Expire(10, TestContext.Current.CancellationToken);
 
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var payload = Assert.IsType<TrainingLookupResponse>(okResult.Value);
-        Assert.Equal(10, payload.Id);
+        Assert.IsType<NoContentResult>(result);
     }
 
     [Fact]
-    public async Task Unexpire_Should_Return_Ok_When_Training_Exists()
+    public async Task Unexpire_Should_Return_NoContent_When_Training_Exists()
     {
         var training = new TrainingLookupResponse
         {
@@ -128,10 +126,7 @@ public class TrainingLookupControllerTests
 
         var result = await controller.Unexpire(10, TestContext.Current.CancellationToken);
 
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var payload = Assert.IsType<TrainingLookupResponse>(okResult.Value);
-        Assert.Equal(10, payload.Id);
-        Assert.Null(payload.ExpiryDate);
+        Assert.IsType<NoContentResult>(result);
     }
 
     private sealed class FakeTrainingLookupStrategy : ITrainingLookupStrategy

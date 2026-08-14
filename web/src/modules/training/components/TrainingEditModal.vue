@@ -11,11 +11,7 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
-import {
-  getValidityDayCodeFromDays,
-  getValidityDayOptions,
-  getValidityDaysFromCode,
-} from '../validityDayOptions';
+import { getValidityDayCodeFromDays, getValidityDayOptions, getValidityDaysFromCode } from '../validityDayOptions';
 
 const props = defineProps<{
   training: TrainingLookupResponse;

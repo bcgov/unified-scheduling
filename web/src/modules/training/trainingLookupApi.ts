@@ -16,14 +16,14 @@ export const useTrainingLookup = (includeExpired: MaybeRef<boolean>, options?: U
 };
 
 export const expireTrainingLookup = (id: number) =>
-  useFetchAPI<TrainingLookupResponse>({
+  useFetchAPI<void>({
     url: `/api/lookup/trainings/${id}/expire`,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
   });
 
 export const unexpireTrainingLookup = (id: number) =>
-  useFetchAPI<TrainingLookupResponse>({
+  useFetchAPI<void>({
     url: `/api/lookup/trainings/${id}/unexpire`,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

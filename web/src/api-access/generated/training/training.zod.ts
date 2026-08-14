@@ -143,40 +143,10 @@ export const PatchApiLookupTrainingsIdExpireParams = zod.strictObject({
   id: zod.int(),
 });
 
-export const PatchApiLookupTrainingsIdExpireResponse = zod.object({
-  mandatory: zod.boolean().optional(),
-  validityDays: zod.int().nullish(),
-  advanceNoticeDays: zod.int().nullish(),
-  rotating: zod.boolean().optional(),
-  trainingCategoryId: zod.int().nullish(),
-  trainingCategoryName: zod.string().nullish(),
-  order: zod.int().optional(),
-  id: zod.int(),
-  createdOn: zod.iso.datetime({ offset: true }).optional(),
-  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
-  code: zod.string().optional(),
-  description: zod.string().optional(),
-  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
-  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
-});
+export const PatchApiLookupTrainingsIdExpireResponse = zod.void();
 
 export const PatchApiLookupTrainingsIdUnexpireParams = zod.strictObject({
   id: zod.int(),
 });
 
-export const PatchApiLookupTrainingsIdUnexpireResponse = zod.object({
-  mandatory: zod.boolean().optional(),
-  validityDays: zod.int().nullish(),
-  advanceNoticeDays: zod.int().nullish(),
-  rotating: zod.boolean().optional(),
-  trainingCategoryId: zod.int().nullish(),
-  trainingCategoryName: zod.string().nullish(),
-  order: zod.int().optional(),
-  id: zod.int(),
-  createdOn: zod.iso.datetime({ offset: true }).optional(),
-  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
-  code: zod.string().optional(),
-  description: zod.string().optional(),
-  effectiveDate: zod.iso.datetime({ offset: true }).optional(),
-  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
-});
+export const PatchApiLookupTrainingsIdUnexpireResponse = zod.void();
