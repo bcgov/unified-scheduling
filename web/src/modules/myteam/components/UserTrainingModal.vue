@@ -184,8 +184,8 @@ const generateExpiryDate = async (force = false) => {
 
     const { data, error, execute } = getApiTrainingUserTrainingsExpiryDate(
       {
-        trainingId: requestedTrainingId,
-        awardedOn: toOffsetDateTimeString(requestedAwardedOn, '', 'America/Vancouver'),
+        TrainingId: requestedTrainingId,
+        AwardedOn: toOffsetDateTimeString(requestedAwardedOn, '', 'America/Vancouver'),
       },
       {
         options: {
