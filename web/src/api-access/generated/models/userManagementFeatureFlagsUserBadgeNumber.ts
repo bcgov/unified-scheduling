@@ -7,4 +7,4 @@
 
 export type UserManagementFeatureFlagsUserBadgeNumber = {
   enabled: boolean;
-}
+};

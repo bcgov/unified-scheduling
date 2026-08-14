@@ -1,18 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 
-import type { UserManagementFeatureFlags } from '@/api-access/generated/models';
 import { getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
 import UserCard from '@/modules/myteam/components/UserCard.vue';
 import { createTestApp } from '../../../helpers/createTestApp';
 
 describe('UserCard', () => {
   it('mounts and renders user details including badge when feature flag is enabled', async () => {
-    const userManagementFeatureFlags: UserManagementFeatureFlags = {
-      source: 'UserManagement',
-      enabled: false,
-      userBadgeNumber: { enabled: true, required: false },
-    };
     const app = await createTestApp({
       featureFlags: { UserManagement: { enabled: false, userBadgeNumber: { enabled: true } } },
     });
@@ -39,11 +33,6 @@ describe('UserCard', () => {
   });
 
   it('hides badge number when feature flag is disabled', async () => {
-    const userManagementFeatureFlags: UserManagementFeatureFlags = {
-      source: 'UserManagement',
-      enabled: false,
-      userBadgeNumber: { enabled: false, required: false },
-    };
     const app = await createTestApp({
       featureFlags: { UserManagement: { enabled: false, userBadgeNumber: { enabled: false } } },
     });

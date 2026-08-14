@@ -10,17 +10,14 @@ export const GetApiConfigResponse = zod.object({
   featureFlags: zod
     .object({
       UserManagement: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-            userBadgeNumber: zod
-              .object({
-                enabled: zod.boolean(),
-              })
-              .optional(),
-          }),
+        .object({
+          source: zod.string().nullish(),
+          enabled: zod.boolean(),
+          userBadgeNumber: zod
+            .object({
+              enabled: zod.boolean(),
+            })
+            .optional(),
         })
         .optional(),
       Calendar: zod

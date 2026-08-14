@@ -1,18 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 
-import type { UserManagementFeatureFlags } from '@/api-access/generated/models';
 import { getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
 import Identification from '@/modules/myteam/components/Identification.vue';
 import { createTestApp } from '../../../helpers/createTestApp';
 
 describe('Identification', () => {
   it('renders user identification details including badge when feature flag is enabled', async () => {
-    const userManagementFeatureFlags: UserManagementFeatureFlags = {
-      source: 'UserManagement',
-      enabled: true,
-      userBadgeNumber: { enabled: true, required: false },
-    };
     const app = await createTestApp({
       featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: true } } },
     });
@@ -54,11 +48,6 @@ describe('Identification', () => {
   });
 
   it('hides badge number when feature flag is disabled', async () => {
-    const userManagementFeatureFlags: UserManagementFeatureFlags = {
-      source: 'UserManagement',
-      enabled: true,
-      userBadgeNumber: { enabled: false, required: false },
-    };
     const app = await createTestApp({
       featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: false } } },
     });
