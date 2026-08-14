@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Authorization.Claims;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.UserManagement;
 using Unified.UserManagement.Models;
@@ -40,7 +41,8 @@ public class RoleServiceTests : IAsyncLifetime
             _dbContext,
             CreateHttpContextAccessor(),
             new DeleteRoleWithReassignmentRequestDtoValidator(),
-            NullLogger<RoleService>.Instance
+            NullLogger<RoleService>.Instance,
+            new TimeZoneService()
         );
 
         return ValueTask.CompletedTask;

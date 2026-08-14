@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Authorization.Claims;
-using Unified.Common.Helpers.Extensions;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Extensions;
 using Unified.Db.Models.UserManagement;
@@ -17,7 +17,8 @@ public sealed class RoleService(
     UnifiedDbContext DB,
     IHttpContextAccessor httpContextAccessor,
     DeleteRoleWithReassignmentRequestDtoValidator deleteRoleValidator,
-    ILogger<RoleService> logger
+    ILogger<RoleService> logger,
+    ITimeZoneService timeZoneService
 ) : IRoleService
 {
     public async Task<IReadOnlyCollection<RoleDto>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -195,7 +196,7 @@ public sealed class RoleService(
                 throw new KeyNotFoundException($"New role {request.NewRoleId} not found.");
 
             var timezoneId = httpContextAccessor.HttpContext!.User.HomeLocationTimezone();
-            var effectiveDate = DateTimeOffsetExtensions.FromDateStringToStartOfDayInTimeZone(
+            var effectiveDate = timeZoneService.FromDateStringToStartOfDayInTimeZone(
                 request.NewRoleEffectiveDate!,
                 timezoneId
             );
@@ -203,10 +204,7 @@ public sealed class RoleService(
             DateTimeOffset? expiryDate = null;
             if (!string.IsNullOrWhiteSpace(request.NewRoleExpiryDate))
             {
-                expiryDate = DateTimeOffsetExtensions.FromDateStringToEndOfDayInTimeZone(
-                    request.NewRoleExpiryDate,
-                    timezoneId
-                );
+                expiryDate = timeZoneService.FromDateStringToEndOfDayInTimeZone(request.NewRoleExpiryDate, timezoneId);
             }
 
             await using var transaction = await DB.Database.BeginTransactionAsync(cancellationToken);

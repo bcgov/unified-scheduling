@@ -1,0 +1,695 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Unified.Calendar.Services;
+using Unified.Common.Time;
+using Unified.Db;
+using Unified.Db.Models.Calendar;
+using Unified.Db.Models.Scheduling;
+using Unified.Scheduling.Models;
+
+namespace Unified.Scheduling.Services;
+
+public sealed class ShiftService(
+    ILogger<ShiftService> logger,
+    UnifiedDbContext db,
+    IEventSeriesMaterializationService eventSeriesMaterializationService,
+    ShiftSeriesMaterializationHandler shiftSeriesMaterializationHandler,
+    ICalendarTimeZoneResolver timeZoneResolver,
+    ITimeZoneService timeZoneService,
+    CalendarLifecycleService calendarLifecycleService,
+    TimeProvider timeProvider
+) : IShiftService
+{
+    private static readonly RecurrenceValidationOptions ShiftRecurrenceValidationOptions = new()
+    {
+        MaximumDuration = TimeSpan.FromDays(365),
+        MaximumOccurrences = 400,
+        RequireBoundedRule = true,
+    };
+
+    public async Task<IReadOnlyCollection<ShiftSeriesResponse>> GetShiftSeriesAsync(
+        ShiftSeriesQueryParams? queryParams = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogDebug(
+            "Querying shift series with EventSeriesId {EventSeriesId} and UserId {UserId}.",
+            queryParams?.EventSeriesId,
+            queryParams?.UserId
+        );
+
+        IQueryable<ShiftSeries> query = db
+            .ShiftSeries.AsNoTracking()
+            .Include(shiftSeries => shiftSeries.EventSeries)
+            .Include(shiftSeries => shiftSeries.Users);
+
+        if (queryParams?.EventSeriesId is int eventSeriesId)
+            query = query.Where(shiftSeries => shiftSeries.EventSeriesId == eventSeriesId);
+
+        if (queryParams?.UserId is Guid userId)
+            query = query.Where(shiftSeries => shiftSeries.Users.Any(user => user.UserId == userId));
+
+        var results = await query
+            .OrderBy(shiftSeries => shiftSeries.EventSeriesId)
+            .ThenBy(shiftSeries => shiftSeries.Id)
+            .ToListAsync(cancellationToken);
+
+        logger.LogDebug("Shift series query returned {ShiftSeriesCount} records.", results.Count);
+
+        return await MapToShiftSeriesResponsesAsync(results, cancellationToken);
+    }
+
+    public async Task<ShiftSeriesResponse?> GetShiftSeriesByIdAsync(
+        int id,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogDebug("Retrieving shift series {ShiftSeriesId}.", id);
+
+        var result = await db
+            .ShiftSeries.AsNoTracking()
+            .Include(shiftSeries => shiftSeries.EventSeries)
+            .Include(shiftSeries => shiftSeries.Users)
+            .Where(shiftSeries => shiftSeries.Id == id)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (result is null)
+            logger.LogInformation("Shift series {ShiftSeriesId} was not found.", id);
+
+        return result is null ? null : await MapToShiftSeriesResponseAsync(result, cancellationToken);
+    }
+
+    public async Task<ShiftSeriesResponse> CreateShiftSeriesAsync(
+        ShiftSeriesRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var userIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
+        logger.LogInformation(
+            "Creating shift series for users {UserIds} starting at {StartAtUtc}.",
+            string.Join(",", userIds),
+            request.StartAtUtc
+        );
+
+        var eventSeries = ShiftEventMapper.ToEventSeries(request);
+        var entity = new ShiftSeries
+        {
+            EventSeries = eventSeries,
+            Users = userIds.Select(userId => new ShiftSeriesUser { UserId = userId }).ToList(),
+        };
+
+        db.ShiftSeries.Add(entity);
+        await eventSeriesMaterializationService.MaterializeAsync(
+            eventSeries,
+            ShiftRecurrenceValidationOptions,
+            shiftSeriesMaterializationHandler,
+            new ShiftSeriesMaterializationContext { ShiftSeries = entity, UserIds = userIds },
+            cancellationToken
+        );
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Created shift series {ShiftSeriesId}.", entity.Id);
+
+        return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
+    }
+
+    public async Task<ShiftSeriesResponse?> UpdateShiftSeriesAsync(
+        int id,
+        ShiftSeriesRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogInformation("Updating shift series {ShiftSeriesId}.", id);
+
+        var entity = await db
+            .ShiftSeries.Include(shiftSeries => shiftSeries.EventSeries!)
+                .ThenInclude(eventSeries => eventSeries.Events)
+            .Include(shiftSeries => shiftSeries.Users)
+            .Include(shiftSeries => shiftSeries.ShiftEntries)
+                .ThenInclude(shiftEntry => shiftEntry.Event)
+            .Include(shiftSeries => shiftSeries.ShiftEntries)
+                .ThenInclude(shiftEntry => shiftEntry.Users)
+            .SingleOrDefaultAsync(shiftSeries => shiftSeries.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift series {ShiftSeriesId} was not found for update.", id);
+            return null;
+        }
+
+        ShiftGuards.EnsureShiftEventSeriesType(entity.EventSeries!);
+        var eventSeries = entity.EventSeries!;
+        ShiftGuards.EnsureShiftSeriesIsDraft(eventSeries);
+        var oldEventSeriesValues = ShiftSeriesUpdatePlanner.CaptureCopiedValues(eventSeries);
+        var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
+        var recurrenceChanged = ShiftSeriesUpdatePlanner.HasRecurrenceChanged(eventSeries, request);
+        var newUserIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
+
+        ShiftEventMapper.ApplyToEventSeries(eventSeries, request);
+
+        ShiftUserSync.SyncSeriesUsers(db, entity, newUserIds);
+
+        if (recurrenceChanged)
+        {
+            await eventSeriesMaterializationService.RegenerateDraftSeriesAsync(
+                eventSeries,
+                ShiftRecurrenceValidationOptions,
+                shiftSeriesMaterializationHandler,
+                new ShiftSeriesMaterializationContext
+                {
+                    ShiftSeries = entity,
+                    UserIds = newUserIds,
+                    ExistingEntries = entity.ShiftEntries.ToList(),
+                },
+                cancellationToken
+            );
+        }
+        else
+        {
+            ApplySeriesNonRecurrenceUpdatesToChildren(entity, oldEventSeriesValues, oldUserIds, newUserIds);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Updated shift series {ShiftSeriesId}.", id);
+
+        return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
+    }
+
+    private void ApplySeriesNonRecurrenceUpdatesToChildren(
+        ShiftSeries shiftSeries,
+        EventSeriesCopiedValues oldCopiedValues,
+        IReadOnlyCollection<Guid> oldUserIds,
+        IReadOnlyCollection<Guid> newUserIds
+    )
+    {
+        foreach (
+            var shiftEntry in shiftSeries.ShiftEntries.Where(entry =>
+                entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+            )
+        )
+        {
+            ShiftSeriesUpdatePlanner.ApplyCopiedFieldUpdatesPreservingOverrides(
+                shiftEntry.Event!,
+                oldCopiedValues,
+                shiftSeries.EventSeries!
+            );
+
+            if (ShiftUserSync.UserSetsEqual(shiftEntry.Users.Select(user => user.UserId), oldUserIds))
+                ShiftUserSync.SyncEntryUsers(db, shiftEntry, newUserIds);
+        }
+    }
+
+    public async Task<ShiftSeriesResponse?> PublishShiftSeriesAsync(
+        int id,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogInformation("Publishing shift series {ShiftSeriesId}.", id);
+
+        var entity = await db
+            .ShiftSeries.Include(shiftSeries => shiftSeries.EventSeries!)
+                .ThenInclude(eventSeries => eventSeries.Events)
+            .Include(shiftSeries => shiftSeries.Users)
+            .SingleOrDefaultAsync(shiftSeries => shiftSeries.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift series {ShiftSeriesId} was not found for publish.", id);
+            return null;
+        }
+
+        ShiftGuards.EnsureShiftEventSeriesType(entity.EventSeries!);
+        var eventSeries = entity.EventSeries!;
+        calendarLifecycleService.PublishSeries(eventSeries, eventSeries.Events.ToList());
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Published shift series {ShiftSeriesId}.", id);
+
+        return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
+    }
+
+    public async Task<ShiftSeriesResponse?> ExpireShiftSeriesAsync(
+        int id,
+        ExpireShiftRequest request,
+        Guid? cancelledByUserId = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogInformation("Expiring shift series {ShiftSeriesId}.", id);
+
+        var entity = await db
+            .ShiftSeries.Include(shiftSeries => shiftSeries.EventSeries!)
+                .ThenInclude(eventSeries => eventSeries.Events)
+            .Include(shiftSeries => shiftSeries.Users)
+            .SingleOrDefaultAsync(shiftSeries => shiftSeries.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift series {ShiftSeriesId} was not found for expire.", id);
+            return null;
+        }
+
+        ShiftGuards.EnsureShiftEventSeriesType(entity.EventSeries!);
+        var eventSeries = entity.EventSeries!;
+        var cancelledAt = timeProvider.GetUtcNow();
+        calendarLifecycleService.CancelSeries(
+            eventSeries,
+            eventSeries.Events.ToList(),
+            cancelledAt,
+            cancelledByUserId,
+            request.CancellationReason
+        );
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Expired shift series {ShiftSeriesId}.", id);
+
+        return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
+    }
+
+    public async Task<bool> DeleteShiftSeriesAsync(int id, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Deleting shift series {ShiftSeriesId}.", id);
+
+        var entity = await db
+            .ShiftSeries.Include(shiftSeries => shiftSeries.EventSeries)
+            .Include(shiftSeries => shiftSeries.Users)
+            .SingleOrDefaultAsync(shiftSeries => shiftSeries.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift series {ShiftSeriesId} was not found for delete.", id);
+            return false;
+        }
+
+        var eventSeries = entity.EventSeries!;
+        ShiftGuards.EnsureShiftEventSeriesType(eventSeries);
+
+        var childEvents = await db
+            .Events.Where(eventEntity =>
+                eventEntity.EventSeriesId == eventSeries.Id
+                && eventEntity.EventTypeCode == SchedulingConstants.ShiftEventTypeCode
+                && eventEntity.SourceModule == SchedulingConstants.SourceModule
+            )
+            .ToListAsync(cancellationToken);
+
+        if (!calendarLifecycleService.CanDelete(eventSeries))
+            throw new InvalidOperationException(
+                "Shift series can only be deleted while the series is in draft status."
+            );
+
+        var shiftEntries = await db
+            .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
+            .Include(shiftEntry => shiftEntry.Users)
+            .Where(shiftEntry => shiftEntry.ShiftSeriesId == entity.Id)
+            .ToListAsync(cancellationToken);
+
+        var draftChildEvents = childEvents
+            .Where(eventEntity => eventEntity.StatusTypeCode == CalendarEventStatusTypeCodes.Draft)
+            .ToList();
+        var draftChildEventIds = draftChildEvents.Select(eventEntity => eventEntity.Id).ToHashSet();
+        var draftShiftEntries = shiftEntries
+            .Where(shiftEntry => draftChildEventIds.Contains(shiftEntry.EventId))
+            .ToList();
+        var retainedShiftEntries = shiftEntries.Except(draftShiftEntries).ToList();
+        foreach (var retainedShiftEntry in retainedShiftEntries)
+        {
+            retainedShiftEntry.ShiftSeriesId = null;
+        }
+
+        foreach (var retainedChildEvent in childEvents.Except(draftChildEvents))
+        {
+            retainedChildEvent.EventSeriesId = null;
+        }
+
+        db.ShiftEntryUsers.RemoveRange(draftShiftEntries.SelectMany(shiftEntry => shiftEntry.Users));
+        db.ShiftEntries.RemoveRange(draftShiftEntries);
+        db.ShiftSeriesUsers.RemoveRange(entity.Users);
+        db.ShiftSeries.Remove(entity);
+        db.Events.RemoveRange(draftChildEvents);
+        db.EventSeries.Remove(eventSeries);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Deleted shift series {ShiftSeriesId}.", id);
+
+        return true;
+    }
+
+    public async Task<IReadOnlyCollection<ShiftEntryResponse>> GetShiftEntriesAsync(
+        ShiftEntryQueryParams? queryParams = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogDebug(
+            "Querying shift entries with ShiftSeriesId {ShiftSeriesId}, EventId {EventId}, and UserId {UserId}.",
+            queryParams?.ShiftSeriesId,
+            queryParams?.EventId,
+            queryParams?.UserId
+        );
+
+        IQueryable<ShiftEntry> query = db.ShiftEntries.AsNoTracking().Include(shiftEntry => shiftEntry.Users);
+
+        if (queryParams?.ShiftSeriesId is int shiftSeriesId)
+            query = query.Where(shiftEntry => shiftEntry.ShiftSeriesId == shiftSeriesId);
+
+        if (queryParams?.EventId is int eventId)
+            query = query.Where(shiftEntry => shiftEntry.EventId == eventId);
+
+        if (queryParams?.UserId is Guid userId)
+            query = query.Where(shiftEntry => shiftEntry.Users.Any(user => user.UserId == userId));
+
+        var results = await query
+            .OrderBy(shiftEntry => shiftEntry.EventId)
+            .ThenBy(shiftEntry => shiftEntry.Id)
+            .ToListAsync(cancellationToken);
+
+        logger.LogDebug("Shift entry query returned {ShiftEntryCount} records.", results.Count);
+
+        return results.Select(ShiftResponseMapper.ToShiftEntryResponse).ToList();
+    }
+
+    public async Task<ShiftEntryResponse?> GetShiftEntryByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Retrieving shift entry {ShiftEntryId}.", id);
+
+        var result = await db
+            .ShiftEntries.AsNoTracking()
+            .Include(shiftEntry => shiftEntry.Users)
+            .Where(shiftEntry => shiftEntry.Id == id)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (result is null)
+            logger.LogInformation("Shift entry {ShiftEntryId} was not found.", id);
+
+        return result is null ? null : ShiftResponseMapper.ToShiftEntryResponse(result);
+    }
+
+    public async Task<ShiftEntryResponse> CreateShiftEntryAsync(
+        ShiftEntryRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var userIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
+        logger.LogInformation(
+            "Creating shift entry for shift series {ShiftSeriesId} and users {UserIds} starting at {StartAtUtc}.",
+            request.ShiftSeriesId,
+            string.Join(",", userIds),
+            request.StartAtUtc
+        );
+
+        var shiftSeries = request.ShiftSeriesId.HasValue
+            ? await GetValidatedShiftSeriesAsync(request.ShiftSeriesId.Value, cancellationToken)
+            : null;
+
+        var eventEntity = ShiftEventMapper.ToEvent(request, shiftSeries?.EventSeriesId);
+        CalendarEventExceptionHelper.UpdateExceptionFlag(eventEntity);
+
+        var entity = new ShiftEntry
+        {
+            ShiftSeries = shiftSeries,
+            Event = eventEntity,
+            Users = userIds.Select(userId => new ShiftEntryUser { UserId = userId }).ToList(),
+        };
+
+        db.ShiftEntries.Add(entity);
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Created shift entry {ShiftEntryId}.", entity.Id);
+
+        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+    }
+
+    public async Task<ShiftEntryResponse?> UpdateShiftEntryAsync(
+        int id,
+        ShiftEntryRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogInformation("Updating shift entry {ShiftEntryId}.", id);
+
+        var entity = await db
+            .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
+            .Include(shiftEntry => shiftEntry.Users)
+            .SingleOrDefaultAsync(shiftEntry => shiftEntry.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift entry {ShiftEntryId} was not found for update.", id);
+            return null;
+        }
+
+        var shiftSeries = request.ShiftSeriesId.HasValue
+            ? await GetValidatedShiftSeriesAsync(request.ShiftSeriesId.Value, cancellationToken)
+            : null;
+
+        ShiftGuards.EnsureShiftEventType(entity.Event!);
+        ShiftGuards.EnsureShiftEntryIsDraft(entity.Event!);
+        ShiftEventMapper.ApplyToEvent(entity.Event!, request, shiftSeries?.EventSeriesId);
+        CalendarEventExceptionHelper.UpdateExceptionFlag(entity.Event!);
+
+        entity.ShiftSeriesId = request.ShiftSeriesId;
+        ShiftUserSync.SyncEntryUsers(db, entity, request.UserIds);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Updated shift entry {ShiftEntryId}.", id);
+
+        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+    }
+
+    public async Task<ShiftEntryResponse?> PublishShiftEntryAsync(int id, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Publishing shift entry {ShiftEntryId}.", id);
+
+        var entity = await db
+            .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
+            .Include(shiftEntry => shiftEntry.Users)
+            .SingleOrDefaultAsync(shiftEntry => shiftEntry.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift entry {ShiftEntryId} was not found for publish.", id);
+            return null;
+        }
+
+        ShiftGuards.EnsureShiftEventType(entity.Event!);
+        calendarLifecycleService.Publish(entity.Event!);
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Published shift entry {ShiftEntryId}.", id);
+
+        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+    }
+
+    public async Task<ShiftEntryResponse?> ExpireShiftEntryAsync(
+        int id,
+        ExpireShiftRequest request,
+        Guid? cancelledByUserId = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogInformation("Expiring shift entry {ShiftEntryId}.", id);
+
+        var entity = await db
+            .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
+            .Include(shiftEntry => shiftEntry.Users)
+            .SingleOrDefaultAsync(shiftEntry => shiftEntry.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift entry {ShiftEntryId} was not found for expire.", id);
+            return null;
+        }
+
+        ShiftGuards.EnsureShiftEventType(entity.Event!);
+        calendarLifecycleService.Cancel(
+            entity.Event!,
+            timeProvider.GetUtcNow(),
+            cancelledByUserId,
+            request.CancellationReason
+        );
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Expired shift entry {ShiftEntryId}.", id);
+
+        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+    }
+
+    public async Task<bool> DeleteShiftEntryAsync(int id, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Deleting shift entry {ShiftEntryId}.", id);
+
+        var entity = await db
+            .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
+            .Include(shiftEntry => shiftEntry.Users)
+            .SingleOrDefaultAsync(shiftEntry => shiftEntry.Id == id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift entry {ShiftEntryId} was not found for delete.", id);
+            return false;
+        }
+
+        var eventEntity = entity.Event!;
+        ShiftGuards.EnsureShiftEventType(eventEntity);
+
+        if (!calendarLifecycleService.CanDelete(eventEntity))
+            throw new InvalidOperationException("Shift entry can only be deleted while in draft status.");
+
+        db.ShiftEntryUsers.RemoveRange(entity.Users);
+        db.ShiftEntries.Remove(entity);
+        db.Events.Remove(eventEntity);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Deleted shift entry {ShiftEntryId}.", id);
+
+        return true;
+    }
+
+    public async Task<SchedulingCalendarDataResponse> GetSchedulingCalendarDataAsync(
+        SchedulingCalendarRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        logger.LogDebug(
+            "Querying scheduling calendar shift events for local date range {StartDate} to {EndDate}, timezone {TimeZoneId}, location {LocationId}, and users {UserIds}.",
+            request.StartDate,
+            request.EndDate,
+            request.TimeZoneId,
+            request.LocationId,
+            request.UserIds is null ? null : string.Join(",", request.UserIds)
+        );
+
+        var locationTimeZoneId = await GetLocationTimeZoneIdAsync(request.LocationId, cancellationToken);
+        var timeZone = timeZoneResolver.Resolve(request.TimeZoneId, locationTimeZoneId);
+        var utcRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
+            request.StartDate,
+            request.EndDate,
+            timeZone
+        );
+
+        IQueryable<ShiftEntry> query = db
+            .ShiftEntries.AsNoTracking()
+            .Include(shiftEntry => shiftEntry.Event)
+            .Include(shiftEntry => shiftEntry.Users)
+            .Where(shiftEntry => shiftEntry.Event != null)
+            .Where(shiftEntry => shiftEntry.Event!.SourceModule == SchedulingConstants.SourceModule)
+            .Where(shiftEntry => shiftEntry.Event!.EventTypeCode == SchedulingConstants.ShiftEventTypeCode)
+            .Where(shiftEntry => shiftEntry.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
+            .Where(shiftEntry => shiftEntry.Event!.StartAtUtc < utcRange.EndAtUtc)
+            .Where(shiftEntry =>
+                shiftEntry.Event!.EndAtUtc == null
+                    ? shiftEntry.Event.StartAtUtc >= utcRange.StartAtUtc
+                        && shiftEntry.Event.StartAtUtc < utcRange.EndAtUtc
+                    : shiftEntry.Event.EndAtUtc > utcRange.StartAtUtc
+            );
+
+        if (request.LocationId.HasValue)
+            query = query.Where(shiftEntry =>
+                shiftEntry.Event!.LocationId == null || shiftEntry.Event.LocationId == request.LocationId.Value
+            );
+
+        if (request.UserIds is { Count: > 0 })
+            query = query.Where(shiftEntry => shiftEntry.Users.Any(user => request.UserIds.Contains(user.UserId)));
+
+        var shiftEntries = await query
+            .OrderBy(shiftEntry => shiftEntry.Event!.StartAtUtc)
+            .ThenBy(shiftEntry => shiftEntry.Id)
+            .ToListAsync(cancellationToken);
+
+        var response = new SchedulingCalendarDataResponse
+        {
+            Events = shiftEntries
+                .Select(ShiftResponseMapper.ToCalendarEventResponse)
+                .OrderBy(eventResponse => eventResponse.Start)
+                .ThenBy(eventResponse => eventResponse.Id)
+                .ToList(),
+        };
+
+        logger.LogDebug("Scheduling calendar query returned {SchedulingEventCount} events.", response.Events.Count);
+
+        return response;
+    }
+
+    private async Task<string?> GetLocationTimeZoneIdAsync(int? locationId, CancellationToken cancellationToken)
+    {
+        if (!locationId.HasValue)
+            return null;
+
+        return await db
+            .Locations.AsNoTracking()
+            .Where(location => location.Id == locationId.Value)
+            .Select(location => location.Timezone)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<IReadOnlyCollection<ShiftSeriesResponse>> MapToShiftSeriesResponsesAsync(
+        IReadOnlyCollection<ShiftSeries> shiftSeries,
+        CancellationToken cancellationToken
+    )
+    {
+        var entryIds = await LoadShiftSeriesEntryIdsAsync(shiftSeries, cancellationToken);
+
+        return shiftSeries
+            .Select(series =>
+                ShiftResponseMapper.ToShiftSeriesResponse(
+                    series,
+                    series.EventSeries,
+                    entryIds.GetValueOrDefault(series.Id, [])
+                )
+            )
+            .ToList();
+    }
+
+    private async Task<ShiftSeriesResponse> MapToShiftSeriesResponseAsync(
+        ShiftSeries shiftSeries,
+        CancellationToken cancellationToken
+    )
+    {
+        var entryIds = await LoadShiftSeriesEntryIdsAsync([shiftSeries], cancellationToken);
+        var ids = entryIds.GetValueOrDefault(shiftSeries.Id, []);
+
+        return ShiftResponseMapper.ToShiftSeriesResponse(shiftSeries, shiftSeries.EventSeries, ids);
+    }
+
+    private async Task<Dictionary<int, List<ShiftSeriesEntryIds>>> LoadShiftSeriesEntryIdsAsync(
+        IReadOnlyCollection<ShiftSeries> shiftSeries,
+        CancellationToken cancellationToken
+    )
+    {
+        if (shiftSeries.Count == 0)
+            return [];
+
+        var eventSeriesIdsByShiftSeriesId = shiftSeries.ToDictionary(
+            series => series.Id,
+            series => series.EventSeriesId
+        );
+        var shiftSeriesIds = eventSeriesIdsByShiftSeriesId.Keys.ToList();
+        var eventSeriesIds = eventSeriesIdsByShiftSeriesId.Values.ToList();
+
+        var ids = await db
+            .ShiftEntries.AsNoTracking()
+            .Where(entry => entry.ShiftSeriesId.HasValue && shiftSeriesIds.Contains(entry.ShiftSeriesId.Value))
+            .Where(entry =>
+                entry.Event != null
+                && entry.Event.EventSeriesId.HasValue
+                && eventSeriesIds.Contains(entry.Event.EventSeriesId.Value)
+                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+            )
+            .OrderBy(entry => entry.Id)
+            .Select(entry => new ShiftSeriesEntryIds(entry.ShiftSeriesId!.Value, entry.Id, entry.EventId))
+            .ToListAsync(cancellationToken);
+
+        return ids.GroupBy(entry => entry.ShiftSeriesId).ToDictionary(group => group.Key, group => group.ToList());
+    }
+
+    private async Task<ShiftSeries> GetValidatedShiftSeriesAsync(int shiftSeriesId, CancellationToken cancellationToken)
+    {
+        var shiftSeries = await db
+            .ShiftSeries.Include(series => series.EventSeries)
+            .SingleOrDefaultAsync(series => series.Id == shiftSeriesId, cancellationToken);
+
+        if (shiftSeries is null)
+            throw new KeyNotFoundException($"Shift series {shiftSeriesId} not found.");
+
+        ShiftGuards.EnsureShiftEventSeriesType(shiftSeries.EventSeries!);
+        return shiftSeries;
+    }
+}

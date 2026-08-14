@@ -5,6 +5,7 @@ using Unified.Api.Models;
 using Unified.Api.Options;
 using Unified.Calendar.FeatureFlags;
 using Unified.Common.FeatureFlags;
+using Unified.Scheduling.FeatureFlags;
 using Unified.Stats.FeatureFlags;
 using Unified.Training.FeatureFlags;
 using Unified.UserManagement.FeatureFlags;
@@ -32,6 +33,7 @@ public class ConfigController(
         {
             UserManagement = featureFlags.OfType<UserManagementFeatureFlags>().FirstOrDefault(),
             Calendar = featureFlags.OfType<CalendarFeatureFlags>().FirstOrDefault(),
+            Scheduling = featureFlags.OfType<SchedulingFeatureFlags>().FirstOrDefault(),
             Stats = featureFlags.OfType<StatsFeatureFlags>().FirstOrDefault(),
             Training = featureFlags.OfType<TrainingFeatureFlags>().FirstOrDefault(),
         };
@@ -44,9 +46,10 @@ public class ConfigController(
         };
 
         logger.LogDebug(
-            "Configuration retrieved with module flags - UserManagement: {HasUserManagement}, Calendar: {HasCalendar}, Stats: {HasStats}, Training: {HasTraining}",
+            "Configuration retrieved with module flags - UserManagement: {HasUserManagement}, Calendar: {HasCalendar}, Scheduling: {HasScheduling}, Stats: {HasStats}, Training: {HasTraining}",
             featureFlagsPayload.UserManagement is not null,
             featureFlagsPayload.Calendar is not null,
+            featureFlagsPayload.Scheduling is not null,
             featureFlagsPayload.Stats is not null,
             featureFlagsPayload.Training is not null
         );

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Unified.Common.Helpers.Extensions;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.UserManagement;
@@ -15,6 +15,7 @@ public class UserServiceTests : IAsyncLifetime
 {
     private UnifiedDbContext _dbContext = null!;
     private UserService _userService = null!;
+    private readonly ITimeZoneService _timeZoneService = new TimeZoneService();
 
     public ValueTask InitializeAsync()
     {
@@ -39,7 +40,8 @@ public class UserServiceTests : IAsyncLifetime
                     UserBadgeNumber = new UserBadgeNumberFlags { Enabled = userBadgeNumberEnabled },
                 }
             ),
-            NullLogger<UserService>.Instance
+            NullLogger<UserService>.Instance,
+            _timeZoneService
         );
     }
 
@@ -842,8 +844,8 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("ENTRYERR", userRole.ExpiryReason);
 
         const string timezoneId = "America/Vancouver";
-        Assert.Equal(userRole.EffectiveDate.ToTimeZone(timezoneId), result.EffectiveDate);
-        Assert.Equal(userRole.ExpiryDate?.ToTimeZone(timezoneId), result.ExpiryDate);
+        Assert.Equal(_timeZoneService.ToTimeZone(userRole.EffectiveDate, timezoneId), result.EffectiveDate);
+        Assert.Equal(_timeZoneService.ToTimeZone(userRole.ExpiryDate!.Value, timezoneId), result.ExpiryDate);
     }
 
     [Fact]

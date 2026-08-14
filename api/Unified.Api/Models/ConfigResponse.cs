@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Unified.Calendar.FeatureFlags;
+using Unified.Scheduling.FeatureFlags;
 using Unified.Stats.FeatureFlags;
 using Unified.Training.FeatureFlags;
 using Unified.UserManagement.FeatureFlags;
@@ -40,6 +41,9 @@ public class FeatureFlagsResponse
 
     [JsonPropertyName(CalendarFeatureFlags.SourceName)]
     public CalendarFeatureFlags? Calendar { get; set; }
+
+    [JsonPropertyName(SchedulingFeatureFlags.SourceName)]
+    public SchedulingFeatureFlags? Scheduling { get; set; }
 
     [JsonPropertyName(StatsFeatureFlags.SourceName)]
     public StatsFeatureFlags? Stats { get; set; }

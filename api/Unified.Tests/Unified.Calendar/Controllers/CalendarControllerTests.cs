@@ -15,40 +15,45 @@ public class CalendarControllerTests
     public async Task GetEvents_WhenRequestIsValid_ReturnsOkResult()
     {
         // Arrange
-        var request = new CalendarEventsRequest
+        var request = new CalendarDataRequest
         {
-            StartDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(2026, 6, 1),
+            EndDate = new DateOnly(2026, 6, 2),
         };
 
-        var expected = new List<CalendarEventResponse>
+        var expected = new CalendarDataResponse
         {
-            new()
-            {
-                Id = 10,
-                Title = "Holiday",
-                StartAtUtc = request.StartDate,
-                SourceModule = "calendar",
-                EventTypeCode = CalendarEventTypeCode.Holiday,
-                StatusTypeCode = CalendarEventStatusTypeCode.Active,
-            },
+            Events =
+            [
+                new()
+                {
+                    Id = 10,
+                    Title = "Holiday",
+                    StartAtUtc = new DateTimeOffset(2026, 6, 1, 7, 0, 0, TimeSpan.Zero),
+                    SourceModule = "calendar",
+                    EventTypeCode = CalendarEventTypeCode.Holiday,
+                    StatusTypeCode = CalendarEventStatusTypeCode.Active,
+                },
+            ],
         };
 
         var service = new FakeCalendarEventService { Result = expected };
         var controller = new CalendarController(
             NullLogger<CalendarController>.Instance,
             service,
-            new CalendarEventsRequestValidator()
+            new CalendarDataRequestValidator()
         );
 
         // Act
-        var result = await controller.GetEvents(request, TestContext.Current.CancellationToken);
+        var result = await controller.GetData(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var payload = Assert.IsAssignableFrom<IReadOnlyCollection<CalendarEventResponse>>(okResult.Value);
-        var item = Assert.Single(payload);
+        var payload = Assert.IsType<CalendarDataResponse>(okResult.Value);
+        var item = Assert.Single(payload.Events);
 
+        Assert.Equal("calendar", payload.ModuleId);
+        Assert.Equal("calendar.events", payload.ContributionId);
         Assert.Equal(10, item.Id);
         Assert.Equal(request, service.LastRequest);
     }
@@ -57,32 +62,32 @@ public class CalendarControllerTests
     public async Task GetEvents_WhenRequestIsInvalid_ThrowsValidationException()
     {
         // Arrange
-        var request = new CalendarEventsRequest
+        var request = new CalendarDataRequest
         {
-            StartDate = new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero),
-            EndDate = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            StartDate = new DateOnly(2026, 6, 2),
+            EndDate = new DateOnly(2026, 6, 1),
         };
 
         var controller = new CalendarController(
             NullLogger<CalendarController>.Instance,
             new FakeCalendarEventService(),
-            new CalendarEventsRequestValidator()
+            new CalendarDataRequestValidator()
         );
 
         // Act / Assert
         await Assert.ThrowsAsync<ValidationException>(() =>
-            controller.GetEvents(request, TestContext.Current.CancellationToken)
+            controller.GetData(request, TestContext.Current.CancellationToken)
         );
     }
 
     private sealed class FakeCalendarEventService : ICalendarEventService
     {
-        public IReadOnlyCollection<CalendarEventResponse> Result { get; init; } = [];
+        public CalendarDataResponse Result { get; init; } = new();
 
-        public CalendarEventsRequest? LastRequest { get; private set; }
+        public CalendarDataRequest? LastRequest { get; private set; }
 
-        public Task<IReadOnlyCollection<CalendarEventResponse>> GetEventsAsync(
-            CalendarEventsRequest request,
+        public Task<CalendarDataResponse> GetCalendarDataAsync(
+            CalendarDataRequest request,
             CancellationToken cancellationToken = default
         )
         {

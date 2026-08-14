@@ -12,6 +12,7 @@ using Unified.Calendar.Validators;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
+using Unified.Common.Time;
 using Unified.Db;
 
 namespace Unified.Calendar;
@@ -61,6 +62,12 @@ public static class CalendarModule
         }
 
         services
+            .AddOptions<CalendarDateTimeOptions>()
+            .BindConfiguration(CalendarDateTimeOptions.SectionName)
+            .ValidateDataAnnotations()
+            .Validate(BeValidDefaultTimeZoneId, "CalendarDateTime:DefaultTimeZoneId must be a valid system time zone.")
+            .ValidateOnStart();
+        services
             .AddOptions<CalendarSeedDataOptions>()
             .BindConfiguration(CalendarSeedDataOptions.SectionName)
             .ValidateDataAnnotations()
@@ -69,9 +76,22 @@ public static class CalendarModule
         services.AddSeeder<UnifiedDbContext, EventTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, EventStatusTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, HolidayEventSeeder>();
-        services.AddScoped<CalendarEventsRequestValidator>();
+        services.AddScoped<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>();
+        services.AddScoped<CalendarLifecycleService>();
+        services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();
+        services.AddScoped<IRecurrenceRuleValidator, IcalNetRecurrenceRuleValidator>();
+        services.AddScoped<IEventSeriesMaterializationService, EventSeriesMaterializationService>();
+        services.AddScoped<CalendarDataRequestValidator>();
 
         return services;
+    }
+
+    private static bool BeValidDefaultTimeZoneId(CalendarDateTimeOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.DefaultTimeZoneId))
+            return false;
+
+        return TimeZoneService.IsValidTimeZoneId(options.DefaultTimeZoneId);
     }
 
     private static void ConfigureCalendarApplicationParts(

@@ -7,6 +7,7 @@ using Unified.Api.Services;
 using Unified.Authorization;
 using Unified.Authorization.Hangfire;
 using Unified.Calendar;
+using Unified.Common.Time;
 using Unified.Core;
 using Unified.Db;
 using Unified.Hangfire;
@@ -14,6 +15,7 @@ using Unified.Hangfire.Options;
 using Unified.Infrastructure;
 using Unified.Infrastructure.Options;
 using Unified.JCInterface;
+using Unified.Scheduling;
 using Unified.Stats;
 using Unified.Training;
 using Unified.UserManagement;
@@ -45,6 +47,7 @@ var hangfireOptions =
         options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
     });
 
+    builder.Services.AddSingleton<ITimeZoneService, TimeZoneService>();
     // Logging
     var enableBodyLogging =
         builder.Configuration.GetValue<bool>("HttpLogging:LogBodies")
@@ -76,6 +79,7 @@ var hangfireOptions =
         .AddDbModule(builder.Configuration)
         .AddUserManagementModule(builder.Configuration)
         .AddCalendarModule(builder.Configuration)
+        .AddSchedulingModule(builder.Configuration)
         .AddStatsModule(builder.Configuration)
         .AddTrainingModule(builder.Configuration)
         .AddConfiguredSeedData(
@@ -86,6 +90,7 @@ var hangfireOptions =
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddCalendarApplicationPart(builder.Configuration);
+    mvcBuilder.AddSchedulingApplicationPart(builder.Configuration);
     mvcBuilder.AddTrainingApplicationPart(builder.Configuration);
 
     builder.Services.AddSingleton<MigrationAndSeedService>();

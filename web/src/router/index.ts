@@ -8,6 +8,7 @@ import * as calendarMatrixTestModule from '@/modules/calendarMatrixTest/Calendar
 import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
 import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import * as statsModule from '@/modules/stats/StatsModule';
+import * as schedulingModule from '@/modules/scheduling/SchedulingModule';
 import * as trainingModule from '@/modules/training/TrainingModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
@@ -97,6 +98,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   statsModule.registerModule(routes, featureFlags);
   calendarModule.registerModule(routes, featureFlags);
   calendarMatrixTestModule.registerModule(routes, featureFlags);
+  schedulingModule.registerModule(routes, featureFlags);
   trainingModule.registerModule(routes, featureFlags);
 
   const router = createRouter({
