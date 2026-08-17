@@ -25,6 +25,7 @@ public sealed class TimeZoneService : ITimeZoneService
             return TimeZoneInfo.Utc;
         }
     }
+
     public TimeZoneInfo ResolveRequired(string timeZoneId)
     {
         if (string.IsNullOrWhiteSpace(timeZoneId))
@@ -53,6 +54,7 @@ public sealed class TimeZoneService : ITimeZoneService
         var offset = timeZone.GetUtcOffset(localDate);
         return new DateTimeOffset(localDate, offset).ToUniversalTime();
     }
+
     public DateTime ToLocalUnspecified(DateTimeOffset utcInstant, TimeZoneInfo timeZone)
     {
         var localInstant = TimeZoneInfo.ConvertTime(utcInstant, timeZone);
