@@ -11,7 +11,7 @@ export const calendarEventsContribution: CalendarModuleContribution = {
     return runtimeContext.featureFlags.Calendar?.enabled ?? true;
   },
   async load(context, options) {
-    const events = await postApiCalendarEvents(
+    const response = await postApiCalendarEvents(
       {
         startDate: context.startDate,
         // Calendar view ranges end exclusively; the API accepts an inclusive date-only range.
@@ -25,7 +25,7 @@ export const calendarEventsContribution: CalendarModuleContribution = {
     return {
       moduleId: 'calendar',
       contributionId: 'calendar.events',
-      events: events.map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
+      events: (response.events ?? []).map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
     };
   },
 };

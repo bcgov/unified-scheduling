@@ -1,15 +1,15 @@
 import { useFetchAPI } from './useFetchAPI';
-import type {
-  CalendarEventStatus,
-  CalendarEventStatusTypeCode,
+import {
   CalendarEventType,
-  CalendarEventTypeCode,
-  StatutoryHolidayType,
+  type CalendarDataResponse,
+  type CalendarEventResponse,
 } from './generated/models';
 
 export const calendarEventTypes = {
-  calendarEvent: 'calendar.event' as CalendarEventType,
+  calendarEvent: CalendarEventType.calendarevent,
 } as const;
+
+export type ApiCalendarEventResponse = CalendarEventResponse;
 
 type FetchOptions = Parameters<typeof useFetchAPI>[1];
 
@@ -21,38 +21,11 @@ export interface ApiCalendarEventsRequest {
   filters?: Record<string, unknown>;
 }
 
-export interface ApiCalendarEventResponse {
-  id: string;
-  eventSeriesId?: number;
-  title: string;
-  description?: string;
-  notes?: string;
-  color?: string;
-  startAtUtc: string;
-  endAtUtc?: string;
-  seriesStartAtUtc?: string;
-  seriesEndAtUtc?: string;
-  timeZoneId?: string;
-  allDay: boolean;
-  isReadOnly: boolean;
-  isException: boolean;
-  type?: CalendarEventType;
-  status?: CalendarEventStatus;
-  holidayType?: StatutoryHolidayType;
-  eventTypeCode: CalendarEventTypeCode;
-  statusTypeCode: CalendarEventStatusTypeCode;
-  cancelledAt?: string;
-  cancelledByUserId?: string;
-  cancellationReason?: string;
-  sourceModule: string;
-  locationId?: number;
-}
-
 export const postApiCalendarEvents = async (
   request: ApiCalendarEventsRequest,
   options?: FetchOptions,
-): Promise<ApiCalendarEventResponse[]> => {
-  const { data, error, execute } = useFetchAPI<ApiCalendarEventResponse[]>(
+): Promise<CalendarDataResponse> => {
+  const { data, error, execute } = useFetchAPI<CalendarDataResponse>(
     {
       url: `${import.meta.env.BASE_URL}api/calendar/events`,
       method: 'POST',
@@ -74,5 +47,5 @@ export const postApiCalendarEvents = async (
     throw error.value;
   }
 
-  return data.value || [];
+  return data.value || { events: [] };
 };
