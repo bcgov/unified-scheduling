@@ -1,6 +1,6 @@
 import { postApiCalendarEvents } from '@/api-access/generated/calendar/calendar';
 import type { CalendarDataRequestFilters } from '@/api-access/generated/models';
-import { addDays } from '@/utils/date';
+import { addDays, toApiDateString } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 import type { CalendarModuleContribution } from '../registry/calendarRegistryTypes';
 import { mapApiCalendarEventToCalendarEventBase } from './calendarEventMappers';
@@ -14,9 +14,9 @@ export const calendarEventsContribution: CalendarModuleContribution = {
   async load(context, options) {
     const { data, error, execute } = postApiCalendarEvents(
       {
-        startDate: context.startDate,
+        startDate: toApiDateString(context.startDate),
         // Calendar view ranges end exclusively; the API accepts an inclusive date-only range.
-        endDate: addDays(context.endDate, -1),
+        endDate: toApiDateString(addDays(context.endDate, -1)),
         locationId: context.locationId,
         filters: context.filters as CalendarDataRequestFilters,
       },
