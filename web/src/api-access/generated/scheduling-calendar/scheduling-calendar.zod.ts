@@ -6,42 +6,45 @@
  */
 import * as zod from 'zod';
 
-export const PostApiCalendarEventsBody = zod.strictObject({
+export const PostApiSchedulingCalendarEventsBody = zod.strictObject({
   startDate: zod.iso.date(),
   endDate: zod.iso.date(),
   timeZoneId: zod.string().nullish(),
   locationId: zod.int().nullish(),
-  filters: zod.record(zod.string(), zod.string()).nullish(),
+  userIds: zod.array(zod.uuid()).nullish(),
 });
 
-export const PostApiCalendarEventsResponse = zod.object({
+export const PostApiSchedulingCalendarEventsResponse = zod.object({
   moduleId: zod.string().optional(),
   contributionId: zod.string().optional(),
   events: zod
     .array(
       zod.object({
-        id: zod.int(),
-        eventSeriesId: zod.int().nullish(),
+        id: zod.string(),
+        shiftEntryId: zod.int().optional(),
+        shiftSeriesId: zod.int().nullish(),
+        eventId: zod.int().optional(),
+        userIds: zod.array(zod.uuid()).optional(),
+        type: zod.string(),
+        sourceModule: zod.string(),
         title: zod.string(),
         description: zod.string().nullish(),
         notes: zod.string().nullish(),
         color: zod.string().nullish(),
-        startAtUtc: zod.iso.datetime({ offset: true }),
-        endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        start: zod.iso.datetime({ offset: true }),
+        end: zod.iso.datetime({ offset: true }).nullish(),
         seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
         seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
         timeZoneId: zod.string().nullish(),
         allDay: zod.boolean().optional(),
         isException: zod.boolean().optional(),
-        type: zod.enum(['calendar.event']).optional(),
-        status: zod.enum(['Active', 'Draft', 'Draft Item', 'Cancelled']).optional(),
-        eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline', 'AwayLocation']),
-        statusTypeCode: zod.enum(['Draft', 'Active', 'Cancelled']),
+        eventTypeCode: zod.string(),
+        statusTypeCode: zod.string(),
         cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
         cancelledByUserId: zod.uuid().nullish(),
         cancellationReason: zod.string().nullish(),
-        sourceModule: zod.string(),
         locationId: zod.int().nullish(),
+        resourceIds: zod.array(zod.string()).optional(),
       }),
     )
     .optional(),

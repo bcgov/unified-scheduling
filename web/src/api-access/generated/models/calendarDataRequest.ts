@@ -4,13 +4,15 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { CalendarEventsRequestFilters } from './calendarEventsRequestFilters.ts';
+import type { CalendarDataRequestFilters } from './calendarDataRequestFilters.ts';
 
-export interface CalendarEventsRequest {
+export interface CalendarDataRequest {
   startDate: string;
   endDate: string;
   /** @nullable */
+  timeZoneId?: string | null;
+  /** @nullable */
   locationId?: number | null;
   /** @nullable */
-  filters?: CalendarEventsRequestFilters;
+  filters?: CalendarDataRequestFilters;
 }

@@ -5,7 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-/**
- * @nullable
- */
-export type CalendarEventsRequestFilters = null | { [key: string]: unknown };
+export interface ExpireShiftRequest {
+  /** @nullable */
+  cancellationReason?: string | null;
+}

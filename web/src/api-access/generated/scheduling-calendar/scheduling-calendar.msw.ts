@@ -9,23 +9,32 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import { CalendarEventStatus, CalendarEventStatusTypeCode, CalendarEventType, CalendarEventTypeCode } from '../models';
-import type { CalendarDataResponse } from '../models';
+import type { SchedulingCalendarDataResponse } from '../models';
 
-export const getPostApiCalendarEventsResponseMock = (
-  overrideResponse: Partial<Extract<CalendarDataResponse, object>> = {},
-): CalendarDataResponse =>
+export const getPostApiSchedulingCalendarEventsResponseMock = (
+  overrideResponse: Partial<Extract<SchedulingCalendarDataResponse, object>> = {},
+): SchedulingCalendarDataResponse =>
   faker.helpers.arrayElement([
     {
       moduleId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       contributionId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       events: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-          id: faker.number.int(),
-          eventSeriesId: faker.helpers.arrayElement([
+          id: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftSeriesId: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.number.int(), null]),
             undefined,
           ]),
+          eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          userIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.uuid(),
+            ),
+            undefined,
+          ]),
+          type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
           title: faker.string.alpha({ length: { min: 10, max: 20 } }),
           description: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -39,8 +48,8 @@ export const getPostApiCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
-          endAtUtc: faker.helpers.arrayElement([
+          start: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          end: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
             undefined,
           ]),
@@ -58,13 +67,8 @@ export const getPostApiCalendarEventsResponseMock = (
           ]),
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-          type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
-          status: faker.helpers.arrayElement([
-            faker.helpers.arrayElement(Object.values(CalendarEventStatus)),
-            undefined,
-          ]),
-          eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
-          statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
+          eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           cancelledAt: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
             undefined,
@@ -77,8 +81,13 @@ export const getPostApiCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
           locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+          resourceIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+            ),
+            undefined,
+          ]),
         })),
         undefined,
       ]),
@@ -89,11 +98,21 @@ export const getPostApiCalendarEventsResponseMock = (
       contributionId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       events: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-          id: faker.number.int(),
-          eventSeriesId: faker.helpers.arrayElement([
+          id: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftSeriesId: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.number.int(), null]),
             undefined,
           ]),
+          eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          userIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.uuid(),
+            ),
+            undefined,
+          ]),
+          type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
           title: faker.string.alpha({ length: { min: 10, max: 20 } }),
           description: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -107,8 +126,8 @@ export const getPostApiCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
-          endAtUtc: faker.helpers.arrayElement([
+          start: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          end: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
             undefined,
           ]),
@@ -126,13 +145,8 @@ export const getPostApiCalendarEventsResponseMock = (
           ]),
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-          type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
-          status: faker.helpers.arrayElement([
-            faker.helpers.arrayElement(Object.values(CalendarEventStatus)),
-            undefined,
-          ]),
-          eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
-          statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
+          eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           cancelledAt: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
             undefined,
@@ -145,8 +159,13 @@ export const getPostApiCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
           locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+          resourceIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+            ),
+            undefined,
+          ]),
         })),
         undefined,
       ]),
@@ -157,11 +176,21 @@ export const getPostApiCalendarEventsResponseMock = (
       contributionId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       events: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-          id: faker.number.int(),
-          eventSeriesId: faker.helpers.arrayElement([
+          id: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          shiftEntryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          shiftSeriesId: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.number.int(), null]),
             undefined,
           ]),
+          eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          userIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.uuid(),
+            ),
+            undefined,
+          ]),
+          type: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
           title: faker.string.alpha({ length: { min: 10, max: 20 } }),
           description: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -175,8 +204,8 @@ export const getPostApiCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          startAtUtc: faker.date.past().toISOString().slice(0, 19) + 'Z',
-          endAtUtc: faker.helpers.arrayElement([
+          start: faker.date.past().toISOString().slice(0, 19) + 'Z',
+          end: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
             undefined,
           ]),
@@ -194,13 +223,8 @@ export const getPostApiCalendarEventsResponseMock = (
           ]),
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-          type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
-          status: faker.helpers.arrayElement([
-            faker.helpers.arrayElement(Object.values(CalendarEventStatus)),
-            undefined,
-          ]),
-          eventTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventTypeCode)),
-          statusTypeCode: faker.helpers.arrayElement(Object.values(CalendarEventStatusTypeCode)),
+          eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
+          statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           cancelledAt: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
             undefined,
@@ -213,8 +237,13 @@ export const getPostApiCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
           locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+          resourceIds: faker.helpers.arrayElement([
+            Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+            ),
+            undefined,
+          ]),
         })),
         undefined,
       ]),
@@ -222,25 +251,27 @@ export const getPostApiCalendarEventsResponseMock = (
     },
   ]);
 
-export const getPostApiCalendarEventsMockHandler = (
+export const getPostApiSchedulingCalendarEventsMockHandler = (
   overrideResponse?:
-    | CalendarDataResponse
-    | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CalendarDataResponse> | CalendarDataResponse),
+    | SchedulingCalendarDataResponse
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<SchedulingCalendarDataResponse> | SchedulingCalendarDataResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.post(
-    '*/api/calendar/events',
+    '*/api/scheduling/calendar/events',
     async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
       return HttpResponse.json(
         overrideResponse !== undefined
           ? typeof overrideResponse === 'function'
             ? await overrideResponse(info)
             : overrideResponse
-          : getPostApiCalendarEventsResponseMock(),
+          : getPostApiSchedulingCalendarEventsResponseMock(),
         { status: 200 },
       );
     },
     options,
   );
 };
-export const getCalendarMock = () => [getPostApiCalendarEventsMockHandler()];
+export const getSchedulingCalendarMock = () => [getPostApiSchedulingCalendarEventsMockHandler()];
