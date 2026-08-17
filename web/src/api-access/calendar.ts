@@ -1,9 +1,5 @@
 import { useFetchAPI } from './useFetchAPI';
-import {
-  CalendarEventType,
-  type CalendarDataResponse,
-  type CalendarEventResponse,
-} from './generated/models';
+import { CalendarEventType, type CalendarDataResponse, type CalendarEventResponse } from './generated/models';
 
 export const calendarEventTypes = {
   calendarEvent: CalendarEventType.calendarevent,
