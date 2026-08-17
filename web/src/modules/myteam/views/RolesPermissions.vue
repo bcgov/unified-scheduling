@@ -31,8 +31,10 @@ const roleFilterOptions: SelectOption[] = [
 
 const isRoleInactive = (role: RoleDto) => role.deletedOn != null || role.deletedById != null;
 
+const roleItems = computed<RoleDto[]>(() => (Array.isArray(roles.value) ? roles.value : []));
+
 const filteredRoles = computed<RoleDto[]>(() => {
-  return (roles.value ?? []).filter((role) =>
+  return roleItems.value.filter((role) =>
     selectedRoleFilter.value === 'inactive' ? isRoleInactive(role) : !isRoleInactive(role),
   );
 });
@@ -187,7 +189,7 @@ const handleRoleUpdated = async () => {
     <RoleDeleteModal
       v-if="showDeleteConfirm && roleToDelete"
       :role="roleToDelete"
-      :all-roles="roles ?? []"
+      :all-roles="roleItems"
       @close="resetDeleteModalState"
       @deleted="handleRoleDeleted"
     />

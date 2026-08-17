@@ -61,6 +61,10 @@ const handleDialogVisibility = (isVisible: boolean) => {
         <slot name="alerts" />
       </div>
 
+      <div v-if="$slots['secondary-header']" class="ua-modal__secondary-header">
+        <slot name="secondary-header" />
+      </div>
+
       <div class="ua-modal__body">
         <slot />
       </div>
@@ -135,6 +139,16 @@ const handleDialogVisibility = (isVisible: boolean) => {
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.ua-modal__alert {
+  min-height: auto;
+}
+
+.ua-modal__secondary-header {
+  background: var(--ua-calendar-panel-bg);
+  padding: var(--ua-spacing-sm) var(--ua-spacing-lg);
+  border-bottom: 1px solid var(--ua-border-color);
 }
 
 .ua-modal__actions {

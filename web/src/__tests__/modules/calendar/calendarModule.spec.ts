@@ -52,7 +52,7 @@ describe('calendar module integration', () => {
     ).toHaveLength(1);
     expect(
       calendarActionRegistry.getCreateActions(
-        { startDate: '2025-01-01', endDate: '2025-01-02', filters: {} },
+        { startDate: '2025-01-01', endDate: '2025-01-02', activeViewId: 'calendar-default', filters: {} },
         { featureFlags: {} },
       ),
     ).toHaveLength(1);
@@ -104,7 +104,6 @@ describe('calendar module integration', () => {
         };
       }),
     );
-
     const { calendarEventsContribution } = await import('@/modules/calendar/contributions/calendarEventsContribution');
 
     const isAvailable = calendarEventsContribution.isAvailable;

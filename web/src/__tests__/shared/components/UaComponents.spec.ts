@@ -145,4 +145,24 @@ describe('UaModal', () => {
     expect(wrapper.text()).toContain('Form content');
     expect(wrapper.find('.ua-modal__close-btn').exists()).toBe(true);
   });
+
+  it('renders secondary header slot between alerts and body', () => {
+    const wrapper = mount(UaModal, {
+      props: { title: 'Edit User' },
+      slots: {
+        alerts: '<div class="test-alert">Alert content</div>',
+        'secondary-header': '<div class="test-secondary-header">Secondary header</div>',
+        default: '<div class="test-body">Form content</div>',
+      },
+      global: {
+        plugins: [vuetify],
+        stubs: { VDialog: { template: '<div><slot /></div>' } },
+      },
+    });
+
+    const modalText = wrapper.text();
+    expect(modalText.indexOf('Alert content')).toBeLessThan(modalText.indexOf('Secondary header'));
+    expect(modalText.indexOf('Secondary header')).toBeLessThan(modalText.indexOf('Form content'));
+    expect(wrapper.find('.ua-modal__secondary-header').exists()).toBe(true);
+  });
 });

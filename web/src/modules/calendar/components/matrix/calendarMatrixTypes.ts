@@ -67,6 +67,11 @@ export interface CalendarMatrixResource {
   action?: CalendarMatrixResourceActionDisplay;
 }
 
+export interface CalendarMatrixResourceAddEvent {
+  resource: CalendarMatrixResource;
+  cell?: CalendarMatrixCell;
+}
+
 export interface CalendarMatrixEventItem {
   event: CalendarEventBase;
   display?: CalendarMatrixEventDisplay;
@@ -95,9 +100,20 @@ export interface CalendarMatrixCellHeader {
   title?: string;
   status?: string;
   color?: string;
+  info?: CalendarMatrixCellHeaderInfo;
   actionId?: string;
   action?: CalendarMatrixActionDisplay;
   payload?: unknown;
+}
+
+export interface CalendarMatrixCellHeaderInfo {
+  icons?: CalendarMatrixCellHeaderInfoIcon[];
+}
+
+export interface CalendarMatrixCellHeaderInfoIcon {
+  icon: string;
+  ariaLabel?: string;
+  title?: string;
 }
 
 export interface CalendarMatrixCellHeaderClickEvent {

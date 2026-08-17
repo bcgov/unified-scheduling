@@ -1,30 +1,36 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { createPinia, setActivePinia } from 'pinia';
-import type { RouteRecordRaw } from 'vue-router';
-import { useNavigationStore } from '@/stores/NavigationStore';
-import { registerModule } from '@/modules/scheduling/SchedulingModule';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-describe('scheduling module integration', () => {
+describe('calendar scheduling module integration', () => {
   beforeEach(() => {
-    setActivePinia(createPinia());
+    vi.resetModules();
   });
 
-  it('registers its route and navigation when enabled', () => {
-    const routes: RouteRecordRaw[] = [];
+  it('registers scheduling calendar contributions, views, and actions only once', async () => {
+    const [{ registerModule }, { calendarRegistry }, { calendarActionRegistry }] = await Promise.all([
+      import('@/modules/scheduling/CalendarSchedulingModule'),
+      import('@/modules/calendar/registry/calendarRegistry'),
+      import('@/modules/calendar/registry/calendarActionRegistry'),
+    ]);
 
-    registerModule(routes, { Scheduling: { enabled: true } });
+    registerModule();
+    registerModule();
 
-    expect(routes).toHaveLength(1);
-    expect(routes[0]?.path).toBe('/schedule');
-    expect(useNavigationStore().links).toEqual([{ name: 'Schedule', path: '/schedule', class: 'router-link--border' }]);
-  });
-
-  it('does not register when disabled', () => {
-    const routes: RouteRecordRaw[] = [];
-
-    registerModule(routes, { Scheduling: { enabled: false } });
-
-    expect(routes).toHaveLength(0);
-    expect(useNavigationStore().links).toHaveLength(0);
+    expect(calendarRegistry.getAvailableViews({ featureFlags: {} }).map((view) => view.id)).toContain(
+      'calendar.matrix-schedule',
+    );
+    expect(
+      calendarRegistry
+        .getAvailableModuleContributions(
+          { featureFlags: { Scheduling: { enabled: true } } },
+          { startDate: '2025-01-01', endDate: '2025-01-08', filters: {} },
+        )
+        .map((contribution) => contribution.contributionId),
+    ).toContain('scheduling.shift-events');
+    expect(
+      calendarActionRegistry.getCreateActions(
+        { startDate: '2025-01-01', endDate: '2025-01-08', activeViewId: 'calendar.matrix-schedule', filters: {} },
+        { featureFlags: { Scheduling: { enabled: true } } },
+      ),
+    ).toHaveLength(1);
   });
 });

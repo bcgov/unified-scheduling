@@ -4,11 +4,10 @@ import type { createPinia } from 'pinia';
 import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import * as calendarModule from '@/modules/calendar/CalendarModule';
-import * as calendarMatrixTestModule from '@/modules/calendarMatrixTest/CalendarMatrixTestModule';
 import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
 import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import * as statsModule from '@/modules/stats/StatsModule';
-import * as schedulingModule from '@/modules/scheduling/SchedulingModule';
+import * as calendarSchedulingModule from '@/modules/scheduling/CalendarSchedulingModule';
 import * as trainingModule from '@/modules/training/TrainingModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
@@ -97,8 +96,9 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   myTeamsModule.registerModule(routes, featureFlags);
   statsModule.registerModule(routes, featureFlags);
   calendarModule.registerModule(routes, featureFlags);
-  calendarMatrixTestModule.registerModule(routes, featureFlags);
-  schedulingModule.registerModule(routes, featureFlags);
+  if (featureFlags.Scheduling?.enabled) {
+    calendarSchedulingModule.registerModule();
+  }
   trainingModule.registerModule(routes, featureFlags);
 
   const router = createRouter({
