@@ -6,6 +6,7 @@ namespace Unified.Training.Services.Lookup;
 public interface ITrainingLookupStrategy : ILookupStrategy
 {
     Task<IReadOnlyCollection<TrainingLookupResponse>> GetAllTrainingsAsync(
+        bool includeExpired = false,
         CancellationToken cancellationToken = default
     );
 
@@ -23,4 +24,8 @@ public interface ITrainingLookupStrategy : ILookupStrategy
     );
 
     Task<TrainingLookupResponse?> MoveOrderAsync(int id, int newOrder, CancellationToken cancellationToken = default);
+
+    Task<TrainingLookupResponse?> ExpireAsync(int id, CancellationToken cancellationToken = default);
+
+    Task<TrainingLookupResponse?> UnexpireAsync(int id, CancellationToken cancellationToken = default);
 }

@@ -46,13 +46,44 @@ public class UserTrainingHelperTests
     }
 
     [Fact]
-    public void CalculateExpiryDate_WhenValidityDaysProvided_ReturnsAwardedOnPlusDays()
+    public void CalculateExpiryDate_WhenValidityDaysProvidedAsMonths_ReturnsAwardedOnPlusDays()
     {
         var awardedOn = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero);
 
+        var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 60);
+
+        Assert.Equal(awardedOn.AddDays(60), expiry);
+    }
+
+    [Fact]
+    public void CalculateExpiryDate_WhenValidityDaysProvidedAsYears_ReturnsEndOfAwardYear()
+    {
+        var awardedOn = new DateTimeOffset(2025, 10, 1, 0, 0, 0, TimeSpan.Zero);
+
         var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 365);
 
-        Assert.Equal(awardedOn.AddDays(365), expiry);
+        Assert.Equal(new DateTimeOffset(2025, 12, 31, 23, 59, 59, TimeSpan.Zero), expiry);
+    }
+
+    [Fact]
+    public void CalculateExpiryDate_WhenValidityDaysProvidedAsMultipleYears_ReturnsEndOfFinalYear()
+    {
+        var awardedOn = new DateTimeOffset(2025, 10, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 730);
+
+        Assert.Equal(new DateTimeOffset(2026, 12, 31, 23, 59, 59, TimeSpan.Zero), expiry);
+    }
+
+    [Fact]
+    public void CalculateExpiryDate_WhenAwardedOnIsStartOfDec31_AnnualValidityIsNotImmediateExpiry()
+    {
+        var awardedOn = new DateTimeOffset(2026, 12, 31, 0, 0, 0, TimeSpan.Zero);
+
+        var expiry = UserTrainingHelper.CalculateExpiryDate(awardedOn, 365);
+
+        Assert.Equal(new DateTimeOffset(2026, 12, 31, 23, 59, 59, TimeSpan.Zero), expiry);
+        Assert.True(expiry > awardedOn);
     }
 
     [Fact]

@@ -5,11 +5,18 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
+import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
+import {
+  annualValidityDayCode,
+  getValidityDayCodeFromDays,
+  getValidityDayOptions,
+  getValidityDaysFromCode,
+} from '../validityDayOptions';
 
 const props = defineProps<{
   training: TrainingLookupResponse;
@@ -25,7 +32,7 @@ type TrainingFormData = {
   description?: string | null;
   mandatory?: boolean;
   rotating?: boolean;
-  validityDays: string;
+  validityDayCode: string;
   advanceNoticeDays: string;
   trainingCategoryId?: number | null;
 };
@@ -38,18 +45,21 @@ const populateFromTraining = (training: TrainingLookupResponse): TrainingFormDat
   code: training.code ?? '',
   description: training.description ?? '',
   mandatory: training.mandatory ?? false,
-  validityDays: training.validityDays == null ? '' : String(training.validityDays),
+  validityDayCode: getValidityDayCodeFromDays(training.validityDays),
   advanceNoticeDays: training.advanceNoticeDays == null ? '' : String(training.advanceNoticeDays),
   rotating: training.rotating ?? false,
   trainingCategoryId: training.trainingCategoryId,
 });
 
 const formData = ref<TrainingFormData>(populateFromTraining(props.training));
+const validityDayOptions = ref(getValidityDayOptions(props.training.validityDays));
+const isAnnualValiditySelected = computed(() => formData.value.validityDayCode === annualValidityDayCode);
 
 watch(
   () => props.training,
   (training) => {
     formData.value = populateFromTraining(training);
+    validityDayOptions.value = getValidityDayOptions(training.validityDays);
     formErrors.value = {};
     apiErrorMessage.value = '';
   },
@@ -89,7 +99,11 @@ const validateForm = (): TrainingLookupRequest | null => {
     formErrors.value.description = validationMessages.tooLong;
   }
 
-  const validityDays = parseOptionalNonNegativeNumber(formData.value.validityDays, 'validityDays');
+  const validityDays = getValidityDaysFromCode(formData.value.validityDayCode);
+  if (validityDays === undefined) {
+    formErrors.value.validityDays = validationMessages.invalid;
+  }
+
   const advanceNoticeDays = parseOptionalNonNegativeNumber(formData.value.advanceNoticeDays, 'advanceNoticeDays');
 
   if (Object.keys(formErrors.value).length > 0) {
@@ -181,17 +195,19 @@ const handleSave = async () => {
         @update:model-value="(value: string) => (formData.description = value)"
       />
 
-      <UaTextField
-        id="training-validity-days"
-        label="Validity (Days)"
-        type="number"
-        min="0"
-        step="1"
-        :model-value="formData.validityDays"
-        :error-messages="formErrors.validityDays"
-        :disabled="isLoading"
-        @update:model-value="(value: string) => (formData.validityDays = value)"
-      />
+      <span class="ua-form-label">Validity</span>
+      <div class="validity-field">
+        <UaSelect
+          id="training-validity"
+          :items="validityDayOptions"
+          v-model="formData.validityDayCode"
+          :error-messages="formErrors.validityDays"
+          :disabled="isLoading"
+        />
+        <span v-if="isAnnualValiditySelected" class="validity-field__hint">
+          Annual validity expires on Dec 31 of the same calendar year as the awarded date.
+        </span>
+      </div>
 
       <UaTextField
         id="training-advance-notice-days"
@@ -262,5 +278,16 @@ const handleSave = async () => {
   display: flex;
   align-items: center;
   min-height: 40px;
+}
+
+.validity-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ua-spacing-xs);
+}
+
+.validity-field__hint {
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-sm);
 }
 </style>

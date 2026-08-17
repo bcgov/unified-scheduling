@@ -12,11 +12,19 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
     public LookupCodeTypes CodeType => LookupCodeTypes.Trainings;
 
     public async Task<IReadOnlyCollection<TrainingLookupResponse>> GetAllTrainingsAsync(
+        bool includeExpired = false,
         CancellationToken cancellationToken = default
     )
     {
-        return await db
-            .Trainings.AsNoTracking()
+        var query = db.Trainings.AsNoTracking().AsQueryable();
+
+        if (!includeExpired)
+        {
+            var now = DateTimeOffset.UtcNow;
+            query = query.Where(t => t.ExpiryDate == null || t.ExpiryDate > now);
+        }
+
+        return await query
             .OrderBy(t => t.Order)
             .ThenBy(t => t.Code)
             .ProjectToType<TrainingLookupResponse>()
@@ -27,7 +35,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         CancellationToken cancellationToken = default
     )
     {
-        var results = await GetAllTrainingsAsync(cancellationToken);
+        var results = await GetAllTrainingsAsync(cancellationToken: cancellationToken);
         return results;
     }
 
@@ -124,6 +132,36 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         }
 
         await transaction.CommitAsync(cancellationToken);
+
+        return await GetRequiredByIdAsync(id, cancellationToken);
+    }
+
+    public async Task<TrainingLookupResponse?> ExpireAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var entity = await db.Trainings.SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
+        if (entity is null)
+            return null;
+
+        if (entity.ExpiryDate is null || entity.ExpiryDate > DateTimeOffset.UtcNow)
+        {
+            entity.ExpiryDate = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return await GetRequiredByIdAsync(id, cancellationToken);
+    }
+
+    public async Task<TrainingLookupResponse?> UnexpireAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var entity = await db.Trainings.SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
+        if (entity is null)
+            return null;
+
+        if (entity.ExpiryDate is not null)
+        {
+            entity.ExpiryDate = null;
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         return await GetRequiredByIdAsync(id, cancellationToken);
     }

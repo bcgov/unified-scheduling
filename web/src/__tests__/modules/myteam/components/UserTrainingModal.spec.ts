@@ -3,14 +3,20 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, ref } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { postApiTrainingUserTrainingsMock, putApiTrainingUserTrainingsIdMock } = vi.hoisted(() => ({
+const {
+  postApiTrainingUserTrainingsMock,
+  putApiTrainingUserTrainingsIdMock,
+  getApiTrainingUserTrainingsExpiryDateMock,
+} = vi.hoisted(() => ({
   postApiTrainingUserTrainingsMock: vi.fn(),
   putApiTrainingUserTrainingsIdMock: vi.fn(),
+  getApiTrainingUserTrainingsExpiryDateMock: vi.fn(),
 }));
 
 vi.mock('@/api-access/generated/user-training/user-training', () => ({
   postApiTrainingUserTrainings: postApiTrainingUserTrainingsMock,
   putApiTrainingUserTrainingsId: putApiTrainingUserTrainingsIdMock,
+  getApiTrainingUserTrainingsExpiryDate: getApiTrainingUserTrainingsExpiryDateMock,
 }));
 
 const UaModalStub = defineComponent({
@@ -36,6 +42,11 @@ describe('UserTrainingModal', () => {
     vi.clearAllMocks();
     postApiTrainingUserTrainingsMock.mockResolvedValue({ error: ref(null) });
     putApiTrainingUserTrainingsIdMock.mockResolvedValue({ error: ref(null) });
+    getApiTrainingUserTrainingsExpiryDateMock.mockReturnValue({
+      data: ref({ expiryDate: '2026-12-31T00:00:00Z' }),
+      error: ref(null),
+      execute: vi.fn().mockResolvedValue(undefined),
+    });
   });
 
   it('saves in edit mode with put and emits saved + close', async () => {

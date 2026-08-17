@@ -72,6 +72,20 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<UserTrainingExpiryDateResponse> CalculateExpiryDateAsync(
+        UserTrainingExpiryDateRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var trainingRules = await GetTrainingRulesAsync(request.TrainingId, cancellationToken: cancellationToken);
+        var awardedOnUtc = request.AwardedOn.ToUniversalTime();
+
+        return new UserTrainingExpiryDateResponse
+        {
+            ExpiryDate = UserTrainingHelper.CalculateExpiryDate(awardedOnUtc, trainingRules.ValidityDays),
+        };
+    }
+
     public async Task<UserTrainingResponse> CreateAsync(
         UserTrainingRequest request,
         CancellationToken cancellationToken = default
@@ -79,7 +93,11 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
     {
         var normalizedRequest = UserTrainingHelper.NormalizeToUtc(request);
 
-        var trainingRules = await GetTrainingRulesAsync(normalizedRequest.TrainingId, cancellationToken);
+        var trainingRules = await GetTrainingRulesAsync(
+            normalizedRequest.TrainingId,
+            includeExpired: false,
+            cancellationToken
+        );
 
         var latestVersion = await GetLatestVersionAsync(
             normalizedRequest.UserId,
@@ -120,7 +138,10 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
         if (normalizedRequest.UserId != entity.UserId || normalizedRequest.TrainingId != entity.TrainingId)
             throw new InvalidOperationException("UserId and TrainingId cannot be changed for an existing version.");
 
-        var trainingRules = await GetTrainingRulesAsync(normalizedRequest.TrainingId, cancellationToken);
+        var trainingRules = await GetTrainingRulesAsync(
+            normalizedRequest.TrainingId,
+            cancellationToken: cancellationToken
+        );
         var validityDays = trainingRules.ValidityDays;
         var expiryDate =
             normalizedRequest.ExpiryDate
@@ -220,14 +241,26 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
             .ThenByDescending(ut => ut.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-    private async Task<TrainingRules> GetTrainingRulesAsync(int trainingId, CancellationToken cancellationToken)
+    private async Task<TrainingRules> GetTrainingRulesAsync(
+        int trainingId,
+        bool includeExpired = true,
+        CancellationToken cancellationToken = default
+    )
     {
+        var now = DateTimeOffset.UtcNow;
+
         var rules = await db
             .Trainings.Where(t => t.Id == trainingId)
+            .Where(t => includeExpired || t.ExpiryDate == null || t.ExpiryDate > now)
             .Select(t => new TrainingRules(t.ValidityDays, t.Rotating))
             .SingleOrDefaultAsync(cancellationToken);
 
-        return rules ?? throw new InvalidOperationException($"Training {trainingId} was not found.");
+        return rules
+            ?? throw new InvalidOperationException(
+                includeExpired
+                    ? $"Training {trainingId} was not found."
+                    : $"Training {trainingId} is expired and cannot be assigned."
+            );
     }
 
     private sealed record TrainingRules(int? ValidityDays, bool Rotating);

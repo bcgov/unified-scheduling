@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { type UserTrainingRequest, type UserTrainingResponse } from '@/api-access/generated/models';
 import {
+  getApiTrainingUserTrainingsExpiryDate,
   postApiTrainingUserTrainings,
   putApiTrainingUserTrainingsId,
 } from '@/api-access/generated/user-training/user-training';
@@ -13,6 +14,7 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import { getTodayDateInputValue, toDateInputValue, toOffsetDateTimeString } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
+import { mdiRefresh } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
 import * as zod from 'zod';
 
@@ -49,8 +51,11 @@ const modalTitle = computed(() => {
   return 'Add User Training';
 });
 const isSaving = ref(false);
+const isGeneratingExpiryDate = ref(false);
 const apiError = ref('');
+const expiryDateAutoGenerateError = ref('');
 const formErrors = ref<Record<string, string>>({});
+const hasManualExpiryDateOverride = ref(false);
 
 const createFormData = () => ({
   trainingId: undefined as number | undefined,
@@ -116,6 +121,10 @@ const getInitialFormData = () => {
 
 const formData = ref(getInitialFormData());
 
+const canGenerateExpiryDate = computed(() => Boolean(formData.value.trainingId && formData.value.awardedOn));
+
+const expiryDateErrorMessages = computed(() => formErrors.value.expiryDate || expiryDateAutoGenerateError.value || '');
+
 const schema = zod.object({
   trainingId: zod.number({ error: 'Training is required.' }),
   awardedOn: zod.string().min(1, 'From date is required.'),
@@ -129,16 +138,92 @@ watch(
   ([training, mode]) => {
     if (!training) {
       formData.value = createFormData();
+      hasManualExpiryDateOverride.value = false;
     } else if (mode === 'edit') {
       formData.value = populateFormData(training);
+      hasManualExpiryDateOverride.value = true;
     } else if (mode === 'renew') {
       formData.value = populateRenewFormData(training);
+      hasManualExpiryDateOverride.value = true;
     } else {
       formData.value = createFormData();
+      hasManualExpiryDateOverride.value = false;
     }
 
     apiError.value = '';
+    expiryDateAutoGenerateError.value = '';
     formErrors.value = {};
+  },
+);
+
+const handleExpiryDateInput = (value: string) => {
+  formData.value.expiryDate = value;
+  hasManualExpiryDateOverride.value = true;
+  expiryDateAutoGenerateError.value = '';
+  delete formErrors.value.expiryDate;
+};
+
+const generateExpiryDate = async (force = false) => {
+  if (!canGenerateExpiryDate.value) {
+    if (!hasManualExpiryDateOverride.value || force) {
+      formData.value.expiryDate = '';
+    }
+    return;
+  }
+
+  if (!force && hasManualExpiryDateOverride.value) {
+    return;
+  }
+
+  isGeneratingExpiryDate.value = true;
+  expiryDateAutoGenerateError.value = '';
+
+  try {
+    const requestedTrainingId = formData.value.trainingId!;
+    const requestedAwardedOn = formData.value.awardedOn;
+
+    const { data, error, execute } = getApiTrainingUserTrainingsExpiryDate(
+      {
+        TrainingId: requestedTrainingId,
+        AwardedOn: toOffsetDateTimeString(requestedAwardedOn, '', 'America/Vancouver'),
+      },
+      {
+        options: {
+          immediate: false,
+        },
+      },
+    );
+
+    await execute();
+
+    if (error.value) {
+      throw error.value;
+    }
+
+    const expiryDate = data.value?.expiryDate ?? null;
+
+    if (requestedTrainingId !== formData.value.trainingId || requestedAwardedOn !== formData.value.awardedOn) {
+      return;
+    }
+
+    formData.value.expiryDate = toDateInputValue(expiryDate) ?? '';
+    hasManualExpiryDateOverride.value = false;
+  } catch (error: unknown) {
+    expiryDateAutoGenerateError.value = error instanceof Error ? error.message : 'Failed to auto-generate expiry date.';
+  } finally {
+    isGeneratingExpiryDate.value = false;
+  }
+};
+
+const handleGenerateExpiryDate = async () => {
+  hasManualExpiryDateOverride.value = false;
+  await generateExpiryDate(true);
+};
+
+watch(
+  () => [formData.value.trainingId, formData.value.awardedOn] as const,
+  () => {
+    void generateExpiryDate();
   },
 );
 
@@ -161,9 +246,7 @@ const buildRequest = (): UserTrainingRequest | null => {
     trainingId: parsed.data.trainingId,
     awardedOn: toOffsetDateTimeString(parsed.data.awardedOn, '', 'America/Vancouver'),
     endingOn: toOffsetDateTimeString(parsed.data.endingOn, '', 'America/Vancouver'),
-    expiryDate: parsed.data.expiryDate
-      ? toOffsetDateTimeString(parsed.data.expiryDate, '23:59', 'America/Vancouver')
-      : null,
+    expiryDate: parsed.data.expiryDate ? toOffsetDateTimeString(parsed.data.expiryDate, '', 'America/Vancouver') : null,
     notes: parsed.data.notes.trim() || null,
   };
 };
@@ -239,13 +322,29 @@ const handleSave = async () => {
         :error-messages="formErrors.endingOn"
       />
 
-      <UaTextField
-        id="user-training-expiry-date"
-        v-model="formData.expiryDate"
-        type="date"
-        label="Expiry Date"
-        :error-messages="formErrors.expiryDate"
-      />
+      <label class="ua-form-label" for="user-training-expiry-date">Expiry Date</label>
+      <div class="user-training-modal__expiry-row">
+        <UaTextField
+          id="user-training-expiry-date"
+          class="user-training-modal__expiry-input"
+          :model-value="formData.expiryDate"
+          type="date"
+          label=""
+          :error-messages="expiryDateErrorMessages"
+          @update:model-value="handleExpiryDateInput"
+        />
+        <UaBtn
+          class="user-training-modal__generate-expiry-btn"
+          variant="tonal"
+          color="primary"
+          :prepend-icon="mdiRefresh"
+          :disabled="!canGenerateExpiryDate || isGeneratingExpiryDate"
+          :loading="isGeneratingExpiryDate"
+          @click="handleGenerateExpiryDate"
+        >
+          Generate expiry
+        </UaBtn>
+      </div>
 
       <UaTextarea id="user-training-notes" v-model="formData.notes" label="Notes" />
     </UaFormGrid>
@@ -256,3 +355,33 @@ const handleSave = async () => {
     </template>
   </UaModal>
 </template>
+
+<style scoped>
+.user-training-modal__expiry-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ua-spacing-sm);
+}
+
+.user-training-modal__expiry-input {
+  flex: 1;
+}
+
+.user-training-modal__generate-expiry-btn {
+  margin-top: -2px;
+  white-space: nowrap;
+  font-weight: var(--ua-font-weight-medium);
+}
+
+@media (max-width: 640px) {
+  .user-training-modal__expiry-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .user-training-modal__generate-expiry-btn {
+    align-self: flex-start;
+    margin-top: 0;
+  }
+}
+</style>

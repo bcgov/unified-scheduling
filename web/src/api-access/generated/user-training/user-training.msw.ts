@@ -9,7 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { UserTrainingResponse } from '../models';
+import type { UserTrainingExpiryDateResponse, UserTrainingResponse } from '../models';
 
 export const getGetApiTrainingsUsersUserIdResponseMock = (): UserTrainingResponse[] =>
   faker.helpers.arrayElement([
@@ -161,6 +161,33 @@ export const getGetApiTrainingsTrainingIdUsersUserIdResponseMock = (
       ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+  ]);
+
+export const getGetApiTrainingUserTrainingsExpiryDateResponseMock = (
+  overrideResponse: Partial<Extract<UserTrainingExpiryDateResponse, object>> = {},
+): UserTrainingExpiryDateResponse =>
+  faker.helpers.arrayElement([
+    {
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      expiryDate: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
         undefined,
       ]),
@@ -376,6 +403,30 @@ export const getGetApiTrainingsTrainingIdUsersUserIdMockHandler = (
   );
 };
 
+export const getGetApiTrainingUserTrainingsExpiryDateMockHandler = (
+  overrideResponse?:
+    | UserTrainingExpiryDateResponse
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<UserTrainingExpiryDateResponse> | UserTrainingExpiryDateResponse),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/training/user-trainings/expiry-date',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiTrainingUserTrainingsExpiryDateResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
+
 export const getPostApiTrainingUserTrainingsMockHandler = (
   overrideResponse?:
     | UserTrainingResponse
@@ -439,6 +490,7 @@ export const getDeleteApiTrainingUserTrainingsIdMockHandler = (
 export const getUserTrainingMock = () => [
   getGetApiTrainingsUsersUserIdMockHandler(),
   getGetApiTrainingsTrainingIdUsersUserIdMockHandler(),
+  getGetApiTrainingUserTrainingsExpiryDateMockHandler(),
   getPostApiTrainingUserTrainingsMockHandler(),
   getPutApiTrainingUserTrainingsIdMockHandler(),
   getDeleteApiTrainingUserTrainingsIdMockHandler(),

@@ -15,6 +15,11 @@ public interface IUserTrainingService
         CancellationToken cancellationToken = default
     );
 
+    Task<UserTrainingExpiryDateResponse> CalculateExpiryDateAsync(
+        UserTrainingExpiryDateRequest request,
+        CancellationToken cancellationToken = default
+    );
+
     Task<UserTrainingResponse> CreateAsync(UserTrainingRequest request, CancellationToken cancellationToken = default);
 
     Task<UserTrainingResponse?> UpdateAsync(

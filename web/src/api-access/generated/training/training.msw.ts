@@ -657,6 +657,40 @@ export const getPatchApiLookupTrainingsIdOrderMockHandler = (
     options,
   );
 };
+
+export const getPatchApiLookupTrainingsIdExpireMockHandler = (
+  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<void> | void),
+  options?: RequestHandlerOptions,
+) => {
+  return http.patch(
+    '*/api/lookup/trainings/:id/expire',
+    async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+      if (typeof overrideResponse === 'function') {
+        await overrideResponse(info);
+      }
+
+      return new HttpResponse(null, { status: 204 });
+    },
+    options,
+  );
+};
+
+export const getPatchApiLookupTrainingsIdUnexpireMockHandler = (
+  overrideResponse?: void | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<void> | void),
+  options?: RequestHandlerOptions,
+) => {
+  return http.patch(
+    '*/api/lookup/trainings/:id/unexpire',
+    async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+      if (typeof overrideResponse === 'function') {
+        await overrideResponse(info);
+      }
+
+      return new HttpResponse(null, { status: 204 });
+    },
+    options,
+  );
+};
 export const getTrainingMock = () => [
   getGetTrainingHealthMockHandler(),
   getGetApiLookupTrainingsMockHandler(),
@@ -664,4 +698,6 @@ export const getTrainingMock = () => [
   getGetApiLookupTrainingsIdMockHandler(),
   getPutApiLookupTrainingsIdMockHandler(),
   getPatchApiLookupTrainingsIdOrderMockHandler(),
+  getPatchApiLookupTrainingsIdExpireMockHandler(),
+  getPatchApiLookupTrainingsIdUnexpireMockHandler(),
 ];

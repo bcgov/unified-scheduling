@@ -48,6 +48,15 @@ export const GetApiTrainingsTrainingIdUsersUserIdResponse = zod.object({
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
 });
 
+export const GetApiTrainingUserTrainingsExpiryDateQueryParams = zod.strictObject({
+  TrainingId: zod.int().optional(),
+  AwardedOn: zod.iso.datetime({ offset: true }).optional(),
+});
+
+export const GetApiTrainingUserTrainingsExpiryDateResponse = zod.object({
+  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
+});
+
 export const PostApiTrainingUserTrainingsBody = zod.strictObject({
   userId: zod.uuid(),
   trainingId: zod.int(),

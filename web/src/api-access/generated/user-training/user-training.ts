@@ -4,7 +4,12 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { UserTrainingRequest, UserTrainingResponse } from '../models';
+import type {
+  GetApiTrainingUserTrainingsExpiryDateParams,
+  UserTrainingExpiryDateResponse,
+  UserTrainingRequest,
+  UserTrainingResponse,
+} from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI.ts';
 
@@ -23,6 +28,15 @@ export const getApiTrainingsTrainingIdUsersUserId = (
 ) => {
   return useFetchAPI<UserTrainingResponse>(
     { url: `/api/trainings/${trainingId}/users/${userId}`, method: 'GET' },
+    options,
+  );
+};
+export const getApiTrainingUserTrainingsExpiryDate = (
+  params?: GetApiTrainingUserTrainingsExpiryDateParams,
+  options?: SecondParameter<typeof useFetchAPI<UserTrainingExpiryDateResponse>>,
+) => {
+  return useFetchAPI<UserTrainingExpiryDateResponse>(
+    { url: `/api/training/user-trainings/expiry-date`, method: 'GET', params },
     options,
   );
 };
@@ -61,6 +75,9 @@ export const deleteApiTrainingUserTrainingsId = (id: number, options?: SecondPar
 export type GetApiTrainingsUsersUserIdResult = NonNullable<Awaited<ReturnType<typeof getApiTrainingsUsersUserId>>>;
 export type GetApiTrainingsTrainingIdUsersUserIdResult = NonNullable<
   Awaited<ReturnType<typeof getApiTrainingsTrainingIdUsersUserId>>
+>;
+export type GetApiTrainingUserTrainingsExpiryDateResult = NonNullable<
+  Awaited<ReturnType<typeof getApiTrainingUserTrainingsExpiryDate>>
 >;
 export type PostApiTrainingUserTrainingsResult = NonNullable<Awaited<ReturnType<typeof postApiTrainingUserTrainings>>>;
 export type PutApiTrainingUserTrainingsIdResult = NonNullable<

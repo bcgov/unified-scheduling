@@ -64,6 +64,65 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetAllTrainingsAsync_Should_Exclude_Expired_By_Default()
+    {
+        _dbContext.Trainings.AddRange(
+            new TrainingEntity
+            {
+                Code = "ACTIVE",
+                Description = "Active training",
+                Order = 0,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-5),
+                ExpiryDate = null,
+            },
+            new TrainingEntity
+            {
+                Code = "EXPIRED",
+                Description = "Expired training",
+                Order = 1,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-10),
+                ExpiryDate = DateTimeOffset.UtcNow.AddDays(-1),
+            }
+        );
+
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _strategy.GetAllTrainingsAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        var onlyTraining = Assert.Single(result);
+        Assert.Equal("ACTIVE", onlyTraining.Code);
+    }
+
+    [Fact]
+    public async Task GetAllTrainingsAsync_WhenIncludeExpired_IsTrue_Should_Return_All()
+    {
+        _dbContext.Trainings.AddRange(
+            new TrainingEntity
+            {
+                Code = "ACTIVE",
+                Description = "Active training",
+                Order = 0,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-5),
+                ExpiryDate = null,
+            },
+            new TrainingEntity
+            {
+                Code = "EXPIRED",
+                Description = "Expired training",
+                Order = 1,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-10),
+                ExpiryDate = DateTimeOffset.UtcNow.AddDays(-1),
+            }
+        );
+
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _strategy.GetAllTrainingsAsync(true, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
     public async Task CreateAsync_Should_Create_Training_Response()
     {
         var result = await _strategy.CreateAsync(
@@ -142,6 +201,47 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
             .Select(t => t.Code)
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(["C", "A", "B"], orderedCodes);
+    }
+
+    [Fact]
+    public async Task ExpireAsync_Should_Set_ExpiryDate()
+    {
+        var entity = new TrainingEntity
+        {
+            Code = "ACTIVE",
+            Description = "Active training",
+            Order = 0,
+            EffectiveDate = DateTimeOffset.UtcNow.AddDays(-5),
+        };
+
+        _dbContext.Trainings.Add(entity);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _strategy.ExpireAsync(entity.Id, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result!.ExpiryDate);
+    }
+
+    [Fact]
+    public async Task UnexpireAsync_Should_Clear_ExpiryDate()
+    {
+        var entity = new TrainingEntity
+        {
+            Code = "EXPIRED",
+            Description = "Expired training",
+            Order = 0,
+            EffectiveDate = DateTimeOffset.UtcNow.AddDays(-5),
+            ExpiryDate = DateTimeOffset.UtcNow.AddDays(-1),
+        };
+
+        _dbContext.Trainings.Add(entity);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _strategy.UnexpireAsync(entity.Id, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Null(result!.ExpiryDate);
     }
 
     [Fact]
