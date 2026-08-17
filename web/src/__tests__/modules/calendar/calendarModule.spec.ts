@@ -74,22 +74,26 @@ describe('calendar module integration', () => {
   });
 
   it('loads contribution data and respects the feature flag gate', async () => {
-    const postApiCalendarEvents = vi.fn().mockResolvedValue([
-      {
-        id: 'stat-holiday:CanadaDay:2025-07-01',
-        title: 'Holiday',
-        startAtUtc: '2025-07-01T00:00:00Z',
-        endAtUtc: '2025-07-02T00:00:00Z',
-        allDay: true,
-        isReadOnly: true,
-        isException: false,
-        holidayType: 'CanadaDay',
-        eventTypeCode: 'Holiday',
-        statusTypeCode: 'Active',
-        sourceModule: 'calendar',
-        locationId: 12,
-      },
-    ]);
+    const postApiCalendarEvents = vi.fn().mockResolvedValue({
+      moduleId: 'calendar',
+      contributionId: 'calendar.events',
+      events: [
+        {
+          id: 'stat-holiday:CanadaDay:2025-07-01',
+          title: 'Holiday',
+          startAtUtc: '2025-07-01T00:00:00Z',
+          endAtUtc: '2025-07-02T00:00:00Z',
+          allDay: true,
+          isReadOnly: true,
+          isException: false,
+          holidayType: 'CanadaDay',
+          eventTypeCode: 'Holiday',
+          statusTypeCode: 'Active',
+          sourceModule: 'calendar',
+          locationId: 12,
+        },
+      ],
+    });
 
     vi.doMock('@/api-access/calendar', async (importOriginal) => {
       const actual = await importOriginal<typeof import('@/api-access/calendar')>();
