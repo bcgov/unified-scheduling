@@ -14,14 +14,14 @@ public sealed class BcStatutoryHolidayCalculator : IStatutoryHolidayCalculator
         for (var year = startDate.Year; year <= endDate.Year; year++)
         {
             holidays.AddRange(
-                CalculateYear(year).Where(holiday => holiday.Date >= startDate && holiday.Date <= endDate)
+                CalculateHolidaysForYear(year).Where(holiday => holiday.Date >= startDate && holiday.Date <= endDate)
             );
         }
 
         return holidays;
     }
 
-    private static IReadOnlyList<StatutoryHoliday> CalculateYear(int year)
+    private static IReadOnlyList<StatutoryHoliday> CalculateHolidaysForYear(int year)
     {
         var easterSunday = CalculateGregorianEasterSunday(year);
 
