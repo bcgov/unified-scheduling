@@ -8,6 +8,7 @@ export interface CalendarEventBase {
   description?: string;
   notes?: string;
   color?: string;
+  eventSeriesId?: number;
   start: string;
   end?: string;
   seriesStartAtUtc?: string;

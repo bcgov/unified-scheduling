@@ -13,7 +13,7 @@ import type {
   CalendarMatrixCellHeaderClickEvent,
   CalendarMatrixDragPayload,
   CalendarMatrixEventBlockActionEvent,
-  CalendarMatrixResource,
+  CalendarMatrixResourceAddEvent,
   CalendarMatrixViewModel,
 } from './calendarMatrixTypes';
 
@@ -35,7 +35,7 @@ const emit = defineEmits<{
   (event: 'headerClick', payload: CalendarMatrixCellHeaderClickEvent): void;
   (event: 'sidePanelAction'): void;
   (event: 'dragStart', payload: CalendarMatrixDragPayload): void;
-  (event: 'resourceAdd', payload: CalendarMatrixResource): void;
+  (event: 'resourceAdd', payload: CalendarMatrixResourceAddEvent): void;
 }>();
 
 const calendarStore = useCalendarStore();
@@ -115,10 +115,11 @@ async function handleSidePanelAction() {
   });
 }
 
-async function handleResourceAdd(resource: CalendarMatrixResource) {
+async function handleResourceAdd(payload: CalendarMatrixResourceAddEvent) {
   const actionContext = {
-    resource,
-    actionId: resource.action?.actionId,
+    resource: payload.resource,
+    cell: payload.cell,
+    actionId: payload.resource.action?.actionId,
     model: props.model,
   };
   const actions = calendarActionRegistry.getMatrixResourceActions(actionContext, props.runtimeContext);

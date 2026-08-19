@@ -18,6 +18,7 @@ export function mapApiCalendarEventToCalendarEventBase(apiEvent: CalendarEventRe
     description: apiEvent.description ?? undefined,
     notes: apiEvent.notes ?? undefined,
     color: apiEvent.color ?? undefined,
+    eventSeriesId: apiEvent.eventSeriesId ?? undefined,
     start,
     end,
     seriesStartAtUtc: apiEvent.seriesStartAtUtc ?? undefined,

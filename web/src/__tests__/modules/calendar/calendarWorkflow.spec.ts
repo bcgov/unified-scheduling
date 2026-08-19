@@ -115,6 +115,7 @@ describe('calendar workflow', () => {
     calendarStore.setPeriod('week');
     calendarStore.setAnchorDate('2025-04-07');
     locationsStore.entities = [{ id: 12, name: 'Main Hall' }];
+    locationsStore.setSelectedLocationId(12);
 
     const wrapper = mount(Calendar, {
       attachTo: document.body,
@@ -133,7 +134,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: undefined, filters: {} },
+        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -146,7 +147,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: undefined, filters: {} },
+        { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -157,7 +158,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: undefined, filters: {} },
+        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -169,7 +170,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: undefined, filters: {} },
+        { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -190,7 +191,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: '2025-04-14', endDate: '2025-04-21', locationId: undefined, filters: {} },
+        { startDate: '2025-04-14', endDate: '2025-04-21', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -202,7 +203,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: '2025-04-16', endDate: '2025-04-17', locationId: undefined, filters: {} },
+        { startDate: '2025-04-16', endDate: '2025-04-17', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -213,7 +214,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: '2025-04-14', endDate: '2025-04-19', locationId: undefined, filters: {} },
+        { startDate: '2025-04-14', endDate: '2025-04-19', locationId: 12, filters: {} },
         expect.any(Object),
       );
 

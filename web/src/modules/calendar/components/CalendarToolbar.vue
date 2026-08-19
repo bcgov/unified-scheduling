@@ -15,8 +15,6 @@ const props = defineProps<{
   views: CalendarViewDefinition[];
   activeViewId: string;
   createActions: CalendarToolbarAction[];
-  locationOptions: SelectOption[];
-  locationValue: SelectValue;
   rangeLabel: string;
   anchorDate: string;
   toolbarActions: CalendarToolbarAction[];
@@ -27,7 +25,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'update:activeViewId', viewId: string): void;
-  (event: 'update:locationValue', value: SelectValue | undefined): void;
   (event: 'update:period', period: CalendarPeriod): void;
   (event: 'selectDate', date: string): void;
   (event: 'previous'): void;
@@ -103,15 +100,6 @@ function handleDateSelection(value: unknown) {
     </div>
 
     <div class="calendar-toolbar">
-      <div class="calendar-toolbar__group calendar-toolbar__group--filters">
-        <UaSelect
-          label="Location"
-          :items="locationOptions"
-          :model-value="locationValue"
-          @update:model-value="emit('update:locationValue', $event)"
-        />
-      </div>
-
       <div class="calendar-toolbar__group calendar-toolbar__group--range">
         <UaBtn
           class="calendar-toolbar__nav-button"
@@ -218,7 +206,7 @@ function handleDateSelection(value: unknown) {
   border-radius: 0;
   display: grid;
   gap: var(--ua-spacing-md);
-  grid-template-columns: minmax(260px, auto) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: var(--ua-spacing-md) var(--ua-spacing-lg);
 }
 

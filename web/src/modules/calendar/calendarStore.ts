@@ -16,6 +16,7 @@ export const useCalendarStore = defineStore('calendar', () => {
   const dateRange = computed(() => buildDateRangeForPeriod(anchorDate.value, period.value));
   const locationId = ref<number>();
   const filters = ref<Record<string, unknown>>({});
+  const refreshNonce = ref(0);
   const selectedEventId = ref<string>();
   const selectedResourceId = ref<string>();
 
@@ -73,6 +74,10 @@ export const useCalendarStore = defineStore('calendar', () => {
     selectedResourceId.value = undefined;
   };
 
+  const refresh = () => {
+    refreshNonce.value += 1;
+  };
+
   return {
     activeViewId,
     dateRange,
@@ -80,6 +85,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     period,
     locationId,
     filters,
+    refreshNonce,
     selectedEventId,
     selectedResourceId,
     setActiveView,
@@ -94,5 +100,6 @@ export const useCalendarStore = defineStore('calendar', () => {
     clearSelectedEvent,
     setSelectedResource,
     clearSelection,
+    refresh,
   };
 });
