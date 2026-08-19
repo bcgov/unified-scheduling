@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
 import type { FeatureFlagsResponse } from '@/api-access/generated/models';
+import { getPostApiCalendarEventsMockHandler } from '@/api-access/generated/calendar/calendar.msw';
+import { server } from '@/__tests__/mocks/server';
 
 describe('calendar module integration', () => {
   beforeEach(() => {
@@ -74,35 +76,34 @@ describe('calendar module integration', () => {
   });
 
   it('loads contribution data and respects the feature flag gate', async () => {
-    const postApiCalendarEvents = vi.fn().mockResolvedValue({
-      moduleId: 'calendar',
-      contributionId: 'calendar.events',
-      events: [
-        {
-          id: 'stat-holiday:CanadaDay:2025-07-01',
-          title: 'Holiday',
-          startAtUtc: '2025-07-01T00:00:00Z',
-          endAtUtc: '2025-07-02T00:00:00Z',
-          allDay: true,
-          isReadOnly: true,
-          isException: false,
-          holidayType: 'CanadaDay',
-          eventTypeCode: 'Holiday',
-          statusTypeCode: 'Active',
-          sourceModule: 'calendar',
-          locationId: 12,
-        },
-      ],
-    });
+    let requestBody: unknown;
 
-    vi.doMock('@/api-access/calendar', async (importOriginal) => {
-      const actual = await importOriginal<typeof import('@/api-access/calendar')>();
+    server.use(
+      getPostApiCalendarEventsMockHandler(async ({ request }) => {
+        requestBody = await request.json();
 
-      return {
-        ...actual,
-        postApiCalendarEvents,
-      };
-    });
+        return {
+          moduleId: 'calendar',
+          contributionId: 'calendar.events',
+          events: [
+            {
+              id: 'stat-holiday:CanadaDay:2025-07-01',
+              title: 'Holiday',
+              startAtUtc: '2025-07-01T00:00:00Z',
+              endAtUtc: '2025-07-02T00:00:00Z',
+              allDay: true,
+              isReadOnly: true,
+              isException: false,
+              holidayType: 'CanadaDay',
+              eventTypeCode: 'Holiday',
+              statusTypeCode: 'Active',
+              sourceModule: 'calendar',
+              locationId: 12,
+            },
+          ],
+        };
+      }),
+    );
 
     const { calendarEventsContribution } = await import('@/modules/calendar/contributions/calendarEventsContribution');
 
@@ -140,15 +141,12 @@ describe('calendar module integration', () => {
       ],
     });
 
-    expect(postApiCalendarEvents).toHaveBeenCalledWith(
-      {
-        startDate: '2025-07-01',
-        endDate: '2025-07-07',
-        locationId: 12,
-        filters: { owner: 'team' },
-      },
-      { fetchOptions: { signal: expect.any(AbortSignal) } },
-    );
+    expect(requestBody).toEqual({
+      startDate: '2025-07-01',
+      endDate: '2025-07-07',
+      locationId: 12,
+      filters: { owner: 'team' },
+    });
   });
 
   it('aborts stale calendar data requests and supports manual cancellation', async () => {

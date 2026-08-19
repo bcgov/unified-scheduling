@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { calendarEventTypes, type ApiCalendarEventResponse } from '@/api-access/calendar';
 import {
   addDays,
   buildDateRangeForPeriod,
@@ -15,7 +14,12 @@ import {
   toCalendarDateOnly,
 } from '@/utils/date';
 import { getCalendarEventDateKey } from '@/modules/calendarMatrixTest/calendarMatrixTestMappers';
-import { CalendarEventStatusTypeCode, CalendarEventTypeCode } from '@/api-access/generated/models';
+import {
+  CalendarEventStatusTypeCode,
+  CalendarEventType,
+  CalendarEventTypeCode,
+  type CalendarEventResponse,
+} from '@/api-access/generated/models';
 import { selectCalendarEvents, selectContribution } from '@/modules/calendar/calendarSelectors';
 import { mapApiCalendarEventToCalendarEventBase } from '@/modules/calendar/contributions/calendarEventMappers';
 import { buildCalendarPeriodSelectOptions, DEFAULT_CALENDAR_PERIODS } from '@/modules/calendar/calendarPeriodOptions';
@@ -158,10 +162,10 @@ describe('calendar event mappers', () => {
         eventTypeCode: '',
         statusTypeCode: CalendarEventStatusTypeCode.Active,
         sourceModule: 'calendar',
-      } as unknown as ApiCalendarEventResponse),
+      } as unknown as CalendarEventResponse),
     ).toMatchObject({
       id: '10',
-      type: calendarEventTypes.calendarEvent,
+      type: CalendarEventType.calendarevent,
       start: '2025-07-01',
       end: '2025-07-02',
       eventTypeCode: CalendarEventTypeCode.General,
@@ -181,14 +185,14 @@ describe('calendar event mappers', () => {
         allDay: false,
         isReadOnly: false,
         isException: true,
-        type: calendarEventTypes.calendarEvent,
+        type: CalendarEventType.calendarevent,
         eventTypeCode: CalendarEventTypeCode.Deadline,
         statusTypeCode: CalendarEventStatusTypeCode.Draft,
         sourceModule: 'calendar',
       }),
     ).toMatchObject({
       id: '11',
-      type: calendarEventTypes.calendarEvent,
+      type: CalendarEventType.calendarevent,
       start: '2025-07-01T09:00:00Z',
       end: '2025-07-01T10:00:00Z',
       isException: true,

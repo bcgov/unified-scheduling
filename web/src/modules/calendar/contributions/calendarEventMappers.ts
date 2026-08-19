@@ -1,9 +1,8 @@
-import { calendarEventTypes, type ApiCalendarEventResponse } from '@/api-access/calendar';
-import { CalendarEventTypeCode } from '@/api-access/generated/models';
+import { CalendarEventType, CalendarEventTypeCode, type CalendarEventResponse } from '@/api-access/generated/models';
 import { toCalendarDateOnly } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 
-export function mapApiCalendarEventToCalendarEventBase(apiEvent: ApiCalendarEventResponse): CalendarEventBase {
+export function mapApiCalendarEventToCalendarEventBase(apiEvent: CalendarEventResponse): CalendarEventBase {
   const endAtUtc = apiEvent.endAtUtc ?? undefined;
   const start = apiEvent.allDay
     ? (toCalendarDateOnly(apiEvent.startAtUtc) ?? apiEvent.startAtUtc)
@@ -13,7 +12,7 @@ export function mapApiCalendarEventToCalendarEventBase(apiEvent: ApiCalendarEven
 
   return {
     id: String(apiEvent.id),
-    type: apiEvent.type ?? calendarEventTypes.calendarEvent,
+    type: apiEvent.type ?? CalendarEventType.calendarevent,
     sourceModule: apiEvent.sourceModule,
     title: apiEvent.title,
     description: apiEvent.description ?? undefined,

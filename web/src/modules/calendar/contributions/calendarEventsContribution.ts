@@ -1,4 +1,5 @@
-import { postApiCalendarEvents } from '@/api-access/calendar';
+import { postApiCalendarEvents } from '@/api-access/generated/calendar/calendar';
+import type { CalendarDataRequestFilters } from '@/api-access/generated/models';
 import { addDays } from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 import type { CalendarModuleContribution } from '../registry/calendarRegistryTypes';
@@ -11,21 +12,30 @@ export const calendarEventsContribution: CalendarModuleContribution = {
     return runtimeContext.featureFlags.Calendar?.enabled ?? true;
   },
   async load(context, options) {
-    const response = await postApiCalendarEvents(
+    const { data, error, execute } = postApiCalendarEvents(
       {
         startDate: context.startDate,
         // Calendar view ranges end exclusively; the API accepts an inclusive date-only range.
         endDate: addDays(context.endDate, -1),
         locationId: context.locationId,
-        filters: context.filters,
+        filters: context.filters as CalendarDataRequestFilters,
       },
-      { fetchOptions: { signal: options?.signal } },
+      {
+        fetchOptions: { signal: options?.signal },
+        options: { immediate: false },
+      },
     );
+
+    await execute();
+
+    if (error.value) {
+      throw error.value;
+    }
 
     return {
       moduleId: 'calendar',
       contributionId: 'calendar.events',
-      events: (response.events ?? []).map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
+      events: (data.value?.events ?? []).map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
     };
   },
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { calendarEventTypes } from '@/api-access/calendar';
+import { CalendarEventType } from '@/api-access/generated/models';
 import { CalendarActionRegistry } from '@/modules/calendar/registry/calendarActionRegistry';
 import { CalendarMatrixActionType } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type { CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
@@ -20,7 +20,7 @@ const cell = { resourceId: 'resource-1', date: '2025-01-13', groups: [] };
 const header = { text: 'Header' };
 const event = {
   id: 'event-1',
-  type: calendarEventTypes.calendarEvent,
+  type: CalendarEventType.calendarevent,
   sourceModule: 'calendar',
   title: 'Event',
   start: '2025-01-13T09:00:00Z',
