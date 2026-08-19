@@ -1,6 +1,6 @@
 # ADR: Standardize on Luxon for frontend date manipulation
 
-- Status: Draft
+- Status: Accepted
 - Date: 2026-08-18
 - Deciders: Not identified; issue #132 was opened by @BronzBierd
 - Technical area: Web frontend date and time handling
@@ -12,7 +12,7 @@ The frontend already depends on Luxon, uses its Vuetify adapter, and relies on
 `web/src/utils/date.ts` for parsing, formatting, and timezone conversion. Issue
 #132 asks that this existing practice be recorded. The application handles
 date-only values, local date-times, offsets, and IANA zones, but the convention
-for handling those values and the long-term library choice are not yet agreed.
+for handling those values still needs shared implementation guidance.
 
 ## Decision
 
@@ -39,7 +39,8 @@ Server-side date types are out of scope.
 
 - Define canonical handling for date-only, local, instant, and zoned values.
 - Decide whether direct library usage should migrate to shared utilities.
-- Decide when, if ever, Temporal should replace Luxon.
+- Revisit the frontend date library only through a superseding ADR if
+  requirements change.
 
 ## References
 
