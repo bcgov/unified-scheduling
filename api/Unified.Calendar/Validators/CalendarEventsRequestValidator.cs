@@ -24,12 +24,22 @@ public sealed class CalendarDataRequestValidator : AbstractValidator<CalendarDat
             .WithMessage("End date must be after 1900-01-01.");
 
         RuleFor(x => x.StartDate)
-            .LessThan(x => x.EndDate)
+            .LessThanOrEqualTo(TimeZoneDateRangeLimits.MaximumSupportedDate)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage($"Start date cannot be after {TimeZoneDateRangeLimits.MaximumSupportedDate:yyyy-MM-dd}.");
+
+        RuleFor(x => x.EndDate)
+            .LessThanOrEqualTo(TimeZoneDateRangeLimits.MaximumSupportedDate)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage($"End date cannot be after {TimeZoneDateRangeLimits.MaximumSupportedDate:yyyy-MM-dd}.");
+
+        RuleFor(x => x.StartDate)
+            .LessThanOrEqualTo(x => x.EndDate)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage("Start date must be on or before end date.");
 
         RuleFor(x => x.EndDate)
-            .Must((request, endDate) => endDate.DayNumber - request.StartDate.DayNumber + 1 <= MaxRangeLengthDays) // use +1 due to inclusive day range.
+            .Must((request, endDate) => endDate.DayNumber - request.StartDate.DayNumber + 1 <= MaxRangeLengthDays)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage("Date range cannot exceed 366 days.");
 

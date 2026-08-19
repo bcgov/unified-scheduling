@@ -176,7 +176,7 @@ describe('calendar registries and store', () => {
 
     const store = useCalendarStore();
     store.setActiveView('calendar-default');
-    store.setDateRange('2025-02-01', '2025-02-08');
+    store.setAnchorDate('2025-02-01');
     store.setPeriod('month');
     store.setLocationId(42);
     store.setFilter('owner', 'me');
@@ -184,7 +184,8 @@ describe('calendar registries and store', () => {
     store.setSelectedResource('resource-1');
 
     expect(store.activeViewId).toBe('calendar-default');
-    expect(store.dateRange).toEqual({ startDate: '2025-02-01', endDate: '2025-02-08' });
+    expect(store.dateRange).toEqual({ startDate: '2025-02-01', endDate: '2025-03-01' });
+    expect(store.anchorDate).toBe('2025-02-01');
     expect(store.period).toBe('month');
     expect(store.locationId).toBe(42);
     expect(store.filters).toEqual({ owner: 'me' });
@@ -200,6 +201,44 @@ describe('calendar registries and store', () => {
     expect(store.selectedEventId).toBeUndefined();
     expect(store.selectedResourceId).toBeUndefined();
     expect(store.locationId).toBeUndefined();
+  });
+
+  it('derives ranges from the anchor and period navigation state', () => {
+    const store = useCalendarStore();
+
+    store.setAnchorDate('2025-04-16');
+    expect(store.dateRange).toEqual({ startDate: '2025-04-14', endDate: '2025-04-21' });
+
+    store.setPeriod('day');
+    expect(store.anchorDate).toBe('2025-04-16');
+    expect(store.dateRange).toEqual({ startDate: '2025-04-16', endDate: '2025-04-17' });
+
+    store.shiftPeriod('next');
+    expect(store.anchorDate).toBe('2025-04-17');
+
+    store.setPeriod('work-week');
+    store.shiftPeriod('previous');
+    expect(store.anchorDate).toBe('2025-04-10');
+    expect(store.dateRange).toEqual({ startDate: '2025-04-07', endDate: '2025-04-12' });
+  });
+
+  it('resets the anchor to today without changing the selected period', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-04-09T12:00:00Z'));
+
+    try {
+      const store = useCalendarStore();
+      store.setAnchorDate('2025-04-16');
+      store.setPeriod('day');
+
+      store.goToToday();
+
+      expect(store.anchorDate).toBe('2025-04-09');
+      expect(store.period).toBe('day');
+      expect(store.dateRange).toEqual({ startDate: '2025-04-09', endDate: '2025-04-10' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('opens the event detail modal by selecting the event in the store', () => {

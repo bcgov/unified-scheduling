@@ -8,9 +8,10 @@ import type { CalendarEventStatus } from './calendarEventStatus.ts';
 import type { CalendarEventStatusTypeCode } from './calendarEventStatusTypeCode.ts';
 import type { CalendarEventType } from './calendarEventType.ts';
 import type { CalendarEventTypeCode } from './calendarEventTypeCode.ts';
+import type { StatutoryHolidayType } from './statutoryHolidayType.ts';
 
 export interface CalendarEventResponse {
-  id: number;
+  id: string;
   /** @nullable */
   eventSeriesId?: number | null;
   title: string;
@@ -30,9 +31,11 @@ export interface CalendarEventResponse {
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;
+  isReadOnly?: boolean;
   isException?: boolean;
   type?: CalendarEventType;
   status?: CalendarEventStatus;
+  holidayType?: null | StatutoryHolidayType;
   eventTypeCode: CalendarEventTypeCode;
   statusTypeCode: CalendarEventStatusTypeCode;
   /** @nullable */

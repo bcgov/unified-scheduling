@@ -7,34 +7,64 @@
 import * as zod from 'zod';
 
 export const PostApiCalendarEventsBody = zod.strictObject({
-  startDate: zod.iso.datetime({ offset: true }),
-  endDate: zod.iso.datetime({ offset: true }),
+  startDate: zod.iso.date(),
+  endDate: zod.iso.date(),
+  timeZoneId: zod.string().nullish(),
   locationId: zod.int().nullish(),
-  filters: zod.looseObject({}).nullish(),
+  filters: zod.record(zod.string(), zod.string()).nullish(),
 });
 
-export const PostApiCalendarEventsResponseItem = zod.object({
-  id: zod.int(),
-  eventSeriesId: zod.int().nullish(),
-  title: zod.string(),
-  description: zod.string().nullish(),
-  notes: zod.string().nullish(),
-  color: zod.string().nullish(),
-  startAtUtc: zod.iso.datetime({ offset: true }),
-  endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
-  seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
-  seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
-  timeZoneId: zod.string().nullish(),
-  allDay: zod.boolean().optional(),
-  isException: zod.boolean().optional(),
-  type: zod.enum(['calendar.event']).optional(),
-  status: zod.enum(['Active', 'Draft', 'Draft Item', 'Cancelled']).optional(),
-  eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline', 'AwayLocation']),
-  statusTypeCode: zod.enum(['Draft', 'Active', 'Cancelled']),
-  cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
-  cancelledByUserId: zod.uuid().nullish(),
-  cancellationReason: zod.string().nullish(),
-  sourceModule: zod.string(),
-  locationId: zod.int().nullish(),
+export const PostApiCalendarEventsResponse = zod.object({
+  moduleId: zod.string().optional(),
+  contributionId: zod.string().optional(),
+  events: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        eventSeriesId: zod.int().nullish(),
+        title: zod.string(),
+        description: zod.string().nullish(),
+        notes: zod.string().nullish(),
+        color: zod.string().nullish(),
+        startAtUtc: zod.iso.datetime({ offset: true }),
+        endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        timeZoneId: zod.string().nullish(),
+        allDay: zod.boolean().optional(),
+        isReadOnly: zod.boolean().optional(),
+        isException: zod.boolean().optional(),
+        type: zod.enum(['calendar.event']).optional(),
+        status: zod.enum(['Active', 'Draft', 'Draft Item', 'Cancelled']).optional(),
+        holidayType: zod
+          .union([
+            zod.null(),
+            zod.union([
+              zod.literal('NewYearsDay'),
+              zod.literal('FamilyDay'),
+              zod.literal('GoodFriday'),
+              zod.literal('EasterMonday'),
+              zod.literal('VictoriaDay'),
+              zod.literal('CanadaDay'),
+              zod.literal('BcDay'),
+              zod.literal('LabourDay'),
+              zod.literal('TruthAndReconciliation'),
+              zod.literal('Thanksgiving'),
+              zod.literal('RemembranceDay'),
+              zod.literal('Christmas'),
+              zod.literal('BoxingDay'),
+              zod.literal(null),
+            ]),
+          ])
+          .optional(),
+        eventTypeCode: zod.enum(['General', 'Holiday', 'Deadline', 'AwayLocation']),
+        statusTypeCode: zod.enum(['Draft', 'Active', 'Cancelled']),
+        cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
+        cancelledByUserId: zod.uuid().nullish(),
+        cancellationReason: zod.string().nullish(),
+        sourceModule: zod.string(),
+        locationId: zod.int().nullish(),
+      }),
+    )
+    .optional(),
 });
-export const PostApiCalendarEventsResponse = zod.array(PostApiCalendarEventsResponseItem);

@@ -2,8 +2,7 @@ import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
-import { calendarEventTypes } from '@/api-access/calendar';
-import { CalendarEventStatus } from '@/api-access/generated/models';
+import { CalendarEventStatus, CalendarEventType } from '@/api-access/generated/models';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
 import CalendarMatrixEventBlock from '@/modules/calendar/components/matrix/CalendarMatrixEventBlock.vue';
@@ -21,7 +20,7 @@ import type {
 
 const event: CalendarEventBase = {
   id: 'event-1',
-  type: calendarEventTypes.calendarEvent,
+  type: CalendarEventType.calendarevent,
   sourceModule: 'calendar',
   title: 'Morning Event',
   start: '2025-01-13T09:00:00Z',
@@ -218,7 +217,7 @@ describe('CalendarMatrixEventBlock', () => {
     expect(matrixContext.startDrag).toHaveBeenCalledWith({
       source: 'event-block',
       itemId: 'event-1',
-      itemType: calendarEventTypes.calendarEvent,
+      itemType: CalendarEventType.calendarevent,
       payload: event,
     });
     expect(matrixContext.clearDrag).toHaveBeenCalledOnce();

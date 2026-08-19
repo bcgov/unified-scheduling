@@ -37,6 +37,30 @@ public class CalendarTimeZoneResolverTests
         Assert.Equal("America/Edmonton", timeZone.Id);
     }
 
+    [Fact]
+    public void Resolve_WhenRequestedTimeZoneIsInvalid_Throws()
+    {
+        var resolver = CreateResolver();
+
+        Assert.Throws<TimeZoneNotFoundException>(() => resolver.Resolve("Not/AZone", "America/Toronto"));
+    }
+
+    [Fact]
+    public void Resolve_WhenFallbackTimeZoneIsInvalid_Throws()
+    {
+        var resolver = CreateResolver();
+
+        Assert.Throws<TimeZoneNotFoundException>(() => resolver.Resolve(null, "Not/AZone"));
+    }
+
+    [Fact]
+    public void Resolve_WhenConfiguredDefaultTimeZoneIsInvalid_Throws()
+    {
+        var resolver = CreateResolver("Not/AZone");
+
+        Assert.Throws<TimeZoneNotFoundException>(() => resolver.Resolve(null));
+    }
+
     private static CalendarTimeZoneResolver CreateResolver(string defaultTimeZoneId = "America/Vancouver") =>
         new(
             Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = defaultTimeZoneId }),

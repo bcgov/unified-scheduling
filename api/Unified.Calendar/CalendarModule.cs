@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Controllers;
 using Unified.Calendar.FeatureFlags;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
@@ -67,15 +68,12 @@ public static class CalendarModule
             .ValidateDataAnnotations()
             .Validate(BeValidDefaultTimeZoneId, "CalendarDateTime:DefaultTimeZoneId must be a valid system time zone.")
             .ValidateOnStart();
-        services
-            .AddOptions<CalendarSeedDataOptions>()
-            .BindConfiguration(CalendarSeedDataOptions.SectionName)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+
+        services.AddSingleton<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>();
+        services.AddSingleton<StatutoryHolidayCalendarDataProvider>();
         services.AddScoped<ICalendarEventService, CalendarEventService>();
         services.AddSeeder<UnifiedDbContext, EventTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, EventStatusTypeSeeder>();
-        services.AddSeeder<UnifiedDbContext, HolidayEventSeeder>();
         services.AddScoped<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>();
         services.AddScoped<CalendarLifecycleService>();
         services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();
