@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
-import type { FeatureFlagsResponse } from '@/api-access/generated/models';
-import { getPostApiCalendarEventsMockHandler } from '@/api-access/generated/calendar/calendar.msw';
 import { server } from '@/__tests__/mocks/server';
+import { getPostApiCalendarEventsMockHandler } from '@/api-access/generated/calendar/calendar.msw';
+import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 
 describe('calendar module integration', () => {
   beforeEach(() => {
