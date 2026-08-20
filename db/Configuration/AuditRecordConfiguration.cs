@@ -26,10 +26,7 @@ public class AuditRecordConfiguration : IEntityTypeConfiguration<AuditRecord>
         builder.Property(b => b.ChangedColumns).HasColumnType("text[]");
 
         // No FK constraints — audit records must survive entity deletion
-        builder.HasNoKey();
         builder.Property(b => b.Id).ValueGeneratedOnAdd();
-
-        // Restore PK after HasNoKey() override
         builder.HasKey(b => b.Id);
 
         builder.HasIndex(b => new { b.EntityType, b.KeyValues }).HasDatabaseName("ix_audit_entity");
