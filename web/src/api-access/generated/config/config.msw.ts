@@ -41,11 +41,13 @@ export const getGetApiConfigResponseMock = (
             undefined,
           ]),
           Scheduling: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
-            undefined,
-          ]),
-          Scheduling: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
+            {
+              source: faker.helpers.arrayElement([
+                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+                undefined,
+              ]),
+              enabled: faker.datatype.boolean(),
+            },
             undefined,
           ]),
           Stats: faker.helpers.arrayElement([
@@ -107,11 +109,13 @@ export const getGetApiConfigResponseMock = (
             undefined,
           ]),
           Scheduling: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
-            undefined,
-          ]),
-          Scheduling: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
+            {
+              source: faker.helpers.arrayElement([
+                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+                undefined,
+              ]),
+              enabled: faker.datatype.boolean(),
+            },
             undefined,
           ]),
           Stats: faker.helpers.arrayElement([
@@ -173,11 +177,13 @@ export const getGetApiConfigResponseMock = (
             undefined,
           ]),
           Scheduling: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
-            undefined,
-          ]),
-          Scheduling: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
+            {
+              source: faker.helpers.arrayElement([
+                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+                undefined,
+              ]),
+              enabled: faker.datatype.boolean(),
+            },
             undefined,
           ]),
           Stats: faker.helpers.arrayElement([

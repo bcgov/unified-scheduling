@@ -13,7 +13,7 @@ import type { UserManagementFeatureFlags } from './userManagementFeatureFlags.ts
 export interface FeatureFlagsResponse {
   UserManagement?: UserManagementFeatureFlags;
   Calendar?: CalendarFeatureFlags;
-  Scheduling?: null | SchedulingFeatureFlags;
+  Scheduling?: SchedulingFeatureFlags;
   Stats?: StatsFeatureFlags;
   Training?: TrainingFeatureFlags;
 }
