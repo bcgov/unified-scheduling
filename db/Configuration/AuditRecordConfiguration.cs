@@ -33,7 +33,10 @@ public class AuditRecordConfiguration : IEntityTypeConfiguration<AuditRecord>
         builder.HasKey(b => b.Id);
 
         builder.HasIndex(b => new { b.EntityType, b.KeyValues }).HasDatabaseName("ix_audit_entity");
-        builder.HasIndex(b => new { b.ActorUserId, b.OccurredOn }).IsDescending(false, true).HasDatabaseName("ix_audit_actor");
+        builder
+            .HasIndex(b => new { b.ActorUserId, b.OccurredOn })
+            .IsDescending(false, true)
+            .HasDatabaseName("ix_audit_actor");
         builder.HasIndex(b => b.OccurredOn).IsDescending().HasDatabaseName("ix_audit_occurred");
         builder.HasIndex(b => b.TableName).HasDatabaseName("ix_audit_table");
     }
