@@ -1,6 +1,7 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
+import { DateTime } from 'luxon';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 
 describe('calendar workflow', () => {
@@ -98,7 +99,7 @@ describe('calendar workflow', () => {
       { default: Calendar },
       { useCalendarStore },
       { useLocationsStore },
-      { buildDateRangeForPeriod, formatRangeLabel, getTodayDateOnly, shiftDateRange },
+      { buildDateRangeForPeriod, formatRangeLabel, getTodayDateOnly, shiftCalendarAnchor },
     ] = await Promise.all([
       import('@/modules/calendar/Calendar.vue'),
       import('@/modules/calendar/calendarStore'),
@@ -112,8 +113,9 @@ describe('calendar workflow', () => {
     const locationsStore = useLocationsStore(pinia);
 
     calendarStore.setPeriod('week');
-    calendarStore.setDateRange('2025-04-07', '2025-04-14');
+    calendarStore.setAnchorDate('2025-04-07');
     locationsStore.entities = [{ id: 12, name: 'Main Hall' }];
+    locationsStore.setSelectedLocationId(12);
 
     const wrapper = mount(Calendar, {
       attachTo: document.body,
@@ -132,19 +134,20 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: undefined, filters: {} },
+        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
       await wrapper.get('button[aria-label="Previous"]').trigger('click');
       await flushPromises();
 
-      const previousRange = shiftDateRange('2025-04-07', 'week', -1);
+      const previousAnchor = shiftCalendarAnchor('2025-04-07', 'week', 'previous');
+      const previousRange = buildDateRangeForPeriod(previousAnchor, 'week');
       expect(loadData).toHaveBeenLastCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: undefined, filters: {} },
+        { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -155,7 +158,7 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: undefined, filters: {} },
+        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -167,7 +170,51 @@ describe('calendar workflow', () => {
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
         },
-        { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: undefined, filters: {} },
+        { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: 12, filters: {} },
+        expect.any(Object),
+      );
+
+      const rangeButton = wrapper.get('button.calendar-toolbar__range');
+      expect(rangeButton.attributes('aria-label')).toContain('Choose date');
+
+      await rangeButton.trigger('click');
+      await flushPromises();
+
+      const datePicker = wrapper.findComponent({ name: 'VDatePicker' });
+      expect(datePicker.exists()).toBe(true);
+
+      datePicker.vm.$emit('update:modelValue', DateTime.fromISO('2025-04-16'));
+      await flushPromises();
+
+      expect(calendarStore.anchorDate).toBe('2025-04-16');
+      expect(loadData).toHaveBeenLastCalledWith(
+        {
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+        },
+        { startDate: '2025-04-14', endDate: '2025-04-21', locationId: 12, filters: {} },
+        expect.any(Object),
+      );
+
+      const toolbar = wrapper.findComponent({ name: 'CalendarToolbar' });
+      toolbar.vm.$emit('update:period', 'day');
+      await flushPromises();
+
+      expect(loadData).toHaveBeenLastCalledWith(
+        {
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+        },
+        { startDate: '2025-04-16', endDate: '2025-04-17', locationId: 12, filters: {} },
+        expect.any(Object),
+      );
+
+      toolbar.vm.$emit('update:period', 'work-week');
+      await flushPromises();
+
+      expect(loadData).toHaveBeenLastCalledWith(
+        {
+          featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+        },
+        { startDate: '2025-04-14', endDate: '2025-04-19', locationId: 12, filters: {} },
         expect.any(Object),
       );
 
@@ -225,7 +272,7 @@ describe('calendar workflow', () => {
     const { mountPlugins, pinia } = await createTestApp({ featureFlags: { Calendar: { enabled: true } } });
     const calendarStore = useCalendarStore(pinia);
     calendarStore.setPeriod('month');
-    calendarStore.setDateRange('2025-04-01', '2025-05-01');
+    calendarStore.setAnchorDate('2025-04-01');
 
     const wrapper = mount(Calendar, {
       attachTo: document.body,

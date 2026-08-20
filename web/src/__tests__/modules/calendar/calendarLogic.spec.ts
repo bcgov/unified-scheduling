@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { calendarEventTypes, type ApiCalendarEventResponse } from '@/api-access/calendar';
 import {
   addDays,
   buildDateRangeForPeriod,
@@ -9,13 +8,23 @@ import {
   formatRangeLabel,
   localDateOnlyToUtcInstant,
   parseLocalDateOnly,
-  shiftDateRange,
+  shiftCalendarAnchor,
   startOfMonth,
   startOfWeek,
   toCalendarDateOnly,
 } from '@/utils/date';
-import { getCalendarEventDateKey } from '@/modules/calendarMatrixTest/calendarMatrixTestMappers';
-import { CalendarEventStatusTypeCode, CalendarEventTypeCode } from '@/api-access/generated/models';
+import {
+  CalendarEventStatusTypeCode,
+  CalendarEventType,
+  CalendarEventTypeCode,
+  type CalendarEventResponse,
+} from '@/api-access/generated/models';
+import {
+  buildCalendarSchedulingViewModel,
+  getCalendarEventDateKey,
+} from '@/modules/scheduling/calendarSchedulingMappers';
+import type { CalendarSchedulingUserResource } from '@/modules/scheduling/contributions/calendarSchedulingEventsContribution';
+import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSchedulingData';
 import { selectCalendarEvents, selectContribution } from '@/modules/calendar/calendarSelectors';
 import { mapApiCalendarEventToCalendarEventBase } from '@/modules/calendar/contributions/calendarEventMappers';
 import { buildCalendarPeriodSelectOptions, DEFAULT_CALENDAR_PERIODS } from '@/modules/calendar/calendarPeriodOptions';
@@ -25,9 +34,10 @@ import type {
   CalendarQueryContext,
   CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
+import { mdiCalendarSync } from '@mdi/js';
 
 describe('shared calendar date helpers', () => {
-  it('builds ranges for every period and shifts them correctly', () => {
+  it('builds ranges for every period and shifts anchors correctly', () => {
     expect(buildDateRangeForPeriod('2025-01-15', 'day')).toEqual({
       startDate: '2025-01-15',
       endDate: '2025-01-16',
@@ -48,25 +58,10 @@ describe('shared calendar date helpers', () => {
       endDate: '2025-02-01',
     });
 
-    expect(shiftDateRange('2025-01-15', 'day', -1)).toEqual({
-      startDate: '2025-01-14',
-      endDate: '2025-01-15',
-    });
-
-    expect(shiftDateRange('2025-01-13', 'week', 1)).toEqual({
-      startDate: '2025-01-20',
-      endDate: '2025-01-27',
-    });
-
-    expect(shiftDateRange('2025-01-13', 'work-week', 1)).toEqual({
-      startDate: '2025-01-20',
-      endDate: '2025-01-25',
-    });
-
-    expect(shiftDateRange('2025-01-01', 'month', 1)).toEqual({
-      startDate: '2025-02-01',
-      endDate: '2025-03-01',
-    });
+    expect(shiftCalendarAnchor('2025-01-15', 'day', 'previous')).toBe('2025-01-14');
+    expect(shiftCalendarAnchor('2025-01-15', 'week', 'next')).toBe('2025-01-22');
+    expect(shiftCalendarAnchor('2025-01-15', 'work-week', 'next')).toBe('2025-01-22');
+    expect(shiftCalendarAnchor('2025-01-31', 'month', 'next')).toBe('2025-02-28');
   });
 
   it('formats and parses calendar dates and labels', () => {
@@ -143,6 +138,67 @@ describe('calendar selectors and view models', () => {
   });
 });
 
+describe('scheduling calendar view model', () => {
+  it('shows the conflict action only when a shift event has isConflict', () => {
+    const shiftEvents: CalendarSchedulingEvent[] = [
+      {
+        id: 'shift-conflict',
+        type: 'scheduling.shift',
+        sourceModule: 'calendar-scheduling',
+        title: 'Conflict shift',
+        start: '2025-01-13T09:00:00',
+        end: '2025-01-13T17:00:00',
+        resourceIds: ['user-1'],
+        isConflict: true,
+        metadata: { userIds: ['user-1'] },
+      },
+      {
+        id: 'shift-normal',
+        type: 'scheduling.shift',
+        sourceModule: 'calendar-scheduling',
+        title: 'Normal shift',
+        start: '2025-01-14T09:00:00',
+        end: '2025-01-14T17:00:00',
+        resourceIds: ['user-1'],
+        metadata: { userIds: ['user-1'], shiftSeriesId: 100 },
+      },
+    ];
+
+    const viewModel = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'scheduling.shift-events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.shift-events',
+            events: shiftEvents,
+            resources: [
+              {
+                id: 'user-1',
+                type: 'user',
+                sourceModule: 'scheduling',
+                label: 'Alex Alpha',
+                title: 'Alex Alpha',
+              },
+            ] as CalendarSchedulingUserResource[],
+          },
+        },
+      },
+      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      'week',
+    );
+
+    const headers = viewModel.cells.flatMap((cell) => cell.headers ?? []);
+
+    expect(headers.find((header) => header.id === 'shift-conflict')?.action?.ariaLabel).toBe('Show conflict details');
+    expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
+    expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
+      icon: mdiCalendarSync,
+      ariaLabel: 'Part of a shift series',
+      title: 'Part of a shift series',
+    });
+  });
+});
+
 describe('calendar period options', () => {
   it('excludes month by default and allows views to opt in', () => {
     expect(buildCalendarPeriodSelectOptions(DEFAULT_CALENDAR_PERIODS)).toEqual([
@@ -162,43 +218,48 @@ describe('calendar event mappers', () => {
   it('maps all-day API events and defaults empty event types', () => {
     expect(
       mapApiCalendarEventToCalendarEventBase({
-        id: 10,
+        id: '10',
         title: 'Holiday',
         startAtUtc: '2025-07-01T00:00:00Z',
         endAtUtc: '2025-07-02T00:00:00Z',
         allDay: true,
+        isReadOnly: true,
         isException: false,
+        holidayType: 'CanadaDay',
         eventTypeCode: '',
         statusTypeCode: CalendarEventStatusTypeCode.Active,
         sourceModule: 'calendar',
-      } as unknown as ApiCalendarEventResponse),
+      } as unknown as CalendarEventResponse),
     ).toMatchObject({
       id: '10',
-      type: calendarEventTypes.calendarEvent,
+      type: CalendarEventType.calendarevent,
       start: '2025-07-01',
       end: '2025-07-02',
       eventTypeCode: CalendarEventTypeCode.General,
       statusTypeCode: CalendarEventStatusTypeCode.Active,
+      isReadOnly: true,
+      holidayType: 'CanadaDay',
     });
   });
 
   it('preserves timestamp values for non all-day events', () => {
     expect(
       mapApiCalendarEventToCalendarEventBase({
-        id: 11,
+        id: '11',
         title: 'Meeting',
         startAtUtc: '2025-07-01T09:00:00Z',
         endAtUtc: '2025-07-01T10:00:00Z',
         allDay: false,
+        isReadOnly: false,
         isException: true,
-        type: calendarEventTypes.calendarEvent,
+        type: CalendarEventType.calendarevent,
         eventTypeCode: CalendarEventTypeCode.Deadline,
         statusTypeCode: CalendarEventStatusTypeCode.Draft,
         sourceModule: 'calendar',
       }),
     ).toMatchObject({
       id: '11',
-      type: calendarEventTypes.calendarEvent,
+      type: CalendarEventType.calendarevent,
       start: '2025-07-01T09:00:00Z',
       end: '2025-07-01T10:00:00Z',
       isException: true,

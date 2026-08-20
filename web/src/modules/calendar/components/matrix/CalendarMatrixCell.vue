@@ -14,6 +14,7 @@ import type {
   CalendarMatrixEventItem,
   CalendarMatrixDragPayload,
   CalendarMatrixResource,
+  CalendarMatrixResourceAddEvent,
 } from './calendarMatrixTypes';
 import type { CalendarEventBase } from '../../calendarTypes';
 import CalendarMatrixCellHeader from './CalendarMatrixCellHeader.vue';
@@ -32,15 +33,16 @@ const emit = defineEmits<{
   (event: 'eventClick', payload: CalendarEventBase): void;
   (event: 'headerAction', payload: CalendarMatrixCellHeaderActionEvent): void;
   (event: 'headerClick', payload: CalendarMatrixCellHeaderClickEvent): void;
+  (event: 'resourceAdd', payload: CalendarMatrixResourceAddEvent): void;
 }>();
 
 const matrixContext = inject(calendarMatrixContextKey, undefined);
 const isDropTarget = ref(false);
 
 const headers = computed(() => props.cell.headers ?? []);
-const hasContent = computed(
-  () => headers.value.length > 0 || props.cell.groups.some((group) => group.events.length > 0),
-);
+const hasEvents = computed(() => props.cell.groups.some((group) => group.events.length > 0));
+const hasContent = computed(() => headers.value.length > 0 || hasEvents.value);
+const canAddEmptyCellResource = computed(() => !hasContent.value && !!props.resource?.action);
 const isDropActive = computed(() => !!matrixContext?.activeDragPayload.value);
 const cellAriaLabel = computed(() => {
   const resourceTitle = props.resource?.title ?? props.cell.resourceId;
@@ -164,6 +166,17 @@ function handleHeaderAction(payload: CalendarMatrixCellHeaderActionEvent) {
 function handleDragStart(payload: CalendarMatrixDragPayload) {
   emit('dragStart', payload);
 }
+
+function handleEmptyCellAdd() {
+  if (!props.resource?.action) {
+    return;
+  }
+
+  emit('resourceAdd', {
+    resource: props.resource,
+    cell: props.cell,
+  });
+}
 </script>
 
 <template>
@@ -225,6 +238,16 @@ function handleDragStart(payload: CalendarMatrixDragPayload) {
           </template>
         </div>
       </template>
+      <button
+        v-if="canAddEmptyCellResource && resource"
+        class="calendar-matrix-cell__empty-add"
+        type="button"
+        :aria-label="resource.action?.ariaLabel"
+        @click.stop="handleEmptyCellAdd"
+      >
+        <v-icon v-if="resource.action?.icon" :icon="resource.action.icon" size="16" />
+        <span v-else>{{ resource.action?.label ?? '+' }}</span>
+      </button>
     </slot>
   </section>
 </template>
@@ -241,6 +264,10 @@ function handleDragStart(payload: CalendarMatrixDragPayload) {
   gap: var(--ua-spacing-sm);
   grid-auto-rows: max-content;
   padding: var(--ua-spacing-sm);
+}
+
+.calendar-matrix-cell.is-empty {
+  align-content: center;
 }
 
 .calendar-matrix-cell.is-today {
@@ -266,5 +293,30 @@ function handleDragStart(payload: CalendarMatrixDragPayload) {
   display: grid;
   gap: var(--ua-spacing-xs);
   grid-auto-rows: max-content;
+}
+
+.calendar-matrix-cell__empty-add {
+  align-items: center;
+  align-self: center;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid var(--ua-border-color);
+  border-radius: 4px;
+  color: var(--ua-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--ua-font-size-lg);
+  font-weight: var(--ua-font-weight-regular);
+  inline-size: 100%;
+  justify-content: center;
+  line-height: 1;
+  min-block-size: 1.5rem;
+  padding: 0 var(--ua-spacing-sm);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .calendar-matrix-cell__empty-add:hover {
+    border-color: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-primary));
+  }
 }
 </style>

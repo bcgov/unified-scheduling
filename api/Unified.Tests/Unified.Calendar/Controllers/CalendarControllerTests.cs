@@ -27,7 +27,7 @@ public class CalendarControllerTests
             [
                 new()
                 {
-                    Id = 10,
+                    Id = "10",
                     Title = "Holiday",
                     StartAtUtc = new DateTimeOffset(2026, 6, 1, 7, 0, 0, TimeSpan.Zero),
                     SourceModule = "calendar",
@@ -54,7 +54,7 @@ public class CalendarControllerTests
 
         Assert.Equal("calendar", payload.ModuleId);
         Assert.Equal("calendar.events", payload.ContributionId);
-        Assert.Equal(10, item.Id);
+        Assert.Equal("10", item.Id);
         Assert.Equal(request, service.LastRequest);
     }
 

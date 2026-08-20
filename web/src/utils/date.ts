@@ -27,6 +27,7 @@ export type CalendarDateOptions = {
 };
 
 export type CalendarPeriodValue = 'day' | 'week' | 'work-week' | 'month';
+export type CalendarNavigationDirection = 'previous' | 'next';
 
 export type CalendarDateRange = {
   startDate: string;
@@ -298,24 +299,22 @@ export function buildDateRangeForPeriod(anchorDate: string, currentPeriod: Calen
   }
 }
 
-export function shiftDateRange(
-  currentStartDate: string,
-  currentPeriod: CalendarPeriodValue,
-  direction: -1 | 1,
-): CalendarDateRange {
-  switch (currentPeriod) {
+export function shiftCalendarAnchor(
+  anchorDate: string,
+  period: CalendarPeriodValue,
+  direction: CalendarNavigationDirection,
+): string {
+  const multiplier = direction === 'next' ? 1 : -1;
+
+  switch (period) {
     case 'day':
-      return buildDateRangeForPeriod(addDays(currentStartDate, direction), currentPeriod);
+      return addDays(anchorDate, multiplier);
     case 'work-week':
     case 'week':
-      return buildDateRangeForPeriod(addDays(currentStartDate, direction * 7), currentPeriod);
+      return addDays(anchorDate, multiplier * 7);
     case 'month':
-      return buildDateRangeForPeriod(addMonths(currentStartDate, direction), currentPeriod);
+      return addMonths(anchorDate, multiplier);
   }
-}
-
-export function getInitialCalendarDateRange(): CalendarDateRange {
-  return buildDateRangeForPeriod(getTodayDateOnly(), 'week');
 }
 
 export function formatRangeLabel(startDate: string, endDate: string, currentPeriod: CalendarPeriodValue): string {

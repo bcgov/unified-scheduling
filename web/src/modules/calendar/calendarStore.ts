@@ -1,15 +1,22 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import { getInitialCalendarDateRange, type CalendarDateRange } from '@/utils/date';
+import { computed, ref } from 'vue';
+import {
+  buildDateRangeForPeriod,
+  getTodayDateOnly,
+  shiftCalendarAnchor,
+  type CalendarNavigationDirection,
+} from '@/utils/date';
 
 export type CalendarPeriod = 'day' | 'week' | 'work-week' | 'month';
 
 export const useCalendarStore = defineStore('calendar', () => {
   const activeViewId = ref('');
-  const dateRange = ref<CalendarDateRange>(getInitialCalendarDateRange());
+  const anchorDate = ref(getTodayDateOnly());
   const period = ref<CalendarPeriod>('week');
+  const dateRange = computed(() => buildDateRangeForPeriod(anchorDate.value, period.value));
   const locationId = ref<number>();
   const filters = ref<Record<string, unknown>>({});
+  const refreshNonce = ref(0);
   const selectedEventId = ref<string>();
   const selectedResourceId = ref<string>();
 
@@ -17,12 +24,20 @@ export const useCalendarStore = defineStore('calendar', () => {
     activeViewId.value = viewId;
   };
 
-  const setDateRange = (startDate: string, endDate: string) => {
-    dateRange.value = { startDate, endDate };
+  const setAnchorDate = (value: string) => {
+    anchorDate.value = value;
   };
 
   const setPeriod = (value: CalendarPeriod) => {
     period.value = value;
+  };
+
+  const shiftPeriod = (direction: CalendarNavigationDirection) => {
+    anchorDate.value = shiftCalendarAnchor(anchorDate.value, period.value, direction);
+  };
+
+  const goToToday = () => {
+    anchorDate.value = getTodayDateOnly();
   };
 
   const setLocationId = (value?: number) => {
@@ -59,17 +74,25 @@ export const useCalendarStore = defineStore('calendar', () => {
     selectedResourceId.value = undefined;
   };
 
+  const refresh = () => {
+    refreshNonce.value += 1;
+  };
+
   return {
     activeViewId,
     dateRange,
+    anchorDate,
     period,
     locationId,
     filters,
+    refreshNonce,
     selectedEventId,
     selectedResourceId,
     setActiveView,
-    setDateRange,
+    setAnchorDate,
     setPeriod,
+    shiftPeriod,
+    goToToday,
     setLocationId,
     setFilter,
     clearFilter,
@@ -77,5 +100,6 @@ export const useCalendarStore = defineStore('calendar', () => {
     clearSelectedEvent,
     setSelectedResource,
     clearSelection,
+    refresh,
   };
 });

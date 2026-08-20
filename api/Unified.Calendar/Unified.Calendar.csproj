@@ -15,9 +15,4 @@
     <ProjectReference Include="..\..\db\db.csproj" />
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="SeedData\bc-holidays.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 </Project>

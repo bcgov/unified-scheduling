@@ -33,6 +33,15 @@ export const GetApiConfigResponse = zod.object({
           }),
         ])
         .optional(),
+      Scheduling: zod
+        .union([
+          zod.null(),
+          zod.object({
+            source: zod.string().nullish(),
+            enabled: zod.boolean(),
+          }),
+        ])
+        .optional(),
       Stats: zod
         .union([
           zod.null(),

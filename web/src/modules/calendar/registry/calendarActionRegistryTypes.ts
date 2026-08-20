@@ -13,6 +13,7 @@ import type { CalendarQueryContext, CalendarRuntimeContext, CalendarEventBase } 
 export interface CalendarCreateContext {
   startDate: string;
   endDate: string;
+  activeViewId?: string;
   locationId?: number;
   filters: Record<string, unknown>;
 }
@@ -73,6 +74,7 @@ export interface CalendarMatrixSidePanelAction extends CalendarMatrixActionBase 
 export interface CalendarMatrixResourceActionContext {
   resource: CalendarMatrixResource;
   model: CalendarMatrixViewModel;
+  cell?: CalendarMatrixCell;
   actionId?: string;
 }
 

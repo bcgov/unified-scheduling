@@ -12,6 +12,7 @@ import type { RequestHandlerOptions } from 'msw';
 import type {
   CalendarFeatureFlags,
   ConfigResponse,
+  SchedulingFeatureFlags,
   StatsFeatureFlags,
   TrainingFeatureFlags,
   UserManagementFeatureFlags,
@@ -54,6 +55,25 @@ export const getGetApiConfigResponseCalendarFeatureFlagsMock = (
   ]),
   enabled: faker.datatype.boolean(),
   calendarMatrixTest: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+  ...overrideResponse,
+});
+
+export const getGetApiConfigResponseSchedulingFeatureFlagsMock = (
+  overrideResponse: Partial<SchedulingFeatureFlags> = {},
+): SchedulingFeatureFlags => ({
+  source: faker.helpers.arrayElement([
+    faker.helpers.arrayElement([
+      faker.string.alpha({
+        length: {
+          min: 10,
+          max: 20,
+        },
+      }),
+      null,
+    ]),
+    undefined,
+  ]),
+  enabled: faker.datatype.boolean(),
   ...overrideResponse,
 });
 
@@ -110,36 +130,8 @@ export const getGetApiConfigResponseMock = (
             faker.helpers.arrayElement([null, { ...getGetApiConfigResponseCalendarFeatureFlagsMock() }]),
             undefined,
           ]),
-          Stats: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseStatsFeatureFlagsMock() }]),
-            undefined,
-          ]),
-          Training: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseTrainingFeatureFlagsMock() }]),
-            undefined,
-          ]),
-        },
-        undefined,
-      ]),
-      supportEmail: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      applicationName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      ...overrideResponse,
-    },
-    {
-      featureFlags: faker.helpers.arrayElement([
-        {
-          UserManagement: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseUserManagementFeatureFlagsMock() }]),
-            undefined,
-          ]),
-          Calendar: faker.helpers.arrayElement([
-            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseCalendarFeatureFlagsMock() }]),
+          Scheduling: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
             undefined,
           ]),
           Stats: faker.helpers.arrayElement([
@@ -172,6 +164,46 @@ export const getGetApiConfigResponseMock = (
           ]),
           Calendar: faker.helpers.arrayElement([
             faker.helpers.arrayElement([null, { ...getGetApiConfigResponseCalendarFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Scheduling: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Stats: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseStatsFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Training: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseTrainingFeatureFlagsMock() }]),
+            undefined,
+          ]),
+        },
+        undefined,
+      ]),
+      supportEmail: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      applicationName: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      featureFlags: faker.helpers.arrayElement([
+        {
+          UserManagement: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseUserManagementFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Calendar: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseCalendarFeatureFlagsMock() }]),
+            undefined,
+          ]),
+          Scheduling: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([null, { ...getGetApiConfigResponseSchedulingFeatureFlagsMock() }]),
             undefined,
           ]),
           Stats: faker.helpers.arrayElement([

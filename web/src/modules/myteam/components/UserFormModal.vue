@@ -232,7 +232,7 @@ const handleSave = async () => {
         photo: photoFile.value,
       });
       if (photoError.value) {
-        apiErrorMessage.value = photoError.value.detail || 'Failed to upload photo';
+        apiErrorMessage.value = photoError.value.message || 'Failed to upload photo';
         return;
       }
       if (photoData.value) {
@@ -275,8 +275,11 @@ const handleSave = async () => {
           <v-icon :icon="mdiCamera" color="white" size="20" />
         </div>
       </div>
-      <span class="photo-hint">{{ photoFile ? photoFile.name : 'Click to upload photo' }}</span>
+      <label class="photo-hint" for="profile-photo-upload">
+        {{ photoFile ? photoFile.name : 'Click to upload photo' }}
+      </label>
       <input
+        id="profile-photo-upload"
         ref="fileInputRef"
         type="file"
         accept="image/jpeg,image/png"

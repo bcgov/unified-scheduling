@@ -8,12 +8,15 @@ export interface CalendarEventBase {
   description?: string;
   notes?: string;
   color?: string;
+  eventSeriesId?: number;
   start: string;
   end?: string;
   seriesStartAtUtc?: string;
   seriesEndAtUtc?: string;
   allDay?: boolean;
+  isReadOnly?: boolean;
   isException?: boolean;
+  holidayType?: string;
   eventTypeCode?: string;
   statusTypeCode?: string;
   cancelledAt?: string;

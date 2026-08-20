@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Calendar;
-using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Common.Seeding;
 using Unified.Core;
@@ -82,15 +81,15 @@ public sealed class SeederRegistrationTests
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    [$"{CalendarSeedDataOptions.SectionName}:HolidaysFilePath"] = "SeedData/bc-holidays.json",
                     ["FeatureFlags:Calendar:Enabled"] = "true",
+                    ["CalendarDateTime:DefaultTimeZoneId"] = "America/Vancouver",
                 }
             )
             .Build();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddCalendarModule(configuration);
 
-        AssertSeederTypes(services, typeof(EventTypeSeeder), typeof(EventStatusTypeSeeder), typeof(HolidayEventSeeder));
+        AssertSeederTypes(services, typeof(EventTypeSeeder), typeof(EventStatusTypeSeeder));
     }
 
     [Fact]

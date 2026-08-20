@@ -5,8 +5,7 @@ import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import type { SelectOption, SelectValue } from '@/types/select';
-import { buildDateRangeForPeriod, formatRangeLabel, getTodayDateOnly, shiftDateRange } from '@/utils/date';
+import { formatRangeLabel } from '@/utils/date';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
 import { calendarDataService } from './calendarDataService';
 import { DEFAULT_CALENDAR_PERIODS } from './calendarPeriodOptions';
@@ -26,7 +25,20 @@ import CalendarToolbar from './components/CalendarToolbar.vue';
 const accessControl = useAccessControl();
 const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
-const { activeViewId, dateRange, period, locationId, filters, selectedEventId } = storeToRefs(calendarStore);
+const { activeViewId, dateRange, anchorDate, period, filters, refreshNonce, selectedEventId } =
+  storeToRefs(calendarStore);
+const { selectedLocationId } = storeToRefs(locationsStore);
+
+const activeLocationId = computed<number | undefined>(() => {
+  const candidate = selectedLocationId.value;
+
+  if (candidate === '' || candidate == null) {
+    return undefined;
+  }
+
+  const parsedLocationId = Number(candidate);
+  return Number.isFinite(parsedLocationId) ? parsedLocationId : undefined;
+});
 
 const runtimeContext = computed<CalendarRuntimeContext>(() => ({
   featureFlags: accessControl.configStore.config?.featureFlags ?? {},
@@ -61,21 +73,13 @@ const activePeriods = computed<readonly CalendarPeriod[]>(() => {
   return supportedPeriods?.length ? supportedPeriods : DEFAULT_CALENDAR_PERIODS;
 });
 
-const setPeriodAndDateRange = (nextPeriod: CalendarPeriod) => {
-  calendarStore.setPeriod(nextPeriod);
-
-  const anchorDate = dateRange.value.startDate;
-  const nextRange = buildDateRangeForPeriod(anchorDate, nextPeriod);
-  calendarStore.setDateRange(nextRange.startDate, nextRange.endDate);
-};
-
 watch(
   activePeriods,
   (periods) => {
     const fallbackPeriod = periods[0] ?? DEFAULT_CALENDAR_PERIODS[0];
 
     if (!periods.includes(period.value)) {
-      setPeriodAndDateRange(fallbackPeriod);
+      calendarStore.setPeriod(fallbackPeriod);
     }
   },
   { immediate: true },
@@ -85,7 +89,7 @@ const queryContext = computed<CalendarQueryContext>(() => {
   return {
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
-    locationId: locationId.value,
+    locationId: activeLocationId.value,
     filters: { ...filters.value },
   };
 });
@@ -93,6 +97,7 @@ const queryContext = computed<CalendarQueryContext>(() => {
 const createActionContext = () => ({
   startDate: queryContext.value.startDate,
   endDate: queryContext.value.endDate,
+  activeViewId: activeView.value?.id,
   locationId: queryContext.value.locationId,
   filters: queryContext.value.filters,
 });
@@ -113,17 +118,6 @@ const selectedDetailEvent = computed(() => {
   }
 
   return calendarEvents.value.find((event) => event.id === selectedEventId.value);
-});
-
-const locationOptions = computed<SelectOption[]>(() => {
-  return [{ code: 'all', description: 'All locations' }, ...locationsStore.selectOptions];
-});
-
-const locationValue = computed<SelectValue>({
-  get: () => locationId.value ?? 'all',
-  set: (value) => {
-    calendarStore.setLocationId(typeof value === 'number' ? value : undefined);
-  },
 });
 
 const toolbarActions = computed<CalendarToolbarAction[]>(() => {
@@ -153,8 +147,9 @@ const reloadKey = computed(() =>
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
     period: period.value,
-    locationId: locationId.value ?? null,
+    locationId: activeLocationId.value ?? null,
     filters: filters.value,
+    refreshNonce: refreshNonce.value,
     runtimeContextKey: runtimeContextKey.value,
   }),
 );
@@ -199,24 +194,15 @@ onBeforeUnmount(() => {
   calendarDataService.cancel();
 });
 
-const handlePrevious = () => {
-  const nextRange = shiftDateRange(dateRange.value.startDate, period.value, -1);
-  calendarStore.setDateRange(nextRange.startDate, nextRange.endDate);
-};
+const handlePrevious = () => calendarStore.shiftPeriod('previous');
 
-const handleNext = () => {
-  const nextRange = shiftDateRange(dateRange.value.startDate, period.value, 1);
-  calendarStore.setDateRange(nextRange.startDate, nextRange.endDate);
-};
+const handleNext = () => calendarStore.shiftPeriod('next');
 
-const handleToday = () => {
-  const nextRange = buildDateRangeForPeriod(getTodayDateOnly(), period.value);
-  calendarStore.setDateRange(nextRange.startDate, nextRange.endDate);
-};
+const handleToday = () => calendarStore.goToToday();
 
-const handlePeriodChange = (nextPeriod: CalendarPeriod) => {
-  setPeriodAndDateRange(nextPeriod);
-};
+const handleDateSelection = (selectedDate: string) => calendarStore.setAnchorDate(selectedDate);
+
+const handlePeriodChange = (nextPeriod: CalendarPeriod) => calendarStore.setPeriod(nextPeriod);
 
 const handleToolbarAction = async (actionId: string) => {
   const action = toolbarActions.value.find((candidate) => candidate.id === actionId);
@@ -276,16 +262,15 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
         :views="views"
         :active-view-id="activeViewId"
         :create-actions="createActions"
-        :location-options="locationOptions"
-        :location-value="locationValue"
         :range-label="rangeLabel"
+        :anchor-date="anchorDate"
         :toolbar-actions="toolbarActions"
         :active-period="period"
         :periods="activePeriods"
         :is-loading="loading"
         @update:active-view-id="handleActiveViewChange"
-        @update:location-value="locationValue = $event ?? 'all'"
         @update:period="handlePeriodChange"
+        @select-date="handleDateSelection"
         @previous="handlePrevious"
         @next="handleNext"
         @today="handleToday"
