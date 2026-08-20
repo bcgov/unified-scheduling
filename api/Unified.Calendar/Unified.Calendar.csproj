@@ -8,6 +8,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="FlexLabs.EntityFrameworkCore.Upsert" Version="10.1.0" />
     <PackageReference Include="Mapster" Version="10.0.11" />
     <PackageReference Include="Ical.Net" Version="5.2.3" />
   </ItemGroup>
