@@ -4,11 +4,11 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { UserBadgeNumberFlags } from './userBadgeNumberFlags.ts';
+import type { UserManagementFeatureFlagsUserBadgeNumber } from './userManagementFeatureFlagsUserBadgeNumber.ts';
 
 export interface UserManagementFeatureFlags {
   /** @nullable */
   source?: string | null;
   enabled: boolean;
-  userBadgeNumber?: UserBadgeNumberFlags;
+  userBadgeNumber?: UserManagementFeatureFlagsUserBadgeNumber;
 }

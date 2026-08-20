@@ -3,7 +3,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
 import { server } from '@/__tests__/mocks/server';
 import { getPostApiCalendarEventsMockHandler } from '@/api-access/generated/calendar/calendar.msw';
-import type { FeatureFlagsResponse } from '@/api-access/generated/models';
+import type { CalendarFeatureFlags, FeatureFlagsResponse } from '@/api-access/generated/models';
+import type { CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
 
 describe('calendar module integration', () => {
   beforeEach(() => {
@@ -13,7 +14,14 @@ describe('calendar module integration', () => {
 
   it('registers routes, navigation and calendar contributions only once when enabled', async () => {
     const routes: RouteRecordRaw[] = [];
-    const featureFlags: FeatureFlagsResponse = { Calendar: { enabled: true } };
+    const calendarFeatureFlags: CalendarFeatureFlags = {
+      source: 'Calendar',
+      enabled: true,
+      calendarMatrixTest: false,
+    };
+    const featureFlags: FeatureFlagsResponse = {
+      Calendar: calendarFeatureFlags,
+    };
 
     const [{ registerModule }, { useNavigationStore }, { calendarRegistry }, { calendarActionRegistry }] =
       await Promise.all([
@@ -31,15 +39,22 @@ describe('calendar module integration', () => {
     expect(routes).toHaveLength(1);
     expect(routes[0]?.path).toBe('/calendar');
     expect(navigationStore.links).toEqual([{ name: 'Calendar', path: '/calendar', class: 'router-link--border' }]);
+    const runtimeContextEnabled = {
+      featureFlags: {
+        Calendar: calendarFeatureFlags,
+      },
+    } as unknown as CalendarRuntimeContext;
+
     expect(calendarRegistry.getAvailableViews({ featureFlags: {} }).map((view) => view.id)).toEqual([
       'calendar-default',
     ]);
     expect(
       calendarRegistry
-        .getAvailableModuleContributions(
-          { featureFlags: { Calendar: { enabled: true } } },
-          { startDate: '2025-01-01', endDate: '2025-01-02', filters: {} },
-        )
+        .getAvailableModuleContributions(runtimeContextEnabled, {
+          startDate: '2025-01-01',
+          endDate: '2025-01-02',
+          filters: {},
+        })
         .map((contribution) => contribution.contributionId),
     ).toEqual(['calendar.events']);
     expect(
@@ -60,7 +75,14 @@ describe('calendar module integration', () => {
 
   it('does not register routes when calendar feature is disabled', async () => {
     const routes: RouteRecordRaw[] = [];
-    const featureFlags: FeatureFlagsResponse = { Calendar: { enabled: false } };
+    const calendarFeatureFlags: CalendarFeatureFlags = {
+      source: 'Calendar',
+      enabled: false,
+      calendarMatrixTest: false,
+    };
+    const featureFlags: FeatureFlagsResponse = {
+      Calendar: calendarFeatureFlags,
+    };
 
     const [{ registerModule }, { useNavigationStore }] = await Promise.all([
       import('@/modules/calendar/CalendarModule'),
@@ -107,13 +129,21 @@ describe('calendar module integration', () => {
     const { calendarEventsContribution } = await import('@/modules/calendar/contributions/calendarEventsContribution');
 
     const isAvailable = calendarEventsContribution.isAvailable;
+    const calendarFeatureFlags: CalendarFeatureFlags = {
+      source: 'Calendar',
+      enabled: false,
+      calendarMatrixTest: false,
+    };
+    const runtimeContextDisabled = {
+      featureFlags: {
+        Calendar: calendarFeatureFlags,
+      },
+    } as unknown as CalendarRuntimeContext;
 
     expect(isAvailable).toBeTypeOf('function');
 
     expect(isAvailable?.({ featureFlags: {} }, { startDate: '', endDate: '', filters: {} })).toBe(true);
-    expect(
-      isAvailable?.({ featureFlags: { Calendar: { enabled: false } } }, { startDate: '', endDate: '', filters: {} }),
-    ).toBe(false);
+    expect(isAvailable?.(runtimeContextDisabled, { startDate: '', endDate: '', filters: {} })).toBe(false);
 
     await expect(
       calendarEventsContribution.load(

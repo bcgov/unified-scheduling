@@ -10,55 +10,40 @@ export const GetApiConfigResponse = zod.object({
   featureFlags: zod
     .object({
       UserManagement: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-            userBadgeNumber: zod
-              .object({
-                enabled: zod.boolean(),
-              })
-              .optional(),
-          }),
-        ])
+        .object({
+          source: zod.string().nullish(),
+          enabled: zod.boolean(),
+          userBadgeNumber: zod
+            .object({
+              enabled: zod.boolean(),
+            })
+            .optional(),
+        })
         .optional(),
       Calendar: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-            calendarMatrixTest: zod.boolean().optional(),
-          }),
-        ])
+        .object({
+          source: zod.string().nullish(),
+          enabled: zod.boolean(),
+          calendarMatrixTest: zod.boolean().optional(),
+        })
         .optional(),
       Scheduling: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-          }),
-        ])
+        .object({
+          source: zod.string().nullish(),
+          enabled: zod.boolean(),
+        })
         .optional(),
       Stats: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-          }),
-        ])
+        .object({
+          source: zod.string().nullish(),
+          enabled: zod.boolean(),
+        })
         .optional(),
       Training: zod
-        .union([
-          zod.null(),
-          zod.object({
-            source: zod.string().nullish(),
-            enabled: zod.boolean(),
-          }),
-        ])
+        .object({
+          source: zod.string().nullish(),
+          enabled: zod.boolean(),
+        })
         .optional(),
     })
     .optional(),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+
 import { getGetApiUsersIdMockHandler, getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
 import UserProfile from '@/modules/myteam/views/UserProfile.vue';
 import { server } from '../../mocks/server';

@@ -11,9 +11,9 @@ import type { TrainingFeatureFlags } from './trainingFeatureFlags.ts';
 import type { UserManagementFeatureFlags } from './userManagementFeatureFlags.ts';
 
 export interface FeatureFlagsResponse {
-  UserManagement?: null | UserManagementFeatureFlags;
-  Calendar?: null | CalendarFeatureFlags;
-  Scheduling?: null | SchedulingFeatureFlags;
-  Stats?: null | StatsFeatureFlags;
-  Training?: null | TrainingFeatureFlags;
+  UserManagement?: UserManagementFeatureFlags;
+  Calendar?: CalendarFeatureFlags;
+  Scheduling?: SchedulingFeatureFlags;
+  Stats?: StatsFeatureFlags;
+  Training?: TrainingFeatureFlags;
 }

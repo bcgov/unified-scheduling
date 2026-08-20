@@ -2,7 +2,7 @@ import { computed } from 'vue';
 import type { Pinia } from 'pinia';
 import { useConfigStore } from '@/stores/config';
 import { useAuthStore } from '@/stores/auth';
-import type { Permissions, FeatureFlagsResponse } from '@/api-access/generated/models';
+import type { FeatureFlagsResponse, Permissions } from '@/api-access/generated/models';
 import type { DeepPartial } from '@/types/deepPartial';
 
 /**

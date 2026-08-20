@@ -1,9 +1,4 @@
 using System.Text.Json.Serialization;
-using Unified.Calendar.FeatureFlags;
-using Unified.Scheduling.FeatureFlags;
-using Unified.Stats.FeatureFlags;
-using Unified.Training.FeatureFlags;
-using Unified.UserManagement.FeatureFlags;
 
 namespace Unified.Api.Models;
 
@@ -14,10 +9,10 @@ namespace Unified.Api.Models;
 public class ConfigResponse
 {
     /// <summary>
-    /// Module feature flags keyed by source names for strongly typed API contracts.
+    /// Module feature flags keyed by source names.
     /// </summary>
     [JsonPropertyName("featureFlags")]
-    public FeatureFlagsResponse FeatureFlags { get; set; } = new();
+    public Dictionary<string, object> FeatureFlags { get; set; } = [];
 
     /// <summary>
     /// Support email for the application
@@ -28,26 +23,4 @@ public class ConfigResponse
     /// Application display name
     /// </summary>
     public string? ApplicationName { get; set; }
-}
-
-/// <summary>
-/// Strongly typed feature flags payload returned by /api/config.
-/// JSON property names match module SourceName values.
-/// </summary>
-public class FeatureFlagsResponse
-{
-    [JsonPropertyName(UserManagementFeatureFlags.SourceName)]
-    public UserManagementFeatureFlags? UserManagement { get; set; }
-
-    [JsonPropertyName(CalendarFeatureFlags.SourceName)]
-    public CalendarFeatureFlags? Calendar { get; set; }
-
-    [JsonPropertyName(SchedulingFeatureFlags.SourceName)]
-    public SchedulingFeatureFlags? Scheduling { get; set; }
-
-    [JsonPropertyName(StatsFeatureFlags.SourceName)]
-    public StatsFeatureFlags? Stats { get; set; }
-
-    [JsonPropertyName(TrainingFeatureFlags.SourceName)]
-    public TrainingFeatureFlags? Training { get; set; }
 }
