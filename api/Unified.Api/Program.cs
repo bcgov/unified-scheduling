@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Hangfire;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
+using Unified.Api.Controllers;
 using Unified.Api.Options;
 using Unified.Api.Services;
 using Unified.Authorization;
@@ -14,6 +15,7 @@ using Unified.Db;
 using Unified.Hangfire;
 using Unified.Hangfire.Options;
 using Unified.Infrastructure;
+using Unified.Infrastructure.Email.Ches;
 using Unified.Infrastructure.OpenApi;
 using Unified.Infrastructure.Options;
 using Unified.JCInterface;
@@ -77,6 +79,7 @@ var hangfireOptions =
     // Modules (core infrastructure first, feature-gated modules conditionally, then Hangfire last)
     builder
         .Services.AddInfrastructureModule()
+        .AddChesEmail(builder.Configuration)
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
         .AddUserManagementModule(builder.Configuration)
@@ -91,6 +94,7 @@ var hangfireOptions =
         .AddJCInterfaceModule(builder.Configuration);
 
     var mvcBuilder = builder.Services.AddControllers();
+    mvcBuilder.AddChesTestController(builder.Environment, builder.Configuration);
     mvcBuilder.AddCalendarApplicationPart(builder.Configuration);
     mvcBuilder.AddSchedulingApplicationPart(builder.Configuration);
     mvcBuilder.AddTrainingApplicationPart(builder.Configuration);

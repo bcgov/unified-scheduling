@@ -37,6 +37,19 @@ services:
       - JCInterface__Username=${LocationServicesClientUsername}
       - JCInterface__Password=${LocationServicesClientPassword}
       - JCInterface__Url=${LocationServicesClientUrl}
+      - Ches__Enabled=${ChesEnabled:-false}
+      - Ches__BaseUrl=${ChesBaseUrl:-https://ches.api.gov.bc.ca/api/v1/}
+      - Ches__AuthUrl=${ChesAuthUrl:-}
+      - Ches__ClientId=${ChesClientId:-}
+      - Ches__ClientSecret=${ChesClientSecret:-}
+      - Ches__SenderName=${ChesSenderName:-Unified Scheduling}
+      - Ches__SenderEmail=${ChesSenderEmail:-}
+      - Ches__TokenRefreshSkewSeconds=${ChesTokenRefreshSkewSeconds:-60}
+      - Ches__TimeoutSeconds=${ChesTimeoutSeconds:-30}
+      - Ches__AllowedAttachmentTypes__0__Extension=${ChesAllowedAttachment0Extension:-.pdf}
+      - Ches__AllowedAttachmentTypes__0__ContentType=${ChesAllowedAttachment0ContentType:-application/pdf}
+      - Ches__MaxAttachmentSizeBytes=${ChesMaxAttachmentSizeBytes:-20971520}
+      - Ches__MaxRecipientsPerMessage=${ChesMaxRecipientsPerMessage:-500}
     ports:
       - 5000:5000
     volumes:
