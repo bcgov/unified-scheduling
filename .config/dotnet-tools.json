@@ -13,7 +13,15 @@
       "version": "10.0.11",
       "commands": [
         "dotnet-mapster"
-      ]
+      ],
+      "rollForward": false
+    },
+    "nswag.consolecore": {
+      "version": "14.7.1",
+      "commands": [
+        "nswag"
+      ],
+      "rollForward": false
     }
   }
 }
