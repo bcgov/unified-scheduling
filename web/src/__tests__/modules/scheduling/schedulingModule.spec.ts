@@ -25,7 +25,7 @@ describe('calendar scheduling module integration', () => {
           { startDate: '2025-01-01', endDate: '2025-01-08', filters: {} },
         )
         .map((contribution) => contribution.contributionId),
-    ).toContain('scheduling.shift-events');
+    ).toContain('scheduling.events');
     expect(
       calendarActionRegistry.getCreateActions(
         { startDate: '2025-01-01', endDate: '2025-01-08', activeViewId: 'calendar.matrix-schedule', filters: {} },

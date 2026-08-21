@@ -24,7 +24,7 @@ const resourceDataCache = new Map<string, Promise<CalendarSchedulingResourceData
 
 export const calendarSchedulingEventsContribution: CalendarModuleContribution = {
   moduleId: CalendarModuleId.Scheduling,
-  contributionId: CalendarContributionId.SchedulingShiftEvents,
+  contributionId: CalendarContributionId.SchedulingEvents,
   isAvailable(runtimeContext) {
     return runtimeContext.featureFlags.Scheduling?.enabled ?? true;
   },
@@ -50,7 +50,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
 
     return {
       moduleId: CalendarModuleId.Scheduling,
-      contributionId: CalendarContributionId.SchedulingShiftEvents,
+      contributionId: CalendarContributionId.SchedulingEvents,
       events: events.map<CalendarSchedulingEvent>((event) => ({
         id: event.id,
         type: event.type,
