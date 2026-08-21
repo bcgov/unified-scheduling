@@ -10,7 +10,9 @@ using Unified.Authorization;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Core.Services.Lookup;
+using Unified.Core.Services.Reporting;
 using Unified.Training.FeatureFlags;
+using Unified.Training.Services.Reporting;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
@@ -63,6 +65,7 @@ public static class TrainingModule
 
         services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
+        services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );

@@ -103,6 +103,7 @@ Built with **ASP.NET Core** using a modular monolith architecture.
 | `Unified.Infrastructure` | Cross-cutting concerns (error handling, OpenAPI, options) |
 | `Unified.UserManagement` | User CRUD domain |
 | `Unified.Stats` | Optional stats module (feature flag controlled) |
+| `Unified.Training` | Optional training module (feature flag controlled) |
 | `Unified.Tests` | Unit and integration tests |
 
 ### Feature Flags

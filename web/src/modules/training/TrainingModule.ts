@@ -5,17 +5,10 @@ import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStor
 const trainingRoutes: RouteRecordRaw[] = [
   {
     path: '/training',
-    children: [
-      {
-        path: '',
-        name: 'Training',
-        component: () => import('./Training.vue'),
-        meta: {
-          title: 'Training',
-        },
-      },
-    ],
+    name: 'Training',
+    component: () => import('./Training.vue'),
     meta: {
+      title: 'Training',
       requiresAuth: true,
     },
   },
