@@ -14,12 +14,13 @@ public static class ClaimPrincipalExtensions
     public static string HomeLocationTimezone(this ClaimsPrincipal user) =>
         user.FindFirst(UnifiedClaimTypes.HomeLocationTimezone)?.Value ?? string.Empty;
 
-    public static Guid CurrentUserId(this ClaimsPrincipal user)
+    /// <summary>Returns the UserId claim as a Guid, or null if missing/unparsable (e.g. system/background callers).</summary>
+    public static Guid? TryGetCurrentUserId(this ClaimsPrincipal user)
     {
         var userIdString = user.FindFirst(UnifiedClaimTypes.UserId)?.Value;
-        if (!Guid.TryParse(userIdString, out var userId))
-            throw new InvalidOperationException("Missing UserId Guid from claims.");
-
-        return userId;
+        return Guid.TryParse(userIdString, out var userId) ? userId : null;
     }
+
+    public static Guid CurrentUserId(this ClaimsPrincipal user) =>
+        user.TryGetCurrentUserId() ?? throw new InvalidOperationException("Missing UserId Guid from claims.");
 }
