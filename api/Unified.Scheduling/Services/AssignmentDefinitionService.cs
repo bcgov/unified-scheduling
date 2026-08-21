@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Db;
 using Unified.Db.Models.Scheduling;
+using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
@@ -24,7 +25,7 @@ public sealed class AssignmentDefinitionService(
 
         var definitions = await query.OrderBy(definition => definition.Name).ToListAsync(cancellationToken);
 
-        return definitions.Select(MapToResponse).ToList();
+        return definitions.Select(AssignmentDefinitionMapper.ToResponse).ToList();
     }
 
     public async Task<AssignmentDefinitionResponse?> GetAssignmentDefinitionByIdAsync(
@@ -34,7 +35,7 @@ public sealed class AssignmentDefinitionService(
     {
         var definition = await IncludeGraph(db.AssignmentDefinitions.AsNoTracking())
             .SingleOrDefaultAsync(definition => definition.Id == id, cancellationToken);
-        return definition is null ? null : MapToResponse(definition);
+        return definition is null ? null : AssignmentDefinitionMapper.ToResponse(definition);
     }
 
     public async Task<AssignmentDefinitionResponse> CreateAssignmentDefinitionAsync(
@@ -141,25 +142,6 @@ public sealed class AssignmentDefinitionService(
 
     private static IQueryable<AssignmentDefinition> IncludeGraph(IQueryable<AssignmentDefinition> query) =>
         query.Include(definition => definition.Category).Include(definition => definition.SubCategory);
-
-    private static AssignmentDefinitionResponse MapToResponse(AssignmentDefinition definition) =>
-        new()
-        {
-            Id = definition.Id,
-            LocationId = definition.LocationId,
-            Name = definition.Name,
-            Description = definition.Description,
-            CategoryId = definition.CategoryId,
-            CategoryName = definition.Category.Name,
-            SubCategoryId = definition.SubCategoryId,
-            SubCategoryName = definition.SubCategory.Name,
-            Color = definition.Color,
-            DefaultStartTime = definition.DefaultStartTime?.ToString("HH:mm:ss"),
-            DefaultEndTime = definition.DefaultEndTime?.ToString("HH:mm:ss"),
-            DefaultCapacity = definition.DefaultCapacity,
-            EffectiveDateUtc = definition.EffectiveDateUtc,
-            ExpiryDateUtc = definition.ExpiryDateUtc,
-        };
 
     private static string NormalizeNameForStorage(string name) => name.Trim();
 

@@ -5,6 +5,56 @@ namespace Unified.Scheduling.Services;
 
 internal static class ShiftAssignmentGuards
 {
+    public static IReadOnlyCollection<Guid> NormalizeRequiredUserIds(IReadOnlyCollection<Guid> userIds)
+    {
+        if (userIds.Count == 0)
+            throw new InvalidOperationException("At least one selected user is required.");
+
+        var distinctUserIds = userIds.Distinct().ToList();
+        if (distinctUserIds.Count != userIds.Count)
+            throw new InvalidOperationException("Selected users must be unique.");
+
+        return distinctUserIds;
+    }
+
+    public static void EnsureUsersBelongToShiftEntry(
+        ShiftEntry shiftEntry,
+        IReadOnlyCollection<Guid> selectedUserIds,
+        string errorMessage = "Selected users must belong to the linked shift entry."
+    )
+    {
+        var shiftUserIds = shiftEntry.Users.Select(user => user.UserId).ToHashSet();
+        if (!selectedUserIds.All(shiftUserIds.Contains))
+            throw new InvalidOperationException(errorMessage);
+    }
+
+    public static void EnsureCanLink(
+        ShiftEntry shiftEntry,
+        AssignmentEntry assignmentEntry,
+        IReadOnlyCollection<Guid> selectedUserIds
+    )
+    {
+        if (shiftEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Cancelled)
+            throw new InvalidOperationException("Cancelled shift entries cannot be linked.");
+
+        if (assignmentEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Cancelled)
+            throw new InvalidOperationException("Cancelled assignment entries cannot be linked.");
+
+        if (
+            shiftEntry.Event is not Event shiftEvent
+            || assignmentEntry.Event is not Event assignmentEvent
+            || !UtcIntervalsOverlap(
+                shiftEvent.StartAtUtc,
+                shiftEvent.EndAtUtc,
+                assignmentEvent.StartAtUtc,
+                assignmentEvent.EndAtUtc
+            )
+        )
+            throw new InvalidOperationException("Shift and assignment entries must overlap.");
+
+        EnsureUsersBelongToShiftEntry(shiftEntry, selectedUserIds);
+    }
+
     public static void EnsureShiftEntryUpdatePreservesLinks(
         ShiftEntry shiftEntry,
         DateTimeOffset proposedStartAtUtc,

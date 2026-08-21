@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
@@ -136,7 +137,7 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
     )
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var selectedUserIds = ValidateSelectedUserIds(request.AssignedUserIds);
+        var selectedUserIds = ShiftAssignmentGuards.NormalizeRequiredUserIds(request.AssignedUserIds);
         var shiftSeriesExists = await db.ShiftSeries.AnyAsync(
             series => series.Id == request.ShiftSeriesId,
             cancellationToken
@@ -175,18 +176,12 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
                 $"Shift series {request.ShiftSeriesId} did not overlap any assignment entries in assignment series {request.AssignmentSeriesId}."
             );
 
-        foreach (var (shiftEntry, _) in intersections)
-        {
-            var shiftUserIds = shiftEntry.Users.Select(user => user.UserId).ToHashSet();
-            if (!selectedUserIds.All(shiftUserIds.Contains))
-            {
-                logger.LogInformation(
-                    "Invalid selected users for shift entry {ShiftEntryId} during series assignment link.",
-                    shiftEntry.Id
-                );
-                throw new InvalidOperationException("Selected users must belong to every intersecting shift entry.");
-            }
-        }
+        foreach (var shiftEntry in intersections.Select(pair => pair.shiftEntry).DistinctBy(entry => entry.Id))
+            ShiftAssignmentGuards.EnsureUsersBelongToShiftEntry(
+                shiftEntry,
+                selectedUserIds,
+                "Selected users must belong to every intersecting shift entry."
+            );
 
         var shiftEntryIds = intersections.Select(pair => pair.shiftEntry.Id).Distinct().ToList();
         var assignmentEntryIds = intersections.Select(pair => pair.assignmentEntry.Id).Distinct().ToList();
@@ -256,7 +251,8 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
                 );
         }
 
-        SyncSeriesLinkUsers(seriesLink, selectedUserIds);
+        db.ShiftAssignmentSeriesLinkUsers.RemoveRange(seriesLink.Users);
+        ShiftAssignmentUserSync.ReplaceSeriesUsers(seriesLink, selectedUserIds);
 
         var intersectionKeys = intersections.Select(pair => (pair.shiftEntry.Id, pair.assignmentEntry.Id)).ToHashSet();
         var existingLinksByPair = existingLinks.ToDictionary(
@@ -271,13 +267,22 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
                 if (existingLink.ShiftAssignmentSeriesLinkId == seriesLink.Id)
                 {
                     if (!existingLink.IsException)
-                        SyncLinkUsers(existingLink, selectedUserIds);
+                    {
+                        db.ShiftAssignmentEntryUsers.RemoveRange(existingLink.Users);
+                        ShiftAssignmentUserSync.ReplaceEntryUsers(existingLink, selectedUserIds);
+                    }
                 }
                 syncedLinks.Add(existingLink);
                 continue;
             }
 
-            var link = CreateLink(shiftEntry.Id, assignmentEntry.Id, selectedUserIds, seriesLink, isException: false);
+            var link = ShiftAssignmentUserSync.CreateEntryLink(
+                shiftEntry.Id,
+                assignmentEntry.Id,
+                selectedUserIds,
+                seriesLink,
+                isException: false
+            );
             db.ShiftAssignmentEntries.Add(link);
             syncedLinks.Add(link);
         }
@@ -303,7 +308,7 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             syncedLinks.Count
         );
 
-        return MapToSeriesLinkResponse(seriesLink, responseLinks, assignmentEntries);
+        return ShiftAssignmentResponseMapper.ToSeriesLinkResponse(seriesLink, responseLinks, assignmentEntries);
     }
 
     private async Task<ShiftAssignmentEntryResponse> CreateOrUpdateShiftEntryLinkAsync(
@@ -335,11 +340,11 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         int? expectedLinkId = null
     )
     {
-        var selectedUserIds = ValidateSelectedUserIds(assignedUserIds);
+        var selectedUserIds = ShiftAssignmentGuards.NormalizeRequiredUserIds(assignedUserIds);
         var shiftEntry = await LoadShiftEntryAsync(shiftEntryId, cancellationToken);
         var assignmentEntry = await LoadAssignmentEntryAsync(assignmentEntryId, cancellationToken);
 
-        ValidateCanLink(shiftEntry, assignmentEntry, selectedUserIds);
+        ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, selectedUserIds);
 
         var link = await db
             .ShiftAssignmentEntries.Include(existingLink => existingLink.Users)
@@ -359,12 +364,13 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             if (!updateExisting)
                 throw new InvalidOperationException("Shift entry is already linked to this assignment entry.");
 
-            SyncLinkUsers(link, selectedUserIds);
-            UpdateExceptionState(link, selectedUserIds);
+            db.ShiftAssignmentEntryUsers.RemoveRange(link.Users);
+            ShiftAssignmentUserSync.ReplaceEntryUsers(link, selectedUserIds);
+            ShiftAssignmentUserSync.UpdateExceptionState(link, selectedUserIds);
         }
         else
         {
-            link = CreateLink(shiftEntry.Id, assignmentEntry.Id, selectedUserIds);
+            link = ShiftAssignmentUserSync.CreateEntryLink(shiftEntry.Id, assignmentEntry.Id, selectedUserIds);
             db.ShiftAssignmentEntries.Add(link);
         }
 
@@ -376,7 +382,7 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             assignmentEntry.Id
         );
 
-        return MapToResponse(link, assignmentEntry.Capacity);
+        return ShiftAssignmentResponseMapper.ToEntryResponse(link, assignmentEntry.Capacity);
     }
 
     private async Task<ShiftEntry> LoadShiftEntryAsync(int id, CancellationToken cancellationToken) =>
@@ -392,42 +398,6 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken)
         ?? throw new KeyNotFoundException($"Assignment entry {id} not found.");
 
-    private void ValidateCanLink(
-        ShiftEntry shiftEntry,
-        AssignmentEntry assignmentEntry,
-        IReadOnlyCollection<Guid> selectedUserIds
-    )
-    {
-        if (shiftEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Cancelled)
-        {
-            logger.LogInformation("Blocked link to cancelled shift entry {ShiftEntryId}.", shiftEntry.Id);
-            throw new InvalidOperationException("Cancelled shift entries cannot be linked.");
-        }
-
-        if (assignmentEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Cancelled)
-        {
-            logger.LogInformation(
-                "Blocked link to cancelled assignment entry {AssignmentEntryId}.",
-                assignmentEntry.Id
-            );
-            throw new InvalidOperationException("Cancelled assignment entries cannot be linked.");
-        }
-
-        if (
-            shiftEntry.Event is null
-            || assignmentEntry.Event is null
-            || !UtcIntervalsOverlap(shiftEntry.Event, assignmentEntry.Event)
-        )
-            throw new InvalidOperationException("Shift and assignment entries must overlap.");
-
-        var shiftUserIds = shiftEntry.Users.Select(user => user.UserId).ToHashSet();
-        if (!selectedUserIds.All(shiftUserIds.Contains))
-        {
-            logger.LogInformation("Invalid selected users for shift entry {ShiftEntryId}.", shiftEntry.Id);
-            throw new InvalidOperationException("Selected users must belong to the linked shift entry.");
-        }
-    }
-
     private static bool UtcIntervalsOverlap(Event shiftEvent, Event assignmentEvent) =>
         ShiftAssignmentGuards.UtcIntervalsOverlap(
             shiftEvent.StartAtUtc,
@@ -435,42 +405,6 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             assignmentEvent.StartAtUtc,
             assignmentEvent.EndAtUtc
         );
-
-    private static IReadOnlyCollection<Guid> ValidateSelectedUserIds(IReadOnlyCollection<Guid> userIds)
-    {
-        if (userIds.Count == 0)
-            throw new InvalidOperationException("At least one selected user is required.");
-
-        var distinctUserIds = userIds.Distinct().ToList();
-        if (distinctUserIds.Count != userIds.Count)
-            throw new InvalidOperationException("Selected users must be unique.");
-
-        return distinctUserIds;
-    }
-
-    private static ShiftAssignmentEntry CreateLink(
-        int shiftEntryId,
-        int assignmentEntryId,
-        IReadOnlyCollection<Guid> selectedUserIds,
-        ShiftAssignmentSeriesLink? seriesLink = null,
-        bool isException = false
-    ) =>
-        new()
-        {
-            ShiftEntryId = shiftEntryId,
-            AssignmentEntryId = assignmentEntryId,
-            ShiftAssignmentSeriesLink = seriesLink,
-            IsException = isException,
-            Users = selectedUserIds.Select(userId => new ShiftAssignmentEntryUser { UserId = userId }).ToList(),
-        };
-
-    private void SyncSeriesLinkUsers(ShiftAssignmentSeriesLink link, IReadOnlyCollection<Guid> selectedUserIds)
-    {
-        db.ShiftAssignmentSeriesLinkUsers.RemoveRange(link.Users);
-        link.Users.Clear();
-        foreach (var userId in selectedUserIds)
-            link.Users.Add(new ShiftAssignmentSeriesLinkUser { UserId = userId });
-    }
 
     private void RemoveSeriesLinks(IReadOnlyCollection<ShiftAssignmentSeriesLink> seriesLinks)
     {
@@ -481,26 +415,6 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         RemoveLinks(entryLinks);
         db.ShiftAssignmentSeriesLinkUsers.RemoveRange(seriesLinks.SelectMany(link => link.Users));
         db.ShiftAssignmentSeriesLinks.RemoveRange(seriesLinks);
-    }
-
-    private void SyncLinkUsers(ShiftAssignmentEntry link, IReadOnlyCollection<Guid> selectedUserIds)
-    {
-        db.ShiftAssignmentEntryUsers.RemoveRange(link.Users);
-        link.Users.Clear();
-        foreach (var userId in selectedUserIds)
-            link.Users.Add(new ShiftAssignmentEntryUser { ShiftAssignmentEntryId = link.Id, UserId = userId });
-    }
-
-    private static void UpdateExceptionState(ShiftAssignmentEntry link, IReadOnlyCollection<Guid> selectedUserIds)
-    {
-        if (link.ShiftAssignmentSeriesLink is null)
-        {
-            link.IsException = false;
-            return;
-        }
-
-        var parentUserIds = link.ShiftAssignmentSeriesLink.Users.Select(user => user.UserId).ToHashSet();
-        link.IsException = !selectedUserIds.ToHashSet().SetEquals(parentUserIds);
     }
 
     private void RemoveLinks(IReadOnlyCollection<ShiftAssignmentEntry> links)
@@ -522,42 +436,4 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             link.IsException = true;
     }
 
-    private static ShiftAssignmentEntryResponse MapToResponse(ShiftAssignmentEntry link, int capacity)
-    {
-        var userIds = link.Users.Select(user => user.UserId).Distinct().ToList();
-        return new ShiftAssignmentEntryResponse
-        {
-            Id = link.Id,
-            ShiftEntryId = link.ShiftEntryId,
-            AssignmentEntryId = link.AssignmentEntryId,
-            ShiftAssignmentSeriesLinkId = link.ShiftAssignmentSeriesLinkId,
-            IsException = link.IsException,
-            Capacity = capacity,
-            AssignedUserCount = userIds.Count,
-            UserIds = userIds,
-        };
-    }
-
-    private static ShiftAssignmentSeriesLinkResponse MapToSeriesLinkResponse(
-        ShiftAssignmentSeriesLink seriesLink,
-        IReadOnlyCollection<ShiftAssignmentEntry> entryLinks,
-        IReadOnlyCollection<AssignmentEntry> assignmentEntries
-    )
-    {
-        var assignmentCapacityById = assignmentEntries.ToDictionary(entry => entry.Id, entry => entry.Capacity);
-        var entryLinkResponses = entryLinks
-            .Select(link => MapToResponse(link, assignmentCapacityById.GetValueOrDefault(link.AssignmentEntryId)))
-            .ToList();
-
-        return new ShiftAssignmentSeriesLinkResponse
-        {
-            Id = seriesLink.Id,
-            ShiftSeriesId = seriesLink.ShiftSeriesId,
-            AssignmentSeriesId = seriesLink.AssignmentSeriesId,
-            AssignedUserIds = seriesLink.Users.Select(user => user.UserId).Distinct().ToList(),
-            ShiftAssignmentEntryIds = entryLinkResponses.Select(link => link.Id).ToList(),
-            EntryLinks = entryLinkResponses,
-            ExceptionCount = entryLinkResponses.Count(link => link.IsException),
-        };
-    }
 }

@@ -6,6 +6,7 @@ using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
@@ -116,7 +117,7 @@ public sealed class AssignmentService(
             cancellationToken
         );
 
-        var eventSeries = MapToEventSeries(request);
+        var eventSeries = AssignmentEventMapper.ToEventSeries(request);
         db.EventSeries.Add(eventSeries);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -189,25 +190,20 @@ public sealed class AssignmentService(
 
         ValidateAssignmentEventSeriesType(assignmentSeries.EventSeries!);
         EnsureDraft(assignmentSeries.EventSeries!.StatusTypeCode, "Assignment series");
-        var oldEventSeriesValues = CaptureEventSeriesValues(assignmentSeries.EventSeries!);
-        var oldAssignmentDefinitionId = assignmentSeries.AssignmentDefinitionId;
-        var oldCapacity = assignmentSeries.Capacity;
-        var oldCategoryId = assignmentSeries.CategoryId;
-        var oldSubCategoryId = assignmentSeries.SubCategoryId;
-        var recurrenceChanged = HasRecurrenceChanged(assignmentSeries.EventSeries!, request);
+        var updatePlan = AssignmentSeriesUpdatePlanner.CreatePlan(assignmentSeries, request);
         // Temporary limitation: recurrence/link reconciliation is intentionally deferred.
-        if (recurrenceChanged && await AssignmentSeriesHasShiftAssignmentLinksAsync(id, cancellationToken))
+        if (updatePlan.RecurrenceChanged && await AssignmentSeriesHasShiftAssignmentLinksAsync(id, cancellationToken))
             throw new InvalidOperationException(
                 "Assignment series recurrence cannot be changed after shift links exist."
             );
 
-        UpdateEventSeries(assignmentSeries.EventSeries!, request);
+        AssignmentEventMapper.ApplyToEventSeries(assignmentSeries.EventSeries!, request);
         assignmentSeries.AssignmentDefinitionId = request.AssignmentDefinitionId;
         assignmentSeries.Capacity = request.Capacity;
         assignmentSeries.CategoryId = request.CategoryId;
         assignmentSeries.SubCategoryId = request.SubCategoryId;
 
-        if (recurrenceChanged)
+        if (updatePlan.RegenerateEntries)
         {
             await eventSeriesMaterializationService.RegenerateDraftSeriesAsync(
                 assignmentSeries.EventSeries!,
@@ -221,28 +217,9 @@ public sealed class AssignmentService(
                 cancellationToken
             );
         }
-        else
+        else if (updatePlan.PropagateSeriesChanges)
         {
-            foreach (
-                var entry in assignmentSeries.AssignmentEntries.Where(entry =>
-                    entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                )
-            )
-            {
-                ApplyEventSeriesFieldUpdatePreservingOverrides(
-                    entry.Event!,
-                    oldEventSeriesValues,
-                    assignmentSeries.EventSeries!
-                );
-                if (entry.AssignmentDefinitionId == oldAssignmentDefinitionId)
-                    entry.AssignmentDefinitionId = request.AssignmentDefinitionId;
-                if (entry.Capacity == oldCapacity)
-                    entry.Capacity = assignmentSeries.Capacity;
-                if (entry.CategoryId == oldCategoryId)
-                    entry.CategoryId = assignmentSeries.CategoryId;
-                if (entry.SubCategoryId == oldSubCategoryId)
-                    entry.SubCategoryId = assignmentSeries.SubCategoryId;
-            }
+            PropagateSeriesChangesToEntries(assignmentSeries, request, updatePlan);
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -454,7 +431,7 @@ public sealed class AssignmentService(
             IsolationLevel.Serializable,
             cancellationToken
         );
-        var eventEntity = MapToEvent(request, assignmentSeries?.EventSeriesId);
+        var eventEntity = AssignmentEventMapper.ToEvent(request, assignmentSeries?.EventSeriesId);
         CalendarEventExceptionHelper.UpdateExceptionFlag(eventEntity);
         await EnsureAssignmentsAreUniqueAsync(
             [CreateAssignmentUniquenessCandidate(definition.Id, eventEntity)],
@@ -534,7 +511,7 @@ public sealed class AssignmentService(
             request.EndAtUtc,
             request.AssignmentSeriesId
         );
-        UpdateEvent(assignmentEntry.Event!, request, assignmentSeries?.EventSeriesId);
+        AssignmentEventMapper.ApplyToEvent(assignmentEntry.Event!, request, assignmentSeries?.EventSeriesId);
         CalendarEventExceptionHelper.UpdateExceptionFlag(assignmentEntry.Event!);
         assignmentEntry.AssignmentSeriesId = request.AssignmentSeriesId;
         assignmentEntry.AssignmentDefinitionId = request.AssignmentDefinitionId;
@@ -845,23 +822,6 @@ public sealed class AssignmentService(
                 .ThenInclude(link => link.ShiftEntry)
                     .ThenInclude(shiftEntry => shiftEntry!.Event);
 
-    private static EventSeries MapToEventSeries(AssignmentSeriesRequest request) =>
-        new()
-        {
-            Title = request.Title.Trim(),
-            Description = request.Description?.Trim(),
-            Notes = request.Notes?.Trim(),
-            Color = request.Color?.Trim(),
-            RecurrenceRule = request.RecurrenceRule,
-            TimeZoneId = request.TimeZoneId?.Trim(),
-            StartAtUtc = request.StartAtUtc,
-            EndAtUtc = request.EndAtUtc,
-            AllDay = request.AllDay,
-            EventTypeCode = SchedulingConstants.AssignmentEventTypeCode,
-            StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
-            LocationId = request.LocationId,
-        };
-
     private async Task<AssignmentDefinition> GetActiveDefinitionAsync(
         int id,
         DateTimeOffset assignmentStartAtUtc,
@@ -897,33 +857,37 @@ public sealed class AssignmentService(
             .SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
         ?? throw new KeyNotFoundException($"Assignment definition {id} not found.");
 
-    private static void UpdateEventSeries(EventSeries eventSeries, AssignmentSeriesRequest request)
+    private static void PropagateSeriesChangesToEntries(
+        AssignmentSeries assignmentSeries,
+        AssignmentSeriesRequest request,
+        AssignmentSeriesUpdatePlan updatePlan
+    )
     {
-        eventSeries.Title = request.Title.Trim();
-        eventSeries.Description = request.Description?.Trim();
-        eventSeries.Notes = request.Notes?.Trim();
-        eventSeries.Color = request.Color?.Trim();
-        eventSeries.RecurrenceRule = request.RecurrenceRule;
-        eventSeries.TimeZoneId = request.TimeZoneId?.Trim();
-        eventSeries.StartAtUtc = request.StartAtUtc;
-        eventSeries.EndAtUtc = request.EndAtUtc;
-        eventSeries.AllDay = request.AllDay;
-        eventSeries.LocationId = request.LocationId;
+        foreach (
+            var entry in assignmentSeries.AssignmentEntries.Where(entry =>
+                entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+            )
+        )
+        {
+            ApplyEventSeriesFieldUpdatePreservingOverrides(
+                entry.Event!,
+                updatePlan.PreviousValues,
+                assignmentSeries.EventSeries!
+            );
+            if (entry.AssignmentDefinitionId == updatePlan.PreviousValues.AssignmentDefinitionId)
+                entry.AssignmentDefinitionId = request.AssignmentDefinitionId;
+            if (entry.Capacity == updatePlan.PreviousValues.Capacity)
+                entry.Capacity = assignmentSeries.Capacity;
+            if (entry.CategoryId == updatePlan.PreviousValues.CategoryId)
+                entry.CategoryId = assignmentSeries.CategoryId;
+            if (entry.SubCategoryId == updatePlan.PreviousValues.SubCategoryId)
+                entry.SubCategoryId = assignmentSeries.SubCategoryId;
+        }
     }
-
-    private static bool HasRecurrenceChanged(EventSeries eventSeries, AssignmentSeriesRequest request) =>
-        !StringEqualsNormalized(eventSeries.RecurrenceRule, request.RecurrenceRule)
-        || eventSeries.StartAtUtc != request.StartAtUtc
-        || eventSeries.EndAtUtc != request.EndAtUtc
-        || !StringEqualsNormalized(eventSeries.TimeZoneId, request.TimeZoneId)
-        || eventSeries.AllDay != request.AllDay;
-
-    private static EventSeriesCopiedValues CaptureEventSeriesValues(EventSeries eventSeries) =>
-        new(eventSeries.Title, eventSeries.Description, eventSeries.Notes, eventSeries.Color, eventSeries.LocationId);
 
     private static void ApplyEventSeriesFieldUpdatePreservingOverrides(
         Event eventEntity,
-        EventSeriesCopiedValues oldValues,
+        AssignmentSeriesPreviousValues oldValues,
         EventSeries eventSeries
     )
     {
@@ -937,45 +901,6 @@ public sealed class AssignmentService(
             eventEntity.Color = eventSeries.Color;
         if (eventEntity.LocationId == oldValues.LocationId)
             eventEntity.LocationId = eventSeries.LocationId;
-    }
-
-    private static bool StringEqualsNormalized(string? left, string? right) =>
-        string.Equals(left?.Trim(), right?.Trim(), StringComparison.Ordinal);
-
-    private static Event MapToEvent(AssignmentEntryRequest request, int? eventSeriesId) =>
-        new()
-        {
-            EventSeriesId = eventSeriesId,
-            Title = request.Title.Trim(),
-            Description = request.Description?.Trim(),
-            Notes = request.Notes?.Trim(),
-            Color = request.Color?.Trim(),
-            StartAtUtc = request.StartAtUtc,
-            EndAtUtc = request.EndAtUtc,
-            SeriesStartAtUtc = request.SeriesStartAtUtc,
-            SeriesEndAtUtc = request.SeriesEndAtUtc,
-            TimeZoneId = request.TimeZoneId?.Trim(),
-            AllDay = request.AllDay,
-            IsException = false,
-            EventTypeCode = SchedulingConstants.AssignmentEventTypeCode,
-            StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
-            SourceModule = SchedulingConstants.SourceModule,
-            LocationId = request.LocationId,
-        };
-
-    private static void UpdateEvent(Event eventEntity, AssignmentEntryUpdateRequest request, int? eventSeriesId)
-    {
-        eventEntity.EventSeriesId = eventSeriesId;
-        eventEntity.Title = request.Title.Trim();
-        eventEntity.Description = request.Description?.Trim();
-        eventEntity.Notes = request.Notes?.Trim();
-        eventEntity.Color = request.Color?.Trim();
-        eventEntity.StartAtUtc = request.StartAtUtc;
-        eventEntity.EndAtUtc = request.EndAtUtc;
-        eventEntity.TimeZoneId = request.TimeZoneId?.Trim();
-        eventEntity.AllDay = request.AllDay;
-        eventEntity.SourceModule = SchedulingConstants.SourceModule;
-        eventEntity.LocationId = request.LocationId;
     }
 
     private static void ValidateAssignmentEventSeriesType(EventSeries eventSeries)
@@ -1026,14 +951,6 @@ public sealed class AssignmentService(
         if (statusTypeCode != CalendarEventStatusTypeCodes.Draft)
             throw new InvalidOperationException($"{entityName} must be in draft status to edit.");
     }
-
-    private sealed record EventSeriesCopiedValues(
-        string Title,
-        string? Description,
-        string? Notes,
-        string? Color,
-        int? LocationId
-    );
 
     private readonly record struct AssignmentUniquenessCandidate(
         int LocationId,
