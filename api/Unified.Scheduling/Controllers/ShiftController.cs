@@ -90,7 +90,7 @@ public sealed class ShiftController(
         CancellationToken cancellationToken
     )
     {
-        var currentUserId = GetCurrentUserId();
+        var currentUserId = User.TryGetCurrentUserId();
         if (!currentUserId.HasValue)
             return Forbid();
 
@@ -185,7 +185,7 @@ public sealed class ShiftController(
         CancellationToken cancellationToken
     )
     {
-        var currentUserId = GetCurrentUserId();
+        var currentUserId = User.TryGetCurrentUserId();
         if (!currentUserId.HasValue)
             return Forbid();
 
@@ -206,11 +206,5 @@ public sealed class ShiftController(
     {
         var deleted = await shiftService.DeleteShiftEntryAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
-        return Guid.TryParse(userIdValue, out var userId) ? userId : null;
     }
 }
