@@ -20,4 +20,6 @@ public sealed record UserSeedDefinition
     public required string FirstName { get; init; }
 
     public required string LastName { get; init; }
+
+    public string? BadgeNumber { get; init; }
 }

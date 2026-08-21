@@ -5,11 +5,16 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface SchedulingCalendarShiftEventResponse {
+export interface SchedulingCalendarEventResponse {
   id: string;
-  shiftEntryId?: number;
+  /** @nullable */
+  shiftEntryId?: number | null;
   /** @nullable */
   shiftSeriesId?: number | null;
+  /** @nullable */
+  assignmentEntryId?: number | null;
+  /** @nullable */
+  assignmentSeriesId?: number | null;
   eventId?: number;
   userIds?: string[];
   type: string;
@@ -43,4 +48,18 @@ export interface SchedulingCalendarShiftEventResponse {
   /** @nullable */
   locationId?: number | null;
   resourceIds?: string[];
+  /** @nullable */
+  categoryId?: number | null;
+  /** @nullable */
+  categoryName?: string | null;
+  /** @nullable */
+  subCategoryId?: number | null;
+  /** @nullable */
+  subCategoryName?: string | null;
+  /** @nullable */
+  capacity?: number | null;
+  /** @nullable */
+  assignedUserCount?: number | null;
+  linkedShiftEntryIds?: number[];
+  assignedUserIds?: string[];
 }

@@ -167,9 +167,9 @@ describe('scheduling calendar view model', () => {
     const viewModel = buildCalendarSchedulingViewModel(
       {
         contributions: {
-          'scheduling.shift-events': {
+          'scheduling.events': {
             moduleId: 'scheduling',
-            contributionId: 'scheduling.shift-events',
+            contributionId: 'scheduling.events',
             events: shiftEvents,
             resources: [
               {

@@ -19,6 +19,7 @@ public sealed class PlatformSystemUserSeedData : ISeedData<UserSeedDefinition>
             IsEnabled = false,
             FirstName = "System",
             LastName = "System",
+            BadgeNumber = "SYSTEM",
         },
     ];
 }

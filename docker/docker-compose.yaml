@@ -37,6 +37,7 @@ services:
       - JCInterface__Username=${LocationServicesClientUsername}
       - JCInterface__Password=${LocationServicesClientPassword}
       - JCInterface__Url=${LocationServicesClientUrl}
+      - DevelopmentUser__UserId=${DevelopmentUser:-11111111-1111-1111-1111-111111111111}
     ports:
       - 5000:5000
     volumes:

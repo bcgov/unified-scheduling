@@ -4,11 +4,25 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { ShiftAssignmentEntryResponse } from './shiftAssignmentEntryResponse.ts';
 
 export interface ShiftEntryResponse {
   id?: number;
   /** @nullable */
   shiftSeriesId?: number | null;
   eventId?: number;
+  /** @nullable */
+  title?: string | null;
+  /** @nullable */
+  startAtUtc?: string | null;
+  /** @nullable */
+  endAtUtc?: string | null;
+  /** @nullable */
+  timeZoneId?: string | null;
+  /** @nullable */
+  statusTypeCode?: string | null;
+  /** @nullable */
+  locationId?: number | null;
   userIds?: string[];
+  assignmentLinks?: ShiftAssignmentEntryResponse[];
 }

@@ -61,9 +61,4 @@ public interface IShiftService
     );
 
     Task<bool> DeleteShiftEntryAsync(int id, CancellationToken cancellationToken = default);
-
-    Task<SchedulingCalendarDataResponse> GetSchedulingCalendarDataAsync(
-        SchedulingCalendarRequest request,
-        CancellationToken cancellationToken = default
-    );
 }

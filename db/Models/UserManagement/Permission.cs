@@ -40,6 +40,7 @@ namespace Unified.Db.Models.UserManagement;
 ///   ViewProvince             → LocationViewProvince
 ///   ExpireLocation           → LocationExpire
 ///   CreateAssignments        → AssignmentsCreate
+///   AssignAssignments        → AssignmentsAssign
 ///   EditAssignments          → AssignmentsEdit
 ///   ExpireAssignments        → AssignmentsExpire
 ///   ViewDutyRoster           → DutyRosterView
