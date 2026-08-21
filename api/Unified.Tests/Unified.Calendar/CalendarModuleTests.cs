@@ -47,10 +47,6 @@ public sealed class CalendarModuleTests
             "America/Toronto",
             provider.GetRequiredService<IOptions<CalendarDateTimeOptions>>().Value.DefaultTimeZoneId
         );
-        Assert.Equal(
-            "America/Toronto",
-            provider.GetRequiredService<IOptions<CalendarDateTimeOptions>>().Value.DefaultTimeZoneId
-        );
     }
 
     [Fact]
