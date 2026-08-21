@@ -112,6 +112,7 @@ var hangfireOptions =
         );
     });
 
+
     // Authentication & Authorization
     builder.Services.AddAuthorizationModule();
 
