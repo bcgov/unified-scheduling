@@ -3,17 +3,26 @@ using Microsoft.Extensions.Options;
 
 namespace Unified.Infrastructure.Email.Ches;
 
-internal sealed class ChesAuthenticationHandler(IChesAccessTokenProvider tokenProvider, IOptions<ChesOptions> options)
-    : DelegatingHandler
+internal sealed class ChesAuthenticationHandler : DelegatingHandler
 {
-    private readonly TimeSpan _submissionTimeout = TimeSpan.FromSeconds(options.Value.TimeoutSeconds);
+    private readonly IChesAccessTokenProvider _tokenProvider;
+    private readonly TimeSpan _submissionTimeout;
+
+    public ChesAuthenticationHandler(IChesAccessTokenProvider tokenProvider, IOptions<ChesOptions> options)
+        : this(tokenProvider, TimeSpan.FromSeconds(options.Value.TimeoutSeconds)) { }
+
+    internal ChesAuthenticationHandler(IChesAccessTokenProvider tokenProvider, TimeSpan submissionTimeout)
+    {
+        _tokenProvider = tokenProvider;
+        _submissionTimeout = submissionTimeout;
+    }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken
     )
     {
-        var accessToken = await tokenProvider.GetAccessTokenAsync(cancellationToken);
+        var accessToken = await _tokenProvider.GetAccessTokenAsync(cancellationToken);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         if (!IsEmailSubmission(request))
@@ -66,7 +75,7 @@ internal sealed class ChesAuthenticationHandler(IChesAccessTokenProvider tokenPr
     private void InvalidateRejectedToken(HttpResponseMessage response, string accessToken)
     {
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            tokenProvider.Invalidate(accessToken);
+            _tokenProvider.Invalidate(accessToken);
     }
 }
 

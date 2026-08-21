@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Core.Email;
 using Unified.Infrastructure.ErrorHandling;
+using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Infrastructure.ErrorHandling;
 
@@ -131,7 +133,8 @@ public class GlobalExceptionHandlerTests
         const string tag = "private-provider-tag";
         const string correlationId = "private-correlation";
         var context = CreateHttpContext();
-        var handler = CreateHandler(context);
+        var logger = new RecordingLogger<GlobalExceptionHandler>();
+        var handler = CreateHandler(context, logger);
         var exception = new EmailDeliveryException(tag, correlationId, 1, 0, 500);
 
         var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
@@ -146,13 +149,18 @@ public class GlobalExceptionHandlerTests
         );
         Assert.DoesNotContain(tag, body.RootElement.GetRawText(), StringComparison.Ordinal);
         Assert.DoesNotContain(correlationId, body.RootElement.GetRawText(), StringComparison.Ordinal);
+        var logEntry = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Equal("Email provider submission failed at the API boundary.", logEntry.Message);
+        Assert.DoesNotContain(tag, logEntry.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(correlationId, logEntry.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public async Task TryHandleAsync_EmailDeliveryStateUnknownException_Returns502WithoutSuggestingRetry()
     {
         var context = CreateHttpContext();
-        var handler = CreateHandler(context);
+        var logger = new RecordingLogger<GlobalExceptionHandler>();
+        var handler = CreateHandler(context, logger);
         var exception = new EmailDeliveryStateUnknownException(
             "provider-tag",
             "correlation",
@@ -172,6 +180,10 @@ public class GlobalExceptionHandlerTests
             body.RootElement.GetProperty("detail").GetString()
         );
         Assert.DoesNotContain("retry", body.RootElement.GetRawText(), StringComparison.OrdinalIgnoreCase);
+        var logEntry = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Equal("Email provider submission outcome is unknown at the API boundary.", logEntry.Message);
+        Assert.DoesNotContain("provider-tag", logEntry.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("correlation", logEntry.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -223,7 +235,10 @@ public class GlobalExceptionHandlerTests
         );
     }
 
-    private static GlobalExceptionHandler CreateHandler(HttpContext context)
+    private static GlobalExceptionHandler CreateHandler(
+        HttpContext context,
+        ILogger<GlobalExceptionHandler>? logger = null
+    )
     {
         var services = new ServiceCollection();
         services.AddOptions();
@@ -235,7 +250,7 @@ public class GlobalExceptionHandlerTests
 
         var problemDetailsService = provider.GetRequiredService<IProblemDetailsService>();
 
-        return new GlobalExceptionHandler(NullLogger<GlobalExceptionHandler>.Instance, problemDetailsService);
+        return new GlobalExceptionHandler(logger ?? NullLogger<GlobalExceptionHandler>.Instance, problemDetailsService);
     }
 
     private static DefaultHttpContext CreateHttpContext()

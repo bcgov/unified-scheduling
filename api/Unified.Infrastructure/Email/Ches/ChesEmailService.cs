@@ -32,42 +32,48 @@ internal sealed class ChesEmailService(
         }
         catch (ChesPostOutcomeUnknownException exception)
         {
-            throw new EmailDeliveryStateUnknownException(
+            var deliveryException = new EmailDeliveryStateUnknownException(
                 tag,
                 message.UnifiedCorrelationId,
                 prepared.Message.RecipientCount,
                 prepared.Attachments.Count,
                 exception
             );
+            LogUnknownDeliveryState(deliveryException);
+            throw deliveryException;
         }
         catch (ChesApiException exception) when (IsSuccessStatusCode(exception.StatusCode))
         {
             // A successful status proves CHES accepted the request, but the generated exception
             // can retain response content. Preserve only the safe status when reporting the
             // non-retryable unknown result to the application boundary.
-            throw new EmailDeliveryStateUnknownException(
+            var deliveryException = new EmailDeliveryStateUnknownException(
                 tag,
                 message.UnifiedCorrelationId,
                 prepared.Message.RecipientCount,
                 prepared.Attachments.Count,
                 new ChesAcceptedResponseException(exception.StatusCode)
             );
+            LogUnknownDeliveryState(deliveryException);
+            throw deliveryException;
         }
         catch (ChesApiException exception)
         {
             // Do not retain the generated exception as an inner exception: its response body can
             // contain recipient or message data and may be logged by an outer exception handler.
-            throw new EmailDeliveryException(
+            var deliveryException = new EmailDeliveryException(
                 tag,
                 message.UnifiedCorrelationId,
                 prepared.Message.RecipientCount,
                 prepared.Attachments.Count,
                 exception.StatusCode
             );
+            LogDeliveryFailure(deliveryException);
+            throw deliveryException;
         }
         catch (ChesResponseReadException exception)
         {
-            throw new EmailDeliveryException(
+            var deliveryException = new EmailDeliveryException(
                 tag,
                 message.UnifiedCorrelationId,
                 prepared.Message.RecipientCount,
@@ -75,10 +81,12 @@ internal sealed class ChesEmailService(
                 exception.StatusCode,
                 exception
             );
+            LogDeliveryFailure(deliveryException);
+            throw deliveryException;
         }
         catch (ChesAuthenticationException exception)
         {
-            throw new EmailDeliveryException(
+            var deliveryException = new EmailDeliveryException(
                 tag,
                 message.UnifiedCorrelationId,
                 prepared.Message.RecipientCount,
@@ -86,6 +94,8 @@ internal sealed class ChesEmailService(
                 exception.StatusCode,
                 exception
             );
+            LogDeliveryFailure(deliveryException);
+            throw deliveryException;
         }
 
         var messageResults = response
@@ -145,6 +155,31 @@ internal sealed class ChesEmailService(
         };
 
     private static bool IsSuccessStatusCode(int statusCode) => statusCode is >= 200 and <= 299;
+
+    private void LogDeliveryFailure(EmailDeliveryException exception)
+    {
+        logger.LogError(
+            exception,
+            "CHES email submission failed with tag {ChesTag}, correlation {CorrelationId}, status {ChesStatusCode}, {RecipientCount} recipients, and {AttachmentCount} attachments",
+            exception.Tag,
+            LogSanitizer.UserText(exception.CorrelationId),
+            exception.StatusCode,
+            exception.RecipientCount,
+            exception.AttachmentCount
+        );
+    }
+
+    private void LogUnknownDeliveryState(EmailDeliveryStateUnknownException exception)
+    {
+        logger.LogError(
+            exception,
+            "CHES email submission outcome is unknown for tag {ChesTag}, correlation {CorrelationId}, {RecipientCount} recipients, and {AttachmentCount} attachments",
+            exception.Tag,
+            LogSanitizer.UserText(exception.CorrelationId),
+            exception.RecipientCount,
+            exception.AttachmentCount
+        );
+    }
 }
 
 internal sealed class ChesAcceptedResponseException(int statusCode)

@@ -90,6 +90,56 @@ public sealed class ChesEmailServiceCollectionExtensionsTests
         Assert.Equal(1, transport.CallCount);
     }
 
+    [Fact]
+    public async Task ConfiguredHttpPipeline_PostEmailTransportFails_DoesNotRetrySubmission()
+    {
+        var configuration = CreateConfiguration(enabled: true);
+        var transport = new TransportFailureHttpMessageHandler();
+        var services = CreateServices(configuration, transport);
+        using var provider = services.BuildServiceProvider();
+        var emailService = provider.GetRequiredService<IEmailService>();
+        var message = new EmailMessage
+        {
+            To = ["recipient@example.com"],
+            Subject = "Subject",
+            Body = "Body",
+        };
+
+        await Assert.ThrowsAsync<EmailDeliveryStateUnknownException>(() =>
+            emailService.SendAsync(message, TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(1, transport.CallCount);
+    }
+
+    [Fact]
+    public async Task ConfiguredHttpPipeline_GetHealthReceivesTransientError_RetriesSafeRequest()
+    {
+        var configuration = CreateConfiguration(enabled: true);
+        var transport = new SafeGetRetryHttpMessageHandler();
+        var services = CreateServices(configuration, transport);
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ChesClient>();
+
+        var response = await client.GetHealthAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(response.Dependencies);
+        Assert.Equal(2, transport.CallCount);
+    }
+
+    private static ServiceCollection CreateServices(IConfiguration configuration, HttpMessageHandler transport)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(configuration);
+        services.AddLogging();
+        services.AddCoreModule();
+        services.AddChesEmail(configuration);
+        services.RemoveAll<IChesAccessTokenProvider>();
+        services.AddSingleton<IChesAccessTokenProvider, StubAccessTokenProvider>();
+        services.AddHttpClient<ChesClient>().ConfigurePrimaryHttpMessageHandler(() => transport);
+        return services;
+    }
+
     private static IConfiguration CreateConfiguration(bool enabled) =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(
@@ -127,6 +177,43 @@ public sealed class ChesEmailServiceCollectionExtensionsTests
                 {
                     Content = new StringContent("{}", Encoding.UTF8, "application/json"),
                 }
+            );
+        }
+    }
+
+    private sealed class TransportFailureHttpMessageHandler : HttpMessageHandler
+    {
+        public int CallCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            CallCount++;
+            throw new HttpRequestException("connection dropped");
+        }
+    }
+
+    private sealed class SafeGetRetryHttpMessageHandler : HttpMessageHandler
+    {
+        public int CallCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            CallCount++;
+            Assert.Equal(HttpMethod.Get, request.Method);
+
+            return Task.FromResult(
+                CallCount == 1
+                    ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                    : new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"dependencies\":[]}", Encoding.UTF8, "application/json"),
+                    }
             );
         }
     }

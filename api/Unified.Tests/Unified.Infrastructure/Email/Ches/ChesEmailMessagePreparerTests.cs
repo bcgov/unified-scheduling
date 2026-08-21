@@ -51,6 +51,7 @@ public sealed class ChesEmailMessagePreparerTests
     [Theory]
     [InlineData("blank-filename", "filename is required")]
     [InlineData("path-filename", "must not contain a path")]
+    [InlineData("windows-path-filename", "must not contain a path")]
     [InlineData("missing-extension", "must have an extension")]
     [InlineData("null-content", "readable stream")]
     [InlineData("empty-content", "content is required")]
@@ -109,6 +110,7 @@ public sealed class ChesEmailMessagePreparerTests
         {
             "blank-filename" => attachment with { FileName = "   " },
             "path-filename" => attachment with { FileName = "folder/report.pdf" },
+            "windows-path-filename" => attachment with { FileName = "folder\\report.pdf" },
             "missing-extension" => attachment with { FileName = "report" },
             "null-content" => attachment with { Content = null! },
             "empty-content" => attachment with { Content = new MemoryStream() },
