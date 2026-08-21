@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Unified.Core.Email;
 using Unified.Infrastructure.Email.Ches;
@@ -88,6 +89,21 @@ public sealed class ChesEmailServiceTests
         Assert.Equal(2, handler.CallCount);
     }
 
+    [Fact]
+    public async Task SendAsync_BccOnlyMessage_SubmitsSuccessfully()
+    {
+        var handler = new RecordingHttpMessageHandler((_, _) => CreateAcceptedResponse(Guid.NewGuid(), Guid.NewGuid()));
+        var service = CreateService(handler);
+        var message = CreateMessage() with { To = [], Bcc = ["bcc-only@example.com"] };
+
+        await service.SendAsync(message, TestContext.Current.CancellationToken);
+
+        using var requestJson = JsonDocument.Parse(Assert.Single(handler.RequestBodies));
+        Assert.Empty(ReadStringArray(requestJson.RootElement.GetProperty("to")));
+        Assert.Equal(["bcc-only@example.com"], ReadStringArray(requestJson.RootElement.GetProperty("bcc")));
+        Assert.Equal(1, handler.CallCount);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.BadRequest)]
     [InlineData(HttpStatusCode.UnprocessableEntity)]
@@ -101,7 +117,8 @@ public sealed class ChesEmailServiceTests
                     Content = new StringContent("{}", Encoding.UTF8, "application/json"),
                 }
         );
-        var service = CreateService(handler);
+        var logger = new RecordingLogger<ChesEmailService>();
+        var service = CreateService(handler, logger);
 
         var exception = await Assert.ThrowsAsync<EmailDeliveryException>(() =>
             service.SendAsync(CreateMessage(), TestContext.Current.CancellationToken)
@@ -109,6 +126,13 @@ public sealed class ChesEmailServiceTests
 
         Assert.Equal((int)statusCode, exception.StatusCode);
         Assert.Equal(1, handler.CallCount);
+        var logEntry = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Contains(exception.Tag, logEntry.Message, StringComparison.Ordinal);
+        Assert.Contains("test-correlation", logEntry.Message, StringComparison.Ordinal);
+        Assert.Contains(((int)statusCode).ToString(), logEntry.Message, StringComparison.Ordinal);
+        Assert.Contains("1 recipients", logEntry.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("recipient@example.com", logEntry.Message, StringComparison.Ordinal);
+        Assert.Same(exception, logEntry.Exception);
     }
 
     [Fact]
@@ -144,7 +168,8 @@ public sealed class ChesEmailServiceTests
         {
             InnerHandler = transport,
         };
-        var service = CreateService(authenticationHandler);
+        var logger = new RecordingLogger<ChesEmailService>();
+        var service = CreateService(authenticationHandler, logger);
 
         var exception = await Assert.ThrowsAsync<EmailDeliveryStateUnknownException>(() =>
             service.SendAsync(CreateMessage(), TestContext.Current.CancellationToken)
@@ -152,6 +177,103 @@ public sealed class ChesEmailServiceTests
 
         Assert.Equal(1, transport.CallCount);
         Assert.IsType<ChesPostOutcomeUnknownException>(exception.InnerException);
+        var logEntry = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Contains(exception.Tag, logEntry.Message, StringComparison.Ordinal);
+        Assert.Contains("test-correlation", logEntry.Message, StringComparison.Ordinal);
+        Assert.Contains("1 recipients", logEntry.Message, StringComparison.Ordinal);
+        Assert.Same(exception, logEntry.Exception);
+    }
+
+    [Fact]
+    public async Task SendAsync_AcceptedResponseBodyStalls_ThrowsStateUnknownWithoutRetryingPost()
+    {
+        var responseContent = new StallingHttpContent();
+        var transport = new RecordingHttpMessageHandler(
+            (_, _) => new HttpResponseMessage(HttpStatusCode.Created) { Content = responseContent }
+        );
+        var authenticationHandler = new ChesAuthenticationHandler(
+            new StubAccessTokenProvider(),
+            TimeSpan.FromMilliseconds(25)
+        )
+        {
+            InnerHandler = transport,
+        };
+        var service = CreateService(authenticationHandler);
+
+        var exception = await Assert.ThrowsAsync<EmailDeliveryStateUnknownException>(() =>
+            service.SendAsync(CreateMessage(), TestContext.Current.CancellationToken)
+        );
+
+        Assert.IsType<ChesPostOutcomeUnknownException>(exception.InnerException);
+        Assert.True(responseContent.ReadStarted.Task.IsCompleted);
+        Assert.Equal(1, transport.CallCount);
+    }
+
+    [Fact]
+    public async Task SendAsync_FailureResponseBodyStalls_ThrowsDefiniteFailureWithoutRetryingPost()
+    {
+        var responseContent = new StallingHttpContent();
+        var transport = new RecordingHttpMessageHandler(
+            (_, _) => new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = responseContent }
+        );
+        var authenticationHandler = new ChesAuthenticationHandler(
+            new StubAccessTokenProvider(),
+            TimeSpan.FromMilliseconds(25)
+        )
+        {
+            InnerHandler = transport,
+        };
+        var service = CreateService(authenticationHandler);
+
+        var exception = await Assert.ThrowsAsync<EmailDeliveryException>(() =>
+            service.SendAsync(CreateMessage(), TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal((int)HttpStatusCode.InternalServerError, exception.StatusCode);
+        Assert.IsType<ChesResponseReadException>(exception.InnerException);
+        Assert.True(responseContent.ReadStarted.Task.IsCompleted);
+        Assert.Equal(1, transport.CallCount);
+    }
+
+    [Fact]
+    public async Task SendAsync_CancellationBeforeSubmission_PropagatesWithoutPosting()
+    {
+        var transport = new RecordingHttpMessageHandler(
+            (_, _) => CreateAcceptedResponse(Guid.NewGuid(), Guid.NewGuid())
+        );
+        var service = CreateService(transport);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.SendAsync(CreateMessage(), cancellation.Token)
+        );
+
+        Assert.Equal(0, transport.CallCount);
+    }
+
+    [Fact]
+    public async Task SendAsync_CancellationAfterPostDispatch_ThrowsStateUnknown()
+    {
+        var transport = new CancellationAwarePostHandler();
+        var authenticationHandler = new ChesAuthenticationHandler(
+            new StubAccessTokenProvider(),
+            TimeSpan.FromMinutes(1)
+        )
+        {
+            InnerHandler = transport,
+        };
+        var service = CreateService(authenticationHandler);
+        using var cancellation = new CancellationTokenSource();
+
+        var send = service.SendAsync(CreateMessage(), cancellation.Token);
+        await transport.RequestStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        cancellation.Cancel();
+        var exception = await Assert.ThrowsAsync<EmailDeliveryStateUnknownException>(() => send);
+
+        Assert.IsType<ChesPostOutcomeUnknownException>(exception.InnerException);
+        Assert.True(transport.ObservedCancellation);
+        Assert.Equal(1, transport.CallCount);
     }
 
     [Fact]
@@ -296,6 +418,59 @@ public sealed class ChesEmailServiceTests
         {
             CallCount++;
             return Task.FromException<HttpResponseMessage>(exception);
+        }
+    }
+
+    private sealed class CancellationAwarePostHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource RequestStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool ObservedCancellation { get; private set; }
+
+        public int CallCount { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            CallCount++;
+            RequestStarted.TrySetResult();
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                throw new InvalidOperationException("The cancellation-aware handler unexpectedly completed.");
+            }
+            catch (OperationCanceledException)
+            {
+                ObservedCancellation = true;
+                throw;
+            }
+        }
+    }
+
+    private sealed class StallingHttpContent : HttpContent
+    {
+        public TaskCompletionSource ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            SerializeToStreamAsync(stream, context, CancellationToken.None);
+
+        protected override async Task SerializeToStreamAsync(
+            Stream stream,
+            TransportContext? context,
+            CancellationToken cancellationToken
+        )
+        {
+            ReadStarted.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
         }
     }
 

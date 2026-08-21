@@ -78,6 +78,28 @@ public sealed class ChesAccessTokenProviderTests
     }
 
     [Fact]
+    public async Task RequestTokenAsync_Request_UsesBasicAuthenticationAndClientCredentialsGrant()
+    {
+        var handler = new SequenceHttpMessageHandler(_ => CreateTokenResponse("token", expiresIn: 300));
+        var options = CreateOptions();
+        options.ClientId = "test-client";
+        options.ClientSecret = "test-secret";
+        var client = CreateTokenClient(handler, options);
+
+        await client.RequestTokenAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpMethod.Post, handler.LastMethod);
+        Assert.Equal(new Uri(options.AuthUrl), handler.LastRequestUri);
+        Assert.Equal("Basic", handler.LastAuthorizationScheme);
+        Assert.Equal(
+            Convert.ToBase64String(Encoding.UTF8.GetBytes("test-client:test-secret")),
+            handler.LastAuthorizationParameter
+        );
+        Assert.Equal("grant_type=client_credentials", handler.LastRequestBody);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
     public async Task RequestTokenAsync_ResponseBodyStalls_ConfiguredPipelineTimesOutCompleteOperation()
     {
         var responseStream = new StallingReadStream();
@@ -218,13 +240,30 @@ public sealed class ChesAccessTokenProviderTests
     {
         public int CallCount { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        public HttpMethod? LastMethod { get; private set; }
+
+        public Uri? LastRequestUri { get; private set; }
+
+        public string? LastAuthorizationScheme { get; private set; }
+
+        public string? LastAuthorizationParameter { get; private set; }
+
+        public string? LastRequestBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
             CallCount++;
-            return Task.FromResult(responseFactory(CallCount));
+            LastMethod = request.Method;
+            LastRequestUri = request.RequestUri;
+            LastAuthorizationScheme = request.Headers.Authorization?.Scheme;
+            LastAuthorizationParameter = request.Headers.Authorization?.Parameter;
+            LastRequestBody = request.Content is null
+                ? null
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            return responseFactory(CallCount);
         }
     }
 

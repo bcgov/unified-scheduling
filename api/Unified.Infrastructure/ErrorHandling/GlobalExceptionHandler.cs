@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Unified.Common.Logging;
 using Unified.Core.Email;
 
 namespace Unified.Infrastructure.ErrorHandling;
@@ -109,15 +108,7 @@ public class GlobalExceptionHandler : IExceptionHandler
 
     private ProblemDetails HandleEmailDeliveryException(EmailDeliveryException ex, HttpContext httpContext)
     {
-        _logger.LogError(
-            ex,
-            "Email provider submission failed with tag {ChesTag}, correlation {CorrelationId}, status {ChesStatusCode}, {RecipientCount} recipients, and {AttachmentCount} attachments",
-            ex.Tag,
-            LogSanitizer.UserText(ex.CorrelationId),
-            ex.StatusCode,
-            ex.RecipientCount,
-            ex.AttachmentCount
-        );
+        _logger.LogError(ex, "Email provider submission failed at the API boundary.");
         httpContext.Response.StatusCode = StatusCodes.Status502BadGateway;
 
         return new ProblemDetails
@@ -134,14 +125,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         HttpContext httpContext
     )
     {
-        _logger.LogError(
-            ex,
-            "Email provider submission outcome is unknown for tag {ChesTag}, correlation {CorrelationId}, {RecipientCount} recipients, and {AttachmentCount} attachments",
-            ex.Tag,
-            LogSanitizer.UserText(ex.CorrelationId),
-            ex.RecipientCount,
-            ex.AttachmentCount
-        );
+        _logger.LogError(ex, "Email provider submission outcome is unknown at the API boundary.");
         httpContext.Response.StatusCode = StatusCodes.Status502BadGateway;
 
         return new ProblemDetails

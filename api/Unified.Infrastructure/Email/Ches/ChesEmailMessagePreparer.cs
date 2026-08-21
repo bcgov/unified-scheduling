@@ -41,12 +41,7 @@ internal sealed class ChesEmailMessagePreparer(IOptions<ChesOptions> options)
             if (string.IsNullOrWhiteSpace(fileName))
                 throw new EmailValidationException($"Attachment[{index}] filename is required.");
 
-            if (
-                Path.IsPathRooted(fileName)
-                || fileName.Contains(Path.DirectorySeparatorChar)
-                || fileName.Contains(Path.AltDirectorySeparatorChar)
-                || !string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal)
-            )
+            if (fileName.Contains('/') || fileName.Contains('\\'))
             {
                 throw new EmailValidationException($"Attachment[{index}] filename must not contain a path.");
             }

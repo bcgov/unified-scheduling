@@ -12,6 +12,10 @@ Credentials must come from the application's deployment secret mechanism, normal
 
 Attachment content is supplied as a caller-owned readable stream. The caller must keep the stream open until `SendAsync` completes and remains responsible for disposing it. The adapter never loads attachment content from a filesystem path. HTTP endpoints can pass a stream opened from `IFormFile` without adding an ASP.NET dependency to the shared email contract.
 
+Cancellation before the email POST is dispatched propagates to the caller as cancellation. Cancellation after dispatch is treated as an unknown delivery state because local cancellation does not prove that CHES rejected the message; callers must not automatically retry that outcome.
+
+`EmailMessage.UnifiedCorrelationId` is logged for operational correlation. It must be an opaque, non-sensitive value and must not contain email addresses, names, message content, or other PII.
+
 Default locally enforced limits are below, but can be overriden:
 
 - 500 recipients per message;
