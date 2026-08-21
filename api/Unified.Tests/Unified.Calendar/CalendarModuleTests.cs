@@ -34,7 +34,6 @@ public sealed class CalendarModuleTests
 
         // Assert
         AssertContainsSingletonRegistration<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>(services);
-        AssertContainsSingletonRegistration<ITimeZoneService, TimeZoneService>(services);
         AssertContainsSingletonSelfRegistration<StatutoryHolidayCalendarDataProvider>(services);
         AssertContainsScopedRegistration<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>(services);
         AssertContainsScopedRegistration<ICalendarEventService, CalendarEventService>(services);
@@ -43,10 +42,6 @@ public sealed class CalendarModuleTests
 
         AssertContainsScopedSelfRegistration<CalendarDataRequestValidator>(services);
         Assert.Contains("api/calendar/events", calendarRoutes);
-        Assert.Equal(
-            "America/Toronto",
-            provider.GetRequiredService<IOptions<CalendarDateTimeOptions>>().Value.DefaultTimeZoneId
-        );
         Assert.Equal(
             "America/Toronto",
             provider.GetRequiredService<IOptions<CalendarDateTimeOptions>>().Value.DefaultTimeZoneId
