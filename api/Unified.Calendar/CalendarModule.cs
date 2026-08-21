@@ -74,6 +74,7 @@ public static class CalendarModule
         services.AddScoped<ICalendarEventService, CalendarEventService>();
         services.AddSeeder<UnifiedDbContext, EventTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, EventStatusTypeSeeder>();
+
         services.AddScoped<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>();
         services.AddScoped<CalendarLifecycleService>();
         services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();
