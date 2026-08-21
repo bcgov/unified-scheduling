@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Unified.Api.Options;
 using Unified.Api.Services;
+using Unified.Audit;
 using Unified.Authorization;
 using Unified.Authorization.Hangfire;
 using Unified.Calendar;
@@ -79,6 +80,7 @@ var hangfireOptions =
         .Services.AddInfrastructureModule()
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
+        .AddAuditModule(builder.Configuration)
         .AddUserManagementModule(builder.Configuration)
         .AddCalendarModule(builder.Configuration)
         .AddSchedulingModule(builder.Configuration)
@@ -88,7 +90,8 @@ var hangfireOptions =
             builder.Configuration,
             UserManagementSeedDataSets.All.Concat(StatsSeedDataSets.All).Concat(TrainingSeedDataSets.All)
         )
-        .AddJCInterfaceModule(builder.Configuration);
+        .AddJCInterfaceModule(builder.Configuration)
+        .AddInterceptors();
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddCalendarApplicationPart(builder.Configuration);
