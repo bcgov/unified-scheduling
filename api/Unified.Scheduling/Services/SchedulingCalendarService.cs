@@ -4,6 +4,7 @@ using Unified.Calendar.Services;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
+using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;

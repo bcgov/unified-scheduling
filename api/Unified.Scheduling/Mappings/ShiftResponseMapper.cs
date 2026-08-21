@@ -2,7 +2,7 @@ using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
 
-namespace Unified.Scheduling.Services;
+namespace Unified.Scheduling.Mappings;
 
 internal static class ShiftResponseMapper
 {
