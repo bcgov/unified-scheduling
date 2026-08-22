@@ -17,7 +17,7 @@ namespace Unified.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -604,6 +604,440 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.ToTable("Regions");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentDefinition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("DefaultCapacity")
+                        .HasColumnType("integer");
+
+                    b.Property<TimeOnly?>("DefaultEndTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<TimeOnly?>("DefaultStartTime")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("EffectiveDateUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExpiryDateUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LocationId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("SubCategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("SubCategoryId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("EffectiveDateUtc", "ExpiryDateUtc");
+
+                    b.HasIndex("LocationId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("AssignmentDefinitions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AssignmentDefinitions_DefaultCapacityAtLeastOne", "\"DefaultCapacity\" >= 1");
+
+                            t.HasCheckConstraint("CK_AssignmentDefinitions_DefaultEndAfterStart", "\"DefaultStartTime\" IS NULL OR \"DefaultEndTime\" IS NULL OR \"DefaultEndTime\" > \"DefaultStartTime\"");
+
+                            t.HasCheckConstraint("CK_AssignmentDefinitions_ExpiryAfterEffective", "\"ExpiryDateUtc\" IS NULL OR \"ExpiryDateUtc\" > \"EffectiveDateUtc\"");
+                        });
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<int>("AssignmentDefinitionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AssignmentSeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SubCategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentDefinitionId");
+
+                    b.HasIndex("AssignmentSeriesId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("SubCategoryId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("AssignmentEntries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AssignmentEntries_CapacityAtLeastOne", "\"Capacity\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentSeries", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<int>("AssignmentDefinitionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("EventSeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SubCategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentDefinitionId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("EventSeriesId")
+                        .IsUnique();
+
+                    b.HasIndex("SubCategoryId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("AssignmentSeries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AssignmentSeries_CapacityAtLeastOne", "\"Capacity\" >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<int>("AssignmentEntryId")
+                        .HasColumnType("integer");
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<bool>("IsException")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("ShiftAssignmentSeriesLinkId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ShiftEntryId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentEntryId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ShiftAssignmentSeriesLinkId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("ShiftEntryId", "AssignmentEntryId")
+                        .IsUnique();
+
+                    b.ToTable("ShiftAssignmentEntries", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("ShiftAssignmentEntryId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ShiftAssignmentEntryId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ShiftAssignmentEntryUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentSeriesLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<int>("AssignmentSeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("ShiftSeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentSeriesId");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("ShiftSeriesId", "AssignmentSeriesId")
+                        .IsUnique();
+
+                    b.ToTable("ShiftAssignmentSeriesLinks", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentSeriesLinkUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("ShiftAssignmentSeriesLinkId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ShiftAssignmentSeriesLinkId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ShiftAssignmentSeriesLinkUsers", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftEntry", b =>
@@ -2045,6 +2479,291 @@ namespace Unified.Db.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentDefinition", b =>
+                {
+                    b.HasOne("Unified.Db.Models.Stats.StatCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Stats.SubCategory", "SubCategory")
+                        .WithMany()
+                        .HasForeignKey("SubCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Category");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Location");
+
+                    b.Navigation("SubCategory");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentEntry", b =>
+                {
+                    b.HasOne("Unified.Db.Models.Scheduling.AssignmentDefinition", "AssignmentDefinition")
+                        .WithMany("AssignmentEntries")
+                        .HasForeignKey("AssignmentDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Scheduling.AssignmentSeries", "AssignmentSeries")
+                        .WithMany("AssignmentEntries")
+                        .HasForeignKey("AssignmentSeriesId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Stats.StatCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Calendar.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Stats.SubCategory", "SubCategory")
+                        .WithMany()
+                        .HasForeignKey("SubCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssignmentDefinition");
+
+                    b.Navigation("AssignmentSeries");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("SubCategory");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentSeries", b =>
+                {
+                    b.HasOne("Unified.Db.Models.Scheduling.AssignmentDefinition", "AssignmentDefinition")
+                        .WithMany("AssignmentSeries")
+                        .HasForeignKey("AssignmentDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Stats.StatCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Calendar.EventSeries", "EventSeries")
+                        .WithMany()
+                        .HasForeignKey("EventSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Stats.SubCategory", "SubCategory")
+                        .WithMany()
+                        .HasForeignKey("SubCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssignmentDefinition");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("EventSeries");
+
+                    b.Navigation("SubCategory");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentEntry", b =>
+                {
+                    b.HasOne("Unified.Db.Models.Scheduling.AssignmentEntry", "AssignmentEntry")
+                        .WithMany("ShiftAssignmentEntries")
+                        .HasForeignKey("AssignmentEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Scheduling.ShiftAssignmentSeriesLink", "ShiftAssignmentSeriesLink")
+                        .WithMany("EntryLinks")
+                        .HasForeignKey("ShiftAssignmentSeriesLinkId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Unified.Db.Models.Scheduling.ShiftEntry", "ShiftEntry")
+                        .WithMany("ShiftAssignmentEntries")
+                        .HasForeignKey("ShiftEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssignmentEntry");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ShiftAssignmentSeriesLink");
+
+                    b.Navigation("ShiftEntry");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Scheduling.ShiftAssignmentEntry", "ShiftAssignmentEntry")
+                        .WithMany("Users")
+                        .HasForeignKey("ShiftAssignmentEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ShiftAssignmentEntry");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentSeriesLink", b =>
+                {
+                    b.HasOne("Unified.Db.Models.Scheduling.AssignmentSeries", "AssignmentSeries")
+                        .WithMany("ShiftAssignmentSeriesLinks")
+                        .HasForeignKey("AssignmentSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Scheduling.ShiftSeries", "ShiftSeries")
+                        .WithMany("ShiftAssignmentSeriesLinks")
+                        .HasForeignKey("ShiftSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssignmentSeries");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ShiftSeries");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentSeriesLinkUser", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Scheduling.ShiftAssignmentSeriesLink", "ShiftAssignmentSeriesLink")
+                        .WithMany("Users")
+                        .HasForeignKey("ShiftAssignmentSeriesLinkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ShiftAssignmentSeriesLink");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftEntry", b =>
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
@@ -2632,13 +3351,48 @@ namespace Unified.Db.Migrations
                     b.Navigation("Events");
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentDefinition", b =>
+                {
+                    b.Navigation("AssignmentEntries");
+
+                    b.Navigation("AssignmentSeries");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentEntry", b =>
+                {
+                    b.Navigation("ShiftAssignmentEntries");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentSeries", b =>
+                {
+                    b.Navigation("AssignmentEntries");
+
+                    b.Navigation("ShiftAssignmentSeriesLinks");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentEntry", b =>
+                {
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftAssignmentSeriesLink", b =>
+                {
+                    b.Navigation("EntryLinks");
+
+                    b.Navigation("Users");
+                });
+
             modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftEntry", b =>
                 {
+                    b.Navigation("ShiftAssignmentEntries");
+
                     b.Navigation("Users");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Scheduling.ShiftSeries", b =>
                 {
+                    b.Navigation("ShiftAssignmentSeriesLinks");
+
                     b.Navigation("ShiftEntries");
 
                     b.Navigation("Users");

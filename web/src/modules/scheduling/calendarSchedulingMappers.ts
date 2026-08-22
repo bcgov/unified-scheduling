@@ -28,7 +28,7 @@ import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 
 const defaultCalendarSchedulingTimeZone = 'America/Vancouver';
-const schedulingShiftContributionId = CalendarContributionId.SchedulingShiftEvents;
+const schedulingEventsContributionId = CalendarContributionId.SchedulingEvents;
 
 export function buildCalendarSchedulingViewModel(
   response: CalendarDataResponse,
@@ -103,7 +103,7 @@ function buildUserResourceRows(response: CalendarDataResponse): CalendarMatrixRe
 }
 
 function selectSchedulingShiftEvents(response: CalendarDataResponse) {
-  const contribution = selectContribution(response, schedulingShiftContributionId);
+  const contribution = selectContribution(response, schedulingEventsContributionId);
 
   if (!contribution) {
     return [];
@@ -113,7 +113,7 @@ function selectSchedulingShiftEvents(response: CalendarDataResponse) {
 }
 
 function selectSchedulingUserResources(response: CalendarDataResponse): CalendarSchedulingUserResource[] {
-  const contribution = selectContribution(response, schedulingShiftContributionId);
+  const contribution = selectContribution(response, schedulingEventsContributionId);
 
   if (!contribution?.resources) {
     return [];

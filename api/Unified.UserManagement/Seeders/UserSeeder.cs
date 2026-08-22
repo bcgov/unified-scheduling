@@ -43,6 +43,7 @@ public class UserSeeder(ILogger<UserSeeder> logger, IEnumerable<UserSeedConfigur
                         IsEnabled = seedUser.IsEnabled,
                         FirstName = seedUser.FirstName,
                         LastName = seedUser.LastName,
+                        BadgeNumber = seedUser.BadgeNumber,
                     },
                     cancellationToken
                 );
@@ -55,6 +56,7 @@ public class UserSeeder(ILogger<UserSeeder> logger, IEnumerable<UserSeedConfigur
             existingUser.IsEnabled = seedUser.IsEnabled;
             existingUser.FirstName = seedUser.FirstName;
             existingUser.LastName = seedUser.LastName;
+            existingUser.BadgeNumber = seedUser.BadgeNumber;
 
             updatedCount++;
         }

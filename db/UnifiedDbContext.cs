@@ -40,6 +40,13 @@ public class UnifiedDbContext : DbContext
     public DbSet<ShiftSeriesUser> ShiftSeriesUsers { get; set; }
     public DbSet<ShiftEntry> ShiftEntries { get; set; }
     public DbSet<ShiftEntryUser> ShiftEntryUsers { get; set; }
+    public DbSet<AssignmentSeries> AssignmentSeries { get; set; }
+    public DbSet<AssignmentDefinition> AssignmentDefinitions { get; set; }
+    public DbSet<AssignmentEntry> AssignmentEntries { get; set; }
+    public DbSet<ShiftAssignmentSeriesLink> ShiftAssignmentSeriesLinks { get; set; }
+    public DbSet<ShiftAssignmentSeriesLinkUser> ShiftAssignmentSeriesLinkUsers { get; set; }
+    public DbSet<ShiftAssignmentEntry> ShiftAssignmentEntries { get; set; }
+    public DbSet<ShiftAssignmentEntryUser> ShiftAssignmentEntryUsers { get; set; }
 
     // Stats
     public DbSet<StatGroup> StatGroups { get; set; }

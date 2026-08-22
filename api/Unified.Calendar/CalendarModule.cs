@@ -72,8 +72,13 @@ public static class CalendarModule
         services.AddSingleton<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>();
         services.AddSingleton<StatutoryHolidayCalendarDataProvider>();
         services.AddScoped<ICalendarEventService, CalendarEventService>();
+        if (!services.Any(d => d.ServiceType == typeof(ITimeZoneService)))
+        {
+            services.AddSingleton<ITimeZoneService, TimeZoneService>();
+        }
         services.AddSeeder<UnifiedDbContext, EventTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, EventStatusTypeSeeder>();
+
         services.AddScoped<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>();
         services.AddScoped<CalendarLifecycleService>();
         services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();

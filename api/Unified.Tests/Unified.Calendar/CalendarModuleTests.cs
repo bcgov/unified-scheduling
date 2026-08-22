@@ -40,6 +40,7 @@ public sealed class CalendarModuleTests
         AssertContainsScopedRegistration<ICalendarEventService, CalendarEventService>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventTypeSeeder>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventStatusTypeSeeder>(services);
+
         AssertContainsScopedSelfRegistration<CalendarDataRequestValidator>(services);
         Assert.Contains("api/calendar/events", calendarRoutes);
         Assert.Equal(
