@@ -8,6 +8,7 @@ using Unified.Calendar;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
+using Unified.Db;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.FeatureFlags;
 using Unified.Scheduling.Seeders;
@@ -79,7 +80,7 @@ public static class SchedulingModule
         services.AddScoped<ShiftAssignmentEntryUpdateRequestValidator>();
         services.AddScoped<ShiftAssignmentSeriesUpdateRequestValidator>();
         services.AddScoped<SchedulingCalendarRequestValidator>();
-        services.AddScoped<ShiftEventTypeSeeder>();
+        services.AddSeeder<UnifiedDbContext, ShiftEventTypeSeeder>();
         services.AddSingleton(SchedulingPermissionSeedData.Configuration);
 
         services
