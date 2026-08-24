@@ -260,6 +260,54 @@ public class AuditRecordInterceptorTests : IDisposable
         Assert.Equal(0, auditCount);
     }
 
+    [Fact]
+    public async Task SaveChangesAsync_EntityInsertFailure_DoesNotCreateAuditRecord()
+    {
+        var throwInterceptor = new ThrowOnEntityInsertCommandInterceptor();
+
+        await using var context = CreateContext(CreateAuditInterceptor(), throwInterceptor);
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        // Explicit ID avoids temporary-key deferral, so entity and audit insert share one SaveChanges call.
+        context.AuditedEntities.Add(new AuditedEntity { Id = 456, Name = "will-fail" });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            context.SaveChangesAsync(TestContext.Current.CancellationToken)
+        );
+
+        await using var verifyContext = CreateContext(CreateAuditInterceptor());
+
+        var entityCount = await verifyContext.AuditedEntities.CountAsync(TestContext.Current.CancellationToken);
+        var auditCount = await verifyContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, entityCount);
+        Assert.Equal(0, auditCount);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_EntityInsertFailureWithGeneratedKey_DoesNotCreateAuditRecord()
+    {
+        var throwInterceptor = new ThrowOnEntityInsertCommandInterceptor();
+
+        await using var context = CreateContext(CreateAuditInterceptor(), throwInterceptor);
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        // No explicit ID -> temporary key -> deferred audit path, still exercised before the entity insert fails.
+        context.AuditedEntities.Add(new AuditedEntity { Name = "will-fail-generated" });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            context.SaveChangesAsync(TestContext.Current.CancellationToken)
+        );
+
+        await using var verifyContext = CreateContext(CreateAuditInterceptor());
+
+        var entityCount = await verifyContext.AuditedEntities.CountAsync(TestContext.Current.CancellationToken);
+        var auditCount = await verifyContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, entityCount);
+        Assert.Equal(0, auditCount);
+    }
+
     public void Dispose()
     {
         _connection.Dispose();
@@ -357,6 +405,40 @@ public class AuditRecordInterceptorTests : IDisposable
             if (command.CommandText.Contains(AuditInsertSqlFragment, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("Simulated deferred audit insert failure");
+            }
+        }
+    }
+
+    private sealed class ThrowOnEntityInsertCommandInterceptor : DbCommandInterceptor
+    {
+        private const string EntityInsertSqlFragment = "INSERT INTO \"AuditedEntities\"";
+
+        public override InterceptionResult<int> NonQueryExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<int> result
+        )
+        {
+            ThrowIfEntityInsert(command);
+            return base.NonQueryExecuting(command, eventData, result);
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default
+        )
+        {
+            ThrowIfEntityInsert(command);
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
+
+        private static void ThrowIfEntityInsert(DbCommand command)
+        {
+            if (command.CommandText.Contains(EntityInsertSqlFragment, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Simulated entity insert failure");
             }
         }
     }
