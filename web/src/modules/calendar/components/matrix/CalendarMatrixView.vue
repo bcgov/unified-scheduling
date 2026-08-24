@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { provide, ref } from 'vue';
+import { onBeforeUnmount, onMounted, provide, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { calendarActionRegistry } from '../../registry/calendarActionRegistry';
 import { useCalendarStore } from '../../calendarStore';
@@ -14,6 +14,7 @@ import type {
   CalendarMatrixDragPayload,
   CalendarMatrixEventBlockActionEvent,
   CalendarMatrixResourceAddEvent,
+  CalendarMatrixSidePanelItem,
   CalendarMatrixViewModel,
 } from './calendarMatrixTypes';
 
@@ -34,6 +35,7 @@ const emit = defineEmits<{
   (event: 'headerAction', payload: CalendarMatrixCellHeaderActionEvent): void;
   (event: 'headerClick', payload: CalendarMatrixCellHeaderClickEvent): void;
   (event: 'sidePanelAction'): void;
+  (event: 'sidePanelItemClick', payload: CalendarMatrixSidePanelItem): void;
   (event: 'dragStart', payload: CalendarMatrixDragPayload): void;
   (event: 'resourceAdd', payload: CalendarMatrixResourceAddEvent): void;
 }>();
@@ -65,6 +67,20 @@ provide(calendarMatrixContextKey, {
   },
 });
 
+onMounted(() => {
+  window.addEventListener('dragend', clearActiveDrag, true);
+  window.addEventListener('drop', clearActiveDrag, true);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('dragend', clearActiveDrag, true);
+  window.removeEventListener('drop', clearActiveDrag, true);
+});
+
+function clearActiveDrag() {
+  activeDragPayload.value = undefined;
+}
+
 function handleEventClick(event: CalendarEventBase) {
   calendarStore.setSelectedEvent(event.id);
   emit('eventClick', event);
@@ -87,12 +103,22 @@ async function executeMatrixAction<TAction>({
 }
 
 async function handleCellDrop(dropEvent: CalendarMatrixCellDropEvent) {
-  const actions = calendarActionRegistry.getDropActions(dropEvent.drag, dropEvent.drop, props.runtimeContext);
+  const actionContext = {
+    drag: dropEvent.drag,
+    drop: dropEvent.drop,
+    model: props.model,
+  };
+  const actions = calendarActionRegistry.getDropActions(
+    dropEvent.drag,
+    dropEvent.drop,
+    props.model,
+    props.runtimeContext,
+  );
 
   await executeMatrixAction({
     actions,
     duplicateMessage: 'Multiple calendar matrix drop actions are available for this drag/drop context.',
-    execute: (action) => action.execute(dropEvent.drag, dropEvent.drop, props.runtimeContext),
+    execute: (action) => action.execute(actionContext, props.runtimeContext),
   });
 }
 
@@ -217,6 +243,7 @@ async function handleEventAction(payload: CalendarMatrixEventBlockActionEvent) {
       v-if="!model.unsupportedMessage && model.sidePanel"
       :panel="model.sidePanel"
       @action="handleSidePanelAction"
+      @item-click="emit('sidePanelItemClick', $event)"
       @item-drag-start="emit('dragStart', $event)"
     >
       <template v-if="$slots['side-panel-item']" #item="slotProps">

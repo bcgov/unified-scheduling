@@ -92,6 +92,7 @@ export interface CalendarMatrixCell {
   date: string;
   headers?: CalendarMatrixCellHeader[];
   groups: CalendarMatrixEventGroup[];
+  payload?: unknown;
 }
 
 export interface CalendarMatrixCellHeader {
@@ -149,6 +150,7 @@ export interface CalendarMatrixSidePanelItem {
 export interface CalendarMatrixViewModel {
   unsupportedMessage?: string;
   timeZone?: string;
+  payload?: unknown;
   days: CalendarMatrixDay[];
   primaryColumn: {
     label: string;

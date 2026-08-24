@@ -4,10 +4,10 @@ import type { createPinia } from 'pinia';
 import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import * as calendarModule from '@/modules/calendar/CalendarModule';
+import * as calendarSchedulingModule from '@/modules/scheduling/CalendarSchedulingModule';
 import * as myTeamsModule from '@/modules/myteam/MyTeamModule';
 import * as dashboardModule from '@/modules/dashboard/DashboardModule';
 import * as statsModule from '@/modules/stats/StatsModule';
-import * as calendarSchedulingModule from '@/modules/scheduling/CalendarSchedulingModule';
 import * as trainingModule from '@/modules/training/TrainingModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
@@ -119,6 +119,10 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
       return { path: '/dashboard' };
     }
 
+    if (isEnteringCalendarModule(to, from)) {
+      calendarSchedulingModule.clearResourceDataCache();
+    }
+
     return true;
   });
 
@@ -129,3 +133,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
 
   return router;
 };
+
+function isEnteringCalendarModule(to: RouteLocationNormalized, from: RouteLocationNormalizedLoaded) {
+  return to.path.startsWith('/calendar') && !from.path.startsWith('/calendar');
+}

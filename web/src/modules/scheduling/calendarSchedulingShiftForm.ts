@@ -1,5 +1,6 @@
 import type { CalendarEventStatusTypeCode } from '@/api-access/generated/models';
 import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntryRequest';
+import type { ShiftEntryResponse } from '@/api-access/generated/models/shiftEntryResponse';
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
 import type { ShiftSeriesResponse } from '@/api-access/generated/models/shiftSeriesResponse';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
@@ -19,6 +20,16 @@ export type RepeatMode = 'never' | 'custom';
 export type PublishMode = 'yes' | 'no';
 export type CancelMode = 'yes' | 'no';
 
+export interface ShiftAssignmentLinkFormData {
+  assignmentEntryId?: number;
+  assignmentSeriesId?: number | null;
+  assignedUserIds?: string[];
+  userIds?: string[];
+}
+
+export type ShiftAssignmentEntryLinkFormData = ShiftAssignmentLinkFormData;
+export type ShiftAssignmentSeriesLinkFormData = ShiftAssignmentLinkFormData;
+
 export type ShiftResourceFormData = Partial<zod.infer<typeof PostApiSchedulingShiftsEntriesBody>> & {
   date?: string;
   startTime?: string;
@@ -31,6 +42,11 @@ export type ShiftResourceFormData = Partial<zod.infer<typeof PostApiSchedulingSh
   trainingLabel?: string;
   isException?: boolean;
   statusTypeCode?: string;
+  assignmentEntryIds?: unknown[];
+  assignmentEntryId?: number | null;
+  assignmentSeriesId?: number | null;
+  assignmentEntryLinks?: ShiftAssignmentEntryLinkFormData[];
+  assignmentSeriesLinks?: ShiftAssignmentSeriesLinkFormData[];
 };
 
 export type ShiftSavePayload =
@@ -168,6 +184,35 @@ export function createShiftFormDataFromEvent(event: CalendarEventBase, timeZoneI
   };
 }
 
+export function createShiftFormDataFromEntry(
+  entry: ShiftEntryResponse,
+  fallbackEvent: CalendarEventBase,
+  timeZoneId: string,
+): ShiftResourceFormData {
+  const assignmentEntryLinks = (entry.assignmentLinks ?? []).flatMap((link) =>
+    typeof link.assignmentEntryId === 'number'
+      ? [{ assignmentEntryId: link.assignmentEntryId, assignedUserIds: link.userIds ?? [] }]
+      : [],
+  );
+  const event = {
+    ...fallbackEvent,
+    title: entry.title ?? fallbackEvent.title,
+    start: entry.startAtUtc ?? fallbackEvent.start,
+    end: entry.endAtUtc ?? fallbackEvent.end,
+    timeZoneId: entry.timeZoneId ?? fallbackEvent.timeZoneId,
+    statusTypeCode: entry.statusTypeCode ?? fallbackEvent.statusTypeCode,
+    locationId: entry.locationId ?? fallbackEvent.locationId,
+    resourceIds: entry.userIds ?? fallbackEvent.resourceIds,
+  };
+
+  return {
+    ...createShiftFormDataFromEvent(event, timeZoneId),
+    assignmentEntryId: assignmentEntryLinks.length === 1 ? assignmentEntryLinks[0]?.assignmentEntryId : null,
+    assignmentEntryIds: assignmentEntryLinks.map((link) => link.assignmentEntryId),
+    assignmentEntryLinks,
+  };
+}
+
 export function createShiftFormDataFromSeries(
   series: ShiftSeriesResponse,
   fallbackEvent: CalendarEventBase,
@@ -231,6 +276,38 @@ export function normalizeShiftFormTimes(formData: ShiftResourceFormData): ShiftR
   };
 }
 
+export function normalizeShiftFormDataForScope(
+  formData: ShiftResourceFormData,
+  scope: 'entry' | 'series',
+): ShiftResourceFormData {
+  const selectedUserIds = filterUserIds(formData.userIds);
+  const assignmentEntryLinks = normalizeAssignmentLinks(
+    formData.assignmentEntryLinks,
+    formData.assignmentEntryIds,
+    'assignmentEntryId',
+    selectedUserIds,
+  );
+  const assignmentSeriesLinks = normalizeAssignmentLinks(
+    formData.assignmentSeriesLinks,
+    formData.assignmentSeriesId == null ? [] : [formData.assignmentSeriesId],
+    'assignmentSeriesId',
+    selectedUserIds,
+  );
+  const {
+    assignmentEntryIds: _assignmentEntryIds,
+    assignmentEntryId: _assignmentEntryId,
+    assignmentSeriesId: _assignmentSeriesId,
+    ...normalized
+  } = formData;
+
+  return {
+    ...normalized,
+    userIds: selectedUserIds,
+    assignmentEntryLinks: scope === 'entry' ? assignmentEntryLinks : [],
+    assignmentSeriesLinks: scope === 'series' ? assignmentSeriesLinks : [],
+  };
+}
+
 export function buildCreateShiftPayload(options: BuildCreateShiftPayloadOptions): ShiftSavePayload | null {
   return buildShiftPayload({
     ...options,
@@ -241,11 +318,33 @@ export function buildCreateShiftPayload(options: BuildCreateShiftPayloadOptions)
   });
 }
 
+export function buildCreateShiftPayloadWithErrors(options: BuildCreateShiftPayloadOptions): {
+  payload: ShiftSavePayload | null;
+  errors: Record<string, string>;
+} {
+  if (options.locationId == null) {
+    return { payload: null, errors: { locationId: validationMessages.required } };
+  }
+
+  return { payload: buildCreateShiftPayload(options), errors: {} };
+}
+
 export function buildUpdateShiftPayload(options: BuildUpdateShiftPayloadOptions): ShiftSavePayload | null {
   return buildShiftPayload({
     ...options,
     isCreate: false,
   });
+}
+
+export function buildUpdateShiftPayloadWithErrors(options: BuildUpdateShiftPayloadOptions): {
+  payload: ShiftSavePayload | null;
+  errors: Record<string, string>;
+} {
+  if (options.locationId == null) {
+    return { payload: null, errors: { locationId: validationMessages.required } };
+  }
+
+  return { payload: buildUpdateShiftPayload(options), errors: {} };
 }
 
 function resolveEventUserIds(event: CalendarEventBase) {
@@ -373,6 +472,25 @@ function createShiftFormSchema(options: ShiftFormValidationOptions) {
       trainingLabel: zod.string().optional(),
       isException: zod.boolean().optional(),
       statusTypeCode: zod.string().optional(),
+      assignmentEntryIds: zod.array(zod.number().int().positive()).optional(),
+      assignmentEntryId: zod.number().int().positive().nullish(),
+      assignmentSeriesId: zod.number().int().positive().nullish(),
+      assignmentEntryLinks: zod
+        .array(
+          zod.object({
+            assignmentEntryId: zod.number().int().positive(),
+            assignedUserIds: zod.array(zod.string().uuid()).min(1),
+          }),
+        )
+        .optional(),
+      assignmentSeriesLinks: zod
+        .array(
+          zod.object({
+            assignmentSeriesId: zod.number().int().positive(),
+            assignedUserIds: zod.array(zod.string().uuid()).min(1),
+          }),
+        )
+        .optional(),
       notes: PostApiSchedulingShiftsEntriesBody.shape.notes,
     })
     .superRefine((data, ctx) => {
@@ -460,4 +578,44 @@ function buildShiftPayload(
 
   const result = shiftEntryRequestSchema.safeParse(body);
   return result.success ? { kind: 'entry', body: result.data, publish, cancel } : null;
+}
+
+function normalizeAssignmentLinks(
+  links: ShiftAssignmentLinkFormData[] | undefined,
+  selectedIds: unknown[] | undefined,
+  idKey: 'assignmentEntryId' | 'assignmentSeriesId',
+  defaultUserIds: string[],
+) {
+  const candidates: ShiftAssignmentLinkFormData[] = links?.length
+    ? links
+    : (selectedIds ?? []).map((id) => ({ [idKey]: id }));
+  const normalizedById = new Map<number, Record<string, number | string[]>>();
+
+  for (const link of candidates) {
+    const id = parsePositiveInteger(link[idKey]);
+    if (!id) {
+      continue;
+    }
+
+    const assignedUserIds = filterUserIds(link.assignedUserIds ?? link.userIds);
+    normalizedById.set(id, {
+      [idKey]: id,
+      assignedUserIds: assignedUserIds.length ? assignedUserIds : defaultUserIds,
+    });
+  }
+
+  return Array.from(normalizedById.values()).map((link) => ({
+    assignmentEntryId: typeof link.assignmentEntryId === 'number' ? link.assignmentEntryId : undefined,
+    assignmentSeriesId: typeof link.assignmentSeriesId === 'number' ? link.assignmentSeriesId : undefined,
+    assignedUserIds: Array.isArray(link.assignedUserIds) ? link.assignedUserIds : [],
+  }));
+}
+
+function parsePositiveInteger(value: unknown) {
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function filterUserIds(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
