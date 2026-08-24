@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20260820163110_AddAuditRecordsTable")]
+    [Migration("20260824161819_AddAuditRecordsTable")]
     partial class AddAuditRecordsTable
     {
         /// <inheritdoc />
@@ -89,6 +89,10 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("TableName")
                         .HasDatabaseName("ix_audit_table");
+
+                    b.HasIndex("Action", "OccurredOn")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_audit_action");
 
                     b.HasIndex("ActorUserId", "OccurredOn")
                         .IsDescending(false, true)
