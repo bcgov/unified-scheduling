@@ -14,18 +14,12 @@ public class HttpContextActorResolverTests
         var userId = Guid.NewGuid();
         var claimsPrincipal = new ClaimsPrincipal(
             new ClaimsIdentity(
-                [
-                    new Claim(UnifiedClaimTypes.UserId, userId.ToString()),
-                    new Claim(ClaimTypes.Name, "Casey Sheriff"),
-                ],
+                [new Claim(UnifiedClaimTypes.UserId, userId.ToString()), new Claim(ClaimTypes.Name, "Casey Sheriff")],
                 authenticationType: "Test"
             )
         );
 
-        var accessor = new HttpContextAccessor
-        {
-            HttpContext = new DefaultHttpContext { User = claimsPrincipal },
-        };
+        var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = claimsPrincipal } };
 
         var resolver = new HttpContextActorResolver(accessor);
 

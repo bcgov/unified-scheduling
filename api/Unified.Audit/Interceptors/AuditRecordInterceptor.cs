@@ -114,7 +114,11 @@ public sealed class AuditRecordInterceptor(
 
     private async Task EnsureOwnedTransactionAsync(DbContext context, CancellationToken cancellationToken)
     {
-        if (_deferredAudits.Count == 0 || _ownedTransaction is not null || context.Database.CurrentTransaction is not null)
+        if (
+            _deferredAudits.Count == 0
+            || _ownedTransaction is not null
+            || context.Database.CurrentTransaction is not null
+        )
         {
             return;
         }
@@ -285,16 +289,20 @@ public sealed class AuditRecordInterceptor(
 
         var propertyName = property.Metadata.Name;
 
-        if (_options.ExcludedPropertyNames.Any(excluded =>
+        if (
+            _options.ExcludedPropertyNames.Any(excluded =>
                 string.Equals(excluded, propertyName, StringComparison.OrdinalIgnoreCase)
-            ))
+            )
+        )
         {
             return true;
         }
 
-        if (_options.ExcludedPropertyNameContains.Any(pattern =>
+        if (
+            _options.ExcludedPropertyNameContains.Any(pattern =>
                 propertyName.Contains(pattern, StringComparison.OrdinalIgnoreCase)
-            ))
+            )
+        )
         {
             return true;
         }
