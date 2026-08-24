@@ -87,6 +87,10 @@ namespace Unified.Db.Migrations
                     b.HasIndex("TableName")
                         .HasDatabaseName("ix_audit_table");
 
+                    b.HasIndex("Action", "OccurredOn")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_audit_action");
+
                     b.HasIndex("ActorUserId", "OccurredOn")
                         .IsDescending(false, true)
                         .HasDatabaseName("ix_audit_actor");
