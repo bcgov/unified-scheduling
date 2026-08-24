@@ -41,7 +41,10 @@ public static class DbModule
                     ?.LogInformation(
                         "Registered {InterceptorCount} EF Core interceptor(s) in order: {InterceptorNames}",
                         interceptors.Length,
-                        string.Join(" -> ", interceptors.Select(interceptor => interceptor.GetType().Name))
+                        string.Join(
+                            " -> ",
+                            interceptors.Select(interceptor => interceptor.GetType().Name)
+                        )
                     );
             }
         );
