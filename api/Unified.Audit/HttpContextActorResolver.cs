@@ -12,7 +12,9 @@ public sealed class HttpContextActorResolver(IHttpContextAccessor httpContextAcc
         var user = httpContextAccessor.HttpContext?.User;
         var userId = user?.TryGetCurrentUserId();
 
-        return userId.HasValue ? new CurrentActor(userId, ResolveActorName(user)) : new CurrentActor(Guid.Empty, "system");
+        return userId.HasValue
+            ? new CurrentActor(userId, ResolveActorName(user))
+            : new CurrentActor(Guid.Empty, "system");
     }
 
     private static string ResolveActorName(ClaimsPrincipal? user)
