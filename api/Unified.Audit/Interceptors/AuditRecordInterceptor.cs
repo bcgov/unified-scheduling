@@ -314,21 +314,22 @@ public sealed class AuditRecordInterceptor(
 
     private string? ResolveCorrelationId()
     {
-        var headers = httpContextAccessor.HttpContext?.Request.Headers;
-        if (headers is null)
+        var httpContext = httpContextAccessor.HttpContext;
+        if (httpContext is null)
         {
             return null;
         }
 
         foreach (var headerName in _options.CorrelationIdHeaderNames)
         {
-            if (headers.TryGetValue(headerName, out var value) && !string.IsNullOrWhiteSpace(value))
+            if (httpContext.Request.Headers.TryGetValue(headerName, out var value) && !string.IsNullOrWhiteSpace(value))
             {
                 return value.ToString();
             }
         }
 
-        return null;
+        // Falls back to ASP.NET Core's per-request identifier, matching the traceId GlobalExceptionHandler returns to clients.
+        return httpContext.TraceIdentifier;
     }
 
     private sealed record DeferredAuditRecord(EntityEntry Entry, AuditRecord AuditRecord);
