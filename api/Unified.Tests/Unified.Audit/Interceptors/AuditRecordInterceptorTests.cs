@@ -64,9 +64,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_NoCorrelationHeader_FallsBackToTraceIdentifier()
     {
-        await using var context = CreateContext(
-            CreateAuditInterceptor(withHttpContextWithoutCorrelationHeader: true)
-        );
+        await using var context = CreateContext(CreateAuditInterceptor(withHttpContextWithoutCorrelationHeader: true));
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         context.AuditedEntities.Add(new AuditedEntity { Name = "new entity", Notes = "created" });
