@@ -1,6 +1,6 @@
-using Unified.Core.Models.Reporting;
+using Unified.Reporting.Models.Reporting;
 
-namespace Unified.Core.Services.Reporting;
+namespace Unified.Reporting.Services.Reporting;
 
 public interface IReportQueryService
 {

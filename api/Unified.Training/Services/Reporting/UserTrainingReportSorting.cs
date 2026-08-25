@@ -1,5 +1,3 @@
-using Unified.Core.Models.Reporting;
-
 namespace Unified.Training.Services.Reporting;
 
 internal static class UserTrainingReportSorting
@@ -50,14 +48,15 @@ internal static class UserTrainingReportSorting
     public static List<UserTrainingReportRow> Apply(
         IEnumerable<UserTrainingReportRow> rows,
         string? sortBy,
-        SortDirection sortDirection
+        string? sortDirection
     )
     {
         var normalizedSortBy = NormalizeSortBy(sortBy);
+        var isDescending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
 
         if (Sorters.TryGetValue(normalizedSortBy, out var sorter))
         {
-            return (sortDirection == SortDirection.Desc ? sorter.Desc(rows) : sorter.Asc(rows)).ToList();
+            return (isDescending ? sorter.Desc(rows) : sorter.Asc(rows)).ToList();
         }
 
         return rows

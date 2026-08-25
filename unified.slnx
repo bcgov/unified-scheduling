@@ -15,4 +15,5 @@
   <Project Path="api/Unified.UserManagement/Unified.UserManagement.csproj" />
   <Project Path="jc-interface-client/jc-interface-client.csproj" />
   <Project Path="api/Unified.JCInterface/Unified.JCInterface.csproj" />
+  <Project Path="api/Unified.Reporting/Unified.Reporting.csproj" />
 </Solution>

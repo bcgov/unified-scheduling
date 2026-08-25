@@ -135,7 +135,7 @@ function buildUserLabel(user: { firstName: string; lastName: string }): string {
 
 function normalizeColumnLabel(column: ReportColumn): string {
   if (column.key === 'trainingCode') {
-    return 'Code';
+    return 'Training Type';
   }
 
   if (column.key === 'trainingDescription') {
@@ -226,7 +226,7 @@ function formatDateCellValue(value: unknown): unknown {
       :items="formattedRows"
       :row-props="getRowProps"
       :loading="isFetching"
-      :paginate="false"
+      :paginate="true"
       searchable
       search-placeholder="Search report rows"
     />

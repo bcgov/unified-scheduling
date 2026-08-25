@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Unified.Core.Models.Reporting;
-using Unified.Core.Services.Reporting;
+using Unified.Reporting.Models.Reporting;
+using Unified.Reporting.Services.Reporting;
 
-namespace Unified.Core.Controllers;
+namespace Unified.Reporting.Controllers;
 
 [Authorize]
 [ApiController]

@@ -1,4 +1,4 @@
-namespace Unified.Core.Models.Reporting;
+namespace Unified.Reporting.Models.Reporting;
 
 public sealed record ReportQueryResult(
     string ReportKey,
@@ -6,7 +6,5 @@ public sealed record ReportQueryResult(
     IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Rows,
     int Page,
     int PageSize,
-    int TotalRows,
-    long ExecutionMs,
-    IReadOnlyCollection<string>? Warnings = null
+    int TotalRows
 );

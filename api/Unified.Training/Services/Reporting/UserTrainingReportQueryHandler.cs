@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
-using Unified.Core.Models.Reporting;
-using Unified.Core.Services.Reporting;
+using Unified.Common.Reporting;
 using Unified.Db;
 using Unified.Training.Mappings;
 
@@ -16,58 +14,66 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
     private const string StartDateFilterKey = "startDate";
     private const string EndDateFilterKey = "endDate";
 
-    public static string ReportKey => "user-training";
+    public string ReportKey => "user-training";
 
-    private static IReadOnlyCollection<ReportColumn> Columns =>
+    private static IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Columns =>
     [
-        new("userDisplayName", "User", ReportValueType.String),
-        new("trainingId", "ID", ReportValueType.Number),
-        new("trainingCode", "Code", ReportValueType.String),
-        new("trainingDescription", "Description", ReportValueType.String),
-        new("trainingCategory", "Category", ReportValueType.String),
-        new("awardedOn", "Awarded On", ReportValueType.DateTime),
-        new("endingOn", "Ending On", ReportValueType.DateTime),
-        new("expiryDate", "Expiry Date", ReportValueType.DateTime),
-        new("status", "Status", ReportValueType.String, Sortable: false),
-        new("version", "Version", ReportValueType.Number),
-        new("noticeState", "Notice State", ReportValueType.String),
-        new("notes", "Notes", ReportValueType.String, Sortable: false),
+        BuildColumn("userDisplayName", "User", "String"),
+        BuildColumn("trainingId", "ID", "Number"),
+        BuildColumn("trainingCode", "Code", "String"),
+        BuildColumn("trainingDescription", "Description", "String"),
+        BuildColumn("trainingCategory", "Category", "String"),
+        BuildColumn("awardedOn", "Awarded On", "DateTime"),
+        BuildColumn("endingOn", "Ending On", "DateTime"),
+        BuildColumn("expiryDate", "Expiry Date", "DateTime"),
+        BuildColumn("status", "Status", "String", sortable: false),
+        BuildColumn("version", "Version", "Number"),
+        BuildColumn("noticeState", "Notice State", "String"),
+        BuildColumn("notes", "Notes", "String", sortable: false),
     ];
 
-    public async Task<ReportQueryResult> ExecuteAsync(
-        ReportQueryRequest request,
+    public async Task<(
+        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Columns,
+        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Rows,
+        int TotalRows
+    )> ExecuteAsync(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
+        int page,
+        int pageSize,
+        string? sortBy,
+        string? sortDirection,
+        string? timeZone,
         CancellationToken cancellationToken = default
     )
     {
-        var startTimestamp = Stopwatch.GetTimestamp();
         var now = DateTimeOffset.UtcNow;
-        var filters = ParseFilters(request);
+        var parsedFilters = ParseFilters(filters);
 
         var query = db
             .UserTrainings.AsNoTracking()
             .Where(ut => ut.Training.ExpiryDate == null || ut.Training.ExpiryDate > now);
 
-        query = filters.UserId is Guid userId
+        query = parsedFilters.UserId is Guid userId
             ? query.Where(ut => ut.UserId == userId)
             : query;
 
-        query = filters.TrainingId is int trainingId
+        query = parsedFilters.TrainingId is int trainingId
             ? query.Where(ut => ut.TrainingId == trainingId)
             : query;
 
-        query = filters.NormalizedTrainingCode is string trainingCode
+        query = parsedFilters.NormalizedTrainingCode is string trainingCode
             ? query.Where(ut => ut.Training.Code.ToLower().Contains(trainingCode))
             : query;
 
-        query = filters.StartDateInclusive is DateTimeOffset startDateInclusive
+        query = parsedFilters.StartDateInclusive is DateTimeOffset startDateInclusive
             ? query.Where(ut => ut.AwardedOn >= startDateInclusive)
             : query;
 
-        query = filters.EndDateExclusive is DateTimeOffset endDateExclusive
+        query = parsedFilters.EndDateExclusive is DateTimeOffset endDateExclusive
             ? query.Where(ut => ut.AwardedOn < endDateExclusive)
             : query;
 
-        query = filters.Status switch
+        query = parsedFilters.Status switch
         {
             TrainingCompletionStatus.Active => query.Where(ut => ut.ExpiryDate == null || ut.ExpiryDate > now),
             TrainingCompletionStatus.Expired => query.Where(ut => ut.ExpiryDate != null && ut.ExpiryDate <= now),
@@ -102,10 +108,10 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
 
         var reportRows = await projectedQuery.ToListAsync(cancellationToken);
 
-        if (filters.ShouldIncludeMissingMandatoryRows)
+        if (parsedFilters.ShouldIncludeMissingMandatoryRows)
         {
             var usersQuery = db.Users.AsNoTracking().Where(user => user.IsEnabled);
-            usersQuery = filters.UserId is Guid reportUserId
+            usersQuery = parsedFilters.UserId is Guid reportUserId
                 ? usersQuery.Where(user => user.Id == reportUserId)
                 : usersQuery;
 
@@ -115,11 +121,11 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
                     training.Mandatory && (training.ExpiryDate == null || training.ExpiryDate > now)
                 );
 
-            mandatoryTrainingsQuery = filters.TrainingId is int reportTrainingId
+            mandatoryTrainingsQuery = parsedFilters.TrainingId is int reportTrainingId
                 ? mandatoryTrainingsQuery.Where(training => training.Id == reportTrainingId)
                 : mandatoryTrainingsQuery;
 
-            mandatoryTrainingsQuery = filters.NormalizedTrainingCode is string mandatoryTrainingCode
+            mandatoryTrainingsQuery = parsedFilters.NormalizedTrainingCode is string mandatoryTrainingCode
                 ? mandatoryTrainingsQuery.Where(training => training.Code.ToLower().Contains(mandatoryTrainingCode))
                 : mandatoryTrainingsQuery;
 
@@ -148,11 +154,11 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
             reportRows.AddRange(missingMandatoryRows);
         }
 
-        var sortedRows = UserTrainingReportSorting.Apply(reportRows, request.SortBy, request.SortDirection);
+        var sortedRows = UserTrainingReportSorting.Apply(reportRows, sortBy, sortDirection);
         var totalRows = sortedRows.Count;
         var pageRows = sortedRows
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToList();
 
         var rows = pageRows
@@ -162,27 +168,19 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
             )
             .ToArray();
 
-        var executionMs = (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
-
-        return new ReportQueryResult(
-            ReportKey,
-            Columns,
-            rows,
-            request.Page,
-            request.PageSize,
-            totalRows,
-            executionMs
-        );
+        return (Columns, rows, totalRows);
     }
 
-    private static UserTrainingReportFilters ParseFilters(ReportQueryRequest request)
+    private static UserTrainingReportFilters ParseFilters(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters
+    )
     {
-        var userId = ParseGuidFilter(request, UserIdFilterKey);
-        var trainingId = ParseIntFilter(request, TrainingIdFilterKey);
-        var normalizedTrainingCode = NormalizeForContains(ParseStringFilter(request, TrainingCodeFilterKey));
-        var status = ParseStatusFilter(request);
-        var startDate = ParseDateFilter(request, StartDateFilterKey);
-        var endDate = ParseDateFilter(request, EndDateFilterKey);
+        var userId = ParseGuidFilter(filters, UserIdFilterKey);
+        var trainingId = ParseIntFilter(filters, TrainingIdFilterKey);
+        var normalizedTrainingCode = NormalizeForContains(ParseStringFilter(filters, TrainingCodeFilterKey));
+        var status = ParseStatusFilter(filters);
+        var startDate = ParseDateFilter(filters, StartDateFilterKey);
+        var endDate = ParseDateFilter(filters, EndDateFilterKey);
 
         if (startDate.HasValue && endDate.HasValue && startDate > endDate)
         {
@@ -222,9 +220,12 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         return row.ExpiryDate == null || row.ExpiryDate > now ? "Active" : "Expired";
     }
 
-    private static string? ParseStringFilter(ReportQueryRequest request, string filterKey)
+    private static string? ParseStringFilter(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
+        string filterKey
+    )
     {
-        if (!request.Filters.TryGetValue(filterKey, out var values))
+        if (!filters.TryGetValue(filterKey, out var values))
         {
             return null;
         }
@@ -233,30 +234,39 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
-    private static Guid? ParseGuidFilter(ReportQueryRequest request, string filterKey)
+    private static Guid? ParseGuidFilter(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
+        string filterKey
+    )
     {
         return ParseFilter<Guid>(
-            request,
+            filters,
             filterKey,
             Guid.TryParse,
             $"Filter '{filterKey}' must be a valid GUID."
         );
     }
 
-    private static int? ParseIntFilter(ReportQueryRequest request, string filterKey)
+    private static int? ParseIntFilter(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
+        string filterKey
+    )
     {
         return ParseFilter<int>(
-            request,
+            filters,
             filterKey,
             TryParsePositiveInt,
             $"Filter '{filterKey}' must be a positive integer."
         );
     }
 
-    private static DateOnly? ParseDateFilter(ReportQueryRequest request, string filterKey)
+    private static DateOnly? ParseDateFilter(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
+        string filterKey
+    )
     {
         return ParseFilter<DateOnly>(
-            request,
+            filters,
             filterKey,
             DateOnly.TryParse,
             $"Filter '{filterKey}' must be a valid date in YYYY-MM-DD format."
@@ -264,14 +274,14 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
     }
 
     private static T? ParseFilter<T>(
-        ReportQueryRequest request,
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
         string filterKey,
         TryParseFilterValue<T> tryParse,
         string errorMessage
     )
         where T : struct
     {
-        var rawValue = ParseStringFilter(request, filterKey);
+        var rawValue = ParseStringFilter(filters, filterKey);
         if (rawValue is null)
         {
             return null;
@@ -297,9 +307,11 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         return success;
     }
 
-    private static TrainingCompletionStatus? ParseStatusFilter(ReportQueryRequest request)
+    private static TrainingCompletionStatus? ParseStatusFilter(
+        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters
+    )
     {
-        var rawStatus = ParseStringFilter(request, StatusFilterKey);
+        var rawStatus = ParseStringFilter(filters, StatusFilterKey);
         if (rawStatus is null)
         {
             return null;
@@ -331,6 +343,19 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         public bool ShouldIncludeMissingMandatoryRows =>
             Status is null && !StartDateInclusive.HasValue && !EndDateExclusive.HasValue;
     }
+
+    private static IReadOnlyDictionary<string, object?> BuildColumn(
+        string key,
+        string label,
+        string type,
+        bool sortable = true
+    ) => new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["key"] = key,
+        ["label"] = label,
+        ["type"] = type,
+        ["sortable"] = sortable,
+    };
 
     private delegate bool TryParseFilterValue<T>(string rawValue, out T parsed);
 }
