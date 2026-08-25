@@ -1,6 +1,28 @@
 import { computed, unref, type MaybeRef } from 'vue';
-import type { ReportQueryResult } from '@/api-access/generated/models';
 import { useFetchAPI } from '@/api-access/useFetchAPI';
+
+export type UserTrainingReportItem = {
+  userDisplayName: string;
+  trainingId: number;
+  trainingCode: string;
+  trainingDescription: string;
+  trainingCategory: string;
+  awardedOn?: string | null;
+  endingOn?: string | null;
+  expiryDate?: string | null;
+  status: string;
+  version?: number | null;
+  noticeState: string;
+  notes?: string | null;
+  hasMissingMandatoryTrainingAssignment: boolean;
+};
+
+export type UserTrainingReportResponse = {
+  rows: UserTrainingReportItem[];
+  page: number;
+  pageSize: number;
+  totalRows: number;
+};
 
 export type UserTrainingReportQuery = {
   page?: number;
@@ -33,7 +55,7 @@ export const useUserTrainingReport = (query: MaybeRef<UserTrainingReportQuery>) 
     };
   });
 
-  return useFetchAPI<ReportQueryResult>(
+  return useFetchAPI<UserTrainingReportResponse>(
     {
       url: '/api/reports/user-training',
       method: 'GET',

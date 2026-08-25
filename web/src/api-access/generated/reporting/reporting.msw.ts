@@ -9,81 +9,36 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { ReportQueryResult } from '../models';
+import type { PaginatableResponse } from '../models';
 
 export const getGetApiReportsReportKeyResponseMock = (
-  overrideResponse: Partial<Extract<ReportQueryResult, object>> = {},
-): ReportQueryResult =>
+  overrideResponse: Partial<Extract<PaginatableResponse, object>> = {},
+): PaginatableResponse =>
   faker.helpers.arrayElement([
     {
-      reportKey: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      columns: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-        key: faker.string.alpha({ length: { min: 10, max: 20 } }),
-        label: faker.string.alpha({ length: { min: 10, max: 20 } }),
-        type: faker.number.int(),
-        sortable: faker.datatype.boolean(),
-      })),
-      rows: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({})),
-      page: faker.number.int(),
-      pageSize: faker.number.int(),
-      totalRows: faker.number.int(),
-      executionMs: faker.number.int(),
-      warnings: faker.helpers.arrayElement([
-        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-        ),
-        undefined,
-      ]),
+      page: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      pageSize: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
     {
-      reportKey: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      columns: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-        key: faker.string.alpha({ length: { min: 10, max: 20 } }),
-        label: faker.string.alpha({ length: { min: 10, max: 20 } }),
-        type: faker.number.int(),
-        sortable: faker.datatype.boolean(),
-      })),
-      rows: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({})),
-      page: faker.number.int(),
-      pageSize: faker.number.int(),
-      totalRows: faker.number.int(),
-      executionMs: faker.number.int(),
-      warnings: faker.helpers.arrayElement([
-        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-        ),
-        undefined,
-      ]),
+      page: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      pageSize: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
     {
-      reportKey: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      columns: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-        key: faker.string.alpha({ length: { min: 10, max: 20 } }),
-        label: faker.string.alpha({ length: { min: 10, max: 20 } }),
-        type: faker.number.int(),
-        sortable: faker.datatype.boolean(),
-      })),
-      rows: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({})),
-      page: faker.number.int(),
-      pageSize: faker.number.int(),
-      totalRows: faker.number.int(),
-      executionMs: faker.number.int(),
-      warnings: faker.helpers.arrayElement([
-        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
-          faker.string.alpha({ length: { min: 10, max: 20 } }),
-        ),
-        undefined,
-      ]),
+      page: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      pageSize: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
   ]);
 
 export const getGetApiReportsReportKeyMockHandler = (
   overrideResponse?:
-    | ReportQueryResult
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ReportQueryResult> | ReportQueryResult),
+    | PaginatableResponse
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<PaginatableResponse> | PaginatableResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(

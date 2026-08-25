@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Common.Reporting;
 using Unified.Reporting.Models.Reporting;
 using Unified.Reporting.Services.Reporting;
 
@@ -15,10 +16,10 @@ public class ReportingController(IReportQueryService reportQueryService) : Contr
     ["page", "pagesize", "sortby", "sortdir", "tz"];
 
     [HttpGet("{reportKey}")]
-    [ProducesResponseType(typeof(ReportQueryResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PaginatableResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ReportQueryResult>> Get(
+    public async Task<ActionResult<PaginatableResponse>> Get(
         [FromRoute] string reportKey,
         CancellationToken cancellationToken
     )

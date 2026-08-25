@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { Permissions, type ReportColumn, type ReportQueryResultRowsItem } from '@/api-access/generated/models';
+import { Permissions } from '@/api-access/generated/models';
 import { getApiUsers } from '@/api-access/generated/users/users';
 import { useAccessControl } from '@/composables/useAccessControl';
 import type { SelectOption } from '@/types/select';
@@ -13,7 +13,7 @@ import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { useTrainingLookup } from './trainingLookupApi';
-import { useUserTrainingReport } from './userTrainingReportApi';
+import { useUserTrainingReport, type UserTrainingReportItem } from './userTrainingReportApi';
 
 const accessControl = useAccessControl();
 const canAccessUserTrainingReport = computed(() =>
@@ -86,25 +86,25 @@ const trainingOptions = computed<SelectOption[]>(() => {
   return [{ code: '', description: 'All trainings' }, ...options];
 });
 
-const headers = computed(() => {
-  const columns = (data.value?.columns ?? []).filter(
-    (column: ReportColumn) =>
-      column.key !== 'userId' && column.key !== 'trainingCategory' && column.key !== 'trainingId',
-  );
-  return columns.map((column: ReportColumn) => ({
-    title: normalizeColumnLabel(column),
-    key: column.key,
-    sortable: !!column.sortable,
-  }));
-});
+const headers = [
+  { title: 'User', key: 'userDisplayName', sortable: true },
+  { title: 'Training Type', key: 'trainingCode', sortable: true },
+  { title: 'Description', key: 'trainingDescription', sortable: true },
+  { title: 'Awarded On', key: 'awardedOn', sortable: true },
+  { title: 'Ending On', key: 'endingOn', sortable: true },
+  { title: 'Expiry Date', key: 'expiryDate', sortable: true },
+  { title: 'Status', key: 'status', sortable: false },
+  { title: 'Version', key: 'version', sortable: true },
+  { title: 'Notice State', key: 'noticeState', sortable: true },
+  { title: 'Notes', key: 'notes', sortable: false },
+];
 
 const formattedRows = computed<Record<string, unknown>[]>(() => {
-  const columns = data.value?.columns ?? [];
   const rows = data.value?.rows ?? [];
 
-  return rows.map((row: ReportQueryResultRowsItem) => ({
-    ...formatRow(row, columns),
-    __isMissingMandatoryTrainingAssignment: row.hasMissingMandatoryTrainingAssignment === true,
+  return rows.map((row: UserTrainingReportItem) => ({
+    ...formatRow(row),
+    __isMissingMandatoryTrainingAssignment: row.hasMissingMandatoryTrainingAssignment,
   }));
 });
 
@@ -133,36 +133,19 @@ function buildUserLabel(user: { firstName: string; lastName: string }): string {
   return [lastName, firstName].filter(Boolean).join(', ');
 }
 
-function normalizeColumnLabel(column: ReportColumn): string {
-  if (column.key === 'trainingCode') {
-    return 'Training Type';
-  }
-
-  if (column.key === 'trainingDescription') {
-    return 'Description';
-  }
-
-  return column.label;
-}
-
-function formatRow(row: ReportQueryResultRowsItem, columns: ReportColumn[]) {
-  const mapped: Record<string, unknown> = {};
-
-  for (const column of columns) {
-    if (column.key === 'userId' || column.key === 'trainingCategory' || column.key === 'trainingId') {
-      continue;
-    }
-
-    const rawValue = row[column.key];
-    mapped[column.key] = isDateColumn(column.key) ? formatDateCellValue(rawValue) : rawValue;
-  }
-
-  return mapped;
-}
-
-function isDateColumn(key: string): boolean {
-  const normalizedKey = key.toLowerCase();
-  return normalizedKey.endsWith('on') || normalizedKey.endsWith('date');
+function formatRow(row: UserTrainingReportItem): Record<string, unknown> {
+  return {
+    userDisplayName: row.userDisplayName,
+    trainingCode: row.trainingCode,
+    trainingDescription: row.trainingDescription,
+    awardedOn: formatDateCellValue(row.awardedOn),
+    endingOn: formatDateCellValue(row.endingOn),
+    expiryDate: formatDateCellValue(row.expiryDate),
+    status: row.status,
+    version: row.version,
+    noticeState: row.noticeState,
+    notes: row.notes,
+  };
 }
 
 function formatDateCellValue(value: unknown): unknown {

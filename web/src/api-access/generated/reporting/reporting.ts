@@ -4,7 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { ReportQueryResult } from '../models';
+import type { PaginatableResponse } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI.ts';
 
@@ -12,8 +12,8 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 export const getApiReportsReportKey = (
   reportKey: string,
-  options?: SecondParameter<typeof useFetchAPI<ReportQueryResult>>,
+  options?: SecondParameter<typeof useFetchAPI<PaginatableResponse>>,
 ) => {
-  return useFetchAPI<ReportQueryResult>({ url: `/api/reports/${reportKey}`, method: 'GET' }, options);
+  return useFetchAPI<PaginatableResponse>({ url: `/api/reports/${reportKey}`, method: 'GET' }, options);
 };
 export type GetApiReportsReportKeyResult = NonNullable<Awaited<ReturnType<typeof getApiReportsReportKey>>>;

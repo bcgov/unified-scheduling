@@ -1,26 +1,17 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Common.Reporting;
-using Unified.Reporting.Models.Reporting;
 using Unified.Reporting.Services.Reporting;
+using Unified.Reporting.Models.Reporting;
 
 namespace Unified.Tests.Reporting.Services;
 
 public class ReportQueryServiceTests
 {
     [Fact]
-    public async Task ExecuteAsync_Should_Map_Handler_Result_And_Forward_Request_Values()
+    public async Task ExecuteAsync_Should_Forward_Request_Values_And_Return_Handler_Response()
     {
         // Arrange
-        var handler = new FakeReportQueryHandler(
-            "user-training",
-            [
-                BuildColumn("userDisplayName", "User", "String", true),
-                BuildColumn("trainingId", "ID", "Number", false),
-            ],
-            [(IReadOnlyDictionary<string, object?>)new Dictionary<string, object?> { ["userDisplayName"] = "Doe, Jane" }],
-            42
-        );
-
+        var handler = new FakeReportQueryHandler("user-training", new FakePagedResponse(2, 10, 42));
         var service = new ReportQueryService([handler], NullLogger<ReportQueryService>.Instance);
 
         var request = new ReportQueryRequest(
@@ -39,20 +30,11 @@ public class ReportQueryServiceTests
         var result = await service.ExecuteAsync("user-training", request, TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal("user-training", result.ReportKey);
-        Assert.Equal(2, result.Page);
-        Assert.Equal(10, result.PageSize);
-        Assert.Equal(42, result.TotalRows);
+        var typedResult = Assert.IsType<FakePagedResponse>(result);
+        Assert.Equal(2, typedResult.Page);
+        Assert.Equal(10, typedResult.PageSize);
+        Assert.Equal(42, typedResult.TotalRows);
 
-        var firstColumn = Assert.Single(result.Columns, column => column.Key == "userDisplayName");
-        Assert.Equal(ReportValueType.String, firstColumn.Type);
-        Assert.True(firstColumn.Sortable);
-
-        var secondColumn = Assert.Single(result.Columns, column => column.Key == "trainingId");
-        Assert.Equal(ReportValueType.Number, secondColumn.Type);
-        Assert.False(secondColumn.Sortable);
-
-        Assert.Equal("user-training", handler.LastReportKey);
         Assert.Equal(2, handler.LastPage);
         Assert.Equal(10, handler.LastPageSize);
         Assert.Equal("userDisplayName", handler.LastSortBy);
@@ -80,8 +62,8 @@ public class ReportQueryServiceTests
         // Arrange
         var handlers = new IReportQueryHandler[]
         {
-            new FakeReportQueryHandler("dup", [], [], 0),
-            new FakeReportQueryHandler(" DUP ", [], [], 0),
+            new FakeReportQueryHandler("dup", new FakePagedResponse(1, 10, 0)),
+            new FakeReportQueryHandler(" DUP ", new FakePagedResponse(1, 10, 0)),
         };
 
         // Act + Assert
@@ -92,27 +74,12 @@ public class ReportQueryServiceTests
         Assert.Contains("Duplicate report handler registration", ex.Message);
     }
 
-    private static IReadOnlyDictionary<string, object?> BuildColumn(string key, string label, string type, bool sortable)
-    {
-        return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["key"] = key,
-            ["label"] = label,
-            ["type"] = type,
-            ["sortable"] = sortable,
-        };
-    }
-
     private sealed class FakeReportQueryHandler(
         string reportKey,
-        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> columns,
-        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> rows,
-        int totalRows
+        PaginatableResponse response
     ) : IReportQueryHandler
     {
         public string ReportKey => reportKey;
-
-        public string? LastReportKey { get; private set; }
 
         public IReadOnlyDictionary<string, IReadOnlyCollection<string>> LastFilters { get; private set; } =
             new Dictionary<string, IReadOnlyCollection<string>>();
@@ -127,11 +94,7 @@ public class ReportQueryServiceTests
 
         public string? LastTimeZone { get; private set; }
 
-        public Task<(
-            IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Columns,
-            IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Rows,
-            int TotalRows
-        )> ExecuteAsync(
+        public Task<PaginatableResponse> ExecuteAsync(
             IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
             int page,
             int pageSize,
@@ -141,7 +104,6 @@ public class ReportQueryServiceTests
             CancellationToken cancellationToken = default
         )
         {
-            LastReportKey = reportKey;
             LastFilters = filters;
             LastPage = page;
             LastPageSize = pageSize;
@@ -149,7 +111,10 @@ public class ReportQueryServiceTests
             LastSortDirection = sortDirection;
             LastTimeZone = timeZone;
 
-            return Task.FromResult((columns, rows, totalRows));
+            return Task.FromResult(response);
         }
     }
+
+    private sealed record FakePagedResponse(int Page, int PageSize, int TotalRows)
+        : PaginatableResponse(Page, PageSize, TotalRows);
 }

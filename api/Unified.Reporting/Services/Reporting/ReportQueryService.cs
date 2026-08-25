@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Unified.Common.Reporting;
 using Unified.Reporting.Models.Reporting;
 using CommonReporting = Unified.Common.Reporting;
 
@@ -23,7 +24,7 @@ public sealed class ReportQueryService(
                     : group.Single()
         );
 
-    public async Task<ReportQueryResult> ExecuteAsync(
+    public async Task<PaginatableResponse> ExecuteAsync(
         string reportKey,
         ReportQueryRequest request,
         CancellationToken cancellationToken = default
@@ -44,7 +45,7 @@ public sealed class ReportQueryService(
 
         logger.LogDebug("Executing report query for {ReportKey}", normalizedKey);
 
-        var (columns, rows, totalRows) = await handler.ExecuteAsync(
+        return await handler.ExecuteAsync(
             request.Filters,
             request.Page,
             request.PageSize,
@@ -52,15 +53,6 @@ public sealed class ReportQueryService(
             request.SortDirection.ToString(),
             request.TimeZone,
             cancellationToken
-        );
-
-        return new ReportQueryResult(
-            reportKey,
-            MapColumns(columns),
-            rows,
-            request.Page,
-            request.PageSize,
-            totalRows
         );
     }
 
@@ -81,67 +73,6 @@ public sealed class ReportQueryService(
                 $"Page size must be between 1 and {MaxPageSize}."
             );
         }
-    }
-
-    private static IReadOnlyCollection<ReportColumn> MapColumns(
-        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> columns
-    )
-    {
-        return columns
-            .Select(column =>
-                new ReportColumn(
-                    GetRequiredString(column, "key"),
-                    GetRequiredString(column, "label"),
-                    ParseValueType(GetRequiredString(column, "type")),
-                    GetBooleanOrDefault(column, "sortable", true)
-                )
-            )
-            .ToArray();
-    }
-
-    private static string GetRequiredString(IReadOnlyDictionary<string, object?> values, string key)
-    {
-        if (!values.TryGetValue(key, out var value) || value is null)
-        {
-            throw new ArgumentException($"Report column is missing required '{key}' value.");
-        }
-
-        var resolved = value.ToString();
-        if (string.IsNullOrWhiteSpace(resolved))
-        {
-            throw new ArgumentException($"Report column contains empty '{key}' value.");
-        }
-
-        return resolved;
-    }
-
-    private static bool GetBooleanOrDefault(
-        IReadOnlyDictionary<string, object?> values,
-        string key,
-        bool defaultValue
-    )
-    {
-        if (!values.TryGetValue(key, out var value) || value is null)
-        {
-            return defaultValue;
-        }
-
-        if (value is bool typed)
-        {
-            return typed;
-        }
-
-        return bool.TryParse(value.ToString(), out var parsed) ? parsed : defaultValue;
-    }
-
-    private static ReportValueType ParseValueType(string rawType)
-    {
-        if (Enum.TryParse<ReportValueType>(rawType, true, out var parsed))
-        {
-            return parsed;
-        }
-
-        throw new ArgumentException($"Unsupported report column type '{rawType}'.");
     }
 
     private static string Normalize(string value) => value.Trim().ToLowerInvariant();

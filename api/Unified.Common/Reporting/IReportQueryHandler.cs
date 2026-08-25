@@ -4,11 +4,7 @@ public interface IReportQueryHandler
 {
     string ReportKey { get; }
 
-    Task<(
-        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Columns,
-        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Rows,
-        int TotalRows
-    )> ExecuteAsync(
+    Task<PaginatableResponse> ExecuteAsync(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
         int page,
         int pageSize,

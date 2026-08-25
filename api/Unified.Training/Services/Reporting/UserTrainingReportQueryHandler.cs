@@ -16,27 +16,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
 
     public string ReportKey => "user-training";
 
-    private static IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Columns =>
-    [
-        BuildColumn("userDisplayName", "User", "String"),
-        BuildColumn("trainingId", "ID", "Number"),
-        BuildColumn("trainingCode", "Code", "String"),
-        BuildColumn("trainingDescription", "Description", "String"),
-        BuildColumn("trainingCategory", "Category", "String"),
-        BuildColumn("awardedOn", "Awarded On", "DateTime"),
-        BuildColumn("endingOn", "Ending On", "DateTime"),
-        BuildColumn("expiryDate", "Expiry Date", "DateTime"),
-        BuildColumn("status", "Status", "String", sortable: false),
-        BuildColumn("version", "Version", "Number"),
-        BuildColumn("noticeState", "Notice State", "String"),
-        BuildColumn("notes", "Notes", "String", sortable: false),
-    ];
-
-    public async Task<(
-        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Columns,
-        IReadOnlyCollection<IReadOnlyDictionary<string, object?>> Rows,
-        int TotalRows
-    )> ExecuteAsync(
+    public async Task<PaginatableResponse> ExecuteAsync(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
         int page,
         int pageSize,
@@ -162,13 +142,10 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
             .ToList();
 
         var rows = pageRows
-            .Select(row =>
-                (IReadOnlyDictionary<string, object?>)
-                    UserTrainingReportMappings.ToReportRowDictionary(row, GetStatus(row, now))
-            )
+            .Select(row => UserTrainingReportMappings.ToReportRowValue(row, GetStatus(row, now)))
             .ToArray();
 
-        return (Columns, rows, totalRows);
+        return new UserTrainingReportResponse(rows, page, pageSize, totalRows);
     }
 
     private static UserTrainingReportFilters ParseFilters(
@@ -343,19 +320,6 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         public bool ShouldIncludeMissingMandatoryRows =>
             Status is null && !StartDateInclusive.HasValue && !EndDateExclusive.HasValue;
     }
-
-    private static IReadOnlyDictionary<string, object?> BuildColumn(
-        string key,
-        string label,
-        string type,
-        bool sortable = true
-    ) => new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["key"] = key,
-        ["label"] = label,
-        ["type"] = type,
-        ["sortable"] = sortable,
-    };
 
     private delegate bool TryParseFilterValue<T>(string rawValue, out T parsed);
 }

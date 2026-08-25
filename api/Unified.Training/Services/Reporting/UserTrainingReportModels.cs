@@ -1,3 +1,5 @@
+using Unified.Common.Reporting;
+
 namespace Unified.Training.Services.Reporting;
 
 internal sealed record UserTrainingReportRow(
@@ -17,7 +19,7 @@ internal sealed record UserTrainingReportRow(
     bool IsMissingMandatoryTrainingAssignment
 );
 
-internal sealed record UserTrainingReportRowValue(
+public sealed record UserTrainingReportItem(
     string UserDisplayName,
     int TrainingId,
     string TrainingCode,
@@ -32,3 +34,10 @@ internal sealed record UserTrainingReportRowValue(
     string? Notes,
     bool HasMissingMandatoryTrainingAssignment
 );
+
+public sealed record UserTrainingReportResponse(
+    IReadOnlyCollection<UserTrainingReportItem> Rows,
+    int Page,
+    int PageSize,
+    int TotalRows
+) : PaginatableResponse(Page, PageSize, TotalRows);

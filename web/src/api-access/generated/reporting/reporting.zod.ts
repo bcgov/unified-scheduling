@@ -10,22 +10,8 @@ export const GetApiReportsReportKeyParams = zod.strictObject({
   reportKey: zod.string(),
 });
 
-export const getApiReportsReportKeyResponseColumnsItemSortableDefault = true;
-
 export const GetApiReportsReportKeyResponse = zod.object({
-  reportKey: zod.string(),
-  columns: zod.array(
-    zod.object({
-      key: zod.string(),
-      label: zod.string(),
-      type: zod.int(),
-      sortable: zod.boolean().default(getApiReportsReportKeyResponseColumnsItemSortableDefault),
-    }),
-  ),
-  rows: zod.array(zod.looseObject({})),
-  page: zod.int(),
-  pageSize: zod.int(),
-  totalRows: zod.int(),
-  executionMs: zod.int(),
-  warnings: zod.array(zod.string()).nullish(),
+  page: zod.int().optional(),
+  pageSize: zod.int().optional(),
+  totalRows: zod.int().optional(),
 });

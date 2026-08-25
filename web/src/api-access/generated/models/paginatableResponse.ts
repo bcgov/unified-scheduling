@@ -5,4 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type ReportValueType = number;
+export interface PaginatableResponse {
+  page?: number;
+  pageSize?: number;
+  totalRows?: number;
+}

@@ -1,4 +1,3 @@
-using System.Reflection;
 using Mapster;
 using Unified.Training.Services.Reporting;
 
@@ -7,20 +6,13 @@ namespace Unified.Training.Mappings;
 internal static class UserTrainingReportMappings
 {
     private static readonly TypeAdapterConfig Config = BuildConfig();
-    private static readonly PropertyInfo[] RowValueProperties = typeof(UserTrainingReportRowValue)
-        .GetProperties(BindingFlags.Instance | BindingFlags.Public);
 
-    public static Dictionary<string, object?> ToReportRowDictionary(UserTrainingReportRow row, string status)
+    public static UserTrainingReportItem ToReportRowValue(UserTrainingReportRow row, string status)
     {
-        var mapped = row.Adapt<UserTrainingReportRowValue>(Config) with
+        return row.Adapt<UserTrainingReportItem>(Config) with
         {
             Status = status,
         };
-
-        return RowValueProperties.ToDictionary(
-            property => ToCamelCase(property.Name),
-            property => property.GetValue(mapped)
-        );
     }
 
     private static TypeAdapterConfig BuildConfig()
@@ -28,7 +20,7 @@ internal static class UserTrainingReportMappings
         var config = new TypeAdapterConfig();
 
         config
-            .NewConfig<UserTrainingReportRow, UserTrainingReportRowValue>()
+            .NewConfig<UserTrainingReportRow, UserTrainingReportItem>()
             .Map(dest => dest.UserDisplayName, src => BuildUserDisplayName(src.FirstName, src.LastName))
             .Map(dest => dest.TrainingId, src => src.TrainingId)
             .Map(dest => dest.TrainingCode, src => src.TrainingCode)
@@ -65,15 +57,5 @@ internal static class UserTrainingReportMappings
         }
 
         return $"{normalizedLastName}, {normalizedFirstName}";
-    }
-
-    private static string ToCamelCase(string value)
-    {
-        if (string.IsNullOrEmpty(value) || char.IsLower(value[0]))
-        {
-            return value;
-        }
-
-        return char.ToLowerInvariant(value[0]) + value[1..];
     }
 }
