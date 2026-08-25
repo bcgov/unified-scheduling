@@ -14,6 +14,7 @@ COPY api/Unified.Training/Unified.Training.csproj ./api/Unified.Training/
 COPY api/Unified.Calendar/Unified.Calendar.csproj ./api/Unified.Calendar/
 COPY api/Unified.Hangfire/Unified.Hangfire.csproj ./api/Unified.Hangfire/
 COPY api/Unified.JCInterface/Unified.JCInterface.csproj ./api/Unified.JCInterface/
+COPY api/Unified.Scheduling/Unified.Scheduling.csproj ./api/Unified.Scheduling/
 COPY db/db.csproj ./db/
 COPY jc-interface-client/jc-interface-client.csproj ./jc-interface-client/
 
