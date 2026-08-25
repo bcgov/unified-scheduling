@@ -62,6 +62,22 @@ public class AuditRecordInterceptorTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveChangesAsync_NoCorrelationHeader_FallsBackToTraceIdentifier()
+    {
+        await using var context = CreateContext(
+            CreateAuditInterceptor(withHttpContextWithoutCorrelationHeader: true)
+        );
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        context.AuditedEntities.Add(new AuditedEntity { Name = "new entity", Notes = "created" });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var auditRecord = await context.AuditRecords.SingleAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(string.IsNullOrWhiteSpace(auditRecord.CorrelationId));
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_ModifiedEntity_CapturesOldNewAndChangedColumns()
     {
         await using var context = CreateContext(CreateAuditInterceptor());
@@ -326,7 +342,8 @@ public class AuditRecordInterceptorTests : IDisposable
     private static AuditRecordInterceptor CreateAuditInterceptor(
         ICurrentActorResolver? actorResolver = null,
         string? correlationId = null,
-        string sourceModule = "test-module"
+        string sourceModule = "test-module",
+        bool withHttpContextWithoutCorrelationHeader = false
     )
     {
         var accessor = new HttpContextAccessor();
@@ -335,6 +352,10 @@ public class AuditRecordInterceptorTests : IDisposable
             var context = new DefaultHttpContext();
             context.Request.Headers["X-Correlation-Id"] = correlationId;
             accessor.HttpContext = context;
+        }
+        else if (withHttpContextWithoutCorrelationHeader)
+        {
+            accessor.HttpContext = new DefaultHttpContext();
         }
 
         var options = Options.Create(
