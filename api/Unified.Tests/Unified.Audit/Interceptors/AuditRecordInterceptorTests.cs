@@ -250,6 +250,25 @@ public class AuditRecordInterceptorTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveChangesAsync_AddedEntityWithGeneratedKey_NewValuesMatchesFinalKeyValue()
+    {
+        await using var context = CreateContext(CreateAuditInterceptor());
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        // No explicit ID -> temporary key -> deferred audit path.
+        var entity = new AuditedEntity { Name = "generated-key-entity" };
+        context.AuditedEntities.Add(entity);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var auditRecord = await context.AuditRecords.SingleAsync(TestContext.Current.CancellationToken);
+        var keyValues = Deserialize(auditRecord.KeyValues);
+        var newValues = Deserialize(auditRecord.NewValues!);
+
+        Assert.Equal(entity.Id, keyValues[nameof(AuditedEntity.Id)].GetInt32());
+        Assert.Equal(entity.Id, newValues[nameof(AuditedEntity.Id)].GetInt32());
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_DeferredKeyFailure_RollsBackEntityAndAuditInAmbientTransaction()
     {
         var throwInterceptor = new ThrowOnAuditInsertCommandInterceptor();

@@ -162,7 +162,11 @@ public sealed class AuditRecordInterceptor(
         {
             foreach (var deferredAudit in _deferredAudits)
             {
-                deferredAudit.AuditRecord.KeyValues = SerializeKeyValues(deferredAudit.Entry);
+                var entry = deferredAudit.Entry;
+                deferredAudit.AuditRecord.KeyValues = SerializeKeyValues(entry);
+                // NewValues was captured pre-save with EF's temporary key placeholder; re-serialize now
+                // that the store-generated key has replaced it.
+                deferredAudit.AuditRecord.NewValues = BuildValues(entry, oldValues: false, GetChangedColumns(entry));
                 context.Set<AuditRecord>().Add(deferredAudit.AuditRecord);
             }
 
