@@ -1,3 +1,8 @@
+---
+name: save-rule-pattern
+description: "Implement or modify ISaveRule business-rule validators that run inside EF Core's SaveChangesAsync pipeline for the unified-scheduling API. Use when adding a new ISaveRule, registering it via AddScoped<ISaveRule, ...>, or changing an existing rule under api/*/Rules/. Covers validation vs. database-constraint layering, transaction/rollback guarantees, EntityState filtering conventions, nested SaveChangesAsync re-entrancy (e.g. AuditRecordInterceptor's deferred audit save), and required test coverage."
+---
+
 # ISaveRule Pattern — Add Business Rule Validation
 
 Use this skill when implementing business rule validation that must run before database commits.
@@ -329,6 +334,46 @@ DB Constraint (final check)
 - ✅ Rules run sequentially, all have access to same DbContext state
 - ✅ Querying with the same DbContext is safe when rule logic is sequential and does not call SaveChanges
 
+### Nested SaveChangesAsync re-entrancy (e.g. audit deferred-save)
+
+`AuditRecordInterceptor` (`api/Unified.Audit/Interceptors/AuditRecordInterceptor.cs`) captures audit rows for
+entities in `SavingChangesAsync`. For **new** entities, the real primary key isn't known until after the first
+save completes, so their audit rows are deferred and written via a **second, nested**
+`context.SaveChangesAsync()` call from `SavedChangesAsync`. `SaveRulesInterceptor` has no awareness of this and
+re-runs **every** `ISaveRule` on that nested call too.
+
+This is safe today with no extra work, but only because every existing rule follows the
+`EntityState.Added || EntityState.Modified` filtering convention (see Common Mistakes below): by the time the
+nested save runs, the entities from the first save are already `Unchanged`, so a correctly-filtered rule finds
+no matching entries and returns immediately - negligible overhead, no duplicate side effects.
+
+**When adding or changing a rule, check whether it still fits that assumption.** You need an explicit
+suppression mechanism if the rule does any of the following:
+
+- Reacts to entities regardless of `EntityState` (e.g. also processes `Unchanged` entries).
+- Has a side effect that must run exactly once per logical save (not once per physical `SaveChangesAsync` call) -
+  e.g. sending a notification, incrementing a counter, calling an external service.
+- Does non-trivial work before checking whether any entries actually changed (no cheap early-exit).
+
+If any of those apply, add a shared scoped suppressor rather than special-casing the rule itself:
+
+1. Add a small scoped marker class in `Unified.Common/Interceptors/` (e.g. `SaveRulesSuppressor` with a single
+   `bool IsSuppressed` property).
+2. Inject it into `SaveRulesInterceptor` and skip the rule loop in `SavingChangesAsync` when `IsSuppressed` is
+   `true`.
+3. Inject it into the interceptor performing the nested save (e.g. `AuditRecordInterceptor`) and set
+   `IsSuppressed = true` immediately before its own nested `context.SaveChangesAsync()` call, resetting it to
+   `false` in a `finally` block afterward.
+4. Register the suppressor as scoped (`services.AddScoped<SaveRulesSuppressor>()`) in
+   `api/Unified.Api/Services/InterceptorRegistration.cs`, alongside where both interceptors are registered, so
+   DI resolves the same instance for both within a request scope.
+5. Add a regression test that a `CountingSaveRule`-style fake only executes once when an entity with a
+   generated key triggers the deferred/nested save path (no explicit ID -> temporary key -> nested save).
+
+This exact suppressor pattern was implemented and then deliberately reverted for `AuditRecordInterceptor`
+because the current rule set doesn't need it (see git history around SS-1034) - don't re-add it speculatively;
+only introduce it once a rule actually violates the assumptions above.
+
 ## Implementation Checklist
 
 - [ ] Create rule class in `YourModule/Rules/`
@@ -379,6 +424,11 @@ Before finalizing any SaveRule change, the agent must validate all of the follow
     - `dotnet build api/Unified.Api/Unified.Api.csproj`
     - `dotnet test --project api/Unified.Tests/Unified.Tests.csproj -- --filter-class Unified.Tests.UserManagement.Rules.UserBadgeNumberUniqueRuleTests`
 
+6. Nested-save re-entrancy (required check):
+    - Confirm the new/changed rule still filters by `EntityState.Added`/`Modified` before doing any work (see
+      "Nested SaveChangesAsync re-entrancy" above). If it doesn't, or has non-idempotent side effects, implement
+      the `SaveRulesSuppressor` pattern described there before merging.
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -389,6 +439,7 @@ Before finalizing any SaveRule change, the agent must validate all of the follow
 | Include sensitive data in exception message | Sanitize before throwing |
 | Test only calls ExecuteAsync without SaveChanges | Test full flow: Add entity → SaveChangesAsync should trigger rule |
 | Rule only checks new entities, misses updates | Filter by `EntityState.Added \|\| EntityState.Modified` |
+| Rule has side effects or reacts to `Unchanged` entries | Rule will double-run during `AuditRecordInterceptor`'s deferred audit save - see "Nested SaveChangesAsync re-entrancy" above |
 
 ## Related Files
 
@@ -398,3 +449,7 @@ Before finalizing any SaveRule change, the agent must validate all of the follow
 
 - **Examples**:
   - `api/Unified.UserManagement/Rules/UserBadgeNumberUniqueRule.cs` — Real-world implementation example
+
+- **Nested-save interceptor** (see "Nested SaveChangesAsync re-entrancy" above):
+  - `api/Unified.Audit/Interceptors/AuditRecordInterceptor.cs` — Calls a second, nested `SaveChangesAsync()`
+    to persist deferred audit rows for entities with generated keys
