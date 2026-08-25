@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Unified.Db;
 
@@ -34,18 +33,6 @@ public static class DbModule
                 {
                     options.AddInterceptors(interceptors);
                 }
-
-                // Debug level: this callback runs once per DbContext instance (e.g. per request scope).
-                serviceProvider
-                    .GetService<ILogger<UnifiedDbContext>>()
-                    ?.LogInformation(
-                        "Registered {InterceptorCount} EF Core interceptor(s) in order: {InterceptorNames}",
-                        interceptors.Length,
-                        string.Join(
-                            " -> ",
-                            interceptors.Select(interceptor => interceptor.GetType().Name)
-                        )
-                    );
             }
         );
 
