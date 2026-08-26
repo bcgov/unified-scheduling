@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Unified.Common.Reporting;
-using Unified.Reporting.Models.Reporting;
+using Unified.Reporting.Models;
 using CommonReporting = Unified.Common.Reporting;
 
 namespace Unified.Reporting.Services.Reporting;

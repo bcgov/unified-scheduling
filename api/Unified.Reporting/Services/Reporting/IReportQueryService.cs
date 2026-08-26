@@ -1,5 +1,5 @@
 using Unified.Common.Reporting;
-using Unified.Reporting.Models.Reporting;
+using Unified.Reporting.Models;
 
 namespace Unified.Reporting.Services.Reporting;
 

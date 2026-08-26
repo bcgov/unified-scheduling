@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Common.Reporting;
+using Unified.Reporting.Models;
 using Unified.Reporting.Services.Reporting;
-using Unified.Reporting.Models.Reporting;
 
 namespace Unified.Tests.Reporting.Services;
 
@@ -74,10 +74,7 @@ public class ReportQueryServiceTests
         Assert.Contains("Duplicate report handler registration", ex.Message);
     }
 
-    private sealed class FakeReportQueryHandler(
-        string reportKey,
-        PaginatableResponse response
-    ) : IReportQueryHandler
+    private sealed class FakeReportQueryHandler(string reportKey, PaginatableResponse response) : IReportQueryHandler
     {
         public string ReportKey => reportKey;
 

@@ -12,9 +12,9 @@ using Unified.Common.Options;
 using Unified.Common.Reporting;
 using Unified.Core.Services.Lookup;
 using Unified.Training.FeatureFlags;
-using Unified.Training.Services.Reporting;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
+using Unified.Training.Services.Reporting;
 using Unified.Training.Validators;
 
 namespace Unified.Training;

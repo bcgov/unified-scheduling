@@ -1,4 +1,4 @@
-namespace Unified.Reporting.Models.Reporting;
+namespace Unified.Reporting.Models;
 
 public sealed record ReportQueryRequest(
     IReadOnlyDictionary<string, IReadOnlyCollection<string>> Filters,

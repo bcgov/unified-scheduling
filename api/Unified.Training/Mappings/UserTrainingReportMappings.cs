@@ -9,10 +9,7 @@ internal static class UserTrainingReportMappings
 
     public static UserTrainingReportItem ToReportRowValue(UserTrainingReportRow row, string status)
     {
-        return row.Adapt<UserTrainingReportItem>(Config) with
-        {
-            Status = status,
-        };
+        return row.Adapt<UserTrainingReportItem>(Config) with { Status = status };
     }
 
     private static TypeAdapterConfig BuildConfig()
@@ -32,10 +29,7 @@ internal static class UserTrainingReportMappings
             .Map(dest => dest.Version, src => src.Version)
             .Map(dest => dest.NoticeState, src => src.NoticeState)
             .Map(dest => dest.Notes, src => src.Notes)
-            .Map(
-                dest => dest.HasMissingMandatoryTrainingAssignment,
-                src => src.IsMissingMandatoryTrainingAssignment
-            )
+            .Map(dest => dest.HasMissingMandatoryTrainingAssignment, src => src.IsMissingMandatoryTrainingAssignment)
             .Map(dest => dest.Status, src => string.Empty);
 
         return config;

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Common.Reporting;
-using Unified.Reporting.Models.Reporting;
+using Unified.Reporting.Models;
 using Unified.Reporting.Services.Reporting;
 
 namespace Unified.Reporting.Controllers;

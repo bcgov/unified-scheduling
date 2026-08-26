@@ -5,7 +5,7 @@ using Unified.Training.Mappings;
 
 namespace Unified.Training.Services.Reporting;
 
-public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IReportQueryHandler
+public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : ReportQueryHandlerBase, IReportQueryHandler
 {
     private const string UserIdFilterKey = "userId";
     private const string TrainingIdFilterKey = "trainingId";
@@ -27,33 +27,29 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
     )
     {
         var now = DateTimeOffset.UtcNow;
-        var parsedFilters = ParseFilters(filters);
+        var queryFilters = ParseQuery(filters);
 
         var query = db
             .UserTrainings.AsNoTracking()
             .Where(ut => ut.Training.ExpiryDate == null || ut.Training.ExpiryDate > now);
 
-        query = parsedFilters.UserId is Guid userId
-            ? query.Where(ut => ut.UserId == userId)
-            : query;
+        query = queryFilters.UserId is Guid userId ? query.Where(ut => ut.UserId == userId) : query;
 
-        query = parsedFilters.TrainingId is int trainingId
-            ? query.Where(ut => ut.TrainingId == trainingId)
-            : query;
+        query = queryFilters.TrainingId is int trainingId ? query.Where(ut => ut.TrainingId == trainingId) : query;
 
-        query = parsedFilters.NormalizedTrainingCode is string trainingCode
+        query = queryFilters.NormalizedTrainingCode is string trainingCode
             ? query.Where(ut => ut.Training.Code.ToLower().Contains(trainingCode))
             : query;
 
-        query = parsedFilters.StartDateInclusive is DateTimeOffset startDateInclusive
+        query = queryFilters.StartDateInclusive is DateTimeOffset startDateInclusive
             ? query.Where(ut => ut.AwardedOn >= startDateInclusive)
             : query;
 
-        query = parsedFilters.EndDateExclusive is DateTimeOffset endDateExclusive
+        query = queryFilters.EndDateExclusive is DateTimeOffset endDateExclusive
             ? query.Where(ut => ut.AwardedOn < endDateExclusive)
             : query;
 
-        query = parsedFilters.Status switch
+        query = queryFilters.Status switch
         {
             TrainingCompletionStatus.Active => query.Where(ut => ut.ExpiryDate == null || ut.ExpiryDate > now),
             TrainingCompletionStatus.Expired => query.Where(ut => ut.ExpiryDate != null && ut.ExpiryDate <= now),
@@ -62,8 +58,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
 
         query = query.Where(ut =>
             ut.Version
-            == db
-                .UserTrainings.Where(candidate =>
+            == db.UserTrainings.Where(candidate =>
                     candidate.UserId == ut.UserId && candidate.TrainingId == ut.TrainingId
                 )
                 .Max(candidate => candidate.Version)
@@ -88,24 +83,22 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
 
         var reportRows = await projectedQuery.ToListAsync(cancellationToken);
 
-        if (parsedFilters.ShouldIncludeMissingMandatoryRows)
+        if (queryFilters.ShouldIncludeMissingMandatoryRows)
         {
             var usersQuery = db.Users.AsNoTracking().Where(user => user.IsEnabled);
-            usersQuery = parsedFilters.UserId is Guid reportUserId
+            usersQuery = queryFilters.UserId is Guid reportUserId
                 ? usersQuery.Where(user => user.Id == reportUserId)
                 : usersQuery;
 
             var mandatoryTrainingsQuery = db
                 .Trainings.AsNoTracking()
-                .Where(training =>
-                    training.Mandatory && (training.ExpiryDate == null || training.ExpiryDate > now)
-                );
+                .Where(training => training.Mandatory && (training.ExpiryDate == null || training.ExpiryDate > now));
 
-            mandatoryTrainingsQuery = parsedFilters.TrainingId is int reportTrainingId
+            mandatoryTrainingsQuery = queryFilters.TrainingId is int reportTrainingId
                 ? mandatoryTrainingsQuery.Where(training => training.Id == reportTrainingId)
                 : mandatoryTrainingsQuery;
 
-            mandatoryTrainingsQuery = parsedFilters.NormalizedTrainingCode is string mandatoryTrainingCode
+            mandatoryTrainingsQuery = queryFilters.NormalizedTrainingCode is string mandatoryTrainingCode
                 ? mandatoryTrainingsQuery.Where(training => training.Code.ToLower().Contains(mandatoryTrainingCode))
                 : mandatoryTrainingsQuery;
 
@@ -134,12 +127,9 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
             reportRows.AddRange(missingMandatoryRows);
         }
 
-        var sortedRows = UserTrainingReportSorting.Apply(reportRows, sortBy, sortDirection);
+        var sortedRows = ApplySorting(reportRows, sortBy, sortDirection);
         var totalRows = sortedRows.Count;
-        var pageRows = sortedRows
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
+        var pageRows = sortedRows.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
         var rows = pageRows
             .Select(row => UserTrainingReportMappings.ToReportRowValue(row, GetStatus(row, now)))
@@ -148,43 +138,94 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         return new UserTrainingReportResponse(rows, page, pageSize, totalRows);
     }
 
-    private static UserTrainingReportFilters ParseFilters(
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters
+    private static List<UserTrainingReportRow> ApplySorting(
+        IEnumerable<UserTrainingReportRow> rows,
+        string? sortBy,
+        string? sortDirection
     )
     {
-        var userId = ParseGuidFilter(filters, UserIdFilterKey);
-        var trainingId = ParseIntFilter(filters, TrainingIdFilterKey);
-        var normalizedTrainingCode = NormalizeForContains(ParseStringFilter(filters, TrainingCodeFilterKey));
+        var normalizedSortBy = NormalizeSortBy(sortBy);
+        var isDescending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+
+        return normalizedSortBy switch
+        {
+            "userdisplayname" => ApplyNameSort(rows, isDescending),
+            "trainingcode" => ApplySort(rows, row => row.TrainingCode, isDescending),
+            "trainingdescription" => ApplySort(rows, row => row.TrainingDescription, isDescending),
+            "trainingcategory" => ApplySort(rows, row => row.TrainingCategory, isDescending),
+            "awardedon" => ApplySort(rows, row => row.AwardedOn, isDescending),
+            "endingon" => ApplySort(rows, row => row.EndingOn, isDescending),
+            "expirydate" => ApplySort(rows, row => row.ExpiryDate, isDescending),
+            "version" => ApplySort(rows, row => row.Version, isDescending),
+            "noticestate" => ApplySort(rows, row => row.NoticeState, isDescending),
+            _ => ApplyDefaultSort(rows),
+        };
+    }
+
+    private static List<UserTrainingReportRow> ApplyNameSort(IEnumerable<UserTrainingReportRow> rows, bool isDescending)
+    {
+        return (
+            isDescending
+                ? rows.OrderByDescending(row => row.LastName).ThenByDescending(row => row.FirstName)
+                : rows.OrderBy(row => row.LastName).ThenBy(row => row.FirstName)
+        ).ToList();
+    }
+
+    private static List<UserTrainingReportRow> ApplySort<TKey>(
+        IEnumerable<UserTrainingReportRow> rows,
+        Func<UserTrainingReportRow, TKey> keySelector,
+        bool isDescending
+    )
+    {
+        return (isDescending ? rows.OrderByDescending(keySelector) : rows.OrderBy(keySelector)).ToList();
+    }
+
+    private static List<UserTrainingReportRow> ApplyDefaultSort(IEnumerable<UserTrainingReportRow> rows)
+    {
+        return
+        [
+            .. rows.OrderBy(row => row.LastName)
+                .ThenBy(row => row.FirstName)
+                .ThenBy(row => row.TrainingCode)
+                .ThenByDescending(row => row.AwardedOn),
+        ];
+    }
+
+    private static string NormalizeSortBy(string? sortBy)
+    {
+        return string.IsNullOrWhiteSpace(sortBy) ? string.Empty : sortBy.Trim().ToLowerInvariant();
+    }
+
+    private static UserTrainingReportQuery ParseQuery(IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters)
+    {
+        var userId = ParseOptional<Guid>(filters, UserIdFilterKey, Guid.TryParse, "must be a valid GUID");
+        var trainingId = ParseOptional<int>(
+            filters,
+            TrainingIdFilterKey,
+            TryParsePositiveInt,
+            "must be a positive integer"
+        );
+        var trainingCode = ParseStringFilter(filters, TrainingCodeFilterKey);
         var status = ParseStatusFilter(filters);
-        var startDate = ParseDateFilter(filters, StartDateFilterKey);
-        var endDate = ParseDateFilter(filters, EndDateFilterKey);
+        var startDate = ParseOptional<DateOnly>(
+            filters,
+            StartDateFilterKey,
+            DateOnly.TryParse,
+            "must be a valid date in YYYY-MM-DD format"
+        );
+        var endDate = ParseOptional<DateOnly>(
+            filters,
+            EndDateFilterKey,
+            DateOnly.TryParse,
+            "must be a valid date in YYYY-MM-DD format"
+        );
 
         if (startDate.HasValue && endDate.HasValue && startDate > endDate)
         {
             throw new ArgumentException("Filter 'startDate' must be on or before 'endDate'.");
         }
 
-        var startDateInclusive = startDate.HasValue
-            ? new DateTimeOffset(startDate.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-            : (DateTimeOffset?)null;
-
-        var endDateExclusive = endDate.HasValue
-            ? new DateTimeOffset(endDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-            : (DateTimeOffset?)null;
-
-        return new UserTrainingReportFilters(
-            userId,
-            trainingId,
-            normalizedTrainingCode,
-            status,
-            startDateInclusive,
-            endDateExclusive
-        );
-    }
-
-    private static string? NormalizeForContains(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+        return new UserTrainingReportQuery(userId, trainingId, trainingCode, status, startDate, endDate);
     }
 
     private static string GetStatus(UserTrainingReportRow row, DateTimeOffset now)
@@ -195,93 +236,6 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         }
 
         return row.ExpiryDate == null || row.ExpiryDate > now ? "Active" : "Expired";
-    }
-
-    private static string? ParseStringFilter(
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
-        string filterKey
-    )
-    {
-        if (!filters.TryGetValue(filterKey, out var values))
-        {
-            return null;
-        }
-
-        var value = values.FirstOrDefault(entry => !string.IsNullOrWhiteSpace(entry));
-        return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    private static Guid? ParseGuidFilter(
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
-        string filterKey
-    )
-    {
-        return ParseFilter<Guid>(
-            filters,
-            filterKey,
-            Guid.TryParse,
-            $"Filter '{filterKey}' must be a valid GUID."
-        );
-    }
-
-    private static int? ParseIntFilter(
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
-        string filterKey
-    )
-    {
-        return ParseFilter<int>(
-            filters,
-            filterKey,
-            TryParsePositiveInt,
-            $"Filter '{filterKey}' must be a positive integer."
-        );
-    }
-
-    private static DateOnly? ParseDateFilter(
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
-        string filterKey
-    )
-    {
-        return ParseFilter<DateOnly>(
-            filters,
-            filterKey,
-            DateOnly.TryParse,
-            $"Filter '{filterKey}' must be a valid date in YYYY-MM-DD format."
-        );
-    }
-
-    private static T? ParseFilter<T>(
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
-        string filterKey,
-        TryParseFilterValue<T> tryParse,
-        string errorMessage
-    )
-        where T : struct
-    {
-        var rawValue = ParseStringFilter(filters, filterKey);
-        if (rawValue is null)
-        {
-            return null;
-        }
-
-        if (tryParse(rawValue, out var parsed))
-        {
-            return parsed;
-        }
-
-        throw new ArgumentException(errorMessage);
-    }
-
-    private static bool TryParsePositiveInt(string rawValue, out int parsed)
-    {
-        var success = int.TryParse(rawValue, out parsed) && parsed > 0;
-
-        if (!success)
-        {
-            parsed = default;
-        }
-
-        return success;
     }
 
     private static TrainingCompletionStatus? ParseStatusFilter(
@@ -308,18 +262,27 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         Expired,
     }
 
-    private readonly record struct UserTrainingReportFilters(
+    private readonly record struct UserTrainingReportQuery(
         Guid? UserId,
         int? TrainingId,
-        string? NormalizedTrainingCode,
+        string? TrainingCode,
         TrainingCompletionStatus? Status,
-        DateTimeOffset? StartDateInclusive,
-        DateTimeOffset? EndDateExclusive
+        DateOnly? StartDate,
+        DateOnly? EndDate
     )
     {
-        public bool ShouldIncludeMissingMandatoryRows =>
-            Status is null && !StartDateInclusive.HasValue && !EndDateExclusive.HasValue;
-    }
+        public string? NormalizedTrainingCode => NormalizeForContains(TrainingCode);
 
-    private delegate bool TryParseFilterValue<T>(string rawValue, out T parsed);
+        public DateTimeOffset? StartDateInclusive =>
+            StartDate.HasValue
+                ? new DateTimeOffset(StartDate.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
+                : null;
+
+        public DateTimeOffset? EndDateExclusive =>
+            EndDate.HasValue
+                ? new DateTimeOffset(EndDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
+                : null;
+
+        public bool ShouldIncludeMissingMandatoryRows => Status is null && !StartDate.HasValue && !EndDate.HasValue;
+    }
 }
