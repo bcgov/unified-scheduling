@@ -4,7 +4,7 @@ public interface IReportQueryHandler
 {
     string ReportKey { get; }
 
-    Task<PaginatableResponse> ExecuteAsync(
+    Task<PagedResponse> ExecuteAsync(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
         int page,
         int pageSize,

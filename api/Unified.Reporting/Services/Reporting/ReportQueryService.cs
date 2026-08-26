@@ -24,7 +24,7 @@ public sealed class ReportQueryService(
                     : group.Single()
         );
 
-    public async Task<PaginatableResponse> ExecuteAsync(
+    public async Task<PagedResponse> ExecuteAsync(
         string reportKey,
         ReportQueryRequest request,
         CancellationToken cancellationToken = default

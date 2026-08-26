@@ -5,18 +5,11 @@ using Unified.Training.Mappings;
 
 namespace Unified.Training.Services.Reporting;
 
-public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : ReportQueryHandlerBase, IReportQueryHandler
+public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IReportQueryHandler
 {
-    private const string UserIdFilterKey = "userId";
-    private const string TrainingIdFilterKey = "trainingId";
-    private const string TrainingCodeFilterKey = "trainingCode";
-    private const string StatusFilterKey = "status";
-    private const string StartDateFilterKey = "startDate";
-    private const string EndDateFilterKey = "endDate";
-
     public string ReportKey => "user-training";
 
-    public async Task<PaginatableResponse> ExecuteAsync(
+    public async Task<PagedResponse> ExecuteAsync(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
         int page,
         int pageSize,
@@ -27,8 +20,48 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : Report
     )
     {
         var now = DateTimeOffset.UtcNow;
-        var queryFilters = ParseQuery(filters);
+        var queryFilters = UserTrainingReportQueryParser.Parse(filters);
+        var reportRows = await QueryReportRowsAsync(queryFilters, now, cancellationToken);
 
+        var sortedRows = UserTrainingReportRowSorter.Apply(reportRows, sortBy, sortDirection);
+        var totalRows = sortedRows.Count;
+        var pageRows = sortedRows.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+        var rows = pageRows
+            .Select(row =>
+                UserTrainingReportMappings.ToReportRowValue(
+                    row,
+                    ResolveStatus(row, now)
+                )
+            )
+            .ToArray();
+
+        return new UserTrainingReportResponse(rows, page, pageSize, totalRows);
+    }
+
+    private async Task<List<UserTrainingReportRow>> QueryReportRowsAsync(
+        UserTrainingReportQuery queryFilters,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
+    {
+        var reportRows = await QueryAssignedTrainingRowsAsync(queryFilters, now, cancellationToken);
+
+        if (queryFilters.ShouldIncludeMissingMandatoryRows)
+        {
+            var missingMandatoryRows = await QueryMissingMandatoryRowsAsync(queryFilters, now, cancellationToken);
+            reportRows.AddRange(missingMandatoryRows);
+        }
+
+        return reportRows;
+    }
+
+    private async Task<List<UserTrainingReportRow>> QueryAssignedTrainingRowsAsync(
+        UserTrainingReportQuery queryFilters,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
+    )
+    {
         var query = db
             .UserTrainings.AsNoTracking()
             .Where(ut => ut.Training.ExpiryDate == null || ut.Training.ExpiryDate > now);
@@ -64,171 +97,73 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : Report
                 .Max(candidate => candidate.Version)
         );
 
-        var projectedQuery = query.Select(ut => new UserTrainingReportRow(
-            ut.UserId,
-            ut.User.FirstName,
-            ut.User.LastName,
-            ut.TrainingId,
-            ut.Training.Code,
-            ut.Training.Description,
-            ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
-            ut.AwardedOn,
-            ut.EndingOn,
-            ut.ExpiryDate,
-            ut.Version,
-            ut.NoticeState,
-            ut.Notes,
-            false
-        ));
-
-        var reportRows = await projectedQuery.ToListAsync(cancellationToken);
-
-        if (queryFilters.ShouldIncludeMissingMandatoryRows)
-        {
-            var usersQuery = db.Users.AsNoTracking().Where(user => user.IsEnabled);
-            usersQuery = queryFilters.UserId is Guid reportUserId
-                ? usersQuery.Where(user => user.Id == reportUserId)
-                : usersQuery;
-
-            var mandatoryTrainingsQuery = db
-                .Trainings.AsNoTracking()
-                .Where(training => training.Mandatory && (training.ExpiryDate == null || training.ExpiryDate > now));
-
-            mandatoryTrainingsQuery = queryFilters.TrainingId is int reportTrainingId
-                ? mandatoryTrainingsQuery.Where(training => training.Id == reportTrainingId)
-                : mandatoryTrainingsQuery;
-
-            mandatoryTrainingsQuery = queryFilters.NormalizedTrainingCode is string mandatoryTrainingCode
-                ? mandatoryTrainingsQuery.Where(training => training.Code.ToLower().Contains(mandatoryTrainingCode))
-                : mandatoryTrainingsQuery;
-
-            var missingMandatoryRows = await (
-                from user in usersQuery
-                from training in mandatoryTrainingsQuery
-                where !db.UserTrainings.Any(ut => ut.UserId == user.Id && ut.TrainingId == training.Id)
-                select new UserTrainingReportRow(
-                    user.Id,
-                    user.FirstName,
-                    user.LastName,
-                    training.Id,
-                    training.Code,
-                    training.Description,
-                    training.TrainingCategory != null ? training.TrainingCategory.Name : string.Empty,
-                    null,
-                    null,
-                    null,
-                    null,
-                    string.Empty,
-                    string.Empty,
-                    true
-                )
-            ).ToListAsync(cancellationToken);
-
-            reportRows.AddRange(missingMandatoryRows);
-        }
-
-        var sortedRows = ApplySorting(reportRows, sortBy, sortDirection);
-        var totalRows = sortedRows.Count;
-        var pageRows = sortedRows.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-
-        var rows = pageRows
-            .Select(row => UserTrainingReportMappings.ToReportRowValue(row, GetStatus(row, now)))
-            .ToArray();
-
-        return new UserTrainingReportResponse(rows, page, pageSize, totalRows);
+        return await query
+            .Select(ut => new UserTrainingReportRow(
+                ut.UserId,
+                ut.User.FirstName,
+                ut.User.LastName,
+                ut.TrainingId,
+                ut.Training.Code,
+                ut.Training.Description,
+                ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
+                ut.AwardedOn,
+                ut.EndingOn,
+                ut.ExpiryDate,
+                ut.Version,
+                ut.NoticeState,
+                ut.Notes,
+                false
+            ))
+            .ToListAsync(cancellationToken);
     }
 
-    private static List<UserTrainingReportRow> ApplySorting(
-        IEnumerable<UserTrainingReportRow> rows,
-        string? sortBy,
-        string? sortDirection
+    private async Task<List<UserTrainingReportRow>> QueryMissingMandatoryRowsAsync(
+        UserTrainingReportQuery queryFilters,
+        DateTimeOffset now,
+        CancellationToken cancellationToken
     )
     {
-        var normalizedSortBy = NormalizeSortBy(sortBy);
-        var isDescending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+        var usersQuery = db.Users.AsNoTracking().Where(user => user.IsEnabled);
+        usersQuery = queryFilters.UserId is Guid reportUserId
+            ? usersQuery.Where(user => user.Id == reportUserId)
+            : usersQuery;
 
-        return normalizedSortBy switch
-        {
-            "userdisplayname" => ApplyNameSort(rows, isDescending),
-            "trainingcode" => ApplySort(rows, row => row.TrainingCode, isDescending),
-            "trainingdescription" => ApplySort(rows, row => row.TrainingDescription, isDescending),
-            "trainingcategory" => ApplySort(rows, row => row.TrainingCategory, isDescending),
-            "awardedon" => ApplySort(rows, row => row.AwardedOn, isDescending),
-            "endingon" => ApplySort(rows, row => row.EndingOn, isDescending),
-            "expirydate" => ApplySort(rows, row => row.ExpiryDate, isDescending),
-            "version" => ApplySort(rows, row => row.Version, isDescending),
-            "noticestate" => ApplySort(rows, row => row.NoticeState, isDescending),
-            _ => ApplyDefaultSort(rows),
-        };
+        var mandatoryTrainingsQuery = db
+            .Trainings.AsNoTracking()
+            .Where(training => training.Mandatory && (training.ExpiryDate == null || training.ExpiryDate > now));
+
+        mandatoryTrainingsQuery = queryFilters.TrainingId is int reportTrainingId
+            ? mandatoryTrainingsQuery.Where(training => training.Id == reportTrainingId)
+            : mandatoryTrainingsQuery;
+
+        mandatoryTrainingsQuery = queryFilters.NormalizedTrainingCode is string mandatoryTrainingCode
+            ? mandatoryTrainingsQuery.Where(training => training.Code.ToLower().Contains(mandatoryTrainingCode))
+            : mandatoryTrainingsQuery;
+
+        return await (
+            from user in usersQuery
+            from training in mandatoryTrainingsQuery
+            where !db.UserTrainings.Any(ut => ut.UserId == user.Id && ut.TrainingId == training.Id)
+            select new UserTrainingReportRow(
+                user.Id,
+                user.FirstName,
+                user.LastName,
+                training.Id,
+                training.Code,
+                training.Description,
+                training.TrainingCategory != null ? training.TrainingCategory.Name : string.Empty,
+                null,
+                null,
+                null,
+                null,
+                string.Empty,
+                string.Empty,
+                true
+            )
+        ).ToListAsync(cancellationToken);
     }
 
-    private static List<UserTrainingReportRow> ApplyNameSort(IEnumerable<UserTrainingReportRow> rows, bool isDescending)
-    {
-        return (
-            isDescending
-                ? rows.OrderByDescending(row => row.LastName).ThenByDescending(row => row.FirstName)
-                : rows.OrderBy(row => row.LastName).ThenBy(row => row.FirstName)
-        ).ToList();
-    }
-
-    private static List<UserTrainingReportRow> ApplySort<TKey>(
-        IEnumerable<UserTrainingReportRow> rows,
-        Func<UserTrainingReportRow, TKey> keySelector,
-        bool isDescending
-    )
-    {
-        return (isDescending ? rows.OrderByDescending(keySelector) : rows.OrderBy(keySelector)).ToList();
-    }
-
-    private static List<UserTrainingReportRow> ApplyDefaultSort(IEnumerable<UserTrainingReportRow> rows)
-    {
-        return
-        [
-            .. rows.OrderBy(row => row.LastName)
-                .ThenBy(row => row.FirstName)
-                .ThenBy(row => row.TrainingCode)
-                .ThenByDescending(row => row.AwardedOn),
-        ];
-    }
-
-    private static string NormalizeSortBy(string? sortBy)
-    {
-        return string.IsNullOrWhiteSpace(sortBy) ? string.Empty : sortBy.Trim().ToLowerInvariant();
-    }
-
-    private static UserTrainingReportQuery ParseQuery(IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters)
-    {
-        var userId = ParseOptional<Guid>(filters, UserIdFilterKey, Guid.TryParse, "must be a valid GUID");
-        var trainingId = ParseOptional<int>(
-            filters,
-            TrainingIdFilterKey,
-            TryParsePositiveInt,
-            "must be a positive integer"
-        );
-        var trainingCode = ParseStringFilter(filters, TrainingCodeFilterKey);
-        var status = ParseStatusFilter(filters);
-        var startDate = ParseOptional<DateOnly>(
-            filters,
-            StartDateFilterKey,
-            DateOnly.TryParse,
-            "must be a valid date in YYYY-MM-DD format"
-        );
-        var endDate = ParseOptional<DateOnly>(
-            filters,
-            EndDateFilterKey,
-            DateOnly.TryParse,
-            "must be a valid date in YYYY-MM-DD format"
-        );
-
-        if (startDate.HasValue && endDate.HasValue && startDate > endDate)
-        {
-            throw new ArgumentException("Filter 'startDate' must be on or before 'endDate'.");
-        }
-
-        return new UserTrainingReportQuery(userId, trainingId, trainingCode, status, startDate, endDate);
-    }
-
-    private static string GetStatus(UserTrainingReportRow row, DateTimeOffset now)
+    private static string ResolveStatus(UserTrainingReportRow row, DateTimeOffset now)
     {
         if (row.IsMissingMandatoryTrainingAssignment)
         {
@@ -236,53 +171,5 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : Report
         }
 
         return row.ExpiryDate == null || row.ExpiryDate > now ? "Active" : "Expired";
-    }
-
-    private static TrainingCompletionStatus? ParseStatusFilter(
-        IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters
-    )
-    {
-        var rawStatus = ParseStringFilter(filters, StatusFilterKey);
-        if (rawStatus is null)
-        {
-            return null;
-        }
-
-        return rawStatus.Trim().ToLowerInvariant() switch
-        {
-            "active" => TrainingCompletionStatus.Active,
-            "expired" => TrainingCompletionStatus.Expired,
-            _ => throw new ArgumentException("Filter 'status' must be either 'active' or 'expired'."),
-        };
-    }
-
-    private enum TrainingCompletionStatus
-    {
-        Active,
-        Expired,
-    }
-
-    private readonly record struct UserTrainingReportQuery(
-        Guid? UserId,
-        int? TrainingId,
-        string? TrainingCode,
-        TrainingCompletionStatus? Status,
-        DateOnly? StartDate,
-        DateOnly? EndDate
-    )
-    {
-        public string? NormalizedTrainingCode => NormalizeForContains(TrainingCode);
-
-        public DateTimeOffset? StartDateInclusive =>
-            StartDate.HasValue
-                ? new DateTimeOffset(StartDate.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-                : null;
-
-        public DateTimeOffset? EndDateExclusive =>
-            EndDate.HasValue
-                ? new DateTimeOffset(EndDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-                : null;
-
-        public bool ShouldIncludeMissingMandatoryRows => Status is null && !StartDate.HasValue && !EndDate.HasValue;
     }
 }

@@ -40,4 +40,4 @@ public sealed record UserTrainingReportResponse(
     int Page,
     int PageSize,
     int TotalRows
-) : PaginatableResponse(Page, PageSize, TotalRows);
+) : PagedResponse(Page, PageSize, TotalRows);

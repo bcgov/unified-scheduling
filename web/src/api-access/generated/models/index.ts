@@ -47,7 +47,7 @@ export * from './iFormFile.ts';
 export * from './locationDto.ts';
 export * from './lookupCodeResponse.ts';
 export * from './lookupCodeTypes.ts';
-export * from './paginatableResponse.ts';
+export * from './pagedResponse.ts';
 export * from './permissionDto.ts';
 export * from './permissions.ts';
 export * from './postApiUsersIdUploadPhotoBody.ts';

@@ -100,7 +100,7 @@ public class ReportingControllerTests
 
         public ReportQueryRequest? LastRequest { get; private set; }
 
-        public Task<PaginatableResponse> ExecuteAsync(
+        public Task<PagedResponse> ExecuteAsync(
             string reportKey,
             ReportQueryRequest request,
             CancellationToken cancellationToken = default
@@ -109,10 +109,10 @@ public class ReportingControllerTests
             LastReportKey = reportKey;
             LastRequest = request;
 
-            return Task.FromResult<PaginatableResponse>(new FakePagedResponse(request.Page, request.PageSize, 0));
+            return Task.FromResult<PagedResponse>(new FakePagedResponse(request.Page, request.PageSize, 0));
         }
     }
 
     private sealed record FakePagedResponse(int Page, int PageSize, int TotalRows)
-        : PaginatableResponse(Page, PageSize, TotalRows);
+        : PagedResponse(Page, PageSize, TotalRows);
 }

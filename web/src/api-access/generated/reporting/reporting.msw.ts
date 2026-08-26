@@ -9,11 +9,11 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { PaginatableResponse } from '../models';
+import type { PagedResponse } from '../models';
 
 export const getGetApiReportsReportKeyResponseMock = (
-  overrideResponse: Partial<Extract<PaginatableResponse, object>> = {},
-): PaginatableResponse =>
+  overrideResponse: Partial<Extract<PagedResponse, object>> = {},
+): PagedResponse =>
   faker.helpers.arrayElement([
     {
       page: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -37,8 +37,7 @@ export const getGetApiReportsReportKeyResponseMock = (
 
 export const getGetApiReportsReportKeyMockHandler = (
   overrideResponse?:
-    | PaginatableResponse
-    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<PaginatableResponse> | PaginatableResponse),
+    PagedResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<PagedResponse> | PagedResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(

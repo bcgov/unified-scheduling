@@ -5,7 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface PaginatableResponse {
+export interface PagedResponse {
   page?: number;
   pageSize?: number;
   totalRows?: number;

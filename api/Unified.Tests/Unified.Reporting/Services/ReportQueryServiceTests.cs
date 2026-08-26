@@ -74,7 +74,7 @@ public class ReportQueryServiceTests
         Assert.Contains("Duplicate report handler registration", ex.Message);
     }
 
-    private sealed class FakeReportQueryHandler(string reportKey, PaginatableResponse response) : IReportQueryHandler
+    private sealed class FakeReportQueryHandler(string reportKey, PagedResponse response) : IReportQueryHandler
     {
         public string ReportKey => reportKey;
 
@@ -91,7 +91,7 @@ public class ReportQueryServiceTests
 
         public string? LastTimeZone { get; private set; }
 
-        public Task<PaginatableResponse> ExecuteAsync(
+        public Task<PagedResponse> ExecuteAsync(
             IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
             int page,
             int pageSize,
@@ -113,5 +113,5 @@ public class ReportQueryServiceTests
     }
 
     private sealed record FakePagedResponse(int Page, int PageSize, int TotalRows)
-        : PaginatableResponse(Page, PageSize, TotalRows);
+        : PagedResponse(Page, PageSize, TotalRows);
 }

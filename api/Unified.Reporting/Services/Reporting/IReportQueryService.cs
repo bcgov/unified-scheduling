@@ -5,7 +5,7 @@ namespace Unified.Reporting.Services.Reporting;
 
 public interface IReportQueryService
 {
-    Task<PaginatableResponse> ExecuteAsync(
+    Task<PagedResponse> ExecuteAsync(
         string reportKey,
         ReportQueryRequest request,
         CancellationToken cancellationToken = default
