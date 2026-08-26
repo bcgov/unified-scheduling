@@ -259,9 +259,11 @@ public sealed class AuditRecordInterceptor(
         return JsonSerializer.Serialize(keyValues, SerializerOptions);
     }
 
+    // Checks all properties, not just the primary key: a child entry can have its own key already
+    // resolved while a FK pointing at an unsaved (temporary-keyed) parent is still unresolved.
     private bool HasTemporaryKey(EntityEntry entry)
     {
-        return entry.Properties.Any(property => property.Metadata.IsPrimaryKey() && property.IsTemporary);
+        return entry.Properties.Any(property => property.IsTemporary);
     }
 
     private bool ShouldAuditEntry(EntityEntry entry)

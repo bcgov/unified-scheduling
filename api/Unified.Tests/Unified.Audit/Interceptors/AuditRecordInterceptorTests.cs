@@ -269,6 +269,107 @@ public class AuditRecordInterceptorTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveChangesAsync_ChildWithKnownKeyAndTemporaryParentFk_NewValuesMatchesFinalParentId()
+    {
+        await using var context = CreateContext(CreateAuditInterceptor());
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        // Parent has a generated (temporary-at-capture) key. Child's own key is explicit/known up front,
+        // so only its ParentId FK is temporary when CaptureAuditRecords runs - this must still defer.
+        var parent = new AuditedParentEntity { Name = "parent" };
+        var child = new AuditedChildEntity
+        {
+            Id = 500,
+            Description = "child",
+            Parent = parent,
+        };
+        context.AuditedParentEntities.Add(parent);
+        context.AuditedChildEntities.Add(child);
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var childAuditRecord = await context
+            .AuditRecords.Where(r => r.EntityType == nameof(AuditedChildEntity))
+            .SingleAsync(TestContext.Current.CancellationToken);
+        var newValues = Deserialize(childAuditRecord.NewValues!);
+
+        Assert.Equal(parent.Id, newValues[nameof(AuditedChildEntity.ParentId)].GetInt32());
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_ExistingChildReparentedToNewParent_NewValuesMatchesFinalParentId()
+    {
+        var interceptor = CreateAuditInterceptor();
+        await using var context = CreateContext(interceptor);
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var originalParent = new AuditedParentEntity { Name = "original parent" };
+        var child = new AuditedChildEntity
+        {
+            Id = 501,
+            Description = "child",
+            Parent = originalParent,
+        };
+        context.AuditedParentEntities.Add(originalParent);
+        context.AuditedChildEntities.Add(child);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        context.AuditRecords.RemoveRange(context.AuditRecords);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Child's own key is already persisted/known; only its FK is re-pointed at a brand-new parent
+        // in the same SaveChanges batch - this is the Modified-state analogue of the Added-state test above.
+        var newParent = new AuditedParentEntity { Name = "new parent" };
+        context.AuditedParentEntities.Add(newParent);
+        child.Parent = newParent;
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var childAuditRecord = await context
+            .AuditRecords.Where(r => r.EntityType == nameof(AuditedChildEntity) && r.Action == "Modified")
+            .SingleAsync(TestContext.Current.CancellationToken);
+        var newValues = Deserialize(childAuditRecord.NewValues!);
+
+        Assert.Equal(newParent.Id, newValues[nameof(AuditedChildEntity.ParentId)].GetInt32());
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_ThreeLevelDeepGraphWithMixedKeyStates_ResolvesFksAtEveryLevel()
+    {
+        await using var context = CreateContext(CreateAuditInterceptor());
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        // GrandParent and Parent both have generated (temporary-at-capture) keys; Child's own key is
+        // explicit/known. Verifies deferral and FK resolution cascade through every level, not just one.
+        var grandParent = new AuditedGrandParentEntity { Name = "grandparent" };
+        var parent = new AuditedParentEntity { Name = "parent", GrandParent = grandParent };
+        var child = new AuditedChildEntity
+        {
+            Id = 502,
+            Description = "child",
+            Parent = parent,
+        };
+        context.AuditedGrandParentEntities.Add(grandParent);
+        context.AuditedParentEntities.Add(parent);
+        context.AuditedChildEntities.Add(child);
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var parentAuditRecord = await context
+            .AuditRecords.Where(r => r.EntityType == nameof(AuditedParentEntity))
+            .SingleAsync(TestContext.Current.CancellationToken);
+        var childAuditRecord = await context
+            .AuditRecords.Where(r => r.EntityType == nameof(AuditedChildEntity))
+            .SingleAsync(TestContext.Current.CancellationToken);
+
+        var parentNewValues = Deserialize(parentAuditRecord.NewValues!);
+        var childNewValues = Deserialize(childAuditRecord.NewValues!);
+
+        Assert.Equal(grandParent.Id, parentNewValues[nameof(AuditedParentEntity.GrandParentId)].GetInt32());
+        Assert.Equal(parent.Id, childNewValues[nameof(AuditedChildEntity.ParentId)].GetInt32());
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_DeferredKeyFailure_RollsBackEntityAndAuditInAmbientTransaction()
     {
         var throwInterceptor = new ThrowOnAuditInsertCommandInterceptor();
@@ -487,6 +588,12 @@ public class AuditRecordInterceptorTests : IDisposable
 
         public DbSet<AuditedEntity> AuditedEntities => Set<AuditedEntity>();
 
+        public DbSet<AuditedGrandParentEntity> AuditedGrandParentEntities => Set<AuditedGrandParentEntity>();
+
+        public DbSet<AuditedParentEntity> AuditedParentEntities => Set<AuditedParentEntity>();
+
+        public DbSet<AuditedChildEntity> AuditedChildEntities => Set<AuditedChildEntity>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.ApplyConfiguration(new AuditRecordConfiguration());
@@ -496,6 +603,26 @@ public class AuditRecordInterceptorTests : IDisposable
                 builder.HasKey(entity => entity.Id);
                 builder.Property(entity => entity.Id).ValueGeneratedOnAdd();
                 builder.Property(entity => entity.Name).HasMaxLength(200).IsRequired();
+            });
+            modelBuilder.Entity<AuditedGrandParentEntity>(builder =>
+            {
+                builder.ToTable("AuditedGrandParentEntities");
+                builder.HasKey(entity => entity.Id);
+                builder.Property(entity => entity.Id).ValueGeneratedOnAdd();
+            });
+            modelBuilder.Entity<AuditedParentEntity>(builder =>
+            {
+                builder.ToTable("AuditedParentEntities");
+                builder.HasKey(entity => entity.Id);
+                builder.Property(entity => entity.Id).ValueGeneratedOnAdd();
+                builder.HasOne(entity => entity.GrandParent).WithMany().HasForeignKey(entity => entity.GrandParentId);
+            });
+            modelBuilder.Entity<AuditedChildEntity>(builder =>
+            {
+                builder.ToTable("AuditedChildEntities");
+                builder.HasKey(entity => entity.Id);
+                builder.Property(entity => entity.Id).ValueGeneratedNever();
+                builder.HasOne(entity => entity.Parent).WithMany().HasForeignKey(entity => entity.ParentId);
             });
         }
     }
@@ -517,5 +644,37 @@ public class AuditRecordInterceptorTests : IDisposable
 
         [AuditExclude]
         public string? InternalOnly { get; set; }
+    }
+
+    private sealed class AuditedGrandParentEntity
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class AuditedParentEntity
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+
+        public int? GrandParentId { get; set; }
+
+        public AuditedGrandParentEntity? GrandParent { get; set; }
+    }
+
+    private sealed class AuditedChildEntity
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public int ParentId { get; set; }
+
+        public AuditedParentEntity? Parent { get; set; }
+
+        public string Description { get; set; } = string.Empty;
     }
 }
