@@ -34,7 +34,7 @@ remains out of scope.
 - Minimal APIs with explicit `MapXxxEndpoints()`: not selected because migrating
   existing controller endpoints changes their implementation model without
   providing enough benefit over the already working application-part approach.
-  The `MapXxxEndpoints()` was infact inert as the endpoints were already mapped 
+  The `MapXxxEndpoints()` was in fact inert as the endpoints were already mapped
   through normal controller discovery.
 - Per-request routing policies or middleware: not selected because disabled
   endpoints would remain in endpoint metadata and would require separate
