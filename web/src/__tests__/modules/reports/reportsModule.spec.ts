@@ -14,7 +14,7 @@ describe('reports module', () => {
     const trainingFeatureFlags: TrainingFeatureFlags = { source: 'Training', enabled: true };
     const featureFlags: FeatureFlagsResponse = { Training: trainingFeatureFlags };
 
-    const [{ registerModule }] = await Promise.all([import('@/modules/reports/ReportsModule')]);
+    const { registerModule } = await import('@/modules/reports/ReportsModule');
 
     registerModule(routes, featureFlags);
 
