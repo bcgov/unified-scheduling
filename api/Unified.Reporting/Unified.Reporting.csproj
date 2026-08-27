@@ -9,5 +9,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
+    <ProjectReference Include="..\Unified.Authorization\Unified.Authorization.csproj" />
   </ItemGroup>
 </Project>
