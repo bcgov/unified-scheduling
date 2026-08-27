@@ -1,15 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
 using Unified.Common.Reporting;
 using Unified.Reporting.Models;
 using Unified.Reporting.Services.Reporting;
 
 namespace Unified.Reporting.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/reports")]
+[Authorize(Policy = AuthorizationModule.PolicyPrefix + nameof(Permissions.ReportsGenerate))]
 public class ReportingController(IReportQueryService reportQueryService) : ControllerBase
 {
     [HttpGet("{reportKey}")]
