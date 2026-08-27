@@ -88,7 +88,10 @@ var hangfireOptions =
         .AddTrainingModule(builder.Configuration)
         .AddConfiguredSeedData(
             builder.Configuration,
-            UserManagementSeedDataSets.All.Concat(StatsSeedDataSets.All).Concat(TrainingSeedDataSets.All)
+            UserManagementSeedDataSets
+                .All.Concat(StatsSeedDataSets.All)
+                .Concat(TrainingSeedDataSets.All)
+                .Concat(AuditSeedDataSets.All)
         )
         .AddJCInterfaceModule(builder.Configuration)
         .AddInterceptors();

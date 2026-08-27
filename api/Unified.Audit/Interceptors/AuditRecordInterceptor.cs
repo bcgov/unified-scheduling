@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -281,42 +280,8 @@ public sealed class AuditRecordInterceptor(
         return entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted;
     }
 
-    private bool ShouldExcludeProperty(PropertyEntry property)
-    {
-        if (property.Metadata.ClrType == typeof(byte[]))
-        {
-            return true;
-        }
-
-        if (property.Metadata.PropertyInfo?.GetCustomAttribute<AuditExcludeAttribute>() is not null)
-        {
-            return true;
-        }
-
-        var propertyName = property.Metadata.Name;
-
-        if (
-            _options.ExcludedPropertyNames.Any(excluded =>
-                string.Equals(excluded, propertyName, StringComparison.OrdinalIgnoreCase)
-            )
-        )
-        {
-            return true;
-        }
-
-        if (
-            _options.ExcludedPropertyNameContains.Any(pattern =>
-                propertyName.Contains(pattern, StringComparison.OrdinalIgnoreCase)
-            )
-        )
-        {
-            return true;
-        }
-
-        return _options.ExcludedPropertyNameEndsWith.Any(suffix =>
-            propertyName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
-        );
-    }
+    private bool ShouldExcludeProperty(PropertyEntry property) =>
+        AuditPropertyExclusion.ShouldExclude(property.Metadata, _options);
 
     private string? ResolveCorrelationId()
     {
