@@ -30,7 +30,7 @@ WORKDIR /src/api/Unified.Api
 RUN dotnet publish Unified.Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.10 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.11 AS runtime
 WORKDIR /app
 
 # Copy published app
