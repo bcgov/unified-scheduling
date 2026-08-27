@@ -90,7 +90,7 @@ public sealed class ChesEmailServiceTests
     }
 
     [Fact]
-    public async Task SendAsync_BccOnlyMessage_SubmitsSuccessfully()
+    public async Task SendAsync_BccOnlyMessage_UsesConfiguredSenderAsToRecipient()
     {
         var handler = new RecordingHttpMessageHandler((_, _) => CreateAcceptedResponse(Guid.NewGuid(), Guid.NewGuid()));
         var service = CreateService(handler);
@@ -99,7 +99,7 @@ public sealed class ChesEmailServiceTests
         await service.SendAsync(message, TestContext.Current.CancellationToken);
 
         using var requestJson = JsonDocument.Parse(Assert.Single(handler.RequestBodies));
-        Assert.Empty(ReadStringArray(requestJson.RootElement.GetProperty("to")));
+        Assert.Equal(["sender@example.com"], ReadStringArray(requestJson.RootElement.GetProperty("to")));
         Assert.Equal(["bcc-only@example.com"], ReadStringArray(requestJson.RootElement.GetProperty("bcc")));
         Assert.Equal(1, handler.CallCount);
     }
@@ -133,6 +133,45 @@ public sealed class ChesEmailServiceTests
         Assert.Contains("1 recipients", logEntry.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("recipient@example.com", logEntry.Message, StringComparison.Ordinal);
         Assert.Same(exception, logEntry.Exception);
+    }
+
+    [Fact]
+    public async Task SendAsync_ChesValidationFailure_LogsSanitizedValidationMessages()
+    {
+        var handler = new RecordingHttpMessageHandler(
+            (_, _) =>
+                new HttpResponseMessage(HttpStatusCode.UnprocessableEntity)
+                {
+                    Content = new StringContent(
+                        """
+                        {
+                          "type": "https://httpstatuses.com/422",
+                          "title": "Unprocessable Entity",
+                          "status": 422,
+                          "detail": "Request validation failed.",
+                          "errors": [
+                            { "value": "private-recipient@example.com", "message": "Recipient private-recipient@example.com is invalid." },
+                            { "value": "utf-8x", "message": "Invalid value `encoding`." }
+                          ]
+                        }
+                        """,
+                        Encoding.UTF8,
+                        "application/json"
+                    ),
+                }
+        );
+        var logger = new RecordingLogger<ChesEmailService>();
+        var service = CreateService(handler, logger);
+
+        await Assert.ThrowsAsync<EmailDeliveryException>(() =>
+            service.SendAsync(CreateMessage(), TestContext.Current.CancellationToken)
+        );
+
+        var logEntry = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Error);
+        Assert.Contains("2 validation errors", logEntry.Message, StringComparison.Ordinal);
+        Assert.Contains("Recipient [redacted-email] is invalid.", logEntry.Message, StringComparison.Ordinal);
+        Assert.Contains("Invalid value `encoding`.", logEntry.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("private-recipient@example.com", logEntry.Message, StringComparison.Ordinal);
     }
 
     [Fact]

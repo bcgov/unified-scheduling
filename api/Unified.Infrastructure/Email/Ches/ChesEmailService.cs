@@ -1,4 +1,5 @@
 using System.Net.Mail;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Unified.Common.Logging;
@@ -15,6 +16,11 @@ internal sealed class ChesEmailService(
     ILogger<ChesEmailService> logger
 ) : IEmailService
 {
+    private static readonly Regex EmailAddressPattern = new(
+        @"(?<![\w.+-])[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}(?![\w.-])",
+        RegexOptions.CultureInvariant
+    );
+
     private readonly ChesOptions _options = options.Value;
 
     public async Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
@@ -55,6 +61,18 @@ internal sealed class ChesEmailService(
                 new ChesAcceptedResponseException(exception.StatusCode)
             );
             LogUnknownDeliveryState(deliveryException);
+            throw deliveryException;
+        }
+        catch (ChesApiException<ValidationError> exception) when (exception.StatusCode == 422)
+        {
+            var deliveryException = new EmailDeliveryException(
+                tag,
+                message.UnifiedCorrelationId,
+                prepared.Message.RecipientCount,
+                prepared.Attachments.Count,
+                exception.StatusCode
+            );
+            LogValidationFailure(deliveryException, exception.Result.Errors);
             throw deliveryException;
         }
         catch (ChesApiException exception)
@@ -128,7 +146,7 @@ internal sealed class ChesEmailService(
         new()
         {
             From = new MailAddress(_options.SenderEmail, _options.SenderName).ToString(),
-            To = prepared.Message.To.ToList(),
+            To = prepared.Message.To.Count > 0 ? prepared.Message.To.ToList() : [_options.SenderEmail],
             Cc = prepared.Message.Cc.ToList(),
             Bcc = prepared.Message.Bcc.ToList(),
             Subject = message.Subject,
@@ -167,6 +185,28 @@ internal sealed class ChesEmailService(
             exception.RecipientCount,
             exception.AttachmentCount
         );
+    }
+
+    private void LogValidationFailure(EmailDeliveryException exception, IEnumerable<Errors> errors)
+    {
+        var validationMessages = errors.Select(error => SanitizeValidationMessage(error.Message)).ToArray();
+        logger.LogError(
+            exception,
+            "CHES email submission failed validation with tag {ChesTag}, correlation {CorrelationId}, status {ChesStatusCode}, {RecipientCount} recipients, {AttachmentCount} attachments, {ValidationErrorCount} validation errors: {ValidationErrors}",
+            exception.Tag,
+            LogSanitizer.UserText(exception.CorrelationId),
+            exception.StatusCode,
+            exception.RecipientCount,
+            exception.AttachmentCount,
+            validationMessages.Length,
+            string.Join("; ", validationMessages)
+        );
+    }
+
+    private static string SanitizeValidationMessage(string? value)
+    {
+        var sanitized = LogSanitizer.UserText(value, maxLength: 256) ?? "Unspecified validation error.";
+        return EmailAddressPattern.Replace(sanitized, "[redacted-email]");
     }
 
     private void LogUnknownDeliveryState(EmailDeliveryStateUnknownException exception)
