@@ -101,4 +101,7 @@ public enum Permissions
 
     // --- Admin ---
     HangfireDashboardView,
+
+    // --- Audit ---
+    AuditRead,
 }
