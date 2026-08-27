@@ -73,9 +73,11 @@ Follow this workflow whenever the skill is invoked to create a record:
    selected option and one or two credible alternatives. Explain the choice
    and the alternatives briefly; do not create straw-man options.
 5. **Record the decision.** Use a direct statement such as "We will ..." and
-   explain how it satisfies the decision drivers. Mark the record `Draft` when
-   the decision, evidence, alternatives, or deciders remain unresolved. Mark
-   it `Proposed` only when it is ready for stakeholder review.
+   explain how it satisfies the decision drivers. Mark the record `Accepted`
+   when the responsible developer or architect confirms the approach. Mark it
+   `Draft` when the decision, evidence, alternatives, or deciders remain
+   unresolved, and use `Proposed` when it is ready for review but awaiting that
+   confirmation.
 6. **Describe consequences.** Capture the main benefits, trade-offs, risks,
    mitigations, and follow-up work. Include inconvenient or uncertain effects.
 7. **Complete metadata and links.** Add the date, status, deciders or roles,
@@ -94,7 +96,8 @@ Use one of these statuses unless the repository has a more specific convention:
 - `Draft`: a working record that is not ready for stakeholder review or
   proposal.
 - `Proposed`: under discussion or awaiting approval.
-- `Accepted`: approved and applicable.
+- `Accepted`: the responsible developer or architect has confirmed the approach
+  and it is applicable.
 - `Rejected`: considered and explicitly declined.
 - `Superseded`: replaced by a newer ADR; link the replacement.
 - `Deprecated`: no longer applicable without a direct replacement.
@@ -159,20 +162,20 @@ The defaults below keep ADRs consistent. A user or repository instruction may
 override them for a particular record; state the override in the ADR when it
 changes the expected structure or review process.
 
-| Setting            | Default                                                              | Guidance                                                              |
-| ------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `adrDirectory`     | `docs/adrs`                                                          | Directory where records are created.                                  |
-| `filenamePattern`  | `{topic}-adr.md`                                                     | Keep the `-adr.md` suffix.                                            |
-| `topicFormat`      | lowercase kebab-case                                                 | Use a short, descriptive, imperative topic; no spaces or underscores. |
-| `defaultStatus`    | `Draft`                                                              | Use `Proposed` when the record is ready for stakeholder review.       |
-| `dateFormat`       | `YYYY-MM-DD`                                                         | Use an unambiguous ISO-style date.                                    |
-| `contextWords`     | 75-150                                                               | Describe the problem and constraints without padding.                 |
-| `decisionWords`    | 20-50                                                                | State the choice and rationale directly.                              |
-| `alternativeWords` | 25-75 per alternative                                                | Explain only why each credible alternative was not selected.          |
-| `consequenceWords` | 50-125                                                               | Cover the main benefit, trade-off, risk, and follow-up work.          |
-| `totalWords`       | 250-500                                                              | Advisory total for the body; clarity takes precedence over length.    |
-| `requiredMetadata` | status, date, deciders, technical area                               | Do not leave these blank.                                             |
-| `requiredSections` | Context, Decision, Alternatives, Consequences, Follow-up, References | Keep these headings stable for consistent review and search.          |
+| Setting            | Default                                                              | Guidance                                                                         |
+| ------------------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `adrDirectory`     | `docs/adrs`                                                          | Directory where records are created.                                             |
+| `filenamePattern`  | `{topic}-adr.md`                                                     | Keep the `-adr.md` suffix.                                                       |
+| `topicFormat`      | lowercase kebab-case                                                 | Use a short, descriptive, imperative topic; no spaces or underscores.            |
+| `defaultStatus`    | `Draft`                                                              | Use `Proposed` when the record is ready for stakeholder review.                  |
+| `dateFormat`       | `YYYY-MM-DD`                                                         | Use an unambiguous ISO-style date.                                               |
+| `contextWords`     | 75-150                                                               | Describe the problem and constraints without padding.                            |
+| `decisionWords`    | 20-50                                                                | State the choice and rationale directly.                                         |
+| `alternativeWords` | 25-75 per alternative                                                | Explain only why each credible alternative was not selected.                     |
+| `consequenceWords` | 50-125                                                               | Cover the main benefit, trade-off, risk, and follow-up work.                     |
+| `totalWords`       | 250-500                                                              | Advisory total for the body; clarity takes precedence over length.               |
+| `requiredMetadata` | status, date, deciders, technical area, related                      | Do not leave these blank; always record a related issue or ADR, or state `None`. |
+| `requiredSections` | Context, Decision, Alternatives, Consequences, Follow-up, References | Keep these headings stable for consistent review and search.                     |
 
 Word targets are ranges, not quotas. A short decision should stay short, and a
 complex decision may exceed them when the additional evidence improves future
