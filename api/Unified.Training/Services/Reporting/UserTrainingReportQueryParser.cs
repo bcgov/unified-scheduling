@@ -13,22 +13,18 @@ internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
 
     public static UserTrainingReportQuery Parse(IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters)
     {
-        var userId = ParseOptional<Guid>(filters, UserIdFilterKey, Guid.TryParse, "must be a valid GUID");
-        var trainingId = ParseOptional<int>(
-            filters,
-            TrainingIdFilterKey,
-            TryParsePositiveInt,
-            "must be a positive integer"
-        );
+        var userId = ParseFilter<Guid>(filters, UserIdFilterKey, Guid.TryParse, "must be a valid GUID");
+        var trainingId = ParseFilter<int>(filters, TrainingIdFilterKey, int.TryParse, "must be a valid integer");
+
         var trainingCode = ParseStringFilter(filters, TrainingCodeFilterKey);
         var status = ParseStatusFilter(filters);
-        var startDate = ParseOptional<DateOnly>(
+        var startDate = ParseFilter<DateOnly>(
             filters,
             StartDateFilterKey,
             DateOnly.TryParse,
             "must be a valid date in YYYY-MM-DD format"
         );
-        var endDate = ParseOptional<DateOnly>(
+        var endDate = ParseFilter<DateOnly>(
             filters,
             EndDateFilterKey,
             DateOnly.TryParse,
@@ -77,18 +73,5 @@ internal readonly record struct UserTrainingReportQuery(
     DateOnly? EndDate
 )
 {
-    public string? NormalizedTrainingCode =>
-        string.IsNullOrWhiteSpace(TrainingCode) ? null : TrainingCode.Trim().ToLowerInvariant();
-
-    public DateTimeOffset? StartDateInclusive =>
-        StartDate.HasValue
-            ? new DateTimeOffset(StartDate.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-            : null;
-
-    public DateTimeOffset? EndDateExclusive =>
-        EndDate.HasValue
-            ? new DateTimeOffset(EndDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-            : null;
-
     public bool ShouldIncludeMissingMandatoryRows => Status is null && !StartDate.HasValue && !EndDate.HasValue;
 }

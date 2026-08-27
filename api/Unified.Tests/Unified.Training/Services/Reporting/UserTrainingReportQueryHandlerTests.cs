@@ -203,7 +203,10 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         bool mandatory
     )
     {
-        var category = await _db.TrainingCategories.FirstOrDefaultAsync(c => c.Id == 1, TestContext.Current.CancellationToken);
+        var category = await _db.TrainingCategories.FirstOrDefaultAsync(
+            c => c.Id == 1,
+            TestContext.Current.CancellationToken
+        );
         if (category is null)
         {
             category = new TrainingCategory { Id = 1, Name = "Category" };

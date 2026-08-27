@@ -28,12 +28,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         var pageRows = sortedRows.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
         var rows = pageRows
-            .Select(row =>
-                UserTrainingReportMappings.ToReportRowValue(
-                    row,
-                    ResolveStatus(row, now)
-                )
-            )
+            .Select(row => UserTrainingReportMappings.ToReportRowValue(row, ResolveStatus(row, now)))
             .ToArray();
 
         return new UserTrainingReportResponse(rows, page, pageSize, totalRows);
@@ -70,16 +65,22 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
 
         query = queryFilters.TrainingId is int trainingId ? query.Where(ut => ut.TrainingId == trainingId) : query;
 
-        query = queryFilters.NormalizedTrainingCode is string trainingCode
-            ? query.Where(ut => ut.Training.Code.ToLower().Contains(trainingCode))
+        query = queryFilters.TrainingCode is string trainingCode
+            ? query.Where(ut => ut.Training.Code.Contains(trainingCode))
             : query;
 
-        query = queryFilters.StartDateInclusive is DateTimeOffset startDateInclusive
-            ? query.Where(ut => ut.AwardedOn >= startDateInclusive)
+        var startDateValue = queryFilters.StartDate is DateOnly startDate
+            ? new DateTimeOffset(startDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
+            : (DateTimeOffset?)null;
+        query = startDateValue is DateTimeOffset parsedStartDateValue
+            ? query.Where(ut => ut.AwardedOn >= parsedStartDateValue)
             : query;
 
-        query = queryFilters.EndDateExclusive is DateTimeOffset endDateExclusive
-            ? query.Where(ut => ut.AwardedOn < endDateExclusive)
+        var endDateValue = queryFilters.EndDate is DateOnly endDate
+            ? new DateTimeOffset(endDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
+            : (DateTimeOffset?)null;
+        query = endDateValue is DateTimeOffset parsedEndDateValue
+            ? query.Where(ut => ut.AwardedOn <= parsedEndDateValue)
             : query;
 
         query = queryFilters.Status switch
@@ -105,7 +106,6 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
                 ut.TrainingId,
                 ut.Training.Code,
                 ut.Training.Description,
-                ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
                 ut.AwardedOn,
                 ut.EndingOn,
                 ut.ExpiryDate,
@@ -136,8 +136,8 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
             ? mandatoryTrainingsQuery.Where(training => training.Id == reportTrainingId)
             : mandatoryTrainingsQuery;
 
-        mandatoryTrainingsQuery = queryFilters.NormalizedTrainingCode is string mandatoryTrainingCode
-            ? mandatoryTrainingsQuery.Where(training => training.Code.ToLower().Contains(mandatoryTrainingCode))
+        mandatoryTrainingsQuery = queryFilters.TrainingCode is string mandatoryTrainingCode
+            ? mandatoryTrainingsQuery.Where(training => training.Code.Contains(mandatoryTrainingCode))
             : mandatoryTrainingsQuery;
 
         return await (
@@ -151,7 +151,6 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
                 training.Id,
                 training.Code,
                 training.Description,
-                training.TrainingCategory != null ? training.TrainingCategory.Name : string.Empty,
                 null,
                 null,
                 null,

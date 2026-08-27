@@ -22,7 +22,6 @@ internal static class UserTrainingReportMappings
             .Map(dest => dest.TrainingId, src => src.TrainingId)
             .Map(dest => dest.TrainingCode, src => src.TrainingCode)
             .Map(dest => dest.TrainingDescription, src => src.TrainingDescription)
-            .Map(dest => dest.TrainingCategory, src => src.TrainingCategory)
             .Map(dest => dest.AwardedOn, src => src.AwardedOn)
             .Map(dest => dest.EndingOn, src => src.EndingOn)
             .Map(dest => dest.ExpiryDate, src => src.ExpiryDate)

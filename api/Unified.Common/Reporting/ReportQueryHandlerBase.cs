@@ -16,7 +16,7 @@ public abstract class ReportQueryHandlerBase
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
-    protected static T? ParseOptional<T>(
+    protected static T? ParseFilter<T>(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
         string filterKey,
         TryParseFilterValue<T> tryParse,
@@ -30,30 +30,13 @@ public abstract class ReportQueryHandlerBase
             return null;
         }
 
-        if (tryParse(rawValue, out var parsed))
+        if (tryParse(rawValue, out var parsedValue))
         {
-            return parsed;
+            return parsedValue;
         }
 
         throw new ArgumentException($"Filter '{filterKey}' {formatMessage}.");
     }
 
-    protected static bool TryParsePositiveInt(string rawValue, out int parsed)
-    {
-        var success = int.TryParse(rawValue, out parsed) && parsed > 0;
-
-        if (!success)
-        {
-            parsed = default;
-        }
-
-        return success;
-    }
-
-    protected static string? NormalizeForContains(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
-    }
-
-    protected delegate bool TryParseFilterValue<T>(string rawValue, out T parsed);
+    protected delegate bool TryParseFilterValue<T>(string rawValue, out T parsedValue);
 }

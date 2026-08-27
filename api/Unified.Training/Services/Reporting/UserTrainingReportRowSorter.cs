@@ -16,11 +16,9 @@ internal static class UserTrainingReportRowSorter
             "userdisplayname" => ApplyNameSort(rows, isDescending),
             "trainingcode" => ApplySort(rows, row => row.TrainingCode, isDescending),
             "trainingdescription" => ApplySort(rows, row => row.TrainingDescription, isDescending),
-            "trainingcategory" => ApplySort(rows, row => row.TrainingCategory, isDescending),
             "awardedon" => ApplySort(rows, row => row.AwardedOn, isDescending),
             "endingon" => ApplySort(rows, row => row.EndingOn, isDescending),
             "expirydate" => ApplySort(rows, row => row.ExpiryDate, isDescending),
-            "version" => ApplySort(rows, row => row.Version, isDescending),
             "noticestate" => ApplySort(rows, row => row.NoticeState, isDescending),
             _ => ApplyDefaultSort(rows),
         };
@@ -28,11 +26,14 @@ internal static class UserTrainingReportRowSorter
 
     private static List<UserTrainingReportRow> ApplyNameSort(IEnumerable<UserTrainingReportRow> rows, bool isDescending)
     {
-        return [.. (
-            isDescending
-                ? rows.OrderByDescending(row => row.LastName).ThenByDescending(row => row.FirstName)
-                : rows.OrderBy(row => row.LastName).ThenBy(row => row.FirstName)
-        )];
+        return
+        [
+            .. (
+                isDescending
+                    ? rows.OrderByDescending(row => row.LastName).ThenByDescending(row => row.FirstName)
+                    : rows.OrderBy(row => row.LastName).ThenBy(row => row.FirstName)
+            ),
+        ];
     }
 
     private static List<UserTrainingReportRow> ApplySort<TKey>(
