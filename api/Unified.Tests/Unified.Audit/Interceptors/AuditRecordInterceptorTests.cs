@@ -370,6 +370,38 @@ public class AuditRecordInterceptorTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveChangesAsync_ChildWithTwoTemporaryFksToDifferentNewParents_NewValuesMatchesBothFinalIds()
+    {
+        await using var context = CreateContext(CreateAuditInterceptor());
+        await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        // Mirrors real join entities in this codebase (e.g. RolePermission, UserRole) that have their
+        // own known key plus two independent FKs, both temporary when both principals are new.
+        var parent = new AuditedParentEntity { Name = "parent" };
+        var secondParent = new AuditedGrandParentEntity { Name = "second-parent" };
+        var child = new AuditedChildEntity
+        {
+            Id = 503,
+            Description = "join-row",
+            Parent = parent,
+            SecondParent = secondParent,
+        };
+        context.AuditedParentEntities.Add(parent);
+        context.AuditedGrandParentEntities.Add(secondParent);
+        context.AuditedChildEntities.Add(child);
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var childAuditRecord = await context
+            .AuditRecords.Where(r => r.EntityType == nameof(AuditedChildEntity))
+            .SingleAsync(TestContext.Current.CancellationToken);
+        var newValues = Deserialize(childAuditRecord.NewValues!);
+
+        Assert.Equal(parent.Id, newValues[nameof(AuditedChildEntity.ParentId)].GetInt32());
+        Assert.Equal(secondParent.Id, newValues[nameof(AuditedChildEntity.SecondParentId)].GetInt32());
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_DeferredKeyFailure_RollsBackEntityAndAuditInAmbientTransaction()
     {
         var throwInterceptor = new ThrowOnAuditInsertCommandInterceptor();
@@ -623,6 +655,10 @@ public class AuditRecordInterceptorTests : IDisposable
                 builder.HasKey(entity => entity.Id);
                 builder.Property(entity => entity.Id).ValueGeneratedNever();
                 builder.HasOne(entity => entity.Parent).WithMany().HasForeignKey(entity => entity.ParentId);
+                builder
+                    .HasOne(entity => entity.SecondParent)
+                    .WithMany()
+                    .HasForeignKey(entity => entity.SecondParentId);
             });
         }
     }
@@ -674,6 +710,10 @@ public class AuditRecordInterceptorTests : IDisposable
         public int ParentId { get; set; }
 
         public AuditedParentEntity? Parent { get; set; }
+
+        public int? SecondParentId { get; set; }
+
+        public AuditedGrandParentEntity? SecondParent { get; set; }
 
         public string Description { get; set; } = string.Empty;
     }
