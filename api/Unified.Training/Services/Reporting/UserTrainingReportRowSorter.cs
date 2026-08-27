@@ -2,8 +2,8 @@ namespace Unified.Training.Services.Reporting;
 
 internal static class UserTrainingReportRowSorter
 {
-    public static List<UserTrainingReportRow> Apply(
-        IEnumerable<UserTrainingReportRow> rows,
+    public static IQueryable<UserTrainingReportRow> Apply(
+        IQueryable<UserTrainingReportRow> rows,
         string? sortBy,
         string? sortDirection
     )
@@ -24,36 +24,31 @@ internal static class UserTrainingReportRowSorter
         };
     }
 
-    private static List<UserTrainingReportRow> ApplyNameSort(IEnumerable<UserTrainingReportRow> rows, bool isDescending)
-    {
-        return
-        [
-            .. (
-                isDescending
-                    ? rows.OrderByDescending(row => row.LastName).ThenByDescending(row => row.FirstName)
-                    : rows.OrderBy(row => row.LastName).ThenBy(row => row.FirstName)
-            ),
-        ];
-    }
-
-    private static List<UserTrainingReportRow> ApplySort<TKey>(
-        IEnumerable<UserTrainingReportRow> rows,
-        Func<UserTrainingReportRow, TKey> keySelector,
+    private static IQueryable<UserTrainingReportRow> ApplyNameSort(
+        IQueryable<UserTrainingReportRow> rows,
         bool isDescending
     )
     {
-        return (isDescending ? rows.OrderByDescending(keySelector) : rows.OrderBy(keySelector)).ToList();
+        return isDescending
+            ? rows.OrderByDescending(row => row.LastName).ThenByDescending(row => row.FirstName)
+            : rows.OrderBy(row => row.LastName).ThenBy(row => row.FirstName);
     }
 
-    private static List<UserTrainingReportRow> ApplyDefaultSort(IEnumerable<UserTrainingReportRow> rows)
+    private static IQueryable<UserTrainingReportRow> ApplySort<TKey>(
+        IQueryable<UserTrainingReportRow> rows,
+        System.Linq.Expressions.Expression<Func<UserTrainingReportRow, TKey>> keySelector,
+        bool isDescending
+    )
     {
-        return
-        [
-            .. rows.OrderBy(row => row.LastName)
-                .ThenBy(row => row.FirstName)
-                .ThenBy(row => row.TrainingCode)
-                .ThenByDescending(row => row.AwardedOn),
-        ];
+        return isDescending ? rows.OrderByDescending(keySelector) : rows.OrderBy(keySelector);
+    }
+
+    private static IQueryable<UserTrainingReportRow> ApplyDefaultSort(IQueryable<UserTrainingReportRow> rows)
+    {
+        return rows.OrderBy(row => row.LastName)
+            .ThenBy(row => row.FirstName)
+            .ThenBy(row => row.TrainingCode)
+            .ThenByDescending(row => row.AwardedOn);
     }
 
     private static string NormalizeSortBy(string? sortBy)

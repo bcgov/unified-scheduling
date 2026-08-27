@@ -21,11 +21,11 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
     {
         var now = DateTimeOffset.UtcNow;
         var queryFilters = UserTrainingReportQueryParser.Parse(filters);
-        var reportRows = await QueryReportRowsAsync(queryFilters, now, cancellationToken);
+        var reportRowsQuery = BuildReportRowsQuery(queryFilters, now);
+        var sortedRowsQuery = UserTrainingReportRowSorter.Apply(reportRowsQuery, sortBy, sortDirection);
 
-        var sortedRows = UserTrainingReportRowSorter.Apply(reportRows, sortBy, sortDirection);
-        var totalRows = sortedRows.Count;
-        var pageRows = sortedRows.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        var totalRows = await sortedRowsQuery.CountAsync(cancellationToken);
+        var pageRows = await sortedRowsQuery.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
         var rows = pageRows
             .Select(row => UserTrainingReportMappings.ToReportRowValue(row, ResolveStatus(row, now)))
@@ -34,27 +34,24 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         return new UserTrainingReportResponse(rows, page, pageSize, totalRows);
     }
 
-    private async Task<List<UserTrainingReportRow>> QueryReportRowsAsync(
+    private IQueryable<UserTrainingReportRow> BuildReportRowsQuery(
         UserTrainingReportQuery queryFilters,
-        DateTimeOffset now,
-        CancellationToken cancellationToken
+        DateTimeOffset now
     )
     {
-        var reportRows = await QueryAssignedTrainingRowsAsync(queryFilters, now, cancellationToken);
+        var reportRowsQuery = BuildAssignedTrainingRowsQuery(queryFilters, now);
 
         if (queryFilters.ShouldIncludeMissingMandatoryRows)
         {
-            var missingMandatoryRows = await QueryMissingMandatoryRowsAsync(queryFilters, now, cancellationToken);
-            reportRows.AddRange(missingMandatoryRows);
+            reportRowsQuery = reportRowsQuery.Concat(BuildMissingMandatoryRowsQuery(queryFilters, now));
         }
 
-        return reportRows;
+        return reportRowsQuery;
     }
 
-    private async Task<List<UserTrainingReportRow>> QueryAssignedTrainingRowsAsync(
+    private IQueryable<UserTrainingReportRow> BuildAssignedTrainingRowsQuery(
         UserTrainingReportQuery queryFilters,
-        DateTimeOffset now,
-        CancellationToken cancellationToken
+        DateTimeOffset now
     )
     {
         var query = db
@@ -98,29 +95,27 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
                 .Max(candidate => candidate.Version)
         );
 
-        return await query
-            .Select(ut => new UserTrainingReportRow(
-                ut.UserId,
-                ut.User.FirstName,
-                ut.User.LastName,
-                ut.TrainingId,
-                ut.Training.Code,
-                ut.Training.Description,
-                ut.AwardedOn,
-                ut.EndingOn,
-                ut.ExpiryDate,
-                ut.Version,
-                ut.NoticeState,
-                ut.Notes,
-                false
-            ))
-            .ToListAsync(cancellationToken);
+        return query.Select(ut => new UserTrainingReportRow
+        {
+            UserId = ut.UserId,
+            FirstName = ut.User.FirstName,
+            LastName = ut.User.LastName,
+            TrainingId = ut.TrainingId,
+            TrainingCode = ut.Training.Code,
+            TrainingDescription = ut.Training.Description,
+            AwardedOn = ut.AwardedOn,
+            EndingOn = ut.EndingOn,
+            ExpiryDate = ut.ExpiryDate,
+            Version = ut.Version,
+            NoticeState = ut.NoticeState,
+            Notes = ut.Notes,
+            IsMissingMandatoryTrainingAssignment = false,
+        });
     }
 
-    private async Task<List<UserTrainingReportRow>> QueryMissingMandatoryRowsAsync(
+    private IQueryable<UserTrainingReportRow> BuildMissingMandatoryRowsQuery(
         UserTrainingReportQuery queryFilters,
-        DateTimeOffset now,
-        CancellationToken cancellationToken
+        DateTimeOffset now
     )
     {
         var usersQuery = db.Users.AsNoTracking().Where(user => user.IsEnabled);
@@ -140,26 +135,27 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
             ? mandatoryTrainingsQuery.Where(training => training.Code.Contains(mandatoryTrainingCode))
             : mandatoryTrainingsQuery;
 
-        return await (
+        return (
             from user in usersQuery
             from training in mandatoryTrainingsQuery
             where !db.UserTrainings.Any(ut => ut.UserId == user.Id && ut.TrainingId == training.Id)
-            select new UserTrainingReportRow(
-                user.Id,
-                user.FirstName,
-                user.LastName,
-                training.Id,
-                training.Code,
-                training.Description,
-                null,
-                null,
-                null,
-                null,
-                string.Empty,
-                string.Empty,
-                true
-            )
-        ).ToListAsync(cancellationToken);
+            select new UserTrainingReportRow
+            {
+                UserId = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                TrainingId = training.Id,
+                TrainingCode = training.Code,
+                TrainingDescription = training.Description,
+                AwardedOn = null,
+                EndingOn = null,
+                ExpiryDate = null,
+                Version = null,
+                NoticeState = string.Empty,
+                Notes = string.Empty,
+                IsMissingMandatoryTrainingAssignment = true,
+            }
+        );
     }
 
     private static string ResolveStatus(UserTrainingReportRow row, DateTimeOffset now)
