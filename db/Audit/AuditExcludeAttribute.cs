@@ -1,4 +1,4 @@
-namespace Unified.Common.Audit;
+namespace Unified.Db.Audit;
 
 /// <summary>
 /// Excludes a property from audit diff capture.

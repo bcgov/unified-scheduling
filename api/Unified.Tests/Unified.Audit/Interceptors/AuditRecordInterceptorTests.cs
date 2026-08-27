@@ -12,6 +12,7 @@ using Unified.Audit;
 using Unified.Audit.Interceptors;
 using Unified.Common.Audit;
 using Unified.Common.Interceptors;
+using Unified.Db.Audit;
 using Unified.Db.Configuration;
 using Unified.Db.Models;
 using Xunit;
