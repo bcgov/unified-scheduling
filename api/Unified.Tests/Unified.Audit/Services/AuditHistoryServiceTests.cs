@@ -105,11 +105,31 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { ChangedField = "LastName" },
+            new AuditHistoryQueryParams { ChangedField = ["LastName"] },
             TestContext.Current.CancellationToken
         );
 
         Assert.Single(result.Data);
+        Assert.Contains("LastName", result.Data[0].ChangedColumns!);
+    }
+
+    [Fact]
+    public async Task GetHistoryAsync_When_Filtered_By_Multiple_ChangedFields_Should_Require_All_To_Match()
+    {
+        _dbContext.AuditRecords.AddRange(
+            BuildRecord(changedColumns: ["FirstName", "LastName"]),
+            BuildRecord(changedColumns: ["FirstName"]),
+            BuildRecord(changedColumns: ["LastName"])
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _service.GetHistoryAsync(
+            new AuditHistoryQueryParams { ChangedField = ["FirstName", "LastName"] },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Single(result.Data);
+        Assert.Contains("FirstName", result.Data[0].ChangedColumns!);
         Assert.Contains("LastName", result.Data[0].ChangedColumns!);
     }
 
@@ -148,24 +168,6 @@ public class AuditHistoryServiceTests : IAsyncLifetime
 
         Assert.Single(result.Data);
         Assert.Equal("Jane Doe", result.Data[0].ActorName);
-    }
-
-    [Fact]
-    public async Task GetHistoryAsync_When_Filtered_By_EntityKey_Should_Return_Matching_Only()
-    {
-        _dbContext.AuditRecords.AddRange(
-            BuildRecord(keyValues: """{"Id":"1"}"""),
-            BuildRecord(keyValues: """{"Id":"2"}""")
-        );
-        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { EntityKey = """{"Id":"2"}""" },
-            TestContext.Current.CancellationToken
-        );
-
-        Assert.Single(result.Data);
-        Assert.Equal(1, result.TotalCount);
     }
 
     [Fact]

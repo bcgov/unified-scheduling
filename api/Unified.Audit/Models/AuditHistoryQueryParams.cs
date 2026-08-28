@@ -5,14 +5,11 @@ public sealed record AuditHistoryQueryParams
 {
     public string? EntityType { get; init; }
 
-    /// <summary>JSON-encoded key value, e.g. <c>{"Id":"some-guid"}</c>.</summary>
-    public string? EntityKey { get; init; }
-
     /// <summary>Added, Modified, or Deleted.</summary>
     public string? Action { get; init; }
 
-    /// <summary>Single column name; matches records where this field appears in ChangedColumns.</summary>
-    public string? ChangedField { get; init; }
+    /// <summary>Column names; matches records where all of these fields appear in ChangedColumns.</summary>
+    public List<string>? ChangedField { get; init; }
 
     public Guid? ActorUserId { get; init; }
 

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Unified.Authorization.Claims;
 using Unified.Common.Audit;
+using Unified.Db.Models.UserManagement;
 
 namespace Unified.Audit;
 
@@ -14,7 +15,7 @@ public sealed class HttpContextActorResolver(IHttpContextAccessor httpContextAcc
 
         return userId.HasValue
             ? new CurrentActor(userId, ResolveActorName(user))
-            : new CurrentActor(Guid.Empty, "system");
+            : new CurrentActor(User.SystemUser, "System");
     }
 
     private static string ResolveActorName(ClaimsPrincipal? user)
@@ -32,6 +33,6 @@ public sealed class HttpContextActorResolver(IHttpContextAccessor httpContextAcc
             new[] { firstName, lastName }.Where(value => !string.IsNullOrWhiteSpace(value))
         );
 
-        return string.IsNullOrWhiteSpace(joinedName) ? "system" : joinedName;
+        return string.IsNullOrWhiteSpace(joinedName) ? "System" : joinedName;
     }
 }

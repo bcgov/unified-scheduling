@@ -86,22 +86,6 @@ public class AuditHistoryQueryParamsValidatorTests
     }
 
     [Fact]
-    public void Validate_When_EntityKey_Is_Valid_Json_Should_Pass()
-    {
-        var result = _validator.TestValidate(new AuditHistoryQueryParams { EntityKey = """{"Id":"1"}""" });
-
-        result.ShouldNotHaveValidationErrorFor(x => x.EntityKey);
-    }
-
-    [Fact]
-    public void Validate_When_EntityKey_Is_Invalid_Json_Should_Fail()
-    {
-        var result = _validator.TestValidate(new AuditHistoryQueryParams { EntityKey = "{not-json" });
-
-        result.ShouldHaveValidationErrorFor(x => x.EntityKey);
-    }
-
-    [Fact]
     public void Validate_When_From_After_To_Should_Fail()
     {
         var request = new AuditHistoryQueryParams
