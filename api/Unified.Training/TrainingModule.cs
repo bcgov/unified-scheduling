@@ -1,8 +1,3 @@
-using System.Reflection;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.ApplicationParts;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -29,18 +24,6 @@ public static class TrainingModule
     {
         var options = serviceProvider.GetRequiredService<IOptions<TrainingFeatureFlags>>();
         return options.Value.Enabled;
-    }
-
-    public static IMvcBuilder AddTrainingApplicationPart(this IMvcBuilder mvcBuilder, IConfiguration config)
-    {
-        var isEnabled = IsModuleEnabled(config);
-        var trainingAssembly = typeof(TrainingModule).Assembly;
-
-        mvcBuilder.ConfigureApplicationPartManager(manager =>
-            ConfigureTrainingApplicationParts(manager, trainingAssembly, isEnabled)
-        );
-
-        return mvcBuilder;
     }
 
     public static IServiceCollection AddTrainingModule(this IServiceCollection services, IConfiguration config)
@@ -81,42 +64,5 @@ public static class TrainingModule
             .AddPermissionPolicy(Permissions.UserTrainingsDelete);
 
         return services;
-    }
-
-    public static IEndpointRouteBuilder MapTrainingEndpoints(this IEndpointRouteBuilder app)
-    {
-        if (!IsModuleEnabled(app.ServiceProvider))
-        {
-            return app;
-        }
-
-        var grpBuilder = app.MapGroup("/api/trainings").WithTags("Training");
-
-        grpBuilder
-            .MapGet("/health", () => TypedResults.Ok("Training Loaded Successfully"))
-            .WithName("GetTrainingHealth")
-            .WithDescription("Checks the health of the Training module.");
-
-        return app;
-    }
-
-    private static void ConfigureTrainingApplicationParts(
-        ApplicationPartManager manager,
-        Assembly trainingAssembly,
-        bool isEnabled
-    )
-    {
-        var assemblyName = trainingAssembly.GetName().Name;
-        var existingParts = manager.ApplicationParts.Where(part => part.Name == assemblyName).ToList();
-
-        foreach (var part in existingParts)
-        {
-            manager.ApplicationParts.Remove(part);
-        }
-
-        if (isEnabled)
-        {
-            manager.ApplicationParts.Add(new AssemblyPart(trainingAssembly));
-        }
     }
 }

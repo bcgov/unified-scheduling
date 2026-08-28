@@ -34,8 +34,11 @@ remains out of scope.
 - Minimal APIs with explicit `MapXxxEndpoints()`: not selected because migrating
   existing controller endpoints changes their implementation model without
   providing enough benefit over the already working application-part approach.
-  The `MapXxxEndpoints()` was in fact inert as the endpoints were already mapped
-  through normal controller discovery.
+  Training's existing `MapTrainingEndpoints()` mapped a real, reachable
+  minimal-API health check (`GET /api/trainings/health`), not a duplicate of
+  controller-discovered routes; it has been removed as part of this decision
+  since module health is no longer surfaced through a bespoke per-module
+  endpoint.
 - Per-request routing policies or middleware: not selected because disabled
   endpoints would remain in endpoint metadata and would require separate
   handling to keep them out of OpenAPI.
@@ -53,8 +56,8 @@ remains out of scope.
 
 ## Follow-up
 
-- Add the shared `ModuleApplicationPartExtensions` helper and refactor Calendar
-  and Training to use it.
+- Add the shared `ModuleApplicationPartExtensions` helper and refactor
+  Calendar, Scheduling, and Training to use it.
 - Apply this convention to future controller-based feature-gated modules and
   document any intentional minimal-API implementations such as Stats.
 - Preserve the accepted assembly-level and startup-only constraints in module

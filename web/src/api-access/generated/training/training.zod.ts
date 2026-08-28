@@ -6,11 +6,6 @@
  */
 import * as zod from 'zod';
 
-/**
- * Checks the health of the Training module.
- */
-export const GetTrainingHealthResponse = zod.string();
-
 export const getApiLookupTrainingsQueryIncludeExpiredDefault = false;
 
 export const GetApiLookupTrainingsQueryParams = zod.strictObject({

@@ -1,5 +1,3 @@
-using System.Reflection;
-using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -8,7 +6,6 @@ using Unified.Calendar;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
-using Unified.Scheduling.Controllers;
 using Unified.Scheduling.FeatureFlags;
 using Unified.Scheduling.Seeders;
 using Unified.Scheduling.Services;
@@ -23,18 +20,6 @@ public static class SchedulingModule
 
     public static bool IsModuleEnabled(IServiceProvider serviceProvider) =>
         serviceProvider.GetRequiredService<IOptions<SchedulingFeatureFlags>>().Value.Enabled;
-
-    public static IMvcBuilder AddSchedulingApplicationPart(this IMvcBuilder mvcBuilder, IConfiguration config)
-    {
-        var isEnabled = IsModuleEnabled(config);
-        var schedulingAssembly = typeof(ShiftController).Assembly;
-
-        mvcBuilder.ConfigureApplicationPartManager(manager =>
-            ConfigureSchedulingApplicationParts(manager, schedulingAssembly, isEnabled)
-        );
-
-        return mvcBuilder;
-    }
 
     public static IServiceCollection AddSchedulingModule(this IServiceCollection services, IConfiguration config)
     {
@@ -75,25 +60,5 @@ public static class SchedulingModule
             .AddPermissionPolicy(Permissions.ShiftsExpire);
 
         return services;
-    }
-
-    private static void ConfigureSchedulingApplicationParts(
-        ApplicationPartManager manager,
-        Assembly schedulingAssembly,
-        bool isEnabled
-    )
-    {
-        var assemblyName = schedulingAssembly.GetName().Name;
-        var existingParts = manager.ApplicationParts.Where(part => part.Name == assemblyName).ToList();
-
-        foreach (var part in existingParts)
-        {
-            manager.ApplicationParts.Remove(part);
-        }
-
-        if (isEnabled)
-        {
-            manager.ApplicationParts.Add(new AssemblyPart(schedulingAssembly));
-        }
     }
 }
