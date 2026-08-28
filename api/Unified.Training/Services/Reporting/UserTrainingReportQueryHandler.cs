@@ -73,12 +73,12 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
             ? query.Where(ut => ut.AwardedOn >= parsedStartDateValue)
             : query;
 
-        var endDateValue = queryFilters.EndDate is DateOnly endDate
-            ? new DateTimeOffset(endDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-            : (DateTimeOffset?)null;
-        query = endDateValue is DateTimeOffset parsedEndDateValue
-            ? query.Where(ut => ut.AwardedOn <= parsedEndDateValue)
-            : query;
+var endDateValue = queryFilters.EndDate is DateOnly endDate
+    ? new DateTimeOffset(endDate.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
+    : (DateTimeOffset?)null;
+query = endDateValue is DateTimeOffset parsedEndDateValue
+    ? query.Where(ut => ut.AwardedOn < parsedEndDateValue)
+    : query;
 
         query = queryFilters.Status switch
         {
