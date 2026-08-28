@@ -16,9 +16,7 @@ import { useTrainingLookup } from '@/modules/training/trainingLookupApi';
 import { useUserTrainingReport, type UserTrainingReportItem } from './userTrainingReportApi';
 
 const accessControl = useAccessControl();
-const canAccessUserTrainingReport = computed(() =>
-  accessControl.hasPermission(Permissions.ReportsGenerate),
-);
+const canAccessUserTrainingReport = computed(() => accessControl.hasPermission(Permissions.ReportsGenerate));
 
 const statusFilter = ref<'all' | 'active' | 'expired'>('all');
 const selectedUserIdFilter = ref<string>('');
