@@ -122,9 +122,11 @@ const runReport = async () => {
   await execute();
 };
 
-void runReport();
-void executeTrainingLookup();
-void executeUsersQuery();
+if (canAccessUserTrainingReport.value) {
+  void runReport();
+  void executeTrainingLookup();
+  void executeUsersQuery();
+}
 
 function buildUserLabel(user: { firstName: string; lastName: string }): string {
   const firstName = user.firstName?.trim() ?? '';
