@@ -164,6 +164,7 @@ public sealed class CalendarModuleTests
         services.AddCalendarModule(configuration);
 
         var mvcBuilder = services.AddControllers();
+        mvcBuilder.AddApplicationPart(typeof(CalendarController).Assembly);
         mvcBuilder.AddConditionalApplicationPart<CalendarController>(CalendarModule.IsModuleEnabled(configuration));
 
         provider = services.BuildServiceProvider();

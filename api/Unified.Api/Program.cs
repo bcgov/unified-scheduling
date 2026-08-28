@@ -22,9 +22,11 @@ using Unified.JCInterface;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
 using Unified.Stats;
+using Unified.Stats.Controllers;
 using Unified.Training;
 using Unified.Training.Controllers;
 using Unified.UserManagement;
+using Unified.UserManagement.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 var hangfireOptions =
@@ -97,8 +99,12 @@ var hangfireOptions =
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddConditionalApplicationPart<CalendarController>(CalendarModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<ShiftController>(SchedulingModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<StatGroupsController>(StatsModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<UserTrainingController>(
         TrainingModule.IsModuleEnabled(builder.Configuration)
+    );
+    mvcBuilder.AddConditionalApplicationPart<UsersController>(
+        UserManagementModule.IsModuleEnabled(builder.Configuration)
     );
 
     builder.Services.AddSingleton<MigrationAndSeedService>();

@@ -9,11 +9,12 @@
 ## Context
 
 Feature-gated modules must not expose routes when disabled. Issue #119 records
-three patterns: always-on MVC for UserManagement, module-owned minimal APIs for
-Stats, and conditional MVC application parts for Calendar and Training. The
-existing application-part approach makes disabled controller assemblies absent
-from MVC discovery and avoids exposing their routes or API Explorer metadata,
-but its registration logic is duplicated between modules.
+three patterns: conventionally discovered MVC controllers for UserManagement,
+a module-owned minimal health endpoint plus MVC controllers for Stats, and
+conditional MVC application parts for Calendar and Training. The
+application-part approach makes disabled controller assemblies absent from MVC
+discovery and avoids exposing their routes or API Explorer metadata, but its
+registration logic was duplicated between modules.
 
 ## Decision
 
@@ -26,8 +27,9 @@ will be consolidated into one shared generic
 helper.
 
 This decision does not migrate controller endpoints to minimal APIs. Stats may
-retain its existing minimal-API implementation, while always-on UserManagement
-remains out of scope.
+retain its intentional minimal-API health endpoint, while its MVC controllers
+and UserManagement's MVC controllers follow the same conditional
+application-part convention as other feature-gated controller modules.
 
 ## Alternatives
 
@@ -56,8 +58,8 @@ remains out of scope.
 
 ## Follow-up
 
-- Add the shared `ModuleApplicationPartExtensions` helper and refactor
-  Calendar, Scheduling, and Training to use it.
+- Add the shared `ModuleApplicationPartExtensions` helper and apply it to
+  Calendar, Scheduling, Stats, Training, and UserManagement.
 - Apply this convention to future controller-based feature-gated modules and
   document any intentional minimal-API implementations such as Stats.
 - Preserve the accepted assembly-level and startup-only constraints in module

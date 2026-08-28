@@ -83,6 +83,7 @@ public sealed class TrainingModuleTests
         services.AddTrainingModule(configuration);
 
         var mvcBuilder = services.AddControllers();
+        mvcBuilder.AddApplicationPart(typeof(UserTrainingController).Assembly);
         mvcBuilder.AddConditionalApplicationPart<UserTrainingController>(TrainingModule.IsModuleEnabled(configuration));
 
         provider = services.BuildServiceProvider();

@@ -1,5 +1,3 @@
-using System.Reflection;
-using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Unified.Common.Mvc;
@@ -8,26 +6,13 @@ public static class ModuleApplicationPartExtensions
 {
     public static IMvcBuilder AddConditionalApplicationPart<TMarker>(this IMvcBuilder mvcBuilder, bool isEnabled)
     {
-        var moduleAssembly = typeof(TMarker).Assembly;
-
-        mvcBuilder.ConfigureApplicationPartManager(manager =>
-            ConfigureApplicationParts(manager, moduleAssembly, isEnabled)
-        );
-
-        return mvcBuilder;
-    }
-
-    private static void ConfigureApplicationParts(
-        ApplicationPartManager manager,
-        Assembly moduleAssembly,
-        bool isEnabled
-    )
-    {
         if (isEnabled)
         {
-            return;
+            return mvcBuilder;
         }
 
+        var moduleAssembly = typeof(TMarker).Assembly;
+        var manager = mvcBuilder.PartManager;
         var assemblyName = moduleAssembly.GetName().Name;
         var existingParts = manager.ApplicationParts.Where(part => part.Name == assemblyName).ToList();
 
@@ -35,5 +20,7 @@ public static class ModuleApplicationPartExtensions
         {
             manager.ApplicationParts.Remove(part);
         }
+
+        return mvcBuilder;
     }
 }

@@ -112,6 +112,7 @@ public sealed class SchedulingModuleTests
         services.AddSchedulingModule(configuration);
 
         var mvcBuilder = services.AddControllers();
+        mvcBuilder.AddApplicationPart(typeof(ShiftController).Assembly);
         mvcBuilder.AddConditionalApplicationPart<ShiftController>(SchedulingModule.IsModuleEnabled(configuration));
 
         provider = services.BuildServiceProvider();
