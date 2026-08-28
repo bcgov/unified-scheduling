@@ -6,7 +6,6 @@ export type UserTrainingReportItem = {
   trainingId: number;
   trainingCode: string;
   trainingDescription: string;
-  trainingCategory: string;
   awardedOn?: string | null;
   endingOn?: string | null;
   expiryDate?: string | null;

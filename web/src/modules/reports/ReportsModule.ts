@@ -7,7 +7,7 @@ const reportsRoutes: RouteRecordRaw[] = [
   {
     path: '/reports/user-training',
     name: 'UserTrainingReport',
-    component: () => import('@/modules/training/UserTrainingReport.vue'),
+    component: () => import('@/modules/reports/UserTrainingReport.vue'),
     meta: {
       title: 'User Training Report',
       requiresAuth: true,
@@ -28,11 +28,7 @@ const reportsNavLink: NavigationLink = {
   class: 'router-link--border',
 };
 
-export function registerModule(routes: RouteRecordRaw[], featureFlags: FeatureFlagsResponse) {
-  if (!featureFlags.Training?.enabled) {
-    return;
-  }
-
+export function registerModule(routes: RouteRecordRaw[], _featureFlags: FeatureFlagsResponse) {
   const navigationStore = useNavigationStore();
   const accessControl = useAccessControl();
 

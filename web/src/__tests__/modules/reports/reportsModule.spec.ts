@@ -9,7 +9,7 @@ describe('reports module', () => {
     setActivePinia(createPinia());
   });
 
-  it('registers report routes when training feature is enabled', async () => {
+  it('registers report routes', async () => {
     const routes: RouteRecordRaw[] = [];
     const trainingFeatureFlags: TrainingFeatureFlags = { source: 'Training', enabled: true };
     const featureFlags: FeatureFlagsResponse = { Training: trainingFeatureFlags };
@@ -25,7 +25,7 @@ describe('reports module', () => {
     expect(routes[1]?.path).toBe('/training/reports/user-training');
   });
 
-  it('does not register report routes when training feature is disabled', async () => {
+  it('registers report routes even when training feature is disabled', async () => {
     const routes: RouteRecordRaw[] = [];
     const trainingFeatureFlags: TrainingFeatureFlags = { source: 'Training', enabled: false };
     const featureFlags: FeatureFlagsResponse = { Training: trainingFeatureFlags };
@@ -39,7 +39,7 @@ describe('reports module', () => {
 
     const navigationStore = useNavigationStore();
 
-    expect(routes).toHaveLength(0);
+    expect(routes).toHaveLength(2);
     expect(navigationStore.links).toHaveLength(0);
   });
 });
