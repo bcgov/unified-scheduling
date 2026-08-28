@@ -34,13 +34,7 @@ export function registerModule(routes: RouteRecordRaw[], _featureFlags: FeatureF
 
   routes.push(...reportsRoutes);
 
-  if (
-    accessControl.hasAnyPermission(
-      Permissions.ReportsGenerate,
-      Permissions.UserTrainingsView,
-      Permissions.TrainingsView,
-    )
-  ) {
+  if (accessControl.hasPermission(Permissions.ReportsGenerate)) {
     navigationStore.registerLink(reportsNavLink);
   }
 }

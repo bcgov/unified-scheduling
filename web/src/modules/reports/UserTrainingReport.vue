@@ -12,12 +12,12 @@ import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
-import { useTrainingLookup } from './trainingLookupApi';
+import { useTrainingLookup } from '@/modules/training/trainingLookupApi';
 import { useUserTrainingReport, type UserTrainingReportItem } from './userTrainingReportApi';
 
 const accessControl = useAccessControl();
 const canAccessUserTrainingReport = computed(() =>
-  accessControl.hasAnyPermission(Permissions.ReportsGenerate, Permissions.UserTrainingsView, Permissions.TrainingsView),
+  accessControl.hasPermission(Permissions.ReportsGenerate),
 );
 
 const statusFilter = ref<'all' | 'active' | 'expired'>('all');
