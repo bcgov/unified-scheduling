@@ -1,4 +1,3 @@
-using System.Text.Json;
 using FluentValidation;
 using Unified.Audit.Models;
 
@@ -33,26 +32,8 @@ public class AuditHistoryQueryParamsValidator : AbstractValidator<AuditHistoryQu
             .WithMessage("SortDirection must be 'asc' or 'desc'.")
             .When(x => !string.IsNullOrEmpty(x.SortDirection));
 
-        RuleFor(x => x.EntityKey)
-            .Must(BeValidJson)
-            .WithMessage("EntityKey must be valid JSON.")
-            .When(x => !string.IsNullOrEmpty(x.EntityKey));
-
         RuleFor(x => x)
             .Must(x => !x.From.HasValue || !x.To.HasValue || x.From <= x.To)
             .WithMessage("From must be on or before To.");
-    }
-
-    private static bool BeValidJson(string? json)
-    {
-        try
-        {
-            using var _ = JsonDocument.Parse(json!);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 }

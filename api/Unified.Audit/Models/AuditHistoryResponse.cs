@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace Unified.Audit.Models;
 
 public sealed record AuditRecordResponseDto
@@ -11,9 +9,9 @@ public sealed record AuditRecordResponseDto
     public required string Action { get; init; }
     public required string EntityType { get; init; }
     public required string TableName { get; init; }
-    public required JsonElement KeyValues { get; init; }
-    public JsonElement? OldValues { get; init; }
-    public JsonElement? NewValues { get; init; }
+    public required Dictionary<string, object?> KeyValues { get; init; }
+    public Dictionary<string, object?>? OldValues { get; init; }
+    public Dictionary<string, object?>? NewValues { get; init; }
     public IReadOnlyList<string>? ChangedColumns { get; init; }
     public string? SourceModule { get; init; }
     public string? CorrelationId { get; init; }
