@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 using Unified.Common.Audit;
 using Unified.Db.Models;
+using Unified.Db.Models.Abstract;
 
 namespace Unified.Audit.Interceptors;
 
@@ -99,6 +100,8 @@ public sealed class AuditRecordInterceptor(
                 continue;
             }
 
+            SetAuditUserFields(entry, actor.ActorUserId);
+
             var auditRecord = BuildAuditRecord(entry, actor, correlationId);
             if (HasTemporaryKey(entry))
             {
@@ -175,6 +178,24 @@ public sealed class AuditRecordInterceptor(
         finally
         {
             _isWritingDeferredAuditRecords = false;
+        }
+    }
+
+    // Sets CurrentValue (not the CLR property) so the change is marked modified regardless of when DetectChanges last ran.
+    private static void SetAuditUserFields(EntityEntry entry, Guid? actorUserId)
+    {
+        if (entry.Entity is not BaseEntity)
+        {
+            return;
+        }
+
+        if (entry.State == EntityState.Added)
+        {
+            entry.Property(nameof(BaseEntity.CreatedById)).CurrentValue = actorUserId;
+        }
+        else if (entry.State == EntityState.Modified)
+        {
+            entry.Property(nameof(BaseEntity.UpdatedById)).CurrentValue = actorUserId;
         }
     }
 
