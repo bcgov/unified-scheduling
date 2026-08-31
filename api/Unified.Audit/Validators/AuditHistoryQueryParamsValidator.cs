@@ -10,10 +10,7 @@ public class AuditHistoryQueryParamsValidator : AbstractValidator<AuditHistoryQu
 
     public AuditHistoryQueryParamsValidator()
     {
-        RuleFor(x => x.Page)
-            .GreaterThanOrEqualTo(1)
-            .WithMessage("Page must be at least 1.")
-            .When(x => x.Page.HasValue);
+        RuleFor(x => x.Page).GreaterThanOrEqualTo(1).WithMessage("Page must be at least 1.").When(x => x.Page.HasValue);
 
         RuleFor(x => x.PageSize)
             .GreaterThanOrEqualTo(1)
