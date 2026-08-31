@@ -21,7 +21,7 @@ public class AuditSchemaServiceTests : IAsyncLifetime
         _dbContext = new UnifiedDbContext(dbOptions);
         _service = new AuditSchemaService(
             _dbContext,
-            Options.Create(new AuditRecordInterceptorOptions()),
+            Options.Create(new AuditRecordOptions()),
             new MemoryCache(new MemoryCacheOptions())
         );
 
@@ -58,7 +58,7 @@ public class AuditSchemaServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public void GetFields_Should_Exclude_AuditExclude_Attributed_Properties()
+    public void GetFields_Should_Exclude_Configured_Sensitive_Properties()
     {
         var fields = _service.GetFields("User");
 

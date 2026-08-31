@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
-using Unified.Audit.Interceptors;
 using Unified.Common.Interceptors;
 
 namespace Unified.Api.Services;
@@ -16,9 +15,6 @@ public static class InterceptorRegistration
         // Interceptors are executed by EF Core in the order they are registered.
         // 1. Business save rules run first to validate/modify domain state before audit recording.
         services.AddScoped<IInterceptor, SaveRulesInterceptor>();
-
-        // 2. Audit record interceptor runs to capture snapshot and insert audit records.
-        services.AddScoped<IInterceptor, AuditRecordInterceptor>();
 
         return services;
     }

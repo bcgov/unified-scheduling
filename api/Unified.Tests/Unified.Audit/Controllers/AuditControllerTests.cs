@@ -54,12 +54,8 @@ public class AuditControllerTests
     {
         var controller = BuildController();
 
-        await Assert.ThrowsAsync<FluentValidation.ValidationException>(
-            () =>
-                controller.GetHistory(
-                    new AuditHistoryQueryParams { PageSize = 101 },
-                    TestContext.Current.CancellationToken
-                )
+        await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
+            controller.GetHistory(new AuditHistoryQueryParams { PageSize = 101 }, TestContext.Current.CancellationToken)
         );
     }
 
@@ -83,7 +79,15 @@ public class AuditControllerTests
         var expected = new AuditEntityFieldsResponse
         {
             EntityType = "User",
-            Fields = [new AuditEntityFieldDto { Name = "FirstName", Label = "First Name", Type = "string" }],
+            Fields =
+            [
+                new AuditEntityFieldDto
+                {
+                    Name = "FirstName",
+                    Label = "First Name",
+                    Type = "string",
+                },
+            ],
         };
         var controller = BuildController(
             schemaService: new FakeAuditSchemaService { FieldsResult = expected, KnownEntityTypes = ["User"] }

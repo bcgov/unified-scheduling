@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Unified.Audit;
 using Unified.Authorization.Claims;
+using Unified.Db.Models.UserManagement;
 using Xunit;
 
 namespace Unified.Tests.Unified.Audit;
@@ -36,7 +37,7 @@ public class HttpContextActorResolverTests
 
         var actor = resolver.Resolve();
 
-        Assert.Equal(Guid.Empty, actor.ActorUserId);
-        Assert.Equal("system", actor.ActorName);
+        Assert.Equal(User.SystemUser, actor.ActorUserId);
+        Assert.Equal("System", actor.ActorName);
     }
 }

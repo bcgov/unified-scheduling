@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace Unified.Db.Models;
 
 /// <summary>
-/// Append-only record of every entity change captured by AuditRecordInterceptor.
+/// Append-only record of an entity change.
 /// No FK constraints — survives deletion of the originating entity.
 /// </summary>
 public class AuditRecord

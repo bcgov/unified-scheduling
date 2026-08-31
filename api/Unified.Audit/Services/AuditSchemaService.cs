@@ -23,7 +23,7 @@ public interface IAuditSchemaService
 /// </summary>
 public sealed partial class AuditSchemaService(
     UnifiedDbContext DB,
-    IOptions<AuditRecordInterceptorOptions> options,
+    IOptions<AuditRecordOptions> options,
     IMemoryCache cache
 ) : IAuditSchemaService
 {

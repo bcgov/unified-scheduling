@@ -34,7 +34,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         string action = "Modified",
         string? actorName = "Jane Doe",
         Guid? actorUserId = null,
-        string keyValues = """{"Id":"1"}""",
+        string entityPK = "1",
         string[]? changedColumns = null,
         DateTimeOffset? occurredOn = null
     ) =>
@@ -46,7 +46,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
             Action = action,
             EntityType = entityType,
             TableName = entityType + "s",
-            KeyValues = keyValues,
+            EntityPK = entityPK,
             ChangedColumns = changedColumns ?? ["FirstName"],
         };
 
@@ -137,10 +137,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
     public async Task GetHistoryAsync_When_Filtered_By_ActorUserId_Should_Return_Matching_Only()
     {
         var otherActor = Guid.NewGuid();
-        _dbContext.AuditRecords.AddRange(
-            BuildRecord(actorUserId: _actorId),
-            BuildRecord(actorUserId: otherActor)
-        );
+        _dbContext.AuditRecords.AddRange(BuildRecord(actorUserId: _actorId), BuildRecord(actorUserId: otherActor));
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
@@ -155,10 +152,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
     [Fact]
     public async Task GetHistoryAsync_When_Filtered_By_ActorName_Should_Match_Case_Insensitive_Partial()
     {
-        _dbContext.AuditRecords.AddRange(
-            BuildRecord(actorName: "Jane Doe"),
-            BuildRecord(actorName: "John Smith")
-        );
+        _dbContext.AuditRecords.AddRange(BuildRecord(actorName: "Jane Doe"), BuildRecord(actorName: "John Smith"));
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(

@@ -13,9 +13,7 @@ public static class AuditModule
 {
     public static IServiceCollection AddAuditModule(this IServiceCollection services, IConfiguration configuration)
     {
-        services
-            .AddOptions<AuditRecordInterceptorOptions>()
-            .Bind(configuration.GetSection(AuditRecordInterceptorOptions.SectionName));
+        services.AddOptions<AuditRecordOptions>().Bind(configuration.GetSection(AuditRecordOptions.SectionName));
 
         services.AddScoped<ICurrentActorResolver, HttpContextActorResolver>();
 

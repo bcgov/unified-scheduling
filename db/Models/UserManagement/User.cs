@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Unified.Db.Audit;
 using Unified.Db.Models;
 using Unified.Db.Models.Abstract;
 using Unified.Db.Models.Training;
@@ -21,10 +20,8 @@ public class User : BaseEntity
         set => _idirName = NormalizeIdirName(value) ?? string.Empty;
     }
 
-    [AuditExclude]
     public Guid? IdirId { get; set; }
 
-    [AuditExclude]
     public Guid? KeyCloakId { get; set; }
     public bool IsEnabled { get; set; }
     public string FirstName { get; set; } = string.Empty;

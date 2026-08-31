@@ -60,10 +60,7 @@ public sealed class AuditHistoryService(UnifiedDbContext DB, TimeProvider timePr
         query = sortAscending ? query.OrderBy(r => r.OccurredOn) : query.OrderByDescending(r => r.OccurredOn);
 
         var totalCount = await query.CountAsync(cancellationToken);
-        var pageOfRecords = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        var pageOfRecords = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
         return new AuditHistoryResponse
         {
@@ -94,11 +91,10 @@ public sealed class AuditHistoryService(UnifiedDbContext DB, TimeProvider timePr
             Action = record.Action,
             EntityType = record.EntityType,
             TableName = record.TableName,
-            KeyValues = ParseJson(record.KeyValues) ?? [],
+            EntityPK = record.EntityPK,
             OldValues = ParseJson(record.OldValues),
             NewValues = ParseJson(record.NewValues),
             ChangedColumns = record.ChangedColumns,
-            SourceModule = record.SourceModule,
             CorrelationId = record.CorrelationId,
         };
 
