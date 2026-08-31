@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Unified.Core.Email;
 using Unified.Infrastructure.ErrorHandling;
 
 namespace Unified.Tests.Infrastructure.ErrorHandling;
@@ -106,6 +107,71 @@ public class GlobalExceptionHandlerTests
         // Assert
         Assert.True(handled);
         Assert.Equal(StatusCodes.Status499ClientClosedRequest, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_EmailValidationException_Returns400ProblemDetails()
+    {
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = new EmailValidationException("The recipient is invalid.");
+
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal("Email validation failed.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal("The recipient is invalid.", body.RootElement.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_EmailDeliveryException_Returns502WithoutExposingProviderIdentifiers()
+    {
+        const string tag = "private-provider-tag";
+        const string correlationId = "private-correlation";
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = new EmailDeliveryException(tag, correlationId, 1, 0, 500);
+
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status502BadGateway, context.Response.StatusCode);
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal("Email submission failed.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "The email provider did not accept the submission.",
+            body.RootElement.GetProperty("detail").GetString()
+        );
+        Assert.DoesNotContain(tag, body.RootElement.GetRawText(), StringComparison.Ordinal);
+        Assert.DoesNotContain(correlationId, body.RootElement.GetRawText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_EmailDeliveryStateUnknownException_Returns502WithoutSuggestingRetry()
+    {
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = new EmailDeliveryStateUnknownException(
+            "provider-tag",
+            "correlation",
+            1,
+            0,
+            new HttpRequestException("connection dropped")
+        );
+
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status502BadGateway, context.Response.StatusCode);
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal("Email submission outcome unknown.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "The email provider did not confirm whether the submission was accepted.",
+            body.RootElement.GetProperty("detail").GetString()
+        );
+        Assert.DoesNotContain("retry", body.RootElement.GetRawText(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -20,7 +21,6 @@
     <ProjectReference Include="..\Unified.UserManagement\Unified.UserManagement.csproj" />
     <ProjectReference Include="..\Unified.Core\Unified.Core.csproj" />
     <ProjectReference Include="..\Unified.Hangfire\Unified.Hangfire.csproj" />
-    <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
     <ProjectReference Include="..\Unified.Scheduling\Unified.Scheduling.csproj" />
     <ProjectReference Include="..\Unified.Stats\Unified.Stats.csproj" />
     <ProjectReference Include="..\Unified.Training\Unified.Training.csproj" />

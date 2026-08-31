@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Unified.Common.Logging;
+using Unified.Core.Email;
 
 namespace Unified.Infrastructure.ErrorHandling;
 
@@ -40,6 +42,9 @@ public class GlobalExceptionHandler : IExceptionHandler
         var problemDetails = exception switch
         {
             ValidationException ex => HandleValidationException(ex, httpContext),
+            EmailValidationException ex => HandleEmailValidationException(ex, httpContext),
+            EmailDeliveryStateUnknownException ex => HandleEmailDeliveryStateUnknownException(ex, httpContext),
+            EmailDeliveryException ex => HandleEmailDeliveryException(ex, httpContext),
             ForbiddenException ex => HandleForbiddenException(ex, httpContext),
             KeyNotFoundException ex => HandleKeyNotFoundException(ex, httpContext),
             InvalidDataException ex => HandleInvalidDataException(ex, httpContext),
@@ -84,6 +89,66 @@ public class GlobalExceptionHandler : IExceptionHandler
         {
             Status = StatusCodes.Status400BadRequest,
             Title = "Validation failed.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+        };
+    }
+
+    private ProblemDetails HandleEmailValidationException(EmailValidationException ex, HttpContext httpContext)
+    {
+        _logger.LogInformation(ex, "Email validation failed: {Message}", ex.Message);
+        httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+
+        return new ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Email validation failed.",
+            Detail = ex.Message,
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+        };
+    }
+
+    private ProblemDetails HandleEmailDeliveryException(EmailDeliveryException ex, HttpContext httpContext)
+    {
+        _logger.LogError(
+            ex,
+            "Email provider submission failed with tag {ChesTag}, correlation {CorrelationId}, status {ChesStatusCode}, {RecipientCount} recipients, and {AttachmentCount} attachments",
+            ex.Tag,
+            LogSanitizer.UserText(ex.CorrelationId),
+            ex.StatusCode,
+            ex.RecipientCount,
+            ex.AttachmentCount
+        );
+        httpContext.Response.StatusCode = StatusCodes.Status502BadGateway;
+
+        return new ProblemDetails
+        {
+            Status = StatusCodes.Status502BadGateway,
+            Title = "Email submission failed.",
+            Detail = "The email provider did not accept the submission.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+        };
+    }
+
+    private ProblemDetails HandleEmailDeliveryStateUnknownException(
+        EmailDeliveryStateUnknownException ex,
+        HttpContext httpContext
+    )
+    {
+        _logger.LogError(
+            ex,
+            "Email provider submission outcome is unknown for tag {ChesTag}, correlation {CorrelationId}, {RecipientCount} recipients, and {AttachmentCount} attachments",
+            ex.Tag,
+            LogSanitizer.UserText(ex.CorrelationId),
+            ex.RecipientCount,
+            ex.AttachmentCount
+        );
+        httpContext.Response.StatusCode = StatusCodes.Status502BadGateway;
+
+        return new ProblemDetails
+        {
+            Status = StatusCodes.Status502BadGateway,
+            Title = "Email submission outcome unknown.",
+            Detail = "The email provider did not confirm whether the submission was accepted.",
             Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
