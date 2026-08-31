@@ -1,4 +1,4 @@
-namespace Unified.Common.Audit;
+namespace Unified.Audit;
 
 public interface ICurrentActorResolver
 {

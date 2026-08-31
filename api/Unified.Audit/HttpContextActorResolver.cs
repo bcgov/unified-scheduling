@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Unified.Authorization.Claims;
-using Unified.Common.Audit;
 using Unified.Db.Models.UserManagement;
 
 namespace Unified.Audit;

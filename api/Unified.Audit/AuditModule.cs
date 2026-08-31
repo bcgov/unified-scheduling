@@ -4,7 +4,6 @@ using Unified.Audit.Options;
 using Unified.Audit.Services;
 using Unified.Audit.Validators;
 using Unified.Authorization;
-using Unified.Common.Audit;
 
 namespace Unified.Audit;
 
