@@ -97,7 +97,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            BuildQueryParams(entityType: "Role"),
+            BuildQueryParams(entityType: "role"),
             TestContext.Current.CancellationToken
         );
 
