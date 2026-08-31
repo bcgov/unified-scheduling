@@ -5,8 +5,8 @@ namespace Unified.Audit.Validators;
 
 public class AuditHistoryQueryParamsValidator : AbstractValidator<AuditHistoryQueryParams>
 {
-    public static readonly string[] ValidActions = ["Added", "Modified", "Deleted"];
-    public static readonly string[] ValidSortDirections = ["asc", "desc"];
+    private static readonly string[] ValidActions = ["Added", "Modified", "Deleted"];
+    private static readonly string[] ValidSortDirections = ["asc", "desc"];
 
     public AuditHistoryQueryParamsValidator()
     {
