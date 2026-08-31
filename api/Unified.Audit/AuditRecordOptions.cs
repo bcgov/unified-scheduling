@@ -1,6 +1,6 @@
-namespace Unified.Audit.Interceptors;
+namespace Unified.Audit;
 
-public sealed class AuditRecordInterceptorOptions
+public sealed class AuditRecordOptions
 {
     public const string SectionName = "AuditRecordInterceptor";
 

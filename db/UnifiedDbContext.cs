@@ -1,4 +1,7 @@
+using Audit.Core;
+using Audit.EntityFramework;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Lookup;
@@ -9,8 +12,15 @@ using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db;
 
-public class UnifiedDbContext : DbContext
+/// <summary>
+/// Inherits Audit.NET's <see cref="AuditDbContext"/> so every SaveChanges/SaveChangesAsync call is
+/// automatically wrapped with audit capture (see Unified.Audit's README) - no EF Core
+/// <c>IInterceptor</c> registration is needed for auditing.
+/// </summary>
+public class UnifiedDbContext : AuditDbContext
 {
+    private IDbContextTransaction? _auditTransaction;
+
     public UnifiedDbContext() { }
 
     public UnifiedDbContext(DbContextOptions<UnifiedDbContext> options)
@@ -62,6 +72,83 @@ public class UnifiedDbContext : DbContext
         if (!optionsBuilder.IsConfigured)
         {
             optionsBuilder.UseNpgsql("Name=DatabaseConnectionString");
+        }
+    }
+
+    // Opens before the entity save runs (Audit.NET calls this only when there are tracked changes
+    // to audit), so the entity save and the AuditRecord insert it produces share one transaction.
+    // Guarded by IsRelational() since non-relational providers (e.g. InMemory, used only in tests)
+    // don't support transactions at all.
+    public override void OnScopeCreated(IAuditScope auditScope)
+    {
+        if (Database.IsRelational() && Database.CurrentTransaction is null)
+        {
+            _auditTransaction = Database.BeginTransaction();
+        }
+    }
+
+    // Called once the AuditRecord has been written (or attempted). Commits only on success so a
+    // failed entity save or a failed audit insert rolls back both together; leaves an
+    // already-active ambient transaction (opened by calling code) for its owner to resolve.
+    public override void OnScopeSaved(IAuditScope auditScope)
+    {
+        if (_auditTransaction is null)
+        {
+            return;
+        }
+
+        if (auditScope.GetEntityFrameworkEvent()?.Success == true)
+        {
+            _auditTransaction.Commit();
+        }
+        else
+        {
+            _auditTransaction.Rollback();
+        }
+
+        _auditTransaction.Dispose();
+        _auditTransaction = null;
+    }
+
+    // Safety net: if the AuditRecord insert itself throws, Audit.NET never calls OnScopeSaved (the
+    // exception escapes from inside its scope-disposal), so the transaction opened in OnScopeCreated
+    // would otherwise stay open. Guarantees rollback regardless of where the failure happened.
+    public override async Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+        catch
+        {
+            if (_auditTransaction is not null)
+            {
+                await _auditTransaction.RollbackAsync(cancellationToken);
+                await _auditTransaction.DisposeAsync();
+                _auditTransaction = null;
+            }
+            throw;
+        }
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        try
+        {
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+        catch
+        {
+            if (_auditTransaction is not null)
+            {
+                _auditTransaction.Rollback();
+                _auditTransaction.Dispose();
+                _auditTransaction = null;
+            }
+            throw;
         }
     }
 }
