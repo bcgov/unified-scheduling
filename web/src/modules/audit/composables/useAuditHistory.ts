@@ -136,11 +136,15 @@ export function useAuditHistory() {
     isLoadingActors.value = true;
     try {
       const res = await getApiUsers({ Search: search.trim() });
+      if (res.error.value) {
+        error.value = res.error.value.message ?? 'Failed to load actors.';
+        fetchedActorOptions.value = [];
+        return;
+      }
       fetchedActorOptions.value = (res.data.value ?? []).map((user) => ({
         code: user.id,
         description: `${user.firstName} ${user.lastName}`,
       }));
-    } finally {
       isLoadingActors.value = false;
     }
   }, 300);
