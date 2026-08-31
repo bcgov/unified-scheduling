@@ -11,14 +11,13 @@ public class AuditRecordConfiguration : IEntityTypeConfiguration<AuditRecord>
         builder.Property(b => b.OccurredOn).HasDefaultValueSql("now()").IsRequired();
         builder.Property(b => b.Action).HasMaxLength(20).IsRequired();
         builder.Property(b => b.EntityType).HasMaxLength(200).IsRequired();
+        builder.Property(b => b.EntityPK).HasMaxLength(200).IsRequired();
         builder.Property(b => b.TableName).HasMaxLength(200).IsRequired();
 
         builder.Property(b => b.ActorName).HasMaxLength(200);
-        builder.Property(b => b.SourceModule).HasMaxLength(100);
         builder.Property(b => b.CorrelationId).HasMaxLength(200);
 
         // JSONB columns
-        builder.Property(b => b.KeyValues).HasColumnType("jsonb").IsRequired();
         builder.Property(b => b.OldValues).HasColumnType("jsonb");
         builder.Property(b => b.NewValues).HasColumnType("jsonb");
 
@@ -29,7 +28,7 @@ public class AuditRecordConfiguration : IEntityTypeConfiguration<AuditRecord>
         builder.Property(b => b.Id).ValueGeneratedOnAdd();
         builder.HasKey(b => b.Id);
 
-        builder.HasIndex(b => new { b.EntityType, b.KeyValues }).HasDatabaseName("ix_audit_entity");
+        builder.HasIndex(b => new { b.EntityType, b.EntityPK }).HasDatabaseName("ix_audit_entity");
         builder
             .HasIndex(b => new { b.ActorUserId, b.OccurredOn })
             .IsDescending(false, true)

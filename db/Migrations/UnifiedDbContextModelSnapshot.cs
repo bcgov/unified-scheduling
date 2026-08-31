@@ -17,89 +17,10 @@ namespace Unified.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Unified.Db.Models.AuditRecord", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("ActorName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid?>("ActorUserId")
-                        .HasColumnType("uuid");
-
-                    b.PrimitiveCollection<string[]>("ChangedColumns")
-                        .HasColumnType("text[]");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("KeyValues")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("NewValues")
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTimeOffset>("OccurredOn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<string>("OldValues")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("SourceModule")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("TableName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OccurredOn")
-                        .IsDescending()
-                        .HasDatabaseName("ix_audit_occurred");
-
-                    b.HasIndex("TableName")
-                        .HasDatabaseName("ix_audit_table");
-
-                    b.HasIndex("Action", "OccurredOn")
-                        .IsDescending(false, true)
-                        .HasDatabaseName("ix_audit_action");
-
-                    b.HasIndex("ActorUserId", "OccurredOn")
-                        .IsDescending(false, true)
-                        .HasDatabaseName("ix_audit_actor");
-
-                    b.HasIndex("EntityType", "KeyValues")
-                        .HasDatabaseName("ix_audit_entity");
-
-                    b.ToTable("AuditRecords");
-                });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.Event", b =>
                 {

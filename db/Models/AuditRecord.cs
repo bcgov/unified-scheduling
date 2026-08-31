@@ -10,7 +10,6 @@ namespace Unified.Db.Models;
 public class AuditRecord
 {
     [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public long Id { get; set; }
 
     /// <summary>Always UTC.</summary>
@@ -28,11 +27,11 @@ public class AuditRecord
     /// <summary>EF Core entity type name.</summary>
     public string EntityType { get; set; } = string.Empty;
 
+    /// <summary>Entity Primary key value</summary>
+    public string EntityPK { get; set; } = string.Empty;
+
     /// <summary>Actual database table name.</summary>
     public string TableName { get; set; } = string.Empty;
-
-    /// <summary>Primary key column(s) and their values as JSONB.</summary>
-    public string KeyValues { get; set; } = string.Empty;
 
     /// <summary>Previous values — populated for Modified and Deleted.</summary>
     public string? OldValues { get; set; }
