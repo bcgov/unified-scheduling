@@ -42,9 +42,6 @@ public class AuditRecord
     /// <summary>Column names that changed — populated for Modified only.</summary>
     public string[]? ChangedColumns { get; set; }
 
-    /// <summary>Module that originated the change (e.g. user-management).</summary>
-    public string? SourceModule { get; set; }
-
     /// <summary>Request trace/correlation id for cross-module debugging.</summary>
     public string? CorrelationId { get; set; }
 }
