@@ -145,6 +145,7 @@ export function useAuditHistory() {
         code: user.id,
         description: `${user.firstName} ${user.lastName}`,
       }));
+    } finally {
       isLoadingActors.value = false;
     }
   }, 300);
