@@ -64,4 +64,5 @@ export const Permissions = {
   DashboardSubmit: 'DashboardSubmit',
   StatsOverrideSignedOff: 'StatsOverrideSignedOff',
   HangfireDashboardView: 'HangfireDashboardView',
+  AuditRead: 'AuditRead',
 } as const;
