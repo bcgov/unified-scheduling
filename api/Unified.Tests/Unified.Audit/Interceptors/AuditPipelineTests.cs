@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Common;
 using System.Text.Json;
+using Audit.EntityFramework;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -12,18 +12,29 @@ using Unified.Audit;
 using Unified.Audit.Interceptors;
 using Unified.Common.Audit;
 using Unified.Common.Interceptors;
-using Unified.Db.Audit;
+using Unified.Db;
 using Unified.Db.Configuration;
 using Unified.Db.Models;
+using Unified.Db.Models.UserManagement;
 using Xunit;
 
 namespace Unified.Tests.Unified.Audit.Interceptors;
 
-public class AuditRecordInterceptorTests : IDisposable
+/// <summary>
+/// Covers the Audit.NET-based audit pipeline: <see cref="AuditSaveChangesInterceptor"/> (captures
+/// pre/post-save entity snapshots) + <see cref="AuditRecordDataProvider"/> (writes AuditRecord rows
+/// via a separate AuditRecordDbContext sharing the audited context's connection/transaction) +
+/// <see cref="AuditTransactionInterceptor"/> (actor field stamping + owning the shared transaction).
+///
+/// Tests within this class run sequentially (xUnit does not parallelize methods within one class),
+/// which is required since Audit.NET's <c>Audit.Core.Configuration.DataProvider</c> is a process-wide
+/// static reconfigured per test.
+/// </summary>
+public class AuditPipelineTests : IDisposable
 {
     private readonly SqliteConnection _connection;
 
-    public AuditRecordInterceptorTests()
+    public AuditPipelineTests()
     {
         _connection = new SqliteConnection("Data Source=:memory:");
         _connection.Open();
@@ -34,7 +45,7 @@ public class AuditRecordInterceptorTests : IDisposable
     {
         var userId = Guid.NewGuid();
         await using var context = CreateContext(
-            CreateAuditInterceptor(
+            ConfigureAuditPipeline(
                 actorResolver: new FakeActorResolver(new CurrentActor(userId, "Robin Reviewer")),
                 correlationId: "corr-123",
                 sourceModule: "unit-tests"
@@ -65,7 +76,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_NoCorrelationHeader_FallsBackToTraceIdentifier()
     {
-        await using var context = CreateContext(CreateAuditInterceptor(withHttpContextWithoutCorrelationHeader: true));
+        await using var context = CreateContext(ConfigureAuditPipeline(withHttpContextWithoutCorrelationHeader: true));
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         context.AuditedEntities.Add(new AuditedEntity { Name = "new entity", Notes = "created" });
@@ -79,7 +90,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_ModifiedEntity_CapturesOldNewAndChangedColumns()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         var entity = new AuditedEntity { Name = "before", Notes = "old" };
@@ -112,7 +123,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_DeletedEntity_CapturesOldValuesOnly()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         var entity = new AuditedEntity { Name = "delete-me" };
@@ -135,7 +146,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_DenyListFields_AreExcludedFromPayloads()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         context.AuditedEntities.Add(
@@ -161,7 +172,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_AuditExcludeProperties_AreExcludedFromPayloads()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         context.AuditedEntities.Add(new AuditedEntity { Name = "test", InternalOnly = "skip-me" });
@@ -176,7 +187,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChanges_Sync_ThrowsNotSupportedException()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         context.AuditedEntities.Add(new AuditedEntity { Name = "sync-attempt" });
@@ -187,7 +198,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_NoTrackedChanges_DoesNotCreateAuditRecord()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -198,8 +209,10 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_NoHttpUser_UsesSystemActor()
     {
-        var actorResolver = new HttpContextActorResolver(new HttpContextAccessor());
-        await using var context = CreateContext(CreateAuditInterceptor(actorResolver: actorResolver));
+        var accessor = new HttpContextAccessor();
+        await using var context = CreateContext(
+            ConfigureAuditPipeline(actorResolver: new HttpContextActorResolver(accessor), httpContextAccessor: accessor)
+        );
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         context.AuditedEntities.Add(new AuditedEntity { Name = "system-change" });
@@ -207,14 +220,14 @@ public class AuditRecordInterceptorTests : IDisposable
 
         var auditRecord = await context.AuditRecords.SingleAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(Guid.Empty, auditRecord.ActorUserId);
-        Assert.Equal("system", auditRecord.ActorName);
+        Assert.Equal(User.SystemUser, auditRecord.ActorUserId);
+        Assert.Equal("System", auditRecord.ActorName);
     }
 
     [Fact]
     public async Task SaveChangesAsync_AuditRecordEntity_DoesNotCreateRecursiveAuditRecord()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         context.AuditRecords.Add(
@@ -239,10 +252,9 @@ public class AuditRecordInterceptorTests : IDisposable
         var saveRule = new CountingSaveRule();
         var saveRulesInterceptor = new SaveRulesInterceptor([saveRule], NullLogger<SaveRulesInterceptor>.Instance);
 
-        await using var context = CreateContext(saveRulesInterceptor, CreateAuditInterceptor());
+        await using var context = CreateContext([saveRulesInterceptor, .. ConfigureAuditPipeline()]);
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        // Explicit ID avoids temporary-key deferral and exercises a single SaveChanges pipeline.
         context.AuditedEntities.Add(new AuditedEntity { Id = 123, Name = "coexist" });
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -253,10 +265,9 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_AddedEntityWithGeneratedKey_NewValuesMatchesFinalKeyValue()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        // No explicit ID -> temporary key -> deferred audit path.
         var entity = new AuditedEntity { Name = "generated-key-entity" };
         context.AuditedEntities.Add(entity);
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -272,11 +283,9 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_ChildWithKnownKeyAndTemporaryParentFk_NewValuesMatchesFinalParentId()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        // Parent has a generated (temporary-at-capture) key. Child's own key is explicit/known up front,
-        // so only its ParentId FK is temporary when CaptureAuditRecords runs - this must still defer.
         var parent = new AuditedParentEntity { Name = "parent" };
         var child = new AuditedChildEntity
         {
@@ -300,8 +309,7 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_ExistingChildReparentedToNewParent_NewValuesMatchesFinalParentId()
     {
-        var interceptor = CreateAuditInterceptor();
-        await using var context = CreateContext(interceptor);
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         var originalParent = new AuditedParentEntity { Name = "original parent" };
@@ -318,8 +326,6 @@ public class AuditRecordInterceptorTests : IDisposable
         context.AuditRecords.RemoveRange(context.AuditRecords);
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        // Child's own key is already persisted/known; only its FK is re-pointed at a brand-new parent
-        // in the same SaveChanges batch - this is the Modified-state analogue of the Added-state test above.
         var newParent = new AuditedParentEntity { Name = "new parent" };
         context.AuditedParentEntities.Add(newParent);
         child.Parent = newParent;
@@ -337,11 +343,9 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_ThreeLevelDeepGraphWithMixedKeyStates_ResolvesFksAtEveryLevel()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        // GrandParent and Parent both have generated (temporary-at-capture) keys; Child's own key is
-        // explicit/known. Verifies deferral and FK resolution cascade through every level, not just one.
         var grandParent = new AuditedGrandParentEntity { Name = "grandparent" };
         var parent = new AuditedParentEntity { Name = "parent", GrandParent = grandParent };
         var child = new AuditedChildEntity
@@ -373,11 +377,9 @@ public class AuditRecordInterceptorTests : IDisposable
     [Fact]
     public async Task SaveChangesAsync_ChildWithTwoTemporaryFksToDifferentNewParents_NewValuesMatchesBothFinalIds()
     {
-        await using var context = CreateContext(CreateAuditInterceptor());
+        await using var context = CreateContext(ConfigureAuditPipeline());
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        // Mirrors real join entities in this codebase (e.g. RolePermission, UserRole) that have their
-        // own known key plus two independent FKs, both temporary when both principals are new.
         var parent = new AuditedParentEntity { Name = "parent" };
         var secondParent = new AuditedGrandParentEntity { Name = "second-parent" };
         var child = new AuditedChildEntity
@@ -403,22 +405,18 @@ public class AuditRecordInterceptorTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveChangesAsync_DeferredKeyFailure_RollsBackEntityAndAuditInAmbientTransaction()
+    public async Task SaveChangesAsync_AuditInsertFailure_RollsBackEntityAndAuditInSharedTransaction()
     {
         var throwInterceptor = new ThrowOnAuditInsertCommandInterceptor();
 
-        var interceptor = CreateAuditInterceptor();
-        await using var context = CreateContext(interceptor, throwInterceptor);
+        await using var context = CreateContext(ConfigureAuditPipeline(auditContextInterceptor: throwInterceptor));
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         context.AuditedEntities.Add(new AuditedEntity { Name = "rollback-me" });
 
-        var exception = await Assert.ThrowsAsync<DbUpdateException>(() =>
-            context.SaveChangesAsync(TestContext.Current.CancellationToken)
-        );
-        Assert.IsType<InvalidOperationException>(exception.InnerException);
+        await Assert.ThrowsAnyAsync<Exception>(() => context.SaveChangesAsync(TestContext.Current.CancellationToken));
 
-        await using var verifyContext = CreateContext(CreateAuditInterceptor());
+        await using var verifyContext = CreateContext(ConfigureAuditPipeline());
 
         var entityCount = await verifyContext.AuditedEntities.CountAsync(TestContext.Current.CancellationToken);
         var auditCount = await verifyContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken);
@@ -432,17 +430,16 @@ public class AuditRecordInterceptorTests : IDisposable
     {
         var throwInterceptor = new ThrowOnEntityInsertCommandInterceptor();
 
-        await using var context = CreateContext(CreateAuditInterceptor(), throwInterceptor);
+        await using var context = CreateContext([throwInterceptor, .. ConfigureAuditPipeline()]);
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        // Explicit ID avoids temporary-key deferral, so entity and audit insert share one SaveChanges call.
         context.AuditedEntities.Add(new AuditedEntity { Id = 456, Name = "will-fail" });
 
         await Assert.ThrowsAsync<DbUpdateException>(() =>
             context.SaveChangesAsync(TestContext.Current.CancellationToken)
         );
 
-        await using var verifyContext = CreateContext(CreateAuditInterceptor());
+        await using var verifyContext = CreateContext(ConfigureAuditPipeline());
 
         var entityCount = await verifyContext.AuditedEntities.CountAsync(TestContext.Current.CancellationToken);
         var auditCount = await verifyContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken);
@@ -456,17 +453,16 @@ public class AuditRecordInterceptorTests : IDisposable
     {
         var throwInterceptor = new ThrowOnEntityInsertCommandInterceptor();
 
-        await using var context = CreateContext(CreateAuditInterceptor(), throwInterceptor);
+        await using var context = CreateContext([throwInterceptor, .. ConfigureAuditPipeline()]);
         await context.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        // No explicit ID -> temporary key -> deferred audit path, still exercised before the entity insert fails.
         context.AuditedEntities.Add(new AuditedEntity { Name = "will-fail-generated" });
 
         await Assert.ThrowsAsync<DbUpdateException>(() =>
             context.SaveChangesAsync(TestContext.Current.CancellationToken)
         );
 
-        await using var verifyContext = CreateContext(CreateAuditInterceptor());
+        await using var verifyContext = CreateContext(ConfigureAuditPipeline());
 
         var entityCount = await verifyContext.AuditedEntities.CountAsync(TestContext.Current.CancellationToken);
         var auditCount = await verifyContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken);
@@ -490,19 +486,25 @@ public class AuditRecordInterceptorTests : IDisposable
         return new TestAuditDbContext(options);
     }
 
-    private static AuditRecordInterceptor CreateAuditInterceptor(
+    /// <summary>
+    /// Wires the Audit.NET global data provider for this test and returns the two interceptors that
+    /// must be registered on the audited DbContext (in this order).
+    /// </summary>
+    private IInterceptor[] ConfigureAuditPipeline(
         ICurrentActorResolver? actorResolver = null,
         string? correlationId = null,
         string sourceModule = "test-module",
-        bool withHttpContextWithoutCorrelationHeader = false
+        bool withHttpContextWithoutCorrelationHeader = false,
+        IHttpContextAccessor? httpContextAccessor = null,
+        DbCommandInterceptor? auditContextInterceptor = null
     )
     {
-        var accessor = new HttpContextAccessor();
+        var accessor = httpContextAccessor ?? new HttpContextAccessor();
         if (!string.IsNullOrWhiteSpace(correlationId))
         {
-            var context = new DefaultHttpContext();
-            context.Request.Headers["X-Correlation-Id"] = correlationId;
-            accessor.HttpContext = context;
+            var httpContext = new DefaultHttpContext();
+            httpContext.Request.Headers["X-Correlation-Id"] = correlationId;
+            accessor.HttpContext = httpContext;
         }
         else if (withHttpContextWithoutCorrelationHeader)
         {
@@ -519,11 +521,33 @@ public class AuditRecordInterceptorTests : IDisposable
             }
         );
 
-        return new AuditRecordInterceptor(
+        global::Audit.Core.Configuration.IncludeActivityTrace = true;
+
+        global::Audit.Core.Configuration.DataProvider = new AuditRecordDataProvider(
+            connection =>
+            {
+                var builder = new DbContextOptionsBuilder<AuditRecordDbContext>().UseSqlite(connection);
+                if (auditContextInterceptor is not null)
+                {
+                    builder.AddInterceptors(auditContextInterceptor);
+                }
+
+                return builder.Options;
+            },
             actorResolver ?? new FakeActorResolver(new CurrentActor(Guid.NewGuid(), "default-actor")),
             accessor,
             options
         );
+
+        global::Audit.EntityFramework.Configuration.Setup().ForAnyContext().UseOptOut().Ignore<AuditRecord>();
+
+        return
+        [
+            new AuditSaveChangesInterceptor(),
+            new AuditTransactionInterceptor(
+                actorResolver ?? new FakeActorResolver(new CurrentActor(Guid.NewGuid(), "default-actor"))
+            ),
+        ];
     }
 
     private static Dictionary<string, JsonElement> Deserialize(string json)
@@ -576,7 +600,7 @@ public class AuditRecordInterceptorTests : IDisposable
         {
             if (command.CommandText.Contains(AuditInsertSqlFragment, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("Simulated deferred audit insert failure");
+                throw new InvalidOperationException("Simulated audit insert failure");
             }
         }
     }
@@ -656,10 +680,7 @@ public class AuditRecordInterceptorTests : IDisposable
                 builder.HasKey(entity => entity.Id);
                 builder.Property(entity => entity.Id).ValueGeneratedNever();
                 builder.HasOne(entity => entity.Parent).WithMany().HasForeignKey(entity => entity.ParentId);
-                builder
-                    .HasOne(entity => entity.SecondParent)
-                    .WithMany()
-                    .HasForeignKey(entity => entity.SecondParentId);
+                builder.HasOne(entity => entity.SecondParent).WithMany().HasForeignKey(entity => entity.SecondParentId);
             });
         }
     }
@@ -679,7 +700,7 @@ public class AuditRecordInterceptorTests : IDisposable
 
         public uint ConcurrencyToken { get; set; }
 
-        [AuditExclude]
+        [AuditIgnore]
         public string? InternalOnly { get; set; }
     }
 

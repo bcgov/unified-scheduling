@@ -60,10 +60,7 @@ public sealed class AuditHistoryService(UnifiedDbContext DB, TimeProvider timePr
         query = sortAscending ? query.OrderBy(r => r.OccurredOn) : query.OrderByDescending(r => r.OccurredOn);
 
         var totalCount = await query.CountAsync(cancellationToken);
-        var pageOfRecords = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        var pageOfRecords = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
         return new AuditHistoryResponse
         {
