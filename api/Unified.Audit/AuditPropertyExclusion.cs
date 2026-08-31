@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore.Metadata;
-using Unified.Audit.Interceptors;
+using Unified.Audit.Options;
 
 namespace Unified.Audit;
 
 /// <summary>
-/// Shared deny-list logic for which entity properties are audited. Used by both the interceptor
-/// that writes <c>AuditRecord</c> rows and the audit schema endpoints (which fields are exposed
-/// as filterable/displayable), so the two stay consistent.
+/// Shared deny-list logic for which entity properties are audited by the audit schema endpoints
+/// (which fields are exposed as filterable/displayable).
 /// </summary>
 public static class AuditPropertyExclusion
 {

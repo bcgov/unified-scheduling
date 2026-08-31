@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using Unified.Audit.Interceptors;
+using Unified.Audit.Options;
 using Unified.Audit.Services;
 using Unified.Db;
 

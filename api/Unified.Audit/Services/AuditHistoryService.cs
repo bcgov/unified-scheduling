@@ -6,7 +6,7 @@ using Unified.Db.Models;
 
 namespace Unified.Audit.Services;
 
-public sealed class AuditHistoryService(UnifiedDbContext DB, TimeProvider timeProvider) : IAuditHistoryService
+public sealed class AuditHistoryService(UnifiedDbContext DB) : IAuditHistoryService
 {
     private const int DefaultPageSize = 25;
 
@@ -19,15 +19,18 @@ public sealed class AuditHistoryService(UnifiedDbContext DB, TimeProvider timePr
         var pageSize = queryParams.PageSize is > 0 ? queryParams.PageSize.Value : DefaultPageSize;
         var sortAscending = string.Equals(queryParams.SortDirection, "asc", StringComparison.OrdinalIgnoreCase);
 
-        var (defaultFrom, defaultTo) = AuditDateRangeDefaults.GetCurrentWeekUtc(timeProvider.GetUtcNow());
-        var from = queryParams.From ?? defaultFrom;
-        var to = queryParams.To ?? defaultTo;
-
-        var query = DB.AuditRecords.AsNoTracking().Where(r => r.OccurredOn >= from && r.OccurredOn <= to);
+        var query = DB
+            .AuditRecords.AsNoTracking()
+            .Where(r => r.OccurredOn >= queryParams.From && r.OccurredOn <= queryParams.To);
 
         if (queryParams.EntityType is { Length: > 0 } entityType)
         {
             query = query.Where(r => r.EntityType == entityType);
+        }
+
+        if (queryParams.EntityPK is { Length: > 0 } entityPK)
+        {
+            query = query.Where(r => r.EntityPK == entityPK);
         }
 
         if (queryParams.Action is { Length: > 0 } action)

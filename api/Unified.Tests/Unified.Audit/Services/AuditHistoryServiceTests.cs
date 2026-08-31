@@ -19,7 +19,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
             .Options;
 
         _dbContext = new UnifiedDbContext(options);
-        _service = new AuditHistoryService(_dbContext, TimeProvider.System);
+        _service = new AuditHistoryService(_dbContext);
 
         return ValueTask.CompletedTask;
     }
@@ -50,16 +50,41 @@ public class AuditHistoryServiceTests : IAsyncLifetime
             ChangedColumns = changedColumns ?? ["FirstName"],
         };
 
+    private static AuditHistoryQueryParams BuildQueryParams(
+        string entityType = "User",
+        string? entityPK = null,
+        string? action = null,
+        List<string>? changedField = null,
+        Guid? actorUserId = null,
+        string? actorName = null,
+        string? sortDirection = null,
+        int? page = null,
+        int? pageSize = null,
+        DateTimeOffset? from = null,
+        DateTimeOffset? to = null
+    ) =>
+        new()
+        {
+            EntityType = entityType,
+            EntityPK = entityPK,
+            Action = action,
+            ChangedField = changedField,
+            ActorUserId = actorUserId,
+            ActorName = actorName,
+            SortDirection = sortDirection,
+            Page = page,
+            PageSize = pageSize,
+            From = from ?? DateTimeOffset.UtcNow.AddDays(-1),
+            To = to ?? DateTimeOffset.UtcNow.AddDays(1),
+        };
+
     [Fact]
-    public async Task GetHistoryAsync_When_No_Filters_Should_Return_All_Records_In_Default_Week()
+    public async Task GetHistoryAsync_When_No_Other_Filters_Should_Return_All_Records_For_EntityType()
     {
-        _dbContext.AuditRecords.AddRange(BuildRecord(), BuildRecord(entityType: "Role"));
+        _dbContext.AuditRecords.AddRange(BuildRecord(), BuildRecord(actorName: "John Smith"));
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams(),
-            TestContext.Current.CancellationToken
-        );
+        var result = await _service.GetHistoryAsync(BuildQueryParams(), TestContext.Current.CancellationToken);
 
         Assert.Equal(2, result.TotalCount);
         Assert.Equal(2, result.Data.Count);
@@ -72,12 +97,27 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { EntityType = "Role" },
+            BuildQueryParams(entityType: "Role"),
             TestContext.Current.CancellationToken
         );
 
         Assert.Single(result.Data);
         Assert.Equal("Role", result.Data[0].EntityType);
+    }
+
+    [Fact]
+    public async Task GetHistoryAsync_When_Filtered_By_EntityPK_Should_Return_Matching_Only()
+    {
+        _dbContext.AuditRecords.AddRange(BuildRecord(entityPK: "1"), BuildRecord(entityPK: "2"));
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _service.GetHistoryAsync(
+            BuildQueryParams(entityPK: "2"),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Single(result.Data);
+        Assert.Equal("2", result.Data[0].EntityPK);
     }
 
     [Fact]
@@ -87,7 +127,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { Action = "Added" },
+            BuildQueryParams(action: "Added"),
             TestContext.Current.CancellationToken
         );
 
@@ -105,7 +145,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { ChangedField = ["LastName"] },
+            BuildQueryParams(changedField: ["LastName"]),
             TestContext.Current.CancellationToken
         );
 
@@ -124,7 +164,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { ChangedField = ["FirstName", "LastName"] },
+            BuildQueryParams(changedField: ["FirstName", "LastName"]),
             TestContext.Current.CancellationToken
         );
 
@@ -141,7 +181,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { ActorUserId = otherActor },
+            BuildQueryParams(actorUserId: otherActor),
             TestContext.Current.CancellationToken
         );
 
@@ -156,7 +196,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { ActorName = "jane" },
+            BuildQueryParams(actorName: "jane"),
             TestContext.Current.CancellationToken
         );
 
@@ -173,7 +213,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { SortDirection = "asc" },
+            BuildQueryParams(sortDirection: "asc"),
             TestContext.Current.CancellationToken
         );
 
@@ -187,7 +227,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams { Page = 5, PageSize = 10 },
+            BuildQueryParams(page: 5, pageSize: 10),
             TestContext.Current.CancellationToken
         );
 
@@ -198,10 +238,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
     [Fact]
     public async Task GetHistoryAsync_When_No_Records_Match_Should_Return_Empty_Result()
     {
-        var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams(),
-            TestContext.Current.CancellationToken
-        );
+        var result = await _service.GetHistoryAsync(BuildQueryParams(), TestContext.Current.CancellationToken);
 
         Assert.Empty(result.Data);
         Assert.Equal(0, result.TotalCount);
@@ -213,10 +250,7 @@ public class AuditHistoryServiceTests : IAsyncLifetime
         _dbContext.AuditRecords.Add(BuildRecord(occurredOn: DateTimeOffset.UtcNow.AddDays(-30)));
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var result = await _service.GetHistoryAsync(
-            new AuditHistoryQueryParams(),
-            TestContext.Current.CancellationToken
-        );
+        var result = await _service.GetHistoryAsync(BuildQueryParams(), TestContext.Current.CancellationToken);
 
         Assert.Empty(result.Data);
     }

@@ -1,4 +1,4 @@
-namespace Unified.Audit.Interceptors;
+namespace Unified.Audit.Options;
 
 public sealed class AuditRecordOptions
 {

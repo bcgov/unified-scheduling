@@ -3,7 +3,11 @@ namespace Unified.Audit.Models;
 /// <summary>Query parameters accepted by GET /api/audit/history.</summary>
 public sealed record AuditHistoryQueryParams
 {
-    public string? EntityType { get; init; }
+    /// <summary>Entity type name to scope the query to; always required.</summary>
+    public required string EntityType { get; init; }
+
+    /// <summary>Exact match on EntityPK.</summary>
+    public string? EntityPK { get; init; }
 
     /// <summary>Added, Modified, or Deleted.</summary>
     public string? Action { get; init; }
@@ -16,11 +20,11 @@ public sealed record AuditHistoryQueryParams
     /// <summary>Case-insensitive partial match on ActorName.</summary>
     public string? ActorName { get; init; }
 
-    /// <summary>Inclusive lower bound on OccurredOn; defaults to start of current week (UTC).</summary>
-    public DateTimeOffset? From { get; init; }
+    /// <summary>Inclusive lower bound on OccurredOn; always required.</summary>
+    public required DateTimeOffset From { get; init; }
 
-    /// <summary>Inclusive upper bound on OccurredOn; defaults to end of current week (UTC).</summary>
-    public DateTimeOffset? To { get; init; }
+    /// <summary>Inclusive upper bound on OccurredOn; always required.</summary>
+    public required DateTimeOffset To { get; init; }
 
     public int? Page { get; init; }
 

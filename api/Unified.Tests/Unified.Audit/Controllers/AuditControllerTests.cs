@@ -30,7 +30,15 @@ public class AuditControllerTests
         };
         var controller = BuildController(historyService: new FakeAuditHistoryService { HistoryResult = expected });
 
-        var result = await controller.GetHistory(new AuditHistoryQueryParams(), TestContext.Current.CancellationToken);
+        var result = await controller.GetHistory(
+            new AuditHistoryQueryParams
+            {
+                EntityType = "User",
+                From = DateTimeOffset.UtcNow.AddDays(-1),
+                To = DateTimeOffset.UtcNow,
+            },
+            TestContext.Current.CancellationToken
+        );
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Same(expected, okResult.Value);
@@ -42,7 +50,12 @@ public class AuditControllerTests
         var controller = BuildController(schemaService: new FakeAuditSchemaService { KnownEntityTypes = [] });
 
         var result = await controller.GetHistory(
-            new AuditHistoryQueryParams { EntityType = "NotAnEntity" },
+            new AuditHistoryQueryParams
+            {
+                EntityType = "NotAnEntity",
+                From = DateTimeOffset.UtcNow.AddDays(-1),
+                To = DateTimeOffset.UtcNow,
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -55,7 +68,16 @@ public class AuditControllerTests
         var controller = BuildController();
 
         await Assert.ThrowsAsync<FluentValidation.ValidationException>(() =>
-            controller.GetHistory(new AuditHistoryQueryParams { PageSize = 101 }, TestContext.Current.CancellationToken)
+            controller.GetHistory(
+                new AuditHistoryQueryParams
+                {
+                    EntityType = "User",
+                    From = DateTimeOffset.UtcNow.AddDays(-1),
+                    To = DateTimeOffset.UtcNow,
+                    PageSize = 101,
+                },
+                TestContext.Current.CancellationToken
+            )
         );
     }
 

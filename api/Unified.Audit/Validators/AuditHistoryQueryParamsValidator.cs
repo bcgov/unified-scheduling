@@ -12,6 +12,8 @@ public class AuditHistoryQueryParamsValidator : AbstractValidator<AuditHistoryQu
     {
         RuleFor(x => x.Page).GreaterThanOrEqualTo(1).WithMessage("Page must be at least 1.").When(x => x.Page.HasValue);
 
+        RuleFor(x => x.EntityType).NotEmpty().WithMessage("EntityType is required.");
+
         RuleFor(x => x.PageSize)
             .GreaterThanOrEqualTo(1)
             .WithMessage("PageSize must be at least 1.")
@@ -29,8 +31,13 @@ public class AuditHistoryQueryParamsValidator : AbstractValidator<AuditHistoryQu
             .WithMessage("SortDirection must be 'asc' or 'desc'.")
             .When(x => !string.IsNullOrEmpty(x.SortDirection));
 
+        RuleFor(x => x.From).NotEmpty().WithMessage("From is required.");
+
+        RuleFor(x => x.To).NotEmpty().WithMessage("To is required.");
+
         RuleFor(x => x)
-            .Must(x => !x.From.HasValue || !x.To.HasValue || x.From <= x.To)
-            .WithMessage("From must be on or before To.");
+            .Must(x => x.From <= x.To)
+            .WithMessage("From must be on or before To.")
+            .When(x => x.From != default && x.To != default);
     }
 }

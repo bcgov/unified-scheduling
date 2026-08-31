@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Unified.Audit.Interceptors;
+using Unified.Audit.Options;
 using Unified.Audit.Services;
 using Unified.Audit.Validators;
 using Unified.Authorization;
@@ -18,7 +17,6 @@ public static class AuditModule
         services.AddScoped<ICurrentActorResolver, HttpContextActorResolver>();
 
         services.AddMemoryCache();
-        services.TryAddSingleton(TimeProvider.System);
 
         services.AddScoped<IAuditHistoryService, AuditHistoryService>();
         services.AddScoped<IAuditSchemaService, AuditSchemaService>();
