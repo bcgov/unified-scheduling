@@ -13,7 +13,7 @@ public static class InterceptorRegistration
     public static IServiceCollection AddInterceptors(this IServiceCollection services)
     {
         // Interceptors are executed by EF Core in the order they are registered.
-        // 1. Business save rules 
+        // 1. Business save rules
         services.AddScoped<IInterceptor, SaveRulesInterceptor>();
 
         return services;
