@@ -53,9 +53,10 @@ const searchQuery = computed({
   },
 });
 const hasActiveSearch = computed(() => searchQuery.value.trim().length > 0);
-const isDraggableEnabled = computed(() => props.draggable && !props.paginate && !hasActiveSearch.value);
-
 const isServerPaginated = computed(() => props.itemsLength != null);
+const isDraggableEnabled = computed(
+  () => props.draggable && !props.paginate && !hasActiveSearch.value && !isServerPaginated.value,
+);
 
 const forwardedAttrs = computed(() => {
   const forwarded = { ...attrs };

@@ -17,7 +17,7 @@ const baseProps = {
 };
 
 describe('AuditFilters', () => {
-  it('renders a labeled Entity ID filter and emits updates onP input', async () => {
+  it('renders a labeled Entity ID filter and emits updates on input', async () => {
     const app = await createTestApp();
 
     const wrapper = mount(AuditFilters, {
