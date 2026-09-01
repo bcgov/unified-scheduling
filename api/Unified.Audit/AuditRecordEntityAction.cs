@@ -2,7 +2,7 @@ using System.Text.Json;
 using Audit.Core;
 using Audit.EntityFramework;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Unified.Common.Audit;
+using Unified.Audit.Options;
 using Unified.Db.Models;
 
 namespace Unified.Audit;
@@ -41,12 +41,11 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         record.ActorName = actor.ActorName;
         record.Action = MapAction(entry.Action);
         record.EntityType = entityType.ClrType.Name;
-        record.TableName = entry.Table;
-        record.KeyValues = JsonSerializer.Serialize(entry.PrimaryKey, SerializerOptions);
+        record.TableName = entry.Table;    // Every table in this schema uses a single "Id" column as its primary key.
+        record.EntityPK = entry.PrimaryKey.Values.Single()?.ToString() ?? string.Empty;
         record.OldValues = BuildValues(entry, entityType, oldValues: true);
         record.NewValues = BuildValues(entry, entityType, oldValues: false);
         record.ChangedColumns = changedColumns is { Length: > 0 } ? changedColumns : null;
-        record.SourceModule = options.SourceModule;
         // Populated from the ambient System.Diagnostics.Activity (Audit.Core.Configuration.IncludeActivityTrace, set in AuditModule).
         record.CorrelationId = auditEvent.Activity?.TraceId;
 
