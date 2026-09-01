@@ -4,10 +4,10 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { SchedulingCalendarShiftEventResponse } from './schedulingCalendarShiftEventResponse.ts';
+import type { SchedulingCalendarEventResponse } from './schedulingCalendarEventResponse.ts';
 
 export interface SchedulingCalendarDataResponse {
   moduleId?: string;
   contributionId?: string;
-  events?: SchedulingCalendarShiftEventResponse[];
+  events?: SchedulingCalendarEventResponse[];
 }
