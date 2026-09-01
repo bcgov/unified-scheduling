@@ -51,8 +51,8 @@ public static class AuditModule
         // AuditRecordEntityAction uses as the audit record's correlation id.
         global::Audit.Core.Configuration.IncludeActivityTrace = true;
 
-        global::Audit.Core.Configuration
-            .Setup()
+        global::Audit
+            .Core.Configuration.Setup()
             .UseEntityFramework(ef =>
                 ef.AuditTypeMapper(_ => typeof(AuditRecord))
                     .AuditEntityAction<AuditRecord>(entityAction.Populate)
@@ -66,6 +66,5 @@ public static class AuditModule
         global::Audit.EntityFramework.Configuration.Setup().ForAnyContext().UseOptOut().Ignore<AuditRecord>();
 
         return services;
-    }  
+    }
 }
-

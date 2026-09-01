@@ -33,8 +33,8 @@ public sealed class AuditPipelineTests : IAsyncLifetime
             new AuditRecordOptions()
         );
 
-        global::Audit.Core.Configuration
-            .Setup()
+        global::Audit
+            .Core.Configuration.Setup()
             .UseEntityFramework(ef =>
                 ef.AuditTypeMapper(_ => typeof(AuditRecord))
                     .AuditEntityAction<AuditRecord>(entityAction.Populate)
@@ -180,9 +180,7 @@ public sealed class AuditPipelineTests : IAsyncLifetime
 
         dbContext.Regions.Add(new Region { Name = "South" });
 
-        await Assert.ThrowsAnyAsync<Exception>(() =>
-            dbContext.SaveChangesAsync(TestContext.Current.CancellationToken)
-        );
+        await Assert.ThrowsAnyAsync<Exception>(() => dbContext.SaveChangesAsync(TestContext.Current.CancellationToken));
 
         Assert.Empty(await dbContext.Regions.ToListAsync(TestContext.Current.CancellationToken));
         Assert.Empty(await dbContext.AuditRecords.ToListAsync(TestContext.Current.CancellationToken));
@@ -201,9 +199,7 @@ public sealed class AuditPipelineTests : IAsyncLifetime
 
         dbContext.Regions.Add(new Region { Name = "South" });
 
-        await Assert.ThrowsAnyAsync<Exception>(() =>
-            dbContext.SaveChangesAsync(TestContext.Current.CancellationToken)
-        );
+        await Assert.ThrowsAnyAsync<Exception>(() => dbContext.SaveChangesAsync(TestContext.Current.CancellationToken));
 
         Assert.Empty(await dbContext.Regions.ToListAsync(TestContext.Current.CancellationToken));
         Assert.Empty(await dbContext.AuditRecords.ToListAsync(TestContext.Current.CancellationToken));

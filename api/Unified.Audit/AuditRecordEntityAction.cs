@@ -41,7 +41,7 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         record.ActorName = actor.ActorName;
         record.Action = MapAction(entry.Action);
         record.EntityType = entityType.ClrType.Name;
-        record.TableName = entry.Table;    // Every table in this schema uses a single "Id" column as its primary key.
+        record.TableName = entry.Table; // Every table in this schema uses a single "Id" column as its primary key.
         record.EntityPK = entry.PrimaryKey.Values.Single()?.ToString() ?? string.Empty;
         record.OldValues = BuildValues(entry, entityType, oldValues: true);
         record.NewValues = BuildValues(entry, entityType, oldValues: false);

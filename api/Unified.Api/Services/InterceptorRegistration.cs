@@ -20,4 +20,3 @@ public static class InterceptorRegistration
         return services;
     }
 }
-
