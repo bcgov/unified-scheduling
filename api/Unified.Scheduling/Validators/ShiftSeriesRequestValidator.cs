@@ -22,12 +22,16 @@ public sealed class ShiftSeriesRequestValidator : AbstractValidator<ShiftSeriesR
         RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
-        RuleFor(request => request.AssignmentSeriesIds).Must(HaveDistinctIds).When(request => request.AssignmentSeriesIds is not null);
+        RuleFor(request => request.AssignmentSeriesIds)
+            .Must(HaveDistinctIds)
+            .When(request => request.AssignmentSeriesIds is not null);
         RuleFor(request => request.AssignmentSeriesIds)
             .Null()
             .WithMessage("Use either AssignmentSeriesIds or AssignmentSeriesLinks, not both.")
             .When(request => request.AssignmentSeriesLinks is not null);
-        RuleForEach(request => request.AssignmentSeriesIds).GreaterThan(0).When(request => request.AssignmentSeriesIds is not null);
+        RuleForEach(request => request.AssignmentSeriesIds)
+            .GreaterThan(0)
+            .When(request => request.AssignmentSeriesIds is not null);
         RuleFor(request => request.AssignedUserIds)
             .NotNull()
             .NotEmpty()

@@ -19,9 +19,7 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
         if (locationId is int id)
             query = query.Where(definition => definition.LocationId == id);
 
-        var definitions = await query
-            .OrderBy(definition => definition.Name)
-            .ToListAsync(cancellationToken);
+        var definitions = await query.OrderBy(definition => definition.Name).ToListAsync(cancellationToken);
 
         return definitions.Select(MapToResponse).ToList();
     }
@@ -70,7 +68,10 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
         CancellationToken cancellationToken = default
     )
     {
-        var definition = await db.AssignmentDefinitions.SingleOrDefaultAsync(definition => definition.Id == id, cancellationToken);
+        var definition = await db.AssignmentDefinitions.SingleOrDefaultAsync(
+            definition => definition.Id == id,
+            cancellationToken
+        );
         if (definition is null)
             return null;
 
@@ -101,18 +102,35 @@ public sealed class AssignmentDefinitionService(ILogger<AssignmentDefinitionServ
     {
         var now = DateTimeOffset.UtcNow;
         var name = NormalizeNameForComparison(request.Name);
-        if (await db.AssignmentDefinitions.AnyAsync(
+        if (
+            await db.AssignmentDefinitions.AnyAsync(
                 definition =>
                     definition.LocationId == request.LocationId
                     && definition.Name.ToUpper() == name
                     && (!currentId.HasValue || definition.Id != currentId.Value),
-                cancellationToken))
+                cancellationToken
+            )
+        )
             throw new InvalidOperationException($"Assignment definition name {request.Name.Trim()} already exists.");
         if (!await db.Locations.AnyAsync(location => location.Id == request.LocationId, cancellationToken))
             throw new InvalidOperationException("Location does not exist.");
-        if (!await IsActiveCodeAsync(db.AssignmentCategoryTypes, request.AssignmentCategoryTypeId, now, cancellationToken))
+        if (
+            !await IsActiveCodeAsync(
+                db.AssignmentCategoryTypes,
+                request.AssignmentCategoryTypeId,
+                now,
+                cancellationToken
+            )
+        )
             throw new InvalidOperationException("Assignment category type is not active.");
-        if (!await IsActiveCodeAsync(db.AssignmentSubCategoryTypes, request.AssignmentSubCategoryTypeId, now, cancellationToken))
+        if (
+            !await IsActiveCodeAsync(
+                db.AssignmentSubCategoryTypes,
+                request.AssignmentSubCategoryTypeId,
+                now,
+                cancellationToken
+            )
+        )
             throw new InvalidOperationException("Assignment subcategory type is not active.");
     }
 

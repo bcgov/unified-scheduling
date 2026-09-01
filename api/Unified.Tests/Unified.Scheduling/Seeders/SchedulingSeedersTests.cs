@@ -113,9 +113,7 @@ public sealed class SchedulingSeedersTests : IAsyncLifetime
         Assert.Contains(
             subCategoryTypes,
             type =>
-                type.Code == "OUT_OF_CUSTODY"
-                && type.Description == "Out of custody"
-                && type.ParentCode == "EscortRun"
+                type.Code == "OUT_OF_CUSTODY" && type.Description == "Out of custody" && type.ParentCode == "EscortRun"
         );
         Assert.Contains(
             subCategoryTypes,

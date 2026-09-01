@@ -4,7 +4,8 @@ using Unified.Db.Models.Scheduling;
 
 namespace Unified.Db.Configuration.Scheduling;
 
-public class ShiftAssignmentSeriesLinkConfiguration : BaseEntityConfiguration<ShiftAssignmentSeriesLink>
+public class ShiftAssignmentSeriesLinkConfiguration
+    : BaseEntityConfiguration<ShiftAssignmentSeriesLink>
 {
     public override void Configure(EntityTypeBuilder<ShiftAssignmentSeriesLink> builder)
     {

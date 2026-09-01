@@ -94,8 +94,7 @@ public sealed class ShiftAssignmentService(
             .Include(link => link.ShiftAssignmentSeriesLink)
                 .ThenInclude(link => link!.Users)
             .Where(link =>
-                shiftEntryIds.Contains(link.ShiftEntryId)
-                && assignmentEntryIds.Contains(link.AssignmentEntryId)
+                shiftEntryIds.Contains(link.ShiftEntryId) && assignmentEntryIds.Contains(link.AssignmentEntryId)
             )
             .ToListAsync(cancellationToken);
 
@@ -134,8 +133,7 @@ public sealed class ShiftAssignmentService(
         else
         {
             var conflictingLink = existingLinks.FirstOrDefault(link =>
-                link.ShiftAssignmentSeriesLinkId is not null
-                && link.ShiftAssignmentSeriesLinkId != seriesLink.Id
+                link.ShiftAssignmentSeriesLinkId is not null && link.ShiftAssignmentSeriesLinkId != seriesLink.Id
             );
             if (conflictingLink is not null)
                 throw new InvalidOperationException(
@@ -151,9 +149,7 @@ public sealed class ShiftAssignmentService(
 
         SyncSeriesLinkUsers(seriesLink, selectedUserIds);
 
-        var intersectionKeys = intersections
-            .Select(pair => (pair.shiftEntry.Id, pair.assignmentEntry.Id))
-            .ToHashSet();
+        var intersectionKeys = intersections.Select(pair => (pair.shiftEntry.Id, pair.assignmentEntry.Id)).ToHashSet();
         var existingLinksByPair = existingLinks.ToDictionary(
             link => (link.ShiftEntryId, link.AssignmentEntryId),
             link => link
@@ -172,19 +168,13 @@ public sealed class ShiftAssignmentService(
                 continue;
             }
 
-            var link = CreateLink(
-                shiftEntry.Id,
-                assignmentEntry.Id,
-                selectedUserIds,
-                seriesLink,
-                isException: false
-            );
+            var link = CreateLink(shiftEntry.Id, assignmentEntry.Id, selectedUserIds, seriesLink, isException: false);
             db.ShiftAssignmentEntries.Add(link);
             syncedLinks.Add(link);
         }
 
-        var obsoleteGeneratedLinks = seriesLink.EntryLinks
-            .Where(link => !intersectionKeys.Contains((link.ShiftEntryId, link.AssignmentEntryId)))
+        var obsoleteGeneratedLinks = seriesLink
+            .EntryLinks.Where(link => !intersectionKeys.Contains((link.ShiftEntryId, link.AssignmentEntryId)))
             .Where(link => !link.IsException)
             .ToList();
         RemoveLinks(obsoleteGeneratedLinks);
@@ -217,11 +207,15 @@ public sealed class ShiftAssignmentService(
             return [];
 
         if (assignmentEntryIds is null)
-            throw new InvalidOperationException("AssignmentEntryIds must be provided when AssignedUserIds is provided.");
+            throw new InvalidOperationException(
+                "AssignmentEntryIds must be provided when AssignedUserIds is provided."
+            );
 
         var requestedAssignmentEntryIds = assignmentEntryIds.Distinct().ToHashSet();
         if (requestedAssignmentEntryIds.Count > 0 && assignedUserIds is null)
-            throw new InvalidOperationException("AssignedUserIds must be provided when AssignmentEntryIds are provided.");
+            throw new InvalidOperationException(
+                "AssignedUserIds must be provided when AssignmentEntryIds are provided."
+            );
         var requestedUserIds = assignedUserIds ?? [];
 
         var existingLinks = await db
@@ -267,7 +261,10 @@ public sealed class ShiftAssignmentService(
         if (assignmentEntryLinks is null)
             return [];
 
-        var requestedAssignmentEntryIds = assignmentEntryLinks.Select(link => link.AssignmentEntryId).Distinct().ToHashSet();
+        var requestedAssignmentEntryIds = assignmentEntryLinks
+            .Select(link => link.AssignmentEntryId)
+            .Distinct()
+            .ToHashSet();
         var existingLinks = await db
             .ShiftAssignmentEntries.Include(link => link.Users)
             .Include(link => link.AssignmentEntry)
@@ -313,17 +310,15 @@ public sealed class ShiftAssignmentService(
             return [];
 
         var requestedAssignmentSeriesIds = assignmentSeriesIds.Distinct().ToHashSet();
-        await RemoveShiftSeriesLinksNotRequestedAsync(
-            shiftSeriesId,
-            requestedAssignmentSeriesIds,
-            cancellationToken
-        );
+        await RemoveShiftSeriesLinksNotRequestedAsync(shiftSeriesId, requestedAssignmentSeriesIds, cancellationToken);
 
         if (requestedAssignmentSeriesIds.Count == 0)
             return [];
 
         if (assignedUserIds is null)
-            throw new InvalidOperationException("AssignedUserIds must be provided when AssignmentSeriesIds are provided.");
+            throw new InvalidOperationException(
+                "AssignedUserIds must be provided when AssignmentSeriesIds are provided."
+            );
 
         var links = new List<ShiftAssignmentEntryResponse>();
         foreach (var assignmentSeriesId in requestedAssignmentSeriesIds)
@@ -353,11 +348,7 @@ public sealed class ShiftAssignmentService(
             return [];
 
         var requestedAssignmentSeriesIds = assignmentSeriesLinks.Select(link => link.AssignmentSeriesId).ToHashSet();
-        await RemoveShiftSeriesLinksNotRequestedAsync(
-            shiftSeriesId,
-            requestedAssignmentSeriesIds,
-            cancellationToken
-        );
+        await RemoveShiftSeriesLinksNotRequestedAsync(shiftSeriesId, requestedAssignmentSeriesIds, cancellationToken);
 
         if (requestedAssignmentSeriesIds.Count == 0)
             return [];
@@ -600,7 +591,7 @@ public sealed class ShiftAssignmentService(
         var link = await db
             .ShiftAssignmentEntries.Include(existingLink => existingLink.Users)
             .Include(existingLink => existingLink.ShiftAssignmentSeriesLink)
-            .ThenInclude(seriesLink => seriesLink!.Users)
+                .ThenInclude(seriesLink => seriesLink!.Users)
             .SingleOrDefaultAsync(
                 existingLink =>
                     existingLink.ShiftEntryId == shiftEntry.Id && existingLink.AssignmentEntryId == assignmentEntry.Id,
@@ -742,8 +733,7 @@ public sealed class ShiftAssignmentService(
             .Include(link => link.EntryLinks)
                 .ThenInclude(entryLink => entryLink.Users)
             .Where(link =>
-                link.ShiftSeriesId == shiftSeriesId
-                && !requestedAssignmentSeriesIds.Contains(link.AssignmentSeriesId)
+                link.ShiftSeriesId == shiftSeriesId && !requestedAssignmentSeriesIds.Contains(link.AssignmentSeriesId)
             )
             .ToListAsync(cancellationToken);
 
@@ -762,8 +752,7 @@ public sealed class ShiftAssignmentService(
             .Include(link => link.EntryLinks)
                 .ThenInclude(entryLink => entryLink.Users)
             .Where(link =>
-                link.AssignmentSeriesId == assignmentSeriesId
-                && !requestedShiftSeriesIds.Contains(link.ShiftSeriesId)
+                link.AssignmentSeriesId == assignmentSeriesId && !requestedShiftSeriesIds.Contains(link.ShiftSeriesId)
             )
             .ToListAsync(cancellationToken);
 
@@ -845,10 +834,7 @@ public sealed class ShiftAssignmentService(
     {
         var assignmentCapacityById = assignmentEntries.ToDictionary(entry => entry.Id, entry => entry.Capacity);
         var entryLinkResponses = entryLinks
-            .Select(link => MapToResponse(
-                link,
-                assignmentCapacityById.GetValueOrDefault(link.AssignmentEntryId)
-            ))
+            .Select(link => MapToResponse(link, assignmentCapacityById.GetValueOrDefault(link.AssignmentEntryId)))
             .ToList();
 
         return new ShiftAssignmentSeriesLinkResponse

@@ -57,10 +57,7 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
         );
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        _service = new AssignmentDefinitionService(
-            NullLogger<AssignmentDefinitionService>.Instance,
-            _dbContext
-        );
+        _service = new AssignmentDefinitionService(NullLogger<AssignmentDefinitionService>.Instance, _dbContext);
     }
 
     public async ValueTask DisposeAsync()
@@ -113,10 +110,7 @@ public sealed class AssignmentDefinitionServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         await _service.CreateAssignmentDefinitionAsync(
-            CreateRequest(
-                name: "future",
-                effectiveDate: DateTimeOffset.UtcNow.AddDays(7)
-            ),
+            CreateRequest(name: "future", effectiveDate: DateTimeOffset.UtcNow.AddDays(7)),
             TestContext.Current.CancellationToken
         );
         await _service.CreateAssignmentDefinitionAsync(

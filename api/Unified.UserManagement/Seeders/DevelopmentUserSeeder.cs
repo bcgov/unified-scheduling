@@ -54,19 +54,14 @@ public sealed class DevelopmentUserSeeder(
         CancellationToken cancellationToken
     )
     {
-        var role = await dbContext
-            .Roles.FirstOrDefaultAsync(
-                candidate => candidate.Name == DeveloperRoleName && candidate.DeletedById == null,
-                cancellationToken
-            );
+        var role = await dbContext.Roles.FirstOrDefaultAsync(
+            candidate => candidate.Name == DeveloperRoleName && candidate.DeletedById == null,
+            cancellationToken
+        );
 
         if (role is null)
         {
-            role = new Role
-            {
-                Name = DeveloperRoleName,
-                Description = "Developer",
-            };
+            role = new Role { Name = DeveloperRoleName, Description = "Developer" };
             await dbContext.Roles.AddAsync(role, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             return role;
@@ -84,7 +79,10 @@ public sealed class DevelopmentUserSeeder(
         CancellationToken cancellationToken
     )
     {
-        var user = await dbContext.Users.FirstOrDefaultAsync(candidate => candidate.Id == developerUserId, cancellationToken);
+        var user = await dbContext.Users.FirstOrDefaultAsync(
+            candidate => candidate.Id == developerUserId,
+            cancellationToken
+        );
 
         if (user is null)
         {
@@ -120,7 +118,9 @@ public sealed class DevelopmentUserSeeder(
         CancellationToken cancellationToken
     )
     {
-        var permissionIds = await dbContext.Permissions.Select(permission => permission.Id).ToListAsync(cancellationToken);
+        var permissionIds = await dbContext
+            .Permissions.Select(permission => permission.Id)
+            .ToListAsync(cancellationToken);
         var permissionIdSet = permissionIds.ToHashSet(StringComparer.Ordinal);
         var existingRolePermissions = await dbContext
             .RolePermissions.Where(rolePermission => rolePermission.RoleId == roleId)
@@ -133,14 +133,12 @@ public sealed class DevelopmentUserSeeder(
             existingRolePermissions.Where(rolePermission => !permissionIdSet.Contains(rolePermission.PermissionId))
         );
 
-        foreach (var permissionId in permissionIds.Where(permissionId => !existingPermissionIdSet.Contains(permissionId)))
+        foreach (
+            var permissionId in permissionIds.Where(permissionId => !existingPermissionIdSet.Contains(permissionId))
+        )
         {
             await dbContext.RolePermissions.AddAsync(
-                new RolePermission
-                {
-                    RoleId = roleId,
-                    PermissionId = permissionId,
-                },
+                new RolePermission { RoleId = roleId, PermissionId = permissionId },
                 cancellationToken
             );
         }
@@ -153,11 +151,10 @@ public sealed class DevelopmentUserSeeder(
         CancellationToken cancellationToken
     )
     {
-        var userRole = await dbContext
-            .UserRoles.FirstOrDefaultAsync(
-                candidate => candidate.UserId == developerUserId && candidate.RoleId == roleId,
-                cancellationToken
-            );
+        var userRole = await dbContext.UserRoles.FirstOrDefaultAsync(
+            candidate => candidate.UserId == developerUserId && candidate.RoleId == roleId,
+            cancellationToken
+        );
 
         if (userRole is null)
         {

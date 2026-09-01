@@ -10,7 +10,9 @@ public sealed class AssignmentRequestValidatorTests
     [InlineData(null)]
     [InlineData(0)]
     [InlineData(-1)]
-    public async Task AssignmentSeriesRequestValidator_WhenLocationIdIsMissingOrInvalid_HasLocationError(int? locationId)
+    public async Task AssignmentSeriesRequestValidator_WhenLocationIdIsMissingOrInvalid_HasLocationError(
+        int? locationId
+    )
     {
         var validator = new AssignmentSeriesRequestValidator();
         var request = CreateAssignmentSeriesRequest(locationId);

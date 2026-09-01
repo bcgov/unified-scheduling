@@ -26,12 +26,16 @@ public sealed class ShiftEntryRequestValidator : AbstractValidator<ShiftEntryReq
         RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
-        RuleFor(request => request.AssignmentEntryIds).Must(HaveDistinctIds).When(request => request.AssignmentEntryIds is not null);
+        RuleFor(request => request.AssignmentEntryIds)
+            .Must(HaveDistinctIds)
+            .When(request => request.AssignmentEntryIds is not null);
         RuleFor(request => request.AssignmentEntryIds)
             .Null()
             .WithMessage("Use either AssignmentEntryIds or AssignmentEntryLinks, not both.")
             .When(request => request.AssignmentEntryLinks is not null);
-        RuleForEach(request => request.AssignmentEntryIds).GreaterThan(0).When(request => request.AssignmentEntryIds is not null);
+        RuleForEach(request => request.AssignmentEntryIds)
+            .GreaterThan(0)
+            .When(request => request.AssignmentEntryIds is not null);
         RuleFor(request => request.AssignedUserIds)
             .NotNull()
             .WithMessage("AssignedUserIds must be provided when AssignmentEntryIds are provided.")

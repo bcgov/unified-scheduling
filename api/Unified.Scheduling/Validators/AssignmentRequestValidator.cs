@@ -13,9 +13,7 @@ public sealed class AssignmentSeriesRequestValidator : AbstractValidator<Assignm
             .GreaterThan(request => request.StartAtUtc)
             .When(request => request.EndAtUtc.HasValue);
         RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
-        RuleFor(request => request.Capacity)
-            .GreaterThanOrEqualTo(1)
-            .When(request => request.Capacity.HasValue);
+        RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1).When(request => request.Capacity.HasValue);
         RuleFor(request => request.RecurrenceRule).NotEmpty();
         RuleFor(request => request.ShiftSeriesIds)
             .Must(AssignmentRequestValidatorHelpers.HaveDistinctIds)
@@ -61,9 +59,7 @@ public sealed class AssignmentEntryRequestValidator : AbstractValidator<Assignme
             .GreaterThan(request => request.StartAtUtc)
             .When(request => request.EndAtUtc.HasValue);
         RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
-        RuleFor(request => request.Capacity)
-            .GreaterThanOrEqualTo(1)
-            .When(request => request.Capacity.HasValue);
+        RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1).When(request => request.Capacity.HasValue);
         RuleFor(request => request.ShiftEntryIds)
             .Must(AssignmentRequestValidatorHelpers.HaveDistinctIds)
             .When(request => request.ShiftEntryIds is not null);
@@ -71,9 +67,7 @@ public sealed class AssignmentEntryRequestValidator : AbstractValidator<Assignme
             .Null()
             .WithMessage("Use either ShiftEntryIds or ShiftEntryLinks, not both.")
             .When(request => request.ShiftEntryLinks is not null);
-        RuleForEach(request => request.ShiftEntryIds)
-            .GreaterThan(0)
-            .When(request => request.ShiftEntryIds is not null);
+        RuleForEach(request => request.ShiftEntryIds).GreaterThan(0).When(request => request.ShiftEntryIds is not null);
         RuleFor(request => request.AssignedUserIds)
             .NotNull()
             .WithMessage("AssignedUserIds must be provided when ShiftEntryIds are provided.")
@@ -93,7 +87,6 @@ public sealed class AssignmentEntryRequestValidator : AbstractValidator<Assignme
             .When(request => request.ShiftEntryLinks is not null);
         RuleForEach(request => request.ShiftEntryLinks).SetValidator(new ShiftEntryLinkRequestValidator());
     }
-
 }
 
 public sealed class ShiftEntryLinkRequestValidator : AbstractValidator<ShiftEntryLinkRequest>

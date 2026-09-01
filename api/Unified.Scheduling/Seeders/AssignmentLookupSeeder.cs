@@ -36,7 +36,11 @@ public sealed class AssignmentLookupSeeder(ILogger<AssignmentLookupSeeder> logge
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
-        var categoryTypesByCode = await UpsertCodesAsync(dbContext.AssignmentCategoryTypes, CategoryTypes, cancellationToken);
+        var categoryTypesByCode = await UpsertCodesAsync(
+            dbContext.AssignmentCategoryTypes,
+            CategoryTypes,
+            cancellationToken
+        );
         await UpsertSubCategoryCodesAsync(dbContext, categoryTypesByCode, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -84,8 +88,10 @@ public sealed class AssignmentLookupSeeder(ILogger<AssignmentLookupSeeder> logge
         foreach (var (code, description, parentCategoryCode) in SubCategoryTypes)
         {
             var parentCategoryType = categoryTypesByCode[parentCategoryCode];
-            var existing = await dbContext
-                .AssignmentSubCategoryTypes.SingleOrDefaultAsync(item => item.Code == code, cancellationToken);
+            var existing = await dbContext.AssignmentSubCategoryTypes.SingleOrDefaultAsync(
+                item => item.Code == code,
+                cancellationToken
+            );
 
             if (existing is null)
             {

@@ -52,10 +52,7 @@ public sealed class ShiftRequestValidatorTests
     public async Task ShiftSeriesRequestValidator_WhenAssignedUsersContainUserNotOnShift_Fails()
     {
         var validator = new ShiftSeriesRequestValidator();
-        var request = CreateShiftSeriesRequest(
-            assignmentSeriesIds: [1],
-            assignedUserIds: [UserB]
-        );
+        var request = CreateShiftSeriesRequest(assignmentSeriesIds: [1], assignedUserIds: [UserB]);
 
         var result = await validator.TestValidateAsync(
             request,

@@ -28,7 +28,8 @@ public sealed class AssignmentDefinitionRequestValidator : AbstractValidator<Ass
             .Must(request =>
                 string.IsNullOrWhiteSpace(request.DefaultStartTime)
                 || string.IsNullOrWhiteSpace(request.DefaultEndTime)
-                || TimeOnly.Parse(request.DefaultEndTime) > TimeOnly.Parse(request.DefaultStartTime))
+                || TimeOnly.Parse(request.DefaultEndTime) > TimeOnly.Parse(request.DefaultStartTime)
+            )
             .WithMessage("Default end time must be after default start time.");
     }
 }
