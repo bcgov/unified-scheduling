@@ -19,9 +19,7 @@ public static class ModuleApplicationPartExtensions
 
         if (isEnabled)
         {
-            manager.ApplicationParts.Add(
-                new Microsoft.AspNetCore.Mvc.ApplicationParts.AssemblyPart(moduleAssembly)
-            );
+            manager.ApplicationParts.Add(new Microsoft.AspNetCore.Mvc.ApplicationParts.AssemblyPart(moduleAssembly));
         }
 
         return mvcBuilder;
