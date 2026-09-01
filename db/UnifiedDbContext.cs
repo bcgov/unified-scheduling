@@ -1,3 +1,4 @@
+using Audit.EntityFramework;
 using Microsoft.EntityFrameworkCore;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
@@ -9,7 +10,12 @@ using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db;
 
-public class UnifiedDbContext : DbContext
+/// <summary>
+/// Inherits Audit.NET's <see cref="AuditDbContext"/> so every SaveChanges/SaveChangesAsync call is
+/// automatically wrapped with audit capture (see Unified.Audit's README) - no EF Core
+/// <c>IInterceptor</c> registration is needed for auditing.
+/// </summary>
+public class UnifiedDbContext : AuditDbContext
 {
     public UnifiedDbContext() { }
 
@@ -63,5 +69,45 @@ public class UnifiedDbContext : DbContext
         {
             optionsBuilder.UseNpgsql("Name=DatabaseConnectionString");
         }
+    }
+
+    // Shares one transaction across the entity save and the nested AuditRecord insert Audit.NET
+    // performs on success, so a failure in either rolls back both together. Guarded by
+    // IsRelational() since the in-memory provider (used only in tests) doesn't support
+    // transactions at all. An already-active ambient transaction (opened by calling code) is left
+    // for its owner to commit/roll back.
+    public override async Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Database.IsRelational() || Database.CurrentTransaction is not null)
+        {
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+
+        var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return result;
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        if (!Database.IsRelational() || Database.CurrentTransaction is not null)
+        {
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        using var transaction = Database.BeginTransaction();
+
+        var result = base.SaveChanges(acceptAllChangesOnSuccess);
+
+        transaction.Commit();
+
+        return result;
     }
 }

@@ -5,8 +5,9 @@ using Unified.Common.Interceptors;
 namespace Unified.Api.Services;
 
 /// <summary>
-/// Registers EF Core interceptors in a single place to control registration order
-/// without creating circular dependencies between domain modules.
+/// Registers EF Core interceptors. Auditing itself needs no entry here - <c>UnifiedDbContext</c>
+/// inherits Audit.NET's <c>AuditDbContext</c>, which wraps SaveChanges/SaveChangesAsync directly
+/// (see Unified.Audit's README).
 /// </summary>
 public static class InterceptorRegistration
 {
@@ -19,3 +20,4 @@ public static class InterceptorRegistration
         return services;
     }
 }
+

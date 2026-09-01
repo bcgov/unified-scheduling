@@ -4,19 +4,32 @@ using Unified.Audit.Options;
 namespace Unified.Audit;
 
 /// <summary>
-/// Shared deny-list logic for which entity properties are audited by the audit schema endpoints
-/// (which fields are exposed as filterable/displayable).
+/// Shared deny-list logic for which entity properties are audited. Used by
+/// <see cref="AuditRecordEntityAction"/> (what gets written to <c>AuditRecord</c> rows) and the
+/// audit schema endpoints (which fields are exposed as filterable/displayable), so the two stay
+/// consistent.
 /// </summary>
 public static class AuditPropertyExclusion
 {
-    public static bool ShouldExclude(IProperty property, AuditRecordOptions options)
+    public static bool ShouldExclude(IProperty property, AuditRecordOptions options) =>
+        ShouldExclude(property.ClrType, property.PropertyInfo, property.Name, options);
+
+    private static bool ShouldExclude(
+        Type clrType,
+        PropertyInfo? propertyInfo,
+        string propertyName,
+        AuditRecordOptions options
+    )
     {
-        if (property.ClrType == typeof(byte[]))
+        if (clrType == typeof(byte[]))
         {
             return true;
         }
 
-        var propertyName = property.Name;
+        if (propertyInfo?.GetCustomAttribute<global::Audit.EntityFramework.AuditIgnoreAttribute>() is not null)
+        {
+            return true;
+        }
 
         return options.ExcludedPropertyNames.Any(excluded =>
             string.Equals(excluded, propertyName, StringComparison.OrdinalIgnoreCase)
