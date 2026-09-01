@@ -60,7 +60,9 @@ public sealed class AuditHistoryService(UnifiedDbContext DB) : IAuditHistoryServ
             query = query.Where(r => r.ActorName != null && r.ActorName.ToLower().Contains(normalized));
         }
 
-        query = sortAscending ? query.OrderBy(r => r.OccurredOn) : query.OrderByDescending(r => r.OccurredOn);
+        query = sortAscending
+            ? query.OrderBy(r => r.OccurredOn).ThenBy(r => r.Id)
+            : query.OrderByDescending(r => r.OccurredOn).ThenByDescending(r => r.Id);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var pageOfRecords = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
