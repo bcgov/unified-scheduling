@@ -1,3 +1,7 @@
+@import '@fullcalendar/vue3/skeleton.css';
+@import '@fullcalendar/vue3/themes/classic/theme.css';
+@import '@fullcalendar/vue3/themes/classic/palette.css';
+
 .ua-calendar .fc {
   --fc-border-color: var(--ua-border-color);
   --fc-button-bg-color: rgb(var(--v-theme-primary));
