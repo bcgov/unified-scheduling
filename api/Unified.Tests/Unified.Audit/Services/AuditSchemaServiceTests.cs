@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using Unified.Audit.Interceptors;
+using Unified.Audit;
 using Unified.Audit.Services;
 using Unified.Db;
 
@@ -21,7 +21,7 @@ public class AuditSchemaServiceTests : IAsyncLifetime
         _dbContext = new UnifiedDbContext(dbOptions);
         _service = new AuditSchemaService(
             _dbContext,
-            Options.Create(new AuditRecordInterceptorOptions()),
+            Options.Create(new AuditRecordOptions()),
             new MemoryCache(new MemoryCacheOptions())
         );
 

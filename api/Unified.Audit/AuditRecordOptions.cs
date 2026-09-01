@@ -1,12 +1,10 @@
-namespace Unified.Audit.Interceptors;
+namespace Unified.Audit;
 
-public sealed class AuditRecordInterceptorOptions
+public sealed class AuditRecordOptions
 {
     public const string SectionName = "AuditRecordInterceptor";
 
     public string SourceModule { get; set; } = "api";
-
-    public string[] CorrelationIdHeaderNames { get; set; } = ["X-Correlation-Id", "X-Correlation-ID", "X-Request-Id"];
 
     public string[] ExcludedPropertyNames { get; set; } = ["xmin", "ConcurrencyToken"];
 

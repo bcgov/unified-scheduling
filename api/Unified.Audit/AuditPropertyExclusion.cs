@@ -1,25 +1,24 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Unified.Audit.Interceptors;
 
 namespace Unified.Audit;
 
 /// <summary>
-/// Shared deny-list logic for which entity properties are audited. Used by the Audit.NET-backed
-/// audit pipeline (<see cref="Interceptors.AuditRecordDataProvider"/>, what gets written to
-/// <c>AuditRecord</c> rows) and the audit schema endpoints (which fields are exposed as
-/// filterable/displayable), so the two stay consistent.
+/// Shared deny-list logic for which entity properties are audited. Used by
+/// <see cref="AuditRecordEntityAction"/> (what gets written to <c>AuditRecord</c> rows) and the
+/// audit schema endpoints (which fields are exposed as filterable/displayable), so the two stay
+/// consistent.
 /// </summary>
 public static class AuditPropertyExclusion
 {
-    public static bool ShouldExclude(IProperty property, AuditRecordInterceptorOptions options) =>
+    public static bool ShouldExclude(IProperty property, AuditRecordOptions options) =>
         ShouldExclude(property.ClrType, property.PropertyInfo, property.Name, options);
 
     private static bool ShouldExclude(
         Type clrType,
         PropertyInfo? propertyInfo,
         string propertyName,
-        AuditRecordInterceptorOptions options
+        AuditRecordOptions options
     )
     {
         if (clrType == typeof(byte[]))

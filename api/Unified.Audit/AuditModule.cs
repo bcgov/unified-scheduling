@@ -1,15 +1,13 @@
+using Audit.Core;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using Unified.Audit.Interceptors;
 using Unified.Audit.Services;
 using Unified.Audit.Validators;
 using Unified.Authorization;
 using Unified.Common.Audit;
-using Unified.Db;
 using Unified.Db.Models;
 
 namespace Unified.Audit;
@@ -18,9 +16,7 @@ public static class AuditModule
 {
     public static IServiceCollection AddAuditModule(this IServiceCollection services, IConfiguration configuration)
     {
-        services
-            .AddOptions<AuditRecordInterceptorOptions>()
-            .Bind(configuration.GetSection(AuditRecordInterceptorOptions.SectionName));
+        services.AddOptions<AuditRecordOptions>().Bind(configuration.GetSection(AuditRecordOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentActorResolver, HttpContextActorResolver>();
@@ -39,30 +35,39 @@ public static class AuditModule
     }
 
     /// <summary>
-    /// Wires the Audit.NET global configuration to the module's <see cref="AuditRecordDataProvider"/>.
-    /// Must be called once after the app's <see cref="IServiceProvider"/> is built (Audit.NET's
-    /// configuration is a process-wide static).
+    /// Wires Audit.NET's built-in EntityFrameworkDataProvider (via <c>UseEntityFramework</c>) to map
+    /// every audited entity to <see cref="AuditRecord"/>, populated by <see cref="AuditRecordEntityAction"/>.
+    /// <see cref="Unified.Db.UnifiedDbContext"/> inherits Audit.NET's <c>AuditDbContext</c>, so
+    /// SaveChanges/SaveChangesAsync are captured automatically - no EF Core <c>IInterceptor</c> is
+    /// needed for auditing. Must be called once after the app's <see cref="IServiceProvider"/> is
+    /// built (Audit.NET's configuration is a process-wide static).
     /// </summary>
     public static IServiceProvider UseAuditModule(this IServiceProvider services)
     {
         var httpContextAccessor = services.GetRequiredService<IHttpContextAccessor>();
-        var options = services.GetRequiredService<IOptions<AuditRecordInterceptorOptions>>();
+        var options = services.GetRequiredService<IOptions<AuditRecordOptions>>().Value;
 
-        // Populates AuditEvent.Activity from the ambient System.Diagnostics.Activity, giving
-        // AuditRecordDataProvider a correlation id fallback for non-HTTP contexts (e.g. Hangfire jobs).
+        var entityAction = new AuditRecordEntityAction(new HttpContextActorResolver(httpContextAccessor), options);
+
+        // Populates AuditEvent.Activity from the ambient System.Diagnostics.Activity, which
+        // AuditRecordEntityAction uses as the audit record's correlation id.
         global::Audit.Core.Configuration.IncludeActivityTrace = true;
 
-        global::Audit.Core.Configuration.DataProvider = new AuditRecordDataProvider(
-            connection => new DbContextOptionsBuilder<AuditRecordDbContext>().UseNpgsql(connection).Options,
-            new HttpContextActorResolver(httpContextAccessor),
-            httpContextAccessor,
-            options
-        );
+        global::Audit.Core.Configuration
+            .Setup()
+            .UseEntityFramework(ef =>
+                ef.AuditTypeMapper(_ => typeof(AuditRecord))
+                    .AuditEntityAction<AuditRecord>(entityAction.Populate)
+                    // Property names never match between the audited entity and AuditRecord (every
+                    // entity type maps to the same table) - AuditRecordEntityAction sets every field.
+                    .IgnoreMatchedProperties(true)
+            );
 
         // Applies to any audited DbContext (no context-specific config overrides it): never audit
         // writes to the audit table itself.
         global::Audit.EntityFramework.Configuration.Setup().ForAnyContext().UseOptOut().Ignore<AuditRecord>();
 
         return services;
-    }
+    }  
 }
+

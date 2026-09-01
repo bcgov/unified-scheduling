@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using Unified.Audit.Interceptors;
 using Unified.Audit.Models;
 using Unified.Db;
 
@@ -23,7 +22,7 @@ public interface IAuditSchemaService
 /// </summary>
 public sealed partial class AuditSchemaService(
     UnifiedDbContext DB,
-    IOptions<AuditRecordInterceptorOptions> options,
+    IOptions<AuditRecordOptions> options,
     IMemoryCache cache
 ) : IAuditSchemaService
 {
