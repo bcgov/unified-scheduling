@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Audit.Core;
 using Audit.EntityFramework;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Unified.Audit.Options;
 using Unified.Db.Models;
@@ -33,7 +34,7 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         var entityType = entry.GetEntry().Metadata;
         var changedColumns = entry
             .Changes?.Select(change => change.ColumnName)
-            .Where(columnName => !ShouldExclude(entityType, columnName))
+            .Where(columnName => !ShouldExclude(entityType, entry.Table, columnName))
             .ToArray();
 
         record.OccurredOn = DateTimeOffset.UtcNow;
@@ -62,7 +63,7 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         {
             foreach (var change in entry.Changes ?? [])
             {
-                if (ShouldExclude(entityType, change.ColumnName))
+                if (ShouldExclude(entityType, entry.Table, change.ColumnName))
                 {
                     continue;
                 }
@@ -80,7 +81,7 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
 
             foreach (var (columnName, value) in entry.ColumnValues)
             {
-                if (ShouldExclude(entityType, columnName))
+                if (ShouldExclude(entityType, entry.Table, columnName))
                 {
                     continue;
                 }
@@ -92,10 +93,22 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         return values.Count == 0 ? null : JsonSerializer.Serialize(values, SerializerOptions);
     }
 
-    private bool ShouldExclude(IEntityType entityType, string propertyName)
+    private bool ShouldExclude(IEntityType entityType, string tableName, string columnName)
     {
-        var property = entityType.FindProperty(propertyName);
+        var property = entityType.FindProperty(columnName) ?? FindByColumnName(entityType, tableName, columnName);
         return property is not null && AuditPropertyExclusion.ShouldExclude(property, options);
+    }
+
+    // Audit.NET reports the flattened database column name, which can differ from the CLR property
+    // name (e.g. shadow FKs, [Column]-mapped properties) - fall back to matching against the real table.
+    private static IProperty? FindByColumnName(IEntityType entityType, string tableName, string columnName)
+    {
+        var storeObject = StoreObjectIdentifier.Table(tableName, entityType.GetSchema());
+        return entityType
+            .GetProperties()
+            .FirstOrDefault(property =>
+                string.Equals(property.GetColumnName(storeObject), columnName, StringComparison.Ordinal)
+            );
     }
 
     private static string MapAction(string action) =>
