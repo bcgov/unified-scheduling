@@ -1,4 +1,9 @@
 import { useFetchAPI } from './useFetchAPI';
+import { postApiCalendarConflictsOverrides } from './generated/calendar/calendar';
+import type {
+  CalendarConflictOverrideRequest as GeneratedCalendarConflictOverrideRequest,
+  CalendarConflictOverrideResponse as GeneratedCalendarConflictOverrideResponse,
+} from './generated/models';
 
 type FetchOptions = Parameters<typeof useFetchAPI>[1];
 
@@ -41,12 +46,14 @@ export interface ApiCalendarDataResponse {
 }
 
 export interface ApiCalendarConflictEventResponse {
-  eventId: number;
+  eventId: number | null;
   eventTypeCode: string;
   sourceModule: string;
   title: string;
   start: string;
   end: string;
+  sourceEntityId?: number | null;
+  timeZoneId?: string | null;
 }
 
 export interface ApiCalendarConflictResponse {
@@ -76,14 +83,11 @@ export interface ApiCalendarConflictOverrideResponse extends ApiAuditFields {
   id: number;
   firstEventId: number;
   secondEventId: number;
+  resourceId: string;
   note: string;
 }
 
-export interface ApiCalendarConflictOverrideRequest {
-  firstEventId: number;
-  secondEventId: number;
-  note: string;
-}
+export type ApiCalendarConflictOverrideRequest = GeneratedCalendarConflictOverrideRequest;
 
 export const postApiCalendarData = async (
   request: ApiCalendarDataRequest,
@@ -118,18 +122,13 @@ export const postApiCalendarConflictOverride = async (
   request: ApiCalendarConflictOverrideRequest,
   options?: FetchOptions,
 ): Promise<ApiCalendarConflictOverrideResponse> => {
-  const { data, error, execute } = useFetchAPI<ApiCalendarConflictOverrideResponse>(
-    {
-      url: `${import.meta.env.BASE_URL}api/calendar/conflicts/overrides`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      data: request,
-    },
-    { ...options, options: { immediate: false, ...options?.options } },
-  );
+  const { data, error, execute } = postApiCalendarConflictsOverrides(request, {
+    ...options,
+    options: { immediate: false, ...options?.options },
+  });
 
   await execute();
   if (error.value) throw error.value;
   if (!data.value) throw new Error('The conflict override response was empty.');
-  return data.value;
+  return data.value satisfies GeneratedCalendarConflictOverrideResponse;
 };

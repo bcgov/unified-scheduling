@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CalendarConflict, CalendarConflictEvent, CalendarEventBase } from '@/modules/calendar/calendarTypes';
-import { formatCalendarEventDate, formatCalendarEventTimeRange } from '@/utils/date';
+import { formatCalendarConflictEventDateTime } from '@/modules/calendar/calendarConflictFormatting';
 import { isCalendarSchedulingEvent } from './calendarSchedulingData';
 
 const props = defineProps<{
   event: CalendarEventBase;
+  conflicts: CalendarConflict[];
   icon?: string;
   timeZone?: string;
 }>();
@@ -20,7 +21,7 @@ const conflictItems = computed(() => {
   }
 
   const eventId = props.event.metadata.eventId;
-  return (props.event.metadata.conflicts ?? []).flatMap((conflict) => {
+  return props.conflicts.flatMap((conflict) => {
     if (conflict.entry.eventId === eventId) {
       return [{ conflict, event: conflict.overlaps }];
     }
@@ -34,7 +35,7 @@ const conflictItems = computed(() => {
 });
 
 function timeLabel(event: CalendarConflictEvent) {
-  return `${formatCalendarEventDate(event.start, { timeZone: props.timeZone })} · ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: props.timeZone })}`;
+  return formatCalendarConflictEventDateTime(event, props.timeZone);
 }
 
 function resolveLabel(conflict: CalendarConflict) {

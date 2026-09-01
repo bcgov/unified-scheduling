@@ -44,7 +44,7 @@ public static class CalendarModule
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddScoped<ICalendarEventService, CalendarEventService>();
-        services.AddSingleton<ICalendarConflictDetector, CalendarConflictDetector>();
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICalendarConflictService, CalendarConflictService>();
         services.AddScoped<ICalendarDateTimeService, CalendarDateTimeService>();
         services.AddScoped<ICalendarLifecycleService, CalendarLifecycleService>();

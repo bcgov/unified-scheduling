@@ -1,4 +1,4 @@
-import type { FeatureFlags } from '@/api-access/generated/models';
+import type { FeatureFlags, Permissions } from '@/api-access/generated/models';
 import type { ApiAuditFields } from '@/api-access/calendar';
 
 export interface CalendarEventBase {
@@ -34,12 +34,14 @@ export interface CalendarResourceBase {
 }
 
 export interface CalendarConflictEvent {
-  eventId: number;
+  eventId: number | null;
   eventTypeCode: string;
   sourceModule: string;
   title: string;
   start: string;
   end: string;
+  sourceEntityId?: number | null;
+  timeZoneId?: string | null;
 }
 
 export interface CalendarConflict extends ApiAuditFields {
@@ -63,6 +65,7 @@ export interface CalendarQueryContext {
 
 export interface CalendarRuntimeContext {
   featureFlags: Partial<FeatureFlags>;
+  permissions?: readonly Permissions[];
 }
 
 export interface CalendarContributionData<

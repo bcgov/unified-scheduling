@@ -16,7 +16,7 @@ public sealed record CalendarConflict(
 )
 {
     public string Id =>
-        Entry.EventId.HasValue && Overlaps.EventId.HasValue
-            ? $"conflict:{Math.Min(Entry.EventId.Value, Overlaps.EventId.Value)}:{Math.Max(Entry.EventId.Value, Overlaps.EventId.Value)}:{ResourceId}"
+        CalendarConflictKey.Create(this) is { } key
+            ? $"conflict:{key.FirstEventId}:{key.SecondEventId}:{key.ResourceId}"
             : $"conflict:candidate:{ResourceId}:{OverlapStart.UtcTicks}:{OverlapEnd.UtcTicks}";
 }

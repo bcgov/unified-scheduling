@@ -68,11 +68,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             new AllowAllCalendarConflictService()
         );
         var conflictParticipantProvider = new SchedulingConflictParticipantProvider(_dbContext);
-        _calendarConflictService = new CalendarConflictService(
-            new CalendarConflictDetector(),
-            [conflictParticipantProvider],
-            _dbContext
-        );
+        _calendarConflictService = new CalendarConflictService([conflictParticipantProvider], _dbContext);
         _shiftService = new ShiftService(
             NullLogger<ShiftService>.Instance,
             _dbContext,
@@ -81,8 +77,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             _shiftAssignmentService,
             calendarDateTimeService,
             new CalendarLifecycleService(),
-            _calendarConflictService,
-            conflictParticipantProvider
+            _calendarConflictService
         );
     }
 
@@ -285,6 +280,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             {
                 FirstEventId = firstAssignment.EventId,
                 SecondEventId = secondAssignment.EventId,
+                ResourceId = UserA,
                 Note = "Approved before publishing",
             },
             null,
@@ -366,6 +362,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             {
                 FirstEventId = firstAssignment.EventId,
                 SecondEventId = secondAssignment.EventId,
+                ResourceId = UserA,
                 Note = "Approved overlap",
             },
             null,
@@ -2457,11 +2454,7 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             new AssignmentSeriesMaterializationHandler(_dbContext),
             _shiftAssignmentService,
             new CalendarLifecycleService(),
-            new CalendarConflictService(
-                new CalendarConflictDetector(),
-                [new SchedulingConflictParticipantProvider(_dbContext)],
-                _dbContext
-            )
+            new CalendarConflictService([new SchedulingConflictParticipantProvider(_dbContext)], _dbContext)
         );
 
     private sealed class AllowAllCalendarConflictService : ICalendarConflictService
@@ -2475,11 +2468,10 @@ public sealed class AssignmentServiceTests : IAsyncLifetime
             CancellationToken cancellationToken = default
         ) => Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
 
-        public Task<IReadOnlyCollection<CalendarConflict>> CheckCandidatesAsync(
+        public Task EnsureNoUnresolvedConflictsAsync(
             IReadOnlyCollection<CalendarConflictParticipant> candidates,
-            CalendarConflictQuery query,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
+        ) => Task.CompletedTask;
 
         public Task<CalendarConflictOverrideResponse> CreateOverrideAsync(
             CalendarConflictOverrideRequest request,

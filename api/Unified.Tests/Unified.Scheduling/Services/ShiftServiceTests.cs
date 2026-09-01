@@ -63,8 +63,7 @@ public class ShiftServiceTests : IAsyncLifetime
             ),
             calendarDateTimeService,
             new CalendarLifecycleService(),
-            new CalendarConflictService(new CalendarConflictDetector(), [conflictParticipantProvider], _dbContext),
-            conflictParticipantProvider
+            new CalendarConflictService([conflictParticipantProvider], _dbContext)
         );
     }
 

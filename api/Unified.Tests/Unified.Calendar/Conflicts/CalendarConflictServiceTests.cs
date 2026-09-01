@@ -34,7 +34,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         _provider = new MutableProvider { Participants = [CreateParticipant(1, 8, 10), CreateParticipant(2, 9, 11)] };
-        _service = new CalendarConflictService(new CalendarConflictDetector(), [_provider], _db);
+        _service = new CalendarConflictService([_provider], _db);
     }
 
     public async ValueTask DisposeAsync()
@@ -51,6 +51,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             {
                 FirstEventId = 2,
                 SecondEventId = 1,
+                ResourceId = ResourceId,
                 Note = "Manager approved",
             },
             null,
@@ -77,6 +78,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             {
                 FirstEventId = 1,
                 SecondEventId = 2,
+                ResourceId = ResourceId,
                 Note = "Temporary",
             },
             null,
@@ -85,10 +87,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
 
         _provider.Participants = [CreateParticipant(1, 8, 10), CreateParticipant(2, 10, 11)];
 
-        await _service.InvalidateResolvedOverridesAsync(
-            [1],
-            cancellationToken: TestContext.Current.CancellationToken
-        );
+        await _service.InvalidateResolvedOverridesAsync([1], cancellationToken: TestContext.Current.CancellationToken);
 
         var persisted = await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken);
         Assert.False(persisted.IsActive);
@@ -103,6 +102,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             {
                 FirstEventId = 1,
                 SecondEventId = 2,
+                ResourceId = ResourceId,
                 Note = "Original state",
             },
             null,
@@ -110,10 +110,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         );
         _provider.Participants = [CreateParticipant(1, 8, 10), CreateParticipant(2, 9, 10, 30)];
 
-        await _service.InvalidateResolvedOverridesAsync(
-            [1],
-            cancellationToken: TestContext.Current.CancellationToken
-        );
+        await _service.InvalidateResolvedOverridesAsync([1], cancellationToken: TestContext.Current.CancellationToken);
 
         var conflict = Assert.Single(
             await _service.GetConflictsAsync(
@@ -124,8 +121,8 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
 
         Assert.True(conflict.IsOverridden);
         Assert.True(
-            await _db.CalendarConflictOverrides
-                .Select(overrideEntity => overrideEntity.IsActive)
+            await _db
+                .CalendarConflictOverrides.Select(overrideEntity => overrideEntity.IsActive)
                 .SingleAsync(TestContext.Current.CancellationToken)
         );
     }
@@ -146,6 +143,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             {
                 FirstEventId = 1,
                 SecondEventId = 2,
+                ResourceId = ResourceId,
                 Note = "Initial approval",
             },
             creatorId,
@@ -156,6 +154,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             {
                 FirstEventId = 1,
                 SecondEventId = 2,
+                ResourceId = ResourceId,
                 Note = "Updated approval",
             },
             updaterId,

@@ -222,6 +222,7 @@ function handleEmptyCellAdd() {
               name="event-block"
               :event="eventItem.event"
               :display="resolveEventDisplay(eventItem, group)"
+              :conflicts="eventItem.conflicts ?? []"
               :group="group"
               :on-event-action="handleEventAction"
               :on-event-click="handleEventClick"

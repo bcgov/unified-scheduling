@@ -7,5 +7,7 @@ public sealed record CalendarConflictParticipant(
     Guid ResourceId,
     DateTimeOffset Start,
     DateTimeOffset End,
-    string Title
+    string Title,
+    int? SourceEntityId = null,
+    string? TimeZoneId = null
 );

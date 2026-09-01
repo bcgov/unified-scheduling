@@ -47,6 +47,7 @@ const activeLocationId = computed<number | undefined>(() => {
 
 const runtimeContext = computed<CalendarRuntimeContext>(() => ({
   featureFlags: accessControl.configStore.config?.featureFlags ?? {},
+  permissions: accessControl.authStore.userInfo?.permissions ?? [],
 }));
 
 const views = computed(() => calendarRegistry.getAvailableViews(runtimeContext.value));
@@ -157,7 +158,12 @@ const createActions = computed<CalendarToolbarAction[]>(() => {
 const rangeLabel = computed(() =>
   formatRangeLabel(queryContext.value.startDate, queryContext.value.endDate, period.value),
 );
-const runtimeContextKey = computed(() => JSON.stringify(accessControl.configStore.config?.featureFlags ?? {}));
+const runtimeContextKey = computed(() =>
+  JSON.stringify({
+    featureFlags: accessControl.configStore.config?.featureFlags ?? {},
+    permissions: accessControl.authStore.userInfo?.permissions ?? [],
+  }),
+);
 const reloadKey = computed(() =>
   JSON.stringify({
     startDate: dateRange.value.startDate,

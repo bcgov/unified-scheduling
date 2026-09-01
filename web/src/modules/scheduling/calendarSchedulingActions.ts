@@ -135,17 +135,11 @@ export const calendarEventBlockAction: CalendarMatrixEventBlockAction = {
   moduleId: 'calendar-scheduling',
   label: 'Show Conflict',
   order: 10,
-  isAvailable: (context) =>
-    context.actionId === calendarSchedulingActionIds.showConflict && eventHasConflicts(context.event),
+  isAvailable: (context) => context.actionId === calendarSchedulingActionIds.showConflict,
   execute: (context) => {
     toggleCalendarSchedulingConflict(context.event.id);
   },
 };
-
-function eventHasConflicts(event: CalendarEventBase) {
-  const metadata = (event as { metadata?: { conflicts?: unknown } }).metadata;
-  return Array.isArray(metadata?.conflicts) && metadata.conflicts.length > 0;
-}
 
 export const calendarSchedulingEventDetailAction: CalendarViewDetailAction = {
   id: 'calendar-scheduling.event-detail.modal',

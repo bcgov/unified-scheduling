@@ -8,7 +8,9 @@ public sealed record CalendarConflictEventResponse(
     string SourceModule,
     string Title,
     DateTimeOffset Start,
-    DateTimeOffset End
+    DateTimeOffset End,
+    int? SourceEntityId,
+    string? TimeZoneId
 );
 
 public sealed record CalendarConflictResponse(
@@ -51,7 +53,9 @@ public sealed record CalendarConflictResponse(
             participant.SourceModule,
             participant.Title,
             participant.Start,
-            participant.End
+            participant.End,
+            participant.SourceEntityId,
+            participant.TimeZoneId
         );
 }
 

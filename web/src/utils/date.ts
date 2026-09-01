@@ -386,3 +386,26 @@ export function formatCalendarEventTimeRange(
 
   return formattedEnd ? `${formattedStart} - ${formattedEnd}` : formattedStart;
 }
+
+export function formatCalendarDateTimeRange(
+  start: string | Date,
+  end: string | Date,
+  timeZone = 'UTC',
+  locale = 'en-CA',
+) {
+  const startDateTime = toDateTime(start, timeZone);
+  const endDateTime = toDateTime(end, timeZone);
+  if (!startDateTime.isValid || !endDateTime.isValid) {
+    return '';
+  }
+
+  const startDate = formatDateTime(startDateTime, locale, calendarDateOnlyFormat);
+  const startTime = formatDateTime(startDateTime, locale, calendarTimeFormat);
+  const endTime = formatDateTime(endDateTime, locale, calendarTimeFormat);
+  if (startDateTime.hasSame(endDateTime, 'day')) {
+    return `${startDate}, ${startTime} - ${endTime}`;
+  }
+
+  const endDate = formatDateTime(endDateTime, locale, calendarDateOnlyFormat);
+  return `${startDate}, ${startTime} - ${endDate}, ${endTime}`;
+}

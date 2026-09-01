@@ -4,7 +4,12 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { CalendarDataRequest, CalendarDataResponse } from '../models';
+import type {
+  CalendarConflictOverrideRequest,
+  CalendarConflictOverrideResponse,
+  CalendarDataRequest,
+  CalendarDataResponse,
+} from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI.ts';
 
@@ -24,4 +29,21 @@ export const postApiCalendarEvents = (
     options,
   );
 };
+export const postApiCalendarConflictsOverrides = (
+  calendarConflictOverrideRequest: CalendarConflictOverrideRequest,
+  options?: SecondParameter<typeof useFetchAPI<CalendarConflictOverrideResponse>>,
+) => {
+  return useFetchAPI<CalendarConflictOverrideResponse>(
+    {
+      url: `/api/calendar/conflicts/overrides`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: calendarConflictOverrideRequest,
+    },
+    options,
+  );
+};
 export type PostApiCalendarEventsResult = NonNullable<Awaited<ReturnType<typeof postApiCalendarEvents>>>;
+export type PostApiCalendarConflictsOverridesResult = NonNullable<
+  Awaited<ReturnType<typeof postApiCalendarConflictsOverrides>>
+>;

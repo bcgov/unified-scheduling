@@ -1,8 +1,10 @@
 namespace Unified.Calendar.Conflicts;
 
-public sealed class CalendarConflictDetector : ICalendarConflictDetector
+public static class CalendarConflictDetector
 {
-    public IReadOnlyCollection<CalendarConflict> Detect(IReadOnlyCollection<CalendarConflictParticipant> participants)
+    public static IReadOnlyCollection<CalendarConflict> Detect(
+        IReadOnlyCollection<CalendarConflictParticipant> participants
+    )
     {
         var conflicts = new List<CalendarConflict>();
 

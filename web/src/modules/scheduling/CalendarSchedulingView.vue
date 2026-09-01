@@ -13,8 +13,14 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { formatCalendarEventDate, formatCalendarEventTimeRange } from '@/utils/date';
-import type { CalendarConflict, CalendarEventBase, CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarConflictEvent,
+  CalendarEventBase,
+  CalendarRuntimeContext,
+} from '@/modules/calendar/calendarTypes';
 import { postApiCalendarConflictOverride } from '@/api-access/calendar';
+import { Permissions } from '@/api-access/generated/models';
 import {
   type CalendarMatrixSidePanelItem,
   type CalendarMatrixViewModel,
@@ -69,6 +75,9 @@ const selectedConflictEventId = ref<number>();
 const selectedConflict = ref<CalendarConflict>();
 const conflictOverrideLoading = ref(false);
 const conflictErrorMessage = ref('');
+const canEditConflicts = computed(
+  () => props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true,
+);
 const pendingActiveShiftChoice = ref<{
   shiftEvent: CalendarEventBase;
   resource: CalendarMatrixResource;
@@ -481,7 +490,7 @@ function resolveDragTitle(drag: CalendarMatrixDragPayload) {
   return drag.itemId;
 }
 
-function getEventDate(event: CalendarEventBase) {
+function getEventDate(event: { start: string }) {
   return event.start.slice(0, 10);
 }
 
@@ -502,9 +511,24 @@ function closeConflictDetail() {
   conflictErrorMessage.value = '';
 }
 
-function handleConflictEventEdit(eventId: number) {
+function handleConflictEventEdit(conflictEvent: CalendarConflictEvent) {
+  if (!canEditConflicts.value) {
+    return;
+  }
+
+  if (conflictEvent.sourceModule === 'scheduling' && conflictEvent.sourceEntityId != null) {
+    closeConflictDetail();
+    showCalendarSchedulingAssignmentModal(getEventDate(conflictEvent), {
+      mode: 'view',
+      initialTab: 'edit',
+      editScope: 'event',
+      assignmentEntryId: conflictEvent.sourceEntityId,
+    });
+    return;
+  }
+
   const event = resolveAssignmentEventsFromModel().find(
-    (candidate) => isCalendarSchedulingEvent(candidate) && candidate.metadata.eventId === eventId,
+    (candidate) => isCalendarSchedulingEvent(candidate) && candidate.metadata.eventId === conflictEvent.eventId,
   );
   const assignmentEntryId = event ? resolveAssignmentEntryId(event) : null;
   if (!event || !assignmentEntryId) {
@@ -522,7 +546,7 @@ function handleConflictEventEdit(eventId: number) {
 
 async function handleConflictOverride(note: string) {
   const conflict = selectedConflict.value;
-  if (!conflict) {
+  if (!canEditConflicts.value || !conflict || conflict.entry.eventId == null || conflict.overlaps.eventId == null) {
     return;
   }
 
@@ -532,6 +556,7 @@ async function handleConflictOverride(note: string) {
     const savedOverride = await postApiCalendarConflictOverride({
       firstEventId: conflict.entry.eventId,
       secondEventId: conflict.overlaps.eventId,
+      resourceId: conflict.resourceId,
       note,
     });
     selectedConflict.value = {
@@ -575,7 +600,7 @@ function resolveAssignmentEventsFromModel() {
       </div>
     </template>
 
-    <template #event-block="{ event, display, group, onEventAction, onEventClick, onDragStart }">
+    <template #event-block="{ event, display, conflicts, group, onEventAction, onEventClick, onDragStart }">
       <div
         class="calendar-scheduling-event-block"
         :class="{ 'has-conflict-overlay': calendarSchedulingConflictEventId === event.id }"
@@ -601,6 +626,7 @@ function resolveAssignmentEventsFromModel() {
         <CalendarSchedulingConflictOverlay
           v-if="calendarSchedulingConflictEventId === event.id"
           :event="event"
+          :conflicts="conflicts"
           :icon="display?.action?.icon"
           :time-zone="props.model.timeZone"
           @resolve="(conflict) => handleConflictResolve(event, conflict)"
@@ -733,6 +759,8 @@ function resolveAssignmentEventsFromModel() {
     :time-zone="props.model.timeZone"
     :error-message="conflictErrorMessage"
     :loading="conflictOverrideLoading"
+    :can-edit-event="canEditConflicts"
+    :can-override="canEditConflicts"
     @close="closeConflictDetail"
     @edit-event="handleConflictEventEdit"
     @override="handleConflictOverride"

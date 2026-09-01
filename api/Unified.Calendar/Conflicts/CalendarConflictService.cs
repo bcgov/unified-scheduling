@@ -6,17 +6,18 @@ using Unified.Db.Models.Calendar;
 namespace Unified.Calendar.Conflicts;
 
 public sealed class CalendarConflictService(
-    ICalendarConflictDetector detector,
     IEnumerable<ICalendarConflictParticipantProvider> participantProviders,
-    UnifiedDbContext db
+    UnifiedDbContext db,
+    TimeProvider? timeProvider = null
 ) : ICalendarConflictService
 {
     private readonly IReadOnlyCollection<ICalendarConflictParticipantProvider> _participantProviders =
         participantProviders.ToList();
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public IReadOnlyCollection<CalendarConflict> DetectConflicts(
         IReadOnlyCollection<CalendarConflictParticipant> participants
-    ) => detector.Detect(participants);
+    ) => CalendarConflictDetector.Detect(participants);
 
     public async Task<IReadOnlyCollection<CalendarConflict>> GetConflictsAsync(
         CalendarConflictQuery query,
@@ -24,38 +25,40 @@ public sealed class CalendarConflictService(
     )
     {
         var participants = await LoadParticipantsAsync(query, cancellationToken);
-        return await ApplyOverridesAsync(detector.Detect(participants), cancellationToken);
+        return await ApplyOverridesAsync(CalendarConflictDetector.Detect(participants), cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<CalendarConflict>> CheckCandidatesAsync(
+    public async Task EnsureNoUnresolvedConflictsAsync(
         IReadOnlyCollection<CalendarConflictParticipant> candidates,
-        CalendarConflictQuery query,
         CancellationToken cancellationToken = default
     )
     {
         if (candidates.Count == 0)
-            return [];
+            return;
 
         var candidateEventIds = candidates
             .Where(candidate => candidate.EventId.HasValue)
             .Select(candidate => candidate.EventId!.Value)
             .ToHashSet();
-        var excludedEventIds = (query.ExcludedEventIds ?? []).Concat(candidateEventIds).Distinct().ToList();
-        var existing = await LoadParticipantsAsync(
-            query with
-            {
-                ExcludedEventIds = excludedEventIds,
-            },
-            cancellationToken
+        var query = new CalendarConflictQuery(
+            candidates.Min(candidate => candidate.Start),
+            candidates.Max(candidate => candidate.End),
+            candidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
+            candidateEventIds.ToList()
         );
+        var existing = await LoadParticipantsAsync(query, cancellationToken);
         var allParticipants = candidates.Concat(existing).ToList();
         var candidateSet = candidates.ToHashSet();
-        var conflicts = detector
+        var conflicts = CalendarConflictDetector
             .Detect(allParticipants)
             .Where(conflict => candidateSet.Contains(conflict.Entry) || candidateSet.Contains(conflict.Overlaps))
             .ToList();
 
-        return await ApplyOverridesAsync(conflicts, cancellationToken);
+        var unresolved = (await ApplyOverridesAsync(conflicts, cancellationToken))
+            .Where(conflict => !conflict.IsOverridden)
+            .ToList();
+        if (unresolved.Count > 0)
+            throw new CalendarConflictException(unresolved);
     }
 
     public async Task<CalendarConflictOverrideResponse> CreateOverrideAsync(
@@ -66,14 +69,15 @@ public sealed class CalendarConflictService(
     {
         if (request.FirstEventId == request.SecondEventId)
             throw new InvalidOperationException("A conflict override requires two different calendar events.");
+        if (request.ResourceId == Guid.Empty)
+            throw new InvalidOperationException("A conflict override requires a resource.");
         if (string.IsNullOrWhiteSpace(request.Note))
             throw new InvalidOperationException("A conflict override note is required.");
 
-        var firstEventId = Math.Min(request.FirstEventId, request.SecondEventId);
-        var secondEventId = Math.Max(request.FirstEventId, request.SecondEventId);
+        var key = CalendarConflictKey.Create(request.FirstEventId, request.SecondEventId, request.ResourceId);
         var events = await db
             .Events.AsNoTracking()
-            .Where(eventEntity => eventEntity.Id == firstEventId || eventEntity.Id == secondEventId)
+            .Where(eventEntity => eventEntity.Id == key.FirstEventId || eventEntity.Id == key.SecondEventId)
             .ToListAsync(cancellationToken);
         if (events.Count != 2)
             throw new KeyNotFoundException("Both calendar events must exist before a conflict can be overridden.");
@@ -84,23 +88,27 @@ public sealed class CalendarConflictService(
             new CalendarConflictQuery(rangeStart, rangeEnd),
             cancellationToken
         );
-        var conflict = detector
+        var conflict = CalendarConflictDetector
             .Detect(participants)
-            .FirstOrDefault(candidate => IsPair(candidate, firstEventId, secondEventId));
+            .FirstOrDefault(candidate => CalendarConflictKey.Create(candidate) == key);
         if (conflict is null)
             throw new InvalidOperationException("The selected events do not currently constitute an active conflict.");
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var overrideEntity = await db.CalendarConflictOverrides.SingleOrDefaultAsync(
-            candidate => candidate.FirstEventId == firstEventId && candidate.SecondEventId == secondEventId,
+            candidate =>
+                candidate.FirstEventId == key.FirstEventId
+                && candidate.SecondEventId == key.SecondEventId
+                && candidate.ResourceId == key.ResourceId,
             cancellationToken
         );
         if (overrideEntity is null)
         {
             overrideEntity = new CalendarConflictOverride
             {
-                FirstEventId = firstEventId,
-                SecondEventId = secondEventId,
+                FirstEventId = key.FirstEventId,
+                SecondEventId = key.SecondEventId,
+                ResourceId = key.ResourceId,
                 Note = request.Note.Trim(),
                 IsActive = true,
                 CreatedById = createdById,
@@ -122,6 +130,7 @@ public sealed class CalendarConflictService(
             overrideEntity.Id,
             overrideEntity.FirstEventId,
             overrideEntity.SecondEventId,
+            overrideEntity.ResourceId,
             overrideEntity.Note,
             overrideEntity.CreatedById,
             overrideEntity.CreatedOn,
@@ -157,7 +166,7 @@ public sealed class CalendarConflictService(
             .Events.AsNoTracking()
             .Where(eventEntity => overrideEventIds.Contains(eventEntity.Id))
             .ToListAsync(cancellationToken);
-        var activeConflictPairs = new HashSet<(int FirstEventId, int SecondEventId)>();
+        var activeConflictKeys = new HashSet<CalendarConflictKey>();
         if (events.Count > 0)
         {
             var rangeStart = events.Min(eventEntity => eventEntity.StartAtUtc);
@@ -166,22 +175,28 @@ public sealed class CalendarConflictService(
                 new CalendarConflictQuery(rangeStart, rangeEnd),
                 cancellationToken
             );
-            activeConflictPairs = detector
+            activeConflictKeys = CalendarConflictDetector
                 .Detect(participants)
-                .Where(conflict => conflict.Entry.EventId.HasValue && conflict.Overlaps.EventId.HasValue)
-                .Select(conflict => NormalizePair(conflict.Entry.EventId!.Value, conflict.Overlaps.EventId!.Value))
+                .Select(CalendarConflictKey.Create)
+                .OfType<CalendarConflictKey>()
                 .ToHashSet();
         }
 
         var resolvedOverrides = overrides
             .Where(overrideEntity =>
-                !activeConflictPairs.Contains((overrideEntity.FirstEventId, overrideEntity.SecondEventId))
+                !activeConflictKeys.Contains(
+                    CalendarConflictKey.Create(
+                        overrideEntity.FirstEventId,
+                        overrideEntity.SecondEventId,
+                        overrideEntity.ResourceId
+                    )
+                )
             )
             .ToList();
         if (resolvedOverrides.Count == 0)
             return;
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         foreach (var overrideEntity in resolvedOverrides)
         {
             overrideEntity.IsActive = false;
@@ -227,24 +242,26 @@ public sealed class CalendarConflictService(
                 && eventIds.Contains(overrideEntity.SecondEventId)
             )
             .ToListAsync(cancellationToken);
-        var overridesByPair = overrides.ToDictionary(overrideEntity =>
-            (overrideEntity.FirstEventId, overrideEntity.SecondEventId)
+        var overridesByConflict = overrides.ToDictionary(overrideEntity =>
+            CalendarConflictKey.Create(
+                overrideEntity.FirstEventId,
+                overrideEntity.SecondEventId,
+                overrideEntity.ResourceId
+            )
         );
 
-        return conflicts.Select(conflict => ApplyOverride(conflict, overridesByPair)).ToList();
+        return conflicts.Select(conflict => ApplyOverride(conflict, overridesByConflict)).ToList();
     }
 
     private static CalendarConflict ApplyOverride(
         CalendarConflict conflict,
-        IReadOnlyDictionary<(int FirstEventId, int SecondEventId), CalendarConflictOverride> overridesByPair
+        IReadOnlyDictionary<CalendarConflictKey, CalendarConflictOverride> overridesByConflict
     )
     {
-        if (!conflict.Entry.EventId.HasValue || !conflict.Overlaps.EventId.HasValue)
+        if (CalendarConflictKey.Create(conflict) is not { } key)
             return conflict;
 
-        var firstEventId = Math.Min(conflict.Entry.EventId.Value, conflict.Overlaps.EventId.Value);
-        var secondEventId = Math.Max(conflict.Entry.EventId.Value, conflict.Overlaps.EventId.Value);
-        if (!overridesByPair.TryGetValue((firstEventId, secondEventId), out var overrideEntity))
+        if (!overridesByConflict.TryGetValue(key, out var overrideEntity))
             return conflict;
 
         return conflict with
@@ -258,13 +275,4 @@ public sealed class CalendarConflictService(
             UpdatedOn = overrideEntity.UpdatedOn,
         };
     }
-
-    private static (int FirstEventId, int SecondEventId) NormalizePair(int firstEventId, int secondEventId) =>
-        (Math.Min(firstEventId, secondEventId), Math.Max(firstEventId, secondEventId));
-
-    private static bool IsPair(CalendarConflict conflict, int firstEventId, int secondEventId) =>
-        conflict.Entry.EventId.HasValue
-        && conflict.Overlaps.EventId.HasValue
-        && Math.Min(conflict.Entry.EventId.Value, conflict.Overlaps.EventId.Value) == firstEventId
-        && Math.Max(conflict.Entry.EventId.Value, conflict.Overlaps.EventId.Value) == secondEventId;
 }

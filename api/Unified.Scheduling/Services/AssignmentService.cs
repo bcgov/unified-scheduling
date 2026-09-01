@@ -138,8 +138,12 @@ public sealed class AssignmentService(
 
         await LinkShiftSeriesIfRequestedAsync(assignmentSeries.Id, request, cancellationToken);
 
-        var conflictCandidates = await LoadConflictParticipantsForSeriesAsync(assignmentSeries.Id, cancellationToken);
-        await EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
+            db,
+            assignmentSeries.Id,
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -228,8 +232,12 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
 
         await LinkShiftSeriesIfRequestedAsync(assignmentSeries.Id, request, cancellationToken);
-        var updatedConflictState = await LoadConflictParticipantsForSeriesAsync(id, cancellationToken);
-        await EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
+        var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
+            db,
+            id,
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
         var affectedEventIds = await db
             .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == id)
             .Select(entry => entry.EventId)
@@ -357,8 +365,12 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
 
         await LinkShiftEntriesIfRequestedAsync(assignmentEntry.Id, request, cancellationToken);
-        var conflictCandidates = await LoadConflictParticipantsForEntriesAsync([assignmentEntry.Id], cancellationToken);
-        await EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+            db,
+            [assignmentEntry.Id],
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Created assignment entry {AssignmentEntryId}.", assignmentEntry.Id);
@@ -409,8 +421,12 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
 
         await LinkShiftEntriesIfRequestedAsync(assignmentEntry.Id, request, cancellationToken);
-        var updatedConflictState = await LoadConflictParticipantsForEntriesAsync([id], cancellationToken);
-        await EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
+        var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+            db,
+            [id],
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
             [assignmentEntry.EventId],
             cancellationToken: cancellationToken
@@ -470,92 +486,6 @@ public sealed class AssignmentService(
             request.AssignedUserIds,
             cancellationToken
         );
-    }
-
-    private async Task<IReadOnlyCollection<CalendarConflictParticipant>> LoadConflictParticipantsForSeriesAsync(
-        int assignmentSeriesId,
-        CancellationToken cancellationToken
-    )
-    {
-        var entryIds = await db
-            .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == assignmentSeriesId)
-            .Select(entry => entry.Id)
-            .ToListAsync(cancellationToken);
-        return await LoadConflictParticipantsForEntriesAsync(entryIds, cancellationToken);
-    }
-
-    private async Task<IReadOnlyCollection<CalendarConflictParticipant>> LoadConflictParticipantsForEntriesAsync(
-        IReadOnlyCollection<int> assignmentEntryIds,
-        CancellationToken cancellationToken
-    )
-    {
-        if (assignmentEntryIds.Count == 0)
-            return [];
-
-        var entries = await db
-            .AssignmentEntries.AsNoTracking()
-            .Include(entry => entry.Event)
-            .Include(entry => entry.ShiftAssignmentEntries)
-                .ThenInclude(link => link.Users)
-            .Include(entry => entry.ShiftAssignmentEntries)
-                .ThenInclude(link => link.ShiftEntry!)
-                    .ThenInclude(shiftEntry => shiftEntry.Event)
-            .Where(entry => assignmentEntryIds.Contains(entry.Id))
-            .ToListAsync(cancellationToken);
-
-        return entries
-            .Where(entry =>
-                entry.Event != null
-                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Draft
-                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                && entry.Event.EndAtUtc.HasValue
-            )
-            .SelectMany(entry =>
-                entry
-                    .ShiftAssignmentEntries.Where(link =>
-                        link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Draft
-                        && link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                    )
-                    .SelectMany(link => link.Users)
-                    .Select(user => user.UserId)
-                    .Distinct()
-                    .Select(userId => new CalendarConflictParticipant(
-                        entry.EventId,
-                        entry.Event!.EventTypeCode,
-                        entry.Event.SourceModule,
-                        userId,
-                        entry.Event.StartAtUtc,
-                        entry.Event.EndAtUtc!.Value,
-                        entry.Event.Title
-                    ))
-            )
-            .ToList();
-    }
-
-    private async Task EnsureNoUnresolvedConflictsAsync(
-        IReadOnlyCollection<CalendarConflictParticipant> candidates,
-        CancellationToken cancellationToken
-    )
-    {
-        if (candidates.Count == 0)
-            return;
-
-        var conflicts = await calendarConflictService.CheckCandidatesAsync(
-            candidates,
-            new CalendarConflictQuery(
-                candidates.Min(candidate => candidate.Start),
-                candidates.Max(candidate => candidate.End),
-                candidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
-                candidates
-                    .Where(candidate => candidate.EventId.HasValue)
-                    .Select(candidate => candidate.EventId!.Value)
-                    .ToList()
-            ),
-            cancellationToken
-        );
-        var unresolved = conflicts.Where(conflict => !conflict.IsOverridden).ToList();
-        if (unresolved.Count > 0)
-            throw new CalendarConflictException(unresolved);
     }
 
     private async Task LinkShiftEntriesIfRequestedAsync(

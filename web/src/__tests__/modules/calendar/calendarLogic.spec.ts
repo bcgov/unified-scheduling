@@ -428,9 +428,7 @@ describe('scheduling calendar view model', () => {
         type: 'button',
       },
     ]);
-    expect((conflictCell?.groups[0]?.events[0]?.event as CalendarSchedulingEvent).metadata.conflicts?.[0]?.id).toBe(
-      'conflict:101:102:user-1',
-    );
+    expect(conflictCell?.groups[0]?.events[0]?.conflicts?.[0]?.id).toBe('conflict:101:102:user-1');
 
     const jan14Cell = viewModel.cells.find((cell) => cell.resourceId === 'user-1' && cell.date === '2025-01-14');
     expect(jan14Cell?.groups[0]?.action).toBeUndefined();

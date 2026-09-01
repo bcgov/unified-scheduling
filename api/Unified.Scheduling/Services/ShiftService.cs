@@ -18,8 +18,7 @@ public sealed class ShiftService(
     IShiftAssignmentService shiftAssignmentService,
     ICalendarDateTimeService calendarDateTimeService,
     ICalendarLifecycleService calendarLifecycleService,
-    ICalendarConflictService calendarConflictService,
-    SchedulingConflictParticipantProvider conflictParticipantProvider
+    ICalendarConflictService calendarConflictService
 ) : IShiftService
 {
     private static readonly EventSeriesMaterializationOptions ShiftMaterializationOptions = new()
@@ -553,49 +552,12 @@ public sealed class ShiftService(
         if (shiftEntryIds.Count == 0)
             return;
 
-        var assignmentEventIds = await db
-            .ShiftAssignmentEntries.AsNoTracking()
-            .Where(link => shiftEntryIds.Contains(link.ShiftEntryId))
-            .Select(link => link.AssignmentEntry!.EventId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-        if (assignmentEventIds.Count == 0)
-            return;
-
-        var assignmentRange = await db
-            .Events.AsNoTracking()
-            .Where(eventEntity => assignmentEventIds.Contains(eventEntity.Id) && eventEntity.EndAtUtc.HasValue)
-            .Select(eventEntity => new { eventEntity.StartAtUtc, EndAtUtc = eventEntity.EndAtUtc!.Value })
-            .ToListAsync(cancellationToken);
-        if (assignmentRange.Count == 0)
-            return;
-
-        var candidates = await conflictParticipantProvider.GetParticipantsAsync(
-            new CalendarConflictQuery(
-                assignmentRange.Min(eventEntity => eventEntity.StartAtUtc),
-                assignmentRange.Max(eventEntity => eventEntity.EndAtUtc)
-            ),
+        var candidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
+            db,
+            shiftEntryIds,
             cancellationToken
         );
-        candidates = candidates
-            .Where(candidate => candidate.EventId.HasValue && assignmentEventIds.Contains(candidate.EventId.Value))
-            .ToList();
-        if (candidates.Count == 0)
-            return;
-
-        var conflicts = await calendarConflictService.CheckCandidatesAsync(
-            candidates,
-            new CalendarConflictQuery(
-                candidates.Min(candidate => candidate.Start),
-                candidates.Max(candidate => candidate.End),
-                candidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
-                assignmentEventIds
-            ),
-            cancellationToken
-        );
-        var unresolved = conflicts.Where(conflict => !conflict.IsOverridden).ToList();
-        if (unresolved.Count > 0)
-            throw new CalendarConflictException(unresolved);
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(candidates, cancellationToken);
     }
 
     public async Task<ShiftEntryResponse?> ExpireShiftEntryAsync(

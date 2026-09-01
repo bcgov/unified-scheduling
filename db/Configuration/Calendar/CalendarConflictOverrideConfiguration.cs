@@ -31,6 +31,7 @@ public sealed class CalendarConflictOverrideConfiguration
             {
                 overrideEntity.FirstEventId,
                 overrideEntity.SecondEventId,
+                overrideEntity.ResourceId,
             })
             .IsUnique();
 

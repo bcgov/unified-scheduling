@@ -35,7 +35,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
             Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarEventService>.Instance,
             _dbContext,
             CreateCalendarDateTimeService(),
-            new CalendarConflictService(new CalendarConflictDetector(), [], _dbContext)
+            new CalendarConflictService([], _dbContext)
         );
     }
 

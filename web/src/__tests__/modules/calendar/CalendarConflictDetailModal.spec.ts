@@ -21,7 +21,7 @@ describe('CalendarConflictDetailModal', () => {
     await editCurrentButtons[0]?.trigger('click');
     await wrapper.get('button[aria-label="Edit Second assignment"]').trigger('click');
 
-    expect(wrapper.emitted('editEvent')).toEqual([[101], [102]]);
+    expect(wrapper.emitted('editEvent')).toEqual([[conflict.entry], [conflict.overlaps]]);
   });
 
   it('requires override notes and emits the selected conflict with its note', async () => {
@@ -77,14 +77,38 @@ describe('CalendarConflictDetailModal', () => {
     expect(wrapper.text()).toContain('Overridden by:');
     expect(wrapper.text()).toContain('Unknown user');
   });
+
+  it('uses the comparison timezone and includes both dates for cross-midnight ranges', () => {
+    const conflict = createConflict(101, 102, 'First assignment', 'Second assignment');
+    conflict.entry.start = '2025-01-14T07:30:00Z';
+    conflict.entry.end = '2025-01-14T08:30:00Z';
+    conflict.entry.timeZoneId = 'America/Edmonton';
+    conflict.overlapStart = conflict.entry.start;
+    conflict.overlapEnd = conflict.entry.end;
+
+    const wrapper = mountModal(conflict);
+
+    expect(wrapper.text()).toContain('Times shown in America/Vancouver');
+    expect(wrapper.text()).toContain('January 13, 2025, 11:30 PM - January 14, 2025, 12:30 AM');
+    expect(wrapper.text()).toContain('Event timezone: America/Edmonton');
+  });
+
+  it('hides edit and override actions without permission', () => {
+    const wrapper = mountModal(createConflict(101, 102, 'First assignment', 'Second assignment'), false);
+
+    expect(wrapper.find('.calendar-conflict-detail__edit').exists()).toBe(false);
+    expect(wrapper.find('[data-test="ua-button"]').exists()).toBe(false);
+  });
 });
 
-function mountModal(conflict: CalendarConflict) {
+function mountModal(conflict: CalendarConflict, canEdit = true) {
   return mount(CalendarConflictDetailModal, {
     props: {
       conflict,
       currentEventId: 101,
       timeZone: 'America/Vancouver',
+      canEditEvent: canEdit,
+      canOverride: canEdit,
     },
     global: {
       stubs: {
@@ -101,6 +125,12 @@ function mountModal(conflict: CalendarConflict) {
           emits: ['click'],
           template:
             '<button data-test="ua-button" :data-color="color" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+        },
+        UaTextarea: {
+          props: ['modelValue', 'disabled'],
+          emits: ['update:modelValue'],
+          template:
+            '<textarea :value="modelValue" :disabled="disabled" @input="$emit(\'update:modelValue\', $event.target.value)" />',
         },
         VIcon: {
           template: '<i />',

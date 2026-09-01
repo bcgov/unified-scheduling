@@ -11,12 +11,7 @@ import {
 } from '@/utils/date';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
 import { selectCalendarConflicts, selectContribution } from '@/modules/calendar/calendarSelectors';
-import type {
-  CalendarConflict,
-  CalendarDataResponse,
-  CalendarEventBase,
-  CalendarQueryContext,
-} from '@/modules/calendar/calendarTypes';
+import type { CalendarDataResponse, CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
 import {
   CalendarMatrixActionType,
   type CalendarMatrixActionDisplay,
@@ -42,6 +37,7 @@ import {
 } from './contributions/calendarSchedulingAssignmentsContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import { calendarMatrixColorMap } from './calendarSchedulingColors';
+import { getConflictsForEvent, getConflictsForEventAndResource } from './calendarSchedulingConflicts';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 
 const defaultCalendarSchedulingTimeZone = 'America/Vancouver';
@@ -80,9 +76,9 @@ export function buildCalendarSchedulingViewModel(
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentResources = selectSchedulingAssignmentResources(response);
   const conflicts = selectCalendarConflicts(response);
-  const assignmentEvents = selectSchedulingAssignmentEvents(response)
-    .map((event) => withResolvedAssignmentDefinitionId(event, assignmentResources))
-    .map((event) => withCalendarConflicts(event, conflicts));
+  const assignmentEvents = selectSchedulingAssignmentEvents(response).map((event) =>
+    withResolvedAssignmentDefinitionId(event, assignmentResources),
+  );
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
@@ -116,7 +112,7 @@ export function buildCalendarSchedulingViewModel(
             id: 'assignments',
             variant: 'primary',
             showColorBar: true,
-            events: toScheduleMatrixEventItems(userAssignmentEvents, userShiftEvents),
+            events: toScheduleMatrixEventItems(userAssignmentEvents, userShiftEvents, conflicts, user.id),
           },
         ],
       });
@@ -195,9 +191,7 @@ export function buildCalendarAssignmentViewModel(
   const timeZone = resolveMatrixTimeZone(context);
   const resources = buildAssignmentResourceRows(response);
   const conflicts = selectCalendarConflicts(response);
-  const assignmentEvents = selectSchedulingAssignmentEvents(response).map((event) =>
-    withCalendarConflicts(event, conflicts),
-  );
+  const assignmentEvents = selectSchedulingAssignmentEvents(response);
   const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
   const cells: CalendarMatrixCell[] = [];
 
@@ -225,7 +219,7 @@ export function buildCalendarAssignmentViewModel(
             id: 'assignments',
             variant: 'primary',
             showColorBar: true,
-            events: toScheduleMatrixEventItems(dayAssignmentEvents, dayShiftEvents),
+            events: toScheduleMatrixEventItems(dayAssignmentEvents, dayShiftEvents, conflicts),
           },
         ],
       });
@@ -418,33 +412,6 @@ function withResolvedAssignmentDefinitionId(
   };
 
   return resolvedEvent;
-}
-
-function withCalendarConflicts(
-  event: CalendarEventBase,
-  conflicts: ReadonlyArray<CalendarConflict>,
-): CalendarEventBase {
-  if (!isCalendarSchedulingEvent(event) || !isAssignmentEvent(event) || !event.metadata.eventId) {
-    return event;
-  }
-
-  const eventConflicts = conflicts.filter(
-    (conflict) =>
-      conflict.entry.eventId === event.metadata.eventId || conflict.overlaps.eventId === event.metadata.eventId,
-  );
-  if (eventConflicts.length === 0) {
-    return event;
-  }
-
-  const eventWithConflicts: CalendarSchedulingEvent = {
-    ...event,
-    metadata: {
-      ...event.metadata,
-      conflicts: eventConflicts,
-    },
-  };
-
-  return eventWithConflicts;
 }
 
 function normalizeAssignmentText(value?: string | null) {
@@ -790,6 +757,8 @@ function toMatrixEventItems(events: ReadonlyArray<CalendarEventBase>): CalendarM
 function toScheduleMatrixEventItems(
   events: ReadonlyArray<CalendarEventBase>,
   userShiftEvents: ReadonlyArray<CalendarEventBase>,
+  conflicts: ReadonlyArray<import('@/modules/calendar/calendarTypes').CalendarConflict>,
+  resourceId?: string,
 ): CalendarMatrixEventItem[] {
   return [...events].sort(compareAssignmentEventsForRendering).flatMap((event) => {
     const linkedShifts = resolveLinkedShiftsForAssignment(event, [...userShiftEvents]);
@@ -802,19 +771,35 @@ function toScheduleMatrixEventItems(
     }
 
     const displayEvent = withAssignmentCapacitySlotStates(event, displayLinkedShifts);
+    const eventConflicts = resolveEventConflicts(event, conflicts, resourceId);
 
     return [
       {
         event: displayEvent,
+        conflicts: eventConflicts,
         display: {
           color: resolveCalendarSchedulingColor(event.color),
           status,
           draggable: false,
-          action: eventHasConflicts(displayEvent) ? buildPulldownAction() : undefined,
+          action: eventConflicts.length > 0 ? buildPulldownAction() : undefined,
         },
       },
     ];
   });
+}
+
+function resolveEventConflicts(
+  event: CalendarEventBase,
+  conflicts: ReadonlyArray<import('@/modules/calendar/calendarTypes').CalendarConflict>,
+  resourceId?: string,
+) {
+  if (!isCalendarSchedulingEvent(event)) {
+    return [];
+  }
+
+  return resourceId
+    ? getConflictsForEventAndResource(event.metadata.eventId, resourceId, conflicts)
+    : getConflictsForEvent(event.metadata.eventId, conflicts);
 }
 
 function buildPulldownAction(): CalendarMatrixActionDisplay {
@@ -824,10 +809,6 @@ function buildPulldownAction(): CalendarMatrixActionDisplay {
     ariaLabel: 'Show Conflict Details',
     type: CalendarMatrixActionType.Button,
   };
-}
-
-function eventHasConflicts(event: CalendarEventBase) {
-  return isCalendarSchedulingEvent(event) && Boolean(event.metadata.conflicts?.length);
 }
 
 function compareAssignmentEventsForRendering(left: CalendarEventBase, right: CalendarEventBase) {

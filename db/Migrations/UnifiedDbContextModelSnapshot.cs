@@ -60,6 +60,9 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("SecondEventId")
                         .HasColumnType("integer");
 
@@ -77,7 +80,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.HasIndex("FirstEventId", "SecondEventId")
+                    b.HasIndex("FirstEventId", "SecondEventId", "ResourceId")
                         .IsUnique();
 
                     b.ToTable("CalendarConflictOverrides", null, t =>

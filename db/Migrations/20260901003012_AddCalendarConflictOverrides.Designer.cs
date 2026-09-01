@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20260811005507_AddCalendarConflictOverrides")]
+    [Migration("20260901003012_AddCalendarConflictOverrides")]
     partial class AddCalendarConflictOverrides
     {
         /// <inheritdoc />
@@ -63,6 +63,9 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("SecondEventId")
                         .HasColumnType("integer");
 
@@ -80,7 +83,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.HasIndex("FirstEventId", "SecondEventId")
+                    b.HasIndex("FirstEventId", "SecondEventId", "ResourceId")
                         .IsUnique();
 
                     b.ToTable("CalendarConflictOverrides", null, t =>

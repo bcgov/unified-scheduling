@@ -16,6 +16,8 @@ public sealed class CalendarConflictOverride : BaseEntity
 
     public Event SecondEvent { get; set; } = null!;
 
+    public Guid ResourceId { get; set; }
+
     public string Note { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;

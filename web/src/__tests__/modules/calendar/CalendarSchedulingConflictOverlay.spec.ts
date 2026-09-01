@@ -9,9 +9,14 @@ describe('CalendarSchedulingConflictOverlay', () => {
     const firstConflict = createConflict(101, 102, 'Second assignment', 'user-1');
     const duplicateResourceConflict = createConflict(101, 102, 'Second assignment', 'user-2');
     const thirdEventConflict = createConflict(101, 103, 'Third assignment', 'user-1');
-    const event = createEvent([firstConflict, duplicateResourceConflict, thirdEventConflict]);
+    const event = createEvent();
     const wrapper = mount(CalendarSchedulingConflictOverlay, {
-      props: { event, icon: 'warning-icon', timeZone: 'America/Vancouver' },
+      props: {
+        event,
+        conflicts: [firstConflict, duplicateResourceConflict, thirdEventConflict],
+        icon: 'warning-icon',
+        timeZone: 'America/Vancouver',
+      },
       global: {
         stubs: {
           VIcon: {
@@ -42,7 +47,8 @@ describe('CalendarSchedulingConflictOverlay', () => {
     const unresolvedConflict = createConflict(101, 103, 'Unresolved assignment', 'user-1');
     const wrapper = mount(CalendarSchedulingConflictOverlay, {
       props: {
-        event: createEvent([overriddenConflict, unresolvedConflict]),
+        event: createEvent(),
+        conflicts: [overriddenConflict, unresolvedConflict],
         icon: 'warning-icon',
         timeZone: 'America/Vancouver',
       },
@@ -73,7 +79,7 @@ describe('CalendarSchedulingConflictOverlay', () => {
   });
 });
 
-function createEvent(conflicts: CalendarConflict[]): CalendarSchedulingEvent {
+function createEvent(): CalendarSchedulingEvent {
   return {
     id: 'assignment-entry-201',
     type: 'scheduling.assignment',
@@ -84,7 +90,6 @@ function createEvent(conflicts: CalendarConflict[]): CalendarSchedulingEvent {
     metadata: {
       eventId: 101,
       assignmentEntryId: '201',
-      conflicts,
     },
   };
 }

@@ -110,11 +110,10 @@ public class CalendarControllerTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
 
-        public Task<IReadOnlyCollection<CalendarConflict>> CheckCandidatesAsync(
+        public Task EnsureNoUnresolvedConflictsAsync(
             IReadOnlyCollection<CalendarConflictParticipant> candidates,
-            CalendarConflictQuery query,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
+        ) => Task.CompletedTask;
 
         public Task<CalendarConflictOverrideResponse> CreateOverrideAsync(
             CalendarConflictOverrideRequest request,

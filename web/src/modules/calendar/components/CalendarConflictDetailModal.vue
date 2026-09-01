@@ -5,7 +5,12 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaAuditDisplay from '@/shared/components/UaAuditDisplay.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
-import { formatCalendarEventDate, formatCalendarEventTimeRange } from '@/utils/date';
+import UaTextarea from '@/shared/components/UaTextarea.vue';
+import { formatCalendarDateTimeRange } from '@/utils/date';
+import {
+  formatCalendarConflictEventDateTime,
+  getCalendarConflictEventTimeZoneLabel,
+} from '../calendarConflictFormatting';
 import type { CalendarConflict, CalendarConflictEvent } from '../calendarTypes';
 
 const props = defineProps<{
@@ -14,11 +19,13 @@ const props = defineProps<{
   timeZone?: string;
   loading?: boolean;
   errorMessage?: string;
+  canEditEvent?: boolean;
+  canOverride?: boolean;
 }>();
 
 const emit = defineEmits<{
   close: [];
-  editEvent: [id: number];
+  editEvent: [event: CalendarConflictEvent];
   override: [note: string];
 }>();
 
@@ -41,16 +48,18 @@ watch(
 );
 
 function eventLabel(event: CalendarConflictEvent) {
-  return `${event.title} · ${formatCalendarEventDate(event.start, { timeZone: props.timeZone })} · ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: props.timeZone })}`;
+  return `${event.title} · ${formatCalendarConflictEventDateTime(event, props.timeZone)}`;
 }
 
 function overlapTimeLabel() {
-  return formatCalendarEventTimeRange(props.conflict.overlapStart, props.conflict.overlapEnd, {
-    timeZone: props.timeZone,
-  });
+  return formatCalendarDateTimeRange(props.conflict.overlapStart, props.conflict.overlapEnd, props.timeZone);
 }
 
 const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update override' : 'Override conflict'));
+
+function editEvent(event: CalendarConflictEvent) {
+  emit('editEvent', event);
+}
 </script>
 
 <template>
@@ -58,15 +67,23 @@ const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update over
     <UaAlert v-if="errorMessage" type="error">{{ errorMessage }}</UaAlert>
 
     <section class="calendar-conflict-detail" aria-label="Calendar conflict">
+      <p v-if="timeZone" class="calendar-conflict-detail__time-zone">Times shown in {{ timeZone }}</p>
       <dl class="calendar-conflict-detail__details">
         <dt>Entry:</dt>
         <dd>
-          <span>{{ eventLabel(conflictSection.entry) }}</span>
+          <span>
+            {{ eventLabel(conflictSection.entry) }}
+            <small v-if="getCalendarConflictEventTimeZoneLabel(conflictSection.entry, timeZone)">
+              {{ getCalendarConflictEventTimeZoneLabel(conflictSection.entry, timeZone) }}
+            </small>
+          </span>
           <button
+            v-if="canEditEvent"
             type="button"
             class="calendar-conflict-detail__edit"
+            :disabled="conflictSection.entry.eventId == null"
             :aria-label="`Edit ${conflictSection.entry.title}`"
-            @click="emit('editEvent', conflictSection.entry.eventId)"
+            @click="editEvent(conflictSection.entry)"
           >
             <v-icon :icon="mdiPencil" size="18" />
           </button>
@@ -74,12 +91,19 @@ const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update over
 
         <dt>Overlaps:</dt>
         <dd>
-          <span>{{ eventLabel(conflictSection.overlaps) }}</span>
+          <span>
+            {{ eventLabel(conflictSection.overlaps) }}
+            <small v-if="getCalendarConflictEventTimeZoneLabel(conflictSection.overlaps, timeZone)">
+              {{ getCalendarConflictEventTimeZoneLabel(conflictSection.overlaps, timeZone) }}
+            </small>
+          </span>
           <button
+            v-if="canEditEvent"
             type="button"
             class="calendar-conflict-detail__edit"
+            :disabled="conflictSection.overlaps.eventId == null"
             :aria-label="`Edit ${conflictSection.overlaps.title}`"
-            @click="emit('editEvent', conflictSection.overlaps.eventId)"
+            @click="editEvent(conflictSection.overlaps)"
           >
             <v-icon :icon="mdiPencil" size="18" />
           </button>
@@ -90,13 +114,20 @@ const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update over
       </dl>
 
       <div class="calendar-conflict-detail__override">
-        <label for="conflict-override-note">Override notes</label>
-        <textarea id="conflict-override-note" v-model="note" rows="3" maxlength="2000" />
+        <UaTextarea
+          id="conflict-override-note"
+          v-model="note"
+          label="Override notes"
+          rows="3"
+          maxlength="2000"
+          :disabled="!canOverride"
+        />
         <div v-if="conflict.isOverridden" class="calendar-conflict-detail__audit">
           <strong>Overridden by:</strong>
           <UaAuditDisplay :audit="conflict" :time-zone="timeZone" />
         </div>
         <UaBtn
+          v-if="canOverride"
           color="primary"
           variant="flat"
           :disabled="!note.trim() || loading"
@@ -114,6 +145,11 @@ const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update over
 .calendar-conflict-detail {
   display: grid;
   gap: var(--ua-spacing-md);
+}
+
+.calendar-conflict-detail__time-zone {
+  color: var(--ua-text-secondary);
+  margin: 0;
 }
 
 .calendar-conflict-detail__details {
@@ -137,7 +173,13 @@ const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update over
 }
 
 .calendar-conflict-detail__details dd span {
+  display: grid;
+  gap: var(--ua-spacing-xs);
   overflow-wrap: anywhere;
+}
+
+.calendar-conflict-detail__details dd small {
+  color: var(--ua-text-secondary);
 }
 
 .calendar-conflict-detail__edit {
@@ -161,18 +203,6 @@ const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update over
 .calendar-conflict-detail__override {
   display: grid;
   gap: var(--ua-spacing-sm);
-}
-
-.calendar-conflict-detail__override label {
-  font-weight: var(--ua-font-weight-semibold);
-}
-
-.calendar-conflict-detail__override textarea {
-  border: 1px solid var(--ua-border-color);
-  border-radius: 4px;
-  color: var(--ua-text-primary);
-  padding: var(--ua-spacing-sm);
-  resize: vertical;
 }
 
 .calendar-conflict-detail__audit {
