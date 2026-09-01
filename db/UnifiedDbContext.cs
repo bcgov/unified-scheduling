@@ -96,7 +96,10 @@ public class UnifiedDbContext : AuditDbContext
 
             try
             {
-                var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                var result = await base.SaveChangesAsync(
+                    acceptAllChangesOnSuccess,
+                    cancellationToken
+                );
 
                 await ambientTransaction.ReleaseSavepointAsync(SavepointName, cancellationToken);
 
