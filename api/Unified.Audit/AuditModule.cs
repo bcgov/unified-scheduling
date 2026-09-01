@@ -16,7 +16,6 @@ public static class AuditModule
     public static IServiceCollection AddAuditModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<AuditRecordOptions>().Bind(configuration.GetSection(AuditRecordOptions.SectionName));
-        services.AddOptions<AuditRecordOptions>().Bind(configuration.GetSection(AuditRecordOptions.SectionName));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentActorResolver, HttpContextActorResolver>();

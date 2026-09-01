@@ -196,6 +196,8 @@ public class SaveRulesInterceptorTests
     private DbContextEventData CreateEventData()
     {
         var context = new UnifiedDbContext(_options);
+        // SaveRulesInterceptor skips entirely when there are no non-audit tracked changes.
+        context.Add(new User());
         return new DbContextEventData(null, null, context);
     }
 
