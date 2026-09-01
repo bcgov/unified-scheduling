@@ -1,5 +1,4 @@
 using Audit.Core;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -18,7 +17,10 @@ public static class AuditModule
         services.AddOptions<AuditRecordOptions>().Bind(configuration.GetSection(AuditRecordOptions.SectionName));
 
         services.AddHttpContextAccessor();
-        services.AddScoped<ICurrentActorResolver, HttpContextActorResolver>();
+        // Singleton is safe: HttpContextActorResolver's only dependency, IHttpContextAccessor, is
+        // itself Singleton and resolves the current request via AsyncLocal - UseAuditModule below
+        // resolves this once at startup to configure the process-wide Audit.NET pipeline.
+        services.AddSingleton<ICurrentActorResolver, HttpContextActorResolver>();
 
         services.AddMemoryCache();
 
@@ -42,10 +44,10 @@ public static class AuditModule
     /// </summary>
     public static IServiceProvider UseAuditModule(this IServiceProvider services)
     {
-        var httpContextAccessor = services.GetRequiredService<IHttpContextAccessor>();
+        var currentActorResolver = services.GetRequiredService<ICurrentActorResolver>();
         var options = services.GetRequiredService<IOptions<AuditRecordOptions>>().Value;
 
-        var entityAction = new AuditRecordEntityAction(new HttpContextActorResolver(httpContextAccessor), options);
+        var entityAction = new AuditRecordEntityAction(currentActorResolver, options);
 
         // Populates AuditEvent.Activity from the ambient System.Diagnostics.Activity, which
         // AuditRecordEntityAction uses as the audit record's correlation id.

@@ -168,6 +168,51 @@ public sealed class AuditPipelineTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SaveChangesAsync_When_Saving_Grandparent_Parent_And_Child_Together_Should_Record_Correct_Generated_Ids()
+    {
+        var (connection, dbContext) = await CreateSqliteDbContextAsync();
+        await using var _ = connection;
+        await using var __ = dbContext;
+
+        var region = new Region { Name = "North" };
+        var location = new Location
+        {
+            AgencyId = "AG1",
+            Name = "Loc 1",
+            Timezone = "America/Vancouver",
+            Region = region,
+        };
+        var courtRoom = new CourtRoom { Room = "101", Location = location };
+        dbContext.Regions.Add(region);
+        dbContext.Locations.Add(location);
+        dbContext.CourtRooms.Add(courtRoom);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(region.Id > 0);
+        Assert.True(location.Id > 0);
+        Assert.True(courtRoom.Id > 0);
+        Assert.Equal(region.Id, location.RegionId);
+        Assert.Equal(location.Id, courtRoom.LocationId);
+
+        // Re-read untracked to confirm the FK was actually persisted, not just fixed up in memory.
+        var persistedCourtRoom = await dbContext
+            .CourtRooms.AsNoTracking()
+            .SingleAsync(c => c.Id == courtRoom.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(location.Id, persistedCourtRoom.LocationId);
+
+        var grandchildRecords = await dbContext.AuditRecords.ToListAsync(TestContext.Current.CancellationToken);
+        var regionRecord2 = Assert.Single(grandchildRecords, r => r.EntityType == nameof(Region));
+        var locationRecord2 = Assert.Single(grandchildRecords, r => r.EntityType == nameof(Location));
+        var courtRoomRecord = Assert.Single(grandchildRecords, r => r.EntityType == nameof(CourtRoom));
+
+        Assert.Equal(region.Id.ToString(), regionRecord2.EntityPK);
+        Assert.Equal(location.Id.ToString(), locationRecord2.EntityPK);
+        Assert.Equal(courtRoom.Id.ToString(), courtRoomRecord.EntityPK);
+        // Confirms the FK fix-up (LocationId) was captured in the audited NewValues, not just the in-memory entity.
+        Assert.Contains($"\"LocationId\":{location.Id}", courtRoomRecord.NewValues);
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_When_Audit_Insert_Fails_Should_Roll_Back_Entity_Save_Too()
     {
         var (connection, dbContext) = await CreateSqliteDbContextAsync(
