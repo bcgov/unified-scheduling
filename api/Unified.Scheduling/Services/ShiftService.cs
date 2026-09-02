@@ -14,8 +14,6 @@ public sealed class ShiftService(
     UnifiedDbContext db,
     IEventSeriesMaterializationService eventSeriesMaterializationService,
     ShiftSeriesMaterializationHandler shiftSeriesMaterializationHandler,
-    ICalendarTimeZoneResolver timeZoneResolver,
-    ITimeZoneService timeZoneService,
     CalendarLifecycleService calendarLifecycleService,
     TimeProvider timeProvider
 ) : IShiftService
@@ -541,83 +539,6 @@ public sealed class ShiftService(
         logger.LogInformation("Deleted shift entry {ShiftEntryId}.", id);
 
         return true;
-    }
-
-    public async Task<SchedulingCalendarDataResponse> GetSchedulingCalendarDataAsync(
-        SchedulingCalendarRequest request,
-        CancellationToken cancellationToken = default
-    )
-    {
-        logger.LogDebug(
-            "Querying scheduling calendar shift events for local date range {StartDate} to {EndDate}, timezone {TimeZoneId}, location {LocationId}, and users {UserIds}.",
-            request.StartDate,
-            request.EndDate,
-            request.TimeZoneId,
-            request.LocationId,
-            request.UserIds is null ? null : string.Join(",", request.UserIds)
-        );
-
-        var locationTimeZoneId = await GetLocationTimeZoneIdAsync(request.LocationId, cancellationToken);
-        var timeZone = timeZoneResolver.Resolve(request.TimeZoneId, locationTimeZoneId);
-        var utcRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
-            request.StartDate,
-            request.EndDate,
-            timeZone
-        );
-
-        IQueryable<ShiftEntry> query = db
-            .ShiftEntries.AsNoTracking()
-            .Include(shiftEntry => shiftEntry.Event)
-            .Include(shiftEntry => shiftEntry.Users)
-            .Where(shiftEntry => shiftEntry.Event != null)
-            .Where(shiftEntry => shiftEntry.Event!.SourceModule == SchedulingConstants.SourceModule)
-            .Where(shiftEntry => shiftEntry.Event!.EventTypeCode == SchedulingConstants.ShiftEventTypeCode)
-            .Where(shiftEntry => shiftEntry.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
-            .Where(shiftEntry => shiftEntry.Event!.StartAtUtc < utcRange.EndAtUtc)
-            .Where(shiftEntry =>
-                shiftEntry.Event!.EndAtUtc == null
-                    ? shiftEntry.Event.StartAtUtc >= utcRange.StartAtUtc
-                        && shiftEntry.Event.StartAtUtc < utcRange.EndAtUtc
-                    : shiftEntry.Event.EndAtUtc > utcRange.StartAtUtc
-            );
-
-        if (request.LocationId.HasValue)
-            query = query.Where(shiftEntry =>
-                shiftEntry.Event!.LocationId == null || shiftEntry.Event.LocationId == request.LocationId.Value
-            );
-
-        if (request.UserIds is { Count: > 0 })
-            query = query.Where(shiftEntry => shiftEntry.Users.Any(user => request.UserIds.Contains(user.UserId)));
-
-        var shiftEntries = await query
-            .OrderBy(shiftEntry => shiftEntry.Event!.StartAtUtc)
-            .ThenBy(shiftEntry => shiftEntry.Id)
-            .ToListAsync(cancellationToken);
-
-        var response = new SchedulingCalendarDataResponse
-        {
-            Events = shiftEntries
-                .Select(ShiftResponseMapper.ToCalendarEventResponse)
-                .OrderBy(eventResponse => eventResponse.Start)
-                .ThenBy(eventResponse => eventResponse.Id)
-                .ToList(),
-        };
-
-        logger.LogDebug("Scheduling calendar query returned {SchedulingEventCount} events.", response.Events.Count);
-
-        return response;
-    }
-
-    private async Task<string?> GetLocationTimeZoneIdAsync(int? locationId, CancellationToken cancellationToken)
-    {
-        if (!locationId.HasValue)
-            return null;
-
-        return await db
-            .Locations.AsNoTracking()
-            .Where(location => location.Id == locationId.Value)
-            .Select(location => location.Timezone)
-            .SingleOrDefaultAsync(cancellationToken);
     }
 
     private async Task<IReadOnlyCollection<ShiftSeriesResponse>> MapToShiftSeriesResponsesAsync(
