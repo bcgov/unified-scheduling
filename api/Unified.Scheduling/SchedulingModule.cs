@@ -8,11 +8,13 @@ using Unified.Calendar;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
+using Unified.Db;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.FeatureFlags;
 using Unified.Scheduling.Seeders;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
+using Unified.Stats;
 
 namespace Unified.Scheduling;
 
@@ -56,14 +58,29 @@ public static class SchedulingModule
 
         if (!CalendarModule.IsModuleEnabled(config))
             throw new InvalidOperationException("Scheduling requires the Calendar module to be enabled.");
+        if (!StatsModule.IsModuleEnabled(config))
+            throw new InvalidOperationException("Scheduling requires the Stats module to be enabled.");
 
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IShiftService, ShiftService>();
+        services.AddScoped<ISchedulingCalendarService, SchedulingCalendarService>();
+        services.AddScoped<IAssignmentService, AssignmentService>();
+        services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
+        services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
         services.AddScoped<ShiftSeriesMaterializationHandler>();
+        services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();
         services.AddScoped<ShiftEntryRequestValidator>();
+        services.AddScoped<AssignmentSeriesRequestValidator>();
+        services.AddScoped<AssignmentEntryRequestValidator>();
+        services.AddScoped<AssignmentEntryUpdateRequestValidator>();
+        services.AddScoped<AssignmentDefinitionRequestValidator>();
+        services.AddScoped<ShiftAssignmentEntryRequestValidator>();
+        services.AddScoped<ShiftAssignmentSeriesRequestValidator>();
+        services.AddScoped<ShiftAssignmentEntryUpdateRequestValidator>();
+        services.AddScoped<ShiftAssignmentSeriesUpdateRequestValidator>();
         services.AddScoped<SchedulingCalendarRequestValidator>();
-        services.AddScoped<ShiftEventTypeSeeder>();
+        services.AddSeeder<UnifiedDbContext, ShiftEventTypeSeeder>();
         services.AddSingleton(SchedulingPermissionSeedData.Configuration);
 
         services
@@ -72,7 +89,13 @@ public static class SchedulingModule
             .AddPermissionPolicy(Permissions.ShiftsCreateAndAssign)
             .AddPermissionPolicy(Permissions.ShiftsEdit)
             .AddPermissionPolicy(Permissions.ShiftsDelete)
-            .AddPermissionPolicy(Permissions.ShiftsExpire);
+            .AddPermissionPolicy(Permissions.ShiftsExpire)
+            .AddPermissionPolicy(Permissions.AssignmentsView)
+            .AddPermissionPolicy(Permissions.AssignmentsCreate)
+            .AddPermissionPolicy(Permissions.AssignmentsAssign)
+            .AddPermissionPolicy(Permissions.AssignmentsEdit)
+            .AddPermissionPolicy(Permissions.AssignmentsDelete)
+            .AddPermissionPolicy(Permissions.AssignmentsExpire);
 
         return services;
     }
