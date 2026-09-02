@@ -64,4 +64,30 @@ describe('useAuditHistory', () => {
 
     expect(audit.entityPk.value).toBeNull();
   });
+
+  it('re-queries with the last applied filters (not live edits) when paginating', async () => {
+    let capturedUrl: URL | undefined;
+    server.use(
+      getGetApiAuditHistoryMockHandler((info) => {
+        capturedUrl = new URL(info.request.url);
+        return getGetApiAuditHistoryResponseMock({ data: [], totalCount: 30 });
+      }),
+    );
+
+    const audit = await setupAudit();
+    audit.entityType.value = 'Shift';
+    audit.entityPk.value = 'ab-123';
+
+    await audit.applyFilters();
+    await flushPromises();
+
+    // Edit a filter after searching, without clicking Search again.
+    audit.entityPk.value = 'not-yet-searched';
+
+    await audit.goToPage(2);
+    await flushPromises();
+
+    expect(capturedUrl?.searchParams.get('EntityPK')).toBe('ab-123');
+    expect(capturedUrl?.searchParams.get('Page')).toBe('2');
+  });
 });

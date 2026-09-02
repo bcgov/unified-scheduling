@@ -79,9 +79,7 @@ export function useAuditHistory() {
     return DateTime.fromISO(fromDate.value) <= DateTime.fromISO(toDate.value);
   });
 
-  const canApply = computed(
-    () => !!entityType.value && !!fromDate.value && !!toDate.value && isDateRangeValid.value,
-  );
+  const canApply = computed(() => !!entityType.value && !!fromDate.value && !!toDate.value && isDateRangeValid.value);
 
   // ── Pagination ────────────────────────────────────────────────────────
   const page = ref(1);
