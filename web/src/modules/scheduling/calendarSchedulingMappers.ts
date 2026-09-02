@@ -19,16 +19,40 @@ import {
   type CalendarMatrixCellHeader,
   type CalendarMatrixDay,
   type CalendarMatrixActionDisplay,
+  type CalendarMatrixEventItem,
   type CalendarMatrixResource,
+  type CalendarMatrixSidePanelItem,
   type CalendarMatrixViewModel,
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
-import { isCalendarSchedulingEvent } from './calendarSchedulingData';
+import {
+  isCalendarSchedulingEvent,
+  type CalendarAssignmentCapacitySlotState,
+  type CalendarAssignmentPartialCoverageShift,
+  type CalendarSchedulingEvent,
+} from './calendarSchedulingData';
 import type { CalendarSchedulingUserResource } from './contributions/calendarSchedulingEventsContribution';
+import {
+  schedulingAssignmentContributionId,
+  type CalendarSchedulingAssignmentResource,
+} from './contributions/calendarSchedulingAssignmentsContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
+import { calendarMatrixColorMap } from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
+import { defaultSchedulingTimeZoneId, resolveSchedulingTimeZoneFromFilters } from './schedulingTimeZone';
+import { isSchedulingCancelled } from './schedulingLifecycle';
+import { createAssignmentResourceId, isAssignmentEvent, isShiftEvent } from './calendarSchedulingShiftIds';
 
-const defaultCalendarSchedulingTimeZone = 'America/Vancouver';
-const schedulingEventsContributionId = CalendarContributionId.SchedulingEvents;
+const schedulingShiftContributionId = CalendarContributionId.SchedulingEvents;
+const unassignedScheduleResourceId = 'scheduling.unassigned';
+
+interface AssignmentMatrixResource extends CalendarMatrixResource {
+  assignmentDefinitionId?: number;
+  locationId?: number;
+  categoryId?: number;
+  categoryName?: string;
+  subCategoryId?: number;
+  subCategoryName?: string;
+}
 
 export function buildCalendarSchedulingViewModel(
   response: CalendarDataResponse,
@@ -49,15 +73,32 @@ export function buildCalendarSchedulingViewModel(
 
   const days = buildDays(context.startDate, period);
   const timeZone = resolveMatrixTimeZone(context);
-  const shiftEvents = selectSchedulingShiftEvents(response);
+  const schedulingEvents = selectSchedulingShiftEvents(response);
+  const shiftEvents = schedulingEvents.filter(isShiftEvent);
+  const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
   const resources = buildUserResourceRows(response);
+  const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
+    ? [...resources, buildUnassignedResourceRow()]
+    : resources;
   const cells: CalendarMatrixCell[] = [];
 
-  for (const user of resources) {
+  for (const user of scheduleResources) {
     for (const day of days) {
-      const userShiftEvents = shiftEvents.filter(
-        (event) => event.resourceIds?.includes(user.id) && isEventOnMatrixDate(event, day.date, timeZone),
-      );
+      const isUnassignedRow = user.id === unassignedScheduleResourceId;
+      const userShiftEvents = isUnassignedRow
+        ? shiftEvents.filter((event) => isUnassignedShiftEvent(event) && isEventOnMatrixDate(event, day.date, timeZone))
+        : shiftEvents.filter(
+            (event) => event.resourceIds?.includes(user.id) && isEventOnMatrixDate(event, day.date, timeZone),
+          );
+      const userAssignmentEvents = isUnassignedRow
+        ? assignmentEvents.filter(
+            (event) => isUnlinkedAssignmentEvent(event) && isEventOnMatrixDate(event, day.date, timeZone),
+          )
+        : assignmentEvents.filter(
+            (event) =>
+              isEventOnMatrixDate(event, day.date, timeZone) &&
+              assignmentEventBelongsToUserScheduleCell(event, user.id, userShiftEvents),
+          );
 
       cells.push({
         resourceId: user.id,
@@ -68,7 +109,7 @@ export function buildCalendarSchedulingViewModel(
             id: 'assignments',
             variant: 'primary',
             showColorBar: true,
-            events: [],
+            events: toScheduleMatrixEventItems(userAssignmentEvents, userShiftEvents),
           },
         ],
       });
@@ -78,11 +119,126 @@ export function buildCalendarSchedulingViewModel(
   return {
     days,
     timeZone,
+    payload: {
+      assignmentEvents: selectSchedulingAssignmentEvents(response),
+    },
     primaryColumn: {
       label: 'TEAM',
+      resources: scheduleResources,
+    },
+    cells,
+    sidePanel: {
+      label: 'ASSIGNMENTS',
+      actionId: calendarSchedulingActionIds.addAssignment,
+      actionLabel: 'Add Assignment',
+      items: buildAssignmentSidePanelItems(response),
+    },
+  };
+}
+
+function buildUnassignedResourceRow(): CalendarMatrixResource {
+  return {
+    id: unassignedScheduleResourceId,
+    type: 'unassigned',
+    title: 'Unassigned',
+    subtitle: 'unassigned shifts and/or assignments',
+    avatarText: '?',
+  };
+}
+
+function hasUnassignedScheduleEvents(
+  shiftEvents: ReadonlyArray<CalendarEventBase>,
+  assignmentEvents: ReadonlyArray<CalendarEventBase>,
+  days: ReadonlyArray<CalendarMatrixDay>,
+  timeZone: string,
+) {
+  return days.some((day) => {
+    const hasUnassignedShift = shiftEvents.some(
+      (event) => isUnassignedShiftEvent(event) && isEventOnMatrixDate(event, day.date, timeZone),
+    );
+
+    if (hasUnassignedShift) {
+      return true;
+    }
+
+    return assignmentEvents.some(
+      (event) => isUnlinkedAssignmentEvent(event) && isEventOnMatrixDate(event, day.date, timeZone),
+    );
+  });
+}
+
+export function buildCalendarAssignmentViewModel(
+  response: CalendarDataResponse,
+  context: CalendarQueryContext,
+  period: CalendarPeriod,
+): CalendarMatrixViewModel {
+  if (period === 'month') {
+    return {
+      unsupportedMessage: 'Not supported',
+      days: [],
+      primaryColumn: {
+        label: 'ASSIGNMENTS',
+        resources: [],
+      },
+      cells: [],
+    };
+  }
+
+  const days = buildDays(context.startDate, period);
+  const timeZone = resolveMatrixTimeZone(context);
+  const resources = buildAssignmentResourceRows(response);
+  const assignmentEvents = selectSchedulingAssignmentEvents(response);
+  const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
+  const cells: CalendarMatrixCell[] = [];
+
+  for (const assignment of resources) {
+    for (const day of days) {
+      const dayAssignmentEvents = assignmentEvents.filter(
+        (event) =>
+          isCalendarSchedulingEvent(event) &&
+          assignmentEventBelongsToAssignmentResource(event, assignment, resources) &&
+          isEventOnMatrixDate(event, day.date, timeZone),
+      );
+      const dayShiftEvents = shiftEvents.filter(
+        (event) => !isSchedulingCancelled(event.statusTypeCode) && isEventOnMatrixDate(event, day.date, timeZone),
+      );
+
+      cells.push({
+        resourceId: assignment.id,
+        date: day.date,
+        headers: [],
+        payload: {
+          shiftEvents: dayShiftEvents,
+        },
+        groups: [
+          {
+            id: 'assignments',
+            variant: 'primary',
+            showColorBar: true,
+            events: toScheduleMatrixEventItems(dayAssignmentEvents, dayShiftEvents),
+          },
+        ],
+      });
+    }
+  }
+
+  return {
+    days,
+    timeZone,
+    payload: {
+      assignmentEvents,
+    },
+    primaryColumn: {
+      label: 'ASSIGNMENTS',
       resources,
     },
     cells,
+    sidePanel: {
+      label: 'TEAM',
+      actionId: calendarSchedulingActionIds.scheduleStaff,
+      actionLabel: 'Schedule staff',
+      items: buildUserSidePanelItems(response),
+    },
   };
 }
 
@@ -97,13 +253,13 @@ function buildUserResourceRows(response: CalendarDataResponse): CalendarMatrixRe
     action: {
       actionId: calendarSchedulingActionIds.addResource,
       label: '+',
-      ariaLabel: `Add resource action for ${user.title}`,
+      ariaLabel: `Add Resource Action For ${user.title}`,
     },
   }));
 }
 
 function selectSchedulingShiftEvents(response: CalendarDataResponse) {
-  const contribution = selectContribution(response, schedulingEventsContributionId);
+  const contribution = selectContribution(response, schedulingShiftContributionId);
 
   if (!contribution) {
     return [];
@@ -112,14 +268,194 @@ function selectSchedulingShiftEvents(response: CalendarDataResponse) {
   return contribution.events.filter(isCalendarSchedulingEvent);
 }
 
+function selectSchedulingAssignmentEvents(response: CalendarDataResponse) {
+  const assignmentContribution = selectContribution(response, schedulingAssignmentContributionId);
+  const shiftContribution = selectContribution(response, schedulingShiftContributionId);
+  const assignmentContributionEvents = assignmentContribution?.events.filter(isCalendarSchedulingEvent) ?? [];
+  const shiftContributionAssignmentEvents = (shiftContribution?.events.filter(isCalendarSchedulingEvent) ?? []).filter(
+    isAssignmentEvent,
+  );
+  const seenEventKeys = new Set<string>();
+
+  return [...assignmentContributionEvents, ...shiftContributionAssignmentEvents].filter((event) => {
+    const key = createSchedulingAssignmentEventKey(event);
+    if (seenEventKeys.has(key)) {
+      return false;
+    }
+
+    seenEventKeys.add(key);
+    return true;
+  });
+}
+
+function createSchedulingAssignmentEventKey(event: CalendarEventBase) {
+  if (isCalendarSchedulingEvent(event) && event.metadata.assignmentEntryId) {
+    return `assignment-entry-${event.metadata.assignmentEntryId}`;
+  }
+
+  return event.id;
+}
+
+function assignmentEventBelongsToAssignmentResource(
+  event: CalendarEventBase,
+  resource: AssignmentMatrixResource,
+  resources: ReadonlyArray<AssignmentMatrixResource>,
+) {
+  const resourceId = resource.id;
+
+  if (event.resourceIds?.includes(resourceId)) {
+    return true;
+  }
+
+  if (!isCalendarSchedulingEvent(event)) {
+    return false;
+  }
+
+  if (event.metadata.assignmentId === resourceId) {
+    return true;
+  }
+
+  const eventResourceId = resolveAssignmentEventResourceId(event);
+  if (eventResourceId) {
+    return eventResourceId === resourceId;
+  }
+
+  return resolveAssignmentEventResourceIdFromDefinitionFields(event, resources) === resourceId;
+}
+
+function resolveAssignmentEventResourceId(event: CalendarEventBase) {
+  if (!isCalendarSchedulingEvent(event)) {
+    return undefined;
+  }
+
+  if (event.metadata.assignmentId) {
+    return event.metadata.assignmentId;
+  }
+
+  const parsed = Number(event.metadata.assignmentDefinitionId);
+  return Number.isInteger(parsed) && parsed > 0 ? createAssignmentResourceId(parsed) : undefined;
+}
+
+function resolveAssignmentEventResourceIdFromDefinitionFields(
+  event: CalendarEventBase,
+  resources: ReadonlyArray<AssignmentMatrixResource>,
+) {
+  if (!isCalendarSchedulingEvent(event)) {
+    return undefined;
+  }
+
+  const candidates = resources.filter((resource) => assignmentEventMatchesDefinitionFields(event, resource));
+  return candidates.length === 1 ? candidates[0]?.id : undefined;
+}
+
+function assignmentEventMatchesDefinitionFields(event: CalendarSchedulingEvent, resource: AssignmentMatrixResource) {
+  if (normalizeAssignmentText(event.title) !== normalizeAssignmentText(resource.title)) {
+    return false;
+  }
+
+  if (!optionalValuesMatch(event.metadata.categoryId, resource.categoryId)) {
+    return false;
+  }
+
+  if (!optionalValuesMatch(event.metadata.subCategoryId, resource.subCategoryId)) {
+    return false;
+  }
+
+  if (!optionalTextValuesMatch(event.metadata.categoryName, resource.categoryName)) {
+    return false;
+  }
+
+  return optionalTextValuesMatch(event.metadata.subCategoryName, resource.subCategoryName);
+}
+
+function normalizeAssignmentText(value?: string | null) {
+  return value?.trim().toLocaleLowerCase() ?? '';
+}
+
+function optionalValuesMatch(left?: number, right?: number) {
+  return left == null || right == null || left === right;
+}
+
+function optionalTextValuesMatch(left?: string, right?: string) {
+  return !left || !right || normalizeAssignmentText(left) === normalizeAssignmentText(right);
+}
+
+function assignmentEventBelongsToUserScheduleCell(
+  assignmentEvent: CalendarEventBase,
+  userId: string,
+  userShiftEvents: CalendarEventBase[],
+) {
+  if (!isCalendarSchedulingEvent(assignmentEvent)) {
+    return false;
+  }
+
+  if (assignmentEvent.metadata.assignedUserIds?.length) {
+    return assignmentEvent.metadata.assignedUserIds.includes(userId);
+  }
+
+  const linkedShiftEntryIds = new Set(assignmentEvent.metadata.assignedShiftIds ?? []);
+  if (linkedShiftEntryIds.size === 0) {
+    return false;
+  }
+
+  return userShiftEvents.some(
+    (shiftEvent) =>
+      isCalendarSchedulingEvent(shiftEvent) && linkedShiftEntryIds.has(String(shiftEvent.metadata.shiftEntryId)),
+  );
+}
+
+function isUnassignedShiftEvent(event: CalendarEventBase) {
+  if (!isCalendarSchedulingEvent(event)) {
+    return !event.resourceIds?.length;
+  }
+
+  return !event.metadata.userIds?.length && !event.metadata.userId && !event.resourceIds?.length;
+}
+
+function isUnlinkedAssignmentEvent(event: CalendarEventBase) {
+  if (!isCalendarSchedulingEvent(event)) {
+    return false;
+  }
+
+  return (event.metadata.assignedShiftIds ?? []).length === 0;
+}
+
+function resolveLinkedShiftsForAssignment(assignmentEvent: CalendarEventBase, userShiftEvents: CalendarEventBase[]) {
+  if (!isCalendarSchedulingEvent(assignmentEvent)) {
+    return [];
+  }
+
+  const linkedShiftEntryIds = new Set(assignmentEvent.metadata.assignedShiftIds ?? []);
+  if (linkedShiftEntryIds.size === 0) {
+    return [];
+  }
+
+  return userShiftEvents.filter(
+    (shiftEvent) =>
+      isCalendarSchedulingEvent(shiftEvent) && linkedShiftEntryIds.has(String(shiftEvent.metadata.shiftEntryId)),
+  );
+}
+
 function selectSchedulingUserResources(response: CalendarDataResponse): CalendarSchedulingUserResource[] {
-  const contribution = selectContribution(response, schedulingEventsContributionId);
+  const contribution = selectContribution(response, schedulingShiftContributionId);
 
   if (!contribution?.resources) {
     return [];
   }
 
   return contribution.resources.flatMap((resource) => (isCalendarSchedulingUserResource(resource) ? [resource] : []));
+}
+
+function selectSchedulingAssignmentResources(response: CalendarDataResponse): CalendarSchedulingAssignmentResource[] {
+  const contribution = selectContribution(response, schedulingAssignmentContributionId);
+
+  if (!contribution?.resources) {
+    return [];
+  }
+
+  return contribution.resources.flatMap((resource) =>
+    isCalendarSchedulingAssignmentResource(resource) ? [resource] : [],
+  );
 }
 
 function isCalendarSchedulingUserResource(resource: {
@@ -129,10 +465,105 @@ function isCalendarSchedulingUserResource(resource: {
   return 'title' in resource && typeof resource.title === 'string';
 }
 
-function buildCellHeader(
-  event: CalendarEventBase,
-  timeZone = defaultCalendarSchedulingTimeZone,
-): CalendarMatrixCellHeader {
+function isCalendarSchedulingAssignmentResource(resource: {
+  id: string;
+  type: string;
+}): resource is CalendarSchedulingAssignmentResource {
+  return resource.type === 'assignment' && 'title' in resource && typeof resource.title === 'string';
+}
+
+function buildAssignmentResourceRows(response: CalendarDataResponse): AssignmentMatrixResource[] {
+  return selectSchedulingAssignmentResources(response).map((assignment) =>
+    buildAssignmentResourceRow({
+      id: assignment.id,
+      title: assignment.title,
+      subtitle: assignment.subtitle,
+      meta: assignment.meta,
+      avatarText: assignment.avatarText,
+      assignmentDefinitionId: assignment.assignmentDefinitionId,
+      locationId: assignment.locationId,
+      categoryId: assignment.categoryId,
+      categoryName: assignment.categoryName,
+      subCategoryId: assignment.subCategoryId,
+      subCategoryName: assignment.subCategoryName,
+    }),
+  );
+}
+
+function buildAssignmentResourceRow(resource: {
+  id: string;
+  title: string;
+  subtitle?: string;
+  meta?: CalendarMatrixResource['meta'];
+  avatarText?: string;
+  assignmentDefinitionId?: number;
+  locationId?: number;
+  categoryId?: number;
+  categoryName?: string;
+  subCategoryId?: number;
+  subCategoryName?: string;
+}): AssignmentMatrixResource {
+  return {
+    id: resource.id,
+    type: 'assignment',
+    title: resource.title,
+    subtitle: resource.subtitle,
+    meta: resource.meta,
+    avatarText: resource.avatarText,
+    assignmentDefinitionId: resource.assignmentDefinitionId,
+    locationId: resource.locationId,
+    categoryId: resource.categoryId,
+    categoryName: resource.categoryName,
+    subCategoryId: resource.subCategoryId,
+    subCategoryName: resource.subCategoryName,
+    action: {
+      actionId: calendarSchedulingActionIds.addAssignmentResource,
+      label: '+',
+      ariaLabel: `Add Resource Action For ${resource.title}`,
+    },
+  };
+}
+
+function buildAssignmentSidePanelItems(response: CalendarDataResponse): CalendarMatrixSidePanelItem[] {
+  return selectSchedulingAssignmentResources(response).map((assignment) => ({
+    id: assignment.id,
+    type: assignment.type,
+    title: assignment.title,
+    subtitle: assignment.subtitle,
+    meta: assignment.meta,
+    avatarText: assignment.avatarText,
+    draggable: true,
+    payload: {
+      title: assignment.title,
+      description: assignment.description,
+      subtitle: assignment.subtitle,
+      assignmentDefinitionId: assignment.assignmentDefinitionId,
+      locationId: assignment.locationId,
+      defaultStartTime: assignment.defaultStartTime,
+      defaultEndTime: assignment.defaultEndTime,
+      capacity: assignment.capacity,
+      entries: assignment.entries,
+    },
+  }));
+}
+
+function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrixSidePanelItem[] {
+  return selectSchedulingUserResources(response).map((user) => ({
+    id: user.id,
+    type: user.type,
+    title: user.title,
+    subtitle: user.subtitle,
+    meta: user.meta,
+    avatarText: user.avatarText,
+    draggable: true,
+    payload: {
+      userId: user.id,
+      title: user.title,
+    },
+  }));
+}
+
+function buildCellHeader(event: CalendarEventBase, timeZone = defaultSchedulingTimeZoneId): CalendarMatrixCellHeader {
   return {
     id: event.id,
     text: formatCalendarEventTimeRange(event.start, event.end, {
@@ -141,7 +572,7 @@ function buildCellHeader(
     }),
     title: event.title,
     status: event.statusTypeCode,
-    color: event.color,
+    color: resolveCalendarSchedulingColor(event.color),
     info: eventBelongsToSeries(event)
       ? {
           icons: [
@@ -206,15 +637,14 @@ function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: s
 }
 
 function resolveMatrixTimeZone(context: CalendarQueryContext) {
-  const timeZone = context.filters.timeZoneId ?? context.filters.timeZone;
-  return typeof timeZone === 'string' && timeZone.trim() ? timeZone : defaultCalendarSchedulingTimeZone;
+  return resolveSchedulingTimeZoneFromFilters(context.filters);
 }
 
 function buildPulldownAction(): CalendarMatrixActionDisplay {
   return {
     actionId: calendarSchedulingActionIds.showConflict,
     icon: mdiAlertCircle,
-    ariaLabel: 'Show conflict details',
+    ariaLabel: 'Show Conflict Details',
     type: CalendarMatrixActionType.Button,
   };
 }
@@ -254,4 +684,149 @@ function formatDayLabel(value: string) {
     month: 'short',
     day: 'numeric',
   }).format(parseLocalDateOnly(value));
+}
+
+function toScheduleMatrixEventItems(
+  events: ReadonlyArray<CalendarEventBase>,
+  userShiftEvents: ReadonlyArray<CalendarEventBase>,
+): CalendarMatrixEventItem[] {
+  return events.flatMap((event) => {
+    const linkedShifts = resolveLinkedShiftsForAssignment(event, [...userShiftEvents]);
+    const activeLinkedShifts = linkedShifts.filter((shift) => !isSchedulingCancelled(shift.statusTypeCode));
+    const displayLinkedShifts = activeLinkedShifts.length > 0 ? activeLinkedShifts : linkedShifts;
+    const status = displayLinkedShifts[0]?.statusTypeCode ?? event.statusTypeCode;
+
+    if (linkedShifts.length > 0 && linkedShifts.every((shift) => isSchedulingCancelled(shift.statusTypeCode))) {
+      return [];
+    }
+
+    const displayEvent = withAssignmentCapacitySlotStates(event, displayLinkedShifts);
+
+    return [
+      {
+        event: displayEvent,
+        display: {
+          color: resolveCalendarSchedulingColor(event.color),
+          status,
+          draggable: false,
+        },
+      },
+    ];
+  });
+}
+
+function withAssignmentCapacitySlotStates(
+  event: CalendarEventBase,
+  linkedShifts: ReadonlyArray<CalendarEventBase> = [],
+): CalendarEventBase {
+  if (!isCalendarSchedulingEvent(event)) {
+    return event;
+  }
+
+  const displayEvent: CalendarSchedulingEvent = {
+    ...event,
+    metadata: {
+      ...event.metadata,
+      capacitySlotStates: buildAssignmentCapacitySlotStates(event, linkedShifts),
+      partialCoverageShifts: buildPartialCoverageShiftDetails(event, linkedShifts),
+    },
+  };
+
+  return displayEvent;
+}
+
+function buildPartialCoverageShiftDetails(
+  event: CalendarSchedulingEvent,
+  linkedShifts: ReadonlyArray<CalendarEventBase>,
+): CalendarAssignmentPartialCoverageShift[] {
+  return linkedShifts
+    .filter((linkedShift) => linkedShiftTimeDiffersFromAssignment(event, linkedShift))
+    .map((linkedShift) => ({
+      userIds: resolveLinkedAssignmentShiftUserIds(event, linkedShift),
+      start: linkedShift.start,
+      end: linkedShift.end,
+      timeZoneId: linkedShift.timeZoneId,
+    }))
+    .filter((partialCoverageShift) => partialCoverageShift.userIds.length > 0);
+}
+
+function buildAssignmentCapacitySlotStates(
+  event: CalendarSchedulingEvent,
+  linkedShifts: ReadonlyArray<CalendarEventBase>,
+): CalendarAssignmentCapacitySlotState[] {
+  const capacity = Math.max(Number(event.metadata.capacity ?? 0), 0);
+  const assignedCount = Math.max(Number(event.metadata.assignedCount ?? 0), 0);
+  const filledCount = Math.min(assignedCount, capacity);
+  const partialCount = Math.min(
+    linkedShifts
+      .filter((linkedShift) => linkedShiftTimeDiffersFromAssignment(event, linkedShift))
+      .reduce((total, linkedShift) => total + resolveLinkedAssignmentShiftUserIds(event, linkedShift).length, 0),
+    filledCount,
+  );
+
+  return Array.from({ length: capacity }, (_value, index) => {
+    const slotNumber = index + 1;
+
+    if (slotNumber <= partialCount) {
+      return 'partial';
+    }
+
+    if (slotNumber <= filledCount) {
+      return 'filled';
+    }
+
+    return 'empty';
+  });
+}
+
+function linkedShiftTimeDiffersFromAssignment(assignmentEvent: CalendarEventBase, linkedShift: CalendarEventBase) {
+  return !linkedShiftFullyCoversAssignment(assignmentEvent, linkedShift);
+}
+
+function linkedShiftFullyCoversAssignment(assignmentEvent: CalendarEventBase, linkedShift: CalendarEventBase) {
+  if (!assignmentEvent.start || !assignmentEvent.end || !linkedShift.start || !linkedShift.end) {
+    return false;
+  }
+
+  const assignmentStart = toDateTime(assignmentEvent.start);
+  const assignmentEnd = toDateTime(assignmentEvent.end);
+  const shiftStart = toDateTime(linkedShift.start);
+  const shiftEnd = toDateTime(linkedShift.end);
+
+  if (!assignmentStart.isValid || !assignmentEnd.isValid || !shiftStart.isValid || !shiftEnd.isValid) {
+    return false;
+  }
+
+  return shiftStart.toMillis() <= assignmentStart.toMillis() && shiftEnd.toMillis() >= assignmentEnd.toMillis();
+}
+
+function resolveLinkedShiftUserIds(linkedShift: CalendarEventBase) {
+  if (isCalendarSchedulingEvent(linkedShift)) {
+    const userIds = linkedShift.metadata.userIds ?? [];
+    if (userIds.length > 0) {
+      return userIds;
+    }
+  }
+
+  return linkedShift.resourceIds ?? [];
+}
+
+function resolveLinkedAssignmentShiftUserIds(assignmentEvent: CalendarSchedulingEvent, linkedShift: CalendarEventBase) {
+  const assignedUserIds = new Set(assignmentEvent.metadata.assignedUserIds ?? []);
+
+  if (assignedUserIds.size === 0) {
+    return [];
+  }
+
+  return resolveLinkedShiftUserIds(linkedShift).filter((userId) => assignedUserIds.has(userId));
+}
+
+function resolveCalendarSchedulingColor(color?: string | null) {
+  const normalized = color?.trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return calendarMatrixColorMap[normalized as keyof typeof calendarMatrixColorMap] ?? normalized;
 }

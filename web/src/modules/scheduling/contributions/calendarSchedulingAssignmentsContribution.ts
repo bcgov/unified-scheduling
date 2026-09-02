@@ -1,0 +1,302 @@
+import { getApiSchedulingAssignmentsEntries } from '@/api-access/generated/assignment/assignment';
+import { getApiSchedulingAssignmentDefinitions } from '@/api-access/generated/assignment-definition/assignment-definition';
+import type { AssignmentDefinitionResponse } from '@/api-access/generated/models/assignmentDefinitionResponse';
+import type { AssignmentEntryResponse } from '@/api-access/generated/models/assignmentEntryResponse';
+import type { CalendarContributionData, CalendarResourceBase } from '@/modules/calendar/calendarTypes';
+import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
+import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import { DateTime } from 'luxon';
+import type { CalendarSchedulingEvent } from '../calendarSchedulingData';
+import { assignmentDefinitionOverlapsCalendarDateRange } from '../assignmentDefinitionDateHelpers';
+import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
+import { createAssignmentResourceId } from '../calendarSchedulingShiftIds';
+
+export interface CalendarSchedulingAssignmentResource extends CalendarResourceBase {
+  title: string;
+  description?: string;
+  subtitle?: string;
+  meta?: CalendarMetaItem[];
+  avatarText?: string;
+  assignmentDefinitionId: number;
+  locationId?: number;
+  defaultStartTime?: string;
+  defaultEndTime?: string;
+  capacity?: number;
+  categoryId?: number;
+  categoryName?: string;
+  subCategoryId?: number;
+  subCategoryName?: string;
+  entries?: CalendarSchedulingAssignmentResourceEntry[];
+}
+
+export interface CalendarSchedulingAssignmentResourceEntry {
+  id: number;
+  startAtUtc?: string | null;
+  endAtUtc?: string | null;
+  title?: string | null;
+  description?: string | null;
+  notes?: string | null;
+  capacity?: number;
+  linkedShiftEntryIds?: number[];
+  assignedUserIds?: string[];
+}
+
+export interface CalendarSchedulingAssignmentContributionData {
+  entries: AssignmentEntryResponse[];
+  definitions: AssignmentDefinitionResponse[];
+}
+
+export const schedulingAssignmentContributionId = 'scheduling.assignment-events';
+
+export const calendarSchedulingAssignmentsContribution: CalendarModuleContribution = {
+  moduleId: 'scheduling',
+  contributionId: schedulingAssignmentContributionId,
+  isAvailable(runtimeContext) {
+    return runtimeContext.featureFlags.Scheduling?.enabled ?? true;
+  },
+  async load(context, options): Promise<CalendarContributionData> {
+    if (!context.locationId) {
+      return {
+        moduleId: 'scheduling',
+        contributionId: schedulingAssignmentContributionId,
+        events: [],
+        resources: [],
+        data: {
+          entries: [],
+          definitions: [],
+        } satisfies CalendarSchedulingAssignmentContributionData,
+      };
+    }
+
+    const [entries, definitions] = await Promise.all([
+      loadAssignmentEntries(context, options?.signal),
+      loadAssignmentDefinitions(context, options?.signal),
+    ]);
+
+    return {
+      moduleId: 'scheduling',
+      contributionId: schedulingAssignmentContributionId,
+      events: entries.flatMap(mapAssignmentEntryToCalendarEvent),
+      resources: mapAssignmentResources(filterDefinitionsForSidePanelResources(definitions, entries, context), entries),
+      data: {
+        entries,
+        definitions,
+      } satisfies CalendarSchedulingAssignmentContributionData,
+    };
+  },
+};
+
+async function loadAssignmentEntries(
+  context: Parameters<CalendarModuleContribution['load']>[0],
+  signal?: AbortSignal,
+): Promise<AssignmentEntryResponse[]> {
+  const { data, error, execute } = getApiSchedulingAssignmentsEntries(
+    {
+      LocationId: context.locationId,
+      StatusTypeCode: 'Active',
+      StartAtUtc: toUtcStartOfDay(context.startDate, context.filters),
+      EndAtUtc: toUtcStartOfDay(context.endDate, context.filters),
+    },
+    {
+      fetchOptions: { signal },
+      options: { immediate: false },
+    },
+  );
+
+  await execute();
+
+  if (error.value) {
+    throw error.value;
+  }
+
+  return data.value ?? [];
+}
+
+async function loadAssignmentDefinitions(
+  context: Parameters<CalendarModuleContribution['load']>[0],
+  signal?: AbortSignal,
+): Promise<AssignmentDefinitionResponse[]> {
+  const { data, error, execute } = getApiSchedulingAssignmentDefinitions(
+    { locationId: context.locationId },
+    {
+      fetchOptions: { signal },
+      options: { immediate: false },
+    },
+  );
+
+  await execute();
+
+  if (error.value) {
+    throw error.value;
+  }
+
+  return data.value ?? [];
+}
+
+function mapAssignmentEntryToCalendarEvent(entry: AssignmentEntryResponse): CalendarSchedulingEvent[] {
+  if (!entry.id || !entry.startAtUtc) {
+    return [];
+  }
+
+  const assignmentDefinitionId = entry.assignmentDefinitionId;
+
+  if (!assignmentDefinitionId) {
+    return [];
+  }
+
+  const assignedUserIds = entry.assignedUserIds ?? [];
+  const linkedShiftEntryIds = entry.linkedShiftEntryIds?.map(String) ?? [];
+
+  return [
+    {
+      id: createAssignmentEntryEventId(entry.id),
+      type: 'scheduling.assignment',
+      sourceModule: 'calendar-assignment',
+      title: entry.title || 'Assignment',
+      description: entry.description ?? undefined,
+      notes: entry.notes ?? undefined,
+      color: entry.color ?? undefined,
+      start: entry.startAtUtc,
+      end: entry.endAtUtc ?? undefined,
+      seriesStartAtUtc: entry.seriesStartAtUtc ?? undefined,
+      seriesEndAtUtc: entry.seriesEndAtUtc ?? undefined,
+      allDay: entry.allDay ?? false,
+      isException: entry.isException ?? false,
+      eventTypeCode: entry.eventTypeCode ?? undefined,
+      statusTypeCode: entry.statusTypeCode ?? undefined,
+      cancelledAt: entry.cancelledAt ?? undefined,
+      cancelledByUserId: entry.cancelledByUserId ?? undefined,
+      cancellationReason: entry.cancellationReason ?? undefined,
+      timeZoneId: entry.timeZoneId ?? undefined,
+      locationId: entry.locationId ?? undefined,
+      resourceIds: [createAssignmentResourceId(assignmentDefinitionId)],
+      metadata: {
+        assignmentId: createAssignmentResourceId(assignmentDefinitionId),
+        assignmentDefinitionId: String(assignmentDefinitionId),
+        assignmentEntryId: String(entry.id),
+        assignmentSeriesId: entry.assignmentSeriesId != null ? String(entry.assignmentSeriesId) : undefined,
+        eventId: entry.eventId,
+        capacity: entry.capacity,
+        assignedCount: entry.assignedUserCount ?? assignedUserIds.length,
+        assignedShiftIds: linkedShiftEntryIds,
+        assignedUserIds,
+        categoryId: entry.categoryId,
+        categoryName: entry.categoryName ?? undefined,
+        subCategoryId: entry.subCategoryId,
+        subCategoryName: entry.subCategoryName ?? undefined,
+      },
+    },
+  ];
+}
+
+function mapAssignmentResources(
+  definitions: AssignmentDefinitionResponse[],
+  entries: AssignmentEntryResponse[],
+): CalendarSchedulingAssignmentResource[] {
+  const resources = new Map<number, CalendarSchedulingAssignmentResource>();
+  const entriesByDefinition = groupEntriesByDefinition(entries);
+
+  for (const definition of definitions) {
+    if (!definition.id || resources.has(definition.id)) {
+      continue;
+    }
+
+    const title = definition.name || `Assignment ${definition.id}`;
+    const subtitle = [definition.categoryName, definition.subCategoryName].filter(Boolean).join(' / ');
+
+    resources.set(definition.id, {
+      id: createAssignmentResourceId(definition.id),
+      type: 'assignment',
+      sourceModule: 'scheduling',
+      label: title,
+      title,
+      description: definition.description ?? undefined,
+      subtitle: subtitle || undefined,
+      avatarText: toAvatarText(title),
+      assignmentDefinitionId: definition.id,
+      locationId: definition.locationId,
+      defaultStartTime: definition.defaultStartTime ?? undefined,
+      defaultEndTime: definition.defaultEndTime ?? undefined,
+      capacity: definition.defaultCapacity,
+      categoryId: definition.categoryId,
+      categoryName: definition.categoryName,
+      subCategoryId: definition.subCategoryId,
+      subCategoryName: definition.subCategoryName,
+      entries: entriesByDefinition.get(definition.id) ?? [],
+    });
+  }
+
+  return Array.from(resources.values()).sort((left, right) => left.title.localeCompare(right.title));
+}
+
+function filterDefinitionsForSidePanelResources(
+  definitions: AssignmentDefinitionResponse[],
+  entries: AssignmentEntryResponse[],
+  context: Parameters<CalendarModuleContribution['load']>[0],
+): AssignmentDefinitionResponse[] {
+  const requiredDefinitionIds = new Set(
+    entries.flatMap((entry) =>
+      typeof entry.assignmentDefinitionId === 'number' ? [entry.assignmentDefinitionId] : [],
+    ),
+  );
+
+  return definitions.filter(
+    (definition) =>
+      typeof definition.id === 'number' &&
+      (requiredDefinitionIds.has(definition.id) ||
+        assignmentDefinitionOverlapsCalendarDateRange(
+          definition,
+          context.startDate,
+          context.endDate,
+          resolveSchedulingTimeZoneFromFilters(context.filters),
+        )),
+  );
+}
+
+function groupEntriesByDefinition(entries: AssignmentEntryResponse[]) {
+  const result = new Map<number, CalendarSchedulingAssignmentResourceEntry[]>();
+
+  for (const entry of entries) {
+    if (!entry.id || !entry.assignmentDefinitionId) {
+      continue;
+    }
+
+    const items = result.get(entry.assignmentDefinitionId) ?? [];
+    items.push({
+      id: entry.id,
+      startAtUtc: entry.startAtUtc,
+      endAtUtc: entry.endAtUtc,
+      title: entry.title,
+      description: entry.description,
+      notes: entry.notes,
+      capacity: entry.capacity,
+      linkedShiftEntryIds: entry.linkedShiftEntryIds ?? [],
+      assignedUserIds: entry.assignedUserIds ?? [],
+    });
+    result.set(entry.assignmentDefinitionId, items);
+  }
+
+  return result;
+}
+
+function toUtcStartOfDay(date: string, filters: Record<string, unknown>) {
+  return (
+    DateTime.fromISO(date, { zone: resolveSchedulingTimeZoneFromFilters(filters) })
+      .startOf('day')
+      .toUTC()
+      .toISO() ?? undefined
+  );
+}
+
+function createAssignmentEntryEventId(assignmentEntryId: number) {
+  return `assignment-entry-${assignmentEntryId}`;
+}
+
+function toAvatarText(value: string) {
+  return value
+    .split(/\s+/)
+    .map((part) => part.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}

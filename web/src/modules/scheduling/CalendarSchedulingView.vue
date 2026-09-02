@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
+import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
+import UaBtn from '@/shared/components/UaBtn.vue';
+import UaModal from '@/shared/components/UaModal.vue';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
 import CalendarMatrixEventBlock from '@/modules/calendar/components/matrix/CalendarMatrixEventBlock.vue';
 import CalendarMatrixView from '@/modules/calendar/components/matrix/CalendarMatrixView.vue';
@@ -16,16 +19,32 @@ import {
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import {
+  calendarSchedulingAssignmentModalAssignmentDefinitionId,
+  calendarSchedulingAssignmentModalDate,
+  calendarSchedulingAssignmentModalEditScope,
+  calendarSchedulingAssignmentModalEntryId,
+  calendarSchedulingAssignmentModalMode,
+  calendarSchedulingAssignmentModalSeriesId,
+  calendarSchedulingAssignmentModalShiftEntryIds,
   calendarSchedulingConflictEventId,
   calendarSchedulingDetailEvent,
+  calendarSchedulingDetailInitialOpenScope,
+  calendarSchedulingExistingShiftChoice,
+  calendarSchedulingResourceActionAssignmentEntryId,
+  calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
+  closeCalendarSchedulingAssignmentModal,
+  closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingResourceActionModal,
+  isCalendarSchedulingAssignmentModalOpen,
   isCalendarSchedulingResourceActionModalOpen,
+  showCalendarSchedulingEventDetail,
+  showCalendarSchedulingResourceActionModal,
 } from './calendarSchedulingState';
 
-defineProps<{
+const props = defineProps<{
   model: CalendarMatrixViewModel;
   runtimeContext?: CalendarRuntimeContext;
 }>();
@@ -33,6 +52,29 @@ defineProps<{
 const emit = defineEmits<{
   (event: 'eventClick', payload: CalendarEventBase): void;
 }>();
+
+function editExistingShift() {
+  const choice = calendarSchedulingExistingShiftChoice.value;
+  if (!choice) {
+    return;
+  }
+
+  closeCalendarSchedulingExistingShiftChoice();
+  showCalendarSchedulingEventDetail(choice.shiftEvent, { initialOpenScope: 'event' });
+}
+
+function createNewShift() {
+  const choice = calendarSchedulingExistingShiftChoice.value;
+  if (!choice) {
+    return;
+  }
+
+  closeCalendarSchedulingExistingShiftChoice();
+  showCalendarSchedulingResourceActionModal(choice.resource, choice.date, {
+    assignmentEntryId: choice.assignmentEntryId,
+    assignmentEvents: choice.assignmentEvents,
+  });
+}
 
 function resolveConflict(
   event: CalendarEventBase,
@@ -104,12 +146,42 @@ function resolveHeaderConflict(
   <CalendarSchedulingShiftDetailModal
     v-if="calendarSchedulingDetailEvent"
     :event="calendarSchedulingDetailEvent"
+    :initial-open-scope="calendarSchedulingDetailInitialOpenScope"
     @close="closeCalendarSchedulingEventDetail"
   />
+
+  <CalendarSchedulingAssignmentModal
+    v-if="isCalendarSchedulingAssignmentModalOpen"
+    :mode="calendarSchedulingAssignmentModalMode"
+    :edit-scope="calendarSchedulingAssignmentModalEditScope"
+    :initial-date="calendarSchedulingAssignmentModalDate"
+    :assignment-entry-id="calendarSchedulingAssignmentModalEntryId"
+    :assignment-series-id="calendarSchedulingAssignmentModalSeriesId"
+    :initial-assignment-definition-id="calendarSchedulingAssignmentModalAssignmentDefinitionId"
+    :initial-shift-entry-ids="calendarSchedulingAssignmentModalShiftEntryIds"
+    :time-zone="model.timeZone"
+    @close="closeCalendarSchedulingAssignmentModal"
+  />
+
+  <UaModal
+    v-if="calendarSchedulingExistingShiftChoice"
+    title="Shift exists"
+    width="520"
+    @close="closeCalendarSchedulingExistingShiftChoice"
+  >
+    <p>This team member already has an active shift on this date. Would you like to edit it or create a new shift?</p>
+
+    <template #actions>
+      <UaBtn variant="outlined" @click="createNewShift">Create new shift</UaBtn>
+      <UaBtn color="primary" variant="flat" @click="editExistingShift">Edit existing shift</UaBtn>
+    </template>
+  </UaModal>
 
   <CalendarSchedulingAddResourceModal
     v-if="isCalendarSchedulingResourceActionModalOpen"
     :initial-date="calendarSchedulingResourceActionDate"
+    :initial-assignment-entry-id="calendarSchedulingResourceActionAssignmentEntryId"
+    :initial-assignment-events="calendarSchedulingResourceActionAssignmentEvents"
     :resource="calendarSchedulingResourceActionResource"
     :time-zone="model.timeZone"
     @close="closeCalendarSchedulingResourceActionModal"

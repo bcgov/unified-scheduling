@@ -1,3 +1,5 @@
+import type { ZodError } from 'zod';
+
 export const validationMessages = {
   required: 'Required',
   tooLong: 'Value is too long',
@@ -50,3 +52,15 @@ export const mapToValidationErrors = (rawError: unknown): Record<string, string>
 
   return Object.keys(mappedErrors).length > 0 ? mappedErrors : null;
 };
+
+export function getFieldErrors(error: ZodError): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const fieldName = issue.path[0];
+    if (typeof fieldName === 'string' && !errors[fieldName]) {
+      errors[fieldName] =
+        issue.code === 'invalid_type' || issue.code === 'invalid_value' ? validationMessages.required : issue.message;
+    }
+  }
+  return errors;
+}

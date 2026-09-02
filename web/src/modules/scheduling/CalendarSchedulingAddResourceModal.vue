@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from 'vue';
+import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import { formatCalendarEventTimeRange } from '@/utils/date';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -24,9 +26,15 @@ import {
   publishShiftSeries,
 } from './calendarSchedulingShiftApi';
 import { useSchedulingEmployeeOptions } from './useSchedulingEmployeeOptions';
+import { useSchedulingAssignmentOptions } from './useSchedulingAssignmentOptions';
+import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
+import type { SelectOption } from '@/types/select';
+import { resolveAssignmentEntryId } from './calendarSchedulingShiftIds';
 
 const props = defineProps<{
   initialDate?: string;
+  initialAssignmentEntryId?: number;
+  initialAssignmentEvents?: CalendarEventBase[];
   resource?: CalendarMatrixResource;
   timeZone?: string;
 }>();
@@ -39,6 +47,8 @@ const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 
 const isSaving = ref(false);
+const publicationFailedShiftId = ref<number | null>(null);
+const hasPublicationFailedShift = computed(() => publicationFailedShiftId.value !== null);
 const apiError = ref('');
 const formErrors = ref<Record<string, string>>({});
 const recurrenceError = ref('');
@@ -60,11 +70,47 @@ const { employeeOptions, isLoadingUsers } = useSchedulingEmployeeOptions(activeL
     apiError.value = message;
   },
 });
-const timeZoneId = computed(() => props.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+const timeZoneId = computed(() =>
+  resolveSchedulingTimeZoneId(
+    activeLocationId.value ? locationsStore.entitiesMap[activeLocationId.value]?.timezone : undefined,
+    props.timeZone,
+  ),
+);
+const isSeriesScope = computed(() => formData.value.repeatMode === 'custom' && Boolean(formData.value.recurrenceRule));
+const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLoadingAssignments } =
+  useSchedulingAssignmentOptions({
+    formData,
+    activeLocationId,
+    activeTimeZoneId: timeZoneId,
+    isSeriesScope,
+    onError: (message) => {
+      apiError.value = message;
+    },
+  });
+const seededAssignmentEntryOptions = computed(() => mapInitialAssignmentEventsToOptions(props.initialAssignmentEvents));
+const assignmentEntryLabelsById = computed(() => {
+  const labels = new Map<number, string>();
+
+  for (const option of [...assignmentEntryOptions.value, ...seededAssignmentEntryOptions.value]) {
+    if (typeof option.code === 'number' && option.description.trim()) {
+      labels.set(option.code, option.description);
+    }
+  }
+
+  return labels;
+});
+const mergedAssignmentEntryOptions = computed(() =>
+  withSelectedAssignmentEntryOption(
+    mergeSelectOptions(seededAssignmentEntryOptions.value, assignmentEntryOptions.value),
+    formData.value.assignmentEntryLinks?.map((link) => link.assignmentEntryId).filter(isNumber),
+    assignmentEntryLabelsById.value,
+  ),
+);
 const modalTitle = computed(() => 'New Shift');
+const locationOptions = computed(() => locationsStore.selectOptions);
 
 watch(
-  () => [props.resource, props.initialDate] as const,
+  () => [props.resource, props.initialDate, props.initialAssignmentEntryId, props.initialAssignmentEvents] as const,
   ([resource, initialDate]) => {
     formData.value = createInitialFormData(resource, initialDate);
     apiError.value = '';
@@ -83,16 +129,94 @@ watch(
   },
 );
 
+watch(activeLocationId, (locationId) => {
+  if (formData.value.locationId == null && locationId != null) {
+    formData.value = {
+      ...formData.value,
+      locationId,
+    };
+  }
+});
+
 function createInitialFormData(
   resource: CalendarMatrixResource | undefined,
   initialDate?: string,
 ): ShiftResourceFormData {
+  const assignmentEntryIds = resolveInitialAssignmentEntryIds(
+    props.initialAssignmentEntryId,
+    props.initialAssignmentEvents,
+  );
+
   return {
     ...(resource
       ? createInitialShiftFormData(resource, activeLocationId.value, CalendarEventStatusTypeCode.Draft)
       : createInitialShiftFormDataForCreateAction(activeLocationId.value)),
     date: initialDate ?? '',
+    assignmentEntryLinks: assignmentEntryIds.map((assignmentEntryId) => ({
+      assignmentEntryId,
+      assignedUserIds: resource?.type === 'user' ? [resource.id] : [],
+    })),
   };
+}
+
+function resolveInitialAssignmentEntryIds(initialAssignmentEntryId?: number, events?: CalendarEventBase[]) {
+  return [
+    ...new Set([
+      ...(initialAssignmentEntryId ? [initialAssignmentEntryId] : []),
+      ...(events ?? []).map(resolveAssignmentEntryId).filter(isNumber),
+    ]),
+  ];
+}
+
+function mapInitialAssignmentEventsToOptions(events?: CalendarEventBase[]) {
+  return (events ?? []).flatMap((event) => {
+    const assignmentEntryId = resolveAssignmentEntryId(event);
+    return assignmentEntryId
+      ? [{ code: assignmentEntryId, description: formatInitialAssignmentEventLabel(event) }]
+      : [];
+  });
+}
+
+function mergeSelectOptions(primary: SelectOption[], secondary: SelectOption[]): SelectOption[] {
+  const options = new Map<SelectOption['code'], SelectOption>();
+
+  for (const option of [...primary, ...secondary]) {
+    if (!options.has(option.code)) {
+      options.set(option.code, option);
+    }
+  }
+
+  return Array.from(options.values());
+}
+
+function withSelectedAssignmentEntryOption(
+  options: SelectOption[],
+  assignmentEntryIds: number[] | undefined | null,
+  labelsById: Map<number, string>,
+) {
+  const existingCodes = new Set(options.map((option) => option.code));
+  const fallbackOptions = (assignmentEntryIds ?? [])
+    .filter((assignmentEntryId) => !existingCodes.has(assignmentEntryId))
+    .map((assignmentEntryId) => ({
+      code: assignmentEntryId,
+      description: labelsById.get(assignmentEntryId) ?? `Assignment ${assignmentEntryId}`,
+    }));
+
+  return [...fallbackOptions, ...options];
+}
+
+function isNumber(value: number | null | undefined): value is number {
+  return typeof value === 'number';
+}
+
+function formatInitialAssignmentEventLabel(event: CalendarEventBase) {
+  const title = event.title?.trim() || 'Assignment';
+  const timeRange = formatCalendarEventTimeRange(event.start, event.end, {
+    allDay: event.allDay,
+    timeZone: event.timeZoneId ?? timeZoneId.value,
+  });
+
+  return timeRange ? `${title} (${timeRange})` : title;
 }
 
 function handleClose() {
@@ -128,15 +252,21 @@ function validateForm(): ShiftResourceFormData | null {
 }
 
 async function handleSave() {
+  if (publicationFailedShiftId.value) {
+    apiError.value = 'This shift was already saved as Draft. Close and reopen it before retrying publication.';
+    return;
+  }
+
   const validated = validateForm();
   if (!validated) {
+    apiError.value = 'Could not save the shift. Check the highlighted fields.';
     return;
   }
 
   const payload = buildCreateShiftPayload({
     formData: validated,
     timeZoneId: timeZoneId.value,
-    locationId: activeLocationId.value,
+    locationId: validated.locationId ?? null,
     fallbackTitle: props.resource?.title || 'New',
   });
   if (!payload) {
@@ -166,12 +296,15 @@ async function handleSave() {
       apiError.value = 'Shift was created but the response did not include an id.';
       return;
     }
-
     const published =
       payload.kind === 'series'
         ? await publishCreatedShiftSeries(saved.id, payload.publish)
         : await publishCreatedShiftEntry(saved.id, payload.publish);
     if (!published) {
+      recoverPartiallySavedShift(
+        saved.id,
+        'The shift was saved as Draft, but publication failed. Close this dialog and reopen the shift to continue.',
+      );
       return;
     }
 
@@ -182,6 +315,12 @@ async function handleSave() {
   } finally {
     isSaving.value = false;
   }
+}
+
+function recoverPartiallySavedShift(savedId: number, message: string) {
+  publicationFailedShiftId.value = savedId;
+  calendarStore.refresh();
+  apiError.value = message;
 }
 
 async function publishCreatedShiftSeries(id: number | undefined, shouldPublish: boolean) {
@@ -238,9 +377,15 @@ function applyServerValidationErrors(rawError: unknown) {
           v-model="formData"
           id-prefix="new-shift"
           :form-errors="formErrors"
-          :disabled="isSaving"
+          :disabled="isSaving || hasPublicationFailedShift"
+          :location-options="locationOptions"
           :employee-options="employeeOptions"
           :is-loading-users="isLoadingUsers"
+          :assignment-entry-options="mergedAssignmentEntryOptions"
+          :assignment-series-options="assignmentSeriesOptions"
+          :assignment-warning="assignmentWarning"
+          :is-loading-assignments="isLoadingAssignments"
+          :show-series-assignment="isSeriesScope"
           @recurrence-change="handleRecurrenceChange"
           @recurrence-invalid="handleRecurrenceInvalid"
         />
@@ -248,8 +393,12 @@ function applyServerValidationErrors(rawError: unknown) {
     </div>
 
     <template #actions>
-      <UaBtn variant="outlined" :disabled="isSaving" @click="handleClose">Cancel</UaBtn>
-      <UaBtn color="primary" variant="flat" :loading="isSaving" @click="handleSave">Save</UaBtn>
+      <UaBtn variant="outlined" :disabled="isSaving" @click="handleClose">
+        {{ hasPublicationFailedShift ? 'Close' : 'Cancel' }}
+      </UaBtn>
+      <UaBtn v-if="!hasPublicationFailedShift" color="primary" variant="flat" :loading="isSaving" @click="handleSave">
+        Save
+      </UaBtn>
     </template>
   </UaModal>
 </template>

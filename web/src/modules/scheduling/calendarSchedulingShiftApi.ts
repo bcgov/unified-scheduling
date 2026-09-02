@@ -3,6 +3,9 @@ import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeri
 import {
   deleteApiSchedulingShiftsEntriesId,
   deleteApiSchedulingShiftsSeriesId,
+  getApiSchedulingShiftsEntries,
+  getApiSchedulingShiftsEntriesId,
+  getApiSchedulingShiftsSeries,
   getApiSchedulingShiftsSeriesId,
   postApiSchedulingShiftsEntries,
   postApiSchedulingShiftsEntriesIdExpire,
@@ -13,6 +16,18 @@ import {
   putApiSchedulingShiftsEntriesId,
   putApiSchedulingShiftsSeriesId,
 } from '@/api-access/generated/shift/shift';
+
+export async function loadShiftEntries(params?: Parameters<typeof getApiSchedulingShiftsEntries>[0]) {
+  const result = getApiSchedulingShiftsEntries(params, { options: { immediate: false } });
+  await result.execute();
+  return result;
+}
+
+export async function loadShiftSeriesList(params?: Parameters<typeof getApiSchedulingShiftsSeries>[0]) {
+  const result = getApiSchedulingShiftsSeries(params, { options: { immediate: false } });
+  await result.execute();
+  return result;
+}
 
 export async function createShiftEntry(body: ShiftEntryRequest) {
   const result = postApiSchedulingShiftsEntries(body, { options: { immediate: false } });
@@ -40,6 +55,12 @@ export async function updateShiftSeries(id: number, body: ShiftSeriesRequest) {
 
 export async function loadShiftSeries(id: number) {
   const result = getApiSchedulingShiftsSeriesId(id, { options: { immediate: false } });
+  await result.execute();
+  return result;
+}
+
+export async function loadShiftEntry(id: number) {
+  const result = getApiSchedulingShiftsEntriesId(id, { options: { immediate: false } });
   await result.execute();
   return result;
 }
