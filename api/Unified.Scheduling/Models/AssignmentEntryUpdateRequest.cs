@@ -27,4 +27,6 @@ public sealed record AssignmentEntryUpdateRequest
     public int SubCategoryId { get; init; }
 
     public int Capacity { get; init; }
+
+    public IReadOnlyCollection<ShiftEntryLinkRequest> ShiftEntryLinks { get; init; } = [];
 }

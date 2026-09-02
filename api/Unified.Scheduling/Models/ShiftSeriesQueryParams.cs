@@ -7,4 +7,8 @@ public sealed record ShiftSeriesQueryParams
     public Guid? UserId { get; init; }
 
     public int? LocationId { get; init; }
+
+    public DateTimeOffset? StartAtUtc { get; init; }
+
+    public DateTimeOffset? EndAtUtc { get; init; }
 }

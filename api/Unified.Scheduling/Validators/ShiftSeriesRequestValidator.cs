@@ -22,6 +22,10 @@ public sealed class ShiftSeriesRequestValidator : AbstractValidator<ShiftSeriesR
         RuleFor(request => request.LocationId).GreaterThan(0).When(request => request.LocationId.HasValue);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
+        RuleFor(request => request.AssignmentSeriesLinks)
+            .Must(links => links.Select(link => link.AssignmentSeriesId).Distinct().Count() == links.Count)
+            .WithMessage("Assignment series links must be unique.");
+        RuleForEach(request => request.AssignmentSeriesLinks).SetValidator(new AssignmentSeriesLinkRequestValidator());
     }
 
     private static bool HaveDistinctValues(IReadOnlyCollection<Guid>? userIds)
