@@ -72,7 +72,16 @@ export function useAuditHistory() {
     }
   });
 
-  const canApply = computed(() => !!entityType.value && !!fromDate.value && !!toDate.value);
+  const isDateRangeValid = computed(() => {
+    if (!fromDate.value || !toDate.value) {
+      return true;
+    }
+    return DateTime.fromISO(fromDate.value) <= DateTime.fromISO(toDate.value);
+  });
+
+  const canApply = computed(
+    () => !!entityType.value && !!fromDate.value && !!toDate.value && isDateRangeValid.value,
+  );
 
   // ── Pagination ────────────────────────────────────────────────────────
   const page = ref(1);
@@ -86,6 +95,31 @@ export function useAuditHistory() {
   const isLoadingRecords = ref(false);
   const error = ref('');
   const hasSearched = ref(false);
+
+  // Filter values applied by the last Search click, snapshotted so that pagination/sort actions
+  // re-query with the criteria the user actually searched for, not any since-edited draft filters.
+  type AppliedFilters = {
+    entityType: string | null;
+    entityPk: string | null;
+    changedFields: string[];
+    actorUserId: string | null;
+    action: string | null;
+    fromDate: string | null;
+    toDate: string | null;
+  };
+  const appliedFilters = ref<AppliedFilters | null>(null);
+
+  function captureFilters(): AppliedFilters {
+    return {
+      entityType: entityType.value,
+      entityPk: entityPk.value,
+      changedFields: [...changedFields.value],
+      actorUserId: actorUserId.value,
+      action: action.value,
+      fromDate: fromDate.value,
+      toDate: toDate.value,
+    };
+  }
 
   watch(entityType, async (newEntityType, oldEntityType) => {
     if (newEntityType === oldEntityType) {
@@ -151,14 +185,17 @@ export function useAuditHistory() {
   }, 300);
 
   function buildQueryParams() {
+    const filters = appliedFilters.value ?? captureFilters();
     return {
-      EntityType: entityType.value ?? undefined,
-      EntityPK: entityPk.value?.trim() || undefined,
-      Action: action.value || undefined,
-      ChangedField: changedFields.value.length > 0 ? changedFields.value : undefined,
-      ActorUserId: actorUserId.value ?? undefined,
-      From: fromDate.value ? (DateTime.fromISO(fromDate.value).startOf('day').toUTC().toISO() ?? undefined) : undefined,
-      To: toDate.value ? (DateTime.fromISO(toDate.value).endOf('day').toUTC().toISO() ?? undefined) : undefined,
+      EntityType: filters.entityType ?? undefined,
+      EntityPK: filters.entityPk?.trim() || undefined,
+      Action: filters.action || undefined,
+      ChangedField: filters.changedFields.length > 0 ? filters.changedFields : undefined,
+      ActorUserId: filters.actorUserId ?? undefined,
+      From: filters.fromDate
+        ? (DateTime.fromISO(filters.fromDate).startOf('day').toUTC().toISO() ?? undefined)
+        : undefined,
+      To: filters.toDate ? (DateTime.fromISO(filters.toDate).endOf('day').toUTC().toISO() ?? undefined) : undefined,
       Page: page.value,
       PageSize: pageSize.value,
       SortDirection: sortDirection.value,
@@ -196,6 +233,7 @@ export function useAuditHistory() {
 
   function applyFilters() {
     page.value = 1;
+    appliedFilters.value = captureFilters();
     return search();
   }
 
@@ -211,6 +249,7 @@ export function useAuditHistory() {
     toDate.value = defaultTo;
     sortDirection.value = 'desc';
     page.value = 1;
+    appliedFilters.value = null;
     records.value = [];
     totalCount.value = 0;
     hasSearched.value = false;
