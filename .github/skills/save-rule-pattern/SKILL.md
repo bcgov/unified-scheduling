@@ -1,3 +1,8 @@
+---
+name: save-rule-pattern
+description: "Implement or modify ISaveRule business-rule validators that run inside EF Core's SaveChangesAsync pipeline for the unified-scheduling API. Use when adding a new ISaveRule, registering it via AddScoped<ISaveRule, ...>, or changing an existing rule under api/*/Rules/. Covers validation vs. database-constraint layering, transaction/rollback guarantees, EntityState filtering conventions, nested SaveChangesAsync re-entrancy (e.g. the AuditRecord insert Audit.NET performs after a successful save), and required test coverage."
+---
+
 # ISaveRule Pattern — Add Business Rule Validation
 
 Use this skill when implementing business rule validation that must run before database commits.
@@ -329,6 +334,26 @@ DB Constraint (final check)
 - ✅ Rules run sequentially, all have access to same DbContext state
 - ✅ Querying with the same DbContext is safe when rule logic is sequential and does not call SaveChanges
 
+### Nested SaveChangesAsync re-entrancy (audit record insert)
+
+`UnifiedDbContext` inherits Audit.NET's `AuditDbContext` (see `api/Unified.Audit/README.md`). After a successful
+save, Audit.NET writes the generated `AuditRecord` row via a **second, nested** `context.SaveChangesAsync()`
+call on the *same* `DbContext` instance (bypassing the audit wrapper itself via `IAuditBypass`, but still going
+through any EF Core `IInterceptor`s registered on the context, including `SaveRulesInterceptor`).
+
+`SaveRulesInterceptor` explicitly guards against this: it skips the entire rule loop when the only pending
+change is an `AuditRecord` entity, so rules never even run on that nested call - not just "happen to no-op".
+This guard is a cheap, entity-type check, not a scoped suppressor flag.
+
+**When adding or changing a rule, you still need `EntityState.Added || EntityState.Modified` filtering** (see
+Common Mistakes below) for the general case of re-entrancy from *other* nested saves (e.g. a rule or service
+that calls `SaveChangesAsync` more than once per request) - the `AuditRecord` guard only covers the audit
+insert specifically.
+
+If a rule has a side effect that must run exactly once per logical save (not once per physical
+`SaveChangesAsync` call) - e.g. sending a notification, incrementing a counter, calling an external service -
+prefer an explicit idempotency check in the rule itself over a suppression mechanism.
+
 ## Implementation Checklist
 
 - [ ] Create rule class in `YourModule/Rules/`
@@ -379,6 +404,11 @@ Before finalizing any SaveRule change, the agent must validate all of the follow
     - `dotnet build api/Unified.Api/Unified.Api.csproj`
     - `dotnet test --project api/Unified.Tests/Unified.Tests.csproj -- --filter-class Unified.Tests.UserManagement.Rules.UserBadgeNumberUniqueRuleTests`
 
+6. Nested-save re-entrancy (required check):
+    - Confirm the new/changed rule still filters by `EntityState.Added`/`Modified` before doing any work (see
+      "Nested SaveChangesAsync re-entrancy" above). If it doesn't, or has non-idempotent side effects, add an
+      explicit idempotency check before merging.
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -389,6 +419,7 @@ Before finalizing any SaveRule change, the agent must validate all of the follow
 | Include sensitive data in exception message | Sanitize before throwing |
 | Test only calls ExecuteAsync without SaveChanges | Test full flow: Add entity → SaveChangesAsync should trigger rule |
 | Rule only checks new entities, misses updates | Filter by `EntityState.Added \|\| EntityState.Modified` |
+| Rule has side effects or reacts to `Unchanged` entries | Rule could double-run on any nested `SaveChangesAsync` call - see "Nested SaveChangesAsync re-entrancy" above |
 
 ## Related Files
 

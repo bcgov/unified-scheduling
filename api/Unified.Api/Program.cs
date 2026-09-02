@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Unified.Api.Options;
 using Unified.Api.Services;
+using Unified.Audit;
 using Unified.Authorization;
 using Unified.Authorization.Hangfire;
 using Unified.Calendar;
@@ -80,6 +81,7 @@ var hangfireOptions =
         .Services.AddInfrastructureModule()
         .AddCoreModule()
         .AddDbModule(builder.Configuration)
+        .AddAuditModule(builder.Configuration)
         .AddUserManagementModule(builder.Configuration)
         .AddCalendarModule(builder.Configuration)
         .AddSchedulingModule(builder.Configuration)
@@ -89,11 +91,15 @@ var hangfireOptions =
         .AddConfiguredSeedData(
             builder.Configuration,
             UserManagementSeedDataSets
+                
                 .All.Concat(StatsSeedDataSets.All)
+                
                 .Concat(TrainingSeedDataSets.All)
                 .Concat(ReportingSeedDataSets.All)
+                .Concat(AuditSeedDataSets.All)
         )
-        .AddJCInterfaceModule(builder.Configuration);
+        .AddJCInterfaceModule(builder.Configuration)
+        .AddInterceptors();
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddCalendarApplicationPart(builder.Configuration);
@@ -127,6 +133,10 @@ var hangfireOptions =
 var app = builder.Build();
 {
     ValidateUniqueFeatureFlagSources(app.Services);
+
+    // Audit.NET's configuration is a process-wide static, so it must be wired up once the
+    // service provider is built rather than during service registration.
+    app.Services.UseAuditModule();
 
     // Must be first so Request.Scheme, Request.Host, etc. reflect the
     // external URL for all downstream middleware (OIDC, cookies, etc.).

@@ -20,9 +20,10 @@ public sealed class UserBadgeNumberUniqueRule(IOptionsMonitor<UserManagementFeat
         if (!featureFlagsMonitor.CurrentValue.UserBadgeNumber.Enabled)
             return;
 
-        // Get users being created or modified
+        // Get users being created or modified (excluding the system user)
         var modifiedUsers = context
             .ChangeTracker.Entries<User>()
+            .Where(e => e.Entity.Id != User.SystemUser)
             .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified)
             .ToList();
 

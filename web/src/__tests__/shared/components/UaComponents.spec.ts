@@ -1,4 +1,5 @@
 import UaAlert from '@/shared/components/UaAlert.vue';
+import UaAutocomplete from '@/shared/components/UaAutocomplete.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaDisplayField from '@/shared/components/UaDisplayField.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -104,6 +105,27 @@ describe('UaAlert', () => {
       global: { plugins: [vuetify] },
     });
     expect(wrapper.text()).toContain('Something went wrong');
+  });
+});
+
+describe('UaAutocomplete', () => {
+  let vuetify: ReturnType<typeof createVuetify>;
+  beforeAll(async () => {
+    ({ vuetify } = await createTestApp());
+  });
+
+  it('renders provided items and emits update:search', async () => {
+    const wrapper = mount(UaAutocomplete, {
+      props: {
+        items: [{ code: '1', description: 'Jane Doe' }],
+        modelValue: null,
+        label: 'Actor',
+      },
+      global: { plugins: [vuetify] },
+    });
+
+    await wrapper.findComponent({ name: 'VAutocomplete' }).vm.$emit('update:search', 'jan');
+    expect(wrapper.emitted('update:search')?.[0]).toEqual(['jan']);
   });
 });
 

@@ -4,6 +4,7 @@ WORKDIR /src
 
 # Copy project files
 COPY api/Unified.Api/Unified.Api.csproj ./api/Unified.Api/
+COPY api/Unified.Audit/Unified.Audit.csproj ./api/Unified.Audit/
 COPY api/Unified.Authorization/Unified.Authorization.csproj ./api/Unified.Authorization/
 COPY api/Unified.Common/Unified.Common.csproj ./api/Unified.Common/
 COPY api/Unified.Core/Unified.Core.csproj ./api/Unified.Core/
@@ -14,6 +15,7 @@ COPY api/Unified.Training/Unified.Training.csproj ./api/Unified.Training/
 COPY api/Unified.Calendar/Unified.Calendar.csproj ./api/Unified.Calendar/
 COPY api/Unified.Hangfire/Unified.Hangfire.csproj ./api/Unified.Hangfire/
 COPY api/Unified.JCInterface/Unified.JCInterface.csproj ./api/Unified.JCInterface/
+COPY api/Unified.Scheduling/Unified.Scheduling.csproj ./api/Unified.Scheduling/
 COPY db/db.csproj ./db/
 COPY jc-interface-client/jc-interface-client.csproj ./jc-interface-client/
 
@@ -29,7 +31,7 @@ WORKDIR /src/api/Unified.Api
 RUN dotnet publish Unified.Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.10 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.11 AS runtime
 WORKDIR /app
 
 # Copy published app

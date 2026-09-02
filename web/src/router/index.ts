@@ -10,6 +10,7 @@ import * as statsModule from '@/modules/stats/StatsModule';
 import * as calendarSchedulingModule from '@/modules/scheduling/CalendarSchedulingModule';
 import * as trainingModule from '@/modules/training/TrainingModule';
 import * as reportsModule from '@/modules/reports/ReportsModule';
+import * as auditModule from '@/modules/audit/AuditModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
 
@@ -102,6 +103,7 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   }
   trainingModule.registerModule(routes, featureFlags);
   reportsModule.registerModule(routes, featureFlags);
+  auditModule.registerModule(routes);
 
   const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
