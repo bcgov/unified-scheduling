@@ -329,7 +329,6 @@ const handleSave = async () => {
             item-value="id"
             :paginate="false"
             density="comfortable"
-            hide-default-footer
             class="permission-table"
           >
             <template #group-header="{ item, columns, toggleGroup, isGroupOpen }">
