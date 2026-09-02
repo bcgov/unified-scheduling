@@ -19,7 +19,9 @@ public class User : BaseEntity
         get => _idirName;
         set => _idirName = NormalizeIdirName(value) ?? string.Empty;
     }
+
     public Guid? IdirId { get; set; }
+
     public Guid? KeyCloakId { get; set; }
     public bool IsEnabled { get; set; }
     public string FirstName { get; set; } = string.Empty;

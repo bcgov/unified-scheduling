@@ -403,7 +403,7 @@ public class UserServiceTests : IAsyncLifetime
             LastName = existingUser.LastName,
             Email = existingUser.Email,
             Gender = existingUser.Gender,
-            Rank = existingUser.Rank,
+            Rank = existingUser.Rank ?? "",
             BadgeNumber = existingUser.BadgeNumber,
             EmployeeNumber = existingUser.EmployeeNumber ?? "",
             HomeLocationId = existingUser.HomeLocationId ?? 1,

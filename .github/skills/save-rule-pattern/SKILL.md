@@ -1,3 +1,8 @@
+---
+name: save-rule-pattern
+description: "Implement or modify ISaveRule business-rule validators that run inside EF Core's SaveChangesAsync pipeline for the unified-scheduling API. Use when adding a new ISaveRule, registering it via AddScoped<ISaveRule, ...>, or changing an existing rule under api/*/Rules/. Covers validation vs. database-constraint layering, transaction/rollback guarantees, EntityState filtering conventions, and required test coverage."
+---
+
 # ISaveRule Pattern — Add Business Rule Validation
 
 Use this skill when implementing business rule validation that must run before database commits.
