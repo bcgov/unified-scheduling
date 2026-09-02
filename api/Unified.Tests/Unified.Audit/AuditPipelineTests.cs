@@ -41,7 +41,11 @@ public sealed class AuditPipelineTests : IAsyncLifetime
                     .IgnoreMatchedProperties(true)
             );
 
-        global::Audit.EntityFramework.Configuration.Setup().ForAnyContext().UseOptOut().Ignore<AuditRecord>();
+        global::Audit
+            .EntityFramework.Configuration.Setup()
+            .ForContext<UnifiedDbContext>()
+            .UseOptOut()
+            .Ignore<AuditRecord>();
 
         return ValueTask.CompletedTask;
     }
@@ -49,6 +53,7 @@ public sealed class AuditPipelineTests : IAsyncLifetime
     public ValueTask DisposeAsync()
     {
         global::Audit.Core.Configuration.AuditDisabled = true;
+        global::Audit.Core.Configuration.IncludeActivityTrace = false;
         return ValueTask.CompletedTask;
     }
 

@@ -24,7 +24,7 @@ configuration is a process-wide static, so this can't be done as part of DI regi
   every audited entity type maps to `AuditRecord` (`AuditTypeMapper(_ => typeof(AuditRecord))`), and
   `AuditRecordEntityAction.Populate` fills in its fields (`IgnoreMatchedProperties(true)`, since property
   names never match between the audited entity and the single shared `AuditRecord` table).
-- Configures `Audit.EntityFramework.Configuration.Setup().ForAnyContext().UseOptOut().Ignore<AuditRecord>()`
+- Configures `Audit.EntityFramework.Configuration.Setup().ForContext<UnifiedDbContext>().UseOptOut().Ignore<AuditRecord>()`
   so writes to the audit table itself are never captured as another audit event.
 
 ## Same `DbContext`, no recursion

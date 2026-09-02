@@ -6,6 +6,7 @@ using Unified.Audit.Options;
 using Unified.Audit.Services;
 using Unified.Audit.Validators;
 using Unified.Authorization;
+using Unified.Db;
 using Unified.Db.Models;
 
 namespace Unified.Audit;
@@ -63,9 +64,13 @@ public static class AuditModule
                     .IgnoreMatchedProperties(true)
             );
 
-        // Applies to any audited DbContext (no context-specific config overrides it): never audit
-        // writes to the audit table itself.
-        global::Audit.EntityFramework.Configuration.Setup().ForAnyContext().UseOptOut().Ignore<AuditRecord>();
+        // Scoped to UnifiedDbContext (the only context this module audits): never audit writes to
+        // the audit table itself.
+        global::Audit
+            .EntityFramework.Configuration.Setup()
+            .ForContext<UnifiedDbContext>()
+            .UseOptOut()
+            .Ignore<AuditRecord>();
 
         return services;
     }
