@@ -31,7 +31,7 @@ public class ReportQueryServiceTests
         Assert.Equal(42, typedResult.TotalRows);
 
         Assert.Equal("userDisplayName", handler.LastSortBy);
-        Assert.Equal("Desc", handler.LastSortDirection);
+        Assert.Equal(SortDirection.Desc, handler.LastSortDirection);
         Assert.True(handler.LastFilters.ContainsKey("userId"));
     }
 
@@ -75,12 +75,12 @@ public class ReportQueryServiceTests
 
         public string? LastSortBy { get; private set; }
 
-        public string? LastSortDirection { get; private set; }
+        public SortDirection LastSortDirection { get; private set; }
 
         public Task<PagedResponse> ExecuteAsync(
             IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
             string? sortBy,
-            string? sortDirection,
+            SortDirection sortDirection,
             CancellationToken cancellationToken = default
         )
         {

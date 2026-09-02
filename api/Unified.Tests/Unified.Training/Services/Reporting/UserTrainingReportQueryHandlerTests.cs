@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Unified.Common.Reporting;
 using Unified.Db;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
@@ -54,7 +55,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             await _handler.ExecuteAsync(
                 filters,
                 sortBy: "userDisplayName",
-                sortDirection: "desc",
+                sortDirection: SortDirection.Desc,
                 cancellationToken: TestContext.Current.CancellationToken
             );
 
@@ -81,7 +82,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             await _handler.ExecuteAsync(
                 filters: new Dictionary<string, IReadOnlyCollection<string>>(),
                 sortBy: "notARealColumn",
-                sortDirection: null,
+                sortDirection: SortDirection.Asc,
                 cancellationToken: TestContext.Current.CancellationToken
             );
 
@@ -104,7 +105,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             _handler.ExecuteAsync(
                 filters,
                 sortBy: null,
-                sortDirection: null,
+                sortDirection: SortDirection.Asc,
                 cancellationToken: TestContext.Current.CancellationToken
             )
         );
@@ -125,7 +126,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             _handler.ExecuteAsync(
                 filters,
                 sortBy: null,
-                sortDirection: null,
+                sortDirection: SortDirection.Asc,
                 cancellationToken: TestContext.Current.CancellationToken
             )
         );
@@ -147,7 +148,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             await _handler.ExecuteAsync(
                 filters: new Dictionary<string, IReadOnlyCollection<string>>(),
                 sortBy: "userDisplayName",
-                sortDirection: "asc",
+                sortDirection: SortDirection.Asc,
                 cancellationToken: TestContext.Current.CancellationToken
             );
 
@@ -182,7 +183,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             await _handler.ExecuteAsync(
                 filters,
                 sortBy: "userDisplayName",
-                sortDirection: "asc",
+                sortDirection: SortDirection.Asc,
                 cancellationToken: TestContext.Current.CancellationToken
             );
 

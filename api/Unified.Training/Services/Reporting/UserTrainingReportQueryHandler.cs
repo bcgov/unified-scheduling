@@ -12,7 +12,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
     public async Task<PagedResponse> ExecuteAsync(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
         string? sortBy,
-        string? sortDirection,
+        SortDirection sortDirection,
         CancellationToken cancellationToken = default
     )
     {
@@ -156,13 +156,15 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         );
     }
 
-    private static string ResolveStatus(UserTrainingReportRow row, DateTimeOffset now)
+    private static TrainingComplianceStatus ResolveStatus(UserTrainingReportRow row, DateTimeOffset now)
     {
         if (row.IsMissingMandatoryTrainingAssignment)
         {
-            return "Not Taken";
+            return TrainingComplianceStatus.NotTaken;
         }
 
-        return row.ExpiryDate == null || row.ExpiryDate > now ? "Active" : "Expired";
+        return row.ExpiryDate == null || row.ExpiryDate > now
+            ? TrainingComplianceStatus.Active
+            : TrainingComplianceStatus.Expired;
     }
 }

@@ -41,12 +41,7 @@ public sealed class ReportQueryService(
 
         logger.LogDebug("Executing report query for {ReportKey}", normalizedKey);
 
-        return await handler.ExecuteAsync(
-            request.Filters,
-            request.SortBy,
-            request.SortDirection.ToString(),
-            cancellationToken
-        );
+        return await handler.ExecuteAsync(request.Filters, request.SortBy, request.SortDirection, cancellationToken);
     }
 
     private static string Normalize(string value) => value.Trim().ToLowerInvariant();

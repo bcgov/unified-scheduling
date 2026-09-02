@@ -7,9 +7,9 @@ internal static class UserTrainingReportMappings
 {
     private static readonly TypeAdapterConfig Config = BuildConfig();
 
-    public static UserTrainingReportItem ToReportRowValue(UserTrainingReportRow row, string status)
+    public static UserTrainingReportItem ToReportRowValue(UserTrainingReportRow row, TrainingComplianceStatus status)
     {
-        return row.Adapt<UserTrainingReportItem>(Config) with { Status = status };
+        return row.Adapt<UserTrainingReportItem>(Config) with { Status = status.ToDisplayValue() };
     }
 
     private static TypeAdapterConfig BuildConfig()

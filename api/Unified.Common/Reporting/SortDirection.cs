@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Unified.Reporting.Models;
+namespace Unified.Common.Reporting;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum SortDirection

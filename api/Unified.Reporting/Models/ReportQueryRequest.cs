@@ -1,3 +1,5 @@
+using Unified.Common.Reporting;
+
 namespace Unified.Reporting.Models;
 
 public sealed record ReportQueryRequest(

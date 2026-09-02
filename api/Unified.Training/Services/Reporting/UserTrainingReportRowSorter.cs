@@ -1,3 +1,5 @@
+using Unified.Common.Reporting;
+
 namespace Unified.Training.Services.Reporting;
 
 internal static class UserTrainingReportRowSorter
@@ -5,11 +7,11 @@ internal static class UserTrainingReportRowSorter
     public static IQueryable<UserTrainingReportRow> Apply(
         IQueryable<UserTrainingReportRow> rows,
         string? sortBy,
-        string? sortDirection
+        SortDirection sortDirection
     )
     {
         var normalizedSortBy = NormalizeSortBy(sortBy);
-        var isDescending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+        var isDescending = sortDirection == SortDirection.Desc;
 
         return normalizedSortBy switch
         {

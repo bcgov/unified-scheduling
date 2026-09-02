@@ -1,10 +1,18 @@
 using Microsoft.AspNetCore.Http;
+using Unified.Common.Reporting;
 
 namespace Unified.Reporting.Models;
 
 internal static class ReportQueryRequestParser
 {
-    private static readonly HashSet<string> ReservedQueryKeys = ["page", "pagesize", "sortby", "sortdir", "tz"];
+    private static readonly HashSet<string> ReservedQueryKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "page",
+        "pageSize",
+        "sortBy",
+        "sortDir",
+        "tz",
+    };
 
     public static ReportQueryRequest FromQuery(IQueryCollection query)
     {
@@ -12,7 +20,7 @@ internal static class ReportQueryRequestParser
         var sortDirection = ParseSortDirectionOrDefault(query, "sortDir", SortDirection.Asc);
 
         var filters = query
-            .Where(entry => !ReservedQueryKeys.Contains(entry.Key, StringComparer.OrdinalIgnoreCase))
+            .Where(entry => !ReservedQueryKeys.Contains(entry.Key))
             .ToDictionary(
                 entry => entry.Key,
                 entry =>

@@ -7,7 +7,7 @@ public interface IReportQueryHandler
     Task<PagedResponse> ExecuteAsync(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
         string? sortBy,
-        string? sortDirection,
+        SortDirection sortDirection,
         CancellationToken cancellationToken = default
     );
 }

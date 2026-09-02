@@ -31,6 +31,25 @@ internal sealed record UserTrainingReportRow
     public required bool IsMissingMandatoryTrainingAssignment { get; init; }
 }
 
+internal enum TrainingComplianceStatus
+{
+    Active,
+    Expired,
+    NotTaken,
+}
+
+internal static class TrainingComplianceStatusExtensions
+{
+    public static string ToDisplayValue(this TrainingComplianceStatus status) =>
+        status switch
+        {
+            TrainingComplianceStatus.Active => "Active",
+            TrainingComplianceStatus.Expired => "Expired",
+            TrainingComplianceStatus.NotTaken => "Not Taken",
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null),
+        };
+}
+
 public sealed record UserTrainingReportItem(
     string UserDisplayName,
     int TrainingId,
