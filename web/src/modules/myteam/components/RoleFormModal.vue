@@ -327,7 +327,7 @@ const handleSave = async () => {
             :group-by="permissionTableGroupBy"
             :sort-by="permissionTableSortBy"
             item-value="id"
-            :items-per-page="-1"
+            :paginate="false"
             density="comfortable"
             hide-default-footer
             class="permission-table"
