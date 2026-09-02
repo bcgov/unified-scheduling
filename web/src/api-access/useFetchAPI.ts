@@ -4,7 +4,7 @@ import { computed, unref, type MaybeRef } from 'vue';
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
 type QueryParamValue = string | number | boolean | null | undefined;
-type QueryParams = Record<string, QueryParamValue>;
+type QueryParams = Record<string, QueryParamValue | QueryParamValue[]>;
 
 type RequestBody = unknown;
 type FetchErrorContext = Parameters<NonNullable<UseFetchOptions['onFetchError']>>[0];
@@ -32,11 +32,15 @@ const buildQueryString = (params?: QueryParams) => {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null) {
-      return;
-    }
+    // Repeated keys (?key=a&key=b), matching ASP.NET Core's default List<T> query binding.
+    const values = Array.isArray(value) ? value : [value];
+    values.forEach((v) => {
+      if (v === undefined || v === null) {
+        return;
+      }
 
-    searchParams.append(key, String(value));
+      searchParams.append(key, String(v));
+    });
   });
 
   const queryString = searchParams.toString();
