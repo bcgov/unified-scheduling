@@ -88,8 +88,8 @@ var hangfireOptions =
         .AddReportingModule()
         .AddConfiguredSeedData(
             builder.Configuration,
-            UserManagementSeedDataSets.All
-                .Concat(StatsSeedDataSets.All)
+            UserManagementSeedDataSets
+                .All.Concat(StatsSeedDataSets.All)
                 .Concat(TrainingSeedDataSets.All)
                 .Concat(ReportingSeedDataSets.All)
         )
