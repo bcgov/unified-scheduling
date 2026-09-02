@@ -1,17 +1,20 @@
 import { computed, ref, watch, type Ref } from 'vue';
-import { getApiUsers } from '@/api-access/generated/users/users';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
 import type { SelectOption } from '@/types/select';
 import { formatUserOptionLabel, type ShiftResourceFormData } from './calendarSchedulingShiftForm';
 import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import { useSchedulingUsersStore } from './useSchedulingUsersStore';
+import { createLatestRequestGuard } from './latestRequestGuard';
 
 export function useSchedulingEmployeeOptions(
   locationId: Ref<number | null>,
   formData: Ref<ShiftResourceFormData>,
   options: { resource?: Ref<CalendarMatrixResource | undefined>; onError?: (message: string) => void } = {},
 ) {
+  const schedulingUsersStore = useSchedulingUsersStore();
   const isLoadingUsers = ref(false);
   const availableUsers = ref<UserResponse[]>([]);
+  const requestGuard = createLatestRequestGuard();
 
   const employeeOptions = computed<SelectOption[]>(() => {
     const selectOptions = availableUsers.value.map((user) => ({
@@ -37,31 +40,29 @@ export function useSchedulingEmployeeOptions(
   });
 
   async function loadEmployeeOptions(nextLocationId: number | null) {
+    const requestId = requestGuard.begin();
+    if (!nextLocationId) {
+      availableUsers.value = [];
+      isLoadingUsers.value = false;
+      return;
+    }
+
     isLoadingUsers.value = true;
 
     try {
-      const { data, error, execute } = getApiUsers(
-        {
-          IsEnabled: true,
-          LocationId: nextLocationId ?? undefined,
-        },
-        {
-          options: { immediate: false },
-        },
-      );
-
-      await execute();
-
-      if (error.value) {
-        throw error.value;
+      const users = await schedulingUsersStore.ensureUsersForLocation(nextLocationId);
+      if (requestGuard.isCurrent(requestId)) {
+        availableUsers.value = users;
       }
-
-      availableUsers.value = data.value ?? [];
     } catch (error: unknown) {
-      availableUsers.value = [];
-      options.onError?.(error instanceof Error ? error.message : 'Failed to load employees.');
+      if (requestGuard.isCurrent(requestId)) {
+        availableUsers.value = [];
+        options.onError?.(error instanceof Error ? error.message : 'Failed to load employees.');
+      }
     } finally {
-      isLoadingUsers.value = false;
+      if (requestGuard.isCurrent(requestId)) {
+        isLoadingUsers.value = false;
+      }
     }
   }
 

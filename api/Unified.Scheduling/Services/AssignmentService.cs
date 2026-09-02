@@ -16,6 +16,7 @@ public sealed class AssignmentService(
     UnifiedDbContext db,
     IEventSeriesMaterializationService eventSeriesMaterializationService,
     AssignmentSeriesMaterializationHandler assignmentSeriesMaterializationHandler,
+    IShiftAssignmentService shiftAssignmentService,
     CalendarLifecycleService calendarLifecycleService,
     ITimeZoneService timeZoneService,
     TimeProvider timeProvider
@@ -143,6 +144,19 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
 
         await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
+
+        foreach (var link in request.ShiftSeriesLinks)
+        {
+            await shiftAssignmentService.LinkShiftSeriesAsync(
+                new ShiftAssignmentSeriesRequest
+                {
+                    ShiftSeriesId = link.ShiftSeriesId,
+                    AssignmentSeriesId = assignmentSeries.Id,
+                    AssignedUserIds = link.AssignedUserIds,
+                },
+                cancellationToken
+            );
+        }
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -632,23 +646,36 @@ public sealed class AssignmentService(
             return;
 
         var locationIds = candidates.Select(candidate => candidate.LocationId).Distinct().ToList();
-        var locationTimeZoneIds = await db
+        var locations = await db
             .Locations.AsNoTracking()
             .Where(location => locationIds.Contains(location.Id))
-            .ToDictionaryAsync(location => location.Id, location => location.Timezone, cancellationToken);
-        var locationTimeZones = locationTimeZoneIds.ToDictionary(
+            .ToDictionaryAsync(
+                location => location.Id,
+                location => new AssignmentLocationDetails(location.Name, location.Timezone),
+                cancellationToken
+            );
+        var locationTimeZones = locations.ToDictionary(
             pair => pair.Key,
-            pair => timeZoneService.ResolveRequired(pair.Value)
+            pair => timeZoneService.ResolveRequired(pair.Value.TimeZoneId)
         );
+        var assignmentDefinitionIds = candidates
+            .Select(candidate => candidate.AssignmentDefinitionId)
+            .Distinct()
+            .ToList();
+        var assignmentDefinitionNames = await db
+            .AssignmentDefinitions.AsNoTracking()
+            .Where(definition => assignmentDefinitionIds.Contains(definition.Id))
+            .ToDictionaryAsync(definition => definition.Id, definition => definition.Name, cancellationToken);
 
         var candidateKeys = candidates
-            .Select(candidate => CreateAssignmentUniquenessKey(candidate, locationTimeZones))
+            .Select(candidate =>
+                CreateAssignmentUniquenessKey(candidate, locationTimeZones, locations, assignmentDefinitionNames)
+            )
             .ToList();
         var duplicateCandidateKey = candidateKeys.GroupBy(key => key).FirstOrDefault(group => group.Count() > 1)?.Key;
         if (duplicateCandidateKey is AssignmentUniquenessKey duplicateKey)
             throw CreateDuplicateAssignmentException(duplicateKey);
 
-        var assignmentDefinitionIds = candidateKeys.Select(key => key.AssignmentDefinitionId).Distinct().ToList();
         var dateRanges = candidateKeys
             .Select(key =>
                 timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
@@ -681,7 +708,9 @@ public sealed class AssignmentService(
             .Select(entry =>
                 CreateAssignmentUniquenessKey(
                     CreateAssignmentUniquenessCandidate(entry.AssignmentDefinitionId, entry.Event!),
-                    locationTimeZones
+                    locationTimeZones,
+                    locations,
+                    assignmentDefinitionNames
                 )
             )
             .FirstOrDefault(candidateKeySet.Contains);
@@ -702,7 +731,9 @@ public sealed class AssignmentService(
 
     private AssignmentUniquenessKey CreateAssignmentUniquenessKey(
         AssignmentUniquenessCandidate candidate,
-        IReadOnlyDictionary<int, TimeZoneInfo> locationTimeZones
+        IReadOnlyDictionary<int, TimeZoneInfo> locationTimeZones,
+        IReadOnlyDictionary<int, AssignmentLocationDetails> locations,
+        IReadOnlyDictionary<int, string> assignmentDefinitionNames
     )
     {
         if (!locationTimeZones.TryGetValue(candidate.LocationId, out var timeZone))
@@ -711,14 +742,16 @@ public sealed class AssignmentService(
         var localStart = timeZoneService.ToLocalUnspecified(candidate.StartAtUtc, timeZone);
         return new AssignmentUniquenessKey(
             candidate.LocationId,
+            locations[candidate.LocationId].Name,
             candidate.AssignmentDefinitionId,
+            assignmentDefinitionNames[candidate.AssignmentDefinitionId],
             DateOnly.FromDateTime(localStart)
         );
     }
 
     private static InvalidOperationException CreateDuplicateAssignmentException(AssignmentUniquenessKey key) =>
         new(
-            $"An assignment already exists for location {key.LocationId}, assignment definition {key.AssignmentDefinitionId}, and date {key.Date:yyyy-MM-dd}."
+            $"An assignment already exists for location {key.LocationName}, assignment definition {key.AssignmentDefinitionName}, and date {key.Date:yyyy-MM-dd}."
         );
 
     private async Task<AssignmentSeries> GetValidatedAssignmentSeriesAsync(
@@ -958,5 +991,13 @@ public sealed class AssignmentService(
         DateTimeOffset StartAtUtc
     );
 
-    private readonly record struct AssignmentUniquenessKey(int LocationId, int AssignmentDefinitionId, DateOnly Date);
+    private readonly record struct AssignmentLocationDetails(string Name, string TimeZoneId);
+
+    private readonly record struct AssignmentUniquenessKey(
+        int LocationId,
+        string LocationName,
+        int AssignmentDefinitionId,
+        string AssignmentDefinitionName,
+        DateOnly Date
+    );
 }

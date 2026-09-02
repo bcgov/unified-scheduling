@@ -20,10 +20,7 @@ internal static class ShiftAssignmentUserSync
             Users = selectedUserIds.Select(userId => new ShiftAssignmentEntryUser { UserId = userId }).ToList(),
         };
 
-    public static void ReplaceSeriesUsers(
-        ShiftAssignmentSeriesLink link,
-        IReadOnlyCollection<Guid> selectedUserIds
-    )
+    public static void ReplaceSeriesUsers(ShiftAssignmentSeriesLink link, IReadOnlyCollection<Guid> selectedUserIds)
     {
         link.Users.Clear();
         foreach (var userId in selectedUserIds)

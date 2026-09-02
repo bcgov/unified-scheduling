@@ -10,7 +10,6 @@ export const calendarRoutes: RouteRecordRaw[] = [
         component: () => import('./Calendar.vue'),
         meta: {
           title: 'Calendar',
-          fullScreen: true,
         },
       },
     ],

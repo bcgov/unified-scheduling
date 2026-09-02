@@ -21,6 +21,8 @@ public sealed class AssignmentSeriesRequestValidator : AbstractValidator<Assignm
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
         RuleFor(request => request.RecurrenceRule).NotEmpty();
+        RuleForEach(request => request.ShiftSeriesLinks)
+            .ChildRules(link => link.RuleFor(value => value.ShiftSeriesId).GreaterThan(0));
     }
 }
 

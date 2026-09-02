@@ -35,6 +35,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     private ShiftService _shiftService = null!;
     private ShiftAssignmentService _linkService = null!;
     private SchedulingCalendarService _calendarService = null!;
+    private ProposedShiftAssignmentOptionsService _assignmentOptionsService = null!;
     private readonly TransactionIsolationRecorder _transactionIsolationRecorder = new();
 
     public async ValueTask InitializeAsync()
@@ -74,11 +75,13 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _db,
             timeProvider
         );
+        _linkService = new ShiftAssignmentService(NullLogger<ShiftAssignmentService>.Instance, _db);
         _assignmentService = new AssignmentService(
             NullLogger<AssignmentService>.Instance,
             _db,
             materializationService,
             new AssignmentSeriesMaterializationHandler(_db),
+            _linkService,
             new CalendarLifecycleService(),
             timeZoneService,
             timeProvider
@@ -91,10 +94,17 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             new CalendarLifecycleService(),
             timeProvider
         );
-        _linkService = new ShiftAssignmentService(NullLogger<ShiftAssignmentService>.Instance, _db);
         _calendarService = new SchedulingCalendarService(
             NullLogger<SchedulingCalendarService>.Instance,
             _db,
+            timeZoneResolver,
+            timeZoneService
+        );
+        _assignmentOptionsService = new ProposedShiftAssignmentOptionsService(
+            NullLogger<ProposedShiftAssignmentOptionsService>.Instance,
+            _assignmentService,
+            recurrenceExpander,
+            recurrenceRuleValidator,
             timeZoneResolver,
             timeZoneService
         );
@@ -507,6 +517,80 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetOptionsAsync_WhenAssignmentIsOnSameDayWithoutOverlap_ReturnsOptionAndWarning()
+    {
+        var assignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(12)),
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _assignmentOptionsService.GetOptionsAsync(
+            new ProposedShiftAssignmentOptionsRequest
+            {
+                LocationId = 5,
+                StartAtUtc = At(14),
+                EndAtUtc = At(16),
+                TimeZoneId = "UTC",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(assignment.Id, Assert.Single(result.EntryOptions).Id);
+        Assert.Empty(result.SeriesOptions);
+        Assert.True(result.HasSameDayNonOverlappingAssignments);
+    }
+
+    [Fact]
+    public async Task GetOptionsAsync_WhenWeeklyRecurrenceCrossesDst_ReturnsSeriesOnLaterOccurrenceDate()
+    {
+        var assignment = await _assignmentService.CreateAssignmentSeriesAsync(
+            CreateAssignmentSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=1",
+                TimeZoneId = "America/Vancouver",
+                StartAtUtc = new DateTimeOffset(2026, 3, 8, 18, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 3, 8, 19, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _assignmentOptionsService.GetOptionsAsync(
+            new ProposedShiftAssignmentOptionsRequest
+            {
+                LocationId = 5,
+                StartAtUtc = new DateTimeOffset(2026, 3, 1, 17, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 3, 1, 18, 0, 0, TimeSpan.Zero),
+                TimeZoneId = "America/Vancouver",
+                RecurrenceRule = "FREQ=WEEKLY;COUNT=2",
+                IsSeriesScope = true,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(assignment.Id, Assert.Single(result.SeriesOptions).Id);
+    }
+
+    [Fact]
+    public async Task GetOptionsAsync_WhenRecurrenceIsUnbounded_Throws()
+    {
+        var request = new ProposedShiftAssignmentOptionsRequest
+        {
+            LocationId = 5,
+            StartAtUtc = At(9),
+            EndAtUtc = At(17),
+            TimeZoneId = "UTC",
+            RecurrenceRule = "FREQ=WEEKLY",
+            IsSeriesScope = true,
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _assignmentOptionsService.GetOptionsAsync(request, TestContext.Current.CancellationToken)
+        );
+
+        Assert.Contains("bounded", exception.Message);
+    }
+
+    [Fact]
     public async Task ExpireAssignmentEntryAsync_UsesInjectedTimeProvider()
     {
         var assignment = await _assignmentService.CreateAssignmentEntryAsync(
@@ -536,13 +620,15 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         );
         var eventCount = await _db.Events.CountAsync(TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _assignmentService.CreateAssignmentEntryAsync(
                 CreateAssignmentEntryRequest(At(14), At(16)),
                 TestContext.Current.CancellationToken
             )
         );
 
+        Assert.Contains("location Five", exception.Message);
+        Assert.Contains("assignment definition Definition", exception.Message);
         Assert.Equal(1, await _db.AssignmentEntries.CountAsync(TestContext.Current.CancellationToken));
         Assert.Equal(eventCount, await _db.Events.CountAsync(TestContext.Current.CancellationToken));
         Assert.All(
@@ -591,6 +677,30 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         Assert.Empty(await _db.ShiftAssignmentSeriesLinks.ToListAsync(TestContext.Current.CancellationToken));
         Assert.Empty(await _db.ShiftAssignmentEntries.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CreateAssignmentSeriesAsync_WithShiftSeriesLinks_CreatesLinksAtomically()
+    {
+        var shiftSeries = await _shiftService.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(),
+            TestContext.Current.CancellationToken
+        );
+
+        var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
+            CreateAssignmentSeriesRequest() with
+            {
+                ShiftSeriesLinks =
+                [
+                    new ShiftSeriesLinkRequest { ShiftSeriesId = shiftSeries.Id, AssignedUserIds = [UserA] },
+                ],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var link = Assert.Single(assignmentSeries.ShiftSeriesLinks);
+        Assert.Equal(shiftSeries.Id, link.ShiftSeriesId);
+        Assert.Equal([UserA], link.AssignedUserIds);
     }
 
     [Fact]

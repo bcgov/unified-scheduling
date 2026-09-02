@@ -28,4 +28,6 @@ public sealed record AssignmentSeriesRequest
     public int SubCategoryId { get; init; }
 
     public int Capacity { get; init; }
+
+    public IReadOnlyCollection<ShiftSeriesLinkRequest> ShiftSeriesLinks { get; init; } = [];
 }

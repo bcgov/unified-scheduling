@@ -136,7 +136,9 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         CancellationToken cancellationToken
     )
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         var selectedUserIds = ShiftAssignmentGuards.NormalizeRequiredUserIds(request.AssignedUserIds);
         var shiftSeriesExists = await db.ShiftSeries.AnyAsync(
             series => series.Id == request.ShiftSeriesId,
@@ -299,7 +301,8 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             .ToList();
 
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation(
             "Linked shift series {ShiftSeriesId} to assignment series {AssignmentSeriesId}; created {LinkCount} links.",
@@ -435,5 +438,4 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         foreach (var link in links)
             link.IsException = true;
     }
-
 }

@@ -1,23 +1,45 @@
 import type { CalendarEventStatusTypeCode } from '@/api-access/generated/models';
 import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntryRequest';
+import type { ShiftEntryResponse } from '@/api-access/generated/models/shiftEntryResponse';
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
 import type { ShiftSeriesResponse } from '@/api-access/generated/models/shiftSeriesResponse';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type { SelectOption } from '@/types/select';
-import { DateTime } from 'luxon';
 import * as zod from 'zod';
 import {
   PostApiSchedulingShiftsEntriesBody,
   PostApiSchedulingShiftsSeriesBody,
 } from '@/api-access/generated/shift/shift.zod';
 import { validationMessages } from '@/shared/validation/validationErrors';
-import { isCalendarSchedulingEvent } from './calendarSchedulingData';
+import { resolveCalendarEventUserIds } from './calendarSchedulingEventUsers';
+import { filterStringArray } from './calendarSchedulingLinkMappers';
+import { parsePositiveInteger } from './calendarSchedulingShiftIds';
+import { normalizeSchedulingLifecycleStatus } from './schedulingLifecycle';
+import {
+  buildLocalDateTime,
+  defaultEndTime,
+  defaultStartTime,
+  normalizeFormTimes,
+  normalizeOptionalText,
+  toFormDateTime,
+  toUtcIso,
+} from './schedulingDateTime';
 
 export type RepeatMode = 'never' | 'custom';
 export type PublishMode = 'yes' | 'no';
 export type CancelMode = 'yes' | 'no';
+
+export interface ShiftAssignmentLinkFormData {
+  assignmentEntryId?: number;
+  assignmentSeriesId?: number | null;
+  assignedUserIds?: string[];
+  userIds?: string[];
+}
+
+export type ShiftAssignmentEntryLinkFormData = ShiftAssignmentLinkFormData;
+export type ShiftAssignmentSeriesLinkFormData = ShiftAssignmentLinkFormData;
 
 export type ShiftResourceFormData = Partial<zod.infer<typeof PostApiSchedulingShiftsEntriesBody>> & {
   date?: string;
@@ -31,6 +53,11 @@ export type ShiftResourceFormData = Partial<zod.infer<typeof PostApiSchedulingSh
   trainingLabel?: string;
   isException?: boolean;
   statusTypeCode?: string;
+  assignmentEntryIds?: unknown[];
+  assignmentEntryId?: number | null;
+  assignmentSeriesId?: number | null;
+  assignmentEntryLinks?: ShiftAssignmentEntryLinkFormData[];
+  assignmentSeriesLinks?: ShiftAssignmentSeriesLinkFormData[];
 };
 
 export type ShiftSavePayload =
@@ -87,10 +114,6 @@ export const cancelOptions: SelectOption[] = [
   { code: 'yes', description: 'Yes' },
 ];
 
-export const timeOptions = buildTimeOptions();
-export const defaultStartTime = buildTimeOptionValue(9, 0);
-export const defaultEndTime = buildTimeOptionValue(17, 0);
-
 export function createInitialShiftFormData(
   resource: CalendarMatrixResource,
   locationId: number | null,
@@ -144,7 +167,7 @@ export function createInitialShiftFormDataForCreateAction(locationId: number | n
 export function createShiftFormDataFromEvent(event: CalendarEventBase, timeZoneId: string): ShiftResourceFormData {
   const start = toFormDateTime(event.start, timeZoneId);
   const end = event.end ? toFormDateTime(event.end, timeZoneId) : null;
-  const userIds = resolveEventUserIds(event);
+  const userIds = resolveCalendarEventUserIds(event, { fallbackToResourceIds: false });
 
   return {
     title: event.title,
@@ -155,7 +178,7 @@ export function createShiftFormDataFromEvent(event: CalendarEventBase, timeZoneI
     startTime: start.time,
     endTime: end?.time ?? defaultEndTime,
     repeatMode: 'never',
-    publish: event.statusTypeCode && event.statusTypeCode.toLowerCase() !== 'draft' ? 'yes' : 'no',
+    publish: normalizeSchedulingLifecycleStatus(event.statusTypeCode) === 'published' ? 'yes' : 'no',
     cancel: 'no',
     recurrenceRule: null,
     assignmentLabel: '',
@@ -165,6 +188,35 @@ export function createShiftFormDataFromEvent(event: CalendarEventBase, timeZoneI
     statusTypeCode: event.statusTypeCode ?? 'Draft',
     locationId: event.locationId ?? null,
     userIds,
+  };
+}
+
+export function createShiftFormDataFromEntry(
+  entry: ShiftEntryResponse,
+  fallbackEvent: CalendarEventBase,
+  timeZoneId: string,
+): ShiftResourceFormData {
+  const assignmentEntryLinks = (entry.assignmentLinks ?? []).flatMap((link) =>
+    typeof link.assignmentEntryId === 'number'
+      ? [{ assignmentEntryId: link.assignmentEntryId, assignedUserIds: link.userIds ?? [] }]
+      : [],
+  );
+  const event = {
+    ...fallbackEvent,
+    title: entry.title ?? fallbackEvent.title,
+    start: entry.startAtUtc ?? fallbackEvent.start,
+    end: entry.endAtUtc ?? fallbackEvent.end,
+    timeZoneId: entry.timeZoneId ?? fallbackEvent.timeZoneId,
+    statusTypeCode: entry.statusTypeCode ?? fallbackEvent.statusTypeCode,
+    locationId: entry.locationId ?? fallbackEvent.locationId,
+    resourceIds: entry.userIds ?? fallbackEvent.resourceIds,
+  };
+
+  return {
+    ...createShiftFormDataFromEvent(event, timeZoneId),
+    assignmentEntryId: assignmentEntryLinks.length === 1 ? assignmentEntryLinks[0]?.assignmentEntryId : null,
+    assignmentEntryIds: assignmentEntryLinks.map((link) => link.assignmentEntryId),
+    assignmentEntryLinks,
   };
 }
 
@@ -186,7 +238,7 @@ export function createShiftFormDataFromSeries(
     startTime: start.time,
     endTime: end.time,
     repeatMode: recurrenceRule ? 'custom' : 'never',
-    publish: series.statusTypeCode && series.statusTypeCode.toLowerCase() !== 'draft' ? 'yes' : 'no',
+    publish: normalizeSchedulingLifecycleStatus(series.statusTypeCode) === 'published' ? 'yes' : 'no',
     cancel: 'no',
     recurrenceRule,
     assignmentLabel: '',
@@ -224,10 +276,38 @@ export function validateShiftFormData(
 }
 
 export function normalizeShiftFormTimes(formData: ShiftResourceFormData): ShiftResourceFormData {
+  return normalizeFormTimes(formData);
+}
+
+export function normalizeShiftFormDataForScope(
+  formData: ShiftResourceFormData,
+  scope: 'entry' | 'series',
+): ShiftResourceFormData {
+  const selectedUserIds = filterStringArray(formData.userIds);
+  const assignmentEntryLinks = normalizeAssignmentLinks(
+    formData.assignmentEntryLinks,
+    formData.assignmentEntryIds,
+    'assignmentEntryId',
+    selectedUserIds,
+  );
+  const assignmentSeriesLinks = normalizeAssignmentLinks(
+    formData.assignmentSeriesLinks,
+    formData.assignmentSeriesId == null ? [] : [formData.assignmentSeriesId],
+    'assignmentSeriesId',
+    selectedUserIds,
+  );
+  const {
+    assignmentEntryIds: _assignmentEntryIds,
+    assignmentEntryId: _assignmentEntryId,
+    assignmentSeriesId: _assignmentSeriesId,
+    ...normalized
+  } = formData;
+
   return {
-    ...formData,
-    startTime: normalizeTimeOptionValue(formData.startTime),
-    endTime: normalizeTimeOptionValue(formData.endTime),
+    ...normalized,
+    userIds: selectedUserIds,
+    assignmentEntryLinks: scope === 'entry' ? assignmentEntryLinks : [],
+    assignmentSeriesLinks: scope === 'series' ? assignmentSeriesLinks : [],
   };
 }
 
@@ -241,6 +321,17 @@ export function buildCreateShiftPayload(options: BuildCreateShiftPayloadOptions)
   });
 }
 
+export function buildCreateShiftPayloadWithErrors(options: BuildCreateShiftPayloadOptions): {
+  payload: ShiftSavePayload | null;
+  errors: Record<string, string>;
+} {
+  if (options.locationId == null) {
+    return { payload: null, errors: { locationId: validationMessages.required } };
+  }
+
+  return { payload: buildCreateShiftPayload(options), errors: {} };
+}
+
 export function buildUpdateShiftPayload(options: BuildUpdateShiftPayloadOptions): ShiftSavePayload | null {
   return buildShiftPayload({
     ...options,
@@ -248,67 +339,24 @@ export function buildUpdateShiftPayload(options: BuildUpdateShiftPayloadOptions)
   });
 }
 
-function resolveEventUserIds(event: CalendarEventBase) {
-  if (!isCalendarSchedulingEvent(event)) {
-    return event.resourceIds ?? [];
+export function buildUpdateShiftPayloadWithErrors(options: BuildUpdateShiftPayloadOptions): {
+  payload: ShiftSavePayload | null;
+  errors: Record<string, string>;
+} {
+  if (options.locationId == null) {
+    return { payload: null, errors: { locationId: validationMessages.required } };
   }
 
-  if (event.metadata.userIds?.length) {
-    return event.metadata.userIds;
-  }
-
-  return event.metadata.userId ? [event.metadata.userId] : [];
+  return { payload: buildUpdateShiftPayload(options), errors: {} };
 }
 
 export function buildShiftTitle(employeeName: string) {
   return `${employeeName} shift`;
 }
 
-export function buildLocalDateTime(date?: string, time?: string, timeZone?: string) {
-  if (!date || !time) {
-    return null;
-  }
-
-  return DateTime.fromISO(`${date}T${time}`, { zone: timeZone });
-}
-
-export function toUtcIso(date?: string, time?: string, timeZone?: string) {
-  const dateTime = buildLocalDateTime(date, time, timeZone);
-  if (!dateTime?.isValid) {
-    return null;
-  }
-
-  return dateTime.toUTC().toISO({ suppressMilliseconds: true });
-}
-
-export function normalizeOptionalText(value?: string | null) {
-  const trimmed = value?.trim();
-  return trimmed || null;
-}
-
 export function formatUserOptionLabel(user: UserResponse) {
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
   return fullName || user.idirName;
-}
-
-export function normalizeTimeOptionValue(value?: string) {
-  if (!value) {
-    return value;
-  }
-
-  const normalizedValue = normalizeTimeText(value);
-  const matchedOption = timeOptions.find((option) => {
-    const optionCode = normalizeTimeText(String(option.code));
-    const optionLabel = normalizeTimeText(option.description);
-
-    return normalizedValue === optionCode || normalizedValue === optionLabel;
-  });
-
-  return typeof matchedOption?.code === 'string' ? matchedOption.code : value;
-}
-
-export function normalizeTimeText(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, '');
 }
 
 export function getFieldErrors(error: zod.ZodError): Record<string, string> {
@@ -327,37 +375,6 @@ export function getFieldErrors(error: zod.ZodError): Record<string, string> {
   return errors;
 }
 
-export function buildTimeOptionValue(hour: number, minute: number) {
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-}
-
-export function buildTimeOptions(): SelectOption[] {
-  const options: SelectOption[] = [];
-
-  for (let hour = 0; hour < 24; hour += 1) {
-    for (const minute of [0, 30]) {
-      const value = buildTimeOptionValue(hour, minute);
-      const label = DateTime.fromObject({ hour, minute }).toFormat('h:mm a');
-      options.push({ code: value, description: label });
-    }
-  }
-
-  return options;
-}
-
-function toFormDateTime(value: string, timeZoneId: string) {
-  const dateTime = DateTime.fromISO(value, { zone: timeZoneId });
-
-  if (!dateTime.isValid) {
-    return { date: '', time: defaultStartTime };
-  }
-
-  return {
-    date: dateTime.toFormat('yyyy-MM-dd'),
-    time: buildTimeOptionValue(dateTime.hour, dateTime.minute),
-  };
-}
-
 function createShiftFormSchema(options: ShiftFormValidationOptions) {
   return PostApiSchedulingShiftsEntriesBody.partial()
     .extend({
@@ -373,6 +390,25 @@ function createShiftFormSchema(options: ShiftFormValidationOptions) {
       trainingLabel: zod.string().optional(),
       isException: zod.boolean().optional(),
       statusTypeCode: zod.string().optional(),
+      assignmentEntryIds: zod.array(zod.number().int().positive()).optional(),
+      assignmentEntryId: zod.number().int().positive().nullish(),
+      assignmentSeriesId: zod.number().int().positive().nullish(),
+      assignmentEntryLinks: zod
+        .array(
+          zod.object({
+            assignmentEntryId: zod.number().int().positive(),
+            assignedUserIds: zod.array(zod.string().uuid()).min(1),
+          }),
+        )
+        .optional(),
+      assignmentSeriesLinks: zod
+        .array(
+          zod.object({
+            assignmentSeriesId: zod.number().int().positive(),
+            assignedUserIds: zod.array(zod.string().uuid()).min(1),
+          }),
+        )
+        .optional(),
       notes: PostApiSchedulingShiftsEntriesBody.shape.notes,
     })
     .superRefine((data, ctx) => {
@@ -416,11 +452,11 @@ function buildShiftPayload(
     return null;
   }
 
-  const statusTypeCode = String(options.formData.statusTypeCode ?? '').toLowerCase();
+  const lifecycleStatus = normalizeSchedulingLifecycleStatus(options.formData.statusTypeCode);
   const publish = options.isCreate
     ? options.formData.publish === 'yes'
-    : statusTypeCode === 'draft' && options.formData.publish === 'yes';
-  const cancel = !options.isCreate && statusTypeCode === 'active' && options.formData.cancel === 'yes';
+    : lifecycleStatus === 'draft' && options.formData.publish === 'yes';
+  const cancel = !options.isCreate && lifecycleStatus === 'published' && options.formData.cancel === 'yes';
   const selectedUserIds = options.formData.userIds?.filter((value): value is string => typeof value === 'string') ?? [];
 
   if (options.scope === 'series') {
@@ -460,4 +496,35 @@ function buildShiftPayload(
 
   const result = shiftEntryRequestSchema.safeParse(body);
   return result.success ? { kind: 'entry', body: result.data, publish, cancel } : null;
+}
+
+function normalizeAssignmentLinks(
+  links: ShiftAssignmentLinkFormData[] | undefined,
+  selectedIds: unknown[] | undefined,
+  idKey: 'assignmentEntryId' | 'assignmentSeriesId',
+  defaultUserIds: string[],
+) {
+  const candidates: ShiftAssignmentLinkFormData[] = links?.length
+    ? links
+    : (selectedIds ?? []).map((id) => ({ [idKey]: id }));
+  const normalizedById = new Map<number, Record<string, number | string[]>>();
+
+  for (const link of candidates) {
+    const id = parsePositiveInteger(link[idKey]);
+    if (!id) {
+      continue;
+    }
+
+    const assignedUserIds = filterStringArray(link.assignedUserIds ?? link.userIds);
+    normalizedById.set(id, {
+      [idKey]: id,
+      assignedUserIds: assignedUserIds.length ? assignedUserIds : defaultUserIds,
+    });
+  }
+
+  return Array.from(normalizedById.values()).map((link) => ({
+    assignmentEntryId: typeof link.assignmentEntryId === 'number' ? link.assignmentEntryId : undefined,
+    assignmentSeriesId: typeof link.assignmentSeriesId === 'number' ? link.assignmentSeriesId : undefined,
+    assignedUserIds: Array.isArray(link.assignedUserIds) ? link.assignedUserIds : [],
+  }));
 }

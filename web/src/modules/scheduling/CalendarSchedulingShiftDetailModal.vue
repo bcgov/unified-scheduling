@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntryRequest';
+import type { ShiftEntryResponse } from '@/api-access/generated/models/shiftEntryResponse';
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
 import type { ShiftSeriesResponse } from '@/api-access/generated/models/shiftSeriesResponse';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
@@ -16,6 +17,7 @@ import { mapToValidationErrors } from '@/shared/validation/validationErrors';
 import {
   buildUpdateShiftPayload,
   buildShiftTitle,
+  createShiftFormDataFromEntry,
   createShiftFormDataFromEvent,
   createShiftFormDataFromSeries,
   normalizeShiftFormTimes,
@@ -23,14 +25,20 @@ import {
   type ShiftResourceFormData,
 } from './calendarSchedulingShiftForm';
 import * as shiftApi from './calendarSchedulingShiftApi';
-import { createShiftDetailRows } from './calendarSchedulingShiftDetailRows';
+import { syncAssignmentEntryLinks, type ExistingShiftEntryLink } from './calendarSchedulingShiftAssignmentApi';
 import { useSchedulingEmployeeOptions } from './useSchedulingEmployeeOptions';
+import { useSchedulingAssignmentOptions } from './useSchedulingAssignmentOptions';
+import { useSchedulingShiftDetailRows } from './useSchedulingShiftDetailRows';
+import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
+import { getSchedulingLifecycleCapabilities } from './schedulingLifecycle';
+import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 
 type ShiftDetailTabId = 'details' | 'edit' | 'delete';
 type ShiftOpenScope = 'event' | 'series';
 
 const props = defineProps<{
   event: CalendarEventBase;
+  initialOpenScope?: ShiftOpenScope;
 }>();
 
 const emit = defineEmits<{
@@ -40,12 +48,6 @@ const emit = defineEmits<{
 const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 
-const tabs: Array<{ id: ShiftDetailTabId; label: string }> = [
-  { id: 'details', label: 'Details' },
-  { id: 'edit', label: 'Edit' },
-  { id: 'delete', label: 'Delete' },
-];
-
 const activeTab = ref<ShiftDetailTabId>('details');
 const selectedOpenScope = ref<ShiftOpenScope | null>(getInitialOpenScope());
 const isSaving = ref(false);
@@ -54,10 +56,18 @@ const isLoadingSeries = ref(false);
 const formErrors = ref<Record<string, string>>({});
 const recurrenceError = ref('');
 const isDeleteConfirmed = ref(false);
+const selectedEntry = ref<ShiftEntryResponse | null>(null);
 const selectedSeries = ref<ShiftSeriesResponse | null>(null);
-const timeZoneId = computed(() => props.event.timeZoneId || Intl.DateTimeFormat().resolvedOptions().timeZone);
+const timeZoneId = computed(() =>
+  resolveSchedulingTimeZoneId(
+    props.event.timeZoneId,
+    props.event.locationId != null ? locationsStore.entitiesMap[props.event.locationId]?.timezone : undefined,
+  ),
+);
 const activeTimeZoneId = computed(() =>
-  selectedOpenScope.value === 'series' ? selectedSeries.value?.timeZoneId || timeZoneId.value : timeZoneId.value,
+  selectedOpenScope.value === 'series'
+    ? resolveSchedulingTimeZoneId(selectedSeries.value?.timeZoneId, timeZoneId.value)
+    : timeZoneId.value,
 );
 const editFormData = ref<ShiftResourceFormData>(createEditFormData());
 const activeLocationId = computed<number | null>(() => {
@@ -83,16 +93,43 @@ const { employeeOptions, isLoadingUsers } = useSchedulingEmployeeOptions(activeL
     apiError.value = message;
   },
 });
+const locationOptions = computed(() => locationsStore.selectOptions);
 const eventBelongsToSeries = computed(() => resolveShiftSeriesId() !== null);
 const shouldShowOpenScopeChoice = computed(() => eventBelongsToSeries.value && selectedOpenScope.value === null);
 const isSeriesScope = computed(() => selectedOpenScope.value === 'series');
-const modalTitle = computed(() => (isSeriesScope.value ? 'Shift Series Details' : 'Shift Details'));
-const deleteDisabledReason = computed(() => {
-  const statusTypeCode =
-    selectedOpenScope.value === 'series' ? selectedSeries.value?.statusTypeCode : props.event.statusTypeCode;
-  const normalizedStatus = String(statusTypeCode ?? '').toLowerCase();
+const shiftEntityLabel = computed(() => (isSeriesScope.value ? 'Shift Series' : 'Shift'));
+const currentStatusTypeCode = computed(() =>
+  isSeriesScope.value
+    ? selectedSeries.value?.statusTypeCode
+    : (selectedEntry.value?.statusTypeCode ?? props.event.statusTypeCode),
+);
+const shiftLifecycle = computed(() => getSchedulingLifecycleCapabilities(currentStatusTypeCode.value));
+const canEditShift = computed(() => shiftLifecycle.value.canEdit);
+const isPublishedShift = computed(() => shiftLifecycle.value.canCancel);
+const tabs = computed<Array<{ id: ShiftDetailTabId; label: string }>>(() => [
+  { id: 'details', label: 'Details' },
+  ...(canEditShift.value ? [{ id: 'edit' as const, label: 'Edit' }] : []),
+  ...(shiftLifecycle.value.canDelete || shiftLifecycle.value.canCancel
+    ? [{ id: 'delete' as const, label: isPublishedShift.value ? 'Cancel' : 'Delete' }]
+    : []),
+]);
+const modalTitle = computed(() => {
+  if (shouldShowOpenScopeChoice.value) {
+    return 'Open Shift';
+  }
 
-  if (normalizedStatus && normalizedStatus !== 'draft') {
+  if (activeTab.value === 'edit') {
+    return `Edit ${shiftEntityLabel.value}`;
+  }
+
+  if (activeTab.value === 'delete') {
+    return `${isPublishedShift.value ? 'Cancel' : 'Delete'} ${shiftEntityLabel.value}`;
+  }
+
+  return `${shiftEntityLabel.value} Details`;
+});
+const deleteDisabledReason = computed(() => {
+  if (currentStatusTypeCode.value && !shiftLifecycle.value.canDelete && !shiftLifecycle.value.canCancel) {
     return selectedOpenScope.value === 'series'
       ? 'Only draft shift series can be deleted.'
       : 'Only draft shift entries can be deleted.';
@@ -101,10 +138,39 @@ const deleteDisabledReason = computed(() => {
   return '';
 });
 const canDeleteShift = computed(() => !deleteDisabledReason.value && isDeleteConfirmed.value);
+const deleteConfirmationLabel = computed(() =>
+  isPublishedShift.value
+    ? 'I understand this published shift will be cancelled for all assigned users.'
+    : 'I understand this shift will be permanently deleted for all assigned users.',
+);
+const deleteWarning = computed(() =>
+  isPublishedShift.value ? 'This published shift will be cancelled.' : "This can't be undone.",
+);
+const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLoadingAssignments } =
+  useSchedulingAssignmentOptions({
+    formData: editFormData,
+    activeLocationId,
+    activeTimeZoneId,
+    isSeriesScope,
+    onError: (message) => {
+      apiError.value = message;
+    },
+  });
+const { detailRows } = useSchedulingShiftDetailRows({
+  event: computed(() => props.event),
+  selectedOpenScope,
+  selectedSeries,
+  formData: editFormData,
+  employeeOptions,
+  assignmentEntryOptions,
+  assignmentSeriesOptions,
+  locationOptions,
+});
 
 watch(
   () => props.event,
-  (event) => {
+  async (event) => {
+    selectedEntry.value = null;
     selectedSeries.value = null;
     editFormData.value = createShiftFormDataFromEvent(event, timeZoneId.value);
     activeTab.value = 'details';
@@ -113,7 +179,12 @@ watch(
     formErrors.value = {};
     recurrenceError.value = '';
     isDeleteConfirmed.value = false;
+
+    if (!resolveShiftSeriesId()) {
+      await loadSelectedEntry();
+    }
   },
+  { immediate: true },
 );
 
 watch(
@@ -126,16 +197,11 @@ watch(
   },
 );
 
-const detailRows = computed(() =>
-  createShiftDetailRows({
-    event: props.event,
-    series: selectedOpenScope.value === 'series' ? selectedSeries.value : null,
-    timeZoneId: activeTimeZoneId.value,
-    employeeOptions: employeeOptions.value,
-  }),
-);
-
 function selectTab(tabId: ShiftDetailTabId) {
+  if (!tabs.value.some((tab) => tab.id === tabId)) {
+    return;
+  }
+
   activeTab.value = tabId;
   apiError.value = '';
   isDeleteConfirmed.value = false;
@@ -151,11 +217,38 @@ async function selectOpenScope(scope: ShiftOpenScope) {
     }
   } else {
     selectedSeries.value = null;
+    const entry = await loadSelectedEntry();
+    if (!entry) {
+      return;
+    }
   }
 
   selectedOpenScope.value = scope;
   editFormData.value = createEditFormData();
   activeTab.value = 'details';
+}
+
+async function loadSelectedEntry() {
+  const id = resolveShiftEntryId();
+  if (!id) {
+    apiError.value = 'Could not determine the shift entry to open.';
+    return null;
+  }
+
+  const result = await shiftApi.loadShiftEntry(id);
+  if (result.error.value) {
+    apiError.value = result.error.value.message || 'Failed to load the shift entry.';
+    return null;
+  }
+
+  selectedEntry.value = result.data.value ?? null;
+  if (!selectedEntry.value) {
+    apiError.value = 'Shift entry was not found.';
+    return null;
+  }
+
+  editFormData.value = createShiftFormDataFromEntry(selectedEntry.value, props.event, activeTimeZoneId.value);
+  return selectedEntry.value;
 }
 
 async function loadSelectedSeries() {
@@ -189,6 +282,10 @@ async function loadSelectedSeries() {
 function createEditFormData(): ShiftResourceFormData {
   if (selectedOpenScope.value === 'series' && selectedSeries.value) {
     return createShiftFormDataFromSeries(selectedSeries.value, props.event, activeTimeZoneId.value);
+  }
+
+  if (selectedEntry.value) {
+    return createShiftFormDataFromEntry(selectedEntry.value, props.event, activeTimeZoneId.value);
   }
 
   return createShiftFormDataFromEvent(props.event, timeZoneId.value);
@@ -234,6 +331,7 @@ async function handleSaveEdit() {
 
   isSaving.value = true;
   apiError.value = '';
+  let entityWasSaved = false;
 
   try {
     if (payload.cancel) {
@@ -255,22 +353,44 @@ async function handleSaveEdit() {
     if (!saved) {
       return;
     }
+    entityWasSaved = true;
+
+    if (payload.kind === 'entry') {
+      await syncEditedShiftEntryAssignmentLinks(validated);
+    }
 
     const published =
       payload.kind === 'series'
         ? await publishShiftSeries(resolveShiftSeriesId(), payload.publish)
         : await publishShiftEntry(resolveShiftEntryId(), payload.publish);
     if (!published) {
+      await reloadShiftAfterPartialFailure(payload.kind);
+      apiError.value = 'The shift was updated as Draft, but publication failed. Its current status has been reloaded.';
       return;
     }
 
     calendarStore.refresh();
     emit('close');
   } catch (error: unknown) {
-    apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    if (entityWasSaved) {
+      await reloadShiftAfterPartialFailure(payload.kind);
+      const reason = error instanceof Error ? error.message : 'relationships could not be fully updated';
+      apiError.value = `The shift was updated, but its relationships could not be fully updated: ${reason}`;
+    } else {
+      apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    }
   } finally {
     isSaving.value = false;
   }
+}
+
+async function reloadShiftAfterPartialFailure(kind: 'entry' | 'series') {
+  if (kind === 'series') {
+    await loadSelectedSeries();
+  } else {
+    await loadSelectedEntry();
+  }
+  calendarStore.refresh();
 }
 
 async function handleDeleteShift() {
@@ -282,7 +402,15 @@ async function handleDeleteShift() {
   apiError.value = '';
 
   try {
-    const deleted = selectedOpenScope.value === 'series' ? await deleteShiftSeries() : await deleteShiftEntry();
+    let deleted: boolean;
+    if (isPublishedShift.value) {
+      deleted =
+        selectedOpenScope.value === 'series'
+          ? await cancelShiftSeries(resolveShiftSeriesId(), true)
+          : await cancelShiftEntry(resolveShiftEntryId(), true);
+    } else {
+      deleted = selectedOpenScope.value === 'series' ? await deleteShiftSeries() : await deleteShiftEntry();
+    }
 
     if (!deleted) {
       return;
@@ -451,6 +579,71 @@ function buildRequestPayload(validated: ShiftResourceFormData) {
   return payload;
 }
 
+async function syncEditedShiftEntryAssignmentLinks(formData: ShiftResourceFormData) {
+  const shiftEntryId = resolveShiftEntryId();
+  if (!shiftEntryId) {
+    throw new Error('Could not determine the shift entry for assignment links.');
+  }
+
+  const existingLinks = selectedEntry.value?.assignmentLinks ?? [];
+  const existingLinksByAssignmentEntryId = new Map<number, typeof existingLinks>();
+
+  for (const link of existingLinks) {
+    if (typeof link.assignmentEntryId !== 'number') {
+      continue;
+    }
+
+    const links = existingLinksByAssignmentEntryId.get(link.assignmentEntryId) ?? [];
+    links.push(link);
+    existingLinksByAssignmentEntryId.set(link.assignmentEntryId, links);
+  }
+
+  const desiredLinksByAssignmentEntryId = new Map(
+    (formData.assignmentEntryLinks ?? []).flatMap((link) =>
+      typeof link.assignmentEntryId === 'number' ? [[link.assignmentEntryId, link.assignedUserIds ?? []] as const] : [],
+    ),
+  );
+
+  for (const [assignmentEntryId, assignedUserIds] of desiredLinksByAssignmentEntryId) {
+    const existingLinksForAssignment = existingLinksByAssignmentEntryId.get(assignmentEntryId) ?? [];
+    await syncAssignmentEntryLinks(
+      assignmentEntryId,
+      [
+        {
+          id: existingLinksForAssignment[0]?.id,
+          shiftEntryId,
+          assignedUserIds,
+        },
+      ],
+      toExistingShiftEntryLinks(existingLinksForAssignment),
+    );
+  }
+
+  for (const [assignmentEntryId, existingLinksForAssignment] of existingLinksByAssignmentEntryId) {
+    if (desiredLinksByAssignmentEntryId.has(assignmentEntryId)) {
+      continue;
+    }
+
+    await syncAssignmentEntryLinks(assignmentEntryId, [], toExistingShiftEntryLinks(existingLinksForAssignment));
+  }
+}
+
+function toExistingShiftEntryLinks(
+  links: NonNullable<ShiftEntryResponse['assignmentLinks']>,
+): ExistingShiftEntryLink[] {
+  return links.flatMap((link) =>
+    typeof link.id === 'number' && typeof link.shiftEntryId === 'number'
+      ? [
+          {
+            id: link.id,
+            shiftEntryId: link.shiftEntryId,
+            assignedUserIds: link.userIds ?? [],
+          },
+        ]
+      : [],
+  );
+}
+
 function applyServerValidationErrors(rawError: unknown) {
   const mapped = mapToValidationErrors(rawError);
   if (!mapped) {
@@ -466,7 +659,7 @@ function resolveShiftEntryId() {
     return null;
   }
 
-  return parseNumericId(props.event.metadata.shiftEntryId);
+  return parsePositiveInteger(props.event.metadata.shiftEntryId);
 }
 
 function resolveShiftSeriesId() {
@@ -474,19 +667,14 @@ function resolveShiftSeriesId() {
     return null;
   }
 
-  return parseNumericId(props.event.metadata.shiftSeriesId);
-}
-
-function parseNumericId(value: string | number | null | undefined) {
-  if (value == null) {
-    return null;
-  }
-
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  return parsePositiveInteger(props.event.metadata.shiftSeriesId);
 }
 
 function getInitialOpenScope(): ShiftOpenScope | null {
+  if (props.initialOpenScope) {
+    return props.initialOpenScope;
+  }
+
   return resolveShiftSeriesId() ? null : 'event';
 }
 </script>
@@ -526,6 +714,9 @@ function getInitialOpenScope(): ShiftOpenScope | null {
       </div>
 
       <section v-if="activeTab === 'details'" class="shift-detail-modal__panel" aria-label="Shift details panel">
+        <UaAlert v-if="isPublishedShift" type="info">
+          This shift has been published, and cannot be edited or deleted, only cancelled
+        </UaAlert>
         <dl class="shift-detail-modal__details">
           <template v-for="detail in detailRows" :key="detail.label">
             <dt>{{ detail.label }}</dt>
@@ -549,8 +740,14 @@ function getInitialOpenScope(): ShiftOpenScope | null {
           :form-errors="formErrors"
           :disabled="isSaving"
           :show-recurrence="isSeriesScope"
+          :location-options="locationOptions"
           :employee-options="employeeOptions"
           :is-loading-users="isLoadingUsers"
+          :assignment-entry-options="assignmentEntryOptions"
+          :assignment-series-options="assignmentSeriesOptions"
+          :assignment-warning="assignmentWarning"
+          :is-loading-assignments="isLoadingAssignments"
+          :show-series-assignment="isSeriesScope"
           @recurrence-change="handleRecurrenceChange"
           @recurrence-invalid="handleRecurrenceInvalid"
         />
@@ -574,12 +771,8 @@ function getInitialOpenScope(): ShiftOpenScope | null {
 
         <p v-if="deleteDisabledReason" class="shift-detail-modal__delete-warning">{{ deleteDisabledReason }}</p>
         <template v-else>
-          <p class="shift-detail-modal__delete-warning">This can't be undone.</p>
-          <v-checkbox
-            v-model="isDeleteConfirmed"
-            label="I understand this shift will be permanently deleted."
-            hide-details
-          />
+          <p class="shift-detail-modal__delete-warning">{{ deleteWarning }}</p>
+          <v-checkbox v-model="isDeleteConfirmed" :label="deleteConfirmationLabel" hide-details />
         </template>
       </section>
     </div>
@@ -592,7 +785,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
       <template v-else>
         <UaBtn variant="outlined" :disabled="isSaving" @click="emit('close')">Close</UaBtn>
         <UaBtn color="error" variant="flat" :disabled="!canDeleteShift" :loading="isSaving" @click="handleDeleteShift">
-          Delete
+          {{ isPublishedShift ? 'Cancel Shift' : 'Delete' }}
         </UaBtn>
       </template>
     </template>

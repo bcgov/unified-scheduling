@@ -43,10 +43,7 @@ internal static class ShiftAssignmentResponseMapper
         config
             .NewConfig<ShiftAssignmentEntry, ShiftAssignmentEntryResponse>()
             .Ignore(response => response.Capacity)
-            .Map(
-                response => response.UserIds,
-                link => link.Users.Select(user => user.UserId).Distinct().ToList()
-            )
+            .Map(response => response.UserIds, link => link.Users.Select(user => user.UserId).Distinct().ToList())
             .Map(
                 response => response.AssignedUserCount,
                 link => link.Users.Select(user => user.UserId).Distinct().Count()

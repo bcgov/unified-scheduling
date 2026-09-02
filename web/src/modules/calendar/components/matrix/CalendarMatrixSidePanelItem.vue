@@ -9,6 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'dragStart', payload: CalendarMatrixDragPayload): void;
+  (event: 'itemClick', payload: CalendarMatrixSidePanelItem): void;
 }>();
 
 const matrixContext = inject(calendarMatrixContextKey, undefined);
@@ -68,8 +69,13 @@ function handleDragEnd() {
     class="calendar-matrix-side-panel-item"
     role="listitem"
     :aria-label="item.title"
-    :class="{ 'is-draggable': item.draggable }"
+    :class="{
+      'is-draggable': item.draggable,
+      'is-clickable': item.type === 'assignment',
+      'is-hoverable': item.type === 'assignment' || item.type === 'user',
+    }"
     :draggable="item.draggable === true"
+    @click="emit('itemClick', item)"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
   >
@@ -109,6 +115,12 @@ function handleDragEnd() {
 
 .calendar-matrix-side-panel-item.is-draggable {
   cursor: grab;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .calendar-matrix-side-panel-item.is-hoverable:hover {
+    background: rgb(var(--v-theme-surface-variant));
+  }
 }
 
 .calendar-matrix-side-panel-item__avatar {

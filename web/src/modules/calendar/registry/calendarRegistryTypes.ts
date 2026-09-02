@@ -16,6 +16,7 @@ export interface CalendarModuleContribution {
   contributionId: string;
   load: (context: CalendarQueryContext, options?: CalendarContributionLoadOptions) => Promise<CalendarContributionData>;
   isAvailable?: (runtimeContext: CalendarRuntimeContext, queryContext: CalendarQueryContext) => boolean;
+  onDeactivate?: () => void;
 }
 
 export interface CalendarViewDefinition<TModel = unknown> {

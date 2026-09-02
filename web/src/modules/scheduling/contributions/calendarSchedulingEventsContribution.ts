@@ -7,6 +7,7 @@ import { CalendarContributionId, CalendarModuleId } from '@/modules/calendar/cal
 import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type { CalendarSchedulingEvent } from '../calendarSchedulingData';
+import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
@@ -22,9 +23,14 @@ interface CalendarSchedulingResourceData {
 
 const resourceDataCache = new Map<string, Promise<CalendarSchedulingResourceData>>();
 
+export function clearSchedulingCalendarResourceDataCache() {
+  resourceDataCache.clear();
+}
+
 export const calendarSchedulingEventsContribution: CalendarModuleContribution = {
   moduleId: CalendarModuleId.Scheduling,
   contributionId: CalendarContributionId.SchedulingEvents,
+  onDeactivate: clearSchedulingCalendarResourceDataCache,
   isAvailable(runtimeContext) {
     return runtimeContext.featureFlags.Scheduling?.enabled ?? true;
   },
@@ -36,7 +42,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
         {
           startDate: context.startDate,
           endDate: context.endDate,
-          timeZoneId: resolveTimeZoneId(context.filters),
+          timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
           locationId: context.locationId,
           userIds,
         },
@@ -51,36 +57,50 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
     return {
       moduleId: CalendarModuleId.Scheduling,
       contributionId: CalendarContributionId.SchedulingEvents,
-      events: events.map<CalendarSchedulingEvent>((event) => ({
-        id: event.id,
-        type: event.type,
-        sourceModule: event.sourceModule,
-        title: event.title,
-        description: event.description ?? undefined,
-        notes: event.notes ?? undefined,
-        color: event.color ?? undefined,
-        start: event.start,
-        end: event.end ?? undefined,
-        seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
-        seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
-        allDay: event.allDay ?? false,
-        isException: event.isException ?? false,
-        isConflict: eventHasConflict(event),
-        eventTypeCode: event.eventTypeCode,
-        statusTypeCode: event.statusTypeCode,
-        cancelledAt: event.cancelledAt ?? undefined,
-        cancelledByUserId: event.cancelledByUserId ?? undefined,
-        cancellationReason: event.cancellationReason ?? undefined,
-        timeZoneId: event.timeZoneId ?? undefined,
-        locationId: event.locationId ?? undefined,
-        resourceIds: event.resourceIds ?? [],
-        metadata: {
-          shiftEntryId: event.shiftEntryId === undefined ? undefined : String(event.shiftEntryId),
-          userIds: event.userIds ?? [],
-          eventId: event.eventId,
-          shiftSeriesId: event.shiftSeriesId ?? undefined,
-        },
-      })),
+      events: events.map<CalendarSchedulingEvent>((event) => {
+        const assignedUserIds = event.assignedUserIds ?? [];
+
+        return {
+          id: event.id,
+          type: event.type,
+          sourceModule: event.sourceModule,
+          title: event.title,
+          description: event.description ?? undefined,
+          notes: event.notes ?? undefined,
+          color: event.color ?? undefined,
+          start: event.start,
+          end: event.end ?? undefined,
+          seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
+          seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
+          allDay: event.allDay ?? false,
+          isException: event.isException ?? false,
+          isConflict: eventHasConflict(event),
+          eventTypeCode: event.eventTypeCode,
+          statusTypeCode: event.statusTypeCode,
+          cancelledAt: event.cancelledAt ?? undefined,
+          cancelledByUserId: event.cancelledByUserId ?? undefined,
+          cancellationReason: event.cancellationReason ?? undefined,
+          timeZoneId: event.timeZoneId ?? undefined,
+          locationId: event.locationId ?? undefined,
+          resourceIds: event.resourceIds ?? [],
+          metadata: {
+            shiftEntryId: event.shiftEntryId == null ? undefined : String(event.shiftEntryId),
+            shiftSeriesId: event.shiftSeriesId ?? undefined,
+            assignmentEntryId: event.assignmentEntryId == null ? undefined : String(event.assignmentEntryId),
+            assignmentSeriesId: event.assignmentSeriesId == null ? undefined : String(event.assignmentSeriesId),
+            userIds: event.userIds ?? [],
+            eventId: event.eventId,
+            capacity: event.capacity ?? undefined,
+            assignedCount: event.assignedUserCount ?? assignedUserIds.length,
+            assignedShiftIds: (event.linkedShiftEntryIds ?? []).map(String),
+            assignedUserIds,
+            categoryId: event.categoryId ?? undefined,
+            categoryName: event.categoryName ?? undefined,
+            subCategoryId: event.subCategoryId ?? undefined,
+            subCategoryName: event.subCategoryName ?? undefined,
+          },
+        };
+      }),
       resources: resourceUsers.map<CalendarSchedulingUserResource>((user) =>
         mapUserToCalendarSchedulingResource(user, resourceData.actingPositionsByUserId.get(user.id) ?? []),
       ),
@@ -167,11 +187,6 @@ function toAvatarText(firstName?: string, lastName?: string, fallback?: string) 
   }
 
   return fallback?.trim().slice(0, 2).toUpperCase() || undefined;
-}
-
-function resolveTimeZoneId(filters: Record<string, unknown>) {
-  const timeZone = filters.timeZoneId ?? filters.timeZone;
-  return typeof timeZone === 'string' && timeZone.trim() ? timeZone : undefined;
 }
 
 function extractUserIds(filters: Record<string, unknown>) {
