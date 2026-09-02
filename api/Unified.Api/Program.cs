@@ -129,6 +129,10 @@ var app = builder.Build();
 {
     ValidateUniqueFeatureFlagSources(app.Services);
 
+    // Audit.NET's configuration is a process-wide static, so it must be wired up once the
+    // service provider is built rather than during service registration.
+    app.Services.UseAuditModule();
+
     // Must be first so Request.Scheme, Request.Host, etc. reflect the
     // external URL for all downstream middleware (OIDC, cookies, etc.).
     app.UseForwardedHeaders();
