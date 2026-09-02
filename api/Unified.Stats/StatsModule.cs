@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -44,9 +41,6 @@ public static class StatsModule
             return s;
         }
 
-        // Health check
-        s.AddScoped<IStatsService, StatsService>();
-
         // Reference data services (read-only — managed via seeders)
         s.AddScoped<IStatGroupService, StatGroupService>();
         s.AddScoped<IStatCategoryService, StatCategoryService>();
@@ -79,28 +73,5 @@ public static class StatsModule
             .AddPermissionPolicy(Permissions.DashboardSubmit);
 
         return s;
-    }
-
-    public static IEndpointRouteBuilder MapStatsEndpoints(this IEndpointRouteBuilder app)
-    {
-        if (!IsModuleEnabled(app.ServiceProvider))
-        {
-            return app;
-        }
-
-        var g = app.MapGroup("/api/stats").WithTags("Stats");
-
-        g.MapGet(
-                "/health",
-                (IStatsService statsService) =>
-                {
-                    var result = statsService.CheckHealth();
-                    return TypedResults.Ok(result);
-                }
-            )
-            .WithName("GetStatsHealth")
-            .WithDescription("Checks the health of the Stats module.");
-
-        return app;
     }
 }

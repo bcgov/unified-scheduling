@@ -198,8 +198,6 @@ var app = builder.Build();
     }
 
     app.MapControllers();
-
-    app.MapStatsEndpoints();
 }
 
 app.Run();

@@ -26,21 +26,20 @@ will be consolidated into one shared generic
 `ModuleApplicationPartExtensions.AddConditionalApplicationPart<TMarker>()`
 helper.
 
-This decision does not migrate controller endpoints to minimal APIs. Stats may
-retain its intentional minimal-API health endpoint, while its MVC controllers
-and UserManagement's MVC controllers follow the same conditional
-application-part convention as other feature-gated controller modules.
+This decision does not migrate controller endpoints to minimal APIs. Stats and
+UserManagement follow the same conditional application-part convention as
+other feature-gated controller modules. Bespoke per-module health endpoints
+are not retained.
 
 ## Alternatives
 
 - Minimal APIs with explicit `MapXxxEndpoints()`: not selected because migrating
   existing controller endpoints changes their implementation model without
   providing enough benefit over the already working application-part approach.
-  Training's existing `MapTrainingEndpoints()` mapped a real, reachable
-  minimal-API health check (`GET /api/trainings/health`), not a duplicate of
-  controller-discovered routes; it has been removed as part of this decision
-  since module health is no longer surfaced through a bespoke per-module
-  endpoint.
+  The existing Stats and Training mappings exposed reachable minimal-API health
+  checks rather than controller-discovered routes; they have been removed as
+  part of this decision since module health is no longer surfaced through
+  bespoke per-module endpoints.
 - Per-request routing policies or middleware: not selected because disabled
   endpoints would remain in endpoint metadata and would require separate
   handling to keep them out of OpenAPI.
@@ -61,14 +60,14 @@ application-part convention as other feature-gated controller modules.
 - Add the shared `ModuleApplicationPartExtensions` helper and apply it to
   Calendar, Scheduling, Stats, Training, and UserManagement.
 - Apply this convention to future controller-based feature-gated modules and
-  document any intentional minimal-API implementations such as Stats.
+  separately document any intentional minimal-API implementations.
 - Preserve the accepted assembly-level and startup-only constraints in module
   design and tests.
 
 ## References
 
 - [Application startup and module wiring](../../api/Unified.Api/Program.cs)
-- [Stats module endpoint mapping](../../api/Unified.Stats/StatsModule.cs)
+- [Stats module registration](../../api/Unified.Stats/StatsModule.cs)
 - [Calendar application-part registration](../../api/Unified.Calendar/CalendarModule.cs)
 - [Training application-part registration](../../api/Unified.Training/TrainingModule.cs)
 - [Scheduling module](../../api/Unified.Scheduling/SchedulingModule.cs)
