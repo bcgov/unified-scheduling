@@ -9,12 +9,22 @@ public sealed class HttpContextActorResolver(IHttpContextAccessor httpContextAcc
 {
     public CurrentActor Resolve()
     {
-        var user = httpContextAccessor.HttpContext?.User;
-        var userId = user?.TryGetCurrentUserId();
+        var httpContext = httpContextAccessor.HttpContext;
+        var userId = httpContext?.User.TryGetCurrentUserId();
 
-        return userId.HasValue
-            ? new CurrentActor(userId, ResolveActorName(user))
-            : new CurrentActor(User.SystemUser, "System");
+        if (userId.HasValue)
+        {
+            return new CurrentActor(userId, ResolveActorName(httpContext!.User));
+        }
+
+        // No HttpContext means this save is happening outside a request (startup migration/seeding,
+        // background job, etc.) - attribute it to the system user rather than throwing.
+        if (httpContext is null)
+        {
+            return new CurrentActor(User.SystemUser, "System");
+        }
+
+        throw new InvalidOperationException("Unable to resolve current actor: request has no authenticated user.");
     }
 
     private static string ResolveActorName(ClaimsPrincipal? user)
