@@ -176,6 +176,62 @@ describe('CalendarSchedulingAddResourceModal', () => {
     wrapper.unmount();
   });
 
+  it('posts a shift entry from the create action without a preselected resource', async () => {
+    const postEntryExecute = vi.fn().mockResolvedValue(undefined);
+    const postEntry = vi.fn().mockReturnValue({
+      data: { value: { id: 322 } },
+      error: { value: null },
+      execute: postEntryExecute,
+    });
+
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
+      buildShiftApiMock({
+        postEntry,
+        postEntryPublish: vi.fn(),
+        postSeries: vi.fn(),
+        postSeriesPublish: vi.fn(),
+      }),
+    );
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: { initialDate: '2026-08-24', timeZone: 'America/Vancouver' },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+    locationsStore.setSelectedLocationId(12);
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      handleSave: () => Promise<void>;
+      formErrors: Record<string, string>;
+      formData: { locationId?: number | null };
+      apiError: string;
+    };
+    expect(vm.formData.locationId).toBe(12);
+    await vm.handleSave();
+
+    expect(vm.formErrors).toEqual({});
+    expect(vm.apiError).toBe('');
+    expect(postEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'New shift',
+        locationId: 12,
+        userIds: [],
+      }),
+      expect.objectContaining({ options: { immediate: false } }),
+    );
+    expect(postEntryExecute).toHaveBeenCalled();
+    expect(wrapper.emitted('close')).toBeTruthy();
+
+    wrapper.unmount();
+  });
+
   it('posts a recurring shift series and publishes it when requested', async () => {
     const postSeriesExecute = vi.fn().mockResolvedValue(undefined);
     const publishSeriesExecute = vi.fn().mockResolvedValue(undefined);
@@ -305,6 +361,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
     await flushPromises();
 
     const content = document.body.textContent ?? '';
+    expect(content).toContain('Could not save the shift. Check the highlighted fields.');
     expect(content).toContain('Required');
     expect((content.match(/Required/g) ?? []).length).toBeGreaterThanOrEqual(3);
 
@@ -508,6 +565,248 @@ describe('CalendarSchedulingAddResourceModal', () => {
     );
     expect(postEntryExecute).toHaveBeenCalled();
     expect(document.body.textContent ?? '').not.toContain('Invalid UUID');
+
+    wrapper.unmount();
+  });
+
+  it('keeps a label option for an initially selected assignment while async options load', async () => {
+    vi.doMock('@/api-access/generated/shift/shift', () => ({
+      postApiSchedulingShiftEntries: vi.fn(),
+      postApiSchedulingShiftEntriesIdPublish: vi.fn(),
+      postApiSchedulingShiftSeries: vi.fn(),
+      postApiSchedulingShiftSeriesIdPublish: vi.fn(),
+    }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialAssignmentEntryId: 251,
+        initialAssignmentEvents: [
+          {
+            id: 'scheduling.assignment-entry.251',
+            type: 'scheduling.assignment',
+            sourceModule: 'scheduling',
+            title: 'Yellow Assignment',
+            start: '2026-07-13T16:00:00Z',
+            end: '2026-07-14T00:00:00Z',
+            timeZoneId: 'America/Vancouver',
+            metadata: {
+              assignmentEntryId: '251',
+            },
+          } as never,
+        ],
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: {
+        assignmentEntryLinks?: Array<{ assignmentEntryId: number }>;
+      };
+      mergedAssignmentEntryOptions: Array<{ code: number | string; description: string }>;
+    };
+
+    expect(vm.formData.assignmentEntryLinks).toEqual([
+      {
+        assignmentEntryId: 251,
+        assignedUserIds: ['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62'],
+      },
+    ]);
+    expect(vm.mergedAssignmentEntryOptions).toContainEqual({
+      code: 251,
+      description: 'Yellow Assignment (9:00 AM - 5:00 PM)',
+    });
+
+    wrapper.unmount();
+  });
+
+  it('initializes assignment entry links with assignedUserIds for the selected user', async () => {
+    vi.doMock('@/api-access/generated/shift/shift', () => ({
+      postApiSchedulingShiftEntries: vi.fn(),
+      postApiSchedulingShiftEntriesIdPublish: vi.fn(),
+      postApiSchedulingShiftSeries: vi.fn(),
+      postApiSchedulingShiftSeriesIdPublish: vi.fn(),
+    }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialAssignmentEntryId: 251,
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: {
+        assignmentEntryLinks?: Array<{
+          assignmentEntryId?: number;
+          assignedUserIds?: string[];
+          userIds?: string[];
+        }>;
+      };
+    };
+
+    expect(vm.formData.assignmentEntryLinks).toEqual([
+      {
+        assignmentEntryId: 251,
+        assignedUserIds: ['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62'],
+      },
+    ]);
+    expect(vm.formData.assignmentEntryLinks?.[0]).not.toHaveProperty('userIds');
+
+    wrapper.unmount();
+  });
+
+  it('sends assignedUserIds when saving a shift created from assignment and user context', async () => {
+    const postEntryExecute = vi.fn().mockResolvedValue(undefined);
+    const postEntry = vi.fn().mockReturnValue({
+      data: { value: { id: 321 } },
+      error: { value: null },
+      execute: postEntryExecute,
+    });
+
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
+      buildShiftApiMock({ postEntry, postEntryPublish: vi.fn(), postSeries: vi.fn(), postSeriesPublish: vi.fn() }),
+    );
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialAssignmentEntryId: 251,
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: {
+        date?: string;
+      };
+      handleSave: () => Promise<void>;
+      formErrors: Record<string, string>;
+      apiError: string;
+    };
+    vm.formData.date = '2026-07-12';
+    await vm.handleSave();
+
+    expect(vm.formErrors).toEqual({});
+    expect(vm.apiError).toBe('');
+    expect(postEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignmentEntryLinks: [
+          {
+            assignmentEntryId: 251,
+            assignedUserIds: ['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62'],
+          },
+        ],
+      }),
+      expect.anything(),
+    );
+    expect(postEntryExecute).toHaveBeenCalled();
+
+    wrapper.unmount();
+  });
+
+  it('uses the initial assignment event label when only an assignment id is preselected', async () => {
+    vi.doMock('@/api-access/generated/shift/shift', () => ({
+      postApiSchedulingShiftEntries: vi.fn(),
+      postApiSchedulingShiftEntriesIdPublish: vi.fn(),
+      postApiSchedulingShiftSeries: vi.fn(),
+      postApiSchedulingShiftSeriesIdPublish: vi.fn(),
+    }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialAssignmentEntryId: 259,
+        initialAssignmentEvents: [
+          {
+            id: 'scheduling.assignment-entry.259',
+            type: 'scheduling.assignment',
+            sourceModule: 'scheduling',
+            title: 'Yellow Assignment',
+            start: '2026-07-13T16:00:00Z',
+            end: '2026-07-14T00:00:00Z',
+            timeZoneId: 'America/Vancouver',
+            metadata: {
+              assignmentEntryId: '259',
+            },
+          } as never,
+        ],
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      mergedAssignmentEntryOptions: Array<{ code: number | string; description: string }>;
+    };
+
+    expect(vm.mergedAssignmentEntryOptions.find((option) => option.code === 259)?.description).toBe(
+      'Yellow Assignment (9:00 AM - 5:00 PM)',
+    );
 
     wrapper.unmount();
   });
