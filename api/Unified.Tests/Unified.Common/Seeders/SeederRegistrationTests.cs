@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Unified.Calendar;
 using Unified.Calendar.Seeders;
 using Unified.Common.Seeding;
@@ -69,7 +71,8 @@ public sealed class SeederRegistrationTests
             typeof(RoleSeeder),
             typeof(PermissionSeeder),
             typeof(RegionSeeder),
-            typeof(LocationSeeder)
+            typeof(LocationSeeder),
+            typeof(DevelopmentUserSeeder)
         );
     }
 
@@ -125,6 +128,16 @@ public sealed class SeederRegistrationTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment
+            {
+                EnvironmentName = Environments.Production,
+                ApplicationName = "Unified.Tests",
+                ContentRootPath = AppContext.BaseDirectory,
+                ContentRootFileProvider = new NullFileProvider(),
+            }
+        );
         return services;
     }
 
@@ -141,5 +154,16 @@ public sealed class SeederRegistrationTests
             expectedTypes.OrderBy(type => type.FullName, StringComparer.Ordinal),
             actualTypes.OrderBy(type => type.FullName, StringComparer.Ordinal)
         );
+    }
+
+    private sealed class TestHostEnvironment : IHostEnvironment
+    {
+        public required string EnvironmentName { get; set; }
+
+        public required string ApplicationName { get; set; }
+
+        public required string ContentRootPath { get; set; }
+
+        public required IFileProvider ContentRootFileProvider { get; set; }
     }
 }

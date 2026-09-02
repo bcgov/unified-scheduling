@@ -338,6 +338,56 @@ public class UserBadgeNumberUniqueRuleTests : IAsyncLifetime
         Assert.Contains("already in use", ex.Message);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_SystemUserWithoutBadgeNumber_Passes()
+    {
+        // Arrange
+        var rule = CreateRule();
+
+        var systemUser = new User
+        {
+            Id = User.SystemUser,
+            IdirName = "SYSTEM",
+            FirstName = "System",
+            LastName = "System",
+            Email = string.Empty,
+            Gender = Gender.Female,
+            Rank = "Rank1",
+        };
+        _dbContext.Users.Add(systemUser);
+
+        // Act & Assert - should ignore system user and not throw
+        await rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ModifiedSystemUserWithoutBadgeNumber_Passes()
+    {
+        // Arrange
+        var rule = CreateRule();
+
+        var systemUser = new User
+        {
+            Id = User.SystemUser,
+            IdirName = "SYSTEM",
+            FirstName = "System",
+            LastName = "System",
+            Email = string.Empty,
+            Gender = Gender.Female,
+            Rank = "Rank1",
+            BadgeNumber = null,
+        };
+        _dbContext.Users.Add(systemUser);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Modify system user
+        systemUser.LastName = "Updated System";
+        _dbContext.Entry(systemUser).State = EntityState.Modified;
+
+        // Act & Assert - should ignore system user and not throw
+        await rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken);
+    }
+
     private class FakeOptionsMonitor<T>(T currentValue) : IOptionsMonitor<T>
     {
         public T CurrentValue => currentValue;

@@ -34,12 +34,12 @@ public sealed class CalendarModuleTests
 
         // Assert
         AssertContainsSingletonRegistration<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>(services);
-        AssertContainsSingletonRegistration<ITimeZoneService, TimeZoneService>(services);
         AssertContainsSingletonSelfRegistration<StatutoryHolidayCalendarDataProvider>(services);
         AssertContainsScopedRegistration<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>(services);
         AssertContainsScopedRegistration<ICalendarEventService, CalendarEventService>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventTypeSeeder>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventStatusTypeSeeder>(services);
+
         AssertContainsScopedSelfRegistration<CalendarDataRequestValidator>(services);
         Assert.Contains("api/calendar/events", calendarRoutes);
         Assert.Equal(

@@ -2,6 +2,7 @@
   <Project Path="db/db.csproj" />
   <Folder Name="/api/" />
   <Project Path="api/Unified.Api/Unified.Api.csproj" />
+  <Project Path="api/Unified.Audit/Unified.Audit.csproj" />
   <Project Path="api/Unified.Authorization/Unified.Authorization.csproj" />
   <Project Path="api/Unified.Calendar/Unified.Calendar.csproj" />
   <Project Path="api/Unified.Common/Unified.Common.csproj" />

@@ -1,0 +1,43 @@
+using FluentValidation;
+using Unified.Audit.Models;
+
+namespace Unified.Audit.Validators;
+
+public class AuditHistoryQueryParamsValidator : AbstractValidator<AuditHistoryQueryParams>
+{
+    private static readonly string[] ValidActions = ["Added", "Modified", "Deleted"];
+    private static readonly string[] ValidSortDirections = ["asc", "desc"];
+
+    public AuditHistoryQueryParamsValidator()
+    {
+        RuleFor(x => x.Page).GreaterThanOrEqualTo(1).WithMessage("Page must be at least 1.").When(x => x.Page.HasValue);
+
+        RuleFor(x => x.EntityType).NotEmpty().WithMessage("EntityType is required.");
+
+        RuleFor(x => x.PageSize)
+            .GreaterThanOrEqualTo(1)
+            .WithMessage("PageSize must be at least 1.")
+            .LessThanOrEqualTo(100)
+            .WithMessage("PageSize must not exceed 100.")
+            .When(x => x.PageSize.HasValue);
+
+        RuleFor(x => x.Action)
+            .Must(action => ValidActions.Contains(action, StringComparer.OrdinalIgnoreCase))
+            .WithMessage($"Action must be one of: {string.Join(", ", ValidActions)}.")
+            .When(x => !string.IsNullOrEmpty(x.Action));
+
+        RuleFor(x => x.SortDirection)
+            .Must(direction => ValidSortDirections.Contains(direction, StringComparer.OrdinalIgnoreCase))
+            .WithMessage("SortDirection must be 'asc' or 'desc'.")
+            .When(x => !string.IsNullOrEmpty(x.SortDirection));
+
+        RuleFor(x => x.From).NotEmpty().WithMessage("From is required.");
+
+        RuleFor(x => x.To).NotEmpty().WithMessage("To is required.");
+
+        RuleFor(x => x)
+            .Must(x => x.From <= x.To)
+            .WithMessage("From must be on or before To.")
+            .When(x => x.From != default && x.To != default);
+    }
+}

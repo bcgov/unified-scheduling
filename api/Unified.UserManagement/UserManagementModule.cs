@@ -94,6 +94,9 @@ public static class UserManagementModule
         services.AddSeeder<UnifiedDbContext, PermissionSeeder>();
         services.AddSeeder<UnifiedDbContext, RegionSeeder>();
         services.AddSeeder<UnifiedDbContext, LocationSeeder>();
+        services.AddSeeder<UnifiedDbContext, DevelopmentUserSeeder>();
+
+        services.AddOptions<DevelopmentUserOptions>().BindConfiguration(DevelopmentUserOptions.SectionName);
 
         services.AddScoped<UserRequestValidator>();
         services.AddScoped<AssignUserRoleRequestValidator>();
