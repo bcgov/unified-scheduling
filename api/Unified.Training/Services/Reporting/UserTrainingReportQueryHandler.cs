@@ -5,7 +5,7 @@ using Unified.Training.Mappings;
 
 namespace Unified.Training.Services.Reporting;
 
-public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IReportQueryHandler
+public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProvider timeProvider) : IReportQueryHandler
 {
     public string ReportKey => "user-training";
 
@@ -16,7 +16,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         CancellationToken cancellationToken = default
     )
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var queryFilters = UserTrainingReportQueryParser.Parse(filters);
         var reportRowsQuery = BuildReportRowsQuery(queryFilters, now);
         var sortedRowsQuery = UserTrainingReportRowSorter.Apply(reportRowsQuery, sortBy, sortDirection);

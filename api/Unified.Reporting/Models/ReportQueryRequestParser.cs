@@ -11,16 +11,19 @@ internal static class ReportQueryRequestParser
         "pageSize",
         "sortBy",
         "sortDir",
-        "tz",
+        "filters",
     };
 
-    public static ReportQueryRequest FromQuery(IQueryCollection query)
+    public static ReportQueryRequest FromQuery(IQueryCollection query, ReportQueryParameters? parameters = null)
     {
-        var sortBy = GetValueOrNull(query, "sortBy");
-        var sortDirection = ParseSortDirectionOrDefault(query, "sortDir", SortDirection.Asc);
+        parameters ??= new ReportQueryParameters();
+
+        var sortBy = string.IsNullOrWhiteSpace(parameters.SortBy) ? null : parameters.SortBy;
+        var sortDirection = ParseSortDirectionOrDefault(parameters.SortDir, SortDirection.Asc);
 
         var filters = query
             .Where(entry => !ReservedQueryKeys.Contains(entry.Key))
+            .Where(entry => !IsFiltersQueryKey(entry.Key))
             .ToDictionary(
                 entry => entry.Key,
                 entry =>
@@ -29,12 +32,27 @@ internal static class ReportQueryRequestParser
                 StringComparer.OrdinalIgnoreCase
             );
 
+        if (parameters.Filters is not null)
+        {
+            foreach (var filter in parameters.Filters)
+            {
+                if (string.IsNullOrWhiteSpace(filter.Key) || string.IsNullOrWhiteSpace(filter.Value))
+                {
+                    continue;
+                }
+
+                filters[filter.Key] = [filter.Value];
+            }
+        }
+
         return new ReportQueryRequest(filters, sortBy, sortDirection);
     }
 
-    private static SortDirection ParseSortDirectionOrDefault(IQueryCollection query, string key, SortDirection fallback)
+    private static bool IsFiltersQueryKey(string key) =>
+        key.StartsWith("filters[", StringComparison.OrdinalIgnoreCase) && key.EndsWith(']');
+
+    private static SortDirection ParseSortDirectionOrDefault(string? value, SortDirection fallback)
     {
-        var value = GetValueOrNull(query, key);
         if (string.IsNullOrWhiteSpace(value))
         {
             return fallback;
@@ -45,17 +63,6 @@ internal static class ReportQueryRequestParser
             return parsed;
         }
 
-        throw new ArgumentException($"Query parameter '{key}' must be either 'asc' or 'desc'.");
-    }
-
-    private static string? GetValueOrNull(IQueryCollection query, string key)
-    {
-        if (!query.TryGetValue(key, out var value))
-        {
-            return null;
-        }
-
-        var resolved = value.FirstOrDefault();
-        return string.IsNullOrWhiteSpace(resolved) ? null : resolved;
+        throw new ArgumentException("Query parameter 'sortDir' must be either 'asc' or 'desc'.");
     }
 }

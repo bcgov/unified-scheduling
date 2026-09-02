@@ -42,6 +42,7 @@ export * from './gender.ts';
 export * from './getApiAuditHistoryParams.ts';
 export * from './getApiAuthLoginParams.ts';
 export * from './getApiLookupTrainingsParams.ts';
+export * from './getApiReportsReportKeyParams.ts';
 export * from './getApiSchedulingShiftsEntriesParams.ts';
 export * from './getApiSchedulingShiftsSeriesParams.ts';
 export * from './getApiStatsDashboardEntriesParams.ts';

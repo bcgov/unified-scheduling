@@ -11,6 +11,8 @@ namespace Unified.Tests.Training.Services.Reporting;
 public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
 {
     private readonly string _databaseName = $"user-training-report-query-handler-{Guid.NewGuid():N}";
+    private readonly DateTimeOffset _fixedNow = new(2026, 09, 02, 12, 00, 00, TimeSpan.Zero);
+    private MutableTimeProvider _timeProvider = null!;
     private UnifiedDbContext _db = null!;
     private UserTrainingReportQueryHandler _handler = null!;
 
@@ -24,7 +26,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         await _db.Database.OpenConnectionAsync();
         await _db.Database.EnsureCreatedAsync();
 
-        _handler = new UserTrainingReportQueryHandler(_db);
+        _timeProvider = new MutableTimeProvider(_fixedNow);
+        _handler = new UserTrainingReportQueryHandler(_db, _timeProvider);
     }
 
     public async ValueTask DisposeAsync()
@@ -42,9 +45,9 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var brown = await SeedUserAsync("Carl", "Brown");
         var zed = await SeedUserAsync("Amy", "Zed");
 
-        await SeedUserTrainingAsync(adams.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-3));
-        await SeedUserTrainingAsync(brown.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-2));
-        await SeedUserTrainingAsync(zed.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-1));
+        await SeedUserTrainingAsync(adams.Id, training.Id, awardedOn: _fixedNow.AddDays(-3));
+        await SeedUserTrainingAsync(brown.Id, training.Id, awardedOn: _fixedNow.AddDays(-2));
+        await SeedUserTrainingAsync(zed.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
 
         var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
         {
@@ -75,8 +78,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var brown = await SeedUserAsync("Charlie", "Brown");
         var adams = await SeedUserAsync("Alice", "Adams");
 
-        await SeedUserTrainingAsync(brown.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-1));
-        await SeedUserTrainingAsync(adams.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-2));
+        await SeedUserTrainingAsync(brown.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
+        await SeedUserTrainingAsync(adams.Id, training.Id, awardedOn: _fixedNow.AddDays(-2));
 
         var result = (UserTrainingReportResponse)
             await _handler.ExecuteAsync(
@@ -142,7 +145,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var assignedUser = await SeedUserAsync("Alex", "Assigned");
         var missingUser = await SeedUserAsync("Mia", "Missing");
 
-        await SeedUserTrainingAsync(assignedUser.Id, mandatory.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-2));
+        await SeedUserTrainingAsync(assignedUser.Id, mandatory.Id, awardedOn: _fixedNow.AddDays(-2));
 
         var result = (UserTrainingReportResponse)
             await _handler.ExecuteAsync(
@@ -171,8 +174,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var enabledUser = await SeedUserAsync("Evan", "Enabled", isEnabled: true);
         var disabledUser = await SeedUserAsync("Dina", "Disabled", isEnabled: false);
 
-        await SeedUserTrainingAsync(enabledUser.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-2));
-        await SeedUserTrainingAsync(disabledUser.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-1));
+        await SeedUserTrainingAsync(enabledUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-2));
+        await SeedUserTrainingAsync(disabledUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
 
         var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
         {
@@ -189,6 +192,108 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
 
         var row = Assert.Single(result.Rows);
         Assert.Equal("Enabled, Evan", row.UserDisplayName);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Exclude_Disabled_Users_From_Missing_Mandatory_Rows()
+    {
+        await SeedTrainingAsync(360, "MAND", "Mandatory", mandatory: true);
+
+        await SeedUserAsync("Ella", "Enabled", isEnabled: true);
+        await SeedUserAsync("Drew", "Disabled", isEnabled: false);
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters: new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.True(row.HasMissingMandatoryTrainingAssignment);
+        Assert.Equal("Enabled, Ella", row.UserDisplayName);
+        Assert.Equal("Not Taken", row.Status);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Return_No_Rows_When_Filtered_User_Is_Disabled()
+    {
+        var training = await SeedTrainingAsync(370, "ACTIVE", "Active", mandatory: false);
+        var disabledUser = await SeedUserAsync("Dina", "Disabled", isEnabled: false);
+
+        await SeedUserTrainingAsync(disabledUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["userId"] = [disabledUser.Id.ToString()],
+            ["status"] = ["active"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        Assert.Empty(result.Rows);
+        Assert.Equal(0, result.TotalRows);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Respect_TimeProvider_When_Determining_Expiry_Status()
+    {
+        var training = await SeedTrainingAsync(380, "EXP", "Expiring", mandatory: false);
+        var user = await SeedUserAsync("Terry", "Tester");
+        var expiresAt = _fixedNow.AddMinutes(1);
+
+        await SeedUserTrainingAsync(user.Id, training.Id, awardedOn: _fixedNow.AddDays(-5), expiryDate: expiresAt);
+
+        var activeFilters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["active"],
+        };
+
+        var activeBeforeExpiry = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                activeFilters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var activeRow = Assert.Single(activeBeforeExpiry.Rows);
+        Assert.Equal("Active", activeRow.Status);
+
+        _timeProvider.SetUtcNow(_fixedNow.AddMinutes(2));
+
+        var activeAfterExpiry = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                activeFilters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        Assert.Empty(activeAfterExpiry.Rows);
+
+        var expiredFilters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["expired"],
+        };
+
+        var expiredResult = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                expiredFilters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var expiredRow = Assert.Single(expiredResult.Rows);
+        Assert.Equal("Expired", expiredRow.Status);
     }
 
     private async Task<User> SeedUserAsync(string firstName, string lastName, bool isEnabled = true)
@@ -244,7 +349,12 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         return training;
     }
 
-    private async Task SeedUserTrainingAsync(Guid userId, int trainingId, DateTimeOffset awardedOn)
+    private async Task SeedUserTrainingAsync(
+        Guid userId,
+        int trainingId,
+        DateTimeOffset awardedOn,
+        DateTimeOffset? expiryDate = null
+    )
     {
         _db.UserTrainings.Add(
             new UserTraining
@@ -254,11 +364,20 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
                 Version = 1,
                 AwardedOn = awardedOn,
                 EndingOn = awardedOn.AddHours(1),
-                ExpiryDate = awardedOn.AddDays(90),
+                ExpiryDate = expiryDate ?? awardedOn.AddDays(90),
                 NoticeState = UserTrainingNoticeStates.None,
             }
         );
 
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+
+        public void SetUtcNow(DateTimeOffset utcNow) => _utcNow = utcNow;
     }
 }

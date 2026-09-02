@@ -63,6 +63,7 @@ public static class TrainingModule
             return services;
         }
 
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
         services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();

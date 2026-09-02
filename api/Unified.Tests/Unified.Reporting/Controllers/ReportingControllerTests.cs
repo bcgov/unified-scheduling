@@ -28,9 +28,6 @@ public class ReportingControllerTests
                             {
                                 ["page"] = "2",
                                 ["pageSize"] = "25",
-                                ["sortBy"] = "userDisplayName",
-                                ["sortDir"] = "desc",
-                                ["tz"] = "America/Vancouver",
                                 ["userId"] = "abc-123",
                             }
                         ),
@@ -40,7 +37,11 @@ public class ReportingControllerTests
         };
 
         // Act
-        var result = await controller.Get("user-training", TestContext.Current.CancellationToken);
+        var result = await controller.Get(
+            "user-training",
+            new ReportQueryParameters(Page: 2, PageSize: 25, SortBy: "userDisplayName", SortDir: "desc"),
+            TestContext.Current.CancellationToken
+        );
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -55,7 +56,6 @@ public class ReportingControllerTests
         Assert.False(service.LastRequest.Filters.ContainsKey("pageSize"));
         Assert.False(service.LastRequest.Filters.ContainsKey("sortBy"));
         Assert.False(service.LastRequest.Filters.ContainsKey("sortDir"));
-        Assert.False(service.LastRequest.Filters.ContainsKey("tz"));
     }
 
     [Fact]
@@ -83,12 +83,63 @@ public class ReportingControllerTests
         };
 
         // Act
-        var result = await controller.Get("user-training", TestContext.Current.CancellationToken);
+        var result = await controller.Get(
+            "user-training",
+            new ReportQueryParameters(SortDir: "sideways"),
+            TestContext.Current.CancellationToken
+        );
 
         // Assert
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         var problemDetails = Assert.IsType<ProblemDetails>(badRequest.Value);
         Assert.Equal("Invalid report query request", problemDetails.Title);
+    }
+
+    [Fact]
+    public async Task Get_Should_Use_Typed_Custom_Filters_And_Ignore_Filter_Transport_Keys()
+    {
+        var service = new FakeReportQueryService();
+        var controller = new ReportingController(service)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    Request =
+                    {
+                        Query = new QueryCollection(
+                            new Dictionary<string, StringValues>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["trainingId"] = "9",
+                                ["filters[userId]"] = "transport-only",
+                            }
+                        ),
+                    },
+                },
+            },
+        };
+
+        var result = await controller.Get(
+            "user-training",
+            new ReportQueryParameters(
+                Filters: new Dictionary<string, string?>
+                {
+                    ["userId"] = "typed-user",
+                    ["trainingId"] = "12",
+                    ["status"] = "active",
+                }
+            ),
+            TestContext.Current.CancellationToken
+        );
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        _ = Assert.IsType<FakePagedResponse>(okResult.Value);
+
+        Assert.NotNull(service.LastRequest);
+        Assert.Equal("typed-user", Assert.Single(service.LastRequest.Filters["userId"]));
+        Assert.Equal("12", Assert.Single(service.LastRequest.Filters["trainingId"]));
+        Assert.Equal("active", Assert.Single(service.LastRequest.Filters["status"]));
+        Assert.False(service.LastRequest.Filters.ContainsKey("filters[userId]"));
     }
 
     private sealed class FakeReportQueryService : IReportQueryService

@@ -18,18 +18,8 @@ internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
 
         var trainingCode = ParseStringFilter(filters, TrainingCodeFilterKey);
         var status = ParseStatusFilter(filters);
-        var startDate = ParseFilter<DateOnly>(
-            filters,
-            StartDateFilterKey,
-            DateOnly.TryParse,
-            "must be a valid date in YYYY-MM-DD format"
-        );
-        var endDate = ParseFilter<DateOnly>(
-            filters,
-            EndDateFilterKey,
-            DateOnly.TryParse,
-            "must be a valid date in YYYY-MM-DD format"
-        );
+        var startDate = ParseFilter<DateOnly>(filters, StartDateFilterKey, DateOnly.TryParse, "must be a valid date");
+        var endDate = ParseFilter<DateOnly>(filters, EndDateFilterKey, DateOnly.TryParse, "must be a valid date");
 
         if (startDate.HasValue && endDate.HasValue && startDate > endDate)
         {

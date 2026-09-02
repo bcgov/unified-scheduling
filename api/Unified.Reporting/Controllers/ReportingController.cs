@@ -19,12 +19,13 @@ public class ReportingController(IReportQueryService reportQueryService) : Contr
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PagedResponse>> Get(
         [FromRoute] string reportKey,
+        [FromQuery] ReportQueryParameters query,
         CancellationToken cancellationToken
     )
     {
         try
         {
-            var request = ReportQueryRequestParser.FromQuery(Request.Query);
+            var request = ReportQueryRequestParser.FromQuery(Request.Query, query);
             var result = await reportQueryService.ExecuteAsync(reportKey, request, cancellationToken);
             return Ok(result);
         }
