@@ -96,7 +96,7 @@ public class ReportingControllerTests
     }
 
     [Fact]
-    public async Task Get_Should_Use_Typed_Custom_Filters_And_Ignore_Filter_Transport_Keys()
+    public async Task Get_Should_Use_Top_Level_Custom_Filters()
     {
         var service = new FakeReportQueryService();
         var controller = new ReportingController(service)
@@ -110,8 +110,9 @@ public class ReportingControllerTests
                         Query = new QueryCollection(
                             new Dictionary<string, StringValues>(StringComparer.OrdinalIgnoreCase)
                             {
-                                ["trainingId"] = "9",
-                                ["filters[userId]"] = "transport-only",
+                                ["userId"] = "typed-user",
+                                ["trainingId"] = "12",
+                                ["status"] = "active",
                             }
                         ),
                     },
@@ -121,14 +122,7 @@ public class ReportingControllerTests
 
         var result = await controller.Get(
             "user-training",
-            new ReportQueryParameters(
-                Filters: new Dictionary<string, string?>
-                {
-                    ["userId"] = "typed-user",
-                    ["trainingId"] = "12",
-                    ["status"] = "active",
-                }
-            ),
+            new ReportQueryParameters(),
             TestContext.Current.CancellationToken
         );
 
@@ -139,7 +133,6 @@ public class ReportingControllerTests
         Assert.Equal("typed-user", Assert.Single(service.LastRequest.Filters["userId"]));
         Assert.Equal("12", Assert.Single(service.LastRequest.Filters["trainingId"]));
         Assert.Equal("active", Assert.Single(service.LastRequest.Filters["status"]));
-        Assert.False(service.LastRequest.Filters.ContainsKey("filters[userId]"));
     }
 
     private sealed class FakeReportQueryService : IReportQueryService
