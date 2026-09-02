@@ -21,6 +21,19 @@ public sealed class SaveRulesInterceptor(IEnumerable<ISaveRule> rules, ILogger<S
         if (eventData.Context is null)
             return result;
 
+        // The AuditRecord insert Audit.NET performs after a successful save re-runs this
+        // interceptor (same DbContext, nested SaveChangesAsync call) - skip entirely when that's
+        // the only pending change, since business rules never apply to the audit log itself.
+        var hasNonAuditChanges = eventData
+            .Context.ChangeTracker.Entries()
+            .Any(entry =>
+                entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted
+                && entry.Entity.GetType().Name != "AuditRecord"
+            );
+
+        if (!hasNonAuditChanges)
+            return result;
+
         // Run all rules before SaveChanges
         foreach (var rule in rules)
         {

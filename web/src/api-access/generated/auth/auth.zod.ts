@@ -85,6 +85,7 @@ export const GetApiAuthUserResponse = zod.object({
       'DashboardSubmit',
       'StatsOverrideSignedOff',
       'HangfireDashboardView',
+      'AuditRead',
     ]),
   ),
   userId: zod.uuid().nullable(),

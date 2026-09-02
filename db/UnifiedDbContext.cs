@@ -1,4 +1,6 @@
+using Audit.EntityFramework;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Lookup;
@@ -9,7 +11,12 @@ using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db;
 
-public class UnifiedDbContext : DbContext
+/// <summary>
+/// Inherits Audit.NET's <see cref="AuditDbContext"/> so every SaveChanges/SaveChangesAsync call is
+/// automatically wrapped with audit capture (see Unified.Audit's README) - no EF Core
+/// <c>IInterceptor</c> registration is needed for auditing.
+/// </summary>
+public class UnifiedDbContext : AuditDbContext
 {
     public UnifiedDbContext() { }
 
@@ -63,5 +70,91 @@ public class UnifiedDbContext : DbContext
         {
             optionsBuilder.UseNpgsql("Name=DatabaseConnectionString");
         }
+    }
+
+    private const string SavepointName = "UnifiedDbContext_SaveChanges";
+
+    // Shares one transaction across the entity save and the nested AuditRecord insert Audit.NET
+    // performs on success, so a failure in either rolls back both together. Guarded by
+    // IsRelational() since the in-memory provider (used only in tests) doesn't support
+    // transactions at all. An already-active ambient transaction (opened by calling code) is
+    // wrapped in a savepoint instead, so this save is still rolled back on failure even if the
+    // owner of that transaction catches the exception and keeps going.
+    public override async Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Database.IsRelational())
+        {
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        if (Database.CurrentTransaction is { } ambientTransaction)
+        {
+            await ambientTransaction.CreateSavepointAsync(SavepointName, cancellationToken);
+
+            try
+            {
+                var result = await base.SaveChangesAsync(
+                    acceptAllChangesOnSuccess,
+                    cancellationToken
+                );
+
+                await ambientTransaction.ReleaseSavepointAsync(SavepointName, cancellationToken);
+
+                return result;
+            }
+            catch
+            {
+                await ambientTransaction.RollbackToSavepointAsync(SavepointName, cancellationToken);
+
+                throw;
+            }
+        }
+
+        await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+
+        var ownedResult = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return ownedResult;
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        if (!Database.IsRelational())
+        {
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        if (Database.CurrentTransaction is { } ambientTransaction)
+        {
+            ambientTransaction.CreateSavepoint(SavepointName);
+
+            try
+            {
+                var result = base.SaveChanges(acceptAllChangesOnSuccess);
+
+                ambientTransaction.ReleaseSavepoint(SavepointName);
+
+                return result;
+            }
+            catch
+            {
+                ambientTransaction.RollbackToSavepoint(SavepointName);
+
+                throw;
+            }
+        }
+
+        using var transaction = Database.BeginTransaction();
+
+        var ownedResult = base.SaveChanges(acceptAllChangesOnSuccess);
+
+        transaction.Commit();
+
+        return ownedResult;
     }
 }
