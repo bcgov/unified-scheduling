@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
+using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
@@ -16,6 +17,7 @@ public sealed class AssignmentService(
     UnifiedDbContext db,
     IEventSeriesMaterializationService eventSeriesMaterializationService,
     AssignmentSeriesMaterializationHandler assignmentSeriesMaterializationHandler,
+    IShiftAssignmentService shiftAssignmentService,
     CalendarLifecycleService calendarLifecycleService,
     ITimeZoneService timeZoneService,
     TimeProvider timeProvider
@@ -144,6 +146,12 @@ public sealed class AssignmentService(
 
         await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
 
+        await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
+            assignmentSeries.Id,
+            request.ShiftSeriesLinks,
+            cancellationToken
+        );
+
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Created assignment series {AssignmentSeriesId}.", assignmentSeries.Id);
@@ -191,11 +199,6 @@ public sealed class AssignmentService(
         ValidateAssignmentEventSeriesType(assignmentSeries.EventSeries!);
         EnsureDraft(assignmentSeries.EventSeries!.StatusTypeCode, "Assignment series");
         var updatePlan = AssignmentSeriesUpdatePlanner.CreatePlan(assignmentSeries, request);
-        // Temporary limitation: recurrence/link reconciliation is intentionally deferred.
-        if (updatePlan.RecurrenceChanged && await AssignmentSeriesHasShiftAssignmentLinksAsync(id, cancellationToken))
-            throw new InvalidOperationException(
-                "Assignment series recurrence cannot be changed after shift links exist."
-            );
 
         AssignmentEventMapper.ApplyToEventSeries(assignmentSeries.EventSeries!, request);
         assignmentSeries.AssignmentDefinitionId = request.AssignmentDefinitionId;
@@ -205,6 +208,7 @@ public sealed class AssignmentService(
 
         if (updatePlan.RegenerateEntries)
         {
+            await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(assignmentSeries.Id, [], cancellationToken);
             await eventSeriesMaterializationService.RegenerateDraftSeriesAsync(
                 assignmentSeries.EventSeries!,
                 AssignmentRecurrenceValidationOptions,
@@ -225,6 +229,12 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
 
         await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
+
+        await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
+            assignmentSeries.Id,
+            request.ShiftSeriesLinks,
+            cancellationToken
+        );
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -454,6 +464,12 @@ public sealed class AssignmentService(
         db.AssignmentEntries.Add(assignmentEntry);
         await db.SaveChangesAsync(cancellationToken);
 
+        await shiftAssignmentService.ReplaceAssignmentEntryLinksAsync(
+            assignmentEntry.Id,
+            request.ShiftEntryLinks,
+            cancellationToken
+        );
+
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Created assignment entry {AssignmentEntryId}.", assignmentEntry.Id);
@@ -509,7 +525,8 @@ public sealed class AssignmentService(
             assignmentEntry,
             request.StartAtUtc,
             request.EndAtUtc,
-            request.AssignmentSeriesId
+            request.AssignmentSeriesId,
+            request.ShiftEntryLinks.Select(link => link.ShiftEntryId).ToList()
         );
         AssignmentEventMapper.ApplyToEvent(assignmentEntry.Event!, request, assignmentSeries?.EventSeriesId);
         CalendarEventExceptionHelper.UpdateExceptionFlag(assignmentEntry.Event!);
@@ -526,6 +543,12 @@ public sealed class AssignmentService(
         );
 
         await db.SaveChangesAsync(cancellationToken);
+
+        await shiftAssignmentService.ReplaceAssignmentEntryLinksAsync(
+            assignmentEntry.Id,
+            request.ShiftEntryLinks,
+            cancellationToken
+        );
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -632,23 +655,36 @@ public sealed class AssignmentService(
             return;
 
         var locationIds = candidates.Select(candidate => candidate.LocationId).Distinct().ToList();
-        var locationTimeZoneIds = await db
+        var locations = await db
             .Locations.AsNoTracking()
             .Where(location => locationIds.Contains(location.Id))
-            .ToDictionaryAsync(location => location.Id, location => location.Timezone, cancellationToken);
-        var locationTimeZones = locationTimeZoneIds.ToDictionary(
+            .ToDictionaryAsync(
+                location => location.Id,
+                location => new AssignmentLocationDetails(location.Name, location.Timezone),
+                cancellationToken
+            );
+        var locationTimeZones = locations.ToDictionary(
             pair => pair.Key,
-            pair => timeZoneService.ResolveRequired(pair.Value)
+            pair => timeZoneService.ResolveRequired(pair.Value.TimeZoneId)
         );
+        var assignmentDefinitionIds = candidates
+            .Select(candidate => candidate.AssignmentDefinitionId)
+            .Distinct()
+            .ToList();
+        var assignmentDefinitionNames = await db
+            .AssignmentDefinitions.AsNoTracking()
+            .Where(definition => assignmentDefinitionIds.Contains(definition.Id))
+            .ToDictionaryAsync(definition => definition.Id, definition => definition.Name, cancellationToken);
 
         var candidateKeys = candidates
-            .Select(candidate => CreateAssignmentUniquenessKey(candidate, locationTimeZones))
+            .Select(candidate =>
+                CreateAssignmentUniquenessKey(candidate, locationTimeZones, locations, assignmentDefinitionNames)
+            )
             .ToList();
         var duplicateCandidateKey = candidateKeys.GroupBy(key => key).FirstOrDefault(group => group.Count() > 1)?.Key;
         if (duplicateCandidateKey is AssignmentUniquenessKey duplicateKey)
             throw CreateDuplicateAssignmentException(duplicateKey);
 
-        var assignmentDefinitionIds = candidateKeys.Select(key => key.AssignmentDefinitionId).Distinct().ToList();
         var dateRanges = candidateKeys
             .Select(key =>
                 timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
@@ -681,7 +717,9 @@ public sealed class AssignmentService(
             .Select(entry =>
                 CreateAssignmentUniquenessKey(
                     CreateAssignmentUniquenessCandidate(entry.AssignmentDefinitionId, entry.Event!),
-                    locationTimeZones
+                    locationTimeZones,
+                    locations,
+                    assignmentDefinitionNames
                 )
             )
             .FirstOrDefault(candidateKeySet.Contains);
@@ -702,7 +740,9 @@ public sealed class AssignmentService(
 
     private AssignmentUniquenessKey CreateAssignmentUniquenessKey(
         AssignmentUniquenessCandidate candidate,
-        IReadOnlyDictionary<int, TimeZoneInfo> locationTimeZones
+        IReadOnlyDictionary<int, TimeZoneInfo> locationTimeZones,
+        IReadOnlyDictionary<int, AssignmentLocationDetails> locations,
+        IReadOnlyDictionary<int, string> assignmentDefinitionNames
     )
     {
         if (!locationTimeZones.TryGetValue(candidate.LocationId, out var timeZone))
@@ -711,14 +751,22 @@ public sealed class AssignmentService(
         var localStart = timeZoneService.ToLocalUnspecified(candidate.StartAtUtc, timeZone);
         return new AssignmentUniquenessKey(
             candidate.LocationId,
+            locations[candidate.LocationId].Name,
             candidate.AssignmentDefinitionId,
+            assignmentDefinitionNames[candidate.AssignmentDefinitionId],
             DateOnly.FromDateTime(localStart)
         );
     }
 
-    private static InvalidOperationException CreateDuplicateAssignmentException(AssignmentUniquenessKey key) =>
+    private static ConflictValidationException CreateDuplicateAssignmentException(AssignmentUniquenessKey key) =>
         new(
-            $"An assignment already exists for location {key.LocationId}, assignment definition {key.AssignmentDefinitionId}, and date {key.Date:yyyy-MM-dd}."
+            new Dictionary<string, string[]>
+            {
+                ["AssignmentDefinitionId"] =
+                [
+                    $"An assignment already exists for location {key.LocationName}, assignment definition {key.AssignmentDefinitionName}, and date {key.Date:yyyy-MM-dd}.",
+                ],
+            }
         );
 
     private async Task<AssignmentSeries> GetValidatedAssignmentSeriesAsync(
@@ -735,19 +783,6 @@ public sealed class AssignmentService(
         ValidateAssignmentEventSeriesType(assignmentSeries.EventSeries!);
         return assignmentSeries;
     }
-
-    private async Task<bool> AssignmentSeriesHasShiftAssignmentLinksAsync(
-        int assignmentSeriesId,
-        CancellationToken cancellationToken
-    ) =>
-        await db.ShiftAssignmentSeriesLinks.AnyAsync(
-            link => link.AssignmentSeriesId == assignmentSeriesId,
-            cancellationToken
-        )
-        || await db.ShiftAssignmentEntries.AnyAsync(
-            link => link.AssignmentEntry != null && link.AssignmentEntry.AssignmentSeriesId == assignmentSeriesId,
-            cancellationToken
-        );
 
     private async Task<IReadOnlyCollection<AssignmentSeriesResponse>> MapToAssignmentSeriesResponsesAsync(
         IReadOnlyCollection<AssignmentSeries> assignmentSeries,
@@ -958,5 +993,13 @@ public sealed class AssignmentService(
         DateTimeOffset StartAtUtc
     );
 
-    private readonly record struct AssignmentUniquenessKey(int LocationId, int AssignmentDefinitionId, DateOnly Date);
+    private readonly record struct AssignmentLocationDetails(string Name, string TimeZoneId);
+
+    private readonly record struct AssignmentUniquenessKey(
+        int LocationId,
+        string LocationName,
+        int AssignmentDefinitionId,
+        string AssignmentDefinitionName,
+        DateOnly Date
+    );
 }

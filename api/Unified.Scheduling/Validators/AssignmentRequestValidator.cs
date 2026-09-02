@@ -21,6 +21,10 @@ public sealed class AssignmentSeriesRequestValidator : AbstractValidator<Assignm
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
         RuleFor(request => request.RecurrenceRule).NotEmpty();
+        RuleForEach(request => request.ShiftSeriesLinks).SetValidator(new ShiftSeriesLinkRequestValidator());
+        RuleFor(request => request.ShiftSeriesLinks)
+            .Must(links => links.Select(link => link.ShiftSeriesId).Distinct().Count() == links.Count)
+            .WithMessage("Shift series links must be unique.");
     }
 }
 
@@ -46,6 +50,15 @@ public sealed class AssignmentEntryRequestValidator : AbstractValidator<Assignme
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
+        AddShiftEntryLinkRules();
+    }
+
+    private void AddShiftEntryLinkRules()
+    {
+        RuleFor(request => request.ShiftEntryLinks)
+            .Must(links => links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count)
+            .WithMessage("Shift entry links must be unique.");
+        RuleForEach(request => request.ShiftEntryLinks).SetValidator(new ShiftEntryLinkRequestValidator());
     }
 }
 
@@ -68,5 +81,14 @@ public sealed class AssignmentEntryUpdateRequestValidator : AbstractValidator<As
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
+        AddShiftEntryLinkRules();
+    }
+
+    private void AddShiftEntryLinkRules()
+    {
+        RuleFor(request => request.ShiftEntryLinks)
+            .Must(links => links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count)
+            .WithMessage("Shift entry links must be unique.");
+        RuleForEach(request => request.ShiftEntryLinks).SetValidator(new ShiftEntryLinkRequestValidator());
     }
 }

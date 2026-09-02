@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Unified.Common.Validation;
 
 namespace Unified.Infrastructure.ErrorHandling;
 
@@ -40,6 +41,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         var problemDetails = exception switch
         {
             ValidationException ex => HandleValidationException(ex, httpContext),
+            ConflictValidationException ex => HandleConflictValidationException(ex, httpContext),
             ForbiddenException ex => HandleForbiddenException(ex, httpContext),
             KeyNotFoundException ex => HandleKeyNotFoundException(ex, httpContext),
             InvalidDataException ex => HandleInvalidDataException(ex, httpContext),
@@ -84,6 +86,22 @@ public class GlobalExceptionHandler : IExceptionHandler
         {
             Status = StatusCodes.Status400BadRequest,
             Title = "Validation failed.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+        };
+    }
+
+    private ValidationProblemDetails HandleConflictValidationException(
+        ConflictValidationException ex,
+        HttpContext httpContext
+    )
+    {
+        _logger.LogInformation(ex, "Validation conflict: {Message}", ex.Message);
+        httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+
+        return new ValidationProblemDetails(ex.Errors.ToDictionary())
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "Conflict.",
             Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
