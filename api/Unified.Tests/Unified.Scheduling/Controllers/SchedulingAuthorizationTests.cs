@@ -50,7 +50,8 @@ public sealed class SchedulingAuthorizationTests
         var mutationMethods = typeof(ShiftAssignmentController)
             .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
             .Where(method =>
-                method
+                method.Name != nameof(ShiftAssignmentController.GetOptions)
+                && method
                     .GetCustomAttributes()
                     .Any(attribute => attribute is HttpPostAttribute or HttpPutAttribute or HttpDeleteAttribute)
             )
@@ -65,6 +66,17 @@ public sealed class SchedulingAuthorizationTests
                 Assert.Equal(SchedulingPolicies.AssignmentsAssign, authorize.Policy);
             }
         );
+    }
+
+    [Fact]
+    public void ShiftAssignmentController_GetOptions_RequiresAssignmentsView()
+    {
+        var method = typeof(ShiftAssignmentController).GetMethod(nameof(ShiftAssignmentController.GetOptions));
+
+        Assert.NotNull(method);
+        var authorize = Assert.Single(method.GetCustomAttributes<AuthorizeAttribute>());
+
+        Assert.Equal(SchedulingPolicies.AssignmentsView, authorize.Policy);
     }
 
     private static SchedulingCalendarController CreateCalendarController(

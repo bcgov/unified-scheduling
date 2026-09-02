@@ -13,12 +13,27 @@ namespace Unified.Scheduling.Controllers;
 [Route("api/scheduling/shift-assignments")]
 public sealed class ShiftAssignmentController(
     IShiftAssignmentService shiftAssignmentService,
+    IProposedShiftAssignmentOptionsService proposedShiftAssignmentOptionsService,
     ShiftAssignmentEntryRequestValidator entryRequestValidator,
     ShiftAssignmentSeriesRequestValidator seriesRequestValidator,
     ShiftAssignmentEntryUpdateRequestValidator entryUpdateRequestValidator,
-    ShiftAssignmentSeriesUpdateRequestValidator seriesUpdateRequestValidator
+    ShiftAssignmentSeriesUpdateRequestValidator seriesUpdateRequestValidator,
+    ProposedShiftAssignmentOptionsRequestValidator optionsRequestValidator
 ) : ControllerBase
 {
+    [HttpPost("options")]
+    [Authorize(Policy = SchedulingPolicies.AssignmentsView)]
+    [ProducesResponseType(typeof(ProposedShiftAssignmentOptionsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ProposedShiftAssignmentOptionsResponse>> GetOptions(
+        [FromBody] ProposedShiftAssignmentOptionsRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        await optionsRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+        return Ok(await proposedShiftAssignmentOptionsService.GetOptionsAsync(request, cancellationToken));
+    }
+
     [HttpPost("entries")]
     [Authorize(Policy = SchedulingPolicies.AssignmentsAssign)]
     [ProducesResponseType(typeof(ShiftAssignmentEntryResponse), StatusCodes.Status201Created)]

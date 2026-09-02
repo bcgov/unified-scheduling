@@ -33,4 +33,6 @@ public sealed record AssignmentEntryRequest
     public int SubCategoryId { get; init; }
 
     public int Capacity { get; init; }
+
+    public IReadOnlyCollection<ShiftEntryLinkRequest> ShiftEntryLinks { get; init; } = [];
 }
