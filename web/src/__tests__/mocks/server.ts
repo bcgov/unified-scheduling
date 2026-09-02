@@ -1,6 +1,7 @@
 import { setupServer } from 'msw/node';
 
 import { getActingPositionsMock } from '@/api-access/generated/acting-positions/acting-positions.msw';
+import { getAuditMock } from '@/api-access/generated/audit/audit.msw';
 import { getAuthMock } from '@/api-access/generated/auth/auth.msw';
 import { getConfigMock } from '@/api-access/generated/config/config.msw';
 import { getHealthMock } from '@/api-access/generated/health/health.msw';
@@ -21,6 +22,7 @@ import { getSubCategoryMetricsMock } from '@/api-access/generated/sub-category-m
 
 export const server = setupServer(
   ...getActingPositionsMock(),
+  ...getAuditMock(),
   ...getAuthMock(),
   ...getConfigMock(),
   ...getHealthMock(),
