@@ -32,19 +32,6 @@ internal static class ReportQueryRequestParser
                 StringComparer.OrdinalIgnoreCase
             );
 
-        if (parameters.Filters is not null)
-        {
-            foreach (var filter in parameters.Filters)
-            {
-                if (string.IsNullOrWhiteSpace(filter.Key) || string.IsNullOrWhiteSpace(filter.Value))
-                {
-                    continue;
-                }
-
-                filters[filter.Key] = [filter.Value];
-            }
-        }
-
         return new ReportQueryRequest(filters, sortBy, sortDirection);
     }
 

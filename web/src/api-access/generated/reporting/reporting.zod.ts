@@ -15,7 +15,6 @@ export const GetApiReportsReportKeyQueryParams = zod.strictObject({
   PageSize: zod.int().optional(),
   SortBy: zod.string().optional(),
   SortDir: zod.string().optional(),
-  Filters: zod.record(zod.string(), zod.string()).optional(),
 });
 
 export const GetApiReportsReportKeyResponse = zod.object({

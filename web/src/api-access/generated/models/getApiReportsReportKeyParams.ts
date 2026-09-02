@@ -11,7 +11,6 @@ export type OriginalGetApiReportsReportKeyParams = {
   PageSize?: number;
   SortBy?: string;
   SortDir?: string;
-  Filters?: { [key: string]: string };
 };
 
 export type GetApiReportsReportKeyParams = MaybeRef<OriginalGetApiReportsReportKeyParams>;

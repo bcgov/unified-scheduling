@@ -8,6 +8,5 @@ public sealed record ReportQueryParameters(
     int? Page = null,
     int? PageSize = null,
     string? SortBy = null,
-    string? SortDir = null,
-    Dictionary<string, string?>? Filters = null
+    string? SortDir = null
 );
