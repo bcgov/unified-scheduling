@@ -60,8 +60,6 @@ public class ShiftServiceTests : IAsyncLifetime
             _dbContext,
             materializationService,
             materializationHandler,
-            timeZoneResolver,
-            timeZoneService,
             new CalendarLifecycleService(),
             TimeProvider.System
         );
