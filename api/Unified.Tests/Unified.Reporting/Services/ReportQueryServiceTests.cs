@@ -11,7 +11,7 @@ public class ReportQueryServiceTests
     public async Task ExecuteAsync_Should_Forward_Request_Values_And_Return_Handler_Response()
     {
         // Arrange
-        var handler = new FakeReportQueryHandler("user-training", new FakePagedResponse(2, 10, 42));
+        var handler = new FakeReportQueryHandler("user-training", new FakePagedResponse(42));
         var service = new ReportQueryService([handler], NullLogger<ReportQueryService>.Instance);
 
         var request = new ReportQueryRequest(
@@ -19,11 +19,8 @@ public class ReportQueryServiceTests
             {
                 ["userId"] = ["123"],
             },
-            Page: 2,
-            PageSize: 10,
             SortBy: "userDisplayName",
-            SortDirection: SortDirection.Desc,
-            TimeZone: "America/Vancouver"
+            SortDirection: SortDirection.Desc
         );
 
         // Act
@@ -31,15 +28,10 @@ public class ReportQueryServiceTests
 
         // Assert
         var typedResult = Assert.IsType<FakePagedResponse>(result);
-        Assert.Equal(2, typedResult.Page);
-        Assert.Equal(10, typedResult.PageSize);
         Assert.Equal(42, typedResult.TotalRows);
 
-        Assert.Equal(2, handler.LastPage);
-        Assert.Equal(10, handler.LastPageSize);
         Assert.Equal("userDisplayName", handler.LastSortBy);
         Assert.Equal("Desc", handler.LastSortDirection);
-        Assert.Equal("America/Vancouver", handler.LastTimeZone);
         Assert.True(handler.LastFilters.ContainsKey("userId"));
     }
 
@@ -62,8 +54,8 @@ public class ReportQueryServiceTests
         // Arrange
         var handlers = new IReportQueryHandler[]
         {
-            new FakeReportQueryHandler("dup", new FakePagedResponse(1, 10, 0)),
-            new FakeReportQueryHandler(" DUP ", new FakePagedResponse(1, 10, 0)),
+            new FakeReportQueryHandler("dup", new FakePagedResponse(0)),
+            new FakeReportQueryHandler(" DUP ", new FakePagedResponse(0)),
         };
 
         // Act + Assert
@@ -81,37 +73,24 @@ public class ReportQueryServiceTests
         public IReadOnlyDictionary<string, IReadOnlyCollection<string>> LastFilters { get; private set; } =
             new Dictionary<string, IReadOnlyCollection<string>>();
 
-        public int LastPage { get; private set; }
-
-        public int LastPageSize { get; private set; }
-
         public string? LastSortBy { get; private set; }
 
         public string? LastSortDirection { get; private set; }
 
-        public string? LastTimeZone { get; private set; }
-
         public Task<PagedResponse> ExecuteAsync(
             IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
-            int page,
-            int pageSize,
             string? sortBy,
             string? sortDirection,
-            string? timeZone,
             CancellationToken cancellationToken = default
         )
         {
             LastFilters = filters;
-            LastPage = page;
-            LastPageSize = pageSize;
             LastSortBy = sortBy;
             LastSortDirection = sortDirection;
-            LastTimeZone = timeZone;
 
             return Task.FromResult(response);
         }
     }
 
-    private sealed record FakePagedResponse(int Page, int PageSize, int TotalRows)
-        : PagedResponse(Page, PageSize, TotalRows);
+    private sealed record FakePagedResponse(int TotalRows) : PagedResponse(TotalRows);
 }

@@ -25,8 +25,6 @@ const startDateFilter = ref<string>('');
 const endDateFilter = ref<string>('');
 
 const reportQuery = computed(() => ({
-  page: 1,
-  pageSize: 500,
   sortBy: 'userDisplayName',
   sortDir: 'asc' as const,
   userId: selectedUserIdFilter.value || undefined,
@@ -209,7 +207,7 @@ function formatDateCellValue(value: unknown): unknown {
       :items="formattedRows"
       :row-props="getRowProps"
       :loading="isFetching"
-      :paginate="true"
+      :paginate="false"
       searchable
       search-placeholder="Search report rows"
     />

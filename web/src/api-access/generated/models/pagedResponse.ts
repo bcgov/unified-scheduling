@@ -6,7 +6,5 @@
  */
 
 export interface PagedResponse {
-  page?: number;
-  pageSize?: number;
   totalRows?: number;
 }

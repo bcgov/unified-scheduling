@@ -11,11 +11,8 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
 
     public async Task<PagedResponse> ExecuteAsync(
         IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters,
-        int page,
-        int pageSize,
         string? sortBy,
         string? sortDirection,
-        string? timeZone,
         CancellationToken cancellationToken = default
     )
     {
@@ -24,14 +21,14 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
         var reportRowsQuery = BuildReportRowsQuery(queryFilters, now);
         var sortedRowsQuery = UserTrainingReportRowSorter.Apply(reportRowsQuery, sortBy, sortDirection);
 
-        var totalRows = await sortedRowsQuery.CountAsync(cancellationToken);
-        var pageRows = await sortedRowsQuery.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+        var pageRows = await sortedRowsQuery.ToListAsync(cancellationToken);
+        var totalRows = pageRows.Count;
 
         var rows = pageRows
             .Select(row => UserTrainingReportMappings.ToReportRowValue(row, ResolveStatus(row, now)))
             .ToArray();
 
-        return new UserTrainingReportResponse(rows, page, pageSize, totalRows);
+        return new UserTrainingReportResponse(rows, totalRows);
     }
 
     private IQueryable<UserTrainingReportRow> BuildReportRowsQuery(
@@ -56,6 +53,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
     {
         var query = db
             .UserTrainings.AsNoTracking()
+            .Where(ut => ut.User.IsEnabled)
             .Where(ut => ut.Training.ExpiryDate == null || ut.Training.ExpiryDate > now);
 
         query = queryFilters.UserId is Guid userId ? query.Where(ut => ut.UserId == userId) : query;
@@ -73,12 +71,12 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db) : IRepor
             ? query.Where(ut => ut.AwardedOn >= parsedStartDateValue)
             : query;
 
-var endDateValue = queryFilters.EndDate is DateOnly endDate
-    ? new DateTimeOffset(endDate.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
-    : (DateTimeOffset?)null;
-query = endDateValue is DateTimeOffset parsedEndDateValue
-    ? query.Where(ut => ut.AwardedOn < parsedEndDateValue)
-    : query;
+        var endDateValue = queryFilters.EndDate is DateOnly endDate
+            ? new DateTimeOffset(endDate.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero)
+            : (DateTimeOffset?)null;
+        query = endDateValue is DateTimeOffset parsedEndDateValue
+            ? query.Where(ut => ut.AwardedOn < parsedEndDateValue)
+            : query;
 
         query = queryFilters.Status switch
         {

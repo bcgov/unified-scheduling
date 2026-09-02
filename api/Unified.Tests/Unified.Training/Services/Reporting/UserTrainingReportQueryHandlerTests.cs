@@ -53,11 +53,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var result = (UserTrainingReportResponse)
             await _handler.ExecuteAsync(
                 filters,
-                page: 1,
-                pageSize: 10,
                 sortBy: "userDisplayName",
                 sortDirection: "desc",
-                timeZone: null,
                 cancellationToken: TestContext.Current.CancellationToken
             );
 
@@ -83,11 +80,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var result = (UserTrainingReportResponse)
             await _handler.ExecuteAsync(
                 filters: new Dictionary<string, IReadOnlyCollection<string>>(),
-                page: 1,
-                pageSize: 10,
                 sortBy: "notARealColumn",
                 sortDirection: null,
-                timeZone: null,
                 cancellationToken: TestContext.Current.CancellationToken
             );
 
@@ -109,11 +103,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
             _handler.ExecuteAsync(
                 filters,
-                page: 1,
-                pageSize: 10,
                 sortBy: null,
                 sortDirection: null,
-                timeZone: null,
                 cancellationToken: TestContext.Current.CancellationToken
             )
         );
@@ -133,11 +124,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
             _handler.ExecuteAsync(
                 filters,
-                page: 1,
-                pageSize: 10,
                 sortBy: null,
                 sortDirection: null,
-                timeZone: null,
                 cancellationToken: TestContext.Current.CancellationToken
             )
         );
@@ -158,11 +146,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var result = (UserTrainingReportResponse)
             await _handler.ExecuteAsync(
                 filters: new Dictionary<string, IReadOnlyCollection<string>>(),
-                page: 1,
-                pageSize: 10,
                 sortBy: "userDisplayName",
                 sortDirection: "asc",
-                timeZone: null,
                 cancellationToken: TestContext.Current.CancellationToken
             );
 
@@ -177,14 +162,42 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         Assert.Equal("Assigned, Alex", activeRow.UserDisplayName);
     }
 
-    private async Task<User> SeedUserAsync(string firstName, string lastName)
+    [Fact]
+    public async Task ExecuteAsync_Should_Exclude_Disabled_Users_From_Assigned_Training_Rows()
+    {
+        var training = await SeedTrainingAsync(350, "ENABLED", "Enabled Filter", mandatory: false);
+
+        var enabledUser = await SeedUserAsync("Evan", "Enabled", isEnabled: true);
+        var disabledUser = await SeedUserAsync("Dina", "Disabled", isEnabled: false);
+
+        await SeedUserTrainingAsync(enabledUser.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-2));
+        await SeedUserTrainingAsync(disabledUser.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-1));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["active"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: "asc",
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("Enabled, Evan", row.UserDisplayName);
+    }
+
+    private async Task<User> SeedUserAsync(string firstName, string lastName, bool isEnabled = true)
     {
         var user = new User
         {
             Id = Guid.NewGuid(),
             IdirName = $"{firstName}.{lastName}.{Guid.NewGuid():N}",
             IdirId = Guid.NewGuid(),
-            IsEnabled = true,
+            IsEnabled = isEnabled,
             FirstName = firstName,
             LastName = lastName,
             Gender = Gender.Other,

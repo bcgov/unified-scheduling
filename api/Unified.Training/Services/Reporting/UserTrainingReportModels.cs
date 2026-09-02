@@ -46,9 +46,5 @@ public sealed record UserTrainingReportItem(
     bool HasMissingMandatoryTrainingAssignment
 );
 
-public sealed record UserTrainingReportResponse(
-    IReadOnlyCollection<UserTrainingReportItem> Rows,
-    int Page,
-    int PageSize,
-    int TotalRows
-) : PagedResponse(Page, PageSize, TotalRows);
+public sealed record UserTrainingReportResponse(IReadOnlyCollection<UserTrainingReportItem> Rows, int TotalRows)
+    : PagedResponse(TotalRows);

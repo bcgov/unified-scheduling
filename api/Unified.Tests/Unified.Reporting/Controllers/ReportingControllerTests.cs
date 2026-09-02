@@ -48,11 +48,8 @@ public class ReportingControllerTests
 
         Assert.Equal("user-training", service.LastReportKey);
         Assert.NotNull(service.LastRequest);
-        Assert.Equal(2, service.LastRequest!.Page);
-        Assert.Equal(25, service.LastRequest.PageSize);
         Assert.Equal("userDisplayName", service.LastRequest.SortBy);
         Assert.Equal(SortDirection.Desc, service.LastRequest.SortDirection);
-        Assert.Equal("America/Vancouver", service.LastRequest.TimeZone);
         Assert.True(service.LastRequest.Filters.ContainsKey("userId"));
         Assert.False(service.LastRequest.Filters.ContainsKey("page"));
         Assert.False(service.LastRequest.Filters.ContainsKey("pageSize"));
@@ -109,10 +106,9 @@ public class ReportingControllerTests
             LastReportKey = reportKey;
             LastRequest = request;
 
-            return Task.FromResult<PagedResponse>(new FakePagedResponse(request.Page, request.PageSize, 0));
+            return Task.FromResult<PagedResponse>(new FakePagedResponse(0));
         }
     }
 
-    private sealed record FakePagedResponse(int Page, int PageSize, int TotalRows)
-        : PagedResponse(Page, PageSize, TotalRows);
+    private sealed record FakePagedResponse(int TotalRows) : PagedResponse(TotalRows);
 }

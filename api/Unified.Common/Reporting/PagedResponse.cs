@@ -1,3 +1,4 @@
 namespace Unified.Common.Reporting;
 
-public abstract record PagedResponse(int Page, int PageSize, int TotalRows);
+// Will add in further paging functionality in the future.
+public abstract record PagedResponse(int TotalRows);

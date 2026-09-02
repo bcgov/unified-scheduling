@@ -15,24 +15,9 @@ export const getGetApiReportsReportKeyResponseMock = (
   overrideResponse: Partial<Extract<PagedResponse, object>> = {},
 ): PagedResponse =>
   faker.helpers.arrayElement([
-    {
-      page: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      pageSize: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      ...overrideResponse,
-    },
-    {
-      page: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      pageSize: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      ...overrideResponse,
-    },
-    {
-      page: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      pageSize: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      ...overrideResponse,
-    },
+    { totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
+    { totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
+    { totalRows: faker.helpers.arrayElement([faker.number.int(), undefined]), ...overrideResponse },
   ]);
 
 export const getGetApiReportsReportKeyMockHandler = (

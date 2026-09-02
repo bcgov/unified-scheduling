@@ -42,8 +42,8 @@ public class ReportingController(IReportQueryService reportQueryService) : Contr
         }
     }
 
-    private BadRequestObjectResult BuildBadRequest(string detail)
-        => BadRequest(
+    private BadRequestObjectResult BuildBadRequest(string detail) =>
+        BadRequest(
             new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,

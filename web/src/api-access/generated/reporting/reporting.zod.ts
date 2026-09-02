@@ -11,7 +11,5 @@ export const GetApiReportsReportKeyParams = zod.strictObject({
 });
 
 export const GetApiReportsReportKeyResponse = zod.object({
-  page: zod.int().optional(),
-  pageSize: zod.int().optional(),
   totalRows: zod.int().optional(),
 });
