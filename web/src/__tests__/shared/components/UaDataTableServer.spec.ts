@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createVuetify } from 'vuetify';
 import { VDataTableServer } from 'vuetify/components';
-import { createTestApp } from '../helpers/createTestApp';
+import { createTestApp } from '../../helpers/createTestApp';
 
 describe('UaDataTableServer', () => {
   let vuetify: ReturnType<typeof createVuetify>;
