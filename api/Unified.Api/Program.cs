@@ -8,7 +8,9 @@ using Unified.Audit;
 using Unified.Authorization;
 using Unified.Authorization.Hangfire;
 using Unified.Calendar;
+using Unified.Calendar.Controllers;
 using Unified.Common.FeatureFlags;
+using Unified.Common.Mvc;
 using Unified.Common.Time;
 using Unified.Core;
 using Unified.Db;
@@ -19,9 +21,13 @@ using Unified.Infrastructure.OpenApi;
 using Unified.Infrastructure.Options;
 using Unified.JCInterface;
 using Unified.Scheduling;
+using Unified.Scheduling.Controllers;
 using Unified.Stats;
+using Unified.Stats.Controllers;
 using Unified.Training;
+using Unified.Training.Controllers;
 using Unified.UserManagement;
+using Unified.UserManagement.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 var hangfireOptions =
@@ -97,9 +103,15 @@ var hangfireOptions =
         .AddInterceptors();
 
     var mvcBuilder = builder.Services.AddControllers();
-    mvcBuilder.AddCalendarApplicationPart(builder.Configuration);
-    mvcBuilder.AddSchedulingApplicationPart(builder.Configuration);
-    mvcBuilder.AddTrainingApplicationPart(builder.Configuration);
+    mvcBuilder.AddConditionalApplicationPart<CalendarController>(CalendarModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<ShiftController>(SchedulingModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<StatGroupsController>(StatsModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<UserTrainingController>(
+        TrainingModule.IsModuleEnabled(builder.Configuration)
+    );
+    mvcBuilder.AddConditionalApplicationPart<UsersController>(
+        UserManagementModule.IsModuleEnabled(builder.Configuration)
+    );
 
     builder.Services.AddSingleton<MigrationAndSeedService>();
     builder.Services.AddTransient(typeof(SeederFactory<>));
@@ -196,10 +208,6 @@ var app = builder.Build();
     }
 
     app.MapControllers();
-
-    app.MapStatsEndpoints();
-
-    app.MapTrainingEndpoints();
 }
 
 app.Run();

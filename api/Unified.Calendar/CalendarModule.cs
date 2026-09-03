@@ -1,9 +1,6 @@
-using System.Reflection;
-using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Unified.Calendar.Controllers;
 using Unified.Calendar.FeatureFlags;
 using Unified.Calendar.Holidays;
 using Unified.Calendar.Options;
@@ -30,18 +27,6 @@ public static class CalendarModule
     {
         var options = serviceProvider.GetRequiredService<IOptions<CalendarFeatureFlags>>();
         return options.Value.Enabled;
-    }
-
-    public static IMvcBuilder AddCalendarApplicationPart(this IMvcBuilder mvcBuilder, IConfiguration config)
-    {
-        var isEnabled = IsModuleEnabled(config);
-        var calendarAssembly = typeof(CalendarController).Assembly;
-
-        mvcBuilder.ConfigureApplicationPartManager(manager =>
-            ConfigureCalendarApplicationParts(manager, calendarAssembly, isEnabled)
-        );
-
-        return mvcBuilder;
     }
 
     public static IServiceCollection AddCalendarModule(this IServiceCollection services, IConfiguration config)
@@ -91,25 +76,5 @@ public static class CalendarModule
             return false;
 
         return TimeZoneService.IsValidTimeZoneId(options.DefaultTimeZoneId);
-    }
-
-    private static void ConfigureCalendarApplicationParts(
-        ApplicationPartManager manager,
-        Assembly calendarAssembly,
-        bool isEnabled
-    )
-    {
-        var assemblyName = calendarAssembly.GetName().Name;
-        var existingParts = manager.ApplicationParts.Where(part => part.Name == assemblyName).ToList();
-
-        foreach (var part in existingParts)
-        {
-            manager.ApplicationParts.Remove(part);
-        }
-
-        if (isEnabled)
-        {
-            manager.ApplicationParts.Add(new AssemblyPart(calendarAssembly));
-        }
     }
 }

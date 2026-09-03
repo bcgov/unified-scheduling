@@ -11,8 +11,6 @@ import type { RequestHandlerOptions } from 'msw';
 
 import type { TrainingLookupResponse } from '../models';
 
-export const getGetTrainingHealthResponseMock = (): string => faker.word.sample();
-
 export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -518,26 +516,6 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
     },
   ]);
 
-export const getGetTrainingHealthMockHandler = (
-  overrideResponse?: string | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<string> | string),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/trainings/health',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetTrainingHealthResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
-
 export const getGetApiLookupTrainingsMockHandler = (
   overrideResponse?:
     | TrainingLookupResponse[]
@@ -692,7 +670,6 @@ export const getPatchApiLookupTrainingsIdUnexpireMockHandler = (
   );
 };
 export const getTrainingMock = () => [
-  getGetTrainingHealthMockHandler(),
   getGetApiLookupTrainingsMockHandler(),
   getPostApiLookupTrainingsMockHandler(),
   getGetApiLookupTrainingsIdMockHandler(),

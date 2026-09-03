@@ -9,11 +9,12 @@
 ## Context
 
 Feature-gated modules must not expose routes when disabled. Issue #119 records
-three patterns: always-on MVC for UserManagement, module-owned minimal APIs for
-Stats, and conditional MVC application parts for Calendar and Training. The
-existing application-part approach makes disabled controller assemblies absent
-from MVC discovery and avoids exposing their routes or API Explorer metadata,
-but its registration logic is duplicated between modules.
+three patterns: conventionally discovered MVC controllers for UserManagement,
+a module-owned minimal health endpoint plus MVC controllers for Stats, and
+conditional MVC application parts for Calendar and Training. The
+application-part approach makes disabled controller assemblies absent from MVC
+discovery and avoids exposing their routes or API Explorer metadata, but its
+registration logic was duplicated between modules.
 
 ## Decision
 
@@ -25,17 +26,20 @@ will be consolidated into one shared generic
 `ModuleApplicationPartExtensions.AddConditionalApplicationPart<TMarker>()`
 helper.
 
-This decision does not migrate controller endpoints to minimal APIs. Stats may
-retain its existing minimal-API implementation, while always-on UserManagement
-remains out of scope.
+This decision does not migrate controller endpoints to minimal APIs. Stats and
+UserManagement follow the same conditional application-part convention as
+other feature-gated controller modules. Bespoke per-module health endpoints
+are not retained.
 
 ## Alternatives
 
 - Minimal APIs with explicit `MapXxxEndpoints()`: not selected because migrating
   existing controller endpoints changes their implementation model without
   providing enough benefit over the already working application-part approach.
-  The `MapXxxEndpoints()` was in fact inert as the endpoints were already mapped
-  through normal controller discovery.
+  The existing Stats and Training mappings exposed reachable minimal-API health
+  checks rather than controller-discovered routes; they have been removed as
+  part of this decision since module health is no longer surfaced through
+  bespoke per-module endpoints.
 - Per-request routing policies or middleware: not selected because disabled
   endpoints would remain in endpoint metadata and would require separate
   handling to keep them out of OpenAPI.
@@ -53,17 +57,17 @@ remains out of scope.
 
 ## Follow-up
 
-- Add the shared `ModuleApplicationPartExtensions` helper and refactor Calendar
-  and Training to use it.
+- Add the shared `ModuleApplicationPartExtensions` helper and apply it to
+  Calendar, Scheduling, Stats, Training, and UserManagement.
 - Apply this convention to future controller-based feature-gated modules and
-  document any intentional minimal-API implementations such as Stats.
+  separately document any intentional minimal-API implementations.
 - Preserve the accepted assembly-level and startup-only constraints in module
   design and tests.
 
 ## References
 
 - [Application startup and module wiring](../../api/Unified.Api/Program.cs)
-- [Stats module endpoint mapping](../../api/Unified.Stats/StatsModule.cs)
+- [Stats module registration](../../api/Unified.Stats/StatsModule.cs)
 - [Calendar application-part registration](../../api/Unified.Calendar/CalendarModule.cs)
 - [Training application-part registration](../../api/Unified.Training/TrainingModule.cs)
 - [Scheduling module](../../api/Unified.Scheduling/SchedulingModule.cs)

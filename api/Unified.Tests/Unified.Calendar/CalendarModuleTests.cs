@@ -11,6 +11,7 @@ using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
+using Unified.Common.Mvc;
 using Unified.Common.Seeding;
 using Unified.Common.Time;
 using Unified.Db;
@@ -163,7 +164,8 @@ public sealed class CalendarModuleTests
         services.AddCalendarModule(configuration);
 
         var mvcBuilder = services.AddControllers();
-        mvcBuilder.AddCalendarApplicationPart(configuration);
+        mvcBuilder.AddApplicationPart(typeof(CalendarController).Assembly);
+        mvcBuilder.AddConditionalApplicationPart<CalendarController>(CalendarModule.IsModuleEnabled(configuration));
 
         provider = services.BuildServiceProvider();
         return services;

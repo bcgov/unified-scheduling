@@ -15,12 +15,6 @@ import { useFetchAPI } from '../../useFetchAPI.ts';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-/**
- * Checks the health of the Training module.
- */
-export const getTrainingHealth = (options?: SecondParameter<typeof useFetchAPI<string>>) => {
-  return useFetchAPI<string>({ url: `/api/trainings/health`, method: 'GET' }, options);
-};
 export const getApiLookupTrainings = (
   params?: GetApiLookupTrainingsParams,
   options?: SecondParameter<typeof useFetchAPI<TrainingLookupResponse[]>>,
@@ -83,7 +77,6 @@ export const patchApiLookupTrainingsIdExpire = (id: number, options?: SecondPara
 export const patchApiLookupTrainingsIdUnexpire = (id: number, options?: SecondParameter<typeof useFetchAPI<void>>) => {
   return useFetchAPI<void>({ url: `/api/lookup/trainings/${id}/unexpire`, method: 'PATCH' }, options);
 };
-export type GetTrainingHealthResult = NonNullable<Awaited<ReturnType<typeof getTrainingHealth>>>;
 export type GetApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainings>>>;
 export type PostApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof postApiLookupTrainings>>>;
 export type GetApiLookupTrainingsIdResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainingsId>>>;

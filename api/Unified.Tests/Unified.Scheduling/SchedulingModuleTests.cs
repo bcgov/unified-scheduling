@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization.Seeders;
+using Unified.Common.Mvc;
 using Unified.Common.Seeding;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
@@ -111,7 +112,8 @@ public sealed class SchedulingModuleTests
         services.AddSchedulingModule(configuration);
 
         var mvcBuilder = services.AddControllers();
-        mvcBuilder.AddSchedulingApplicationPart(configuration);
+        mvcBuilder.AddApplicationPart(typeof(ShiftController).Assembly);
+        mvcBuilder.AddConditionalApplicationPart<ShiftController>(SchedulingModule.IsModuleEnabled(configuration));
 
         provider = services.BuildServiceProvider();
         return services;
