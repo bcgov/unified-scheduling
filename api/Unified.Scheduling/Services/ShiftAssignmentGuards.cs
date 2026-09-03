@@ -110,20 +110,9 @@ internal static class ShiftAssignmentGuards
     public static void EnsureAssignmentEntryUpdatePreservesLinks(
         AssignmentEntry assignmentEntry,
         DateTimeOffset proposedStartAtUtc,
-        DateTimeOffset proposedEndAtUtc,
-        int? proposedAssignmentSeriesId
+        DateTimeOffset proposedEndAtUtc
     )
     {
-        if (
-            assignmentEntry.ShiftAssignmentEntries.Any(link =>
-                link.ShiftAssignmentSeriesLinkId.HasValue
-                && link.ShiftAssignmentSeriesLink?.AssignmentSeriesId != proposedAssignmentSeriesId
-            )
-        )
-            throw new InvalidOperationException(
-                "A series-linked assignment entry cannot be moved outside its linked assignment series."
-            );
-
         var invalidatesLink = assignmentEntry
             .ShiftAssignmentEntries.Where(link => link.Users.Count > 0)
             .Where(link => link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)

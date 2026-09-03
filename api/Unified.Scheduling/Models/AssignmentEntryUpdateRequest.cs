@@ -2,8 +2,6 @@ namespace Unified.Scheduling.Models;
 
 public sealed record AssignmentEntryUpdateRequest
 {
-    public int? AssignmentSeriesId { get; init; }
-
     public int AssignmentDefinitionId { get; init; }
 
     public string Title { get; init; } = string.Empty;

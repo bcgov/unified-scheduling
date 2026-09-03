@@ -492,28 +492,20 @@ public sealed class AssignmentService(
             .Include(entry => entry.ShiftAssignmentEntries)
                 .ThenInclude(link => link.ShiftEntry)
                     .ThenInclude(shiftEntry => shiftEntry!.Event)
-            .Include(entry => entry.ShiftAssignmentEntries)
-                .ThenInclude(link => link.ShiftAssignmentSeriesLink)
             .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken);
 
         if (assignmentEntry is null)
             return null;
-
-        var assignmentSeries = request.AssignmentSeriesId.HasValue
-            ? await GetValidatedAssignmentSeriesAsync(request.AssignmentSeriesId.Value, cancellationToken)
-            : null;
 
         ValidateAssignmentEventType(assignmentEntry.Event!);
         EnsureDraft(assignmentEntry.Event!.StatusTypeCode, "Assignment entry");
         ShiftAssignmentGuards.EnsureAssignmentEntryUpdatePreservesLinks(
             assignmentEntry,
             request.StartAtUtc,
-            request.EndAtUtc,
-            request.AssignmentSeriesId
+            request.EndAtUtc
         );
-        AssignmentEventMapper.ApplyToEvent(assignmentEntry.Event!, request, assignmentSeries?.EventSeriesId);
+        AssignmentEventMapper.ApplyToEvent(assignmentEntry.Event!, request);
         CalendarEventExceptionHelper.UpdateExceptionFlag(assignmentEntry.Event!);
-        assignmentEntry.AssignmentSeriesId = request.AssignmentSeriesId;
         assignmentEntry.AssignmentDefinitionId = request.AssignmentDefinitionId;
         assignmentEntry.Capacity = request.Capacity;
         assignmentEntry.CategoryId = request.CategoryId;
