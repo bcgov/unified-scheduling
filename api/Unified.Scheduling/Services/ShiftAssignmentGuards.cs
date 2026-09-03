@@ -1,3 +1,4 @@
+using Unified.Common.Time;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 
@@ -31,7 +32,8 @@ internal static class ShiftAssignmentGuards
     public static void EnsureCanLink(
         ShiftEntry shiftEntry,
         AssignmentEntry assignmentEntry,
-        IReadOnlyCollection<Guid> selectedUserIds
+        IReadOnlyCollection<Guid> selectedUserIds,
+        ITimeZoneService timeZoneService
     )
     {
         if (shiftEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Cancelled)
@@ -43,14 +45,17 @@ internal static class ShiftAssignmentGuards
         if (
             shiftEntry.Event is not Event shiftEvent
             || assignmentEntry.Event is not Event assignmentEvent
-            || !UtcIntervalsOverlap(
+            || !AssignmentStartsOnShiftDate(
                 shiftEvent.StartAtUtc,
                 shiftEvent.EndAtUtc,
                 assignmentEvent.StartAtUtc,
-                assignmentEvent.EndAtUtc
+                shiftEvent.TimeZoneId,
+                timeZoneService
             )
         )
-            throw new InvalidOperationException("Shift and assignment entries must overlap.");
+            throw new InvalidOperationException(
+                "Assignment start date must match the shift start date or shift end date."
+            );
 
         EnsureUsersBelongToShiftEntry(shiftEntry, selectedUserIds);
     }
@@ -59,8 +64,10 @@ internal static class ShiftAssignmentGuards
         ShiftEntry shiftEntry,
         DateTimeOffset proposedStartAtUtc,
         DateTimeOffset? proposedEndAtUtc,
+        string? proposedTimeZoneId,
         IReadOnlyCollection<Guid> proposedUserIds,
         int? proposedShiftSeriesId,
+        ITimeZoneService timeZoneService,
         IReadOnlyCollection<int>? retainedAssignmentEntryIds = null
     )
     {
@@ -97,24 +104,25 @@ internal static class ShiftAssignmentGuards
         if (
             activeLinks.Any(link =>
                 link.AssignmentEntry?.Event is not Event assignmentEvent
-                || !UtcIntervalsOverlap(
+                || !AssignmentStartsOnShiftDate(
                     proposedStartAtUtc,
                     proposedEndAtUtc,
                     assignmentEvent.StartAtUtc,
-                    assignmentEvent.EndAtUtc
+                    proposedTimeZoneId,
+                    timeZoneService
                 )
             )
         )
             throw new InvalidOperationException(
-                "Shift time cannot be changed because it would no longer overlap a linked assignment."
+                "Shift time cannot be changed because a linked assignment would no longer start on the shift start date or shift end date."
             );
     }
 
     public static void EnsureAssignmentEntryUpdatePreservesLinks(
         AssignmentEntry assignmentEntry,
         DateTimeOffset proposedStartAtUtc,
-        DateTimeOffset proposedEndAtUtc,
         int? proposedAssignmentSeriesId,
+        ITimeZoneService timeZoneService,
         IReadOnlyCollection<int>? retainedShiftEntryIds = null
     )
     {
@@ -137,17 +145,34 @@ internal static class ShiftAssignmentGuards
             .Where(link => link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .Any(link =>
                 link.ShiftEntry?.Event is not Event shiftEvent
-                || !UtcIntervalsOverlap(
+                || !AssignmentStartsOnShiftDate(
                     shiftEvent.StartAtUtc,
                     shiftEvent.EndAtUtc,
                     proposedStartAtUtc,
-                    proposedEndAtUtc
+                    shiftEvent.TimeZoneId,
+                    timeZoneService
                 )
             );
 
         if (invalidatesLink)
             throw new InvalidOperationException(
-                "Assignment time cannot be changed because it would no longer overlap a linked shift."
+                "Assignment time cannot be changed because it would no longer start on the linked shift start date or shift end date."
+            );
+    }
+
+    public static bool AssignmentStartsOnShiftDate(
+        DateTimeOffset shiftStartAtUtc,
+        DateTimeOffset? shiftEndAtUtc,
+        DateTimeOffset assignmentStartAtUtc,
+        string? shiftTimeZoneId,
+        ITimeZoneService timeZoneService
+    )
+    {
+        var timeZone = timeZoneService.ResolveOrUtc(shiftTimeZoneId);
+        var assignmentDate = GetLocalDate(assignmentStartAtUtc, timeZone, timeZoneService);
+        return assignmentDate == GetLocalDate(shiftStartAtUtc, timeZone, timeZoneService)
+            || (
+                shiftEndAtUtc.HasValue && assignmentDate == GetLocalDate(shiftEndAtUtc.Value, timeZone, timeZoneService)
             );
     }
 
@@ -161,4 +186,10 @@ internal static class ShiftAssignmentGuards
         && secondEndAtUtc.HasValue
         && firstStartAtUtc < secondEndAtUtc.Value
         && secondStartAtUtc < firstEndAtUtc.Value;
+
+    private static DateOnly GetLocalDate(
+        DateTimeOffset instant,
+        TimeZoneInfo timeZone,
+        ITimeZoneService timeZoneService
+    ) => DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(instant, timeZone));
 }

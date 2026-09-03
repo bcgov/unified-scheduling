@@ -35,57 +35,59 @@ public sealed class ProposedShiftAssignmentOptionsService(
 
         var timeZone = timeZoneResolver.Resolve(request.TimeZoneId);
         var occurrences = ExpandOccurrences(request);
-        var firstOccurrence = occurrences.First();
-        var firstDate = GetLocalDate(firstOccurrence.StartAtUtc, timeZone);
-        var firstDayRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(firstDate, firstDate, timeZone);
-        var entryOptions = (
+        var shiftDates = occurrences
+            .SelectMany(occurrence =>
+                occurrence.EndAtUtc.HasValue
+                    ? new[]
+                    {
+                        GetLocalDate(occurrence.StartAtUtc, timeZone),
+                        GetLocalDate(occurrence.EndAtUtc.Value, timeZone),
+                    }
+                    : [GetLocalDate(occurrence.StartAtUtc, timeZone)]
+            )
+            .Distinct()
+            .ToList();
+        var assignmentRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
+            shiftDates.Min(),
+            shiftDates.Max(),
+            timeZone
+        );
+        var matchingEntries = (
             await assignmentService.GetAssignmentEntriesAsync(
                 new AssignmentEntryQueryParams
                 {
                     LocationId = request.LocationId,
-                    StartAtUtc = firstDayRange.StartAtUtc,
-                    EndAtUtc = firstDayRange.EndAtUtc,
+                    StartAtUtc = assignmentRange.StartAtUtc,
+                    EndAtUtc = assignmentRange.EndAtUtc,
                 },
                 cancellationToken
             )
-        ).Where(IsLinkable).ToList();
+        ).Where(IsLinkable).Where(entry => occurrences.Any(occurrence => StartsOnShiftDate(entry, occurrence, timeZone))).ToList();
+        var entryOptions = matchingEntries;
 
         IReadOnlyCollection<AssignmentSeriesResponse> seriesOptions = [];
         if (request.IsSeriesScope)
         {
-            var occurrenceDates = occurrences
-                .Select(occurrence => GetLocalDate(occurrence.StartAtUtc, timeZone))
-                .ToList();
-            var seriesRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
-                occurrenceDates.Min(),
-                occurrenceDates.Max(),
-                timeZone
-            );
             var series = await assignmentService.GetAssignmentSeriesAsync(
                 new AssignmentSeriesQueryParams
                 {
                     LocationId = request.LocationId,
-                    StartAtUtc = seriesRange.StartAtUtc,
-                    EndAtUtc = seriesRange.EndAtUtc,
+                    StartAtUtc = assignmentRange.StartAtUtc,
+                    EndAtUtc = assignmentRange.EndAtUtc,
                 },
                 cancellationToken
             );
             seriesOptions = series
                 .Where(IsLinkable)
-                .Where(item =>
-                    item.Entries.Any(entry =>
-                        IsLinkable(entry)
-                        && occurrences.Any(occurrence => OccursOnSameLocalDay(entry, occurrence, timeZone))
-                    )
-                )
+                .Where(item => matchingEntries.Any(entry => entry.AssignmentSeriesId == item.Id))
                 .ToList();
         }
 
         var hasWarning =
             entryOptions.Any(entry => HasDateMatchWithoutTimeOverlap(entry, occurrences, timeZone))
             || seriesOptions.Any(item =>
-                item.Entries.Any(entry =>
-                    IsLinkable(entry) && HasDateMatchWithoutTimeOverlap(entry, occurrences, timeZone)
+                matchingEntries.Any(entry =>
+                    entry.AssignmentSeriesId == item.Id && HasDateMatchWithoutTimeOverlap(entry, occurrences, timeZone)
                 )
             );
 
@@ -136,19 +138,14 @@ public sealed class ProposedShiftAssignmentOptionsService(
     private DateOnly GetLocalDate(DateTimeOffset instant, TimeZoneInfo timeZone) =>
         DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(instant, timeZone));
 
-    private bool OccursOnSameLocalDay(AssignmentEntryResponse entry, SeriesEntry occurrence, TimeZoneInfo timeZone)
+    private bool StartsOnShiftDate(AssignmentEntryResponse entry, SeriesEntry occurrence, TimeZoneInfo timeZone)
     {
         if (!entry.StartAtUtc.HasValue)
             return false;
 
-        var date = GetLocalDate(occurrence.StartAtUtc, timeZone);
-        var dayRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(date, date, timeZone);
-        return ShiftAssignmentGuards.UtcIntervalsOverlap(
-            dayRange.StartAtUtc,
-            dayRange.EndAtUtc,
-            entry.StartAtUtc.Value,
-            entry.EndAtUtc
-        );
+        var assignmentDate = GetLocalDate(entry.StartAtUtc.Value, timeZone);
+        return assignmentDate == GetLocalDate(occurrence.StartAtUtc, timeZone)
+            || (occurrence.EndAtUtc.HasValue && assignmentDate == GetLocalDate(occurrence.EndAtUtc.Value, timeZone));
     }
 
     private bool HasDateMatchWithoutTimeOverlap(
@@ -160,7 +157,7 @@ public sealed class ProposedShiftAssignmentOptionsService(
         if (!entry.StartAtUtc.HasValue)
             return false;
 
-        var dateMatches = occurrences.Where(occurrence => OccursOnSameLocalDay(entry, occurrence, timeZone)).ToList();
+        var dateMatches = occurrences.Where(occurrence => StartsOnShiftDate(entry, occurrence, timeZone)).ToList();
         return dateMatches.Count > 0
             && dateMatches.All(occurrence =>
                 !ShiftAssignmentGuards.UtcIntervalsOverlap(

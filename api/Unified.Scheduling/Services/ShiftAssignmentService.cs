@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
@@ -8,8 +9,11 @@ using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
 
-public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logger, UnifiedDbContext db)
-    : IShiftAssignmentService
+public sealed class ShiftAssignmentService(
+    ILogger<ShiftAssignmentService> logger,
+    UnifiedDbContext db,
+    ITimeZoneService timeZoneService
+) : IShiftAssignmentService
 {
     public async Task<ShiftAssignmentEntryResponse> LinkShiftEntryAsync(
         ShiftAssignmentEntryRequest request,
@@ -252,20 +256,27 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         var intersections = (
             from shiftEntry in shiftEntries
             from assignmentEntry in assignmentEntries
-            where UtcIntervalsOverlap(shiftEntry.Event!, assignmentEntry.Event!)
+            where
+                ShiftAssignmentGuards.AssignmentStartsOnShiftDate(
+                    shiftEntry.Event!.StartAtUtc,
+                    shiftEntry.Event.EndAtUtc,
+                    assignmentEntry.Event!.StartAtUtc,
+                    shiftEntry.Event.TimeZoneId,
+                    timeZoneService
+                )
             select (shiftEntry, assignmentEntry)
         ).ToList();
 
         if (intersections.Count == 0)
             throw new InvalidOperationException(
-                $"Shift series {request.ShiftSeriesId} did not overlap any assignment entries in assignment series {request.AssignmentSeriesId}."
+                $"Shift series {request.ShiftSeriesId} did not share a valid start date with any assignment entries in assignment series {request.AssignmentSeriesId}."
             );
 
         foreach (var shiftEntry in intersections.Select(pair => pair.shiftEntry).DistinctBy(entry => entry.Id))
             ShiftAssignmentGuards.EnsureUsersBelongToShiftEntry(
                 shiftEntry,
                 selectedUserIds,
-                "Selected users must belong to every intersecting shift entry."
+                "Selected users must belong to every matching shift entry."
             );
 
         var shiftEntryIds = intersections.Select(pair => pair.shiftEntry.Id).Distinct().ToList();
@@ -549,7 +560,7 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         var shiftEntry = await LoadShiftEntryAsync(shiftEntryId, cancellationToken);
         var assignmentEntry = await LoadAssignmentEntryAsync(assignmentEntryId, cancellationToken);
 
-        ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, selectedUserIds);
+        ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, selectedUserIds, timeZoneService);
 
         var link = await db
             .ShiftAssignmentEntries.Include(existingLink => existingLink.Users)
@@ -602,14 +613,6 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             .AssignmentEntries.Include(entry => entry.Event)
             .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken)
         ?? throw new KeyNotFoundException($"Assignment entry {id} not found.");
-
-    private static bool UtcIntervalsOverlap(Event shiftEvent, Event assignmentEvent) =>
-        ShiftAssignmentGuards.UtcIntervalsOverlap(
-            shiftEvent.StartAtUtc,
-            shiftEvent.EndAtUtc,
-            assignmentEvent.StartAtUtc,
-            assignmentEvent.EndAtUtc
-        );
 
     private void RemoveSeriesLinks(IReadOnlyCollection<ShiftAssignmentSeriesLink> seriesLinks)
     {
