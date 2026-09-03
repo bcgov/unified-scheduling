@@ -1,7 +1,9 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
+using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
@@ -18,6 +20,7 @@ public sealed class ShiftService(
     ShiftSeriesMaterializationHandler shiftSeriesMaterializationHandler,
     IShiftAssignmentService shiftAssignmentService,
     CalendarLifecycleService calendarLifecycleService,
+    ITimeZoneService timeZoneService,
     TimeProvider timeProvider
 ) : IShiftService
 {
@@ -138,7 +141,10 @@ public sealed class ShiftService(
             request.StartAtUtc
         );
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
 
         var eventSeries = ShiftEventMapper.ToEventSeries(request);
         var entity = new ShiftSeries
@@ -155,6 +161,8 @@ public sealed class ShiftService(
             new ShiftSeriesMaterializationContext { ShiftSeries = entity, UserIds = userIds },
             cancellationToken
         );
+
+        await EnsureShiftsDoNotConflictAsync(CreateShiftConflictCandidates(entity.ShiftEntries), [], cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -179,7 +187,10 @@ public sealed class ShiftService(
     {
         logger.LogInformation("Updating shift series {ShiftSeriesId}.", id);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
 
         var entity = await db
             .ShiftSeries.Include(shiftSeries => shiftSeries.EventSeries!)
@@ -214,8 +225,6 @@ public sealed class ShiftService(
         var recurrenceChanged = ShiftSeriesUpdatePlanner.HasRecurrenceChanged(eventSeries, request);
         var newUserIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
 
-        ValidatePropagatedShiftEntryUsers(entity, oldUserIds, newUserIds);
-
         ShiftEventMapper.ApplyToEventSeries(eventSeries, request);
 
         ShiftUserSync.SyncSeriesUsers(db, entity, newUserIds);
@@ -240,6 +249,14 @@ public sealed class ShiftService(
         {
             ApplySeriesNonRecurrenceUpdatesToChildren(entity, oldEventSeriesValues, oldUserIds, newUserIds);
         }
+
+        var currentEntries = entity.ShiftEntries.Where(entry => db.Entry(entry).State != EntityState.Deleted).ToList();
+        ValidatePropagatedShiftEntries(entity, currentEntries);
+        await EnsureShiftsDoNotConflictAsync(
+            CreateShiftConflictCandidates(currentEntries),
+            entity.ShiftEntries.Where(entry => entry.Id > 0).Select(entry => entry.Id).ToList(),
+            cancellationToken
+        );
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -561,10 +578,19 @@ public sealed class ShiftService(
             ? await GetValidatedShiftSeriesAsync(request.ShiftSeriesId.Value, cancellationToken)
             : null;
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
 
         var eventEntity = ShiftEventMapper.ToEvent(request, shiftSeries?.EventSeriesId);
         CalendarEventExceptionHelper.UpdateExceptionFlag(eventEntity);
+
+        await EnsureShiftsDoNotConflictAsync(
+            CreateShiftConflictCandidates(eventEntity, userIds),
+            [],
+            cancellationToken
+        );
 
         var entity = new ShiftEntry
         {
@@ -597,7 +623,10 @@ public sealed class ShiftService(
     {
         logger.LogInformation("Updating shift entry {ShiftEntryId}.", id);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
 
         var entity = await db
             .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
@@ -626,9 +655,21 @@ public sealed class ShiftService(
             entity,
             request.StartAtUtc,
             request.EndAtUtc,
+            request.TimeZoneId,
             request.UserIds,
             request.ShiftSeriesId,
+            timeZoneService,
             request.AssignmentEntryLinks.Select(link => link.AssignmentEntryId).ToList()
+        );
+        await EnsureShiftsDoNotConflictAsync(
+            CreateShiftConflictCandidates(
+                request.StartAtUtc,
+                request.EndAtUtc,
+                request.TimeZoneId,
+                ShiftUserSync.GetDistinctUserIds(request.UserIds)
+            ),
+            [entity.Id],
+            cancellationToken
         );
         ShiftEventMapper.ApplyToEvent(entity.Event!, request, shiftSeries?.EventSeriesId);
         CalendarEventExceptionHelper.UpdateExceptionFlag(entity.Event!);
@@ -816,24 +857,151 @@ public sealed class ShiftService(
         return shiftSeries;
     }
 
-    private static void ValidatePropagatedShiftEntryUsers(
-        ShiftSeries shiftSeries,
-        IReadOnlyCollection<Guid> oldSeriesUserIds,
-        IReadOnlyCollection<Guid> newSeriesUserIds
+    private async Task EnsureShiftsDoNotConflictAsync(
+        IReadOnlyCollection<ShiftConflictCandidate> candidates,
+        IReadOnlyCollection<int> excludedShiftEntryIds,
+        CancellationToken cancellationToken
     )
     {
+        if (candidates.Count == 0)
+            return;
+
+        var candidateList = candidates.ToList();
+        for (var firstIndex = 0; firstIndex < candidateList.Count; firstIndex++)
+        {
+            for (var secondIndex = firstIndex + 1; secondIndex < candidateList.Count; secondIndex++)
+            {
+                var conflict = GetShiftConflict(candidateList[firstIndex], candidateList[secondIndex]);
+                if (conflict.HasValue)
+                    throw CreateShiftConflictException(candidateList[firstIndex], conflict.Value);
+            }
+        }
+
+        var userIds = candidateList.Select(candidate => candidate.UserId).Distinct().ToList();
+        var earliestRelevantInstant = candidateList.Min(candidate => candidate.StartAtUtc).AddDays(-2);
+        var existingEntriesQuery = db
+            .ShiftEntries.AsNoTracking()
+            .Include(entry => entry.Event)
+            .Include(entry => entry.Users)
+            .Where(entry => !excludedShiftEntryIds.Contains(entry.Id))
+            .Where(entry => entry.Users.Any(user => userIds.Contains(user.UserId)))
+            .Where(entry =>
+                entry.Event != null
+                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                && (entry.Event.EndAtUtc == null || entry.Event.EndAtUtc > earliestRelevantInstant)
+            );
+
+        if (candidateList.All(candidate => candidate.EndAtUtc.HasValue))
+        {
+            var latestRelevantInstant = candidateList.Max(candidate => candidate.EndAtUtc!.Value).AddDays(2);
+            existingEntriesQuery = existingEntriesQuery.Where(entry =>
+                entry.Event != null && entry.Event.StartAtUtc < latestRelevantInstant
+            );
+        }
+
+        var existingEntries = await existingEntriesQuery.ToListAsync(cancellationToken);
+        var existingCandidates = CreateShiftConflictCandidates(existingEntries);
+        foreach (var candidate in candidateList)
+        {
+            var conflict = existingCandidates
+                .Select(existing => GetShiftConflict(candidate, existing))
+                .FirstOrDefault(result => result.HasValue);
+            if (conflict.HasValue)
+                throw CreateShiftConflictException(candidate, conflict.Value);
+        }
+    }
+
+    private IReadOnlyCollection<ShiftConflictCandidate> CreateShiftConflictCandidates(
+        IEnumerable<ShiftEntry> entries
+    ) =>
+        entries
+            .Where(entry => entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
+            .SelectMany(entry =>
+                CreateShiftConflictCandidates(
+                    entry.Event!.StartAtUtc,
+                    entry.Event.EndAtUtc,
+                    entry.Event.TimeZoneId,
+                    entry.Users.Select(user => user.UserId),
+                    entry.Id
+                )
+            )
+            .ToList();
+
+    private static IReadOnlyCollection<ShiftConflictCandidate> CreateShiftConflictCandidates(
+        Event eventEntity,
+        IEnumerable<Guid> userIds
+    ) => CreateShiftConflictCandidates(eventEntity.StartAtUtc, eventEntity.EndAtUtc, eventEntity.TimeZoneId, userIds);
+
+    private static IReadOnlyCollection<ShiftConflictCandidate> CreateShiftConflictCandidates(
+        DateTimeOffset startAtUtc,
+        DateTimeOffset? endAtUtc,
+        string? timeZoneId,
+        IEnumerable<Guid> userIds,
+        int shiftEntryId = 0
+    ) =>
+        userIds
+            .Select(userId => new ShiftConflictCandidate(shiftEntryId, userId, startAtUtc, endAtUtc, timeZoneId))
+            .ToList();
+
+    private ShiftConflictKind? GetShiftConflict(ShiftConflictCandidate first, ShiftConflictCandidate second)
+    {
+        if (first.UserId != second.UserId || (first.ShiftEntryId > 0 && first.ShiftEntryId == second.ShiftEntryId))
+            return null;
+
+        if (GetLocalDate(first.StartAtUtc, first.TimeZoneId) == GetLocalDate(second.StartAtUtc, second.TimeZoneId))
+            return ShiftConflictKind.StartDate;
+
+        return IntervalsOverlap(first.StartAtUtc, first.EndAtUtc, second.StartAtUtc, second.EndAtUtc)
+            ? ShiftConflictKind.Overlap
+            : null;
+    }
+
+    private DateOnly GetLocalDate(DateTimeOffset instant, string? timeZoneId)
+    {
+        var timeZone = timeZoneService.ResolveOrUtc(timeZoneId);
+        return DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(instant, timeZone));
+    }
+
+    private static bool IntervalsOverlap(
+        DateTimeOffset firstStartAtUtc,
+        DateTimeOffset? firstEndAtUtc,
+        DateTimeOffset secondStartAtUtc,
+        DateTimeOffset? secondEndAtUtc
+    ) =>
+        (!secondEndAtUtc.HasValue || firstStartAtUtc < secondEndAtUtc.Value)
+        && (!firstEndAtUtc.HasValue || secondStartAtUtc < firstEndAtUtc.Value);
+
+    private static ConflictValidationException CreateShiftConflictException(
+        ShiftConflictCandidate candidate,
+        ShiftConflictKind conflict
+    ) =>
+        new(
+            new Dictionary<string, string[]>
+            {
+                ["UserIds"] =
+                [
+                    conflict == ShiftConflictKind.StartDate
+                        ? $"User {candidate.UserId} already has a shift on this shift start date."
+                        : $"User {candidate.UserId} already has a shift that overlaps this shift.",
+                ],
+            }
+        );
+
+    private void ValidatePropagatedShiftEntries(ShiftSeries shiftSeries, IReadOnlyCollection<ShiftEntry> shiftEntries)
+    {
         foreach (
-            var shiftEntry in shiftSeries.ShiftEntries.Where(entry =>
+            var shiftEntry in shiftEntries.Where(entry =>
                 entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                && ShiftUserSync.UserSetsEqual(entry.Users.Select(user => user.UserId), oldSeriesUserIds)
             )
         )
             ShiftAssignmentGuards.EnsureShiftEntryUpdatePreservesLinks(
                 shiftEntry,
                 shiftEntry.Event!.StartAtUtc,
                 shiftEntry.Event.EndAtUtc,
-                newSeriesUserIds,
-                shiftSeries.Id
+                shiftEntry.Event.TimeZoneId,
+                shiftEntry.Users.Select(user => user.UserId).ToList(),
+                shiftSeries.Id,
+                timeZoneService
             );
     }
 
@@ -841,5 +1009,19 @@ public sealed class ShiftService(
     {
         db.ShiftAssignmentEntryUsers.RemoveRange(links.SelectMany(link => link.Users));
         db.ShiftAssignmentEntries.RemoveRange(links);
+    }
+
+    private sealed record ShiftConflictCandidate(
+        int ShiftEntryId,
+        Guid UserId,
+        DateTimeOffset StartAtUtc,
+        DateTimeOffset? EndAtUtc,
+        string? TimeZoneId
+    );
+
+    private enum ShiftConflictKind
+    {
+        StartDate,
+        Overlap,
     }
 }

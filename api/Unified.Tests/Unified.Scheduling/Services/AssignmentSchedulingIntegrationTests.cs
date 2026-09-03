@@ -76,7 +76,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _db,
             timeProvider
         );
-        _linkService = new ShiftAssignmentService(NullLogger<ShiftAssignmentService>.Instance, _db);
+        _linkService = new ShiftAssignmentService(NullLogger<ShiftAssignmentService>.Instance, _db, timeZoneService);
         _assignmentService = new AssignmentService(
             NullLogger<AssignmentService>.Instance,
             _db,
@@ -95,6 +95,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             new ShiftSeriesMaterializationHandler(_db),
             _linkService,
             new CalendarLifecycleService(),
+            timeZoneService,
             timeProvider
         );
         _calendarService = new SchedulingCalendarService(
@@ -388,24 +389,33 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(10, 12, 12, 14, false)]
-    [InlineData(10, 12, 8, 10, false)]
-    [InlineData(10, 12, 11, 13, true)]
-    [InlineData(10, 12, 10, 12, true)]
-    public async Task LinkShiftEntryAsync_UsesUtcHalfOpenOverlap(
+    [InlineData(1, 8, 1, 16, 1, 9, 1, 10, true)]
+    [InlineData(1, 8, 1, 16, 1, 6, 1, 7, true)]
+    [InlineData(1, 8, 1, 16, 1, 14, 1, 18, true)]
+    [InlineData(1, 8, 1, 16, 1, 18, 1, 20, true)]
+    [InlineData(1, 20, 2, 4, 2, 8, 2, 11, true)]
+    [InlineData(1, 20, 2, 4, 3, 8, 3, 11, false)]
+    public async Task LinkShiftEntryAsync_RequiresAssignmentStartOnShiftStartOrEndDate(
+        int shiftStartDay,
         int shiftStartHour,
+        int shiftEndDay,
         int shiftEndHour,
+        int assignmentStartDay,
         int assignmentStartHour,
+        int assignmentEndDay,
         int assignmentEndHour,
         bool shouldLink
     )
     {
         var shift = await _shiftService.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(At(shiftStartHour), At(shiftEndHour)),
+            CreateShiftEntryRequest(AtDay(shiftStartDay, shiftStartHour), AtDay(shiftEndDay, shiftEndHour)),
             TestContext.Current.CancellationToken
         );
         var assignment = await _assignmentService.CreateAssignmentEntryAsync(
-            CreateAssignmentEntryRequest(At(assignmentStartHour), At(assignmentEndHour)),
+            CreateAssignmentEntryRequest(
+                AtDay(assignmentStartDay, assignmentStartHour),
+                AtDay(assignmentEndDay, assignmentEndHour)
+            ),
             TestContext.Current.CancellationToken
         );
         var operation = () =>
@@ -476,14 +486,20 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     public async Task SchedulingCalendarAsync_UsesHalfOpenRangeBoundaries()
     {
         await _shiftService.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(new DateTimeOffset(2026, 5, 31, 23, 0, 0, TimeSpan.Zero), At(0)),
+            CreateShiftEntryRequest(new DateTimeOffset(2026, 5, 31, 23, 0, 0, TimeSpan.Zero), At(0)) with
+            {
+                UserIds = [UserB],
+            },
             TestContext.Current.CancellationToken
         );
         await _shiftService.CreateShiftEntryAsync(
             CreateShiftEntryRequest(
                 new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero),
                 new DateTimeOffset(2026, 6, 2, 1, 0, 0, TimeSpan.Zero)
-            ),
+            ) with
+            {
+                UserIds = [UserB],
+            },
             TestContext.Current.CancellationToken
         );
         var overlapping = await _shiftService.CreateShiftEntryAsync(
@@ -542,6 +558,29 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         Assert.Equal(assignment.Id, Assert.Single(result.EntryOptions).Id);
         Assert.Empty(result.SeriesOptions);
+        Assert.True(result.HasSameDayNonOverlappingAssignments);
+    }
+
+    [Fact]
+    public async Task GetOptionsAsync_WhenAssignmentStartsOnOvernightShiftEndDate_ReturnsOption()
+    {
+        var assignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(AtDay(2, 8), AtDay(2, 11)),
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _assignmentOptionsService.GetOptionsAsync(
+            new ProposedShiftAssignmentOptionsRequest
+            {
+                LocationId = 5,
+                StartAtUtc = AtDay(1, 20),
+                EndAtUtc = AtDay(2, 4),
+                TimeZoneId = "UTC",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(assignment.Id, Assert.Single(result.EntryOptions).Id);
         Assert.True(result.HasSameDayNonOverlappingAssignments);
     }
 
@@ -719,6 +758,33 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateAssignmentEntryAsync_WhenDifferentDefinitionsOverlap_AllowsBothAssignments()
+    {
+        var secondDefinition = await _definitionService.CreateAssignmentDefinitionAsync(
+            CreateDefinitionRequest() with
+            {
+                Name = "Second definition",
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(13)),
+            TestContext.Current.CancellationToken
+        );
+
+        var overlapping = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(11), At(12)) with
+            {
+                AssignmentDefinitionId = secondDefinition.Id,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotEqual(0, overlapping.Id);
+        Assert.Equal(2, await _db.AssignmentEntries.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task LinkShiftSeriesAsync_WhenAnyIntersectionHasInvalidUsers_RollsBackAllLinks()
     {
         var shiftSeries = await _shiftService.CreateShiftSeriesAsync(
@@ -787,7 +853,11 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     public async Task CreateShiftSeriesAsync_WithAssignmentSeriesLinks_CreatesLinksAtomically()
     {
         var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
-            CreateAssignmentSeriesRequest(),
+            CreateAssignmentSeriesRequest() with
+            {
+                StartAtUtc = At(6),
+                EndAtUtc = At(7),
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -866,7 +936,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         var secondShift = await _shiftService.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(At(8), At(16)),
+            CreateShiftEntryRequest(At(8), At(16)) with
+            {
+                UserIds = [UserB],
+            },
             TestContext.Current.CancellationToken
         );
         var assignment = await _assignmentService.CreateAssignmentEntryAsync(
@@ -886,7 +959,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             {
                 ShiftEntryLinks =
                 [
-                    new ShiftEntryLinkRequest { ShiftEntryId = secondShift.Id, AssignedUserIds = [UserA] },
+                    new ShiftEntryLinkRequest { ShiftEntryId = secondShift.Id, AssignedUserIds = [UserB] },
                 ],
             },
             TestContext.Current.CancellationToken
@@ -997,7 +1070,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _assignmentService.UpdateAssignmentEntryAsync(
                 assignment.Id,
-                CreateAssignmentEntryUpdateRequest(At(20), At(22)) with
+                CreateAssignmentEntryUpdateRequest(AtDay(2, 20), AtDay(2, 22)) with
                 {
                     ShiftEntryLinks =
                     [
@@ -1016,6 +1089,30 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .SingleAsync(x => x.Id == assignment.Id, TestContext.Current.CancellationToken);
         Assert.Equal([UserA], storedShift.Users.Select(x => x.UserId));
         Assert.Equal(At(10), storedAssignment.Event!.StartAtUtc);
+    }
+
+    [Fact]
+    public async Task LinkedAssignmentUpdate_WhenMovedOutsideShiftTimeOnSameDate_RemainsValid()
+    {
+        var (shift, assignment, _) = await CreateLinkedEntriesAsync();
+
+        var updated = await _assignmentService.UpdateAssignmentEntryAsync(
+            assignment.Id,
+            CreateAssignmentEntryUpdateRequest(At(20), At(22)) with
+            {
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.Equal(At(20), updated.StartAtUtc);
+        Assert.True(
+            await _db.ShiftAssignmentEntries.AnyAsync(
+                link => link.ShiftEntryId == shift.Id && link.AssignmentEntryId == assignment.Id,
+                TestContext.Current.CancellationToken
+            )
+        );
     }
 
     [Fact]

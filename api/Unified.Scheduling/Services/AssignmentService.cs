@@ -518,8 +518,8 @@ public sealed class AssignmentService(
         ShiftAssignmentGuards.EnsureAssignmentEntryUpdatePreservesLinks(
             assignmentEntry,
             request.StartAtUtc,
-            request.EndAtUtc,
             assignmentEntry.AssignmentSeriesId,
+            timeZoneService,
             request.ShiftEntryLinks.Select(link => link.ShiftEntryId).ToList()
         );
         AssignmentEventMapper.ApplyToEvent(assignmentEntry.Event!, request);
