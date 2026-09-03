@@ -746,10 +746,10 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken
     )
     {
-        var entries = await LoadAssignmentSeriesEntriesAsync(assignmentSeries, cancellationToken);
+        var entryIds = await LoadAssignmentSeriesEntryIdsAsync(assignmentSeries, cancellationToken);
         return assignmentSeries
             .Select(series =>
-                AssignmentResponseMapper.ToAssignmentSeriesResponse(series, entries.GetValueOrDefault(series.Id, []))
+                AssignmentResponseMapper.ToAssignmentSeriesResponse(series, entryIds.GetValueOrDefault(series.Id, []))
             )
             .ToList();
     }
@@ -759,8 +759,8 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken
     )
     {
-        var entryIds = await LoadAssignmentSeriesEntriesAsync([assignmentSeries], cancellationToken);
-        var ids = entryIds.GetValueOrDefault(assignmentSeries.Id, []);
+        var entryIds = await LoadAssignmentSeriesEntryIdsAsync([assignmentSeries], cancellationToken);
+        var seriesEntryIds = entryIds.GetValueOrDefault(assignmentSeries.Id, []);
 
         if (assignmentSeries.EventSeries is null)
             assignmentSeries.EventSeries = await db
@@ -775,10 +775,10 @@ public sealed class AssignmentService(
                 .SubCategories.AsNoTracking()
                 .SingleAsync(subCategory => subCategory.Id == assignmentSeries.SubCategoryId, cancellationToken);
 
-        return AssignmentResponseMapper.ToAssignmentSeriesResponse(assignmentSeries, ids);
+        return AssignmentResponseMapper.ToAssignmentSeriesResponse(assignmentSeries, seriesEntryIds);
     }
 
-    private async Task<Dictionary<int, List<AssignmentEntryResponse>>> LoadAssignmentSeriesEntriesAsync(
+    private async Task<Dictionary<int, List<AssignmentSeriesEntryIds>>> LoadAssignmentSeriesEntryIdsAsync(
         IReadOnlyCollection<AssignmentSeries> assignmentSeries,
         CancellationToken cancellationToken
     )
@@ -787,20 +787,19 @@ public sealed class AssignmentService(
             return [];
 
         var assignmentSeriesIds = assignmentSeries.Select(series => series.Id).ToList();
-        var entries = await IncludeAssignmentEntryGraph(db.AssignmentEntries.AsNoTracking())
+        var entryIds = await db
+            .AssignmentEntries.AsNoTracking()
             .Where(entry =>
                 entry.AssignmentSeriesId.HasValue && assignmentSeriesIds.Contains(entry.AssignmentSeriesId.Value)
             )
             .Where(entry => entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .OrderBy(entry => entry.Id)
+            .Select(entry => new AssignmentSeriesEntryIds(entry.AssignmentSeriesId!.Value, entry.Id, entry.EventId))
             .ToListAsync(cancellationToken);
 
-        return entries
-            .GroupBy(entry => entry.AssignmentSeriesId!.Value)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Select(AssignmentResponseMapper.ToAssignmentEntryResponse).ToList()
-            );
+        return entryIds
+            .GroupBy(entry => entry.AssignmentSeriesId)
+            .ToDictionary(group => group.Key, group => group.ToList());
     }
 
     private static IQueryable<AssignmentEntry> IncludeAssignmentEntryGraph(IQueryable<AssignmentEntry> query) =>

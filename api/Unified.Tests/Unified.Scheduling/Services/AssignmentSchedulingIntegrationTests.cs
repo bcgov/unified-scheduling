@@ -145,6 +145,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             created.Id,
             TestContext.Current.CancellationToken
         );
+        var entries = await _assignmentService.GetAssignmentEntriesAsync(
+            new AssignmentEntryQueryParams { AssignmentSeriesId = created.Id },
+            TestContext.Current.CancellationToken
+        );
         Assert.NotNull(result);
         Assert.Equal(20, result.CategoryId);
         Assert.Equal(21, result.SubCategoryId);
@@ -153,8 +157,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.Equal(At(8), result.StartAtUtc);
         Assert.Equal(At(16), result.EndAtUtc);
         Assert.Equal("America/Vancouver", result.TimeZoneId);
+        Assert.Equal(result.AssignmentEntryIds, entries.Select(entry => entry.Id));
+        Assert.Equal(result.EventIds, entries.Select(entry => entry.EventId));
         Assert.All(
-            result.Entries,
+            entries,
             entry =>
             {
                 Assert.Equal(20, entry.CategoryId);
@@ -194,7 +200,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AssignmentEntryExceptionState_CreateUpdateAndDetach_TracksSeriesSlot()
+    public async Task AssignmentEntryExceptionState_CreateAndUpdate_TracksSeriesSlot()
     {
         var series = await _assignmentService.CreateAssignmentSeriesAsync(
             CreateAssignmentSeriesRequest(),
@@ -215,30 +221,19 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         var aligned = await _assignmentService.UpdateAssignmentEntryAsync(
             created.Id,
-            CreateAssignmentEntryUpdateRequest(seriesSlotStart, seriesSlotEnd) with
-            {
-                AssignmentSeriesId = series.Id,
-            },
+            CreateAssignmentEntryUpdateRequest(seriesSlotStart, seriesSlotEnd),
             TestContext.Current.CancellationToken
         );
         Assert.False(aligned!.IsException);
+        Assert.Equal(series.Id, aligned.AssignmentSeriesId);
 
         var moved = await _assignmentService.UpdateAssignmentEntryAsync(
-            created.Id,
-            CreateAssignmentEntryUpdateRequest(AtDay(2, 11), AtDay(2, 13)) with
-            {
-                AssignmentSeriesId = series.Id,
-            },
-            TestContext.Current.CancellationToken
-        );
-        Assert.True(moved!.IsException);
-
-        var detached = await _assignmentService.UpdateAssignmentEntryAsync(
             created.Id,
             CreateAssignmentEntryUpdateRequest(AtDay(2, 11), AtDay(2, 13)),
             TestContext.Current.CancellationToken
         );
-        Assert.False(detached!.IsException);
+        Assert.True(moved!.IsException);
+        Assert.Equal(series.Id, moved.AssignmentSeriesId);
     }
 
     [Fact]

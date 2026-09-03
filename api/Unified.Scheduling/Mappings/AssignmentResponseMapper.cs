@@ -8,7 +8,7 @@ internal static class AssignmentResponseMapper
 {
     public static AssignmentSeriesResponse ToAssignmentSeriesResponse(
         AssignmentSeries assignmentSeries,
-        IReadOnlyCollection<AssignmentEntryResponse> entries
+        IReadOnlyCollection<AssignmentSeriesEntryIds> entryIds
     ) =>
         new()
         {
@@ -35,9 +35,8 @@ internal static class AssignmentResponseMapper
             SubCategoryId = assignmentSeries.SubCategoryId,
             SubCategoryName = assignmentSeries.SubCategory?.Name,
             Capacity = assignmentSeries.Capacity,
-            EventIds = entries.Select(entry => entry.EventId).ToList(),
-            AssignmentEntryIds = entries.Select(entry => entry.Id).ToList(),
-            Entries = entries,
+            EventIds = entryIds.Select(entry => entry.EventId).ToList(),
+            AssignmentEntryIds = entryIds.Select(entry => entry.AssignmentEntryId).ToList(),
             ShiftSeriesLinks = assignmentSeries
                 .ShiftAssignmentSeriesLinks.OrderBy(link => link.ShiftSeriesId)
                 .Select(link => new ShiftAssignmentSeriesLinkSummaryResponse
@@ -157,3 +156,5 @@ internal static class AssignmentResponseMapper
     internal static bool IsActiveShiftAssignmentLink(ShiftAssignmentEntry link) =>
         link.Users.Count > 0 && link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled;
 }
+
+internal sealed record AssignmentSeriesEntryIds(int AssignmentSeriesId, int AssignmentEntryId, int EventId);
