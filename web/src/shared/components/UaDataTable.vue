@@ -165,7 +165,7 @@ onBeforeUnmount(() => {
       :items="localItems"
       :loading="loading"
       :search="searchQuery"
-      :items-per-page="(attrs['items-per-page'] as string | number | undefined) ?? (paginate ? undefined : -1)"
+      :items-per-page="paginate ? (attrs['items-per-page'] as string | number | undefined) : -1"
       :hide-default-footer="!paginate"
       v-bind="forwardedAttrs"
     >

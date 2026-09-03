@@ -1,6 +1,6 @@
 import UaDataTableServer from '@/shared/components/UaDataTableServer.vue';
 import { mount } from '@vue/test-utils';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createVuetify } from 'vuetify';
 import { VDataTableServer } from 'vuetify/components';
 import { createTestApp } from '../../helpers/createTestApp';
@@ -111,7 +111,11 @@ describe('UaDataTableServer', () => {
     expect(wrapper.find('.custom-action-btn').exists()).toBe(true);
   });
 
-  it('emits update events from VDataTableServer when pagination changes', async () => {
+  it('forwards update events from VDataTableServer to passed listeners', async () => {
+    const onUpdatePage = vi.fn();
+    const onUpdateItemsPerPage = vi.fn();
+    const onUpdateOptions = vi.fn();
+
     const wrapper = mount(UaDataTableServer, {
       props: {
         itemsLength: 100,
@@ -119,6 +123,9 @@ describe('UaDataTableServer', () => {
       attrs: {
         page: 1,
         'items-per-page': 10,
+        'onUpdate:page': onUpdatePage,
+        'onUpdate:itemsPerPage': onUpdateItemsPerPage,
+        'onUpdate:options': onUpdateOptions,
       },
       global: {
         plugins: [vuetify],
@@ -130,8 +137,8 @@ describe('UaDataTableServer', () => {
     await tableServer.vm.$emit('update:itemsPerPage', 25);
     await tableServer.vm.$emit('update:options', { page: 2, itemsPerPage: 25, sortBy: [] });
 
-    expect(wrapper.emitted('update:page')?.[0]).toEqual([2]);
-    expect(wrapper.emitted('update:itemsPerPage')?.[0]).toEqual([25]);
-    expect(wrapper.emitted('update:options')?.[0]).toEqual([{ page: 2, itemsPerPage: 25, sortBy: [] }]);
+    expect(onUpdatePage).toHaveBeenCalledWith(2);
+    expect(onUpdateItemsPerPage).toHaveBeenCalledWith(25);
+    expect(onUpdateOptions).toHaveBeenCalledWith({ page: 2, itemsPerPage: 25, sortBy: [] });
   });
 });
