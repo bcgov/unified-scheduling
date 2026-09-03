@@ -20,6 +20,7 @@ using Unified.Infrastructure;
 using Unified.Infrastructure.OpenApi;
 using Unified.Infrastructure.Options;
 using Unified.JCInterface;
+using Unified.Reporting;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
 using Unified.Stats;
@@ -92,11 +93,13 @@ var hangfireOptions =
         .AddSchedulingModule(builder.Configuration)
         .AddStatsModule(builder.Configuration)
         .AddTrainingModule(builder.Configuration)
+        .AddReportingModule()
         .AddConfiguredSeedData(
             builder.Configuration,
             UserManagementSeedDataSets
                 .All.Concat(StatsSeedDataSets.All)
                 .Concat(TrainingSeedDataSets.All)
+                .Concat(ReportingSeedDataSets.All)
                 .Concat(AuditSeedDataSets.All)
         )
         .AddJCInterfaceModule(builder.Configuration)

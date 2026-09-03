@@ -1,0 +1,383 @@
+using Microsoft.EntityFrameworkCore;
+using Unified.Common.Reporting;
+using Unified.Db;
+using Unified.Db.Models.Training;
+using Unified.Db.Models.UserManagement;
+using Unified.Tests.TestHelpers;
+using Unified.Training.Services.Reporting;
+
+namespace Unified.Tests.Training.Services.Reporting;
+
+public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
+{
+    private readonly string _databaseName = $"user-training-report-query-handler-{Guid.NewGuid():N}";
+    private readonly DateTimeOffset _fixedNow = new(2026, 09, 02, 12, 00, 00, TimeSpan.Zero);
+    private MutableTimeProvider _timeProvider = null!;
+    private UnifiedDbContext _db = null!;
+    private UserTrainingReportQueryHandler _handler = null!;
+
+    public async ValueTask InitializeAsync()
+    {
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
+            .UseSqlite($"Data Source={_databaseName};Mode=Memory;Cache=Shared")
+            .Options;
+
+        _db = new SqliteTestUnifiedDbContext(options);
+        await _db.Database.OpenConnectionAsync();
+        await _db.Database.EnsureCreatedAsync();
+
+        _timeProvider = new MutableTimeProvider(_fixedNow);
+        _handler = new UserTrainingReportQueryHandler(_db, _timeProvider);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _db.Database.CloseConnectionAsync();
+        await _db.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Sort_By_UserDisplayName_Descending()
+    {
+        var training = await SeedTrainingAsync(100, "TRN", "Training", mandatory: false);
+
+        var adams = await SeedUserAsync("Bob", "Adams");
+        var brown = await SeedUserAsync("Carl", "Brown");
+        var zed = await SeedUserAsync("Amy", "Zed");
+
+        await SeedUserTrainingAsync(adams.Id, training.Id, awardedOn: _fixedNow.AddDays(-3));
+        await SeedUserTrainingAsync(brown.Id, training.Id, awardedOn: _fixedNow.AddDays(-2));
+        await SeedUserTrainingAsync(zed.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["active"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Desc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var rows = result.Rows.ToList();
+
+        Assert.Equal(3, rows.Count);
+        Assert.Equal("Zed, Amy", rows[0].UserDisplayName);
+        Assert.Equal("Brown, Carl", rows[1].UserDisplayName);
+        Assert.Equal("Adams, Bob", rows[2].UserDisplayName);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Apply_Default_Sort_When_SortBy_Is_Unknown()
+    {
+        var training = await SeedTrainingAsync(200, "TRN", "Training", mandatory: false);
+
+        var brown = await SeedUserAsync("Charlie", "Brown");
+        var adams = await SeedUserAsync("Alice", "Adams");
+
+        await SeedUserTrainingAsync(brown.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
+        await SeedUserTrainingAsync(adams.Id, training.Id, awardedOn: _fixedNow.AddDays(-2));
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters: new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: "notARealColumn",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var rows = result.Rows.ToList();
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("Adams, Alice", rows[0].UserDisplayName);
+        Assert.Equal("Brown, Charlie", rows[1].UserDisplayName);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Throw_When_Status_Filter_Is_Invalid()
+    {
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["sideways"],
+        };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _handler.ExecuteAsync(
+                filters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Contains("status", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Throw_When_StartDate_Is_After_EndDate()
+    {
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["startDate"] = ["2026-09-10"],
+            ["endDate"] = ["2026-09-01"],
+        };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _handler.ExecuteAsync(
+                filters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Contains("startDate", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Include_Missing_Mandatory_And_Mark_Status_As_NotTaken()
+    {
+        var mandatory = await SeedTrainingAsync(300, "MAND", "Mandatory", mandatory: true);
+
+        var assignedUser = await SeedUserAsync("Alex", "Assigned");
+        var missingUser = await SeedUserAsync("Mia", "Missing");
+
+        await SeedUserTrainingAsync(assignedUser.Id, mandatory.Id, awardedOn: _fixedNow.AddDays(-2));
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters: new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(2, result.TotalRows);
+
+        var missingRow = Assert.Single(result.Rows, row => row.HasMissingMandatoryTrainingAssignment);
+        Assert.Equal("Not Taken", missingRow.Status);
+        Assert.Equal("Missing, Mia", missingRow.UserDisplayName);
+
+        var activeRow = Assert.Single(result.Rows, row => !row.HasMissingMandatoryTrainingAssignment);
+        Assert.Equal("Active", activeRow.Status);
+        Assert.Equal("Assigned, Alex", activeRow.UserDisplayName);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Exclude_Disabled_Users_From_Assigned_Training_Rows()
+    {
+        var training = await SeedTrainingAsync(350, "ENABLED", "Enabled Filter", mandatory: false);
+
+        var enabledUser = await SeedUserAsync("Evan", "Enabled", isEnabled: true);
+        var disabledUser = await SeedUserAsync("Dina", "Disabled", isEnabled: false);
+
+        await SeedUserTrainingAsync(enabledUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-2));
+        await SeedUserTrainingAsync(disabledUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["active"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("Enabled, Evan", row.UserDisplayName);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Exclude_Disabled_Users_From_Missing_Mandatory_Rows()
+    {
+        await SeedTrainingAsync(360, "MAND", "Mandatory", mandatory: true);
+
+        await SeedUserAsync("Ella", "Enabled", isEnabled: true);
+        await SeedUserAsync("Drew", "Disabled", isEnabled: false);
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters: new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.True(row.HasMissingMandatoryTrainingAssignment);
+        Assert.Equal("Enabled, Ella", row.UserDisplayName);
+        Assert.Equal("Not Taken", row.Status);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Return_No_Rows_When_Filtered_User_Is_Disabled()
+    {
+        var training = await SeedTrainingAsync(370, "ACTIVE", "Active", mandatory: false);
+        var disabledUser = await SeedUserAsync("Dina", "Disabled", isEnabled: false);
+
+        await SeedUserTrainingAsync(disabledUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["userId"] = [disabledUser.Id.ToString()],
+            ["status"] = ["active"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        Assert.Empty(result.Rows);
+        Assert.Equal(0, result.TotalRows);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Respect_TimeProvider_When_Determining_Expiry_Status()
+    {
+        var training = await SeedTrainingAsync(380, "EXP", "Expiring", mandatory: false);
+        var user = await SeedUserAsync("Terry", "Tester");
+        var expiresAt = _fixedNow.AddMinutes(1);
+
+        await SeedUserTrainingAsync(user.Id, training.Id, awardedOn: _fixedNow.AddDays(-5), expiryDate: expiresAt);
+
+        var activeFilters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["active"],
+        };
+
+        var activeBeforeExpiry = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                activeFilters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var activeRow = Assert.Single(activeBeforeExpiry.Rows);
+        Assert.Equal("Active", activeRow.Status);
+
+        _timeProvider.SetUtcNow(_fixedNow.AddMinutes(2));
+
+        var activeAfterExpiry = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                activeFilters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        Assert.Empty(activeAfterExpiry.Rows);
+
+        var expiredFilters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["expired"],
+        };
+
+        var expiredResult = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                expiredFilters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var expiredRow = Assert.Single(expiredResult.Rows);
+        Assert.Equal("Expired", expiredRow.Status);
+    }
+
+    private async Task<User> SeedUserAsync(string firstName, string lastName, bool isEnabled = true)
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            IdirName = $"{firstName}.{lastName}.{Guid.NewGuid():N}",
+            IdirId = Guid.NewGuid(),
+            IsEnabled = isEnabled,
+            FirstName = firstName,
+            LastName = lastName,
+            Gender = Gender.Other,
+        };
+
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return user;
+    }
+
+    private async Task<global::Unified.Db.Models.Training.Training> SeedTrainingAsync(
+        int id,
+        string code,
+        string description,
+        bool mandatory
+    )
+    {
+        var category = await _db.TrainingCategories.FirstOrDefaultAsync(
+            c => c.Id == 1,
+            TestContext.Current.CancellationToken
+        );
+        if (category is null)
+        {
+            category = new TrainingCategory { Id = 1, Name = "Category" };
+            _db.TrainingCategories.Add(category);
+            await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var training = new global::Unified.Db.Models.Training.Training
+        {
+            Id = id,
+            Code = code,
+            Description = description,
+            Mandatory = mandatory,
+            Rotating = true,
+            TrainingCategoryId = category.Id,
+        };
+
+        _db.Trainings.Add(training);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return training;
+    }
+
+    private async Task SeedUserTrainingAsync(
+        Guid userId,
+        int trainingId,
+        DateTimeOffset awardedOn,
+        DateTimeOffset? expiryDate = null
+    )
+    {
+        _db.UserTrainings.Add(
+            new UserTraining
+            {
+                UserId = userId,
+                TrainingId = trainingId,
+                Version = 1,
+                AwardedOn = awardedOn,
+                EndingOn = awardedOn.AddHours(1),
+                ExpiryDate = expiryDate ?? awardedOn.AddDays(90),
+                NoticeState = UserTrainingNoticeStates.None,
+            }
+        );
+
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+
+        public void SetUtcNow(DateTimeOffset utcNow) => _utcNow = utcNow;
+    }
+}

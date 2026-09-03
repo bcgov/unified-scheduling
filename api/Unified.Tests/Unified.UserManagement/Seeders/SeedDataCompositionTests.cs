@@ -4,6 +4,7 @@ using Unified.Api.Services;
 using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
 using Unified.Db;
+using Unified.Reporting;
 using Unified.Stats;
 using Unified.Training;
 using Unified.UserManagement;
@@ -116,10 +117,26 @@ public sealed class SeedDataCompositionTests
         Assert.Equal([dataSet], composition.PermissionConfigurations.Select(x => x.Source));
     }
 
+    [Fact]
+    public void AddConfiguredSeedData_ReportingPermissionsDataSet_RegistersContribution()
+    {
+        var composition = GetComposition(ReportingSeedDataSets.ReportingPermissionsDataSet);
+
+        Assert.Equal(
+            [ReportingSeedDataSets.ReportingPermissionsDataSet],
+            composition.PermissionConfigurations.Select(x => x.Source)
+        );
+    }
+
     private static SeedComposition GetComposition(params string[] dataSets) => GetComposition(dataSets, null);
 
     private static IReadOnlyList<SeedDataSetDescriptor> AllDataSets { get; } =
-    [.. UserManagementSeedDataSets.All, .. StatsSeedDataSets.All, .. TrainingSeedDataSets.All];
+    [
+        .. UserManagementSeedDataSets.All,
+        .. StatsSeedDataSets.All,
+        .. TrainingSeedDataSets.All,
+        .. ReportingSeedDataSets.All,
+    ];
 
     private static SeedComposition GetComposition(string dataSet, string feature) => GetComposition([dataSet], feature);
 

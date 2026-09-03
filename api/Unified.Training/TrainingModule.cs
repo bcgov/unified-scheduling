@@ -4,10 +4,12 @@ using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
+using Unified.Common.Reporting;
 using Unified.Core.Services.Lookup;
 using Unified.Training.FeatureFlags;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
+using Unified.Training.Services.Reporting;
 using Unified.Training.Validators;
 
 namespace Unified.Training;
@@ -44,8 +46,10 @@ public static class TrainingModule
             return services;
         }
 
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
+        services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );
