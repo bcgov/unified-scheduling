@@ -54,7 +54,6 @@ export interface CalendarAssignmentPartialCoverageShift {
 }
 
 export interface CalendarSchedulingEvent extends CalendarEventBase {
-  isConflict?: boolean;
   metadata: CalendarEventMetadata;
 }
 

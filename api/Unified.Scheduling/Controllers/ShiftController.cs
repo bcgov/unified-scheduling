@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Authorization.Claims;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -49,9 +51,15 @@ public sealed class ShiftController(
     )
     {
         await shiftSeriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-
-        var result = await shiftService.CreateShiftSeriesAsync(request, cancellationToken);
-        return Created($"/api/scheduling/shifts/series/{result.Id}", result);
+        try
+        {
+            var result = await shiftService.CreateShiftSeriesAsync(request, cancellationToken);
+            return Created($"/api/scheduling/shifts/series/{result.Id}", result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPut("series/{id:int}")]
@@ -66,8 +74,15 @@ public sealed class ShiftController(
     )
     {
         await shiftSeriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftService.UpdateShiftSeriesAsync(id, request, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await shiftService.UpdateShiftSeriesAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPost("series/{id:int}/publish")]
@@ -76,8 +91,15 @@ public sealed class ShiftController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftSeriesResponse>> PublishShiftSeries(int id, CancellationToken cancellationToken)
     {
-        var result = await shiftService.PublishShiftSeriesAsync(id, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await shiftService.PublishShiftSeriesAsync(id, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPost("series/{id:int}/expire")]
@@ -144,9 +166,15 @@ public sealed class ShiftController(
     )
     {
         await shiftEntryRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-
-        var result = await shiftService.CreateShiftEntryAsync(request, cancellationToken);
-        return Created($"/api/scheduling/shifts/entries/{result.Id}", result);
+        try
+        {
+            var result = await shiftService.CreateShiftEntryAsync(request, cancellationToken);
+            return Created($"/api/scheduling/shifts/entries/{result.Id}", result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPut("entries/{id:int}")]
@@ -161,8 +189,15 @@ public sealed class ShiftController(
     )
     {
         await shiftEntryRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftService.UpdateShiftEntryAsync(id, request, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await shiftService.UpdateShiftEntryAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPost("entries/{id:int}/publish")]
@@ -171,8 +206,15 @@ public sealed class ShiftController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftEntryResponse>> PublishShiftEntry(int id, CancellationToken cancellationToken)
     {
-        var result = await shiftService.PublishShiftEntryAsync(id, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await shiftService.PublishShiftEntryAsync(id, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPost("entries/{id:int}/expire")]
@@ -213,4 +255,12 @@ public sealed class ShiftController(
         var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
         return Guid.TryParse(userIdValue, out var userId) ? userId : null;
     }
+
+    private ConflictObjectResult ToConflictResult(CalendarConflictException exception) =>
+        Conflict(
+            new CalendarConflictRejectionResponse(
+                exception.Message,
+                exception.Conflicts.Select(CalendarConflictResponse.FromConflict).ToList()
+            )
+        );
 }

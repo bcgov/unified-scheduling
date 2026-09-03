@@ -61,6 +61,7 @@ import { formatTimeOptionRange, normalizeTimeOptionValue, parseFormDateTime, tim
 
 const props = defineProps<{
   mode?: 'create' | 'view' | 'edit';
+  initialTab?: 'details' | 'edit' | 'delete';
   editScope?: 'event' | 'series';
   assignmentEntryId?: number;
   assignmentSeriesId?: number;
@@ -113,8 +114,8 @@ const hasAppliedInitialShiftEntrySelection = ref(false);
 const hasAppliedInitialAssignmentDefinitionSelection = ref(false);
 const selectedShiftSeriesId = ref<number | null>(null);
 const selectedShiftEntryId = ref<number | null>(null);
-const modalMode = ref<'create' | 'view' | 'edit'>(props.mode ?? 'create');
-const activeTab = ref<AssignmentDetailTabId>('details');
+const modalMode = ref<'create' | 'view' | 'edit'>(getInitialModalMode());
+const activeTab = ref<AssignmentDetailTabId>(props.initialTab ?? 'details');
 const selectedOpenScope = ref<AssignmentOpenScope | null>(getInitialOpenScope());
 
 const appBarLocationId = computed<number | null>(() => {
@@ -314,11 +315,19 @@ onMounted(() => {
 });
 
 watch(
-  () => [props.initialDate, props.assignmentEntryId, props.assignmentSeriesId, props.mode, props.editScope] as const,
+  () =>
+    [
+      props.initialDate,
+      props.assignmentEntryId,
+      props.assignmentSeriesId,
+      props.mode,
+      props.initialTab,
+      props.editScope,
+    ] as const,
   ([initialDate]) => {
     selectedOpenScope.value = getInitialOpenScope();
-    modalMode.value = props.mode ?? 'create';
-    activeTab.value = 'details';
+    modalMode.value = getInitialModalMode();
+    activeTab.value = props.initialTab ?? 'details';
     formData.value = createInitialFormData(initialDate);
     hasAppliedInitialShiftEntrySelection.value = false;
     hasAppliedInitialAssignmentDefinitionSelection.value = false;
@@ -331,6 +340,10 @@ watch(
     }
   },
 );
+
+function getInitialModalMode(): 'create' | 'view' | 'edit' {
+  return props.initialTab === 'edit' ? 'edit' : (props.mode ?? 'create');
+}
 
 watch(activeLocationId, () => {
   void Promise.all([loadAssignmentDefinitions(), loadUsers()]);

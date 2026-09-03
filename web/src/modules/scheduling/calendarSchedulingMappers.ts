@@ -11,7 +11,7 @@ import {
 } from '@/utils/date';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
 import { CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
-import { selectContribution } from '@/modules/calendar/calendarSelectors';
+import { selectCalendarConflicts, selectContribution } from '@/modules/calendar/calendarSelectors';
 import type { CalendarDataResponse, CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
 import {
   CalendarMatrixActionType,
@@ -37,6 +37,7 @@ import {
 } from './contributions/calendarSchedulingAssignmentsContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import { calendarMatrixColorMap } from './calendarSchedulingColors';
+import { getConflictsForEvent, getConflictsForEventAndResource } from './calendarSchedulingConflicts';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 import { defaultSchedulingTimeZoneId, resolveSchedulingTimeZoneFromFilters } from './schedulingTimeZone';
 import { isSchedulingCancelled } from './schedulingLifecycle';
@@ -76,6 +77,7 @@ export function buildCalendarSchedulingViewModel(
   const schedulingEvents = selectSchedulingShiftEvents(response);
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const conflicts = selectCalendarConflicts(response);
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
@@ -103,13 +105,19 @@ export function buildCalendarSchedulingViewModel(
       cells.push({
         resourceId: user.id,
         date: day.date,
-        headers: userShiftEvents.map((event) => buildCellHeader(event, timeZone)),
+        headers: userShiftEvents.map((event) =>
+          buildCellHeader(
+            event,
+            timeZone,
+            getConflictsForEventAndResource(resolveCalendarEventId(event), user.id, conflicts),
+          ),
+        ),
         groups: [
           {
             id: 'assignments',
             variant: 'primary',
             showColorBar: true,
-            events: toScheduleMatrixEventItems(userAssignmentEvents, userShiftEvents),
+            events: toScheduleMatrixEventItems(userAssignmentEvents, userShiftEvents, conflicts, user.id),
           },
         ],
       });
@@ -189,6 +197,7 @@ export function buildCalendarAssignmentViewModel(
   const resources = buildAssignmentResourceRows(response);
   const assignmentEvents = selectSchedulingAssignmentEvents(response);
   const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
+  const conflicts = selectCalendarConflicts(response);
   const cells: CalendarMatrixCell[] = [];
 
   for (const assignment of resources) {
@@ -215,7 +224,7 @@ export function buildCalendarAssignmentViewModel(
             id: 'assignments',
             variant: 'primary',
             showColorBar: true,
-            events: toScheduleMatrixEventItems(dayAssignmentEvents, dayShiftEvents),
+            events: toScheduleMatrixEventItems(dayAssignmentEvents, dayShiftEvents, conflicts),
           },
         ],
       });
@@ -563,7 +572,11 @@ function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrix
   }));
 }
 
-function buildCellHeader(event: CalendarEventBase, timeZone = defaultSchedulingTimeZoneId): CalendarMatrixCellHeader {
+function buildCellHeader(
+  event: CalendarEventBase,
+  timeZone = defaultSchedulingTimeZoneId,
+  conflicts: import('@/modules/calendar/calendarTypes').CalendarConflict[] = [],
+): CalendarMatrixCellHeader {
   return {
     id: event.id,
     text: formatCalendarEventTimeRange(event.start, event.end, {
@@ -585,7 +598,8 @@ function buildCellHeader(event: CalendarEventBase, timeZone = defaultSchedulingT
         }
       : undefined,
     actionId: calendarSchedulingActionIds.viewHeaderDetails,
-    action: eventHasConflict(event) ? buildPulldownAction() : undefined,
+    action: conflicts.length > 0 ? buildPulldownAction() : undefined,
+    conflicts,
     payload: event,
   };
 }
@@ -596,10 +610,6 @@ function eventBelongsToSeries(event: CalendarEventBase) {
   }
 
   return isCalendarSchedulingEvent(event) && event.metadata.shiftSeriesId != null;
-}
-
-function eventHasConflict(event: CalendarEventBase) {
-  return 'isConflict' in event && event.isConflict === true;
 }
 
 export function getCalendarEventDateKey(
@@ -689,6 +699,8 @@ function formatDayLabel(value: string) {
 function toScheduleMatrixEventItems(
   events: ReadonlyArray<CalendarEventBase>,
   userShiftEvents: ReadonlyArray<CalendarEventBase>,
+  conflicts: ReadonlyArray<import('@/modules/calendar/calendarTypes').CalendarConflict>,
+  resourceId?: string,
 ): CalendarMatrixEventItem[] {
   return events.flatMap((event) => {
     const linkedShifts = resolveLinkedShiftsForAssignment(event, [...userShiftEvents]);
@@ -701,6 +713,10 @@ function toScheduleMatrixEventItems(
     }
 
     const displayEvent = withAssignmentCapacitySlotStates(event, displayLinkedShifts);
+    const eventId = resolveCalendarEventId(event);
+    const eventConflicts = resourceId
+      ? getConflictsForEventAndResource(eventId, resourceId, conflicts)
+      : getConflictsForEvent(eventId, conflicts);
 
     return [
       {
@@ -709,10 +725,26 @@ function toScheduleMatrixEventItems(
           color: resolveCalendarSchedulingColor(event.color),
           status,
           draggable: false,
+          action:
+            eventConflicts.length > 0
+              ? {
+                  actionId: calendarSchedulingActionIds.showConflict,
+                  icon: mdiAlertCircle,
+                  ariaLabel: 'Show conflict',
+                  type: CalendarMatrixActionType.Button,
+                }
+              : undefined,
         },
+        conflicts: eventConflicts,
       },
     ];
   });
+}
+
+function resolveCalendarEventId(event: CalendarEventBase) {
+  const value = (event as CalendarEventBase & { metadata?: { eventId?: unknown } }).metadata?.eventId;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function withAssignmentCapacitySlotStates(

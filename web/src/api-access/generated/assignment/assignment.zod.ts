@@ -117,6 +117,14 @@ export const PostApiSchedulingAssignmentsSeriesBody = zod.strictObject({
   categoryId: zod.int().optional(),
   subCategoryId: zod.int().optional(),
   capacity: zod.int().optional(),
+  shiftSeriesLinks: zod
+    .array(
+      zod.strictObject({
+        shiftSeriesId: zod.int().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const PostApiSchedulingAssignmentsSeriesResponse = zod.object({
@@ -316,6 +324,14 @@ export const PutApiSchedulingAssignmentsSeriesIdBody = zod.strictObject({
   categoryId: zod.int().optional(),
   subCategoryId: zod.int().optional(),
   capacity: zod.int().optional(),
+  shiftSeriesLinks: zod
+    .array(
+      zod.strictObject({
+        shiftSeriesId: zod.int().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const PutApiSchedulingAssignmentsSeriesIdResponse = zod.object({
@@ -673,6 +689,14 @@ export const PostApiSchedulingAssignmentsEntriesBody = zod.strictObject({
   categoryId: zod.int().optional(),
   subCategoryId: zod.int().optional(),
   capacity: zod.int().optional(),
+  shiftEntryLinks: zod
+    .array(
+      zod.strictObject({
+        shiftEntryId: zod.int().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const PostApiSchedulingAssignmentsEntriesResponse = zod.object({
@@ -790,6 +814,14 @@ export const PutApiSchedulingAssignmentsEntriesIdBody = zod.strictObject({
   categoryId: zod.int().optional(),
   subCategoryId: zod.int().optional(),
   capacity: zod.int().optional(),
+  shiftEntryLinks: zod
+    .array(
+      zod.strictObject({
+        shiftEntryId: zod.int().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const PutApiSchedulingAssignmentsEntriesIdResponse = zod.object({

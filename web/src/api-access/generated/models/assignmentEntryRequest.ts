@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { ShiftEntryLinkRequest } from './shiftEntryLinkRequest.ts';
 
 export interface AssignmentEntryRequest {
   /** @nullable */
@@ -28,4 +29,5 @@ export interface AssignmentEntryRequest {
   categoryId?: number;
   subCategoryId?: number;
   capacity?: number;
+  shiftEntryLinks?: ShiftEntryLinkRequest[];
 }

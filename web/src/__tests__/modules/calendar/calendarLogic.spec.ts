@@ -20,6 +20,7 @@ import {
   type CalendarEventResponse,
 } from '@/api-access/generated/models';
 import {
+  buildCalendarAssignmentViewModel,
   buildCalendarSchedulingViewModel,
   getCalendarEventDateKey,
 } from '@/modules/scheduling/calendarSchedulingMappers';
@@ -140,6 +141,88 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it('shows user-specific conflicts in assignment resource rows', () => {
+    const assignmentEvent: CalendarSchedulingEvent = {
+      id: 'scheduling.assignment-entry.90',
+      type: 'scheduling.assignment',
+      sourceModule: 'scheduling',
+      title: 'Court Room Monitor',
+      start: '2025-01-13T17:00:00Z',
+      end: '2025-01-13T18:00:00Z',
+      metadata: {
+        eventId: 900,
+        assignmentEntryId: '90',
+        assignmentDefinitionId: '20',
+      },
+    };
+    const viewModel = buildCalendarAssignmentViewModel(
+      {
+        contributions: {
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: {
+              conflicts: [
+                {
+                  id: '900:901:user-1',
+                  resourceId: 'user-1',
+                  entry: {
+                    eventId: 900,
+                    eventTypeCode: 'assignment',
+                    sourceModule: 'scheduling',
+                    title: 'Court Room Monitor',
+                    start: '2025-01-13T17:00:00Z',
+                    end: '2025-01-13T18:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlaps: {
+                    eventId: 901,
+                    eventTypeCode: 'assignment',
+                    sourceModule: 'scheduling',
+                    title: 'Other assignment',
+                    start: '2025-01-13T17:30:00Z',
+                    end: '2025-01-13T18:30:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlapStart: '2025-01-13T17:30:00Z',
+                  overlapEnd: '2025-01-13T18:00:00Z',
+                  isOverridden: false,
+                },
+              ],
+            },
+          },
+          'scheduling.assignment-events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.assignment-events',
+            events: [assignmentEvent],
+            resources: [
+              {
+                id: 'assignment-definition-20',
+                type: 'assignment',
+                sourceModule: 'scheduling',
+                label: 'Court Room Monitor',
+                title: 'Court Room Monitor',
+                assignmentDefinitionId: 20,
+              },
+            ] as CalendarSchedulingAssignmentResource[],
+          },
+        },
+      },
+      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      'week',
+    );
+
+    const item = viewModel.cells.find(
+      (cell) => cell.resourceId === 'assignment-definition-20' && cell.date === '2025-01-13',
+    )?.groups[0]?.events[0];
+
+    expect(item?.conflicts).toHaveLength(1);
+    expect(item?.display?.action?.ariaLabel).toBe('Show conflict');
+  });
+
   it('enriches a shift-contribution assignment with its definition before cross-user drop matching', () => {
     const assignmentEvent: CalendarSchedulingEvent = {
       id: 'scheduling.assignment-entry.90',
@@ -213,7 +296,7 @@ describe('scheduling calendar view model', () => {
     expect(otherUserCell?.groups[0]?.events.map((item) => item.event.id)).toEqual(['scheduling.assignment-entry.90']);
   });
 
-  it('shows the conflict action only when a shift event has isConflict', () => {
+  it('shows the conflict action only when a shift has a conflict for that user', () => {
     const shiftEvents: CalendarSchedulingEvent[] = [
       {
         id: 'shift-conflict',
@@ -223,8 +306,7 @@ describe('scheduling calendar view model', () => {
         start: '2025-01-13T09:00:00',
         end: '2025-01-13T17:00:00',
         resourceIds: ['user-1'],
-        isConflict: true,
-        metadata: { userIds: ['user-1'] },
+        metadata: { eventId: 101, userIds: ['user-1'] },
       },
       {
         id: 'shift-normal',
@@ -234,13 +316,49 @@ describe('scheduling calendar view model', () => {
         start: '2025-01-14T09:00:00',
         end: '2025-01-14T17:00:00',
         resourceIds: ['user-1'],
-        metadata: { userIds: ['user-1'], shiftSeriesId: 100 },
+        metadata: { eventId: 102, userIds: ['user-1'], shiftSeriesId: 100 },
       },
     ];
 
     const viewModel = buildCalendarSchedulingViewModel(
       {
         contributions: {
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: {
+              conflicts: [
+                {
+                  id: '101:201:user-1',
+                  resourceId: 'user-1',
+                  entry: {
+                    eventId: 101,
+                    eventTypeCode: 'shift',
+                    sourceModule: 'scheduling',
+                    title: 'Conflict shift',
+                    start: '2025-01-13T09:00:00Z',
+                    end: '2025-01-13T17:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlaps: {
+                    eventId: 201,
+                    eventTypeCode: 'assignment',
+                    sourceModule: 'scheduling',
+                    title: 'Assignment',
+                    start: '2025-01-13T10:00:00Z',
+                    end: '2025-01-13T12:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlapStart: '2025-01-13T10:00:00Z',
+                  overlapEnd: '2025-01-13T12:00:00Z',
+                  isOverridden: false,
+                },
+              ],
+            },
+          },
           'scheduling.events': {
             moduleId: 'scheduling',
             contributionId: 'scheduling.events',

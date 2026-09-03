@@ -6,6 +6,158 @@
  */
 import * as zod from 'zod';
 
+export const PostApiSchedulingShiftAssignmentsOptionsBody = zod.strictObject({
+  locationId: zod.int(),
+  startAtUtc: zod.iso.datetime({ offset: true }),
+  endAtUtc: zod.iso.datetime({ offset: true }),
+  timeZoneId: zod.string(),
+  recurrenceRule: zod.string().nullish(),
+  isSeriesScope: zod.boolean().optional(),
+});
+
+export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
+  entryOptions: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        assignmentSeriesId: zod.int().nullish(),
+        eventId: zod.int().optional(),
+        assignmentDefinitionId: zod.int().optional(),
+        title: zod.string().nullish(),
+        description: zod.string().nullish(),
+        notes: zod.string().nullish(),
+        color: zod.string().nullish(),
+        startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        timeZoneId: zod.string().nullish(),
+        allDay: zod.boolean().optional(),
+        isException: zod.boolean().optional(),
+        eventTypeCode: zod.string().nullish(),
+        statusTypeCode: zod.string().nullish(),
+        cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
+        cancelledByUserId: zod.uuid().nullish(),
+        cancellationReason: zod.string().nullish(),
+        locationId: zod.int().nullish(),
+        categoryId: zod.int().optional(),
+        categoryName: zod.string().nullish(),
+        subCategoryId: zod.int().optional(),
+        subCategoryName: zod.string().nullish(),
+        capacity: zod.int().optional(),
+        assignedUserCount: zod.int().optional(),
+        linkedShiftEntryIds: zod.array(zod.int()).optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+        assignmentLinks: zod
+          .array(
+            zod.object({
+              id: zod.int().optional(),
+              shiftEntryId: zod.int().optional(),
+              assignmentEntryId: zod.int().optional(),
+              shiftAssignmentSeriesLinkId: zod.int().nullish(),
+              isException: zod.boolean().optional(),
+              capacity: zod.int().optional(),
+              assignedUserCount: zod.int().optional(),
+              userIds: zod.array(zod.uuid()).optional(),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .optional(),
+  seriesOptions: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        eventSeriesId: zod.int().optional(),
+        assignmentDefinitionId: zod.int().optional(),
+        title: zod.string().nullish(),
+        description: zod.string().nullish(),
+        notes: zod.string().nullish(),
+        color: zod.string().nullish(),
+        recurrenceRule: zod.string().nullish(),
+        timeZoneId: zod.string().nullish(),
+        startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+        allDay: zod.boolean().optional(),
+        eventTypeCode: zod.string().nullish(),
+        statusTypeCode: zod.string().nullish(),
+        cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
+        cancelledByUserId: zod.uuid().nullish(),
+        cancellationReason: zod.string().nullish(),
+        locationId: zod.int().nullish(),
+        categoryId: zod.int().optional(),
+        categoryName: zod.string().nullish(),
+        subCategoryId: zod.int().optional(),
+        subCategoryName: zod.string().nullish(),
+        capacity: zod.int().optional(),
+        eventIds: zod.array(zod.int()).optional(),
+        assignmentEntryIds: zod.array(zod.int()).optional(),
+        entries: zod
+          .array(
+            zod.object({
+              id: zod.int().optional(),
+              assignmentSeriesId: zod.int().nullish(),
+              eventId: zod.int().optional(),
+              assignmentDefinitionId: zod.int().optional(),
+              title: zod.string().nullish(),
+              description: zod.string().nullish(),
+              notes: zod.string().nullish(),
+              color: zod.string().nullish(),
+              startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+              endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+              seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+              seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+              timeZoneId: zod.string().nullish(),
+              allDay: zod.boolean().optional(),
+              isException: zod.boolean().optional(),
+              eventTypeCode: zod.string().nullish(),
+              statusTypeCode: zod.string().nullish(),
+              cancelledAt: zod.iso.datetime({ offset: true }).nullish(),
+              cancelledByUserId: zod.uuid().nullish(),
+              cancellationReason: zod.string().nullish(),
+              locationId: zod.int().nullish(),
+              categoryId: zod.int().optional(),
+              categoryName: zod.string().nullish(),
+              subCategoryId: zod.int().optional(),
+              subCategoryName: zod.string().nullish(),
+              capacity: zod.int().optional(),
+              assignedUserCount: zod.int().optional(),
+              linkedShiftEntryIds: zod.array(zod.int()).optional(),
+              assignedUserIds: zod.array(zod.uuid()).optional(),
+              assignmentLinks: zod
+                .array(
+                  zod.object({
+                    id: zod.int().optional(),
+                    shiftEntryId: zod.int().optional(),
+                    assignmentEntryId: zod.int().optional(),
+                    shiftAssignmentSeriesLinkId: zod.int().nullish(),
+                    isException: zod.boolean().optional(),
+                    capacity: zod.int().optional(),
+                    assignedUserCount: zod.int().optional(),
+                    userIds: zod.array(zod.uuid()).optional(),
+                  }),
+                )
+                .optional(),
+            }),
+          )
+          .optional(),
+        shiftSeriesLinks: zod
+          .array(
+            zod.object({
+              id: zod.int().optional(),
+              shiftSeriesId: zod.int().optional(),
+              assignmentSeriesId: zod.int().optional(),
+              assignedUserIds: zod.array(zod.uuid()).optional(),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .optional(),
+  hasSameDayNonOverlappingAssignments: zod.boolean().optional(),
+});
+
 export const PostApiSchedulingShiftAssignmentsEntriesBody = zod.strictObject({
   shiftEntryId: zod.int().optional(),
   assignmentEntryId: zod.int().optional(),

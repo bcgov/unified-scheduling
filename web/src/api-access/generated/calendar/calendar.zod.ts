@@ -67,4 +67,60 @@ export const PostApiCalendarEventsResponse = zod.object({
       }),
     )
     .optional(),
+  conflicts: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        entry: zod.object({
+          eventId: zod.int().nullable(),
+          eventTypeCode: zod.string(),
+          sourceModule: zod.string(),
+          title: zod.string(),
+          start: zod.iso.datetime({ offset: true }),
+          end: zod.iso.datetime({ offset: true }),
+          sourceEntityId: zod.int().nullable(),
+          timeZoneId: zod.string().nullable(),
+        }),
+        overlaps: zod.object({
+          eventId: zod.int().nullable(),
+          eventTypeCode: zod.string(),
+          sourceModule: zod.string(),
+          title: zod.string(),
+          start: zod.iso.datetime({ offset: true }),
+          end: zod.iso.datetime({ offset: true }),
+          sourceEntityId: zod.int().nullable(),
+          timeZoneId: zod.string().nullable(),
+        }),
+        resourceId: zod.uuid(),
+        overlapStart: zod.iso.datetime({ offset: true }),
+        overlapEnd: zod.iso.datetime({ offset: true }),
+        isOverridden: zod.boolean(),
+        overrideId: zod.int().nullable(),
+        overrideNote: zod.string().nullable(),
+        createdById: zod.uuid().nullable(),
+        createdOn: zod.iso.datetime({ offset: true }).nullable(),
+        updatedById: zod.uuid().nullable(),
+        updatedOn: zod.iso.datetime({ offset: true }).nullable(),
+      }),
+    )
+    .optional(),
+});
+
+export const PostApiCalendarConflictsOverridesBody = zod.strictObject({
+  firstEventId: zod.int(),
+  secondEventId: zod.int(),
+  resourceId: zod.uuid(),
+  note: zod.string(),
+});
+
+export const PostApiCalendarConflictsOverridesResponse = zod.object({
+  id: zod.int(),
+  firstEventId: zod.int(),
+  secondEventId: zod.int(),
+  resourceId: zod.uuid(),
+  note: zod.string(),
+  createdById: zod.uuid().nullable(),
+  createdOn: zod.iso.datetime({ offset: true }),
+  updatedById: zod.uuid().nullable(),
+  updatedOn: zod.iso.datetime({ offset: true }).nullable(),
 });

@@ -84,7 +84,6 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
           seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
           allDay: event.allDay ?? false,
           isException: event.isException ?? false,
-          isConflict: eventHasConflict(event),
           eventTypeCode: event.eventTypeCode,
           statusTypeCode: event.statusTypeCode,
           cancelledAt: event.cancelledAt ?? undefined,
@@ -121,10 +120,6 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
     };
   },
 };
-
-function eventHasConflict(event: unknown) {
-  return typeof event === 'object' && event !== null && 'isConflict' in event && event.isConflict === true;
-}
 
 function filterResourceUsers(users: UserResponse[], userIds?: string[]) {
   if (!userIds?.length) {

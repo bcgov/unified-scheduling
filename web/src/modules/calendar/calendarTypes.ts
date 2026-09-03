@@ -1,4 +1,12 @@
-import type { FeatureFlagsResponse } from '@/api-access/generated/models';
+import type {
+  CalendarConflictEventResponse,
+  CalendarConflictResponse,
+  FeatureFlagsResponse,
+  Permissions,
+} from '@/api-access/generated/models';
+
+export type CalendarConflict = CalendarConflictResponse;
+export type CalendarConflictEvent = CalendarConflictEventResponse;
 
 export interface CalendarEventBase {
   id: string;
@@ -43,6 +51,7 @@ export interface CalendarQueryContext {
 
 export interface CalendarRuntimeContext {
   featureFlags: FeatureFlagsResponse;
+  permissions?: readonly Permissions[];
 }
 
 export interface CalendarContributionData<

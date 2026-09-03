@@ -4,6 +4,7 @@ import type { CalendarMatrixResource } from '@/modules/calendar/components/matri
 
 export const isCalendarSchedulingAssignmentModalOpen = ref(false);
 export const calendarSchedulingAssignmentModalMode = ref<'create' | 'view' | 'edit'>('create');
+export const calendarSchedulingAssignmentModalInitialTab = ref<'details' | 'edit' | 'delete'>('details');
 export const calendarSchedulingAssignmentModalEditScope = ref<'event' | 'series'>();
 export const calendarSchedulingAssignmentModalDate = ref<string>();
 export const calendarSchedulingAssignmentModalEntryId = ref<number>();
@@ -31,6 +32,7 @@ export function showCalendarSchedulingAssignmentModal(
   date?: string,
   options?: {
     mode?: 'create' | 'view' | 'edit';
+    initialTab?: 'details' | 'edit' | 'delete';
     editScope?: 'event' | 'series';
     assignmentEntryId?: number;
     assignmentSeriesId?: number;
@@ -41,6 +43,7 @@ export function showCalendarSchedulingAssignmentModal(
   calendarSchedulingDetailEvent.value = undefined;
   calendarSchedulingDetailInitialOpenScope.value = undefined;
   calendarSchedulingAssignmentModalMode.value = options?.mode ?? 'create';
+  calendarSchedulingAssignmentModalInitialTab.value = options?.initialTab ?? 'details';
   calendarSchedulingAssignmentModalEditScope.value = options?.editScope;
   isCalendarSchedulingAssignmentModalOpen.value = true;
   calendarSchedulingAssignmentModalDate.value = date;
@@ -53,6 +56,7 @@ export function showCalendarSchedulingAssignmentModal(
 export function closeCalendarSchedulingAssignmentModal() {
   isCalendarSchedulingAssignmentModalOpen.value = false;
   calendarSchedulingAssignmentModalMode.value = 'create';
+  calendarSchedulingAssignmentModalInitialTab.value = 'details';
   calendarSchedulingAssignmentModalEditScope.value = undefined;
   calendarSchedulingAssignmentModalDate.value = undefined;
   calendarSchedulingAssignmentModalEntryId.value = undefined;

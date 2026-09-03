@@ -60,12 +60,14 @@ internal static class ShiftAssignmentGuards
         DateTimeOffset proposedStartAtUtc,
         DateTimeOffset? proposedEndAtUtc,
         IReadOnlyCollection<Guid> proposedUserIds,
-        int? proposedShiftSeriesId
+        int? proposedShiftSeriesId,
+        IReadOnlyCollection<int>? retainedAssignmentEntryIds = null
     )
     {
         var activeLinks = shiftEntry
             .ShiftAssignmentEntries.Where(link =>
-                link.Users.Count > 0
+                (retainedAssignmentEntryIds is null || retainedAssignmentEntryIds.Contains(link.AssignmentEntryId))
+                && link.Users.Count > 0
                 && link.AssignmentEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
             )
             .ToList();
@@ -73,7 +75,8 @@ internal static class ShiftAssignmentGuards
 
         if (
             shiftEntry.ShiftAssignmentEntries.Any(link =>
-                link.ShiftAssignmentSeriesLinkId.HasValue
+                (retainedAssignmentEntryIds is null || retainedAssignmentEntryIds.Contains(link.AssignmentEntryId))
+                && link.ShiftAssignmentSeriesLinkId.HasValue
                 && link.ShiftAssignmentSeriesLink?.ShiftSeriesId != proposedShiftSeriesId
             )
         )
@@ -111,12 +114,14 @@ internal static class ShiftAssignmentGuards
         AssignmentEntry assignmentEntry,
         DateTimeOffset proposedStartAtUtc,
         DateTimeOffset proposedEndAtUtc,
-        int? proposedAssignmentSeriesId
+        int? proposedAssignmentSeriesId,
+        IReadOnlyCollection<int>? retainedShiftEntryIds = null
     )
     {
         if (
             assignmentEntry.ShiftAssignmentEntries.Any(link =>
-                link.ShiftAssignmentSeriesLinkId.HasValue
+                (retainedShiftEntryIds is null || retainedShiftEntryIds.Contains(link.ShiftEntryId))
+                && link.ShiftAssignmentSeriesLinkId.HasValue
                 && link.ShiftAssignmentSeriesLink?.AssignmentSeriesId != proposedAssignmentSeriesId
             )
         )
@@ -125,7 +130,10 @@ internal static class ShiftAssignmentGuards
             );
 
         var invalidatesLink = assignmentEntry
-            .ShiftAssignmentEntries.Where(link => link.Users.Count > 0)
+            .ShiftAssignmentEntries.Where(link =>
+                (retainedShiftEntryIds is null || retainedShiftEntryIds.Contains(link.ShiftEntryId))
+                && link.Users.Count > 0
+            )
             .Where(link => link.ShiftEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .Any(link =>
                 link.ShiftEntry?.Event is not Event shiftEvent

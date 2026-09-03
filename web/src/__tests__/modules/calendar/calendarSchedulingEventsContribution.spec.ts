@@ -59,7 +59,6 @@ describe('calendarSchedulingEventsContribution', () => {
               isException: false,
               eventTypeCode: 'shift',
               statusTypeCode: 'Draft',
-              isConflict: true,
               userIds: ['user-1'],
               resourceIds: ['user-1'],
             },
@@ -149,7 +148,7 @@ describe('calendarSchedulingEventsContribution', () => {
       expect.objectContaining({ id: 'user-1', title: 'Alex Alpha' }),
       expect.objectContaining({ id: 'user-2', title: 'Blair Bravo' }),
     ]);
-    expect(result.events[0]).toEqual(expect.objectContaining({ isConflict: true }));
+    expect(result.events[0]).not.toHaveProperty('isConflict');
   });
 
   it('maps assignment links and users into scheduling event metadata', async () => {

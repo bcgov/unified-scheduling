@@ -33,6 +33,7 @@ describe('CalendarSchedulingView', () => {
   it('forwards assignment action context to the assignment modal', async () => {
     showCalendarSchedulingAssignmentModal('2026-08-24', {
       mode: 'edit',
+      initialTab: 'edit',
       editScope: 'series',
       assignmentEntryId: 11,
       assignmentSeriesId: 12,
@@ -56,6 +57,7 @@ describe('CalendarSchedulingView', () => {
     const modal = wrapper.findComponent(CalendarSchedulingAssignmentModal);
     expect(modal.props()).toMatchObject({
       mode: 'edit',
+      initialTab: 'edit',
       editScope: 'series',
       initialDate: '2026-08-24',
       assignmentEntryId: 11,

@@ -3,12 +3,20 @@ import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailM
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
+import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
 import CalendarMatrixEventBlock from '@/modules/calendar/components/matrix/CalendarMatrixEventBlock.vue';
 import CalendarMatrixView from '@/modules/calendar/components/matrix/CalendarMatrixView.vue';
-import type { CalendarEventBase, CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarConflictEvent,
+  CalendarEventBase,
+  CalendarRuntimeContext,
+} from '@/modules/calendar/calendarTypes';
+import { postApiCalendarConflictsOverrides } from '@/api-access/generated/calendar/calendar';
+import { Permissions } from '@/api-access/generated/models';
 import {
   CalendarMatrixActionType,
   type CalendarMatrixCell,
@@ -23,6 +31,7 @@ import {
   calendarSchedulingAssignmentModalDate,
   calendarSchedulingAssignmentModalEditScope,
   calendarSchedulingAssignmentModalEntryId,
+  calendarSchedulingAssignmentModalInitialTab,
   calendarSchedulingAssignmentModalMode,
   calendarSchedulingAssignmentModalSeriesId,
   calendarSchedulingAssignmentModalShiftEntryIds,
@@ -43,6 +52,7 @@ import {
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
 } from './calendarSchedulingState';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
   model: CalendarMatrixViewModel;
@@ -52,6 +62,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'eventClick', payload: CalendarEventBase): void;
 }>();
+
+const selectedConflict = ref<CalendarConflict>();
+const selectedConflictEventId = ref<number>();
+const conflictOverrideLoading = ref(false);
+const conflictErrorMessage = ref('');
+const canEditConflicts = computed(
+  () => props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true,
+);
 
 function editExistingShift() {
   const choice = calendarSchedulingExistingShiftChoice.value;
@@ -87,6 +105,17 @@ function resolveConflict(
   });
 }
 
+function handleEventAction(
+  payload: CalendarMatrixEventBlockActionEvent,
+  conflicts: readonly CalendarConflict[],
+  onEventAction: (payload: CalendarMatrixEventBlockActionEvent) => void,
+) {
+  onEventAction(payload);
+  if (payload.actionId === calendarSchedulingActionIds.showConflict) {
+    showConflict(payload.event, conflicts);
+  }
+}
+
 function resolveHeaderConflict(
   cell: CalendarMatrixCell,
   header: CalendarMatrixCellHeaderModel,
@@ -98,6 +127,70 @@ function resolveHeaderConflict(
     actionId: calendarSchedulingActionIds.resolveConflict,
     actionType: CalendarMatrixActionType.Button,
   });
+}
+
+function showConflict(event: CalendarEventBase, conflicts: readonly CalendarConflict[]) {
+  const eventId = resolveCalendarEventId(event);
+  const conflict = conflicts.find(
+    (candidate) => candidate.entry.eventId === eventId || candidate.overlaps.eventId === eventId,
+  );
+  if (conflict && eventId != null) {
+    selectedConflict.value = conflict;
+    selectedConflictEventId.value = eventId;
+    conflictErrorMessage.value = '';
+  }
+}
+
+async function overrideConflict(note: string) {
+  const conflict = selectedConflict.value;
+  const firstEventId = conflict?.entry.eventId;
+  const secondEventId = conflict?.overlaps.eventId;
+  if (!conflict || firstEventId == null || secondEventId == null) return;
+
+  conflictOverrideLoading.value = true;
+  conflictErrorMessage.value = '';
+  const { error, execute } = postApiCalendarConflictsOverrides(
+    {
+      firstEventId,
+      secondEventId,
+      resourceId: conflict.resourceId,
+      note,
+    },
+    { options: { immediate: false } },
+  );
+  await execute();
+  conflictOverrideLoading.value = false;
+  if (error.value) {
+    conflictErrorMessage.value = error.value.message || 'Unable to override this conflict.';
+    return;
+  }
+  selectedConflict.value = undefined;
+  selectedConflictEventId.value = undefined;
+}
+
+function editConflictEvent(event: CalendarConflictEvent) {
+  if (event.eventId == null) return;
+  const scheduledEvent = findScheduledEvent(event.eventId);
+  if (scheduledEvent) showCalendarSchedulingEventDetail(scheduledEvent);
+}
+
+function findScheduledEvent(eventId: number) {
+  return props.model.cells
+    .flatMap((cell) => [
+      ...(cell.headers ?? []).map((header) => header.payload),
+      ...cell.groups.flatMap((group) => group.events.map((item) => item.event)),
+    ])
+    .find((event): event is CalendarEventBase => isCalendarEvent(event) && resolveCalendarEventId(event) === eventId);
+}
+
+function resolveCalendarEventId(event: CalendarEventBase) {
+  const value = (event as CalendarEventBase & { metadata?: { eventId?: unknown } }).metadata?.eventId;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function isCalendarEvent(value: unknown): value is CalendarEventBase {
+  return typeof value === 'object' && value !== null && 'id' in value && 'start' in value;
 }
 </script>
 
@@ -112,7 +205,10 @@ function resolveHeaderConflict(
 
         <CalendarSchedulingConflictOverlay
           v-if="calendarSchedulingConflictEventId === header.id"
+          :event="header.payload as CalendarEventBase"
+          :conflicts="header.conflicts ?? []"
           :icon="header.action?.icon"
+          :time-zone="model.timeZone"
           @resolve="resolveHeaderConflict(cell, header, onHeaderAction)"
         />
       </div>
@@ -129,14 +225,23 @@ function resolveHeaderConflict(
           :variant="group.variant"
           :show-color-bar="group.showColorBar"
           :time-zone="model.timeZone"
-          @event-action="onEventAction"
+          @event-action="
+            handleEventAction(
+              $event,
+              group.events.find((item) => item.event.id === event.id)?.conflicts ?? [],
+              onEventAction,
+            )
+          "
           @drag-start="onDragStart"
           @event-click="onEventClick"
         />
 
         <CalendarSchedulingConflictOverlay
           v-if="calendarSchedulingConflictEventId === event.id"
+          :event="event"
+          :conflicts="group.events.find((item) => item.event.id === event.id)?.conflicts ?? []"
           :icon="display?.action?.icon"
+          :time-zone="model.timeZone"
           @resolve="resolveConflict(event, onEventAction)"
         />
       </div>
@@ -150,9 +255,24 @@ function resolveHeaderConflict(
     @close="closeCalendarSchedulingEventDetail"
   />
 
+  <CalendarConflictDetailModal
+    v-if="selectedConflict && selectedConflictEventId != null"
+    :conflict="selectedConflict"
+    :current-event-id="selectedConflictEventId"
+    :time-zone="model.timeZone"
+    :loading="conflictOverrideLoading"
+    :error-message="conflictErrorMessage"
+    :can-edit-event="canEditConflicts"
+    :can-override="canEditConflicts"
+    @close="selectedConflict = undefined"
+    @edit-event="editConflictEvent"
+    @override="overrideConflict"
+  />
+
   <CalendarSchedulingAssignmentModal
     v-if="isCalendarSchedulingAssignmentModalOpen"
     :mode="calendarSchedulingAssignmentModalMode"
+    :initial-tab="calendarSchedulingAssignmentModalInitialTab"
     :edit-scope="calendarSchedulingAssignmentModalEditScope"
     :initial-date="calendarSchedulingAssignmentModalDate"
     :assignment-entry-id="calendarSchedulingAssignmentModalEntryId"

@@ -140,9 +140,10 @@ describe('calendar workflow', () => {
       expect(loadData).toHaveBeenCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+          permissions: [],
         },
         { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
-        expect.any(Object),
+        expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
       await wrapper.get('button[aria-label="Previous"]').trigger('click');
@@ -153,9 +154,10 @@ describe('calendar workflow', () => {
       expect(loadData).toHaveBeenLastCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+          permissions: [],
         },
         { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: 12, filters: {} },
-        expect.any(Object),
+        expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
       await wrapper.get('button[aria-label="Next"]').trigger('click');
@@ -164,9 +166,10 @@ describe('calendar workflow', () => {
       expect(loadData).toHaveBeenLastCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+          permissions: [],
         },
         { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
-        expect.any(Object),
+        expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
       await wrapper.get('button.calendar-toolbar__today-button').trigger('click');
@@ -176,9 +179,10 @@ describe('calendar workflow', () => {
       expect(loadData).toHaveBeenLastCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+          permissions: [],
         },
         { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: 12, filters: {} },
-        expect.any(Object),
+        expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
       const rangeButton = wrapper.get('button.calendar-toolbar__range');
@@ -197,9 +201,10 @@ describe('calendar workflow', () => {
       expect(loadData).toHaveBeenLastCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+          permissions: [],
         },
         { startDate: '2025-04-14', endDate: '2025-04-21', locationId: 12, filters: {} },
-        expect.any(Object),
+        expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
       const toolbar = wrapper.findComponent({ name: 'CalendarToolbar' });
@@ -209,9 +214,10 @@ describe('calendar workflow', () => {
       expect(loadData).toHaveBeenLastCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+          permissions: [],
         },
         { startDate: '2025-04-16', endDate: '2025-04-17', locationId: 12, filters: {} },
-        expect.any(Object),
+        expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
       toolbar.vm.$emit('update:period', 'work-week');
@@ -220,9 +226,10 @@ describe('calendar workflow', () => {
       expect(loadData).toHaveBeenLastCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+          permissions: [],
         },
         { startDate: '2025-04-14', endDate: '2025-04-19', locationId: 12, filters: {} },
-        expect.any(Object),
+        expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
       await wrapper.get('[data-testid="open-event"]').trigger('click');
@@ -306,9 +313,10 @@ describe('calendar workflow', () => {
       expect(loadData).toHaveBeenLastCalledWith(
         {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
+          permissions: [],
         },
         { startDate: expectedRange.startDate, endDate: expectedRange.endDate, locationId: 12, filters: {} },
-        expect.any(Object),
+        expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
     } finally {
       wrapper.unmount();

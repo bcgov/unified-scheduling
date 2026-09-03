@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Controllers;
 using Unified.Calendar.FeatureFlags;
 using Unified.Calendar.Holidays;
@@ -81,6 +82,7 @@ public static class CalendarModule
 
         services.AddScoped<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>();
         services.AddScoped<CalendarLifecycleService>();
+        services.AddScoped<ICalendarConflictService, CalendarConflictService>();
         services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();
         services.AddScoped<IRecurrenceRuleValidator, IcalNetRecurrenceRuleValidator>();
         services.AddScoped<IEventSeriesMaterializationService, EventSeriesMaterializationService>();

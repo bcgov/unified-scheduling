@@ -4,10 +4,12 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { CalendarConflictResponse } from './calendarConflictResponse.ts';
 import type { CalendarEventResponse } from './calendarEventResponse.ts';
 
 export interface CalendarDataResponse {
   moduleId?: string;
   contributionId?: string;
   events?: CalendarEventResponse[];
+  conflicts?: CalendarConflictResponse[];
 }

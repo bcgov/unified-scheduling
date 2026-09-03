@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Calendar;
+using Unified.Calendar.Conflicts;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
@@ -64,9 +65,11 @@ public static class SchedulingModule
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IShiftService, ShiftService>();
         services.AddScoped<ISchedulingCalendarService, SchedulingCalendarService>();
+        services.AddScoped<ICalendarConflictParticipantProvider, SchedulingConflictParticipantProvider>();
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
+        services.AddScoped<IProposedShiftAssignmentOptionsService, ProposedShiftAssignmentOptionsService>();
         services.AddScoped<ShiftSeriesMaterializationHandler>();
         services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();
@@ -79,6 +82,7 @@ public static class SchedulingModule
         services.AddScoped<ShiftAssignmentSeriesRequestValidator>();
         services.AddScoped<ShiftAssignmentEntryUpdateRequestValidator>();
         services.AddScoped<ShiftAssignmentSeriesUpdateRequestValidator>();
+        services.AddScoped<ProposedShiftAssignmentOptionsRequestValidator>();
         services.AddScoped<SchedulingCalendarRequestValidator>();
         services.AddSeeder<UnifiedDbContext, ShiftEventTypeSeeder>();
         services.AddSingleton(SchedulingPermissionSeedData.Configuration);

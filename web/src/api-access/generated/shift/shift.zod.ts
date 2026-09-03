@@ -9,6 +9,9 @@ import * as zod from 'zod';
 export const GetApiSchedulingShiftsSeriesQueryParams = zod.strictObject({
   EventSeriesId: zod.int().optional(),
   UserId: zod.uuid().optional(),
+  LocationId: zod.int().optional(),
+  StartAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  EndAtUtc: zod.iso.datetime({ offset: true }).optional(),
 });
 
 export const GetApiSchedulingShiftsSeriesResponseItem = zod.object({
@@ -47,6 +50,14 @@ export const PostApiSchedulingShiftsSeriesBody = zod.strictObject({
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
+  assignmentSeriesLinks: zod
+    .array(
+      zod.strictObject({
+        assignmentSeriesId: zod.int().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const PostApiSchedulingShiftsSeriesResponse = zod.object({
@@ -115,6 +126,14 @@ export const PutApiSchedulingShiftsSeriesIdBody = zod.strictObject({
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
+  assignmentSeriesLinks: zod
+    .array(
+      zod.strictObject({
+        assignmentSeriesId: zod.int().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const PutApiSchedulingShiftsSeriesIdResponse = zod.object({
@@ -211,6 +230,9 @@ export const GetApiSchedulingShiftsEntriesQueryParams = zod.strictObject({
   ShiftSeriesId: zod.int().optional(),
   EventId: zod.int().optional(),
   UserId: zod.uuid().optional(),
+  LocationId: zod.int().optional(),
+  StartAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  EndAtUtc: zod.iso.datetime({ offset: true }).optional(),
 });
 
 export const GetApiSchedulingShiftsEntriesResponseItem = zod.object({
@@ -255,6 +277,14 @@ export const PostApiSchedulingShiftsEntriesBody = zod.strictObject({
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
+  assignmentEntryLinks: zod
+    .array(
+      zod.strictObject({
+        assignmentEntryId: zod.int().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const PostApiSchedulingShiftsEntriesResponse = zod.object({
@@ -333,6 +363,14 @@ export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
+  assignmentEntryLinks: zod
+    .array(
+      zod.strictObject({
+        assignmentEntryId: zod.int().optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({

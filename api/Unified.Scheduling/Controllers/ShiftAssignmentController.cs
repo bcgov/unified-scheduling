@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -13,12 +15,27 @@ namespace Unified.Scheduling.Controllers;
 [Route("api/scheduling/shift-assignments")]
 public sealed class ShiftAssignmentController(
     IShiftAssignmentService shiftAssignmentService,
+    IProposedShiftAssignmentOptionsService proposedShiftAssignmentOptionsService,
     ShiftAssignmentEntryRequestValidator entryRequestValidator,
     ShiftAssignmentSeriesRequestValidator seriesRequestValidator,
     ShiftAssignmentEntryUpdateRequestValidator entryUpdateRequestValidator,
-    ShiftAssignmentSeriesUpdateRequestValidator seriesUpdateRequestValidator
+    ShiftAssignmentSeriesUpdateRequestValidator seriesUpdateRequestValidator,
+    ProposedShiftAssignmentOptionsRequestValidator optionsRequestValidator
 ) : ControllerBase
 {
+    [HttpPost("options")]
+    [Authorize(Policy = SchedulingPolicies.AssignmentsView)]
+    [ProducesResponseType(typeof(ProposedShiftAssignmentOptionsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ProposedShiftAssignmentOptionsResponse>> GetOptions(
+        [FromBody] ProposedShiftAssignmentOptionsRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        await optionsRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+        return Ok(await proposedShiftAssignmentOptionsService.GetOptionsAsync(request, cancellationToken));
+    }
+
     [HttpPost("entries")]
     [Authorize(Policy = SchedulingPolicies.AssignmentsAssign)]
     [ProducesResponseType(typeof(ShiftAssignmentEntryResponse), StatusCodes.Status201Created)]
@@ -29,8 +46,15 @@ public sealed class ShiftAssignmentController(
     )
     {
         await entryRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftAssignmentService.LinkShiftEntryAsync(request, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, result);
+        try
+        {
+            var result = await shiftAssignmentService.LinkShiftEntryAsync(request, cancellationToken);
+            return StatusCode(StatusCodes.Status201Created, result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPut("entries/{id:int}")]
@@ -44,8 +68,15 @@ public sealed class ShiftAssignmentController(
     )
     {
         await entryUpdateRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftAssignmentService.UpdateShiftEntryLinkAsync(id, request, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await shiftAssignmentService.UpdateShiftEntryLinkAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpDelete("entries/{id:int}")]
@@ -65,8 +96,15 @@ public sealed class ShiftAssignmentController(
     )
     {
         await seriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftAssignmentService.LinkShiftSeriesAsync(request, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, result);
+        try
+        {
+            var result = await shiftAssignmentService.LinkShiftSeriesAsync(request, cancellationToken);
+            return StatusCode(StatusCodes.Status201Created, result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpPut("series/{id:int}")]
@@ -80,8 +118,15 @@ public sealed class ShiftAssignmentController(
     )
     {
         await seriesUpdateRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftAssignmentService.UpdateShiftSeriesLinkAsync(id, request, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        try
+        {
+            var result = await shiftAssignmentService.UpdateShiftSeriesLinkAsync(id, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (CalendarConflictException exception)
+        {
+            return ToConflictResult(exception);
+        }
     }
 
     [HttpDelete("series/{id:int}")]
@@ -90,4 +135,12 @@ public sealed class ShiftAssignmentController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteShiftSeriesLink(int id, CancellationToken cancellationToken) =>
         await shiftAssignmentService.DeleteShiftSeriesLinkAsync(id, cancellationToken) ? NoContent() : NotFound();
+
+    private ConflictObjectResult ToConflictResult(CalendarConflictException exception) =>
+        Conflict(
+            new CalendarConflictRejectionResponse(
+                exception.Message,
+                exception.Conflicts.Select(CalendarConflictResponse.FromConflict).ToList()
+            )
+        );
 }

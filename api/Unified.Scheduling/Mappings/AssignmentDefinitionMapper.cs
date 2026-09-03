@@ -21,9 +21,7 @@ internal static class AssignmentDefinitionMapper
             .Map(
                 response => response.DefaultStartTime,
                 definition =>
-                    definition.DefaultStartTime.HasValue
-                        ? definition.DefaultStartTime.Value.ToString("HH:mm:ss")
-                        : null
+                    definition.DefaultStartTime.HasValue ? definition.DefaultStartTime.Value.ToString("HH:mm:ss") : null
             )
             .Map(
                 response => response.DefaultEndTime,
