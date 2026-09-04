@@ -81,6 +81,7 @@ public sealed class SeedDataCompositionTests
     [Theory]
     [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
     [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
+    [InlineData(ReportingSeedDataSets.ReportingPermissionsDataSet, "Reporting:Enabled")]
     public void AddConfiguredSeedData_FeatureDataSetDisabled_ThrowsConfigurationError(string dataSet, string feature)
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -94,6 +95,7 @@ public sealed class SeedDataCompositionTests
     [Theory]
     [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
     [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
+    [InlineData(ReportingSeedDataSets.ReportingPermissionsDataSet, "Reporting:Enabled")]
     public void AddConfiguredSeedData_FeatureEnabledWithoutPermissionDataSet_ThrowsConfigurationError(
         string dataSet,
         string feature
@@ -110,22 +112,12 @@ public sealed class SeedDataCompositionTests
     [Theory]
     [InlineData(StatsSeedDataSets.StatsPermissionsDataSet, "Stats:Enabled")]
     [InlineData(TrainingSeedDataSets.TrainingPermissionsDataSet, "Training:Enabled")]
+    [InlineData(ReportingSeedDataSets.ReportingPermissionsDataSet, "Reporting:Enabled")]
     public void AddConfiguredSeedData_FeatureDataSetEnabled_RegistersContribution(string dataSet, string feature)
     {
         var composition = GetComposition(dataSet, feature);
 
         Assert.Equal([dataSet], composition.PermissionConfigurations.Select(x => x.Source));
-    }
-
-    [Fact]
-    public void AddConfiguredSeedData_ReportingPermissionsDataSet_RegistersContribution()
-    {
-        var composition = GetComposition(ReportingSeedDataSets.ReportingPermissionsDataSet);
-
-        Assert.Equal(
-            [ReportingSeedDataSets.ReportingPermissionsDataSet],
-            composition.PermissionConfigurations.Select(x => x.Source)
-        );
     }
 
     private static SeedComposition GetComposition(params string[] dataSets) => GetComposition(dataSets, null);

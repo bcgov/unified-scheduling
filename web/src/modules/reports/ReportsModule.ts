@@ -28,7 +28,15 @@ const reportsNavLink: NavigationLink = {
   class: 'router-link--border',
 };
 
-export function registerModule(routes: RouteRecordRaw[], _featureFlags: FeatureFlagsResponse) {
+type ReportingFeatureFlagState = { enabled?: boolean };
+type FeatureFlagsWithReporting = FeatureFlagsResponse & { Reporting?: ReportingFeatureFlagState };
+
+export function registerModule(routes: RouteRecordRaw[], featureFlags: FeatureFlagsResponse) {
+  const reportingFlags = (featureFlags as FeatureFlagsWithReporting).Reporting;
+  if (!reportingFlags?.enabled) {
+    return;
+  }
+
   const navigationStore = useNavigationStore();
   const accessControl = useAccessControl();
 
