@@ -9,6 +9,7 @@ import * as zod from 'zod';
 export const GetApiStatsRecordsQueryParams = zod.strictObject({
   LocationId: zod.int().optional(),
   SubCategoryMetricId: zod.int().optional(),
+  GroupId: zod.int().optional(),
   PeriodType: zod.string().optional(),
   FromDate: zod.iso.date().optional(),
   ToDate: zod.iso.date().optional(),
