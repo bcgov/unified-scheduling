@@ -2,6 +2,8 @@ namespace Unified.Scheduling.Models;
 
 public sealed record WorkingHoursResult
 {
+    public required int ShiftEntryId { get; init; }
+
     public required Guid UserId { get; init; }
 
     public required DateOnly Date { get; init; }

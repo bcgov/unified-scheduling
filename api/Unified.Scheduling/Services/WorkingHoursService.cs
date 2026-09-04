@@ -173,6 +173,7 @@ public sealed class WorkingHoursService(
 
         return new WorkingHoursResult
         {
+            ShiftEntryId = shift.ShiftEntryId,
             UserId = shift.UserId,
             Date = GetBusinessDate(
                 shift.Start,
