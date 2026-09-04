@@ -18,8 +18,7 @@ public static class ReportingSeedDataSets
                     Source = ReportingPermissionsDataSet,
                     Definitions = ReportingPermissionSeedData.Instance.Definitions,
                 },
-            ]
-            ,
+            ],
             RequiredFeature: "Reporting:Enabled",
             AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:Reporting:Enabled")
         ),
