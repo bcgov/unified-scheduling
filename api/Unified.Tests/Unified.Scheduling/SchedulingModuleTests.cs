@@ -126,6 +126,7 @@ public sealed class SchedulingModuleTests
                 {
                     ["FeatureFlags:Scheduling:Enabled"] = schedulingEnabled.ToString(),
                     ["FeatureFlags:Calendar:Enabled"] = calendarEnabled.ToString(),
+                    ["FeatureFlags:Stats:Enabled"] = bool.TrueString,
                 }
             )
             .Build();

@@ -452,59 +452,6 @@ public class ShiftControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
-    [Fact]
-    public async Task GetCalendarData_WhenValid_ReturnsOk()
-    {
-        // Arrange
-        var request = CreateCalendarRequest();
-        var expected = new SchedulingCalendarDataResponse
-        {
-            Events =
-            [
-                new()
-                {
-                    Id = "scheduling.shift-entry.8",
-                    ShiftEntryId = 8,
-                    EventId = 30,
-                    UserIds = [UserA, UserB],
-                    Type = "scheduling.shift",
-                    SourceModule = "scheduling",
-                    Title = "Shift",
-                    Start = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
-                    EventTypeCode = "Shift",
-                    StatusTypeCode = "draft",
-                    ResourceIds = [UserA.ToString(), UserB.ToString()],
-                },
-            ],
-        };
-        var service = new FakeShiftService { CalendarDataResponse = expected };
-        var controller = new SchedulingCalendarController(service, new SchedulingCalendarRequestValidator());
-
-        // Act
-        var result = await controller.GetData(request, TestContext.Current.CancellationToken);
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.Same(expected, okResult.Value);
-        Assert.Same(request, service.LastCalendarRequest);
-    }
-
-    [Fact]
-    public async Task GetCalendarData_WhenInvalid_ThrowsValidationException()
-    {
-        // Arrange
-        var request = CreateCalendarRequest(startDate: new DateOnly(2026, 6, 2), endDate: new DateOnly(2026, 6, 1));
-        var controller = new SchedulingCalendarController(
-            new FakeShiftService(),
-            new SchedulingCalendarRequestValidator()
-        );
-
-        // Act / Assert
-        await Assert.ThrowsAsync<ValidationException>(() =>
-            controller.GetData(request, TestContext.Current.CancellationToken)
-        );
-    }
-
     private static ShiftController CreateShiftController(FakeShiftService service, Guid? userId = null)
     {
         var controller = new ShiftController(
@@ -542,11 +489,6 @@ public class ShiftControllerTests
             UserIds = userIds ?? [UserA, UserB],
         };
 
-    private static SchedulingCalendarRequest CreateCalendarRequest(
-        DateOnly? startDate = null,
-        DateOnly? endDate = null
-    ) => new() { StartDate = startDate ?? new DateOnly(2026, 6, 1), EndDate = endDate ?? new DateOnly(2026, 6, 2) };
-
     private static ShiftSeriesResponse CreateShiftSeriesResponse(int id, int eventSeriesId) =>
         new()
         {
@@ -580,15 +522,12 @@ public class ShiftControllerTests
         public ShiftEntryResponse? PublishedShiftEntry { get; init; }
         public ShiftEntryResponse? ExpiredShiftEntry { get; init; }
         public bool DeleteShiftEntryResult { get; init; }
-        public SchedulingCalendarDataResponse CalendarDataResponse { get; init; } = new();
-
         public ShiftSeriesQueryParams? LastShiftSeriesQueryParams { get; private set; }
         public ShiftSeriesRequest? LastShiftSeriesRequest { get; private set; }
         public ShiftEntryQueryParams? LastShiftEntryQueryParams { get; private set; }
         public ShiftEntryRequest? LastShiftEntryRequest { get; private set; }
         public ExpireShiftRequest? LastExpireShiftRequest { get; private set; }
         public Guid? LastCancelledByUserId { get; private set; }
-        public SchedulingCalendarRequest? LastCalendarRequest { get; private set; }
 
         public Task<IReadOnlyCollection<ShiftSeriesResponse>> GetShiftSeriesAsync(
             ShiftSeriesQueryParams? queryParams = null,
@@ -695,14 +634,5 @@ public class ShiftControllerTests
 
         public Task<bool> DeleteShiftEntryAsync(int id, CancellationToken cancellationToken = default) =>
             Task.FromResult(DeleteShiftEntryResult);
-
-        public Task<SchedulingCalendarDataResponse> GetSchedulingCalendarDataAsync(
-            SchedulingCalendarRequest request,
-            CancellationToken cancellationToken = default
-        )
-        {
-            LastCalendarRequest = request;
-            return Task.FromResult(CalendarDataResponse);
-        }
     }
 }
