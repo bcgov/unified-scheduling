@@ -1,14 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
-import type { FeatureFlagsResponse } from '@/api-access/generated/models';
-
-type FeatureFlagsWithReporting = FeatureFlagsResponse & {
-  Reporting?: {
-    source?: string;
-    enabled?: boolean;
-  };
-};
+import type { FeatureFlagsResponse, ReportingFeatureFlags } from '@/api-access/generated/models';
 
 describe('reports module', () => {
   beforeEach(() => {
@@ -18,8 +11,9 @@ describe('reports module', () => {
 
   it('registers report routes when reporting feature is enabled', async () => {
     const routes: RouteRecordRaw[] = [];
-    const featureFlags: FeatureFlagsWithReporting = {
-      Reporting: { source: 'Reporting', enabled: true },
+    const reportingFeatureFlags: ReportingFeatureFlags = { source: 'Reporting', enabled: true };
+    const featureFlags: FeatureFlagsResponse = {
+      Reporting: reportingFeatureFlags,
     };
 
     const { registerModule } = await import('@/modules/reports/ReportsModule');
@@ -35,8 +29,9 @@ describe('reports module', () => {
 
   it('does not register report routes when reporting feature is disabled', async () => {
     const routes: RouteRecordRaw[] = [];
-    const featureFlags: FeatureFlagsWithReporting = {
-      Reporting: { source: 'Reporting', enabled: false },
+    const reportingFeatureFlags: ReportingFeatureFlags = { source: 'Reporting', enabled: false };
+    const featureFlags: FeatureFlagsResponse = {
+      Reporting: reportingFeatureFlags,
     };
 
     const [{ registerModule }, { useNavigationStore }] = await Promise.all([

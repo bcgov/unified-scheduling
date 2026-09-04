@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CalendarFeatureFlags } from './calendarFeatureFlags.ts';
+import type { ReportingFeatureFlags } from './reportingFeatureFlags.ts';
 import type { SchedulingFeatureFlags } from './schedulingFeatureFlags.ts';
 import type { StatsFeatureFlags } from './statsFeatureFlags.ts';
 import type { TrainingFeatureFlags } from './trainingFeatureFlags.ts';
@@ -16,4 +17,5 @@ export interface FeatureFlagsResponse {
   Scheduling?: SchedulingFeatureFlags;
   Stats?: StatsFeatureFlags;
   Training?: TrainingFeatureFlags;
+  Reporting?: ReportingFeatureFlags;
 }

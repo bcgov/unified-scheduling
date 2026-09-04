@@ -62,6 +62,7 @@ export * from './permissions.ts';
 export * from './postApiUsersIdUploadPhotoBody.ts';
 export * from './problemDetails.ts';
 export * from './regionDto.ts';
+export * from './reportingFeatureFlags.ts';
 export * from './roleAssignedUserDto.ts';
 export * from './roleDto.ts';
 export * from './roleRequestDto.ts';
