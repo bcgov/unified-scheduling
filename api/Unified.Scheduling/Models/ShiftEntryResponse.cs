@@ -4,9 +4,9 @@ namespace Unified.Scheduling.Models;
 
 public sealed record ShiftEntryResponse : CalendarEventEntryResponse
 {
-    public int LunchAvailableMinutes { get; init; }
+    public int? LunchAvailableMinutes { get; init; }
 
-    public int WorkedLunchMinutes { get; init; }
+    public int? WorkedLunchMinutes { get; init; }
 
     public int? ShiftSeriesId { get; init; }
 

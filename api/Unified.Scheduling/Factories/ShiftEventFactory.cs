@@ -50,7 +50,7 @@ public sealed class ShiftEventFactory(IOptions<WorkingHoursOptions>? workingHour
         {
             EventSeries = eventSeries,
             LunchAvailableMinutes = request.LunchAvailableMinutes ?? _workingHoursOptions.DefaultLunchMinutes,
-            WorkedLunchMinutes = request.WorkedLunchMinutes,
+            WorkedLunchMinutes = request.WorkedLunchMinutes ?? 0,
             Users = request.UserIds.Distinct().Select(userId => new ShiftSeriesUser { UserId = userId }).ToList(),
         };
 
@@ -62,7 +62,7 @@ public sealed class ShiftEventFactory(IOptions<WorkingHoursOptions>? workingHour
     public ShiftSeries UpdateSeries(ShiftSeriesRequest request, ShiftSeries existing)
     {
         existing.LunchAvailableMinutes = request.LunchAvailableMinutes ?? existing.LunchAvailableMinutes;
-        existing.WorkedLunchMinutes = request.WorkedLunchMinutes;
+        existing.WorkedLunchMinutes = request.WorkedLunchMinutes ?? 0;
         return existing;
     }
 }

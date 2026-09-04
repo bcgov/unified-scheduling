@@ -6,7 +6,7 @@ public sealed record ShiftSeriesRequest : CalendarEventSeriesRequest
 {
     public int? LunchAvailableMinutes { get; set; }
 
-    public int WorkedLunchMinutes { get; set; } = 0;
+    public int? WorkedLunchMinutes { get; set; } = 0;
 
     public IReadOnlyCollection<AssignmentSeriesLinkRequest> AssignmentSeriesLinks { get; init; } = [];
 }
