@@ -2,7 +2,7 @@
 import { onMounted } from 'vue';
 import { mdiArrowDown, mdiArrowUp } from '@mdi/js';
 import UaAlert from '@/shared/components/UaAlert.vue';
-import UaDataTable from '@/shared/components/UaDataTable.vue';
+import UaDataTableServer from '@/shared/components/UaDataTableServer.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import type { AuditRecordResponseDto } from '@/api-access/generated/models';
 import { AUDIT_ACTION_COLORS, type AuditAction } from '../constants';
@@ -79,7 +79,7 @@ onMounted(async () => {
 
     <div class="audit-layout">
       <div class="panel">
-        <UaDataTable
+        <UaDataTableServer
           :headers="headers"
           :items="records"
           :loading="isLoadingRecords"
@@ -155,7 +155,7 @@ onMounted(async () => {
               }}
             </span>
           </template>
-        </UaDataTable>
+        </UaDataTableServer>
       </div>
 
       <AuditFilters

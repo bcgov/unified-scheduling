@@ -20,9 +20,6 @@ const props = withDefaults(
     draggable?: boolean;
     searchable?: boolean;
     search?: string;
-    // Total row count across all server pages. When set, renders Vuetify's server-driven table so
-    // its built-in footer/paginator reflects the full result set instead of just the current page.
-    itemsLength?: number;
   }>(),
   {
     items: () => [],
@@ -31,7 +28,6 @@ const props = withDefaults(
     draggable: false,
     searchable: false,
     search: undefined,
-    itemsLength: undefined,
   },
 );
 
@@ -53,20 +49,15 @@ const searchQuery = computed({
   },
 });
 const hasActiveSearch = computed(() => searchQuery.value.trim().length > 0);
-const isServerPaginated = computed(() => props.itemsLength != null);
-const isDraggableEnabled = computed(
-  () => props.draggable && !props.paginate && !hasActiveSearch.value && !isServerPaginated.value,
-);
+const isDraggableEnabled = computed(() => props.draggable && !props.paginate && !hasActiveSearch.value);
 
 const forwardedAttrs = computed(() => {
   const forwarded = { ...attrs };
   delete forwarded.items;
   delete forwarded.loading;
-  // In server mode, the caller owns page/items-per-page (e.g. via v-model / update events).
-  if (!isServerPaginated.value) {
-    delete forwarded.page;
-    delete forwarded['items-per-page'];
-  }
+  delete forwarded.page;
+  // Bound explicitly below so an explicit items-per-page attr isn't silently dropped.
+  delete forwarded['items-per-page'];
   delete forwarded.search;
   delete forwarded['search-placeholder'];
   return forwarded;
@@ -168,27 +159,13 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <v-data-table-server
-      v-if="isServerPaginated"
-      class="ua-data-table"
-      :items="localItems"
-      :items-length="itemsLength!"
-      :loading="loading"
-      v-bind="forwardedAttrs"
-    >
-      <template v-for="(_, slotName) in $slots" #[slotName]="slotProps">
-        <slot :name="slotName" v-bind="slotProps ?? {}" />
-      </template>
-    </v-data-table-server>
-
     <v-data-table
-      v-else
       class="ua-data-table"
       :class="{ 'ua-data-table--draggable': isDraggableEnabled }"
       :items="localItems"
       :loading="loading"
       :search="searchQuery"
-      :items-per-page="paginate ? undefined : -1"
+      :items-per-page="paginate ? (attrs['items-per-page'] as string | number | undefined) : -1"
       :hide-default-footer="!paginate"
       v-bind="forwardedAttrs"
     >
