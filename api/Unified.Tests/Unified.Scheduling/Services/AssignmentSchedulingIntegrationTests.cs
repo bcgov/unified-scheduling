@@ -19,6 +19,7 @@ using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
+using Unified.Scheduling.Options;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
 
@@ -103,7 +104,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _linkService,
             new CalendarLifecycleService(),
             timeProvider,
-            conflictService
+            conflictService,
+            Options.Create(new WorkingHoursOptions())
         );
         _calendarService = new SchedulingCalendarService(
             NullLogger<SchedulingCalendarService>.Instance,

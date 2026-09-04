@@ -14,6 +14,7 @@ using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.UserManagement;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
+using Unified.Scheduling.Options;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
 
@@ -69,7 +70,8 @@ public class ShiftServiceTests : IAsyncLifetime
             new ShiftAssignmentService(NullLogger<ShiftAssignmentService>.Instance, _dbContext, conflictService),
             new CalendarLifecycleService(),
             TimeProvider.System,
-            conflictService
+            conflictService,
+            Options.Create(new WorkingHoursOptions())
         );
     }
 

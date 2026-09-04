@@ -20,6 +20,10 @@ public sealed record ShiftEntryResponse
 
     public int? LocationId { get; init; }
 
+    public int LunchAvailableMinutes { get; init; }
+
+    public int WorkedLunchMinutes { get; init; }
+
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
 
     public IReadOnlyCollection<ShiftAssignmentEntryResponse> AssignmentLinks { get; init; } = [];

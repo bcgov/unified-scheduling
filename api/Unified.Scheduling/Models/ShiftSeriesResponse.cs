@@ -36,6 +36,10 @@ public sealed record ShiftSeriesResponse
 
     public int? LocationId { get; init; }
 
+    public int LunchAvailableMinutes { get; init; }
+
+    public int WorkedLunchMinutes { get; init; }
+
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
 
     public IReadOnlyCollection<int> EventIds { get; init; } = [];

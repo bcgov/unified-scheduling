@@ -9,6 +9,10 @@ public class ShiftSeries : BaseEntity
     [Key]
     public int Id { get; set; }
 
+    public int LunchAvailableMinutes { get; set; } = 0;
+
+    public int WorkedLunchMinutes { get; set; } = 0;
+
     public int EventSeriesId { get; set; }
 
     public EventSeries? EventSeries { get; set; }

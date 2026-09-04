@@ -22,6 +22,10 @@ public sealed record ShiftSeriesRequest
 
     public int? LocationId { get; init; }
 
+    public int? LunchAvailableMinutes { get; set; }
+
+    public int WorkedLunchMinutes { get; set; } = 0;
+
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
 
     public IReadOnlyCollection<AssignmentSeriesLinkRequest> AssignmentSeriesLinks { get; init; } = [];

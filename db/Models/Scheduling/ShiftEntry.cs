@@ -17,6 +17,10 @@ public class ShiftEntry : BaseEntity
 
     public Event? Event { get; set; }
 
+    public int LunchAvailableMinutes { get; set; } = 0;
+
+    public int WorkedLunchMinutes { get; set; } = 0;
+
     public ICollection<ShiftEntryUser> Users { get; set; } = [];
 
     public ICollection<ShiftAssignmentEntry> ShiftAssignmentEntries { get; set; } = [];

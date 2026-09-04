@@ -26,6 +26,10 @@ public sealed record ShiftEntryRequest
 
     public int? LocationId { get; init; }
 
+    public int? LunchAvailableMinutes { get; set; }
+
+    public int? WorkedLunchMinutes { get; set; } = 0;
+
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
 
     public IReadOnlyCollection<AssignmentEntryLinkRequest> AssignmentEntryLinks { get; init; } = [];

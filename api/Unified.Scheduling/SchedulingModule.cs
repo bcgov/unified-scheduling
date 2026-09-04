@@ -12,6 +12,7 @@ using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.FeatureFlags;
+using Unified.Scheduling.Options;
 using Unified.Scheduling.Seeders;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -54,6 +55,11 @@ public static class SchedulingModule
             serviceProvider.GetRequiredService<IOptions<SchedulingFeatureFlags>>().Value
         );
 
+        services.AddOptions<WorkingHoursOptions>()
+            .BindConfiguration(WorkingHoursOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         if (!IsModuleEnabled(config))
             return services;
 
@@ -70,6 +76,7 @@ public static class SchedulingModule
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
         services.AddScoped<IProposedShiftAssignmentOptionsService, ProposedShiftAssignmentOptionsService>();
+        services.AddScoped<IWorkingHoursService, WorkingHoursService>();
         services.AddScoped<ShiftSeriesMaterializationHandler>();
         services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();

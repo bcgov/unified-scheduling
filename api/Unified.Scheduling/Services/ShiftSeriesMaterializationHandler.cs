@@ -40,6 +40,8 @@ public sealed class ShiftSeriesMaterializationHandler(UnifiedDbContext db)
                 ShiftSeries = context.ShiftSeries,
                 Event = eventEntity,
                 Users = context.UserIds.Select(userId => new ShiftEntryUser { UserId = userId }).ToList(),
+                LunchAvailableMinutes = context.ShiftSeries.LunchAvailableMinutes,
+                WorkedLunchMinutes = context.ShiftSeries.WorkedLunchMinutes,
             }
         );
 

@@ -30,6 +30,8 @@ internal static class ShiftResponseMapper
             CancelledByUserId = eventSeries?.CancelledByUserId,
             CancellationReason = eventSeries?.CancellationReason,
             LocationId = eventSeries?.LocationId,
+            LunchAvailableMinutes = shiftSeries.LunchAvailableMinutes,
+            WorkedLunchMinutes = shiftSeries.WorkedLunchMinutes,
             UserIds = shiftSeries.Users.Select(user => user.UserId).Distinct().ToList(),
             EventIds = entryIds.Select(entry => entry.EventId).ToList(),
             ShiftEntryIds = entryIds.Select(entry => entry.ShiftEntryId).ToList(),
@@ -50,6 +52,8 @@ internal static class ShiftResponseMapper
             TimeZoneId = shiftEntry.Event?.TimeZoneId,
             StatusTypeCode = shiftEntry.Event?.StatusTypeCode,
             LocationId = shiftEntry.Event?.LocationId,
+            LunchAvailableMinutes = shiftEntry.LunchAvailableMinutes,
+            WorkedLunchMinutes = shiftEntry.WorkedLunchMinutes,
             UserIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList(),
             AssignmentLinks = assignmentLinks ?? [],
         };

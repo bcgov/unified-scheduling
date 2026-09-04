@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
@@ -9,6 +10,7 @@ using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
+using Unified.Scheduling.Options;
 
 namespace Unified.Scheduling.Services;
 
@@ -21,7 +23,8 @@ public sealed class ShiftService(
     IShiftAssignmentService shiftAssignmentService,
     CalendarLifecycleService calendarLifecycleService,
     TimeProvider timeProvider,
-    ICalendarConflictService calendarConflictService
+    ICalendarConflictService calendarConflictService,
+    IOptions<WorkingHoursOptions> workingHoursOptions
 ) : IShiftService
 {
     private static readonly RecurrenceValidationOptions ShiftRecurrenceValidationOptions = new()
@@ -146,6 +149,8 @@ public sealed class ShiftService(
         var entity = new ShiftSeries
         {
             EventSeries = eventSeries,
+            LunchAvailableMinutes = request.LunchAvailableMinutes ?? workingHoursOptions.Value.DefaultLunchMinutes,
+            WorkedLunchMinutes = request.WorkedLunchMinutes,
             Users = userIds.Select(userId => new ShiftSeriesUser { UserId = userId }).ToList(),
         };
 
@@ -215,6 +220,8 @@ public sealed class ShiftService(
         var eventSeries = entity.EventSeries!;
         ShiftGuards.EnsureShiftSeriesIsDraft(eventSeries);
         var oldEventSeriesValues = ShiftSeriesUpdatePlanner.CaptureCopiedValues(eventSeries);
+        var oldLunchAvailableMinutes = entity.LunchAvailableMinutes;
+        var oldWorkedLunchMinutes = entity.WorkedLunchMinutes;
         var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
         var recurrenceChanged = ShiftSeriesUpdatePlanner.HasRecurrenceChanged(eventSeries, request);
         var newUserIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
@@ -222,6 +229,8 @@ public sealed class ShiftService(
         ValidatePropagatedShiftEntryUsers(entity, oldUserIds, newUserIds);
 
         ShiftEventMapper.ApplyToEventSeries(eventSeries, request);
+        entity.LunchAvailableMinutes = request.LunchAvailableMinutes ?? entity.LunchAvailableMinutes;
+        entity.WorkedLunchMinutes = request.WorkedLunchMinutes;
 
         ShiftUserSync.SyncSeriesUsers(db, entity, newUserIds);
 
@@ -243,7 +252,14 @@ public sealed class ShiftService(
         }
         else
         {
-            ApplySeriesNonRecurrenceUpdatesToChildren(entity, oldEventSeriesValues, oldUserIds, newUserIds);
+            ApplySeriesNonRecurrenceUpdatesToChildren(
+                entity,
+                oldEventSeriesValues,
+                oldLunchAvailableMinutes,
+                oldWorkedLunchMinutes,
+                oldUserIds,
+                newUserIds
+            );
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -272,6 +288,8 @@ public sealed class ShiftService(
     private void ApplySeriesNonRecurrenceUpdatesToChildren(
         ShiftSeries shiftSeries,
         EventSeriesCopiedValues oldCopiedValues,
+        int oldLunchAvailableMinutes,
+        int oldWorkedLunchMinutes,
         IReadOnlyCollection<Guid> oldUserIds,
         IReadOnlyCollection<Guid> newUserIds
     )
@@ -287,6 +305,11 @@ public sealed class ShiftService(
                 oldCopiedValues,
                 shiftSeries.EventSeries!
             );
+
+            if (shiftEntry.LunchAvailableMinutes == oldLunchAvailableMinutes)
+                shiftEntry.LunchAvailableMinutes = shiftSeries.LunchAvailableMinutes;
+            if (shiftEntry.WorkedLunchMinutes == oldWorkedLunchMinutes)
+                shiftEntry.WorkedLunchMinutes = shiftSeries.WorkedLunchMinutes;
 
             if (ShiftUserSync.UserSetsEqual(shiftEntry.Users.Select(user => user.UserId), oldUserIds))
                 ShiftUserSync.SyncEntryUsers(db, shiftEntry, newUserIds);
@@ -599,6 +622,8 @@ public sealed class ShiftService(
         {
             ShiftSeries = shiftSeries,
             Event = eventEntity,
+            LunchAvailableMinutes = request.LunchAvailableMinutes ?? workingHoursOptions.Value.DefaultLunchMinutes,
+            WorkedLunchMinutes = request.WorkedLunchMinutes ?? 0,
             Users = userIds.Select(userId => new ShiftEntryUser { UserId = userId }).ToList(),
         };
 
@@ -666,6 +691,8 @@ public sealed class ShiftService(
         CalendarEventExceptionHelper.UpdateExceptionFlag(entity.Event!);
 
         entity.ShiftSeriesId = request.ShiftSeriesId;
+        entity.LunchAvailableMinutes = request.LunchAvailableMinutes ?? entity.LunchAvailableMinutes;
+        entity.WorkedLunchMinutes = request.WorkedLunchMinutes ?? entity.WorkedLunchMinutes;
         ShiftUserSync.SyncEntryUsers(db, entity, request.UserIds);
 
         await db.SaveChangesAsync(cancellationToken);
