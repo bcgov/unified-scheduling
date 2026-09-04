@@ -23,6 +23,7 @@ using Unified.Infrastructure.OpenApi;
 using Unified.Infrastructure.Options;
 using Unified.JCInterface;
 using Unified.Reporting;
+using Unified.Reporting.Controllers;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
 using Unified.Stats;
@@ -96,7 +97,7 @@ var hangfireOptions =
         .AddSchedulingModule(builder.Configuration)
         .AddStatsModule(builder.Configuration)
         .AddTrainingModule(builder.Configuration)
-        .AddReportingModule()
+        .AddReportingModule(builder.Configuration)
         .AddConfiguredSeedData(
             builder.Configuration,
             UserManagementSeedDataSets
@@ -115,6 +116,9 @@ var hangfireOptions =
     mvcBuilder.AddConditionalApplicationPart<StatGroupsController>(StatsModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<UserTrainingController>(
         TrainingModule.IsModuleEnabled(builder.Configuration)
+    );
+    mvcBuilder.AddConditionalApplicationPart<ReportingController>(
+        ReportingModule.IsModuleEnabled(builder.Configuration)
     );
     mvcBuilder.AddConditionalApplicationPart<UsersController>(
         UserManagementModule.IsModuleEnabled(builder.Configuration)

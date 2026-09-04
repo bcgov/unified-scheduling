@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Unified.Authorization.Seeders;
 using Unified.Common.Seeding;
 
@@ -17,7 +18,9 @@ public static class ReportingSeedDataSets
                     Source = ReportingPermissionsDataSet,
                     Definitions = ReportingPermissionSeedData.Instance.Definitions,
                 },
-            ]
+            ],
+            RequiredFeature: "Reporting:Enabled",
+            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:Reporting:Enabled")
         ),
     ];
 }

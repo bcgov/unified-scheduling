@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
-import type { FeatureFlagsResponse, TrainingFeatureFlags } from '@/api-access/generated/models';
+import type { FeatureFlagsResponse, ReportingFeatureFlags } from '@/api-access/generated/models';
 
 describe('reports module', () => {
   beforeEach(() => {
@@ -9,10 +9,12 @@ describe('reports module', () => {
     setActivePinia(createPinia());
   });
 
-  it('registers report routes', async () => {
+  it('registers report routes when reporting feature is enabled', async () => {
     const routes: RouteRecordRaw[] = [];
-    const trainingFeatureFlags: TrainingFeatureFlags = { source: 'Training', enabled: true };
-    const featureFlags: FeatureFlagsResponse = { Training: trainingFeatureFlags };
+    const reportingFeatureFlags: ReportingFeatureFlags = { source: 'Reporting', enabled: true };
+    const featureFlags: FeatureFlagsResponse = {
+      Reporting: reportingFeatureFlags,
+    };
 
     const { registerModule } = await import('@/modules/reports/ReportsModule');
 
@@ -25,10 +27,12 @@ describe('reports module', () => {
     expect(routes[1]?.path).toBe('/training/reports/user-training');
   });
 
-  it('registers report routes even when training feature is disabled', async () => {
+  it('does not register report routes when reporting feature is disabled', async () => {
     const routes: RouteRecordRaw[] = [];
-    const trainingFeatureFlags: TrainingFeatureFlags = { source: 'Training', enabled: false };
-    const featureFlags: FeatureFlagsResponse = { Training: trainingFeatureFlags };
+    const reportingFeatureFlags: ReportingFeatureFlags = { source: 'Reporting', enabled: false };
+    const featureFlags: FeatureFlagsResponse = {
+      Reporting: reportingFeatureFlags,
+    };
 
     const [{ registerModule }, { useNavigationStore }] = await Promise.all([
       import('@/modules/reports/ReportsModule'),
@@ -39,7 +43,7 @@ describe('reports module', () => {
 
     const navigationStore = useNavigationStore();
 
-    expect(routes).toHaveLength(2);
+    expect(routes).toHaveLength(0);
     expect(navigationStore.links).toHaveLength(0);
   });
 });
