@@ -123,6 +123,22 @@ See [api/README.md](api/README.md) and [docker/README.md](docker/README.md) for 
 
 ---
 
+## Deployment Dependencies
+
+This application is deployed via ArgoCD from a separate GitOps repository. Some changes in this repo require corresponding updates in the GitOps repo to take effect in deployed environments.
+
+| Change in this repo | Required GitOps update |
+|---------------------|----------------------|
+| Enable a feature flag in appsettings | Add the flag to the API ConfigMap in each overlay |
+| Add a new seed data set | Add the data set entry to the seeders ConfigMap in each overlay |
+| Change environment variables | Update the API deployment patch in each overlay |
+
+GitOps repo: `bcgov-c/tenant-gitops-cb6495` (requires SAML SSO authorization for the `bcgov-c` org)
+
+Overlays to update: `services/unified-scheduling/overlays/{dev,test,prod}/`
+
+---
+
 ## Documentation
 
 Additional references and learning resources are in [docs/References.md](docs/References.md).
