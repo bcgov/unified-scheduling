@@ -1,20 +1,26 @@
+using Microsoft.Extensions.Options;
 using Unified.Calendar.Factories;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
+using Unified.Scheduling.Options;
 using Unified.Scheduling.Services;
 
 namespace Unified.Scheduling.Factories;
 
-public sealed class ShiftEventFactory
+public sealed class ShiftEventFactory(IOptions<WorkingHoursOptions>? workingHoursOptions = null)
     : ICalendarEventEntryFactory<ShiftEntryRequest, ShiftEntry>,
         ICalendarEventSeriesFactory<ShiftSeriesRequest, ShiftSeries>
 {
+    private readonly WorkingHoursOptions _workingHoursOptions = workingHoursOptions?.Value ?? new();
+
     public ShiftEntry CreateEntry(ShiftEntryRequest request, Event eventEntity) =>
         new()
         {
             Event = eventEntity,
             ShiftSeriesId = request.ShiftSeriesId,
+            LunchAvailableMinutes = request.LunchAvailableMinutes ?? _workingHoursOptions.DefaultLunchMinutes,
+            WorkedLunchMinutes = request.WorkedLunchMinutes ?? 0,
             Users = request.UserIds.Distinct().Select(userId => new ShiftEntryUser { UserId = userId }).ToList(),
         };
 
@@ -24,6 +30,8 @@ public sealed class ShiftEventFactory
     public ShiftEntry UpdateEntry(ShiftEntryRequest request, ShiftEntry existing)
     {
         existing.ShiftSeriesId = request.ShiftSeriesId;
+        existing.LunchAvailableMinutes = request.LunchAvailableMinutes ?? existing.LunchAvailableMinutes;
+        existing.WorkedLunchMinutes = request.WorkedLunchMinutes ?? existing.WorkedLunchMinutes;
         SyncUsers(existing, request.UserIds);
         return existing;
     }
@@ -41,6 +49,8 @@ public sealed class ShiftEventFactory
         new()
         {
             EventSeries = eventSeries,
+            LunchAvailableMinutes = request.LunchAvailableMinutes ?? _workingHoursOptions.DefaultLunchMinutes,
+            WorkedLunchMinutes = request.WorkedLunchMinutes,
             Users = request.UserIds.Distinct().Select(userId => new ShiftSeriesUser { UserId = userId }).ToList(),
         };
 
@@ -49,5 +59,10 @@ public sealed class ShiftEventFactory
         ?? throw new InvalidOperationException($"Shift series {entity.Id} has no associated event series.");
 
     // Series relationship synchronization belongs to the feature service, which owns EF tracking.
-    public ShiftSeries UpdateSeries(ShiftSeriesRequest request, ShiftSeries existing) => existing;
+    public ShiftSeries UpdateSeries(ShiftSeriesRequest request, ShiftSeries existing)
+    {
+        existing.LunchAvailableMinutes = request.LunchAvailableMinutes ?? existing.LunchAvailableMinutes;
+        existing.WorkedLunchMinutes = request.WorkedLunchMinutes;
+        return existing;
+    }
 }
