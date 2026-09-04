@@ -28,6 +28,9 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
         if (queryParams?.LocationId is int locationId)
             query = query.Where(r => r.LocationId == locationId);
 
+        if (queryParams?.GroupId is int groupId)
+            query = query.Where(r => r.SubCategoryMetric!.SubCategory!.Category!.GroupId == groupId);
+
         if (queryParams?.SubCategoryMetricId is int subCategoryMetricId)
             query = query.Where(r => r.SubCategoryMetricId == subCategoryMetricId);
 

@@ -4,6 +4,7 @@ public sealed record StatRecordQueryParams
 {
     public int? LocationId { get; init; }
     public int? SubCategoryMetricId { get; init; }
+    public int? GroupId { get; init; }
     public string? PeriodType { get; init; }
     public DateOnly? FromDate { get; init; }
     public DateOnly? ToDate { get; init; }

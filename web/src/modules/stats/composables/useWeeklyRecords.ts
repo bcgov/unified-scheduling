@@ -29,6 +29,7 @@ export function useWeeklyRecords(
   initialWeekStart: string, // ISO Monday date string
   locationId: Ref<number | null>,
   userId: Ref<string | null>,
+  groupId: number,
   subCategories: Ref<SubCategoryResponse[]>,
   categories: Ref<StatCategoryResponse[]>,
   subCategoryMetrics: Ref<SubCategoryMetricResponse[]>,
@@ -189,6 +190,7 @@ export function useWeeklyRecords(
         ToDate: to,
         PeriodType: 'Daily',
         UserId: userId.value,
+        GroupId: groupId,
       });
 
       if (apiError.value) {

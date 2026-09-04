@@ -9,6 +9,7 @@ import type { MaybeRef } from 'vue';
 export type OriginalGetApiStatsRecordsParams = {
   LocationId?: number;
   SubCategoryMetricId?: number;
+  GroupId?: number;
   PeriodType?: string;
   FromDate?: string;
   ToDate?: string;

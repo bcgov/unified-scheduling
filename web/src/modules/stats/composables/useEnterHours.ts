@@ -125,6 +125,7 @@ export function useEnterHours(groupId: number) {
     getSundayOfWeek(seedDate ? DateTime.fromISO(seedDate) : DateTime.now()),
     selectedLocationId,
     selectedUserId,
+    groupId,
     subCategories,
     categories,
     subCategoryMetrics,
