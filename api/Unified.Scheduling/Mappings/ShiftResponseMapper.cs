@@ -2,7 +2,7 @@ using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
 
-namespace Unified.Scheduling.Services;
+namespace Unified.Scheduling.Mappings;
 
 internal static class ShiftResponseMapper
 {
@@ -35,21 +35,56 @@ internal static class ShiftResponseMapper
             ShiftEntryIds = entryIds.Select(entry => entry.ShiftEntryId).ToList(),
         };
 
-    public static ShiftEntryResponse ToShiftEntryResponse(ShiftEntry shiftEntry) =>
+    public static ShiftEntryResponse ToShiftEntryResponse(
+        ShiftEntry shiftEntry,
+        IReadOnlyCollection<ShiftAssignmentEntryResponse>? assignmentLinks = null
+    ) =>
         new()
         {
             Id = shiftEntry.Id,
             ShiftSeriesId = shiftEntry.ShiftSeriesId,
             EventId = shiftEntry.EventId,
+            Title = shiftEntry.Event?.Title,
+            StartAtUtc = shiftEntry.Event?.StartAtUtc,
+            EndAtUtc = shiftEntry.Event?.EndAtUtc,
+            TimeZoneId = shiftEntry.Event?.TimeZoneId,
+            StatusTypeCode = shiftEntry.Event?.StatusTypeCode,
+            LocationId = shiftEntry.Event?.LocationId,
             UserIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList(),
+            AssignmentLinks = assignmentLinks ?? [],
         };
 
-    public static SchedulingCalendarShiftEventResponse ToCalendarEventResponse(ShiftEntry shiftEntry)
+    public static IReadOnlyCollection<ShiftAssignmentEntryResponse> ToAssignmentLinkResponses(
+        IEnumerable<ShiftAssignmentEntry> links
+    ) =>
+        links
+            .Where(link =>
+                link.Users.Count > 0
+                && link.AssignmentEntry?.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+            )
+            .Select(link =>
+            {
+                var userIds = link.Users.Select(user => user.UserId).Distinct().ToList();
+                return new ShiftAssignmentEntryResponse
+                {
+                    Id = link.Id,
+                    ShiftEntryId = link.ShiftEntryId,
+                    AssignmentEntryId = link.AssignmentEntryId,
+                    ShiftAssignmentSeriesLinkId = link.ShiftAssignmentSeriesLinkId,
+                    IsException = link.IsException,
+                    Capacity = link.AssignmentEntry?.Capacity ?? 0,
+                    AssignedUserCount = userIds.Count,
+                    UserIds = userIds,
+                };
+            })
+            .ToList();
+
+    public static SchedulingCalendarEventResponse ToCalendarEventResponse(ShiftEntry shiftEntry)
     {
         var eventEntity = shiftEntry.Event!;
         var userIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList();
 
-        return new SchedulingCalendarShiftEventResponse
+        return new SchedulingCalendarEventResponse
         {
             Id = $"scheduling.shift-entry.{shiftEntry.Id}",
             ShiftEntryId = shiftEntry.Id,

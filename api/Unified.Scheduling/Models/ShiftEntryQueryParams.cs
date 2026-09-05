@@ -7,4 +7,6 @@ public sealed record ShiftEntryQueryParams
     public int? EventId { get; init; }
 
     public Guid? UserId { get; init; }
+
+    public int? LocationId { get; init; }
 }
