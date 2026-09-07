@@ -35,9 +35,9 @@
     "temporal-polyfill": "^1.0.4",
     "vue": "^3.5.42",
     "vue-draggable-plus": "^0.6.1",
-    "vue-router": "^5.3.0",
-    "vuetify": "^4.1.12",
-    "zod": "^4.5.1"
+    "vue-router": "^5.3.1",
+    "vuetify": "^4.2.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.6.0",
