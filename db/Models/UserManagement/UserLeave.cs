@@ -6,7 +6,7 @@ using Unified.Db.Models.Lookup;
 namespace Unified.Db.Models.UserManagement;
 
 /// <summary>
-/// Links a <see cref="Calendar.Event"/> record to the user and leave type it applies to.
+/// Links a <see cref="Event"/> record to the user and leave type it applies to.
 /// Leave-specific fields (dates, timezone, comment, expiry) live on the linked
 /// <see cref="Event"/> instead of being duplicated on this table.
 /// </summary>
