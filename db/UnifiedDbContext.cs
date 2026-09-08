@@ -34,6 +34,8 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<UserRole> UserRoles { get; set; }
     public DbSet<UserActingPosition> UserActingPositions { get; set; }
     public DbSet<UserAwayLocation> UserAwayLocations { get; set; }
+    public DbSet<LeaveType> LeaveTypes { get; set; }
+    public DbSet<UserLeave> UserLeaves { get; set; }
     public DbSet<EventStatusType> EventStatusTypes { get; set; }
     public DbSet<EventType> EventTypes { get; set; }
     public DbSet<PositionType> PositionTypes { get; set; }
