@@ -88,6 +88,8 @@ public static class UserManagementModule
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<IActingPositionService, ActingPositionService>();
         services.AddScoped<IAwayLocationService, AwayLocationService>();
+        services.AddScoped<ILeaveService, LeaveService>();
+        services.AddScoped<ILeaveCalendarService, LeaveCalendarService>();
 
         services.AddSeeder<UnifiedDbContext, UserSeeder>();
         services.AddSeeder<UnifiedDbContext, RoleSeeder>();
@@ -110,6 +112,9 @@ public static class UserManagementModule
         services.AddScoped<ExpireActingPositionRequestValidator>();
         services.AddScoped<AwayLocationRequestValidator>();
         services.AddScoped<ExpireAwayLocationRequestValidator>();
+        services.AddScoped<LeaveRequestValidator>();
+        services.AddScoped<ExpireLeaveRequestValidator>();
+        services.AddScoped<LeaveCalendarRequestValidator>();
 
         // Register save rules for business logic validation
         services.AddScoped<ISaveRule, UserBadgeNumberUniqueRule>();

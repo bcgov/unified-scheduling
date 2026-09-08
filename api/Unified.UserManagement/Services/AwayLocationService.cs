@@ -9,8 +9,6 @@ namespace Unified.UserManagement.Services;
 
 public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationService
 {
-    private const string SourceModule = "user-management";
-
     public async Task<IReadOnlyCollection<AwayLocationResponseDto>> GetByUserIdAsync(
         Guid userId,
         CancellationToken cancellationToken = default
@@ -56,20 +54,18 @@ public sealed class AwayLocationService(UnifiedDbContext db) : IAwayLocationServ
             AllDay = request.AllDay,
             EventTypeCode = CalendarEventTypeCodes.AwayLocation,
             StatusTypeCode = CalendarEventStatusTypeCodes.Active,
-            SourceModule = SourceModule,
+            SourceModule = UserManagementConstants.SourceModule,
             LocationId = location.Id,
+            Location = location,
         };
 
-        db.Events.Add(calendarEvent);
-        await db.SaveChangesAsync(cancellationToken);
-
-        var awayLocation = new UserAwayLocation { UserId = userId, EventId = calendarEvent.Id };
+        // Set the Event via navigation (not EventId) so both inserts happen in the same
+        // SaveChangesAsync call/transaction — EF resolves the generated EventId in one round trip.
+        var awayLocation = new UserAwayLocation { UserId = userId, Event = calendarEvent };
 
         db.UserAwayLocations.Add(awayLocation);
         await db.SaveChangesAsync(cancellationToken);
 
-        calendarEvent.Location = location;
-        awayLocation.Event = calendarEvent;
         return MapResponse(awayLocation);
     }
 
