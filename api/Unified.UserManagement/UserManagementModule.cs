@@ -95,6 +95,8 @@ public static class UserManagementModule
         services.AddSeeder<UnifiedDbContext, RegionSeeder>();
         services.AddSeeder<UnifiedDbContext, LocationSeeder>();
         services.AddSeeder<UnifiedDbContext, DevelopmentUserSeeder>();
+        services.AddSeeder<UnifiedDbContext, LeaveTypeSeeder>();
+        services.AddSeeder<UnifiedDbContext, UserManagementCalendarEventTypeSeeder>();
 
         services.AddOptions<DevelopmentUserOptions>().BindConfiguration(DevelopmentUserOptions.SectionName);
 
