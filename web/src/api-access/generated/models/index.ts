@@ -153,3 +153,5 @@ export * from './userRoleResponseDto.ts';
 export * from './userTrainingExpiryDateResponse.ts';
 export * from './userTrainingRequest.ts';
 export * from './userTrainingResponse.ts';
+export * from './workingHoursQuery.ts';
+export * from './workingHoursResult.ts';

@@ -39,6 +39,8 @@ export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesRespon
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -70,6 +72,8 @@ export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesRespon
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -101,6 +105,8 @@ export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesRespon
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -138,6 +144,8 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -170,6 +178,8 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -202,6 +212,8 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -240,6 +252,8 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -272,6 +286,8 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -304,6 +320,8 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -342,6 +360,8 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -374,6 +394,8 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -406,6 +428,8 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -444,6 +468,8 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -476,6 +502,8 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -508,6 +536,8 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -546,6 +576,8 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -578,6 +610,8 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -610,6 +644,8 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -659,6 +695,8 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -703,6 +741,8 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -747,6 +787,8 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -797,6 +839,8 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -842,6 +886,8 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -887,6 +933,8 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -938,6 +986,8 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -983,6 +1033,8 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1028,6 +1080,8 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1079,6 +1133,8 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1124,6 +1180,8 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1169,6 +1227,8 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1220,6 +1280,8 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1265,6 +1327,8 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1310,6 +1374,8 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1361,6 +1427,8 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1406,6 +1474,8 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
@@ -1451,6 +1521,8 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), null]),
+      lunchAvailableMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
+      workedLunchMinutes: faker.helpers.arrayElement([faker.number.int(), null, undefined]),
       userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
