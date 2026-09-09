@@ -6,12 +6,12 @@
  */
 import type { MaybeRef } from 'vue';
 
-export type OriginalGetApiSchedulingShiftsSeriesParams = {
+export type OriginalGetApiSchedulingAssignmentsSeriesParams = {
   EventSeriesId?: number;
-  UserId?: string;
   LocationId?: number;
+  StatusTypeCode?: string;
   StartAtUtc?: string;
   EndAtUtc?: string;
 };
 
-export type GetApiSchedulingShiftsSeriesParams = MaybeRef<OriginalGetApiSchedulingShiftsSeriesParams>;
+export type GetApiSchedulingAssignmentsSeriesParams = MaybeRef<OriginalGetApiSchedulingAssignmentsSeriesParams>;
