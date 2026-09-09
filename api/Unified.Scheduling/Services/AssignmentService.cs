@@ -520,7 +520,7 @@ public sealed class AssignmentService(
             request.StartAtUtc,
             assignmentEntry.AssignmentSeriesId,
             timeZoneService,
-            request.ShiftEntryLinks.Select(link => link.ShiftEntryId).ToList()
+            request.ShiftEntryLinks?.Select(link => link.ShiftEntryId).ToList()
         );
         AssignmentEventMapper.ApplyToEvent(assignmentEntry.Event!, request);
         CalendarEventExceptionHelper.UpdateExceptionFlag(assignmentEntry.Event!);

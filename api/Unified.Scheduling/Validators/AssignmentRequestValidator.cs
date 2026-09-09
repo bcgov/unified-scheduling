@@ -56,7 +56,7 @@ public sealed class AssignmentEntryRequestValidator : AbstractValidator<Assignme
     private void AddShiftEntryLinkRules()
     {
         RuleFor(request => request.ShiftEntryLinks)
-            .Must(links => links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count)
+            .Must(links => links is null || links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count)
             .WithMessage("Shift entry links must be unique.");
         RuleForEach(request => request.ShiftEntryLinks).SetValidator(new ShiftEntryLinkRequestValidator());
     }
@@ -84,7 +84,7 @@ public sealed class AssignmentEntryUpdateRequestValidator : AbstractValidator<As
     private void AddShiftEntryLinkRules()
     {
         RuleFor(request => request.ShiftEntryLinks)
-            .Must(links => links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count)
+            .Must(links => links is null || links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count)
             .WithMessage("Shift entry links must be unique.");
         RuleForEach(request => request.ShiftEntryLinks).SetValidator(new ShiftEntryLinkRequestValidator());
     }

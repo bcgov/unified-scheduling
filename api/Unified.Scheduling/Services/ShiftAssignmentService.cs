@@ -80,10 +80,13 @@ public sealed class ShiftAssignmentService(
 
     public async Task ReplaceShiftEntryLinksAsync(
         int shiftEntryId,
-        IReadOnlyCollection<AssignmentEntryLinkRequest> links,
+        IReadOnlyCollection<AssignmentEntryLinkRequest>? links,
         CancellationToken cancellationToken = default
     )
     {
+        if (links is null)
+            return;
+
         EnsureAmbientTransaction();
         var existingLinks = await db
             .ShiftAssignmentEntries.Include(link => link.Users)
@@ -98,10 +101,13 @@ public sealed class ShiftAssignmentService(
 
     public async Task ReplaceAssignmentEntryLinksAsync(
         int assignmentEntryId,
-        IReadOnlyCollection<ShiftEntryLinkRequest> links,
+        IReadOnlyCollection<ShiftEntryLinkRequest>? links,
         CancellationToken cancellationToken = default
     )
     {
+        if (links is null)
+            return;
+
         EnsureAmbientTransaction();
         var existingLinks = await db
             .ShiftAssignmentEntries.Include(link => link.Users)

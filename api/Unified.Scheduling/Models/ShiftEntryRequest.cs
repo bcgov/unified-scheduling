@@ -28,5 +28,5 @@ public sealed record ShiftEntryRequest
 
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
 
-    public IReadOnlyCollection<AssignmentEntryLinkRequest> AssignmentEntryLinks { get; init; } = [];
+    public IReadOnlyCollection<AssignmentEntryLinkRequest>? AssignmentEntryLinks { get; init; }
 }

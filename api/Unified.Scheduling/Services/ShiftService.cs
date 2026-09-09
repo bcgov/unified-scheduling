@@ -659,7 +659,7 @@ public sealed class ShiftService(
             request.UserIds,
             request.ShiftSeriesId,
             timeZoneService,
-            request.AssignmentEntryLinks.Select(link => link.AssignmentEntryId).ToList()
+            request.AssignmentEntryLinks?.Select(link => link.AssignmentEntryId).ToList()
         );
         await EnsureShiftsDoNotConflictAsync(
             CreateShiftConflictCandidates(

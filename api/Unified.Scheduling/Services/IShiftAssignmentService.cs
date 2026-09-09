@@ -19,13 +19,13 @@ public interface IShiftAssignmentService
 
     Task ReplaceShiftEntryLinksAsync(
         int shiftEntryId,
-        IReadOnlyCollection<AssignmentEntryLinkRequest> links,
+        IReadOnlyCollection<AssignmentEntryLinkRequest>? links,
         CancellationToken cancellationToken = default
     );
 
     Task ReplaceAssignmentEntryLinksAsync(
         int assignmentEntryId,
-        IReadOnlyCollection<ShiftEntryLinkRequest> links,
+        IReadOnlyCollection<ShiftEntryLinkRequest>? links,
         CancellationToken cancellationToken = default
     );
 
