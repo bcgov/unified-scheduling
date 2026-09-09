@@ -1,3 +1,5 @@
+// Todo, have the generic report api return a more typed response so we can leverage orval
+
 import { computed, unref, type MaybeRef } from 'vue';
 import { useFetchAPI } from '@/api-access/useFetchAPI';
 
