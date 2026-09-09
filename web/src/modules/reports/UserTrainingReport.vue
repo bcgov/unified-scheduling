@@ -293,7 +293,7 @@ function formatDateCellValue(value: unknown): unknown {
           <UaTextField id="user-training-report-end-date" v-model="endDateFilter" label="" type="date" clearable />
         </div>
 
-        <div class="filter-field">
+        <div v-if="reportTypeOptions.length > 1" class="filter-field">
           <label class="filter-label" for="user-training-report-report-type">Report Type</label>
           <UaSelect
             id="user-training-report-report-type"
