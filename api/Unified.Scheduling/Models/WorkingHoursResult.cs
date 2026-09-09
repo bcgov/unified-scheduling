@@ -10,6 +10,8 @@ public sealed record WorkingHoursResult
 
     public required int PaidShiftMinutes { get; init; }
 
+    public required int LunchAvailableMinutes { get; init; }
+
     public required int WorkedLunchMinutes { get; init; }
 
     public required int PaidOutsideShiftMinutes { get; init; }

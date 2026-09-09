@@ -13,8 +13,7 @@ public class WorkingHoursController : ControllerBase
 {
     private readonly IWorkingHoursService _workingHoursQueryService;
 
-    public WorkingHoursController(
-        IWorkingHoursService workingHoursQueryService)
+    public WorkingHoursController(IWorkingHoursService workingHoursQueryService)
     {
         _workingHoursQueryService = workingHoursQueryService;
     }
@@ -22,15 +21,13 @@ public class WorkingHoursController : ControllerBase
     [HttpPost("query")]
     [Authorize(Policy = SchedulingPolicies.AssignmentsView)]
     [Authorize(Policy = SchedulingPolicies.ShiftsView)]
-    [ProducesResponseType<IReadOnlyCollection<WorkingHoursResult>>(
-        StatusCodes.Status200OK)]
+    [ProducesResponseType<IReadOnlyCollection<WorkingHoursResult>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyCollection<WorkingHoursResult>>> Query(
         [FromBody] WorkingHoursQuery query,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
-        var results = await _workingHoursQueryService.QueryAsync(
-            query,
-            cancellationToken);
+        var results = await _workingHoursQueryService.QueryAsync(query, cancellationToken);
 
         return Ok(results);
     }

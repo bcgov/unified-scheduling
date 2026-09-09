@@ -40,7 +40,8 @@ public static class SchedulingModule
             serviceProvider.GetRequiredService<IOptions<SchedulingFeatureFlags>>().Value
         );
 
-        services.AddOptions<WorkingHoursOptions>()
+        services
+            .AddOptions<WorkingHoursOptions>()
             .BindConfiguration(WorkingHoursOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();

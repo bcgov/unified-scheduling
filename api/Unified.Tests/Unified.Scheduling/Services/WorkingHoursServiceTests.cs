@@ -211,6 +211,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(450, result.PaidShiftMinutes);
+        Assert.Equal(60, result.LunchAvailableMinutes);
         Assert.Equal(30, result.WorkedLunchMinutes);
         Assert.Equal(30, result.OvertimeMinutes);
     }
@@ -233,11 +234,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
     public async Task QueryAsync_UtcStartAfterMidnightButLocalStartBeforeMidnight_UsesLocalBusinessDate()
     {
         // Arrange
-        await AddShiftAsync(
-            AtDay(2, 6, 30),
-            AtDay(2, 14, 30),
-            timeZoneId: "America/Vancouver"
-        );
+        await AddShiftAsync(AtDay(2, 6, 30), AtDay(2, 14, 30), timeZoneId: "America/Vancouver");
 
         // Act
         var result = Assert.Single(await QueryAsync());
@@ -290,12 +287,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
     {
         // Arrange
         var shift = await AddShiftAsync(At(9), At(17));
-        await AddAssignmentAsync(
-            shift,
-            At(8),
-            At(9),
-            statusTypeCode: CalendarEventStatusTypeCodes.Cancelled
-        );
+        await AddAssignmentAsync(shift, At(8), At(9), statusTypeCode: CalendarEventStatusTypeCodes.Cancelled);
 
         // Act
         var result = Assert.Single(await QueryAsync());
@@ -309,11 +301,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
     public async Task QueryAsync_DateRangeExceedsConfiguredMaximum_ThrowsArgumentException()
     {
         // Arrange
-        var query = new WorkingHoursQuery
-        {
-            StartDate = BusinessDate,
-            EndDate = BusinessDate.AddDays(31),
-        };
+        var query = new WorkingHoursQuery { StartDate = BusinessDate, EndDate = BusinessDate.AddDays(31) };
 
         // Act
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => QueryAsync(query));
@@ -326,11 +314,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
     public async Task OnMaterializedEventCreatedAsync_ShiftSeriesLunchValuesDiffer_PreservesBothValuesIndependently()
     {
         // Arrange
-        var shiftSeries = new ShiftSeries
-        {
-            LunchAvailableMinutes = 45,
-            WorkedLunchMinutes = 15,
-        };
+        var shiftSeries = new ShiftSeries { LunchAvailableMinutes = 45, WorkedLunchMinutes = 15 };
         var eventSeries = new EventSeries
         {
             Title = "Series",
@@ -424,9 +408,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         {
             ShiftEntry = shift,
             AssignmentEntry = assignment,
-            Users = (userIds ?? [UserA])
-                .Select(userId => new ShiftAssignmentEntryUser { UserId = userId })
-                .ToList(),
+            Users = (userIds ?? [UserA]).Select(userId => new ShiftAssignmentEntryUser { UserId = userId }).ToList(),
         };
 
         db.ShiftAssignmentEntries.Add(link);
@@ -435,12 +417,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
 
     private Task<IReadOnlyCollection<WorkingHoursResult>> QueryAsync(WorkingHoursQuery? query = null) =>
         service.QueryAsync(
-            query
-                ?? new WorkingHoursQuery
-                {
-                    StartDate = BusinessDate,
-                    EndDate = BusinessDate,
-                },
+            query ?? new WorkingHoursQuery { StartDate = BusinessDate, EndDate = BusinessDate },
             TestContext.Current.CancellationToken
         );
 
@@ -505,8 +482,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
-    private static DateTimeOffset At(int hour, int minute = 0) =>
-        new(2026, 6, 1, hour, minute, 0, TimeSpan.Zero);
+    private static DateTimeOffset At(int hour, int minute = 0) => new(2026, 6, 1, hour, minute, 0, TimeSpan.Zero);
 
     private static DateTimeOffset AtDay(int day, int hour, int minute = 0) =>
         new(2026, 6, day, hour, minute, 0, TimeSpan.Zero);
