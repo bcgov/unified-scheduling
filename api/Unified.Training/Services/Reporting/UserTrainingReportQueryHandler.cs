@@ -58,6 +58,14 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
 
         query = queryFilters.UserId is Guid userId ? query.Where(ut => ut.UserId == userId) : query;
 
+        query = queryFilters.RegionId is int regionId
+            ? query.Where(ut => ut.User.HomeLocation != null && ut.User.HomeLocation.RegionId == regionId)
+            : query;
+
+        query = queryFilters.LocationId is int locationId
+            ? query.Where(ut => ut.User.HomeLocationId == locationId)
+            : query;
+
         query = queryFilters.TrainingId is int trainingId ? query.Where(ut => ut.TrainingId == trainingId) : query;
 
         query = queryFilters.TrainingCode is string trainingCode
@@ -82,6 +90,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
         {
             TrainingCompletionStatus.Active => query.Where(ut => ut.ExpiryDate == null || ut.ExpiryDate > now),
             TrainingCompletionStatus.Expired => query.Where(ut => ut.ExpiryDate != null && ut.ExpiryDate <= now),
+            TrainingCompletionStatus.NotTaken => query.Where(_ => false),
             _ => query,
         };
 
@@ -98,6 +107,11 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
             UserId = ut.UserId,
             FirstName = ut.User.FirstName,
             LastName = ut.User.LastName,
+            RegionName =
+                ut.User.HomeLocation != null && ut.User.HomeLocation.Region != null
+                    ? ut.User.HomeLocation.Region.Name
+                    : null,
+            LocationName = ut.User.HomeLocation != null ? ut.User.HomeLocation.Name : null,
             TrainingId = ut.TrainingId,
             TrainingCode = ut.Training.Code,
             TrainingDescription = ut.Training.Description,
@@ -121,6 +135,14 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
             ? usersQuery.Where(user => user.Id == reportUserId)
             : usersQuery;
 
+        usersQuery = queryFilters.RegionId is int reportRegionId
+            ? usersQuery.Where(user => user.HomeLocation != null && user.HomeLocation.RegionId == reportRegionId)
+            : usersQuery;
+
+        usersQuery = queryFilters.LocationId is int reportLocationId
+            ? usersQuery.Where(user => user.HomeLocationId == reportLocationId)
+            : usersQuery;
+
         var mandatoryTrainingsQuery = db
             .Trainings.AsNoTracking()
             .Where(training => training.Mandatory && (training.ExpiryDate == null || training.ExpiryDate > now));
@@ -142,6 +164,11 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
                 UserId = user.Id,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
+                RegionName =
+                    user.HomeLocation != null && user.HomeLocation.Region != null
+                        ? user.HomeLocation.Region.Name
+                        : null,
+                LocationName = user.HomeLocation != null ? user.HomeLocation.Name : null,
                 TrainingId = training.Id,
                 TrainingCode = training.Code,
                 TrainingDescription = training.Description,

@@ -3,6 +3,8 @@ import { useFetchAPI } from '@/api-access/useFetchAPI';
 
 export type UserTrainingReportItem = {
   userDisplayName: string;
+  regionName?: string | null;
+  locationName?: string | null;
   trainingId: number;
   trainingCode: string;
   trainingDescription: string;
@@ -29,9 +31,11 @@ export type UserTrainingReportQuery = {
   sortBy?: string;
   sortDir?: 'asc' | 'desc';
   userId?: string;
+  regionId?: number;
+  locationId?: number;
   trainingId?: number;
   trainingCode?: string;
-  status?: 'active' | 'expired';
+  status?: 'active' | 'expired' | 'notTaken';
   startDate?: string;
   endDate?: string;
 };
@@ -46,6 +50,8 @@ export const useUserTrainingReport = (query: MaybeRef<UserTrainingReportQuery>) 
       sortBy: resolvedQuery.sortBy ?? 'userDisplayName',
       sortDir: resolvedQuery.sortDir ?? 'asc',
       userId: resolvedQuery.userId || undefined,
+      regionId: resolvedQuery.regionId,
+      locationId: resolvedQuery.locationId,
       trainingId: resolvedQuery.trainingId,
       trainingCode: resolvedQuery.trainingCode || undefined,
       status: resolvedQuery.status,

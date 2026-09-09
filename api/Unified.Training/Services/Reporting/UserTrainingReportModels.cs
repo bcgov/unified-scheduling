@@ -10,6 +10,10 @@ internal sealed record UserTrainingReportRow
 
     public required string LastName { get; init; }
 
+    public string? RegionName { get; init; }
+
+    public string? LocationName { get; init; }
+
     public required int TrainingId { get; init; }
 
     public required string TrainingCode { get; init; }
@@ -52,6 +56,8 @@ internal static class TrainingComplianceStatusExtensions
 
 public sealed record UserTrainingReportItem(
     string UserDisplayName,
+    string? RegionName,
+    string? LocationName,
     int TrainingId,
     string TrainingCode,
     string TrainingDescription,

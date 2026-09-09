@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Common.Reporting;
 using Unified.Db;
+using Unified.Db.Models;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
@@ -296,7 +297,77 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         Assert.Equal("Expired", expiredRow.Status);
     }
 
-    private async Task<User> SeedUserAsync(string firstName, string lastName, bool isEnabled = true)
+    [Fact]
+    public async Task ExecuteAsync_Should_Filter_Status_As_NotTaken_Only()
+    {
+        var mandatory = await SeedTrainingAsync(400, "MAND2", "Mandatory 2", mandatory: true);
+
+        var assignedUser = await SeedUserAsync("Ari", "Assigned");
+
+        await SeedUserTrainingAsync(assignedUser.Id, mandatory.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-2));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["notTaken"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.True(row.HasMissingMandatoryTrainingAssignment);
+        Assert.Equal("Not Taken", row.Status);
+        Assert.Equal("Missing, Nora", row.UserDisplayName);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Filter_By_Region_Using_User_HomeLocation_Region()
+    {
+        var training = await SeedTrainingAsync(500, "REGION", "Region Filter Training", mandatory: false);
+
+        var northRegion = await SeedRegionAsync("North");
+        var southRegion = await SeedRegionAsync("South");
+
+        var northLocation = await SeedLocationAsync("NORTH001", "North Office", "America/Vancouver", northRegion.Id);
+        var southLocation = await SeedLocationAsync("SOUTH001", "South Office", "America/Vancouver", southRegion.Id);
+
+        var northUser = await SeedUserAsync("Nia", "North", northLocation.Id);
+        var southUser = await SeedUserAsync("Sam", "South", southLocation.Id);
+        var noHomeLocationUser = await SeedUserAsync("Una", "Unknown");
+
+        await SeedUserTrainingAsync(northUser.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-3));
+        await SeedUserTrainingAsync(southUser.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-2));
+        await SeedUserTrainingAsync(noHomeLocationUser.Id, training.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-1));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["regionId"] = [northRegion.Id.ToString()],
+            ["status"] = ["active"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("North, Nia", row.UserDisplayName);
+    }
+
+    private async Task<User> SeedUserAsync(
+        string firstName,
+        string lastName,
+        int? homeLocationId = null,
+        bool isEnabled = true
+    )
     {
         var user = new User
         {
@@ -307,6 +378,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             FirstName = firstName,
             LastName = lastName,
             Gender = Gender.Other,
+            HomeLocationId = homeLocationId,
         };
 
         _db.Users.Add(user);
@@ -347,6 +419,32 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return training;
+    }
+
+    private async Task<Region> SeedRegionAsync(string name)
+    {
+        var region = new Region { Name = name };
+
+        _db.Regions.Add(region);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return region;
+    }
+
+    private async Task<Location> SeedLocationAsync(string agencyId, string name, string timezone, int? regionId)
+    {
+        var location = new Location
+        {
+            AgencyId = agencyId,
+            Name = name,
+            Timezone = timezone,
+            RegionId = regionId,
+        };
+
+        _db.Locations.Add(location);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return location;
     }
 
     private async Task SeedUserTrainingAsync(
