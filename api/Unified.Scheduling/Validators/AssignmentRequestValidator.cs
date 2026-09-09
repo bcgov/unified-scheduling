@@ -53,6 +53,9 @@ public sealed class AssignmentEntryUpdateRequestValidator : AbstractValidator<As
 {
     public AssignmentEntryUpdateRequestValidator()
     {
+        RuleFor(request => request.AssignmentSeriesId)
+            .GreaterThan(0)
+            .When(request => request.AssignmentSeriesId.HasValue);
         RuleFor(request => request.AssignmentDefinitionId).GreaterThan(0);
         RuleFor(request => request.Title).NotEmpty().MaximumLength(200);
         RuleFor(request => request.Description).MaximumLength(2000);
