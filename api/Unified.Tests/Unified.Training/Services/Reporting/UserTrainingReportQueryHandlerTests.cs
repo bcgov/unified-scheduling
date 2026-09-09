@@ -303,12 +303,14 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var mandatory = await SeedTrainingAsync(400, "MAND2", "Mandatory 2", mandatory: true);
 
         var assignedUser = await SeedUserAsync("Ari", "Assigned");
+        var missingUser = await SeedUserAsync("Nora", "Missing");
 
-        await SeedUserTrainingAsync(assignedUser.Id, mandatory.Id, awardedOn: DateTimeOffset.UtcNow.AddDays(-2));
+        await SeedUserTrainingAsync(assignedUser.Id, mandatory.Id, awardedOn: _fixedNow.AddDays(-2));
 
         var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
         {
             ["status"] = ["notTaken"],
+            ["userId"] = [missingUser.Id.ToString()],
         };
 
         var result = (UserTrainingReportResponse)
