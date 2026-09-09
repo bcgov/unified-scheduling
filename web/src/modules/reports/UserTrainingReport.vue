@@ -209,10 +209,12 @@ function buildSelectOptions<TItem>(
   allLabel: string,
   mapItem: (item: TItem) => SelectOption | null,
 ): SelectOption[] {
-  const options = items.map(mapItem).filter((option): option is SelectOption => option !== null);
+  const options = items
+    .map(mapItem)
+    .filter((option): option is SelectOption => option !== null)
+    .sort((left, right) => left.description.localeCompare(right.description));
 
   return [{ code: '', description: allLabel }, ...options];
-}
 
 function formatRow(row: UserTrainingReportItem): Record<string, unknown> {
   return {
