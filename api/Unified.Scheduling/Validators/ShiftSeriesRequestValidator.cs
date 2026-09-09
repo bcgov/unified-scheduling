@@ -23,7 +23,9 @@ public sealed class ShiftSeriesRequestValidator : AbstractValidator<ShiftSeriesR
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
         RuleFor(request => request.AssignmentSeriesLinks)
-            .Must(links => links is null || links.Select(link => link.AssignmentSeriesId).Distinct().Count() == links.Count)
+            .Must(links =>
+                links is null || links.Select(link => link.AssignmentSeriesId).Distinct().Count() == links.Count
+            )
             .WithMessage("Assignment series links must be unique.");
         RuleForEach(request => request.AssignmentSeriesLinks).SetValidator(new AssignmentSeriesLinkRequestValidator());
     }
