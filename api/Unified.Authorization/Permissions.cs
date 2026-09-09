@@ -43,8 +43,11 @@ public enum Permissions
     ScheduleViewDistribute,
 
     // --- Assignments ---
+    AssignmentsView,
     AssignmentsCreate,
+    AssignmentsAssign,
     AssignmentsEdit,
+    AssignmentsDelete,
     AssignmentsExpire,
 
     // --- Duty Roster ---

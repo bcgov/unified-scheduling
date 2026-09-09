@@ -88,8 +88,6 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _db,
             materializationService,
             new ShiftSeriesMaterializationHandler(_db),
-            timeZoneResolver,
-            timeZoneService,
             new CalendarLifecycleService(),
             timeProvider
         );

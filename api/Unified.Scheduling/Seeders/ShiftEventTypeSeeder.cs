@@ -22,6 +22,12 @@ public sealed class ShiftEventTypeSeeder(ILogger<ShiftEventTypeSeeder> logger) :
             SchedulingConstants.ShiftEventTypeDescription,
             cancellationToken
         );
+        await UpsertEventTypeAsync(
+            dbContext,
+            SchedulingConstants.AssignmentEventTypeCode,
+            SchedulingConstants.AssignmentEventTypeDescription,
+            cancellationToken
+        );
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
