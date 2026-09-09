@@ -1,3 +1,4 @@
+import type { WorkingHoursResult } from '@/api-access/generated/models';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
@@ -22,6 +23,7 @@ import {
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingPublishModal,
   showCalendarSchedulingResourceActionModal,
+  showCalendarSchedulingWorkingHours,
   showCalendarSchedulingLeaveDetail,
   toggleCalendarSchedulingConflict,
   toggleCalendarSchedulingHeaderConflict,
@@ -547,3 +549,22 @@ function isAssignmentEvent(event: CalendarEventBase) {
     Boolean(resolveAssignmentEntryId(event))
   );
 }
+
+export const calendarSchedulingHeaderShowOvertimeAction: CalendarMatrixCellHeaderAction = {
+  id: calendarSchedulingActionIds.showOvertime,
+  moduleId: CalendarModuleId.SchedulingUi,
+  label: 'Show overtime details',
+  order: 30,
+  isAvailable: (context) => context.actionId === calendarSchedulingActionIds.showOvertime,
+  execute: (context) => {
+    const result = context.payload as WorkingHoursResult | undefined;
+    if (!result) {
+      return;
+    }
+
+    const userName = context.model.primaryColumn.resources.find(
+      (resource) => resource.id === context.cell.resourceId,
+    )?.title;
+    showCalendarSchedulingWorkingHours(result, userName);
+  },
+};

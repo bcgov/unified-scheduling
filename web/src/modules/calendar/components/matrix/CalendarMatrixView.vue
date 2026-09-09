@@ -179,6 +179,7 @@ async function handleHeaderAction(payload: CalendarMatrixCellHeaderActionEvent) 
     header: payload.header,
     actionId: payload.actionId,
     actionType: payload.actionType,
+    payload: payload.payload,
     model: props.model,
   };
   const actions = calendarActionRegistry.getMatrixCellHeaderActions(actionContext, props.runtimeContext);

@@ -14,6 +14,7 @@ import {
   calendarSchedulingHeaderResolveConflictAction,
   calendarSchedulingHeaderShowConflictAction,
   calendarSchedulingHeaderLeaveDetailAction,
+  calendarSchedulingHeaderShowOvertimeAction,
   calendarSchedulingResolveConflictAction,
   calendarSchedulingShowConflictAction,
 } from './calendarSchedulingActions';
@@ -21,6 +22,7 @@ import { calendarAssignmentViewContribution } from './calendarAssignmentViewCont
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
 import { calendarSchedulingAssignmentResourcesContribution } from './contributions/calendarSchedulingAssignmentResourcesContribution';
 import { calendarSchedulingEventsContribution } from './contributions/calendarSchedulingEventsContribution';
+import { calendarSchedulingWorkingHoursContribution } from './contributions/calendarSchedulingWorkingHoursContribution';
 
 let isRegistered = false;
 
@@ -31,6 +33,7 @@ export function registerCalendarSchedulingModule() {
 
   calendarRegistry.registerModuleContribution(calendarSchedulingEventsContribution);
   calendarRegistry.registerModuleContribution(calendarSchedulingAssignmentResourcesContribution);
+  calendarRegistry.registerModuleContribution(calendarSchedulingWorkingHoursContribution);
   calendarRegistry.registerView(calendarShiftViewContribution);
   calendarRegistry.registerView(calendarAssignmentViewContribution);
 
@@ -47,6 +50,7 @@ export function registerCalendarSchedulingModule() {
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderLeaveDetailAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowConflictAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderResolveConflictAction);
+  calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowOvertimeAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingShowConflictAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingResolveConflictAction);
   calendarActionRegistry.registerViewDetailAction(

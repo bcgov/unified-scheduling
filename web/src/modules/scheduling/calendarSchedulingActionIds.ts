@@ -9,4 +9,5 @@ export const calendarSchedulingActionIds = {
   viewLeaveDetails: 'calendar-scheduling.leave-details',
   showConflict: 'calendar-scheduling.show-conflict',
   resolveConflict: 'calendar-scheduling.resolve-conflict',
+  showOvertime: 'calendar-scheduling.show-overtime',
 } as const;

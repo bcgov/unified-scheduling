@@ -1,9 +1,12 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
+import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import CalendarSchedulingShiftDeletePanel from '@/modules/scheduling/CalendarSchedulingShiftDeletePanel.vue';
 import CalendarSchedulingShiftDetailsPanel from '@/modules/scheduling/CalendarSchedulingShiftDetailsPanel.vue';
 import CalendarSchedulingShiftEditPanel from '@/modules/scheduling/CalendarSchedulingShiftEditPanel.vue';
 import CalendarSchedulingShiftForm from '@/modules/scheduling/CalendarSchedulingShiftForm.vue';
+import CalendarSchedulingWorkingHoursModal from '@/modules/scheduling/CalendarSchedulingWorkingHoursModal.vue';
+import UaModal from '@/shared/components/UaModal.vue';
 import { getShiftDeleteDisabledReason } from '@/modules/scheduling/useSchedulingShiftDelete';
 import type { ShiftResourceFormData } from '@/modules/scheduling/calendarSchedulingShiftForm';
 import type { SelectOption } from '@/types/select';
@@ -155,6 +158,70 @@ describe('CalendarSchedulingShiftForm', () => {
     expect(emitted.publish).toBe('no');
   });
 
+  it('offers lunch increments and excludes worked lunch above the available amount', () => {
+    const formData: ShiftResourceFormData = {
+      lunchAvailableMinutes: 30,
+      workedLunchMinutes: 15,
+      date: '2026-07-03',
+      repeatMode: 'never',
+      publish: 'no',
+      cancel: 'no',
+    };
+    const wrapper = mount(CalendarSchedulingShiftForm, {
+      props: {
+        modelValue: formData,
+        locationOptions: [],
+        employeeOptions: [],
+        showRecurrence: false,
+      },
+      global: {
+        stubs: {
+          UaSelect: {
+            props: ['id', 'items'],
+            template: '<div :id="id" :data-options="items.map((item) => item.description).join(\',\')" />',
+          },
+        },
+      },
+    });
+
+    expect(wrapper.get('#shift-form-lunch-available').attributes('data-options')).toBe('15 min,30 min,45 min,1 hour');
+    expect(wrapper.get('#shift-form-worked-lunch').attributes('data-options')).toBe('0 min,15 min,30 min');
+  });
+
+  it('reduces worked lunch when lunch available is reduced', async () => {
+    const formData: ShiftResourceFormData = {
+      lunchAvailableMinutes: 60,
+      workedLunchMinutes: 45,
+      date: '2026-07-03',
+      repeatMode: 'never',
+      publish: 'no',
+      cancel: 'no',
+    };
+    const wrapper = mount(CalendarSchedulingShiftForm, {
+      props: {
+        modelValue: formData,
+        locationOptions: [],
+        employeeOptions: [],
+        showRecurrence: false,
+      },
+      global: {
+        stubs: {
+          UaSelect: {
+            props: ['id'],
+            emits: ['update:modelValue'],
+            template:
+              '<button v-if="id === \'shift-form-lunch-available\'" class="lunch-available" @click="$emit(\'update:modelValue\', 30)">Lunch</button><div v-else />',
+          },
+        },
+      },
+    });
+
+    await wrapper.get('.lunch-available').trigger('click');
+
+    const emitted = wrapper.emitted('update:modelValue')?.[0]?.[0] as ShiftResourceFormData;
+    expect(emitted).toMatchObject({ lunchAvailableMinutes: 30, workedLunchMinutes: 30 });
+  });
+
   it('clears employees and linked assignments when location changes', async () => {
     const formData: ShiftResourceFormData = {
       locationId: 1,
@@ -274,6 +341,48 @@ describe('CalendarSchedulingShiftForm', () => {
     });
 
     expect(vm.currentShiftUserOptions).toBe(initialUserOptions);
+  });
+});
+
+describe('CalendarSchedulingWorkingHoursModal', () => {
+  it('displays the backend-provided working-hours breakdown', async () => {
+    const app = await createTestApp({ loadConfig: false });
+    const wrapper = mount(CalendarSchedulingWorkingHoursModal, {
+      props: {
+        userName: 'Alex Alpha',
+        result: {
+          userId: '00000000-0000-0000-0000-000000000001',
+          date: '2026-09-08',
+          paidShiftMinutes: 480,
+          lunchAvailableMinutes: 60,
+          workedLunchMinutes: 30,
+          paidOutsideShiftMinutes: 0,
+          creditedMinutes: 510,
+          overtimeMinutes: 30,
+          shiftEntryId: 42,
+        },
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    expect(wrapper.getComponent(UaModal).props('title')).toBe('Alex Alpha · September 8, 2026');
+    expect(document.body.textContent).toContain('Lunch break');
+    expect(document.body.textContent).toContain('1h');
+    expect(document.body.textContent).toContain('Worked lunch (included in paid shift time)');
+    expect(document.body.textContent).toContain('30m');
+    expect(document.body.textContent).toContain('Paid shift time');
+    expect(document.body.textContent).toContain('8h');
+    expect(document.body.textContent).toContain('Paid outside-shift assignments');
+    expect(document.body.textContent).toContain('Regular credited time');
+    expect(document.body.textContent).toContain('Total credited time');
+    expect(document.body.textContent).toContain('8h 30m');
+    expect(document.body.textContent).toContain('Overtime');
+
+    wrapper.getComponent(UaModal).vm.$emit('close');
+    expect(wrapper.emitted('close')).toHaveLength(1);
+
+    wrapper.unmount();
   });
 });
 

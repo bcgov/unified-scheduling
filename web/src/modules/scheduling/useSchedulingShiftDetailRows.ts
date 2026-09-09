@@ -5,7 +5,12 @@ import type { SelectOption } from '@/types/select';
 import { formatCalendarDateOnly } from '@/utils/date';
 import { resolveCalendarEventUserIds } from './calendarSchedulingEventUsers';
 import { formatAssigneeIds } from './calendarSchedulingShiftDetailRows';
-import { publishOptions, type ShiftResourceFormData } from './calendarSchedulingShiftForm';
+import {
+  lunchAvailableOptions,
+  publishOptions,
+  workedLunchOptions,
+  type ShiftResourceFormData,
+} from './calendarSchedulingShiftForm';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import type { ShiftDetailRow, ShiftOpenScope } from './calendarSchedulingShiftDetailTypes';
 import { formatTimeOptionRange } from './schedulingDateTime';
@@ -44,6 +49,14 @@ export function useSchedulingShiftDetailRows(options: {
       {
         label: 'Time',
         value: formatTimeOptionRange(formData.startTime, formData.endTime),
+      },
+      {
+        label: 'Lunch Break',
+        value: formatSelectValue(formData.lunchAvailableMinutes, lunchAvailableOptions, 'Unknown'),
+      },
+      {
+        label: 'Worked Lunch',
+        value: formatSelectValue(formData.workedLunchMinutes, workedLunchOptions, 'Unknown'),
       },
     ];
 
@@ -144,7 +157,7 @@ function formatAssignmentName(id: number | null, assignmentOptions: SelectOption
   return option?.description || `${fallback} ${id}`;
 }
 
-function formatSelectValue(value: unknown, options: SelectOption[]) {
+function formatSelectValue(value: unknown, options: SelectOption[], fallback = 'No') {
   const option = options.find((candidate) => candidate.code === value);
-  return option?.description ?? 'No';
+  return option?.description ?? fallback;
 }

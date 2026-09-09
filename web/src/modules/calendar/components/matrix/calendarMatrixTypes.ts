@@ -29,6 +29,7 @@ export interface CalendarMatrixActionDisplay {
   icon?: string;
   ariaLabel?: string;
   type: CalendarMatrixActionType;
+  payload?: unknown;
 }
 
 export interface CalendarMatrixEventBlockActionEvent {
@@ -134,6 +135,7 @@ export interface CalendarMatrixCellHeaderActionEvent {
   header: CalendarMatrixCellHeader;
   actionId: string;
   actionType: CalendarMatrixActionType;
+  payload?: unknown;
 }
 
 export interface CalendarMatrixSidePanel {

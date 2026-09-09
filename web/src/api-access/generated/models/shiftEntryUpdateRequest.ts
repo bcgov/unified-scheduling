@@ -33,5 +33,9 @@ export interface ShiftEntryUpdateRequest {
   allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
+  /** @nullable */
+  lunchAvailableMinutes?: number | null;
+  /** @nullable */
+  workedLunchMinutes?: number | null;
   userIds?: string[];
 }

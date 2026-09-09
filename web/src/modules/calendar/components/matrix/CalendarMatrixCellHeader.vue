@@ -65,6 +65,7 @@ function handleActionClick() {
     header: props.header,
     actionId: action.actionId,
     actionType: action.type,
+    payload: action.payload,
   });
 }
 </script>

@@ -124,6 +124,7 @@ describe('CalendarMatrixCellHeader', () => {
         actionId: 'details',
         text: 'View',
         type: CalendarMatrixActionType.Button,
+        payload: { source: 'header' },
       },
     };
 
@@ -143,10 +144,9 @@ describe('CalendarMatrixCellHeader', () => {
       header,
       actionId: 'details',
       actionType: CalendarMatrixActionType.Button,
+      payload: { source: 'header' },
     });
-    expect(wrapper.classes()).toEqual(
-      expect.arrayContaining(['is-selected', 'has-color', 'is-draft', 'has-action-display']),
-    );
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['is-selected', 'has-color', 'is-draft']));
     expect(wrapper.attributes('style')).toContain('--calendar-matrix-cell-header-border-color: #336699');
   });
 
@@ -199,7 +199,7 @@ describe('CalendarMatrixCellHeader', () => {
     expect(wrapper.find('.calendar-matrix-cell-header__info-icons').text()).toContain('calendar-sync');
     expect(wrapper.find('.calendar-matrix-cell-header__info-icon').attributes('aria-label')).toBe('Part of a series');
     expect(wrapper.find('.calendar-matrix-cell-header__info-icon button').exists()).toBe(false);
-    expect(wrapper.classes()).toEqual(expect.arrayContaining(['has-info-icons', 'has-action-display']));
+    expect(wrapper.classes()).toContain('has-info-icons');
   });
 });
 

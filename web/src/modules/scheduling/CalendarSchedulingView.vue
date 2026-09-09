@@ -9,6 +9,7 @@ import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssign
 import CalendarSchedulingAssignmentDefinitionCreateModal from './CalendarSchedulingAssignmentDefinitionCreateModal.vue';
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
 import CalendarSchedulingPublishModal from './CalendarSchedulingPublishModal.vue';
+import CalendarSchedulingWorkingHoursModal from './CalendarSchedulingWorkingHoursModal.vue';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
@@ -59,10 +60,12 @@ import {
   calendarSchedulingResourceActionResource,
   calendarSchedulingLeaveDetailEvent,
   calendarSchedulingPublishRequest,
+  calendarSchedulingWorkingHoursSelection,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingPublishModal,
+  closeCalendarSchedulingWorkingHours,
   closeCalendarSchedulingResourceActionModal,
   closeCalendarSchedulingLeaveDetail,
   getCalendarSchedulingHeaderConflictKey,
@@ -404,6 +407,13 @@ function isAssignmentEvent(event: CalendarEventBase) {
     mode="view"
     @close="assignmentDefinitionId = undefined"
     @saved="handleAssignmentDefinitionSaved"
+  />
+
+  <CalendarSchedulingWorkingHoursModal
+    v-if="calendarSchedulingWorkingHoursSelection"
+    :result="calendarSchedulingWorkingHoursSelection.result"
+    :user-name="calendarSchedulingWorkingHoursSelection.userName"
+    @close="closeCalendarSchedulingWorkingHours"
   />
 
   <CalendarSchedulingPublishModal
