@@ -8,7 +8,7 @@ public sealed class ShiftEntryLinkRequestValidator : AbstractValidator<ShiftEntr
     public ShiftEntryLinkRequestValidator()
     {
         RuleFor(request => request.ShiftEntryId).GreaterThan(0);
-        RuleFor(request => request.AssignedUserIds).NotEmpty().Must(RelationshipLinkValidation.HaveDistinctValues);
+        RuleFor(request => request.AssignedUserIds).Cascade(CascadeMode.Stop).NotEmpty().Must(RelationshipLinkValidation.HaveDistinctValues);
         RuleForEach(request => request.AssignedUserIds).NotEmpty();
     }
 }
