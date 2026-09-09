@@ -1,7 +1,7 @@
 using Unified.Db.Models.Calendar;
 using Unified.Scheduling.Models;
 
-namespace Unified.Scheduling.Services;
+namespace Unified.Scheduling.Mappings;
 
 internal static class ShiftEventMapper
 {

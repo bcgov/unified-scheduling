@@ -16,4 +16,6 @@ public class ShiftSeries : BaseEntity
     public ICollection<ShiftSeriesUser> Users { get; set; } = [];
 
     public ICollection<ShiftEntry> ShiftEntries { get; set; } = [];
+
+    public ICollection<ShiftAssignmentSeriesLink> ShiftAssignmentSeriesLinks { get; set; } = [];
 }
