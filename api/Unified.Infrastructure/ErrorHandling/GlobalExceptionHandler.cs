@@ -147,7 +147,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         _logger.LogInformation(ex, "Validation conflict: {Message}", ex.Message);
         httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
 
-        return new ValidationProblemDetails(ex.Errors.ToDictionary())
+        return new ValidationProblemDetails(new Dictionary<string, string[]>(ex.Errors))
         {
             Status = StatusCodes.Status409Conflict,
             Title = "Conflict.",

@@ -23,7 +23,7 @@ public sealed class AssignmentSeriesRequestValidator : AbstractValidator<Assignm
         RuleFor(request => request.RecurrenceRule).NotEmpty();
         RuleForEach(request => request.ShiftSeriesLinks).SetValidator(new ShiftSeriesLinkRequestValidator());
         RuleFor(request => request.ShiftSeriesLinks)
-            .Must(links => links.Select(link => link.ShiftSeriesId).Distinct().Count() == links.Count)
+            .Must(links => links is null || links.Select(link => link.ShiftSeriesId).Distinct().Count() == links.Count)
             .WithMessage("Shift series links must be unique.");
     }
 }
