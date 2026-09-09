@@ -215,6 +215,7 @@ function buildSelectOptions<TItem>(
     .sort((left, right) => left.description.localeCompare(right.description));
 
   return [{ code: '', description: allLabel }, ...options];
+}
 
 function formatRow(row: UserTrainingReportItem): Record<string, unknown> {
   return {
