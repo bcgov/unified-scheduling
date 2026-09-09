@@ -364,6 +364,42 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         Assert.Equal("North, Nia", row.UserDisplayName);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Should_Filter_By_Location_Using_User_HomeLocation()
+    {
+        var training = await SeedTrainingAsync(510, "LOCATION", "Location Filter Training", mandatory: false);
+
+        var region = await SeedRegionAsync("North");
+
+        var alphaLocation = await SeedLocationAsync("ALPHA001", "Alpha Office", "America/Vancouver", region.Id);
+        var betaLocation = await SeedLocationAsync("BETA001", "Beta Office", "America/Vancouver", region.Id);
+
+        var alphaUser = await SeedUserAsync("Ava", "Alpha", alphaLocation.Id);
+        var betaUser = await SeedUserAsync("Ben", "Beta", betaLocation.Id);
+        var noHomeLocationUser = await SeedUserAsync("Una", "Unknown");
+
+        await SeedUserTrainingAsync(alphaUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-3));
+        await SeedUserTrainingAsync(betaUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-2));
+        await SeedUserTrainingAsync(noHomeLocationUser.Id, training.Id, awardedOn: _fixedNow.AddDays(-1));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["locationId"] = [alphaLocation.Id.ToString()],
+            ["status"] = ["active"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("Alpha, Ava", row.UserDisplayName);
+    }
+
     private async Task<User> SeedUserAsync(
         string firstName,
         string lastName,

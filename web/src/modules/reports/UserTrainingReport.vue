@@ -335,7 +335,7 @@ function formatDateCellValue(value: unknown): unknown {
 
 .filters-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
   gap: var(--ua-spacing-md);
 }
 
@@ -380,6 +380,12 @@ function formatDateCellValue(value: unknown): unknown {
 
 .ua-data-table-wrapper :deep(.v-table tbody tr.user-training-report-row--missing-mandatory:hover > td) {
   background-color: rgba(var(--v-theme-error), 0.18) !important;
+}
+
+@media (max-width: 1400px) {
+  .filters-grid {
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+  }
 }
 
 @media (max-width: 1200px) {
