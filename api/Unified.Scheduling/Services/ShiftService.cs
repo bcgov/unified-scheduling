@@ -867,13 +867,24 @@ public sealed class ShiftService(
             return;
 
         var candidateList = candidates.ToList();
-        for (var firstIndex = 0; firstIndex < candidateList.Count; firstIndex++)
+        foreach (var userCandidates in candidateList.GroupBy(candidate => candidate.UserId))
         {
-            for (var secondIndex = firstIndex + 1; secondIndex < candidateList.Count; secondIndex++)
+            var orderedCandidates = userCandidates.OrderBy(candidate => candidate.StartAtUtc).ToList();
+            var startDates = new HashSet<DateOnly>();
+
+            foreach (var candidate in orderedCandidates)
             {
-                var conflict = GetShiftConflict(candidateList[firstIndex], candidateList[secondIndex]);
+                if (!startDates.Add(GetLocalDate(candidate.StartAtUtc, candidate.TimeZoneId)))
+                    throw CreateShiftConflictException(candidate, ShiftConflictKind.StartDate);
+            }
+
+            for (var candidateIndex = 1; candidateIndex < orderedCandidates.Count; candidateIndex++)
+            {
+                var previousCandidate = orderedCandidates[candidateIndex - 1];
+                var candidate = orderedCandidates[candidateIndex];
+                var conflict = GetShiftConflict(previousCandidate, candidate);
                 if (conflict.HasValue)
-                    throw CreateShiftConflictException(candidateList[firstIndex], conflict.Value);
+                    throw CreateShiftConflictException(candidate, conflict.Value);
             }
         }
 
