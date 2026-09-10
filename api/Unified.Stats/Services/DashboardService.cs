@@ -78,13 +78,11 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
         var summaryTask = baseQuery
             .Select(r => new
             {
-                IsRegular =
-                    r.SubCategoryMetric != null
+                IsRegular = r.SubCategoryMetric != null
                     && r.SubCategoryMetric.Metric != null
                     && !r.SubCategoryMetric.Metric.IsOvertime
                     && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours,
-                IsOvertime =
-                    r.SubCategoryMetric != null
+                IsOvertime = r.SubCategoryMetric != null
                     && r.SubCategoryMetric.Metric != null
                     && r.SubCategoryMetric.Metric.IsOvertime
                     && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours,
@@ -147,7 +145,8 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
         CancellationToken cancellationToken
     )
     {
-        if (queryParams?.GroupId is not int gid) return false;
+        if (queryParams?.GroupId is not int gid)
+            return false;
         return await db.StatGroups.AnyAsync(g => g.Id == gid && g.IsLocationLevel, cancellationToken);
     }
 
@@ -170,9 +169,7 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
         IQueryable<StatRecord> query;
         if (isLocationLevelGroup)
         {
-            query = db
-                .StatRecords.AsNoTracking()
-                .Where(r => r.UserId == null && r.LocationId == callerHomeLocationId);
+            query = db.StatRecords.AsNoTracking().Where(r => r.UserId == null && r.LocationId == callerHomeLocationId);
         }
         else
         {
