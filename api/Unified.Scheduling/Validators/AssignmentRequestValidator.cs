@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using FluentValidation;
 using Unified.Common.Time;
 using Unified.Scheduling.Models;
@@ -50,15 +51,7 @@ public sealed class AssignmentEntryRequestValidator : AbstractValidator<Assignme
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
-        AddShiftEntryLinkRules();
-    }
-
-    private void AddShiftEntryLinkRules()
-    {
-        RuleFor(request => request.ShiftEntryLinks)
-            .Must(links => links is null || links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count)
-            .WithMessage("Shift entry links must be unique.");
-        RuleForEach(request => request.ShiftEntryLinks).SetValidator(new ShiftEntryLinkRequestValidator());
+        this.AddShiftEntryLinkRules(request => request.ShiftEntryLinks);
     }
 }
 
@@ -78,16 +71,21 @@ public sealed class AssignmentEntryUpdateRequestValidator : AbstractValidator<As
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
-        AddShiftEntryLinkRules();
+        this.AddShiftEntryLinkRules(request => request.ShiftEntryLinks);
     }
+}
 
-    private void AddShiftEntryLinkRules()
+internal static class AssignmentRequestValidatorExtensions
+{
+    public static void AddShiftEntryLinkRules<TRequest>(
+        this AbstractValidator<TRequest> validator,
+        Expression<Func<TRequest, IEnumerable<ShiftEntryLinkRequest>?>> linksSelector
+    )
     {
-        RuleFor(request => request.ShiftEntryLinks)
-            .Must(links => links is null || links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count)
+        validator
+            .RuleFor(linksSelector)
+            .Must(links => links is null || links.Select(link => link.ShiftEntryId).Distinct().Count() == links.Count())
             .WithMessage("Shift entry links must be unique.");
-        RuleForEach(request => request.ShiftEntryLinks!)
-            .SetValidator(new ShiftEntryLinkRequestValidator())
-            .When(request => request.ShiftEntryLinks is not null);
+        validator.RuleForEach(linksSelector).SetValidator(new ShiftEntryLinkRequestValidator());
     }
 }

@@ -31,6 +31,9 @@ public sealed class ShiftService(
         RequireBoundedRule = true,
     };
 
+    // Preserve potential same-local-start-date conflicts when the initial database query uses UTC bounds.
+    private static readonly TimeSpan LocalStartDateConflictQueryBuffer = TimeSpan.FromDays(2);
+
     public async Task<IReadOnlyCollection<ShiftSeriesResponse>> GetShiftSeriesAsync(
         ShiftSeriesQueryParams? queryParams = null,
         CancellationToken cancellationToken = default
@@ -75,7 +78,7 @@ public sealed class ShiftService(
             var recurrenceResults = candidates
                 .Where(shiftSeries =>
                     shiftSeries.EventSeries is not null
-                    && recurrenceExpander.ExpandWithin(shiftSeries.EventSeries, rangeStart, rangeEnd).Count > 0
+                    && recurrenceExpander.CountWithin(shiftSeries.EventSeries, rangeStart, rangeEnd, stopAfter: 1) > 0
                 )
                 .ToList();
 
@@ -141,6 +144,8 @@ public sealed class ShiftService(
             request.StartAtUtc
         );
 
+        // Keep series creation, occurrence materialization, conflict validation, and asignment linking atomic
+        // serializable isolation also prevents concurrent requests from both passing the same conflict.
         await using var transaction = await db.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken
@@ -873,7 +878,30 @@ public sealed class ShiftService(
             return;
 
         var candidateList = candidates.ToList();
-        foreach (var userCandidates in candidateList.GroupBy(candidate => candidate.UserId))
+        await EnsureCandidatesDoNotConflictWithEachOtherAsync(candidateList, cancellationToken);
+
+        var existingCandidates = await GetExistingShiftConflictCandidatesAsync(
+            candidateList,
+            excludedShiftEntryIds,
+            cancellationToken
+        );
+        var existingCandidatesByUser = existingCandidates.ToLookup(candidate => candidate.UserId);
+        foreach (var candidate in candidateList)
+        {
+            var conflict = existingCandidatesByUser[candidate.UserId]
+                .Select(existing => GetShiftConflict(candidate, existing))
+                .FirstOrDefault(result => result.HasValue);
+            if (conflict.HasValue)
+                throw await CreateShiftConflictExceptionAsync(candidate, conflict.Value, cancellationToken);
+        }
+    }
+
+    private async Task EnsureCandidatesDoNotConflictWithEachOtherAsync(
+        IReadOnlyCollection<ShiftConflictCandidate> candidates,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var userCandidates in candidates.GroupBy(candidate => candidate.UserId))
         {
             var orderedCandidates = userCandidates.OrderBy(candidate => candidate.StartAtUtc).ToList();
             var startDates = new HashSet<DateOnly>();
@@ -897,9 +925,18 @@ public sealed class ShiftService(
                     throw await CreateShiftConflictExceptionAsync(candidate, conflict.Value, cancellationToken);
             }
         }
+    }
 
-        var userIds = candidateList.Select(candidate => candidate.UserId).Distinct().ToList();
-        var earliestRelevantInstant = candidateList.Min(candidate => candidate.StartAtUtc).AddDays(-2);
+    private async Task<IReadOnlyCollection<ShiftConflictCandidate>> GetExistingShiftConflictCandidatesAsync(
+        IReadOnlyCollection<ShiftConflictCandidate> candidates,
+        IReadOnlyCollection<int> excludedShiftEntryIds,
+        CancellationToken cancellationToken
+    )
+    {
+        var userIds = candidates.Select(candidate => candidate.UserId).Distinct().ToList();
+        var earliestRelevantInstant = candidates
+            .Min(candidate => candidate.StartAtUtc)
+            .Subtract(LocalStartDateConflictQueryBuffer);
         var existingEntriesQuery = db
             .ShiftEntries.AsNoTracking()
             .Include(entry => entry.Event)
@@ -912,24 +949,18 @@ public sealed class ShiftService(
                 && (entry.Event.EndAtUtc == null || entry.Event.EndAtUtc > earliestRelevantInstant)
             );
 
-        if (candidateList.All(candidate => candidate.EndAtUtc.HasValue))
+        if (candidates.All(candidate => candidate.EndAtUtc.HasValue))
         {
-            var latestRelevantInstant = candidateList.Max(candidate => candidate.EndAtUtc!.Value).AddDays(2);
+            var latestRelevantInstant = candidates
+                .Max(candidate => candidate.EndAtUtc!.Value)
+                .Add(LocalStartDateConflictQueryBuffer);
             existingEntriesQuery = existingEntriesQuery.Where(entry =>
                 entry.Event != null && entry.Event.StartAtUtc < latestRelevantInstant
             );
         }
 
         var existingEntries = await existingEntriesQuery.ToListAsync(cancellationToken);
-        var existingCandidates = CreateShiftConflictCandidates(existingEntries);
-        foreach (var candidate in candidateList)
-        {
-            var conflict = existingCandidates
-                .Select(existing => GetShiftConflict(candidate, existing))
-                .FirstOrDefault(result => result.HasValue);
-            if (conflict.HasValue)
-                throw await CreateShiftConflictExceptionAsync(candidate, conflict.Value, cancellationToken);
-        }
+        return CreateShiftConflictCandidates(existingEntries);
     }
 
     private IReadOnlyCollection<ShiftConflictCandidate> CreateShiftConflictCandidates(

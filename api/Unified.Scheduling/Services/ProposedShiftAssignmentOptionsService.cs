@@ -174,5 +174,5 @@ public sealed class ProposedShiftAssignmentOptionsService(
     private static bool IsLinkable(AssignmentSeriesResponse series) => IsLinkable(series.StatusTypeCode);
 
     private static bool IsLinkable(string? statusTypeCode) =>
-        statusTypeCode?.Trim().ToLowerInvariant() is "draft" or "active" or "published";
+        statusTypeCode is CalendarEventStatusTypeCodes.Draft or CalendarEventStatusTypeCodes.Active;
 }
