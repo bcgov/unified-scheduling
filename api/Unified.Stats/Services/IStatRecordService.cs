@@ -41,4 +41,5 @@ public interface IStatRecordService
         bool canOverrideSignedOff = false,
         CancellationToken cancellationToken = default
     );
+    Task<bool> IsLocationLevelGroupAsync(int groupId, CancellationToken cancellationToken = default);
 }

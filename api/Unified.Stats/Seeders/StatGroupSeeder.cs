@@ -31,6 +31,7 @@ public class StatGroupSeeder(ILogger<StatGroupSeeder> logger) : SeederBase<Unifi
             Id = 3,
             Name = "Location Level",
             DisplayOrder = 3,
+            IsLocationLevel = true,
         },
     ];
 
@@ -56,6 +57,7 @@ public class StatGroupSeeder(ILogger<StatGroupSeeder> logger) : SeederBase<Unifi
             Logger.LogInformation("Updating fields for StatGroup with Id {Id}...", seed.Id);
             existing.Name = seed.Name;
             existing.DisplayOrder = seed.DisplayOrder;
+            existing.IsLocationLevel = seed.IsLocationLevel;
             updatedCount++;
         }
 

@@ -203,8 +203,12 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
             callerUserId
         );
 
-        // Location-level entries (GroupId 3) are per-location, not per-employee — skip user auth.
-        if (request.GroupId != 3)
+        // Verify whether this group is location-level from the database, not the request.
+        var isLocationLevel =
+            await db.StatGroups.AnyAsync(g => g.Id == request.GroupId && g.IsLocationLevel, cancellationToken);
+
+        // Location-level entries are per-location, not per-employee — skip user auth.
+        if (!isLocationLevel)
             EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         // Load existing records for this user/location/date scoped to the same group so we can
@@ -217,8 +221,8 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                 && r.SubCategoryMetric!.SubCategory!.Category!.GroupId == request.GroupId
             );
 
-        // Location-level (GroupId 3) records have no UserId; employee forms filter by user.
-        existingQuery = request.GroupId == 3
+        // Location-level records have no UserId; employee forms filter by user.
+        existingQuery = isLocationLevel
             ? existingQuery.Where(r => r.UserId == null)
             : existingQuery.Where(r => r.UserId == request.UserId);
 
@@ -264,7 +268,7 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                     DateFrom = request.Date,
                     DateTo = request.Date,
                     PeriodType = "Daily",
-                    UserId = request.GroupId == 3 ? null : request.UserId,
+                    UserId = isLocationLevel ? null : request.UserId,
                     LocationId = item.LocationId ?? request.LocationId,
                     SubCategoryMetricId = item.SubCategoryMetricId,
                     Value = item.Value,
@@ -288,6 +292,9 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
 
         return results.Adapt<List<StatRecordResponse>>();
     }
+
+    public async Task<bool> IsLocationLevelGroupAsync(int groupId, CancellationToken cancellationToken = default) =>
+        await db.StatGroups.AnyAsync(g => g.Id == groupId && g.IsLocationLevel, cancellationToken);
 
     private static void EnsureAuthorizedToSubmitFor(
         Guid? requestedUserId,

@@ -12,4 +12,9 @@ public class StatGroup : BaseEntity
     public string Name { get; set; } = string.Empty;
 
     public int DisplayOrder { get; set; }
+
+    /// <summary>
+    /// When true, records in this group are per-location (no employee assignment required).
+    /// </summary>
+    public bool IsLocationLevel { get; set; }
 }
