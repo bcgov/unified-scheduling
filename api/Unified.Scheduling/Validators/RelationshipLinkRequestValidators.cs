@@ -48,6 +48,6 @@ public sealed class AssignmentSeriesLinkRequestValidator : AbstractValidator<Ass
 
 internal static class RelationshipLinkValidation
 {
-    internal static bool HaveDistinctValues(IReadOnlyCollection<Guid> values) =>
-        values.Distinct().Count() == values.Count;
+    internal static bool HaveDistinctValues(IReadOnlyCollection<Guid>? values) =>
+        values is not null && values.Distinct().Count() == values.Count;
 }
