@@ -36,4 +36,13 @@ describe('reportCsvExport', () => {
 
     expect(csv).toBe(['User,Version,Notes', 'User A,,'].join('\r\n'));
   });
+
+  it.each([
+    ['=SUM(A1:A2)', "'=SUM(A1:A2)"],
+    ['+cmd', "'+cmd"],
+    ['-cmd', "'-cmd"],
+    ['@cmd', "'@cmd"],
+  ])('neutralizes spreadsheet formulas', (input, expected) => {
+    expect(buildReportCsvContent([{ header: 'Value', value: () => input }], [{}])).toContain(expected);
+  });
 });

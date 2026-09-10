@@ -49,9 +49,15 @@ function normalizeCsvFieldValue(value: unknown): string {
 }
 
 function escapeCsvField(value: string): string {
-  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const safeValue = sanitizeSpreadsheetCell(value);
+
+  if (safeValue.includes(',') || safeValue.includes('"') || safeValue.includes('\n') || safeValue.includes('\r')) {
+    return `"${safeValue.replace(/"/g, '""')}"`;
   }
 
-  return value;
+  return safeValue;
+}
+
+function sanitizeSpreadsheetCell(value: string): string {
+  return /^[=+\-@\t\r\n]/.test(value) ? `'${value}` : value;
 }
