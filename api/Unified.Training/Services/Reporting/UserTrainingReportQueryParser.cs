@@ -5,6 +5,8 @@ namespace Unified.Training.Services.Reporting;
 internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
 {
     private const string UserIdFilterKey = "userId";
+    private const string RegionIdFilterKey = "regionId";
+    private const string LocationIdFilterKey = "locationId";
     private const string TrainingIdFilterKey = "trainingId";
     private const string TrainingCodeFilterKey = "trainingCode";
     private const string StatusFilterKey = "status";
@@ -14,6 +16,8 @@ internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
     public static UserTrainingReportQuery Parse(IReadOnlyDictionary<string, IReadOnlyCollection<string>> filters)
     {
         var userId = ParseFilter<Guid>(filters, UserIdFilterKey, Guid.TryParse, "must be a valid GUID");
+        var regionId = ParseFilter<int>(filters, RegionIdFilterKey, int.TryParse, "must be a valid integer");
+        var locationId = ParseFilter<int>(filters, LocationIdFilterKey, int.TryParse, "must be a valid integer");
         var trainingId = ParseFilter<int>(filters, TrainingIdFilterKey, int.TryParse, "must be a valid integer");
 
         var trainingCode = ParseStringFilter(filters, TrainingCodeFilterKey);
@@ -26,7 +30,16 @@ internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
             throw new ArgumentException("Filter 'startDate' must be on or before 'endDate'.");
         }
 
-        return new UserTrainingReportQuery(userId, trainingId, trainingCode, status, startDate, endDate);
+        return new UserTrainingReportQuery(
+            userId,
+            regionId,
+            locationId,
+            trainingId,
+            trainingCode,
+            status,
+            startDate,
+            endDate
+        );
     }
 
     private static TrainingCompletionStatus? ParseStatusFilter(
@@ -43,7 +56,8 @@ internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
         {
             "active" => TrainingCompletionStatus.Active,
             "expired" => TrainingCompletionStatus.Expired,
-            _ => throw new ArgumentException("Filter 'status' must be either 'active' or 'expired'."),
+            "nottaken" => TrainingCompletionStatus.NotTaken,
+            _ => throw new ArgumentException("Filter 'status' must be one of 'active', 'expired', or 'notTaken'."),
         };
     }
 }
@@ -52,10 +66,13 @@ internal enum TrainingCompletionStatus
 {
     Active,
     Expired,
+    NotTaken,
 }
 
 internal readonly record struct UserTrainingReportQuery(
     Guid? UserId,
+    int? RegionId,
+    int? LocationId,
     int? TrainingId,
     string? TrainingCode,
     TrainingCompletionStatus? Status,
@@ -63,5 +80,11 @@ internal readonly record struct UserTrainingReportQuery(
     DateOnly? EndDate
 )
 {
-    public bool ShouldIncludeMissingMandatoryRows => Status is null && !StartDate.HasValue && !EndDate.HasValue;
+    public bool ShouldIncludeMissingMandatoryRows =>
+        Status switch
+        {
+            TrainingCompletionStatus.NotTaken => true,
+            null => !StartDate.HasValue && !EndDate.HasValue,
+            _ => false,
+        };
 }

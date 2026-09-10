@@ -19,6 +19,8 @@ internal static class UserTrainingReportMappings
         config
             .NewConfig<UserTrainingReportRow, UserTrainingReportItem>()
             .Map(dest => dest.UserDisplayName, src => BuildUserDisplayName(src.FirstName, src.LastName))
+            .Map(dest => dest.RegionName, src => src.RegionName)
+            .Map(dest => dest.LocationName, src => src.LocationName)
             .Map(dest => dest.TrainingId, src => src.TrainingId)
             .Map(dest => dest.TrainingCode, src => src.TrainingCode)
             .Map(dest => dest.TrainingDescription, src => src.TrainingDescription)
