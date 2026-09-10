@@ -14,12 +14,14 @@ namespace Unified.Db.Migrations
                 name: "PerformedAtLocationId",
                 table: "StatRecords",
                 type: "integer",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_StatRecords_PerformedAtLocationId",
                 table: "StatRecords",
-                column: "PerformedAtLocationId");
+                column: "PerformedAtLocationId"
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_StatRecords_Locations_PerformedAtLocationId",
@@ -27,7 +29,8 @@ namespace Unified.Db.Migrations
                 column: "PerformedAtLocationId",
                 principalTable: "Locations",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                onDelete: ReferentialAction.Restrict
+            );
         }
 
         /// <inheritdoc />
@@ -35,15 +38,15 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_StatRecords_Locations_PerformedAtLocationId",
-                table: "StatRecords");
+                table: "StatRecords"
+            );
 
             migrationBuilder.DropIndex(
                 name: "IX_StatRecords_PerformedAtLocationId",
-                table: "StatRecords");
+                table: "StatRecords"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "PerformedAtLocationId",
-                table: "StatRecords");
+            migrationBuilder.DropColumn(name: "PerformedAtLocationId", table: "StatRecords");
         }
     }
 }

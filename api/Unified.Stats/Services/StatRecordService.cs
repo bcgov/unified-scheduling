@@ -204,8 +204,10 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
         );
 
         // Verify whether this group is location-level from the database, not the request.
-        var isLocationLevel =
-            await db.StatGroups.AnyAsync(g => g.Id == request.GroupId && g.IsLocationLevel, cancellationToken);
+        var isLocationLevel = await db.StatGroups.AnyAsync(
+            g => g.Id == request.GroupId && g.IsLocationLevel,
+            cancellationToken
+        );
 
         // Location-level entries are per-location, not per-employee — skip user auth.
         if (!isLocationLevel)
@@ -213,13 +215,12 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
 
         // Load existing records for this user/location/date scoped to the same group so we can
         // diff within one transaction without touching records that belong to other group forms.
-        var existingQuery = db
-            .StatRecords.Where(r =>
-                r.LocationId == request.LocationId
-                && r.DateFrom == request.Date
-                && r.DateTo == request.Date
-                && r.SubCategoryMetric!.SubCategory!.Category!.GroupId == request.GroupId
-            );
+        var existingQuery = db.StatRecords.Where(r =>
+            r.LocationId == request.LocationId
+            && r.DateFrom == request.Date
+            && r.DateTo == request.Date
+            && r.SubCategoryMetric!.SubCategory!.Category!.GroupId == request.GroupId
+        );
 
         // Location-level records have no UserId; employee forms filter by user.
         existingQuery = isLocationLevel

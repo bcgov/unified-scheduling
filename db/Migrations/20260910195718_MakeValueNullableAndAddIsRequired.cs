@@ -15,7 +15,8 @@ namespace Unified.Db.Migrations
                 table: "SubCategoryMetrics",
                 type: "boolean",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
 
             migrationBuilder.AlterColumn<decimal>(
                 name: "Value",
@@ -23,15 +24,14 @@ namespace Unified.Db.Migrations
                 type: "numeric(18,4)",
                 nullable: true,
                 oldClrType: typeof(decimal),
-                oldType: "numeric(18,4)");
+                oldType: "numeric(18,4)"
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsRequired",
-                table: "SubCategoryMetrics");
+            migrationBuilder.DropColumn(name: "IsRequired", table: "SubCategoryMetrics");
 
             migrationBuilder.AlterColumn<decimal>(
                 name: "Value",
@@ -41,7 +41,8 @@ namespace Unified.Db.Migrations
                 defaultValue: 0m,
                 oldClrType: typeof(decimal),
                 oldType: "numeric(18,4)",
-                oldNullable: true);
+                oldNullable: true
+            );
         }
     }
 }

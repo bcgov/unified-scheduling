@@ -4,6 +4,7 @@ public sealed record SaveDayRequest
 {
     public required DateOnly Date { get; init; }
     public required int LocationId { get; init; }
+
     /// <summary>
     /// The employee whose records are being saved. Null for location-level entries (GroupId 3)
     /// where data is per-location rather than per-employee.
