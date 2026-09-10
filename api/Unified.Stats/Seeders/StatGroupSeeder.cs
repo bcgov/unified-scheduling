@@ -26,6 +26,12 @@ public class StatGroupSeeder(ILogger<StatGroupSeeder> logger) : SeederBase<Unifi
             Name = "Supervision",
             DisplayOrder = 2,
         },
+        new()
+        {
+            Id = 3,
+            Name = "Location Level",
+            DisplayOrder = 3,
+        },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)

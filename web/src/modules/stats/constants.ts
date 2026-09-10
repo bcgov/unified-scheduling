@@ -1,6 +1,9 @@
 export const DAILY_REGULAR_TARGET_HOURS = 7;
 export const WEEKLY_REGULAR_TARGET_HOURS = 35;
 
+/** GroupId for location-level data (per-location, not per-employee). */
+export const LOCATION_LEVEL_GROUP_ID = 3;
+
 export const EntryStatus = {
   Draft: 'Draft',
   Submitted: 'Submitted',
@@ -22,4 +25,5 @@ export function statusColor(status?: string): string {
 export const GROUP_ROUTE: Record<number, string> = {
   1: 'NonSupervisionForm',
   2: 'SupervisionForm',
+  3: 'LocationLevelForm',
 };

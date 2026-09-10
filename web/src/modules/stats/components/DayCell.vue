@@ -39,6 +39,9 @@ function formatHours(h: number): string {
       <span v-if="summary.overtimeHours > 0" class="day-cell__hours day-cell__hours--overtime">
         +{{ formatHours(summary.overtimeHours) }} OT
       </span>
+      <span v-if="summary.assignmentCount > 0" class="day-cell__hours day-cell__hours--entries">
+        {{ summary.assignmentCount }} {{ summary.assignmentCount === 1 ? 'entry' : 'entries' }}
+      </span>
       <span v-if="summary.assignmentCount === 0" class="day-cell__empty">—</span>
     </div>
   </button>
@@ -121,6 +124,11 @@ function formatHours(h: number): string {
 .day-cell__hours--overtime {
   background: rgba(206, 62, 57, 0.12);
   color: var(--ua-stats-color-overtime);
+}
+
+.day-cell__hours--entries {
+  background: rgba(21, 101, 192, 0.12);
+  color: #1565c0;
 }
 
 .day-cell__empty {

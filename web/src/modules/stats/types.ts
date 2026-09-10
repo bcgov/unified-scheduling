@@ -6,6 +6,8 @@ export interface AssignmentData {
   /** subCategoryMetricId → string input value */
   metricValues: Record<number, string>;
   comment: string;
+  /** Override location when work was performed outside the user's home location. */
+  locationId: number | null;
 }
 
 export interface DayAssignment extends AssignmentData {

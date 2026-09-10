@@ -153,7 +153,7 @@ export const PostApiStatsRecordsBatchResponse = zod.array(PostApiStatsRecordsBat
 export const PutApiStatsRecordsDayBody = zod.strictObject({
   date: zod.iso.date(),
   locationId: zod.int(),
-  userId: zod.uuid(),
+  userId: zod.uuid().nullish(),
   status: zod.string(),
   groupId: zod.int(),
   records: zod.array(
@@ -162,6 +162,7 @@ export const PutApiStatsRecordsDayBody = zod.strictObject({
       subCategoryMetricId: zod.int(),
       value: zod.number(),
       comment: zod.string().nullish(),
+      locationId: zod.int().nullish(),
     }),
   ),
 });

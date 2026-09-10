@@ -12,6 +12,7 @@ import type { DayAssignment, DaySummary, EntryStatus } from '../types';
 import {
   DAILY_REGULAR_TARGET_HOURS,
   EntryStatus as EntryStatusValues,
+  LOCATION_LEVEL_GROUP_ID,
   WEEKLY_REGULAR_TARGET_HOURS,
 } from '../constants';
 import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
@@ -86,7 +87,7 @@ export function useWeeklyRecords(
       result[date] = {
         regularHours,
         overtimeHours,
-        assignmentCount: assignments.length,
+        assignmentCount: assignments.filter((a) => a.subCategoryId).length,
       };
     }
     return result;
@@ -161,6 +162,11 @@ export function useWeeklyRecords(
         }
       }
 
+      // If the record's locationId differs from the form's selected location,
+      // it was performed at a different location — preserve that override.
+      const recordLocationId = firstRecord.locationId ?? null;
+      const assignmentLocationId = recordLocationId && recordLocationId !== locationId.value ? recordLocationId : null;
+
       return {
         id: newAssignmentId(),
         groupId,
@@ -169,12 +175,15 @@ export function useWeeklyRecords(
         metricValues,
         existingRecordIds,
         comment: firstRecord.comment ?? '',
+        locationId: assignmentLocationId,
       };
     });
   }
 
   async function loadWeek(): Promise<void> {
-    if (!locationId.value || !userId.value) return;
+    if (!locationId.value) return;
+    // Location-level records don't require a userId; employee forms do.
+    if (!userId.value && groupId !== LOCATION_LEVEL_GROUP_ID) return;
 
     isLoading.value = true;
     error.value = '';
@@ -189,7 +198,7 @@ export function useWeeklyRecords(
         FromDate: from,
         ToDate: to,
         PeriodType: 'Daily',
-        UserId: userId.value,
+        ...(userId.value ? { UserId: userId.value } : {}),
         GroupId: groupId,
       });
 
@@ -244,7 +253,8 @@ export function useWeeklyRecords(
     status: string,
     groupId: number,
   ): Promise<string | null> {
-    if (!locationId.value || !userId.value) return 'Missing location or user.';
+    if (!locationId.value) return 'Missing location.';
+    if (!userId.value && groupId !== LOCATION_LEVEL_GROUP_ID) return 'Missing user.';
 
     // Build the desired final state for the day. The backend applies all
     // creates/updates/deletes in a single transaction, scoped to this group.
@@ -261,6 +271,7 @@ export function useWeeklyRecords(
             subCategoryMetricId: scm.id,
             value: val,
             comment: assignment.comment || null,
+            ...(assignment.locationId ? { locationId: assignment.locationId } : {}),
           },
         ];
       });
@@ -269,7 +280,7 @@ export function useWeeklyRecords(
     const { error: apiError } = await putApiStatsRecordsDay({
       date,
       locationId: locationId.value,
-      userId: userId.value,
+      userId: userId.value ?? undefined,
       status,
       groupId,
       records,
@@ -297,6 +308,7 @@ export function useWeeklyRecords(
       metricValues: {},
       existingRecordIds: {},
       comment: '',
+      locationId: null,
     };
   }
 

@@ -8,6 +8,7 @@ import type {
 } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
+import type { SelectOption } from '@/types/select';
 import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiCheckAll, mdiPlus, mdiContentCopy } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
@@ -38,6 +39,8 @@ const props = defineProps<{
   dayStatus?: EntryStatus;
   canOverrideSignedOff?: boolean;
   copyFromOptions?: { date: string; label: string }[];
+  locationOptions?: SelectOption[];
+  homeLocationId?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -131,6 +134,8 @@ const overtimeLockReason = computed(() => {
         :overtime-locked="!overtimeEnabled"
         :overtime-lock-reason="overtimeLockReason"
         :readonly="isSignedOff"
+        :location-options="locationOptions"
+        :home-location-id="homeLocationId"
         @remove="emit('remove-assignment', assignment.id)"
         @update:model-value="(v) => emit('update-assignment', v as DayAssignment)"
       />

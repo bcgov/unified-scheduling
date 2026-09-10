@@ -21,7 +21,7 @@ import { useLocationsStore } from '@/stores/LocationsStore';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { EntryStatus, GROUP_ROUTE } from '../constants';
+import { EntryStatus, GROUP_ROUTE, LOCATION_LEVEL_GROUP_ID } from '../constants';
 import { exportToCsv } from '../utils/exportCsv';
 
 export function useStatSearch() {
@@ -239,7 +239,9 @@ export function useStatSearch() {
   function openEdit(item: DashboardEntryResponse) {
     const itemGroupId = item.groupId;
     const itemLocationId = item.locationId;
-    if (!item.userId || !item.date || !itemGroupId || !itemLocationId) {
+    // Location-level entries don't require a userId
+    const isLocationLevel = itemGroupId === LOCATION_LEVEL_GROUP_ID;
+    if ((!isLocationLevel && !item.userId) || !item.date || !itemGroupId || !itemLocationId) {
       error.value = 'Unable to open entry for editing — missing data.';
       return;
     }
@@ -250,15 +252,16 @@ export function useStatSearch() {
       return;
     }
 
-    const url = router.resolve({
-      name: routeName,
-      query: {
-        userId: item.userId,
-        locationId: String(itemLocationId),
-        date: item.date,
-        employeeName: item.employeeName ?? '',
-      },
-    }).href;
+    const query: Record<string, string> = {
+      locationId: String(itemLocationId),
+      date: item.date,
+    };
+    if (!isLocationLevel) {
+      query.userId = item.userId!;
+      query.employeeName = item.employeeName ?? '';
+    }
+
+    const url = router.resolve({ name: routeName, query }).href;
     window.open(url, '_blank');
   }
 

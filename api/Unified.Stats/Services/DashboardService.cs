@@ -115,8 +115,10 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
         // Only Draft or Submitted entries can be signed off.
         var toSignOff = await db
             .StatRecords.Where(r =>
-                r.User != null
-                && r.User.HomeLocationId == callerHomeLocationId
+                (
+                    (r.User != null && r.User.HomeLocationId == callerHomeLocationId)
+                    || (r.UserId == null && r.LocationId == callerHomeLocationId)
+                )
                 && request.EntryIds.Contains(r.Id)
                 && (r.Status == StatRecordStatus.Draft || r.Status == StatRecordStatus.Submitted)
             )
@@ -152,9 +154,14 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
             queryParams?.Status
         );
 
+        // Include employee records scoped to the caller's home location, plus
+        // location-level records (UserId is null) for the same location.
         var query = db
             .StatRecords.AsNoTracking()
-            .Where(r => r.User != null && r.User.HomeLocationId == callerHomeLocationId);
+            .Where(r =>
+                (r.User != null && r.User.HomeLocationId == callerHomeLocationId)
+                || (r.UserId == null && r.LocationId == callerHomeLocationId)
+            );
 
         if (queryParams?.EmployeeId is Guid employeeId)
             query = query.Where(r => r.UserId == employeeId);

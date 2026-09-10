@@ -203,19 +203,26 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
             callerUserId
         );
 
-        EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
+        // Location-level entries (GroupId 3) are per-location, not per-employee — skip user auth.
+        if (request.GroupId != 3)
+            EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         // Load existing records for this user/location/date scoped to the same group so we can
         // diff within one transaction without touching records that belong to other group forms.
-        var existingRecords = await db
+        var existingQuery = db
             .StatRecords.Where(r =>
-                r.UserId == request.UserId
-                && r.LocationId == request.LocationId
+                r.LocationId == request.LocationId
                 && r.DateFrom == request.Date
                 && r.DateTo == request.Date
                 && r.SubCategoryMetric!.SubCategory!.Category!.GroupId == request.GroupId
-            )
-            .ToListAsync(cancellationToken);
+            );
+
+        // Location-level (GroupId 3) records have no UserId; employee forms filter by user.
+        existingQuery = request.GroupId == 3
+            ? existingQuery.Where(r => r.UserId == null)
+            : existingQuery.Where(r => r.UserId == request.UserId);
+
+        var existingRecords = await existingQuery.ToListAsync(cancellationToken);
 
         var incomingIds = request.Records.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).ToHashSet();
 
@@ -246,18 +253,19 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                 entity.Value = item.Value;
                 entity.Comment = item.Comment?.Trim();
                 entity.Status = request.Status;
+                entity.LocationId = item.LocationId ?? request.LocationId;
                 results.Add(entity);
             }
             else
             {
-                // Create new record
+                // Create new record — location-level entries have no UserId
                 var entity = new StatRecord
                 {
                     DateFrom = request.Date,
                     DateTo = request.Date,
                     PeriodType = "Daily",
-                    UserId = request.UserId,
-                    LocationId = request.LocationId,
+                    UserId = request.GroupId == 3 ? null : request.UserId,
+                    LocationId = item.LocationId ?? request.LocationId,
                     SubCategoryMetricId = item.SubCategoryMetricId,
                     Value = item.Value,
                     Comment = item.Comment?.Trim(),

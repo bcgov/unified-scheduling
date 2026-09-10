@@ -43,7 +43,10 @@ const dayInfos = computed(() =>
 const gridColumns = computed(() => `repeat(${dayInfos.value.length}, 1fr)`);
 
 function regularBar(date: string): number {
-  const h = props.daySummaryMap[date]?.regularHours ?? 0;
+  const summary = props.daySummaryMap[date];
+  const h = summary?.regularHours ?? 0;
+  // For entries with no hours (location-level counts/trips/km), show a full bar
+  if (h === 0 && (summary?.assignmentCount ?? 0) > 0) return 100;
   return Math.min((h / DAILY_REGULAR_TARGET_HOURS) * 100, 100);
 }
 </script>
@@ -105,11 +108,21 @@ function regularBar(date: string): number {
             :style="{ width: regularBar(info.date) + '%' }"
             :class="{
               'daily-bar__fill--full': (daySummaryMap[info.date]?.regularHours ?? 0) >= DAILY_REGULAR_TARGET_HOURS,
+              'daily-bar__fill--entries':
+                (daySummaryMap[info.date]?.regularHours ?? 0) === 0 &&
+                (daySummaryMap[info.date]?.assignmentCount ?? 0) > 0,
             }"
           />
         </div>
         <span class="daily-bar__label">
-          {{ (daySummaryMap[info.date]?.regularHours ?? 0) > 0 ? `${daySummaryMap[info.date]?.regularHours}h` : '0h' }}
+          <template v-if="(daySummaryMap[info.date]?.regularHours ?? 0) > 0">
+            {{ daySummaryMap[info.date]?.regularHours }}h
+          </template>
+          <template v-else-if="(daySummaryMap[info.date]?.assignmentCount ?? 0) > 0">
+            {{ daySummaryMap[info.date]?.assignmentCount }}
+            {{ (daySummaryMap[info.date]?.assignmentCount ?? 0) === 1 ? 'entry' : 'entries' }}
+          </template>
+          <template v-else>—</template>
         </span>
       </div>
     </div>
@@ -196,6 +209,10 @@ function regularBar(date: string): number {
 
 .daily-bar__fill--full {
   background: var(--ua-stats-color-regular);
+}
+
+.daily-bar__fill--entries {
+  background: #1565c0;
 }
 
 .daily-bar__label {

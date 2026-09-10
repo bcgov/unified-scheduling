@@ -26,8 +26,9 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
             return Unauthorized();
 
-        // Non-supervisors may only query their own records regardless of what UserId is passed
-        if (!callerCanEnterForOthers)
+        // Non-supervisors may only query their own records — except for location-level
+        // (GroupId 3) where data is per-location, not per-employee.
+        if (!callerCanEnterForOthers && queryParams?.GroupId != 3)
             queryParams = (queryParams ?? new()) with { UserId = callerUserId };
 
         return Ok(await service.GetAllAsync(queryParams, cancellationToken));

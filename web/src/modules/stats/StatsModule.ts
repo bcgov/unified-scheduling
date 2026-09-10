@@ -32,6 +32,12 @@ const statsRoutes: RouteRecordRaw[] = [
         meta: { title: 'Enter Supervision Hours' },
       },
       {
+        path: 'location-level',
+        name: 'LocationLevelForm',
+        component: () => import('./views/EnterLocationStatsView.vue'),
+        meta: { title: 'Enter Location Level Data' },
+      },
+      {
         path: 'search',
         name: 'StatSearch',
         component: () => import('./views/StatSearchView.vue'),
