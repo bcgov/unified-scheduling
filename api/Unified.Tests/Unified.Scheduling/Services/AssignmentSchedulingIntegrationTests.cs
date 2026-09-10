@@ -1407,7 +1407,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LinkedEntryUpdates_WhenTheyInvalidateLinks_AreRejectedWithoutMutation()
+    public async Task LinkedEntryUpdates_WhenTheyInvalidateLinks_ShiftRejectsAndAssignmentUnlinks()
     {
         var (shift, assignment, _) = await CreateLinkedEntriesAsync();
 
@@ -1425,18 +1425,13 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 TestContext.Current.CancellationToken
             )
         );
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _assignmentService.UpdateAssignmentEntryAsync(
-                assignment.Id,
-                CreateAssignmentEntryUpdateRequest(AtDay(2, 20), AtDay(2, 22)) with
-                {
-                    ShiftEntryLinks =
-                    [
-                        new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] },
-                    ],
-                },
-                TestContext.Current.CancellationToken
-            )
+        var updatedAssignment = await _assignmentService.UpdateAssignmentEntryAsync(
+            assignment.Id,
+            CreateAssignmentEntryUpdateRequest(AtDay(2, 20), AtDay(2, 22)) with
+            {
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
+            TestContext.Current.CancellationToken
         );
 
         var storedShift = await _db
@@ -1446,7 +1441,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .AssignmentEntries.Include(x => x.Event)
             .SingleAsync(x => x.Id == assignment.Id, TestContext.Current.CancellationToken);
         Assert.Equal([UserA], storedShift.Users.Select(x => x.UserId));
-        Assert.Equal(At(10), storedAssignment.Event!.StartAtUtc);
+        Assert.Equal(AtDay(2, 20), updatedAssignment!.StartAtUtc);
+        Assert.Equal(AtDay(2, 20), storedAssignment.Event!.StartAtUtc);
+        Assert.Empty(await _db.ShiftAssignmentEntries.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

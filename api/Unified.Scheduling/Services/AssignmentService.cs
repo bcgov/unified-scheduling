@@ -518,7 +518,7 @@ public sealed class AssignmentService(
 
         ValidateAssignmentEventType(assignmentEntry.Event!);
         EnsureDraft(assignmentEntry.Event!.StatusTypeCode, "Assignment entry");
-        var invalidatedShiftEntryIds = assignmentEntry
+        var invalidatedShiftEntryLinks = assignmentEntry
             .ShiftAssignmentEntries.Where(link =>
                 link.ShiftEntry?.Event is Event shiftEvent
                 && !ShiftAssignmentGuards.AssignmentStartsOnShiftDate(
@@ -529,28 +529,23 @@ public sealed class AssignmentService(
                     timeZoneService
                 )
             )
-            .Select(link => link.ShiftEntryId)
-            .ToHashSet();
-        var requestedShiftEntryLinks = request.ShiftEntryLinks is null
-            ? assignmentEntry
-                .ShiftAssignmentEntries.Where(link =>
-                    !invalidatedShiftEntryIds.Contains(link.ShiftEntryId) && link.Users.Count > 0
-                )
-                .Select(link => new ShiftEntryLinkRequest
-                {
-                    ShiftEntryId = link.ShiftEntryId,
-                    AssignedUserIds = link.Users.Select(user => user.UserId).ToList(),
-                })
-                .ToList()
-            : request
-                .ShiftEntryLinks.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
+            .ToList();
+        var invalidatedShiftEntryIds = invalidatedShiftEntryLinks.Select(link => link.ShiftEntryId).ToHashSet();
+        var requestedShiftEntryLinks = request
+            .ShiftEntryLinks?.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
+            .ToList();
+        var retainedShiftEntryIds =
+            requestedShiftEntryLinks?.Select(link => link.ShiftEntryId).ToList()
+            ?? assignmentEntry
+                .ShiftAssignmentEntries.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
+                .Select(link => link.ShiftEntryId)
                 .ToList();
         ShiftAssignmentGuards.EnsureAssignmentEntryUpdatePreservesLinks(
             assignmentEntry,
             request.StartAtUtc,
             assignmentEntry.AssignmentSeriesId,
             timeZoneService,
-            requestedShiftEntryLinks.Select(link => link.ShiftEntryId).ToList()
+            retainedShiftEntryIds
         );
         AssignmentEventMapper.ApplyToEvent(assignmentEntry.Event!, request);
         CalendarEventExceptionHelper.UpdateExceptionFlag(assignmentEntry.Event!);
@@ -566,6 +561,12 @@ public sealed class AssignmentService(
         );
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (request.ShiftEntryLinks is null)
+        {
+            foreach (var invalidatedLink in invalidatedShiftEntryLinks)
+                await shiftAssignmentService.DeleteShiftEntryLinkAsync(invalidatedLink.Id, cancellationToken);
+        }
 
         await shiftAssignmentService.ReplaceAssignmentEntryLinksAsync(
             assignmentEntry.Id,

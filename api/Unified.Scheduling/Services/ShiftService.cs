@@ -894,11 +894,7 @@ public sealed class ShiftService(
                 var candidate = orderedCandidates[candidateIndex];
                 var conflict = GetShiftConflict(previousCandidate, candidate);
                 if (conflict.HasValue)
-                    throw await CreateShiftConflictExceptionAsync(
-                        candidate,
-                        conflict.Value,
-                        cancellationToken
-                    );
+                    throw await CreateShiftConflictExceptionAsync(candidate, conflict.Value, cancellationToken);
             }
         }
 
@@ -1005,14 +1001,18 @@ public sealed class ShiftService(
         var user = await db
             .Users.AsNoTracking()
             .Where(user => user.Id == candidate.UserId)
-            .Select(user => new { user.FirstName, user.LastName, user.IdirName })
+            .Select(user => new
+            {
+                user.FirstName,
+                user.LastName,
+                user.IdirName,
+            })
             .SingleOrDefaultAsync(cancellationToken);
         var fullName = user is null ? string.Empty : $"{user.FirstName} {user.LastName}".Trim();
-        var userName = !string.IsNullOrWhiteSpace(fullName)
-            ? fullName
-            : !string.IsNullOrWhiteSpace(user?.IdirName)
-                ? user.IdirName
-                : candidate.UserId.ToString();
+        var userName =
+            !string.IsNullOrWhiteSpace(fullName) ? fullName
+            : !string.IsNullOrWhiteSpace(user?.IdirName) ? user.IdirName
+            : candidate.UserId.ToString();
 
         return new ConflictValidationException(
             new Dictionary<string, string[]>
