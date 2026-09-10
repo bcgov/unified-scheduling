@@ -19,7 +19,8 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
         // Note: null-conditional operators (?.) are not allowed inside expression tree lambdas
         // (CS8072 — a C# compiler restriction, not an EF Core one), so navigation checks use
         // explicit != null comparisons instead.
-        return await BuildQuery(callerHomeLocationId, queryParams)
+        var isLocationLevel = await IsLocationLevelFilterAsync(queryParams, cancellationToken);
+        return await BuildQuery(callerHomeLocationId, queryParams, isLocationLevel)
             .OrderByDescending(r => r.DateFrom)
             .Select(r => new DashboardEntryResponse
             {
@@ -71,36 +72,35 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
     {
         logger.LogDebug("Retrieving dashboard summary for location {LocationId}", callerHomeLocationId);
 
-        var baseQuery = BuildQuery(callerHomeLocationId, queryParams);
+        var isLocationLevel = await IsLocationLevelFilterAsync(queryParams, cancellationToken);
+        var baseQuery = BuildQuery(callerHomeLocationId, queryParams, isLocationLevel);
 
-        var regularHours = await baseQuery
-            .Where(r =>
-                r.SubCategoryMetric != null
-                && r.SubCategoryMetric.Metric != null
-                && !r.SubCategoryMetric.Metric.IsOvertime
-                && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours
-            )
-            .SumAsync(r => r.Value ?? 0, cancellationToken);
+        var summaryTask = baseQuery
+            .Select(r => new
+            {
+                IsRegular =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.Metric != null
+                    && !r.SubCategoryMetric.Metric.IsOvertime
+                    && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours,
+                IsOvertime =
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.Metric != null
+                    && r.SubCategoryMetric.Metric.IsOvertime
+                    && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours,
+                IsSubmitted = r.Status == StatRecordStatus.Submitted,
+                r.Value,
+            })
+            .ToListAsync(cancellationToken);
 
-        var overtimeHours = await baseQuery
-            .Where(r =>
-                r.SubCategoryMetric != null
-                && r.SubCategoryMetric.Metric != null
-                && r.SubCategoryMetric.Metric.IsOvertime
-                && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours
-            )
-            .SumAsync(r => r.Value ?? 0, cancellationToken);
-
-        var submittedCount = await baseQuery.CountAsync(r => r.Status == StatRecordStatus.Submitted, cancellationToken);
-
-        var totalEntries = await baseQuery.CountAsync(cancellationToken);
+        var rows = await summaryTask;
 
         return new DashboardSummaryResponse
         {
-            RegularHours = regularHours,
-            OvertimeHours = overtimeHours,
-            SubmittedCount = submittedCount,
-            TotalEntries = totalEntries,
+            RegularHours = rows.Where(r => r.IsRegular).Sum(r => r.Value ?? 0),
+            OvertimeHours = rows.Where(r => r.IsOvertime).Sum(r => r.Value ?? 0),
+            SubmittedCount = rows.Count(r => r.IsSubmitted),
+            TotalEntries = rows.Count,
         };
     }
 
@@ -142,7 +142,20 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
         };
     }
 
-    private IQueryable<StatRecord> BuildQuery(int callerHomeLocationId, DashboardEntriesQueryParams? queryParams)
+    private async Task<bool> IsLocationLevelFilterAsync(
+        DashboardEntriesQueryParams? queryParams,
+        CancellationToken cancellationToken
+    )
+    {
+        if (queryParams?.GroupId is not int gid) return false;
+        return await db.StatGroups.AnyAsync(g => g.Id == gid && g.IsLocationLevel, cancellationToken);
+    }
+
+    private IQueryable<StatRecord> BuildQuery(
+        int callerHomeLocationId,
+        DashboardEntriesQueryParams? queryParams,
+        bool isLocationLevelGroup
+    )
     {
         logger.LogDebug(
             "Building dashboard query for location {LocationId}, employee {EmployeeId}, category provided {HasCategory}, name search provided {HasNameSearch}, name search length {NameSearchLength}, status {Status}",
@@ -154,14 +167,24 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
             queryParams?.Status
         );
 
-        // Include employee records scoped to the caller's home location, plus
-        // location-level records (UserId is null) for the same location.
-        var query = db
-            .StatRecords.AsNoTracking()
-            .Where(r =>
-                (r.User != null && r.User.HomeLocationId == callerHomeLocationId)
-                || (r.UserId == null && r.LocationId == callerHomeLocationId)
-            );
+        IQueryable<StatRecord> query;
+        if (isLocationLevelGroup)
+        {
+            query = db
+                .StatRecords.AsNoTracking()
+                .Where(r => r.UserId == null && r.LocationId == callerHomeLocationId);
+        }
+        else
+        {
+            // Include employee records scoped to the caller's home location, plus
+            // location-level records (UserId is null) for the same location.
+            query = db
+                .StatRecords.AsNoTracking()
+                .Where(r =>
+                    (r.User != null && r.User.HomeLocationId == callerHomeLocationId)
+                    || (r.UserId == null && r.LocationId == callerHomeLocationId)
+                );
+        }
 
         if (queryParams?.EmployeeId is Guid employeeId)
             query = query.Where(r => r.UserId == employeeId);
