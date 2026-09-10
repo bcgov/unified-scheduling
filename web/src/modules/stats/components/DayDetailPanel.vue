@@ -8,6 +8,7 @@ import type {
 } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
+import type { SelectOption } from '@/types/select';
 import { mdiLockOutline, mdiPencilOutline, mdiCheckCircleOutline, mdiCheckAll, mdiPlus, mdiContentCopy } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
@@ -38,6 +39,10 @@ const props = defineProps<{
   dayStatus?: EntryStatus;
   canOverrideSignedOff?: boolean;
   copyFromOptions?: { date: string; label: string }[];
+  locationOptions?: SelectOption[];
+  homeLocationId?: number | null;
+  /** When true, hides daily hours target and overtime badge. */
+  hideTargets?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -82,7 +87,7 @@ const overtimeLockReason = computed(() => {
     <div class="day-detail-panel__header" :style="headerColor ? { borderLeftColor: headerColor } : {}">
       <div>
         <h2 class="day-detail-panel__date">{{ formattedDate }}</h2>
-        <p class="day-detail-panel__total">
+        <p v-if="!hideTargets" class="day-detail-panel__total">
           Regular: <strong>{{ dailyRegularTotal }}h</strong> / {{ DAILY_REGULAR_TARGET_HOURS }}h
         </p>
       </div>
@@ -99,7 +104,7 @@ const overtimeLockReason = computed(() => {
           <v-icon :icon="mdiCheckAll" size="14" />
           Signed Off
         </div>
-        <div v-if="!overtimeEnabled" class="overtime-locked-badge">
+        <div v-if="!hideTargets && !overtimeEnabled" class="overtime-locked-badge">
           <v-icon :icon="mdiLockOutline" size="14" />
           Overtime locked
         </div>
@@ -131,6 +136,8 @@ const overtimeLockReason = computed(() => {
         :overtime-locked="!overtimeEnabled"
         :overtime-lock-reason="overtimeLockReason"
         :readonly="isSignedOff"
+        :location-options="locationOptions"
+        :home-location-id="homeLocationId"
         @remove="emit('remove-assignment', assignment.id)"
         @update:model-value="(v) => emit('update-assignment', v as DayAssignment)"
       />

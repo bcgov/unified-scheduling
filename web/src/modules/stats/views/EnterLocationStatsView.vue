@@ -3,35 +3,17 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
-import { computed } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import DayDetailPanel from '../components/DayDetailPanel.vue';
 import WeeklyGrid from '../components/WeeklyGrid.vue';
-import { useEnterHours } from '../composables/useEnterHours';
-import { EntryStatus } from '../constants';
+import { useLocationStats } from '../composables/useLocationStats';
+import { LOCATION_LEVEL_GROUP_ID, EntryStatus } from '../constants';
 
-const props = defineProps<{
-  /** 1 = Non-Supervision, 2 = Supervision. Locks all assignments to that group. */
-  groupId: number;
-}>();
-
-const GROUP_HEADER_COLORS: Record<number, string> = {
-  1: '#42814A',
-  2: '#CE3E39',
-};
-const cardHeaderColor = computed<string | undefined>(() => GROUP_HEADER_COLORS[props.groupId]);
-const formTitle = computed(() => {
-  if (props.groupId === 1) return 'Enter Non-Supervision Hours';
-  if (props.groupId === 2) return 'Enter Supervision Hours';
-  return 'Enter Hours Worked';
-});
+const groupId = LOCATION_LEVEL_GROUP_ID;
+const cardHeaderColor = '#1565C0'; // Blue to distinguish from NS (green) and SUP (red)
 
 const {
   accountWarning,
-  canEnterForOthers,
-  canOverrideSignedOff,
-  seedLocationId,
-  seedUserId,
   isLoadingReference,
   isDirty,
   confirmIfDirty,
@@ -43,15 +25,11 @@ const {
   locationOptions,
   selectedLocationId,
   onLocationChange,
-  selectedUserId,
-  userOptions,
-  onUserChange,
   weekDates,
   dayStatusMap,
   daySummaryMap,
   weeklyRegularTotal,
   weeklyOvertimeTotal,
-  isOvertimeEnabled,
   isLoading,
   loadError,
   navigateWeek,
@@ -62,14 +40,11 @@ const {
   addAssignment,
   removeAssignment,
   updateAssignment,
-  copyFromOptions,
-  copyFromDay,
-  dayWarnings,
   dayErrors,
   apiError,
   isSaving,
   handleSave,
-} = useEnterHours(props.groupId);
+} = useLocationStats();
 
 onBeforeRouteLeave(() => {
   if (!confirmIfDirty()) return false;
@@ -81,7 +56,7 @@ onBeforeRouteLeave(() => {
     <!-- Page header -->
     <UaCard :header-color="cardHeaderColor">
       <template #header>
-        <span class="ua-card__title">{{ formTitle }}</span>
+        <span class="ua-card__title">Enter Location Level Data</span>
       </template>
 
       <div class="page-header">
@@ -92,22 +67,11 @@ onBeforeRouteLeave(() => {
             label="Select Location"
             :items="locationOptions"
             :model-value="selectedLocationId"
-            :disabled="!!seedLocationId"
             @update:model-value="onLocationChange"
           />
         </div>
 
-        <!-- Employee picker (supervisors only) -->
-        <div v-if="canEnterForOthers" class="header-field">
-          <label class="field-label">Employee</label>
-          <UaSelect
-            label="Select Employee"
-            :items="userOptions"
-            :model-value="selectedUserId"
-            :disabled="!!seedUserId || !selectedLocationId"
-            @update:model-value="onUserChange"
-          />
-        </div>
+        <!-- No employee picker for location-level data -->
 
         <!-- Week navigation -->
         <div class="week-nav">
@@ -131,7 +95,7 @@ onBeforeRouteLeave(() => {
     <UaAlert v-if="accountWarning" type="warning">{{ accountWarning }}</UaAlert>
 
     <!-- Loading state -->
-    <div v-if="isLoadingReference && !accountWarning" class="loading-state">Loading reference data…</div>
+    <div v-if="isLoadingReference && !accountWarning" class="loading-state">Loading reference data...</div>
 
     <!-- Week load error -->
     <UaAlert v-if="loadError" type="error">{{ loadError }}</UaAlert>
@@ -141,13 +105,14 @@ onBeforeRouteLeave(() => {
       <div class="main-layout">
         <!-- Left: Weekly grid -->
         <div class="panel panel--grid">
-          <div v-if="isLoading" class="loading-overlay">Loading…</div>
+          <div v-if="isLoading" class="loading-overlay">Loading...</div>
           <WeeklyGrid
             :week-dates="weekDates"
             :selected-date="selectedDate"
             :day-summary-map="daySummaryMap"
             :weekly-regular-total="weeklyRegularTotal"
             :weekly-overtime-total="weeklyOvertimeTotal"
+            hide-targets
             @select-day="onSelectDay"
           />
         </div>
@@ -155,7 +120,7 @@ onBeforeRouteLeave(() => {
         <!-- Right: Day detail panel -->
         <div class="panel panel--detail">
           <div v-if="!selectedDate" class="no-day-selected">
-            <p>Select a day to enter hours</p>
+            <p>Select a day to enter data</p>
           </div>
           <div v-else-if="!selectedLocationId" class="no-day-selected">
             <p>Select a location first</p>
@@ -170,21 +135,18 @@ onBeforeRouteLeave(() => {
             :sub-categories="subCategories"
             :sub-category-metrics="subCategoryMetrics"
             :metrics="metrics"
-            :overtime-enabled="isOvertimeEnabled(selectedDate)"
+            :overtime-enabled="false"
+            hide-targets
             :is-saving="isSaving"
             :errors="dayErrors"
             :api-error="apiError"
             :header-color="cardHeaderColor"
             :day-status="dayStatusMap[selectedDate]"
-            :can-override-signed-off="canOverrideSignedOff"
-            :warnings="dayWarnings"
-            :copy-from-options="copyFromOptions"
             :location-options="locationOptions"
             :home-location-id="selectedLocationId"
             @add-assignment="addAssignment"
             @remove-assignment="removeAssignment"
             @update-assignment="updateAssignment"
-            @copy-from="copyFromDay"
             @save-draft="handleSave(EntryStatus.Draft)"
             @submit-day="handleSave(EntryStatus.Submitted)"
             @clear-error="apiError = ''"
@@ -280,7 +242,6 @@ onBeforeRouteLeave(() => {
   font-size: var(--ua-font-size-sm);
 }
 
-/* Mobile: stack panels */
 @media (max-width: 900px) {
   .main-layout {
     grid-template-columns: 1fr;

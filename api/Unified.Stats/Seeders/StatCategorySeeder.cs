@@ -191,6 +191,49 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
             Name = "Training",
             DisplayOrder = 11,
         },
+        // Location Level (GroupId = 3)
+        new()
+        {
+            Id = 26,
+            GroupId = 3,
+            Name = "Circuit court related travel",
+            DisplayOrder = 1,
+        },
+        new()
+        {
+            Id = 27,
+            GroupId = 3,
+            Name = "Escorts Air - Trips",
+            DisplayOrder = 2,
+        },
+        new()
+        {
+            Id = 28,
+            GroupId = 3,
+            Name = "Escorts Ground - Trips-Kilometres",
+            DisplayOrder = 3,
+        },
+        new()
+        {
+            Id = 29,
+            GroupId = 3,
+            Name = "Holding area/cellblock",
+            DisplayOrder = 4,
+        },
+        new()
+        {
+            Id = 30,
+            GroupId = 3,
+            Name = "Coroner Jury Administration",
+            DisplayOrder = 5,
+        },
+        new()
+        {
+            Id = 31,
+            GroupId = 3,
+            Name = "Criminal/Civil Jury Administration",
+            DisplayOrder = 6,
+        },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)

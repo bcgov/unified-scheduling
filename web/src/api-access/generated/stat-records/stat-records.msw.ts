@@ -20,6 +20,10 @@ export const getGetApiStatsRecordsResponseMock = (): StatRecordResponse[] =>
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -41,6 +45,10 @@ export const getGetApiStatsRecordsResponseMock = (): StatRecordResponse[] =>
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -62,6 +70,10 @@ export const getGetApiStatsRecordsResponseMock = (): StatRecordResponse[] =>
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -89,6 +101,10 @@ export const getPostApiStatsRecordsResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -111,6 +127,10 @@ export const getPostApiStatsRecordsResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -133,6 +153,10 @@ export const getPostApiStatsRecordsResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -161,6 +185,10 @@ export const getGetApiStatsRecordsIdResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -183,6 +211,10 @@ export const getGetApiStatsRecordsIdResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -205,6 +237,10 @@ export const getGetApiStatsRecordsIdResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -233,6 +269,10 @@ export const getPutApiStatsRecordsIdResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -255,6 +295,10 @@ export const getPutApiStatsRecordsIdResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -277,6 +321,10 @@ export const getPutApiStatsRecordsIdResponseMock = (
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -303,6 +351,10 @@ export const getPostApiStatsRecordsBatchResponseMock = (): StatRecordResponse[] 
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -324,6 +376,10 @@ export const getPostApiStatsRecordsBatchResponseMock = (): StatRecordResponse[] 
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -345,6 +401,10 @@ export const getPostApiStatsRecordsBatchResponseMock = (): StatRecordResponse[] 
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -370,6 +430,10 @@ export const getPutApiStatsRecordsDayResponseMock = (): StatRecordResponse[] =>
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -391,6 +455,10 @@ export const getPutApiStatsRecordsDayResponseMock = (): StatRecordResponse[] =>
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([
@@ -412,6 +480,10 @@ export const getPutApiStatsRecordsDayResponseMock = (): StatRecordResponse[] =>
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      performedAtLocationId: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.number.int(), null]),
+        undefined,
+      ]),
       subCategoryMetricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       value: faker.helpers.arrayElement([faker.number.float({ fractionDigits: 2 }), undefined]),
       comment: faker.helpers.arrayElement([

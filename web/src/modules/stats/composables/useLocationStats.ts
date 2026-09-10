@@ -4,53 +4,44 @@ import type {
   StatMetricResponse,
   SubCategoryMetricResponse,
   SubCategoryResponse,
-  UserResponse,
 } from '@/api-access/generated/models';
-import { Permissions } from '@/api-access/generated/models';
 import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
 import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
 import { getApiStatsMetrics } from '@/api-access/generated/stat-metrics/stat-metrics';
 import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
 import { getApiStatsSubCategoryMetrics } from '@/api-access/generated/sub-category-metrics/sub-category-metrics';
-import { getApiUsers } from '@/api-access/generated/users/users';
-import { useAccessControl } from '@/composables/useAccessControl';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectValue } from '@/types/select';
 import { DateTime } from 'luxon';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { DAILY_REGULAR_TARGET_HOURS } from '../constants';
+import { LOCATION_LEVEL_GROUP_ID } from '../constants';
 import type { DayAssignment } from '../types';
-import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 import { getSundayOfWeek, useWeeklyRecords } from './useWeeklyRecords';
 
-export function useEnterHours(groupId: number) {
+/**
+ * Composable for the Location Level stats form (GroupId 3).
+ * Simplified version of useEnterHours — no employee picker, no overtime logic.
+ */
+export function useLocationStats() {
+  const groupId = LOCATION_LEVEL_GROUP_ID;
+  const route = useRoute();
   const authStore = useAuthStore();
   const locationsStore = useLocationsStore();
-  const { hasPermission } = useAccessControl();
-  const route = useRoute();
 
-  const canEnterForOthers = computed(() => hasPermission(Permissions.StatsRecordsEnterForOthers));
-  const canOverrideSignedOff = computed(() => hasPermission(Permissions.StatsOverrideSignedOff));
-
-  const accountWarning = computed(() => {
-    if (!authStore.currentUserId) {
-      return 'Your account is not set up for time entry. Please contact your administrator to ensure your user profile is created and enabled.';
-    }
-    if (!authStore.homeLocationId && !canEnterForOthers.value) {
-      return 'Your account does not have a home location assigned. Please contact your administrator.';
-    }
-    return null;
-  });
-
-  // ── Deep-link query params (optional pre-seed from dashboard edit) ─────────
-  const seedUserId = route.query.userId as string | undefined;
+  // ── Deep-link query params (from search/dashboard edit) ──────────────────
   const parsedLocationId = Number(route.query.locationId);
   const seedLocationId = Number.isFinite(parsedLocationId) ? parsedLocationId : undefined;
   const rawDate = route.query.date as string | undefined;
   const seedDate = rawDate && DateTime.fromISO(rawDate).isValid ? rawDate : undefined;
-  const seedEmployeeName = (route.query.employeeName as string | undefined) || undefined;
+
+  const accountWarning = computed(() => {
+    if (!authStore.currentUserId) {
+      return 'Your account is not set up for data entry. Please contact your administrator.';
+    }
+    return null;
+  });
 
   // ── Reference data ────────────────────────────────────────────────────────
   const isLoadingReference = ref(true);
@@ -60,48 +51,16 @@ export function useEnterHours(groupId: number) {
   const metrics = ref<StatMetricResponse[]>([]);
   const subCategoryMetrics = ref<SubCategoryMetricResponse[]>([]);
 
-  // ── Location ──────────────────────────────────────────────────────────────
+  // ── Location (no employee picker) ─────────────────────────────────────────
   const locationOptions = computed(() => locationsStore.selectOptions);
   const selectedLocationId = ref<number | null>(seedLocationId ?? authStore.homeLocationId ?? null);
+  // Location-level records have no userId — pass null ref to useWeeklyRecords
+  const nullUserId = ref<string | null>(null);
 
   const onLocationChange = (value: SelectValue | undefined) => {
     if (!confirmIfDirty()) return;
     selectedLocationId.value = value != null ? Number(value) : null;
   };
-
-  // ── User picker ───────────────────────────────────────────────────────────
-  const locationUsers = ref<UserResponse[]>([]);
-  const selectedUserId = ref<string | null>(seedUserId ?? (canEnterForOthers.value ? null : authStore.currentUserId));
-  let activeLocationId: number | null = null;
-
-  const userOptions = computed(() =>
-    locationUsers.value.map((u) => ({ code: u.id, description: `${u.firstName} ${u.lastName}` })),
-  );
-
-  const onUserChange = (value: SelectValue | undefined) => {
-    if (!confirmIfDirty()) return;
-    selectedUserId.value = value ? String(value) : null;
-  };
-
-  async function loadUsersForLocation(locationId: number) {
-    activeLocationId = locationId;
-    const { data } = await getApiUsers({ LocationId: locationId, IsEnabled: true });
-    if (activeLocationId !== locationId) return;
-    locationUsers.value = data.value ?? [];
-    const currentUserId = authStore.currentUserId;
-    selectedUserId.value =
-      currentUserId != null && locationUsers.value.some((u) => u.id === currentUserId) ? currentUserId : null;
-  }
-
-  watch(selectedLocationId, async (locId) => {
-    if (canEnterForOthers.value && locId) {
-      locationUsers.value = [];
-      selectedUserId.value = null;
-      await loadUsersForLocation(locId);
-    } else {
-      selectedUserId.value = authStore.currentUserId;
-    }
-  });
 
   // ── Weekly records ────────────────────────────────────────────────────────
   const {
@@ -111,7 +70,6 @@ export function useEnterHours(groupId: number) {
     daySummaryMap,
     weeklyRegularTotal,
     weeklyOvertimeTotal,
-    isOvertimeEnabled,
     isDirty,
     markDirty,
     confirmIfDirty,
@@ -124,7 +82,7 @@ export function useEnterHours(groupId: number) {
   } = useWeeklyRecords(
     getSundayOfWeek(seedDate ? DateTime.fromISO(seedDate) : DateTime.now()),
     selectedLocationId,
-    selectedUserId,
+    nullUserId,
     groupId,
     subCategories,
     categories,
@@ -174,71 +132,9 @@ export function useEnterHours(groupId: number) {
     );
   }
 
-  // ── Copy from another day (within current week) ────────────────────────
-  const copyFromOptions = computed(() =>
-    weekDates.value
-      .filter((d) => d !== selectedDate.value)
-      .filter((d) => (dayAssignmentsMap.value[d] ?? []).some((a) => a.subCategoryId))
-      .map((d) => {
-        const dt = DateTime.fromISO(d);
-        const count = (dayAssignmentsMap.value[d] ?? []).filter((a) => a.subCategoryId).length;
-        return { date: d, label: `${dt.toFormat('EEE, MMM d')} (${count})` };
-      }),
-  );
-
-  function copyFromDay(sourceDate: string) {
-    if (!selectedDate.value) return;
-    const source = (dayAssignmentsMap.value[sourceDate] ?? []).filter((a) => a.subCategoryId);
-    if (source.length === 0) return;
-
-    const cloned = source.map((a) => ({
-      ...a,
-      id: String(Date.now() + Math.random()),
-      metricValues: { ...a.metricValues },
-      existingRecordIds: {},
-    }));
-
-    const current = selectedAssignments.value;
-    const hasOnlyEmpty = current.length === 1 && !current[0].subCategoryId;
-    markDirty();
-    dayAssignmentsMap.value[selectedDate.value] = hasOnlyEmpty ? cloned : [...current, ...cloned];
-  }
-
-  // ── Warnings (non-blocking) ────────────────────────────────────────────────
-  const dayWarnings = computed<string[]>(() => {
-    const warnings: string[] = [];
-    if (!selectedDate.value) return warnings;
-
-    const assignments = selectedAssignments.value;
-    let dailyRegular = 0;
-    let hasOvertime = false;
-
-    for (const a of assignments) {
-      for (const [scmIdStr, valStr] of Object.entries(a.metricValues)) {
-        const val = parseFloat(valStr);
-        if (isNaN(val) || val <= 0) continue;
-        const scm = subCategoryMetrics.value.find((s) => s.id === Number(scmIdStr));
-        const metric = metrics.value.find((m) => m.id === scm?.metricId);
-        if (!metric) continue;
-        if (isRegularMetric(metric)) dailyRegular += val;
-        if (isOvertimeMetric(metric)) hasOvertime = true;
-      }
-    }
-
-    if (dailyRegular > DAILY_REGULAR_TARGET_HOURS) {
-      warnings.push(`Regular hours (${dailyRegular}h) exceed the ${DAILY_REGULAR_TARGET_HOURS}h daily target.`);
-    }
-    if (hasOvertime) {
-      warnings.push('Overtime hours have been entered for this day.');
-    }
-
-    return warnings;
-  });
-
-  // ── Validation ────────────────────────────────────────────────────────────
+  // ── Validation (no overtime or hours-cap logic) ───────────────────────────
   function validate(assignments: DayAssignment[]): boolean {
     const errors: Record<string, string> = {};
-    let dayTotalHours = 0;
     // Filter out empty placeholder assignments (no category/subcategory selected)
     const realAssignments = assignments.filter((a) => a.categoryId || a.subCategoryId);
     // If all assignments are empty placeholders, allow save (deletes all records for the day)
@@ -265,20 +161,12 @@ export function useEnterHours(groupId: number) {
           errors[`assignment_${i}_metric_${scm.id}`] = 'Must be a valid number';
           continue;
         }
-
         hasValue = true;
-        const metric = metrics.value.find((m) => m.id === scm.metricId);
-
-        if (metric?.unitOfMeasure === 'hours') dayTotalHours += val;
       }
 
       if (!hasValue && assignment.subCategoryId) {
         errors[`assignment_${i}`] = 'Enter at least one metric value';
       }
-    }
-
-    if (dayTotalHours > 24) {
-      errors['day'] = `Total hours (${dayTotalHours}h) cannot exceed 24h per day`;
     }
 
     dayErrors.value = errors;
@@ -317,33 +205,13 @@ export function useEnterHours(groupId: number) {
     metrics.value = metricsRes.data.value ?? [];
     subCategoryMetrics.value = scmRes.data.value ?? [];
 
-    const initialLocationId = seedLocationId ?? authStore.homeLocationId;
-    if (initialLocationId) {
-      const { data } = await getApiUsers({ LocationId: initialLocationId, IsEnabled: true });
-      locationUsers.value = data.value ?? [];
-
-      // If the seeded user isn't in this location's list, inject them so the dropdown shows their name.
-      if (seedUserId && seedEmployeeName && !locationUsers.value.some((u) => u.id === seedUserId)) {
-        const [firstName, ...rest] = seedEmployeeName.split(' ');
-        locationUsers.value = [
-          { id: seedUserId, firstName: firstName ?? '', lastName: rest.join(' ') } as UserResponse,
-          ...locationUsers.value,
-        ];
-      }
-
-      // Default the selected user to the current user if they belong to this location
-      if (!seedUserId && !canEnterForOthers.value) {
-        selectedUserId.value = authStore.currentUserId;
-      }
-    }
-
     isLoadingReference.value = false;
 
-    if (seedDate && seedLocationId && seedUserId) {
+    if (selectedLocationId.value) {
       await loadWeek();
-      onSelectDay(seedDate);
-    } else if (initialLocationId && selectedUserId.value) {
-      await loadWeek();
+      if (seedDate) {
+        onSelectDay(seedDate);
+      }
     }
   });
 
@@ -352,15 +220,11 @@ export function useEnterHours(groupId: number) {
     if (dates.length < 7) return '';
     const from = DateTime.fromISO(dates[0]);
     const to = DateTime.fromISO(dates[6]);
-    return `${from.toFormat('MMM d')} – ${to.toFormat('MMM d')}, ${to.year}`;
+    return `${from.toFormat('MMM d')} \u2013 ${to.toFormat('MMM d')}, ${to.year}`;
   });
 
   return {
     accountWarning,
-    canEnterForOthers,
-    canOverrideSignedOff,
-    seedLocationId,
-    seedUserId,
     isLoadingReference,
     isDirty,
     confirmIfDirty,
@@ -372,15 +236,11 @@ export function useEnterHours(groupId: number) {
     locationOptions,
     selectedLocationId,
     onLocationChange,
-    selectedUserId,
-    userOptions,
-    onUserChange,
     weekDates,
     dayStatusMap,
     daySummaryMap,
     weeklyRegularTotal,
     weeklyOvertimeTotal,
-    isOvertimeEnabled,
     isLoading,
     loadError,
     navigateWeek,
@@ -391,9 +251,6 @@ export function useEnterHours(groupId: number) {
     addAssignment,
     removeAssignment,
     updateAssignment,
-    copyFromOptions,
-    copyFromDay,
-    dayWarnings,
     dayErrors,
     apiError,
     isSaving,

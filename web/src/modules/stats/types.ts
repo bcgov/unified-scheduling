@@ -6,6 +6,8 @@ export interface AssignmentData {
   /** subCategoryMetricId → string input value */
   metricValues: Record<number, string>;
   comment: string;
+  /** Location where work was performed, when outside the user's home location. Null = home location. */
+  performedAtLocationId: number | null;
 }
 
 export interface DayAssignment extends AssignmentData {
@@ -17,6 +19,7 @@ export interface DaySummary {
   regularHours: number;
   overtimeHours: number;
   assignmentCount: number;
+  hasOffSite: boolean;
 }
 
 export type EntryStatus = 'Draft' | 'Submitted' | 'SignedOff' | '';

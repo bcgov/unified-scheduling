@@ -11,6 +11,11 @@ const links = [
     to: { name: 'SupervisionForm' },
   },
   {
+    title: 'Location Level Form',
+    description: 'Enter location-level operational data (trips, kilometres, custody counts).',
+    to: { name: 'LocationLevelForm' },
+  },
+  {
     title: 'Search / View / Edit Data',
     description: 'Search, view, and edit previously submitted stat records.',
     to: { name: 'StatSearch' },

@@ -9,7 +9,8 @@ import type { SaveDayRecordItem } from './saveDayRecordItem.ts';
 export interface SaveDayRequest {
   date: string;
   locationId: number;
-  userId: string;
+  /** @nullable */
+  userId?: string | null;
   status: string;
   groupId: number;
   records: SaveDayRecordItem[];

@@ -203,19 +203,30 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
             callerUserId
         );
 
-        EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
+        // Verify whether this group is location-level from the database, not the request.
+        var isLocationLevel =
+            await db.StatGroups.AnyAsync(g => g.Id == request.GroupId && g.IsLocationLevel, cancellationToken);
+
+        // Location-level entries are per-location, not per-employee — skip user auth.
+        if (!isLocationLevel)
+            EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
 
         // Load existing records for this user/location/date scoped to the same group so we can
         // diff within one transaction without touching records that belong to other group forms.
-        var existingRecords = await db
+        var existingQuery = db
             .StatRecords.Where(r =>
-                r.UserId == request.UserId
-                && r.LocationId == request.LocationId
+                r.LocationId == request.LocationId
                 && r.DateFrom == request.Date
                 && r.DateTo == request.Date
                 && r.SubCategoryMetric!.SubCategory!.Category!.GroupId == request.GroupId
-            )
-            .ToListAsync(cancellationToken);
+            );
+
+        // Location-level records have no UserId; employee forms filter by user.
+        existingQuery = isLocationLevel
+            ? existingQuery.Where(r => r.UserId == null)
+            : existingQuery.Where(r => r.UserId == request.UserId);
+
+        var existingRecords = await existingQuery.ToListAsync(cancellationToken);
 
         var incomingIds = request.Records.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).ToHashSet();
 
@@ -246,18 +257,20 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                 entity.Value = item.Value;
                 entity.Comment = item.Comment?.Trim();
                 entity.Status = request.Status;
+                entity.PerformedAtLocationId = item.PerformedAtLocationId;
                 results.Add(entity);
             }
             else
             {
-                // Create new record
+                // Create new record — location-level entries have no UserId
                 var entity = new StatRecord
                 {
                     DateFrom = request.Date,
                     DateTo = request.Date,
                     PeriodType = "Daily",
-                    UserId = request.UserId,
+                    UserId = isLocationLevel ? null : request.UserId,
                     LocationId = request.LocationId,
+                    PerformedAtLocationId = item.PerformedAtLocationId,
                     SubCategoryMetricId = item.SubCategoryMetricId,
                     Value = item.Value,
                     Comment = item.Comment?.Trim(),
@@ -280,6 +293,9 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
 
         return results.Adapt<List<StatRecordResponse>>();
     }
+
+    public async Task<bool> IsLocationLevelGroupAsync(int groupId, CancellationToken cancellationToken = default) =>
+        await db.StatGroups.AnyAsync(g => g.Id == groupId && g.IsLocationLevel, cancellationToken);
 
     private static void EnsureAuthorizedToSubmitFor(
         Guid? requestedUserId,

@@ -676,6 +676,97 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "Student",
             DisplayOrder = 2,
         },
+        // Location Level (GroupId = 3)
+        // Circuit court related travel (CategoryId = 26), ID 92
+        new()
+        {
+            Id = 92,
+            CategoryId = 26,
+            Name = "General",
+            DisplayOrder = 1,
+        },
+        // Escorts Air - Trips (CategoryId = 27), ID 93
+        new()
+        {
+            Id = 93,
+            CategoryId = 27,
+            Name = "General",
+            DisplayOrder = 1,
+        },
+        // Escorts Ground - Trips-Kilometres (CategoryId = 28), ID 94
+        new()
+        {
+            Id = 94,
+            CategoryId = 28,
+            Name = "General",
+            DisplayOrder = 1,
+        },
+        // Holding area/cellblock (CategoryId = 29), IDs 95-101
+        new()
+        {
+            Id = 95,
+            CategoryId = 29,
+            Name = "Adult females - Provincial",
+            DisplayOrder = 1,
+        },
+        new()
+        {
+            Id = 96,
+            CategoryId = 29,
+            Name = "Adult males - Provincial",
+            DisplayOrder = 2,
+        },
+        new()
+        {
+            Id = 97,
+            CategoryId = 29,
+            Name = "Federal Females",
+            DisplayOrder = 3,
+        },
+        new()
+        {
+            Id = 98,
+            CategoryId = 29,
+            Name = "Federal Males",
+            DisplayOrder = 4,
+        },
+        new()
+        {
+            Id = 99,
+            CategoryId = 29,
+            Name = "Hours",
+            DisplayOrder = 5,
+        },
+        new()
+        {
+            Id = 100,
+            CategoryId = 29,
+            Name = "Youth females - Provincial",
+            DisplayOrder = 6,
+        },
+        new()
+        {
+            Id = 101,
+            CategoryId = 29,
+            Name = "Youth males - Provincial",
+            DisplayOrder = 7,
+        },
+        // Coroner Jury Administration (CategoryId = 30), ID 102
+        new()
+        {
+            Id = 102,
+            CategoryId = 30,
+            Name = "General",
+            DisplayOrder = 1,
+        },
+        // Criminal/Civil Jury Administration (CategoryId = 31), ID 103
+        new()
+        {
+            Id = 103,
+            CategoryId = 31,
+            Name = "General",
+            DisplayOrder = 1,
+        },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)

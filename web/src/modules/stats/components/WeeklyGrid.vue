@@ -11,6 +11,8 @@ const props = defineProps<{
   daySummaryMap: Record<string, DaySummary>;
   weeklyRegularTotal: number;
   weeklyOvertimeTotal: number;
+  /** When true, bars use a single color and daily target thresholds are ignored. */
+  hideTargets?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -32,7 +34,12 @@ const dayInfos = computed(() =>
         dayName: DAY_NAMES[i],
         dayNumber: d.day,
         isWeekend: WEEKEND_INDICES.has(i),
-        summary: props.daySummaryMap[date] ?? { regularHours: 0, overtimeHours: 0, assignmentCount: 0 },
+        summary: props.daySummaryMap[date] ?? {
+          regularHours: 0,
+          overtimeHours: 0,
+          assignmentCount: 0,
+          hasOffSite: false,
+        },
         isSelected: date === props.selectedDate,
         isToday: date === today,
       };
@@ -43,7 +50,10 @@ const dayInfos = computed(() =>
 const gridColumns = computed(() => `repeat(${dayInfos.value.length}, 1fr)`);
 
 function regularBar(date: string): number {
-  const h = props.daySummaryMap[date]?.regularHours ?? 0;
+  const summary = props.daySummaryMap[date];
+  const h = summary?.regularHours ?? 0;
+  // For entries with no hours (location-level counts/trips/km), show a full bar
+  if (h === 0 && (summary?.assignmentCount ?? 0) > 0) return 100;
   return Math.min((h / DAILY_REGULAR_TARGET_HOURS) * 100, 100);
 }
 </script>
@@ -53,24 +63,26 @@ function regularBar(date: string): number {
     <!-- Header: week summary + toggle -->
     <div class="weekly-grid__header">
       <div class="weekly-grid__week-summary">
-        <span>
-          Regular:
-          <strong
-            :class="{
-              'text-success': weeklyRegularTotal === WEEKLY_REGULAR_TARGET_HOURS,
-              'text-warning': weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS,
-            }"
-          >
-            {{ weeklyRegularTotal }}h
-          </strong>
-          / {{ WEEKLY_REGULAR_TARGET_HOURS }}h
-          <span v-if="weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS" class="week-over-hint">
-            ({{ weeklyRegularTotal - WEEKLY_REGULAR_TARGET_HOURS }}h over target)
+        <template v-if="!hideTargets">
+          <span>
+            Regular:
+            <strong
+              :class="{
+                'text-success': weeklyRegularTotal === WEEKLY_REGULAR_TARGET_HOURS,
+                'text-warning': weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS,
+              }"
+            >
+              {{ weeklyRegularTotal }}h
+            </strong>
+            / {{ WEEKLY_REGULAR_TARGET_HOURS }}h
+            <span v-if="weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS" class="week-over-hint">
+              ({{ weeklyRegularTotal - WEEKLY_REGULAR_TARGET_HOURS }}h over target)
+            </span>
           </span>
-        </span>
-        <span v-if="weeklyOvertimeTotal > 0" class="overtime-total">
-          Overtime: <strong>{{ weeklyOvertimeTotal }}h</strong>
-        </span>
+          <span v-if="weeklyOvertimeTotal > 0" class="overtime-total">
+            Overtime: <strong>{{ weeklyOvertimeTotal }}h</strong>
+          </span>
+        </template>
       </div>
       <button
         class="weekend-toggle"
@@ -104,12 +116,24 @@ function regularBar(date: string): number {
             class="daily-bar__fill"
             :style="{ width: regularBar(info.date) + '%' }"
             :class="{
-              'daily-bar__fill--full': (daySummaryMap[info.date]?.regularHours ?? 0) >= DAILY_REGULAR_TARGET_HOURS,
+              'daily-bar__fill--full':
+                !hideTargets && (daySummaryMap[info.date]?.regularHours ?? 0) >= DAILY_REGULAR_TARGET_HOURS,
+              'daily-bar__fill--entries':
+                !hideTargets &&
+                (daySummaryMap[info.date]?.regularHours ?? 0) === 0 &&
+                (daySummaryMap[info.date]?.assignmentCount ?? 0) > 0,
             }"
           />
         </div>
         <span class="daily-bar__label">
-          {{ (daySummaryMap[info.date]?.regularHours ?? 0) > 0 ? `${daySummaryMap[info.date]?.regularHours}h` : '0h' }}
+          <template v-if="(daySummaryMap[info.date]?.regularHours ?? 0) > 0">
+            {{ daySummaryMap[info.date]?.regularHours }}h
+          </template>
+          <template v-else-if="(daySummaryMap[info.date]?.assignmentCount ?? 0) > 0">
+            {{ daySummaryMap[info.date]?.assignmentCount }}
+            {{ (daySummaryMap[info.date]?.assignmentCount ?? 0) === 1 ? 'entry' : 'entries' }}
+          </template>
+          <template v-else>—</template>
         </span>
       </div>
     </div>
@@ -196,6 +220,10 @@ function regularBar(date: string): number {
 
 .daily-bar__fill--full {
   background: var(--ua-stats-color-regular);
+}
+
+.daily-bar__fill--entries {
+  background: #1565c0;
 }
 
 .daily-bar__label {

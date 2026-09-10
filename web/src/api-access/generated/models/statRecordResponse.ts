@@ -12,6 +12,8 @@ export interface StatRecordResponse {
   periodType?: string;
   userId?: string;
   locationId?: number;
+  /** @nullable */
+  performedAtLocationId?: number | null;
   subCategoryMetricId?: number;
   value?: number;
   /** @nullable */

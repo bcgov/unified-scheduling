@@ -11,9 +11,9 @@ import UaCard from '@/shared/components/UaCard.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
-import type { SelectValue } from '@/types/select';
+import type { SelectOption, SelectValue } from '@/types/select';
 import { mdiLockOutline } from '@mdi/js';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { AssignmentData } from '../types';
 import { isOvertimeMetric } from '../utils/metricHelpers';
 
@@ -35,6 +35,10 @@ const props = defineProps<{
   overtimeLockReason?: string;
   /** When true, all inputs are disabled and remove is hidden (e.g. signed-off entries). */
   readonly?: boolean;
+  /** Location options for the "performed at" dropdown. */
+  locationOptions?: SelectOption[];
+  /** The user's home location ID — used to detect overrides. */
+  homeLocationId?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -127,6 +131,30 @@ const onMetricValueInput = (scmId: number, value: string) => {
 
 const onCommentInput = (value: string) => {
   model.value = { ...model.value, comment: value };
+};
+
+// ── Location override ─────────────────────────────────────────────────────
+// Toggle starts ON if the assignment already has a location override from loaded data
+const showLocationOverride = ref(model.value.performedAtLocationId != null);
+
+// Keep toggle in sync if the model changes externally (e.g. on load)
+watch(
+  () => model.value.performedAtLocationId,
+  (val) => {
+    if (val != null) showLocationOverride.value = true;
+  },
+);
+
+const onTogglePerformedOutside = () => {
+  showLocationOverride.value = !showLocationOverride.value;
+  if (!showLocationOverride.value) {
+    // Turning off — clear the override
+    model.value = { ...model.value, performedAtLocationId: null };
+  }
+};
+
+const onLocationOverrideChange = (value: SelectValue | undefined) => {
+  model.value = { ...model.value, performedAtLocationId: value != null ? Number(value) : null };
 };
 </script>
 
@@ -226,6 +254,34 @@ const onCommentInput = (value: string) => {
         :disabled="readonly"
         @update:model-value="(v: string) => onCommentInput(String(v))"
       />
+
+      <!-- Location override -->
+      <template v-if="locationOptions && locationOptions.length > 0">
+        <label class="ua-form-label">Location</label>
+        <div class="location-override">
+          <v-checkbox
+            :model-value="showLocationOverride"
+            label="Performed outside of home location?"
+            density="compact"
+            hide-details
+            color="primary"
+            :disabled="readonly"
+            @update:model-value="onTogglePerformedOutside"
+          />
+          <p v-if="showLocationOverride" class="location-hint">
+            Select the location where this work was performed. The entry will remain visible under your home location.
+          </p>
+          <UaSelect
+            v-if="showLocationOverride"
+            :id="`location-${model.id}`"
+            label="Select Location"
+            :items="locationOptions"
+            :model-value="model.performedAtLocationId"
+            :disabled="readonly"
+            @update:model-value="onLocationOverrideChange"
+          />
+        </div>
+      </template>
     </UaFormGrid>
   </UaCard>
 </template>
@@ -262,6 +318,31 @@ const onCommentInput = (value: string) => {
 .field-error {
   font-size: var(--ua-font-size-sm);
   color: rgb(var(--v-theme-error));
+}
+
+.location-override {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ua-spacing-sm);
+}
+
+.location-hint {
+  font-size: var(--ua-font-size-xs);
+  color: var(--ua-text-muted);
+  margin: 0;
+}
+
+.location-override :deep(.v-checkbox) {
+  margin: 0;
+}
+
+.location-override :deep(.v-checkbox .v-selection-control) {
+  min-height: unset;
+}
+
+.location-override :deep(.v-checkbox .v-label) {
+  font-size: var(--ua-font-size-sm);
+  color: var(--ua-text-secondary);
 }
 
 :deep(.v-field) {

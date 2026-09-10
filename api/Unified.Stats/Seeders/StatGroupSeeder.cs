@@ -26,6 +26,13 @@ public class StatGroupSeeder(ILogger<StatGroupSeeder> logger) : SeederBase<Unifi
             Name = "Supervision",
             DisplayOrder = 2,
         },
+        new()
+        {
+            Id = 3,
+            Name = "Location Level",
+            DisplayOrder = 3,
+            IsLocationLevel = true,
+        },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
@@ -50,6 +57,7 @@ public class StatGroupSeeder(ILogger<StatGroupSeeder> logger) : SeederBase<Unifi
             Logger.LogInformation("Updating fields for StatGroup with Id {Id}...", seed.Id);
             existing.Name = seed.Name;
             existing.DisplayOrder = seed.DisplayOrder;
+            existing.IsLocationLevel = seed.IsLocationLevel;
             updatedCount++;
         }
 

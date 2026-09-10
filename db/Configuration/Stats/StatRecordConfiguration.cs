@@ -21,6 +21,12 @@ public class StatRecordConfiguration : BaseEntityConfiguration<StatRecord>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder
+            .HasOne(r => r.PerformedAtLocation)
+            .WithMany()
+            .HasForeignKey(r => r.PerformedAtLocationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder
             .HasOne(r => r.SubCategoryMetric)
             .WithMany()
             .HasForeignKey(r => r.SubCategoryMetricId)
