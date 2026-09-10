@@ -19,6 +19,7 @@ export interface DaySummary {
   regularHours: number;
   overtimeHours: number;
   assignmentCount: number;
+  hasOffSite: boolean;
 }
 
 export type EntryStatus = 'Draft' | 'Submitted' | 'SignedOff' | '';

@@ -13,5 +13,5 @@ export interface SaveDayRecordItem {
   /** @nullable */
   comment?: string | null;
   /** @nullable */
-  locationId?: number | null;
+  performedAtLocationId?: number | null;
 }

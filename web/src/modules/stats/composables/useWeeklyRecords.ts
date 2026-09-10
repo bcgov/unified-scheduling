@@ -84,10 +84,12 @@ export function useWeeklyRecords(
           else if (isOvertimeMetric(metric)) overtimeHours += val;
         }
       }
+      const realAssignments = assignments.filter((a) => a.subCategoryId);
       result[date] = {
         regularHours,
         overtimeHours,
-        assignmentCount: assignments.filter((a) => a.subCategoryId).length,
+        assignmentCount: realAssignments.length,
+        hasOffSite: realAssignments.some((a) => a.performedAtLocationId != null),
       };
     }
     return result;

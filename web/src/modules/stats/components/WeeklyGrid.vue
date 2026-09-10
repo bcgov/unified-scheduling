@@ -34,7 +34,12 @@ const dayInfos = computed(() =>
         dayName: DAY_NAMES[i],
         dayNumber: d.day,
         isWeekend: WEEKEND_INDICES.has(i),
-        summary: props.daySummaryMap[date] ?? { regularHours: 0, overtimeHours: 0, assignmentCount: 0 },
+        summary: props.daySummaryMap[date] ?? {
+          regularHours: 0,
+          overtimeHours: 0,
+          assignmentCount: 0,
+          hasOffSite: false,
+        },
         isSelected: date === props.selectedDate,
         isToday: date === today,
       };
