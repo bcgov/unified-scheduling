@@ -11,6 +11,8 @@ const props = defineProps<{
   daySummaryMap: Record<string, DaySummary>;
   weeklyRegularTotal: number;
   weeklyOvertimeTotal: number;
+  /** When true, bars use a single color and daily target thresholds are ignored. */
+  hideTargets?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -56,24 +58,26 @@ function regularBar(date: string): number {
     <!-- Header: week summary + toggle -->
     <div class="weekly-grid__header">
       <div class="weekly-grid__week-summary">
-        <span>
-          Regular:
-          <strong
-            :class="{
-              'text-success': weeklyRegularTotal === WEEKLY_REGULAR_TARGET_HOURS,
-              'text-warning': weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS,
-            }"
-          >
-            {{ weeklyRegularTotal }}h
-          </strong>
-          / {{ WEEKLY_REGULAR_TARGET_HOURS }}h
-          <span v-if="weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS" class="week-over-hint">
-            ({{ weeklyRegularTotal - WEEKLY_REGULAR_TARGET_HOURS }}h over target)
+        <template v-if="!hideTargets">
+          <span>
+            Regular:
+            <strong
+              :class="{
+                'text-success': weeklyRegularTotal === WEEKLY_REGULAR_TARGET_HOURS,
+                'text-warning': weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS,
+              }"
+            >
+              {{ weeklyRegularTotal }}h
+            </strong>
+            / {{ WEEKLY_REGULAR_TARGET_HOURS }}h
+            <span v-if="weeklyRegularTotal > WEEKLY_REGULAR_TARGET_HOURS" class="week-over-hint">
+              ({{ weeklyRegularTotal - WEEKLY_REGULAR_TARGET_HOURS }}h over target)
+            </span>
           </span>
-        </span>
-        <span v-if="weeklyOvertimeTotal > 0" class="overtime-total">
-          Overtime: <strong>{{ weeklyOvertimeTotal }}h</strong>
-        </span>
+          <span v-if="weeklyOvertimeTotal > 0" class="overtime-total">
+            Overtime: <strong>{{ weeklyOvertimeTotal }}h</strong>
+          </span>
+        </template>
       </div>
       <button
         class="weekend-toggle"
@@ -107,8 +111,10 @@ function regularBar(date: string): number {
             class="daily-bar__fill"
             :style="{ width: regularBar(info.date) + '%' }"
             :class="{
-              'daily-bar__fill--full': (daySummaryMap[info.date]?.regularHours ?? 0) >= DAILY_REGULAR_TARGET_HOURS,
+              'daily-bar__fill--full':
+                !hideTargets && (daySummaryMap[info.date]?.regularHours ?? 0) >= DAILY_REGULAR_TARGET_HOURS,
               'daily-bar__fill--entries':
+                !hideTargets &&
                 (daySummaryMap[info.date]?.regularHours ?? 0) === 0 &&
                 (daySummaryMap[info.date]?.assignmentCount ?? 0) > 0,
             }"

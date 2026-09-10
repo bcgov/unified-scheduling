@@ -257,7 +257,7 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                 entity.Value = item.Value;
                 entity.Comment = item.Comment?.Trim();
                 entity.Status = request.Status;
-                entity.LocationId = item.LocationId ?? request.LocationId;
+                entity.PerformedAtLocationId = item.PerformedAtLocationId;
                 results.Add(entity);
             }
             else
@@ -269,7 +269,8 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                     DateTo = request.Date,
                     PeriodType = "Daily",
                     UserId = isLocationLevel ? null : request.UserId,
-                    LocationId = item.LocationId ?? request.LocationId,
+                    LocationId = request.LocationId,
+                    PerformedAtLocationId = item.PerformedAtLocationId,
                     SubCategoryMetricId = item.SubCategoryMetricId,
                     Value = item.Value,
                     Comment = item.Comment?.Trim(),

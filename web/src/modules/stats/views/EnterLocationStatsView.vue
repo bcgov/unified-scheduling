@@ -112,6 +112,7 @@ onBeforeRouteLeave(() => {
             :day-summary-map="daySummaryMap"
             :weekly-regular-total="weeklyRegularTotal"
             :weekly-overtime-total="weeklyOvertimeTotal"
+            hide-targets
             @select-day="onSelectDay"
           />
         </div>
@@ -135,6 +136,7 @@ onBeforeRouteLeave(() => {
             :sub-category-metrics="subCategoryMetrics"
             :metrics="metrics"
             :overtime-enabled="false"
+            hide-targets
             :is-saving="isSaving"
             :errors="dayErrors"
             :api-error="apiError"

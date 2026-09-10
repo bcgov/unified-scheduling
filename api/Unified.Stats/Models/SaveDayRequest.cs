@@ -23,9 +23,8 @@ public sealed record SaveDayRecordItem
     public string? Comment { get; init; }
 
     /// <summary>
-    /// Optional per-record location override. When set, the record is stored with this
-    /// LocationId instead of the request-level LocationId (used when work was performed
-    /// outside the user's home location).
+    /// When work was performed at a location other than the user's home location,
+    /// set this to that location's ID. Null means performed at the home location.
     /// </summary>
-    public int? LocationId { get; init; }
+    public int? PerformedAtLocationId { get; init; }
 }

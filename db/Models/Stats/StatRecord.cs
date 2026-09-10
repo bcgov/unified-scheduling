@@ -24,6 +24,14 @@ public class StatRecord : BaseEntity
 
     public Location? Location { get; set; }
 
+    /// <summary>
+    /// When work was performed at a location other than the user's home location,
+    /// this stores that location. Null means performed at the home location.
+    /// </summary>
+    public int? PerformedAtLocationId { get; set; }
+
+    public Location? PerformedAtLocation { get; set; }
+
     public int SubCategoryMetricId { get; set; }
 
     public SubCategoryMetric? SubCategoryMetric { get; set; }

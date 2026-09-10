@@ -135,11 +135,11 @@ const onCommentInput = (value: string) => {
 
 // ── Location override ─────────────────────────────────────────────────────
 // Toggle starts ON if the assignment already has a location override from loaded data
-const showLocationOverride = ref(model.value.locationId != null);
+const showLocationOverride = ref(model.value.performedAtLocationId != null);
 
 // Keep toggle in sync if the model changes externally (e.g. on load)
 watch(
-  () => model.value.locationId,
+  () => model.value.performedAtLocationId,
   (val) => {
     if (val != null) showLocationOverride.value = true;
   },
@@ -149,12 +149,12 @@ const onTogglePerformedOutside = () => {
   showLocationOverride.value = !showLocationOverride.value;
   if (!showLocationOverride.value) {
     // Turning off — clear the override
-    model.value = { ...model.value, locationId: null };
+    model.value = { ...model.value, performedAtLocationId: null };
   }
 };
 
 const onLocationOverrideChange = (value: SelectValue | undefined) => {
-  model.value = { ...model.value, locationId: value != null ? Number(value) : null };
+  model.value = { ...model.value, performedAtLocationId: value != null ? Number(value) : null };
 };
 </script>
 
@@ -268,12 +268,15 @@ const onLocationOverrideChange = (value: SelectValue | undefined) => {
             :disabled="readonly"
             @update:model-value="onTogglePerformedOutside"
           />
+          <p v-if="showLocationOverride" class="location-hint">
+            Select the location where this work was performed. The entry will remain visible under your home location.
+          </p>
           <UaSelect
             v-if="showLocationOverride"
             :id="`location-${model.id}`"
             label="Select Location"
             :items="locationOptions"
-            :model-value="model.locationId"
+            :model-value="model.performedAtLocationId"
             :disabled="readonly"
             @update:model-value="onLocationOverrideChange"
           />
@@ -321,6 +324,12 @@ const onLocationOverrideChange = (value: SelectValue | undefined) => {
   display: flex;
   flex-direction: column;
   gap: var(--ua-spacing-sm);
+}
+
+.location-hint {
+  font-size: var(--ua-font-size-xs);
+  color: var(--ua-text-muted);
+  margin: 0;
 }
 
 .location-override :deep(.v-checkbox) {

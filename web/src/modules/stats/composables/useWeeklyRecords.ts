@@ -162,11 +162,6 @@ export function useWeeklyRecords(
         }
       }
 
-      // If the record's locationId differs from the form's selected location,
-      // it was performed at a different location — preserve that override.
-      const recordLocationId = firstRecord.locationId ?? null;
-      const assignmentLocationId = recordLocationId && recordLocationId !== locationId.value ? recordLocationId : null;
-
       return {
         id: newAssignmentId(),
         groupId,
@@ -175,7 +170,7 @@ export function useWeeklyRecords(
         metricValues,
         existingRecordIds,
         comment: firstRecord.comment ?? '',
-        locationId: assignmentLocationId,
+        performedAtLocationId: (firstRecord as Record<string, unknown>).performedAtLocationId as number | null ?? null,
       };
     });
   }
@@ -271,7 +266,7 @@ export function useWeeklyRecords(
             subCategoryMetricId: scm.id,
             value: val,
             comment: assignment.comment || null,
-            ...(assignment.locationId ? { locationId: assignment.locationId } : {}),
+            ...(assignment.performedAtLocationId ? { performedAtLocationId: assignment.performedAtLocationId } : {}),
           },
         ];
       });
@@ -308,7 +303,7 @@ export function useWeeklyRecords(
       metricValues: {},
       existingRecordIds: {},
       comment: '',
-      locationId: null,
+      performedAtLocationId: null,
     };
   }
 

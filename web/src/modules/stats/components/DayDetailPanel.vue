@@ -41,6 +41,8 @@ const props = defineProps<{
   copyFromOptions?: { date: string; label: string }[];
   locationOptions?: SelectOption[];
   homeLocationId?: number | null;
+  /** When true, hides daily hours target and overtime badge. */
+  hideTargets?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -85,7 +87,7 @@ const overtimeLockReason = computed(() => {
     <div class="day-detail-panel__header" :style="headerColor ? { borderLeftColor: headerColor } : {}">
       <div>
         <h2 class="day-detail-panel__date">{{ formattedDate }}</h2>
-        <p class="day-detail-panel__total">
+        <p v-if="!hideTargets" class="day-detail-panel__total">
           Regular: <strong>{{ dailyRegularTotal }}h</strong> / {{ DAILY_REGULAR_TARGET_HOURS }}h
         </p>
       </div>
@@ -102,7 +104,7 @@ const overtimeLockReason = computed(() => {
           <v-icon :icon="mdiCheckAll" size="14" />
           Signed Off
         </div>
-        <div v-if="!overtimeEnabled" class="overtime-locked-badge">
+        <div v-if="!hideTargets && !overtimeEnabled" class="overtime-locked-badge">
           <v-icon :icon="mdiLockOutline" size="14" />
           Overtime locked
         </div>

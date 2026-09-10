@@ -8,6 +8,7 @@ public sealed record StatRecordResponse
     public string PeriodType { get; init; } = string.Empty;
     public Guid UserId { get; init; }
     public int LocationId { get; init; }
+    public int? PerformedAtLocationId { get; init; }
     public int SubCategoryMetricId { get; init; }
     public decimal Value { get; init; }
     public string? Comment { get; init; }
