@@ -9,6 +9,7 @@ import type { MaybeRef } from 'vue';
 export type OriginalGetApiSchedulingShiftsSeriesParams = {
   EventSeriesId?: number;
   UserId?: string;
+  LocationId?: number;
 };
 
 export type GetApiSchedulingShiftsSeriesParams = MaybeRef<OriginalGetApiSchedulingShiftsSeriesParams>;

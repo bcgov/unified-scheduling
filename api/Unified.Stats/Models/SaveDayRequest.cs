@@ -19,7 +19,7 @@ public sealed record SaveDayRecordItem
     /// <summary>Null for new records; set to the existing record ID for updates.</summary>
     public int? Id { get; init; }
     public required int SubCategoryMetricId { get; init; }
-    public required decimal Value { get; init; }
+    public decimal? Value { get; init; }
     public string? Comment { get; init; }
 
     /// <summary>

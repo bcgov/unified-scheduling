@@ -17,4 +17,9 @@ public class SubCategoryMetric : BaseEntity
     public StatMetric? Metric { get; set; }
 
     public int DisplayOrder { get; set; }
+
+    /// <summary>
+    /// When true, the user must provide a value for this metric before saving.
+    /// </summary>
+    public bool IsRequired { get; set; }
 }

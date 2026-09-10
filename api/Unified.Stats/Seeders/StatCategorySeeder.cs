@@ -61,28 +61,28 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
         {
             Id = 7,
             GroupId = 1,
-            Name = "Escorts Air - Hours-Trips",
+            Name = "Transports Air - Hours-Trips",
             DisplayOrder = 7,
         },
         new()
         {
             Id = 8,
             GroupId = 1,
-            Name = "Escorts Ground - Hours-Trips-Kilometres",
+            Name = "Transports Ground - Hours-Trips-Kilometres",
             DisplayOrder = 8,
         },
         new()
         {
             Id = 9,
             GroupId = 1,
-            Name = "Escorts females - Escorted",
+            Name = "Transports Females - Transported",
             DisplayOrder = 9,
         },
         new()
         {
             Id = 10,
             GroupId = 1,
-            Name = "Escorts males - Escorted",
+            Name = "Transports Males - Transported",
             DisplayOrder = 10,
         },
         new()
@@ -146,14 +146,14 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
         {
             Id = 19,
             GroupId = 2,
-            Name = "Escorts Air - Hours-Trips",
+            Name = "Transports Air - Hours-Trips",
             DisplayOrder = 5,
         },
         new()
         {
             Id = 20,
             GroupId = 2,
-            Name = "Escorts Ground - Hours-Trips-Kilometres",
+            Name = "Transports Ground - Hours-Trips-Kilometres",
             DisplayOrder = 6,
         },
         new()
@@ -203,14 +203,14 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
         {
             Id = 27,
             GroupId = 3,
-            Name = "Escorts Air - Trips",
+            Name = "Transports Air - Trips",
             DisplayOrder = 2,
         },
         new()
         {
             Id = 28,
             GroupId = 3,
-            Name = "Escorts Ground - Trips-Kilometres",
+            Name = "Transports Ground - Trips-Kilometres",
             DisplayOrder = 3,
         },
         new()

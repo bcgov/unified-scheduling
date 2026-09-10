@@ -31,8 +31,8 @@ export const GetApiStatsDashboardEntriesResponseItem = zod.object({
   metricName: zod.string().optional(),
   metricUnit: zod.string().optional(),
   isOvertime: zod.boolean().optional(),
-  value: zod.number().optional(),
   status: zod.string().optional(),
+  value: zod.number().nullish(),
 });
 export const GetApiStatsDashboardEntriesResponse = zod.array(GetApiStatsDashboardEntriesResponseItem);
 

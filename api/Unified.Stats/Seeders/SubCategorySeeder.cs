@@ -216,7 +216,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "Warrants",
             DisplayOrder = 4,
         },
-        // Escorts Air - Hours-Trips - Non-Supervision (CategoryId = 7), ID 29
+        // Transports Air - Hours-Trips - Non-Supervision (CategoryId = 7), ID 29
         new()
         {
             Id = 29,
@@ -224,7 +224,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "Security level and hours",
             DisplayOrder = 1,
         },
-        // Escorts Ground - Hours-Trips-Kilometres - Non-Supervision (CategoryId = 8), ID 30
+        // Transports Ground - Hours-Trips-Kilometres - Non-Supervision (CategoryId = 8), ID 30
         new()
         {
             Id = 30,
@@ -232,7 +232,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "Security level and hours",
             DisplayOrder = 1,
         },
-        // Escorts females - Escorted (CategoryId = 9), IDs 31-33
+        // Transports Females - Transported (CategoryId = 9), IDs 31-33
         new()
         {
             Id = 31,
@@ -254,7 +254,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "Number of youth females",
             DisplayOrder = 3,
         },
-        // Escorts males - Escorted (CategoryId = 10), IDs 34-36
+        // Transports Males - Transported (CategoryId = 10), IDs 34-36
         new()
         {
             Id = 34,
@@ -578,7 +578,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "Warrants",
             DisplayOrder = 4,
         },
-        // Escorts Air - Hours-Trips - Supervision (CategoryId = 19), ID 79
+        // Transports Air - Hours-Trips - Supervision (CategoryId = 19), ID 79
         new()
         {
             Id = 79,
@@ -586,7 +586,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "Hours (Level 1, 2, 3)",
             DisplayOrder = 1,
         },
-        // Escorts Ground - Hours-Trips-Kilometres - Supervision (CategoryId = 20), ID 80
+        // Transports Ground - Hours-Trips-Kilometres - Supervision (CategoryId = 20), ID 80
         new()
         {
             Id = 80,
@@ -685,7 +685,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "General",
             DisplayOrder = 1,
         },
-        // Escorts Air - Trips (CategoryId = 27), ID 93
+        // Transports Air - Trips (CategoryId = 27), ID 93
         new()
         {
             Id = 93,
@@ -693,7 +693,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "General",
             DisplayOrder = 1,
         },
-        // Escorts Ground - Trips-Kilometres (CategoryId = 28), ID 94
+        // Transports Ground - Trips-Kilometres (CategoryId = 28), ID 94
         new()
         {
             Id = 94,

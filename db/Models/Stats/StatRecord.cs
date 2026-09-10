@@ -38,7 +38,7 @@ public class StatRecord : BaseEntity
 
     // Numeric values are assumed for all metrics (see SubCategoryMetric -> StatMetric.UnitOfMeasure).
     // Supporting non-numeric value types would require new functionality.
-    public decimal Value { get; set; }
+    public decimal? Value { get; set; }
 
     public string? Comment { get; set; }
 

@@ -16,12 +16,12 @@ namespace Unified.Stats.Seeders;
 /// SubCategory IDs reference:
 ///   Court Security NS 1-17 | Travel NS 18 | Coroner Jury 19 | Crim/Civil Jury 20
 ///   Docs Civ/Fam NS 21-24  | Docs Crim NS 25-28
-///   Escorts Air NS 29      | Escorts Ground NS 30
-///   Escorts females 31-33  | Escorts males 34-36
+///   Transports Air NS 29      | Transports Ground NS 30
+///   Transports Females 31-33  | Transports Males 34-36
 ///   Holding NS 37-43       | Other NS 44-49 | PIO/SIO NS 50 | Training NS 51-52
 ///   Court Security SUP 53-69 | Travel SUP 70
 ///   Docs Civ/Fam SUP 71-74  | Docs Crim SUP 75-78
-///   Escorts Air SUP 79 | Escorts Ground SUP 80
+///   Transports Air SUP 79 | Transports Ground SUP 80
 ///   Holding SUP 81 | Jury Admin SUP 82 | Other SUP 83-88 | PIO/SIO SUP 89 | Training SUP 90-91
 ///   Location Level: Travel 92 | Air 93 | Ground 94 | Holding 95-101 | Coroner 102 | Jury 103
 /// </summary>
@@ -44,9 +44,9 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         73, 74,
         // Criminal/Civil Jury Admin NS (SubCat 20) → Summonsed, Paid, Panels, $
         76, 77, 78, 79,
-        // Escorts Air NS (SubCat 29) → L1/L2/L3 Trips
+        // Transports Air NS (SubCat 29) → L1/L2/L3 Trips
         118, 119, 120,
-        // Escorts Ground NS (SubCat 30) → Trips, km, ground counts
+        // Transports Ground NS (SubCat 30) → Trips, km, ground counts
         130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140,
         // Holding NS SubCat 37 (Adult females) → Cell Block Hours, Regulars, SEG
         165, 167, 168,
@@ -64,9 +64,9 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         186, 188,
         // Circuit travel SUP (SubCat 70) → km Travelled
         283,
-        // Escorts Air SUP (SubCat 79) → L1/L2/L3 Trips
+        // Transports Air SUP (SubCat 79) → L1/L2/L3 Trips
         322, 323, 324,
-        // Escorts Ground SUP (SubCat 80) → Trips, km
+        // Transports Ground SUP (SubCat 80) → Trips, km
         331, 332, 333, 334, 335, 336, 337, 338,
         // Holding SUP (SubCat 81) → Cell Block Hours
         339,
@@ -315,7 +315,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         }
         // IDs 96-111
 
-        // ── Escorts Air NS (SubCategory 29 – Security level and hours) ───────────
+        // ── Transports Air NS (SubCategory 29 – Security level and hours) ───────────
         list.Add(
             new()
             {
@@ -426,7 +426,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         ); // Level 3 Air (count)
         // IDs 112-123
 
-        // ── Escorts Ground NS (SubCategory 30 – Security level and hours) ────────
+        // ── Transports Ground NS (SubCategory 30 – Security level and hours) ────────
         list.Add(
             new()
             {
@@ -582,7 +582,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         ); // Level 3 Ground (count)
         // IDs 124-140
 
-        // ── Escorts females – Escorted (SubCategories 31-33) ─────────────────────
+        // ── Transports Females – Transported (SubCategories 31-33) ─────────────────────
         // 31=adult females, 32=Federal females, 33=youth females
         for (var scId = 31; scId <= 33; scId++)
         {
@@ -625,7 +625,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         }
         // IDs 141-152
 
-        // ── Escorts males – Escorted (SubCategories 34-36) ───────────────────────
+        // ── Transports Males – Transported (SubCategories 34-36) ───────────────────────
         for (var scId = 34; scId <= 36; scId++)
         {
             list.Add(
@@ -1149,7 +1149,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         }
         // IDs 300-315
 
-        // ── Escorts Air SUP (SubCategory 79 – Hours Level 1, 2, 3) ───────────────
+        // ── Transports Air SUP (SubCategory 79 – Hours Level 1, 2, 3) ───────────────
         list.Add(
             new()
             {
@@ -1233,7 +1233,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         );
         // IDs 316-324
 
-        // ── Escorts Ground SUP (SubCategory 80 – Hours Level 1, 2, 3) ────────────
+        // ── Transports Ground SUP (SubCategory 80 – Hours Level 1, 2, 3) ────────────
         list.Add(
             new()
             {
@@ -1631,12 +1631,12 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         // Circuit court related travel LL (SubCategory 92 – General)
         list.Add(new() { Id = 366, SubCategoryId = 92, MetricId = 43, DisplayOrder = 1 }); // km Travelled
 
-        // Escorts Air LL (SubCategory 93 – General)
+        // Transports Air LL (SubCategory 93 – General)
         list.Add(new() { Id = 367, SubCategoryId = 93, MetricId = 30, DisplayOrder = 1 }); // L1 Trips
         list.Add(new() { Id = 368, SubCategoryId = 93, MetricId = 31, DisplayOrder = 2 }); // L2 Trips
         list.Add(new() { Id = 369, SubCategoryId = 93, MetricId = 32, DisplayOrder = 3 }); // L3 Trips
 
-        // Escorts Ground LL (SubCategory 94 – General)
+        // Transports Ground LL (SubCategory 94 – General)
         list.Add(new() { Id = 370, SubCategoryId = 94, MetricId = 29, DisplayOrder = 1 }); // Trips
         list.Add(new() { Id = 371, SubCategoryId = 94, MetricId = 30, DisplayOrder = 2 }); // L1 Trips
         list.Add(new() { Id = 372, SubCategoryId = 94, MetricId = 31, DisplayOrder = 3 }); // L2 Trips

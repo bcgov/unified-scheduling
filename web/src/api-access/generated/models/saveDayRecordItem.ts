@@ -9,9 +9,10 @@ export interface SaveDayRecordItem {
   /** @nullable */
   id?: number | null;
   subCategoryMetricId: number;
-  value: number;
   /** @nullable */
   comment?: string | null;
   /** @nullable */
   performedAtLocationId?: number | null;
+  /** @nullable */
+  value?: number | null;
 }

@@ -254,7 +254,7 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                 }
 
                 entity.SubCategoryMetricId = item.SubCategoryMetricId;
-                entity.Value = item.Value;
+                entity.Value = item.Value ?? 0;
                 entity.Comment = item.Comment?.Trim();
                 entity.Status = request.Status;
                 entity.PerformedAtLocationId = item.PerformedAtLocationId;
@@ -272,7 +272,7 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                     LocationId = request.LocationId,
                     PerformedAtLocationId = item.PerformedAtLocationId,
                     SubCategoryMetricId = item.SubCategoryMetricId,
-                    Value = item.Value,
+                    Value = item.Value ?? 0,
                     Comment = item.Comment?.Trim(),
                     Status = request.Status,
                 };

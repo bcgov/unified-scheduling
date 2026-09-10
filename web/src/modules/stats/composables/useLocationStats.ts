@@ -18,6 +18,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { LOCATION_LEVEL_GROUP_ID } from '../constants';
 import type { DayAssignment } from '../types';
+import { isHoursMetric, isIntegerMetric } from '../utils/metricHelpers';
 import { getSundayOfWeek, useWeeklyRecords } from './useWeeklyRecords';
 
 /**
@@ -154,11 +155,28 @@ export function useLocationStats() {
       for (const scm of scms) {
         if (!scm.id) continue;
         const raw = assignment.metricValues[scm.id];
-        if (!raw || raw.trim() === '') continue;
+        const isEmpty = !raw || raw.trim() === '';
+
+        if (isEmpty) {
+          if (scm.isRequired) {
+            const metric = metrics.value.find((m) => m.id === scm.metricId);
+            errors[`assignment_${i}_metric_${scm.id}`] = `${metric?.name ?? 'This field'} is required`;
+          }
+          continue;
+        }
 
         const val = parseFloat(raw);
         if (isNaN(val)) {
           errors[`assignment_${i}_metric_${scm.id}`] = 'Must be a valid number';
+          continue;
+        }
+        const metric = metrics.value.find((m) => m.id === scm.metricId);
+        if (metric && isIntegerMetric(metric) && !Number.isInteger(val)) {
+          errors[`assignment_${i}_metric_${scm.id}`] = 'Must be a whole number';
+          continue;
+        }
+        if (metric && isHoursMetric(metric) && val % 0.25 !== 0) {
+          errors[`assignment_${i}_metric_${scm.id}`] = 'Must be in quarter-hour increments (0.25, 0.5, 0.75)';
           continue;
         }
         hasValue = true;
