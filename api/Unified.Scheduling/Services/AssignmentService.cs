@@ -164,6 +164,9 @@ public sealed class AssignmentService(
         CancellationToken cancellationToken = default
     )
     {
+        if (string.IsNullOrWhiteSpace(request.RecurrenceRule))
+            throw new ArgumentException("A recurring assignment series cannot be converted to a single assignment.");
+
         var definition = await GetActiveDefinitionAsync(
             request.AssignmentDefinitionId,
             request.StartAtUtc,
@@ -515,12 +518,39 @@ public sealed class AssignmentService(
 
         ValidateAssignmentEventType(assignmentEntry.Event!);
         EnsureDraft(assignmentEntry.Event!.StatusTypeCode, "Assignment entry");
+        var invalidatedShiftEntryIds = assignmentEntry
+            .ShiftAssignmentEntries.Where(link =>
+                link.ShiftEntry?.Event is Event shiftEvent
+                && !ShiftAssignmentGuards.AssignmentStartsOnShiftDate(
+                    shiftEvent.StartAtUtc,
+                    shiftEvent.EndAtUtc,
+                    request.StartAtUtc,
+                    shiftEvent.TimeZoneId,
+                    timeZoneService
+                )
+            )
+            .Select(link => link.ShiftEntryId)
+            .ToHashSet();
+        var requestedShiftEntryLinks = request.ShiftEntryLinks is null
+            ? assignmentEntry
+                .ShiftAssignmentEntries.Where(link =>
+                    !invalidatedShiftEntryIds.Contains(link.ShiftEntryId) && link.Users.Count > 0
+                )
+                .Select(link => new ShiftEntryLinkRequest
+                {
+                    ShiftEntryId = link.ShiftEntryId,
+                    AssignedUserIds = link.Users.Select(user => user.UserId).ToList(),
+                })
+                .ToList()
+            : request
+                .ShiftEntryLinks.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
+                .ToList();
         ShiftAssignmentGuards.EnsureAssignmentEntryUpdatePreservesLinks(
             assignmentEntry,
             request.StartAtUtc,
             assignmentEntry.AssignmentSeriesId,
             timeZoneService,
-            request.ShiftEntryLinks?.Select(link => link.ShiftEntryId).ToList()
+            requestedShiftEntryLinks.Select(link => link.ShiftEntryId).ToList()
         );
         AssignmentEventMapper.ApplyToEvent(assignmentEntry.Event!, request);
         CalendarEventExceptionHelper.UpdateExceptionFlag(assignmentEntry.Event!);
@@ -539,7 +569,7 @@ public sealed class AssignmentService(
 
         await shiftAssignmentService.ReplaceAssignmentEntryLinksAsync(
             assignmentEntry.Id,
-            request.ShiftEntryLinks,
+            requestedShiftEntryLinks,
             cancellationToken
         );
 

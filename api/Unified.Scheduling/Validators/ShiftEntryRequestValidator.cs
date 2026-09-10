@@ -28,7 +28,9 @@ public sealed class ShiftEntryRequestValidator : AbstractValidator<ShiftEntryReq
                 links is null || links.Select(link => link.AssignmentEntryId).Distinct().Count() == links.Count
             )
             .WithMessage("Assignment entry links must be unique.");
-        RuleForEach(request => request.AssignmentEntryLinks).SetValidator(new AssignmentEntryLinkRequestValidator());
+        RuleForEach(request => request.AssignmentEntryLinks!)
+            .SetValidator(new AssignmentEntryLinkRequestValidator())
+            .When(request => request.AssignmentEntryLinks is not null);
     }
 
     private static bool HaveDistinctValues(IReadOnlyCollection<Guid>? userIds)

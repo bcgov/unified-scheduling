@@ -187,6 +187,9 @@ public sealed class ShiftService(
     {
         logger.LogInformation("Updating shift series {ShiftSeriesId}.", id);
 
+        if (string.IsNullOrWhiteSpace(request.RecurrenceRule))
+            throw new ArgumentException("A recurring shift series cannot be converted to a single shift.");
+
         await using var transaction = await db.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken
@@ -604,7 +607,7 @@ public sealed class ShiftService(
 
         await shiftAssignmentService.ReplaceShiftEntryLinksAsync(
             entity.Id,
-            request.AssignmentEntryLinks,
+            request.AssignmentEntryLinks ?? [],
             cancellationToken
         );
 
@@ -679,11 +682,14 @@ public sealed class ShiftService(
 
         await db.SaveChangesAsync(cancellationToken);
 
-        await shiftAssignmentService.ReplaceShiftEntryLinksAsync(
-            entity.Id,
-            request.AssignmentEntryLinks,
-            cancellationToken
-        );
+        if (request.AssignmentEntryLinks is not null)
+        {
+            await shiftAssignmentService.ReplaceShiftEntryLinksAsync(
+                entity.Id,
+                request.AssignmentEntryLinks,
+                cancellationToken
+            );
+        }
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -875,7 +881,11 @@ public sealed class ShiftService(
             foreach (var candidate in orderedCandidates)
             {
                 if (!startDates.Add(GetLocalDate(candidate.StartAtUtc, candidate.TimeZoneId)))
-                    throw CreateShiftConflictException(candidate, ShiftConflictKind.StartDate);
+                    throw await CreateShiftConflictExceptionAsync(
+                        candidate,
+                        ShiftConflictKind.StartDate,
+                        cancellationToken
+                    );
             }
 
             for (var candidateIndex = 1; candidateIndex < orderedCandidates.Count; candidateIndex++)
@@ -884,7 +894,11 @@ public sealed class ShiftService(
                 var candidate = orderedCandidates[candidateIndex];
                 var conflict = GetShiftConflict(previousCandidate, candidate);
                 if (conflict.HasValue)
-                    throw CreateShiftConflictException(candidate, conflict.Value);
+                    throw await CreateShiftConflictExceptionAsync(
+                        candidate,
+                        conflict.Value,
+                        cancellationToken
+                    );
             }
         }
 
@@ -918,7 +932,7 @@ public sealed class ShiftService(
                 .Select(existing => GetShiftConflict(candidate, existing))
                 .FirstOrDefault(result => result.HasValue);
             if (conflict.HasValue)
-                throw CreateShiftConflictException(candidate, conflict.Value);
+                throw await CreateShiftConflictExceptionAsync(candidate, conflict.Value, cancellationToken);
         }
     }
 
@@ -982,21 +996,36 @@ public sealed class ShiftService(
         (!secondEndAtUtc.HasValue || firstStartAtUtc < secondEndAtUtc.Value)
         && (!firstEndAtUtc.HasValue || secondStartAtUtc < firstEndAtUtc.Value);
 
-    private static ConflictValidationException CreateShiftConflictException(
+    private async Task<ConflictValidationException> CreateShiftConflictExceptionAsync(
         ShiftConflictCandidate candidate,
-        ShiftConflictKind conflict
-    ) =>
-        new(
+        ShiftConflictKind conflict,
+        CancellationToken cancellationToken
+    )
+    {
+        var user = await db
+            .Users.AsNoTracking()
+            .Where(user => user.Id == candidate.UserId)
+            .Select(user => new { user.FirstName, user.LastName, user.IdirName })
+            .SingleOrDefaultAsync(cancellationToken);
+        var fullName = user is null ? string.Empty : $"{user.FirstName} {user.LastName}".Trim();
+        var userName = !string.IsNullOrWhiteSpace(fullName)
+            ? fullName
+            : !string.IsNullOrWhiteSpace(user?.IdirName)
+                ? user.IdirName
+                : candidate.UserId.ToString();
+
+        return new ConflictValidationException(
             new Dictionary<string, string[]>
             {
                 ["UserIds"] =
                 [
                     conflict == ShiftConflictKind.StartDate
-                        ? $"User {candidate.UserId} already has a shift on this shift start date."
-                        : $"User {candidate.UserId} already has a shift that overlaps this shift.",
+                        ? $"{userName} already has a shift on this shift start date."
+                        : $"{userName} already has a shift that overlaps this shift.",
                 ],
             }
         );
+    }
 
     private void ValidatePropagatedShiftEntries(ShiftSeries shiftSeries, IReadOnlyCollection<ShiftEntry> shiftEntries)
     {
