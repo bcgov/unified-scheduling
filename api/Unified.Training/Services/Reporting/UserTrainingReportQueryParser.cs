@@ -56,7 +56,7 @@ internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
         {
             "active" => TrainingCompletionStatus.Active,
             "expired" => TrainingCompletionStatus.Expired,
-            "nottaken" or "not-taken" or "not taken" => TrainingCompletionStatus.NotTaken,
+            "nottaken" => TrainingCompletionStatus.NotTaken,
             _ => throw new ArgumentException("Filter 'status' must be one of 'active', 'expired', or 'notTaken'."),
         };
     }
