@@ -90,11 +90,23 @@ const metricDetails = computed(() => {
     .map((scm) => {
       const metric = props.metrics.find((m) => m.id === scm.metricId);
       const isOvertime = metric ? isOvertimeMetric(metric) : false;
+      const unit = metric?.unitOfMeasure ?? '';
+      const step =
+        unit === 'count' || unit === 'count (received/concluded)'
+          ? '1'
+          : unit === '$'
+            ? '0.01'
+            : unit === 'km'
+              ? '0.1'
+              : '0.25';
       return {
         id: scm.id!,
         name: metric?.name ?? '',
-        unit: metric?.unitOfMeasure ?? '',
+        unit,
         isOvertime,
+        isRequired: scm.isRequired ?? false,
+        step,
+        isInteger: step === '1',
       };
     });
 });
@@ -210,6 +222,7 @@ const onLocationOverrideChange = (value: SelectValue | undefined) => {
           <label class="ua-form-label" :for="`metric-${model.id}-${m.id}`">
             {{ m.name }}
             <span class="unit-label">({{ m.unit }})</span>
+            <span v-if="m.isRequired" class="required-marker">*</span>
           </label>
           <v-tooltip
             v-if="m.isOvertime && overtimeLocked"
@@ -225,7 +238,7 @@ const onLocationOverrideChange = (value: SelectValue | undefined) => {
           :id="`metric-${model.id}-${m.id}`"
           type="number"
           min="0"
-          step="0.25"
+          :step="m.step"
           placeholder="0"
           density="compact"
           variant="outlined"
@@ -308,6 +321,12 @@ const onLocationOverrideChange = (value: SelectValue | undefined) => {
   display: flex;
   align-items: center;
   gap: var(--ua-spacing-xs);
+}
+
+.required-marker {
+  color: rgb(var(--v-theme-error));
+  font-weight: var(--ua-font-weight-bold);
+  margin-left: 2px;
 }
 
 .lock-icon {

@@ -18,18 +18,21 @@ export const getGetApiStatsSubCategoryMetricsResponseMock = (): SubCategoryMetri
       subCategoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       metricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isRequired: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       subCategoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       metricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isRequired: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       subCategoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       metricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isRequired: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
     })),
   ]);
 
@@ -42,6 +45,7 @@ export const getGetApiStatsSubCategoryMetricsIdResponseMock = (
       subCategoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       metricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isRequired: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       ...overrideResponse,
     },
     {
@@ -49,6 +53,7 @@ export const getGetApiStatsSubCategoryMetricsIdResponseMock = (
       subCategoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       metricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isRequired: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       ...overrideResponse,
     },
     {
@@ -56,6 +61,7 @@ export const getGetApiStatsSubCategoryMetricsIdResponseMock = (
       subCategoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       metricId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       displayOrder: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isRequired: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       ...overrideResponse,
     },
   ]);

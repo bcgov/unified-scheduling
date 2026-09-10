@@ -28,8 +28,8 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
 
         // Non-supervisors may only query their own records — except for location-level
         // groups where data is per-location, not per-employee.
-        var isLocationLevel = queryParams?.GroupId is int gid
-            && await service.IsLocationLevelGroupAsync(gid, cancellationToken);
+        var isLocationLevel =
+            queryParams?.GroupId is int gid && await service.IsLocationLevelGroupAsync(gid, cancellationToken);
         if (!callerCanEnterForOthers && !isLocationLevel)
             queryParams = (queryParams ?? new()) with { UserId = callerUserId };
 

@@ -6,4 +6,5 @@ public sealed record SubCategoryMetricResponse
     public int SubCategoryId { get; init; }
     public int MetricId { get; init; }
     public int DisplayOrder { get; init; }
+    public bool IsRequired { get; init; }
 }

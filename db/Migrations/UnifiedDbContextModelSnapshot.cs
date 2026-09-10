@@ -1587,7 +1587,7 @@ namespace Unified.Db.Migrations
                     b.Property<Guid?>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("Value")
+                    b.Property<decimal?>("Value")
                         .HasColumnType("numeric(18,4)");
 
                     b.HasKey("Id");
@@ -1743,6 +1743,9 @@ namespace Unified.Db.Migrations
 
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
 
                     b.Property<int>("MetricId")
                         .HasColumnType("integer");

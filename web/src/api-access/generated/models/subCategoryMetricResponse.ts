@@ -10,4 +10,5 @@ export interface SubCategoryMetricResponse {
   subCategoryId?: number;
   metricId?: number;
   displayOrder?: number;
+  isRequired?: boolean;
 }

@@ -19,6 +19,7 @@ export interface DashboardEntryResponse {
   metricName?: string;
   metricUnit?: string;
   isOvertime?: boolean;
-  value?: number;
   status?: string;
+  /** @nullable */
+  value?: number | null;
 }

@@ -14,6 +14,6 @@ public sealed record DashboardEntryResponse
     public string MetricName { get; init; } = string.Empty;
     public string MetricUnit { get; init; } = string.Empty;
     public bool IsOvertime { get; init; }
-    public decimal Value { get; init; }
+    public decimal? Value { get; init; }
     public string Status { get; init; } = string.Empty;
 }

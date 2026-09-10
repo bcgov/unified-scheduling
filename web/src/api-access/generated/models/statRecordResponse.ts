@@ -15,7 +15,6 @@ export interface StatRecordResponse {
   /** @nullable */
   performedAtLocationId?: number | null;
   subCategoryMetricId?: number;
-  value?: number;
   /** @nullable */
   comment?: string | null;
   status?: string;
@@ -24,4 +23,6 @@ export interface StatRecordResponse {
   createdById?: string | null;
   /** @nullable */
   updatedOn?: string | null;
+  /** @nullable */
+  value?: number | null;
 }

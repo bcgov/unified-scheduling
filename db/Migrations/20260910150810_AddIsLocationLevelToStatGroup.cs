@@ -15,15 +15,14 @@ namespace Unified.Db.Migrations
                 table: "StatGroups",
                 type: "boolean",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsLocationLevel",
-                table: "StatGroups");
+            migrationBuilder.DropColumn(name: "IsLocationLevel", table: "StatGroups");
         }
     }
 }

@@ -15,7 +15,8 @@ const emit = defineEmits<{
 }>();
 
 function formatHours(h: number): string {
-  return h % 1 === 0 ? `${h}h` : `${h.toFixed(1)}h`;
+  if (h % 1 === 0) return `${h}h`;
+  return h % 0.5 === 0 ? `${h.toFixed(1)}h` : `${h.toFixed(2)}h`;
 }
 </script>
 

@@ -10,7 +10,7 @@ public sealed record StatRecordResponse
     public int LocationId { get; init; }
     public int? PerformedAtLocationId { get; init; }
     public int SubCategoryMetricId { get; init; }
-    public decimal Value { get; init; }
+    public decimal? Value { get; init; }
     public string? Comment { get; init; }
     public string Status { get; init; } = string.Empty;
     public DateTimeOffset CreatedOn { get; init; }

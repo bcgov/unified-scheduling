@@ -80,7 +80,7 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
                 && !r.SubCategoryMetric.Metric.IsOvertime
                 && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours
             )
-            .SumAsync(r => r.Value, cancellationToken);
+            .SumAsync(r => r.Value ?? 0, cancellationToken);
 
         var overtimeHours = await baseQuery
             .Where(r =>
@@ -89,7 +89,7 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
                 && r.SubCategoryMetric.Metric.IsOvertime
                 && r.SubCategoryMetric.Metric.UnitOfMeasure == StatMetricUnitOfMeasure.Hours
             )
-            .SumAsync(r => r.Value, cancellationToken);
+            .SumAsync(r => r.Value ?? 0, cancellationToken);
 
         var submittedCount = await baseQuery.CountAsync(r => r.Status == StatRecordStatus.Submitted, cancellationToken);
 

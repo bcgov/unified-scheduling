@@ -15,6 +15,7 @@ export const GetApiStatsSubCategoryMetricsResponseItem = zod.object({
   subCategoryId: zod.int().optional(),
   metricId: zod.int().optional(),
   displayOrder: zod.int().optional(),
+  isRequired: zod.boolean().optional(),
 });
 export const GetApiStatsSubCategoryMetricsResponse = zod.array(GetApiStatsSubCategoryMetricsResponseItem);
 
@@ -27,4 +28,5 @@ export const GetApiStatsSubCategoryMetricsIdResponse = zod.object({
   subCategoryId: zod.int().optional(),
   metricId: zod.int().optional(),
   displayOrder: zod.int().optional(),
+  isRequired: zod.boolean().optional(),
 });

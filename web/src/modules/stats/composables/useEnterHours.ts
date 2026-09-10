@@ -22,7 +22,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { DAILY_REGULAR_TARGET_HOURS } from '../constants';
 import type { DayAssignment } from '../types';
-import { isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
+import { isHoursMetric, isIntegerMetric, isOvertimeMetric, isRegularMetric } from '../utils/metricHelpers';
 import { getSundayOfWeek, useWeeklyRecords } from './useWeeklyRecords';
 
 export function useEnterHours(groupId: number) {
@@ -258,7 +258,15 @@ export function useEnterHours(groupId: number) {
       for (const scm of scms) {
         if (!scm.id) continue;
         const raw = assignment.metricValues[scm.id];
-        if (!raw || raw.trim() === '') continue;
+        const isEmpty = !raw || raw.trim() === '';
+
+        if (isEmpty) {
+          if (scm.isRequired) {
+            const metric = metrics.value.find((m) => m.id === scm.metricId);
+            errors[`assignment_${i}_metric_${scm.id}`] = `${metric?.name ?? 'This field'} is required`;
+          }
+          continue;
+        }
 
         const val = parseFloat(raw);
         if (isNaN(val)) {
@@ -266,8 +274,17 @@ export function useEnterHours(groupId: number) {
           continue;
         }
 
-        hasValue = true;
         const metric = metrics.value.find((m) => m.id === scm.metricId);
+        if (metric && isIntegerMetric(metric) && !Number.isInteger(val)) {
+          errors[`assignment_${i}_metric_${scm.id}`] = 'Must be a whole number';
+          continue;
+        }
+        if (metric && isHoursMetric(metric) && val % 0.25 !== 0) {
+          errors[`assignment_${i}_metric_${scm.id}`] = 'Must be in quarter-hour increments (0.25, 0.5, 0.75)';
+          continue;
+        }
+
+        hasValue = true;
 
         if (metric?.unitOfMeasure === 'hours') dayTotalHours += val;
       }

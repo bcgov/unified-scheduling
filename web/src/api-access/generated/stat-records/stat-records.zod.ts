@@ -26,12 +26,12 @@ export const GetApiStatsRecordsResponseItem = zod.object({
   locationId: zod.int().optional(),
   performedAtLocationId: zod.int().nullish(),
   subCategoryMetricId: zod.int().optional(),
-  value: zod.number().optional(),
   comment: zod.string().nullish(),
   status: zod.string().optional(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   createdById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  value: zod.number().nullish(),
 });
 export const GetApiStatsRecordsResponse = zod.array(GetApiStatsRecordsResponseItem);
 
@@ -56,12 +56,12 @@ export const PostApiStatsRecordsResponse = zod.object({
   locationId: zod.int().optional(),
   performedAtLocationId: zod.int().nullish(),
   subCategoryMetricId: zod.int().optional(),
-  value: zod.number().optional(),
   comment: zod.string().nullish(),
   status: zod.string().optional(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   createdById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  value: zod.number().nullish(),
 });
 
 export const GetApiStatsRecordsIdParams = zod.strictObject({
@@ -77,12 +77,12 @@ export const GetApiStatsRecordsIdResponse = zod.object({
   locationId: zod.int().optional(),
   performedAtLocationId: zod.int().nullish(),
   subCategoryMetricId: zod.int().optional(),
-  value: zod.number().optional(),
   comment: zod.string().nullish(),
   status: zod.string().optional(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   createdById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  value: zod.number().nullish(),
 });
 
 export const PutApiStatsRecordsIdParams = zod.strictObject({
@@ -110,12 +110,12 @@ export const PutApiStatsRecordsIdResponse = zod.object({
   locationId: zod.int().optional(),
   performedAtLocationId: zod.int().nullish(),
   subCategoryMetricId: zod.int().optional(),
-  value: zod.number().optional(),
   comment: zod.string().nullish(),
   status: zod.string().optional(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   createdById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  value: zod.number().nullish(),
 });
 
 export const DeleteApiStatsRecordsIdParams = zod.strictObject({
@@ -146,12 +146,12 @@ export const PostApiStatsRecordsBatchResponseItem = zod.object({
   locationId: zod.int().optional(),
   performedAtLocationId: zod.int().nullish(),
   subCategoryMetricId: zod.int().optional(),
-  value: zod.number().optional(),
   comment: zod.string().nullish(),
   status: zod.string().optional(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   createdById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  value: zod.number().nullish(),
 });
 export const PostApiStatsRecordsBatchResponse = zod.array(PostApiStatsRecordsBatchResponseItem);
 
@@ -165,9 +165,9 @@ export const PutApiStatsRecordsDayBody = zod.strictObject({
     zod.strictObject({
       id: zod.int().nullish(),
       subCategoryMetricId: zod.int(),
-      value: zod.number(),
       comment: zod.string().nullish(),
       performedAtLocationId: zod.int().nullish(),
+      value: zod.number().nullish(),
     }),
   ),
 });
@@ -181,11 +181,11 @@ export const PutApiStatsRecordsDayResponseItem = zod.object({
   locationId: zod.int().optional(),
   performedAtLocationId: zod.int().nullish(),
   subCategoryMetricId: zod.int().optional(),
-  value: zod.number().optional(),
   comment: zod.string().nullish(),
   status: zod.string().optional(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   createdById: zod.uuid().nullish(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
+  value: zod.number().nullish(),
 });
 export const PutApiStatsRecordsDayResponse = zod.array(PutApiStatsRecordsDayResponseItem);
