@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
+using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
@@ -59,8 +60,11 @@ public class ShiftServiceTests : IAsyncLifetime
             NullLogger<ShiftService>.Instance,
             _dbContext,
             materializationService,
+            recurrenceExpander,
             materializationHandler,
+            new ShiftAssignmentService(NullLogger<ShiftAssignmentService>.Instance, _dbContext, timeZoneService),
             new CalendarLifecycleService(),
+            timeZoneService,
             TimeProvider.System
         );
     }
@@ -108,6 +112,50 @@ public class ShiftServiceTests : IAsyncLifetime
         Assert.Equal([UserA, UserB], shiftEntry.Users.Select(x => x.UserId).Order().ToArray());
         Assert.Equal([eventEntity.Id], result.EventIds);
         Assert.Equal([shiftEntry.Id], result.ShiftEntryIds);
+    }
+
+    [Fact]
+    public async Task CreateShiftSeriesAsync_WhenUserAlreadyHasShiftOnStartDate_ThrowsConflict()
+    {
+        // Arrange
+        var request = CreateShiftSeriesRequest();
+        await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken)
+        );
+
+        Assert.Single(_dbContext.ShiftSeries);
+        Assert.Single(_dbContext.ShiftEntries);
+    }
+
+    [Fact]
+    public async Task CreateShiftSeriesAsync_WhenOccurrenceConflictsWithExistingEntry_ThrowsConflict()
+    {
+        await _service.CreateShiftEntryAsync(CreateShiftEntryRequest(), TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftSeriesAsync(CreateShiftSeriesRequest(), TestContext.Current.CancellationToken)
+        );
+
+        Assert.Empty(_dbContext.ShiftSeries);
+        Assert.Single(_dbContext.ShiftEntries);
+    }
+
+    [Fact]
+    public async Task CreateShiftSeriesAsync_WhenOccurrencesShareLocalStartDate_ThrowsConflictAndRollsBack()
+    {
+        var request = CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2;BYHOUR=9,17");
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken)
+        );
+
+        Assert.Empty(_dbContext.EventSeries);
+        Assert.Empty(_dbContext.ShiftSeries);
+        Assert.Empty(_dbContext.Events);
+        Assert.Empty(_dbContext.ShiftEntries);
     }
 
     [Fact]
@@ -175,7 +223,6 @@ public class ShiftServiceTests : IAsyncLifetime
             .ShiftEntries.Include(x => x.Users)
             .SingleAsync(x => x.EventId == generatedEvent.Id, TestContext.Current.CancellationToken);
         Assert.Equal([UserB, UserC], shiftEntry.Users.Select(x => x.UserId).Order().ToArray());
-
         Assert.False(
             await _dbContext.Events.AnyAsync(
                 x => originalEventIds.Contains(x.Id),
@@ -195,6 +242,29 @@ public class ShiftServiceTests : IAsyncLifetime
             .Select(x => x.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(currentShiftEntryIds.Order().ToArray(), result.ShiftEntryIds.Order().ToArray());
+    }
+
+    [Fact]
+    public async Task UpdateShiftSeriesAsync_WhenMaterializedShiftConflicts_ThrowsConflict()
+    {
+        // Arrange
+        var request = CreateShiftSeriesRequest();
+        await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
+        var other = await _service.CreateShiftSeriesAsync(
+            request with
+            {
+                Title = "Other",
+                LocationId = 9,
+                StartAtUtc = request.StartAtUtc.AddDays(1),
+                EndAtUtc = request.EndAtUtc!.Value.AddDays(1),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.UpdateShiftSeriesAsync(other.Id, request, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -305,7 +375,10 @@ public class ShiftServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         await _service.CreateShiftSeriesAsync(
-            CreateShiftSeriesRequest(title: "Other", userIds: [UserC]),
+            CreateShiftSeriesRequest(title: "Other", userIds: [UserC]) with
+            {
+                LocationId = 9,
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -324,6 +397,127 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetShiftSeriesAsync_WhenCandidateRangeProvided_UsesRecurrenceAndExcludesInvalidCandidates()
+    {
+        // Arrange
+        var matching = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3"),
+            TestContext.Current.CancellationToken
+        );
+        var nonRecurring = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(title: "Non-recurring match", userIds: [UserB]) with
+            {
+                StartAtUtc = new DateTimeOffset(2026, 6, 2, 8, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, 2, 10, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(
+                title: "Wrong location",
+                userIds: [UserC],
+                recurrenceRule: "FREQ=DAILY;COUNT=3"
+            ) with
+            {
+                LocationId = 9,
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(
+                title: "No occurrence on queried day",
+                userIds: [UserB],
+                recurrenceRule: "FREQ=WEEKLY;COUNT=2"
+            ) with
+            {
+                StartAtUtc = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, 1, 22, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+        var cancelled = await AddShiftSeriesAsync(statusTypeCode: CalendarEventStatusTypeCodes.Cancelled);
+        cancelled.EventSeries!.StartAtUtc = new DateTimeOffset(2026, 6, 2, 18, 0, 0, TimeSpan.Zero);
+        cancelled.EventSeries.EndAtUtc = new DateTimeOffset(2026, 6, 2, 22, 0, 0, TimeSpan.Zero);
+        cancelled.EventSeries.LocationId = 5;
+
+        var unmaterializedEntry = await _dbContext
+            .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
+            .SingleAsync(
+                shiftEntry =>
+                    shiftEntry.Event != null
+                    && shiftEntry.Event.EventSeriesId == matching.EventSeriesId
+                    && shiftEntry.Event.SeriesStartAtUtc == new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+                TestContext.Current.CancellationToken
+            );
+        _dbContext.ShiftEntries.Remove(unmaterializedEntry);
+        _dbContext.Events.Remove(unmaterializedEntry.Event);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _service.GetShiftSeriesAsync(
+            new ShiftSeriesQueryParams
+            {
+                LocationId = 5,
+                StartAtUtc = new DateTimeOffset(2026, 6, 2, 7, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, 3, 7, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal([matching.Id, nonRecurring.Id], result.Select(series => series.Id).Order().ToArray());
+    }
+
+    [Theory]
+    [InlineData(2, 10, 2, 12, 1, true)]
+    [InlineData(1, 23, 2, 2, 1, true)]
+    [InlineData(2, 23, 3, 2, 1, true)]
+    [InlineData(1, 22, 2, 0, 1, false)]
+    [InlineData(3, 0, 3, 2, 1, false)]
+    [InlineData(1, 10, 1, 12, 1, false)]
+    public async Task GetShiftSeriesAsync_WhenOccurrenceIsNotMaterialized_UsesHalfOpenIntervalOverlap(
+        int startDay,
+        int startHour,
+        int endDay,
+        int endHour,
+        int occurrenceCount,
+        bool expected
+    )
+    {
+        // Arrange
+        var series = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(recurrenceRule: $"FREQ=DAILY;COUNT={occurrenceCount}") with
+            {
+                TimeZoneId = "UTC",
+                StartAtUtc = new DateTimeOffset(2026, 6, startDay, startHour, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, endDay, endHour, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+        var materializedEntries = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .Where(entry => entry.ShiftSeriesId == series.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        _dbContext.ShiftEntries.RemoveRange(materializedEntries);
+        _dbContext.Events.RemoveRange(materializedEntries.Select(entry => entry.Event));
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var results = await _service.GetShiftSeriesAsync(
+            new ShiftSeriesQueryParams
+            {
+                LocationId = 5,
+                StartAtUtc = new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, 3, 0, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(expected, results.Any(result => result.Id == series.Id));
+    }
+
+    [Fact]
     public async Task GetShiftSeriesAsync_WhenMultipleSeriesExist_ReturnsGeneratedIdsForEachSeries()
     {
         // Arrange
@@ -332,7 +526,10 @@ public class ShiftServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         var second = await _service.CreateShiftSeriesAsync(
-            CreateShiftSeriesRequest(title: "Other", recurrenceRule: "FREQ=DAILY;COUNT=3", userIds: [UserB]),
+            CreateShiftSeriesRequest(title: "Other", recurrenceRule: "FREQ=DAILY;COUNT=3", userIds: [UserB]) with
+            {
+                LocationId = 9,
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -852,7 +1049,12 @@ public class ShiftServiceTests : IAsyncLifetime
             CreateShiftSeriesRequest(userIds: [UserA, UserB]),
             TestContext.Current.CancellationToken
         );
-        var request = CreateShiftEntryRequest(shiftSeriesId: series.Id, userIds: [UserA, UserC]);
+        var request = CreateShiftEntryRequest(
+            shiftSeriesId: series.Id,
+            userIds: [UserA, UserC],
+            startAtUtc: new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+            endAtUtc: new DateTimeOffset(2026, 6, 2, 23, 0, 0, TimeSpan.Zero)
+        );
 
         // Act
         var result = await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
@@ -881,6 +1083,223 @@ public class ShiftServiceTests : IAsyncLifetime
         );
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 1)]
+    [InlineData(8, 10)]
+    public async Task CreateShiftEntryAsync_WhenSameUserLocationAndLocalStartDate_ThrowsConflict(
+        int startOffsetHours,
+        int endOffsetHours
+    )
+    {
+        // Arrange
+        var request = CreateShiftEntryRequest();
+        await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        var secondRequest = request with
+        {
+            StartAtUtc = request.StartAtUtc.AddHours(startOffsetHours),
+            EndAtUtc = request.EndAtUtc!.Value.AddHours(endOffsetHours),
+        };
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftEntryAsync(secondRequest, TestContext.Current.CancellationToken)
+        );
+        Assert.Single(_dbContext.ShiftEntries);
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenExistingShiftIsActive_ThrowsConflict()
+    {
+        await AddShiftEntryAsync(locationId: 5, statusTypeCode: CalendarEventStatusTypeCodes.Active);
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftEntryAsync(CreateShiftEntryRequest(), TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenSameUserAndDateAtDifferentLocation_CreatesShiftEntry()
+    {
+        var request = CreateShiftEntryRequest();
+        await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        var result = await _service.CreateShiftEntryAsync(
+            request with
+            {
+                LocationId = 9,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(9, result.LocationId);
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenSameUtcDateHasDifferentLocalStartDate_CreatesShiftEntry()
+    {
+        var request = CreateShiftEntryRequest(
+            startAtUtc: new DateTimeOffset(2026, 9, 8, 6, 0, 0, TimeSpan.Zero),
+            endAtUtc: new DateTimeOffset(2026, 9, 8, 7, 0, 0, TimeSpan.Zero)
+        );
+        await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        var result = await _service.CreateShiftEntryAsync(
+            request with
+            {
+                StartAtUtc = new DateTimeOffset(2026, 9, 8, 16, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 9, 8, 17, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenDifferentUtcDatesHaveSameLocalStartDate_ThrowsConflict()
+    {
+        var request = CreateShiftEntryRequest(
+            startAtUtc: new DateTimeOffset(2026, 9, 8, 23, 0, 0, TimeSpan.Zero),
+            endAtUtc: new DateTimeOffset(2026, 9, 9, 0, 0, 0, TimeSpan.Zero)
+        );
+        await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        var exception = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftEntryAsync(
+                request with
+                {
+                    StartAtUtc = new DateTimeOffset(2026, 9, 9, 2, 0, 0, TimeSpan.Zero),
+                    EndAtUtc = new DateTimeOffset(2026, 9, 9, 3, 0, 0, TimeSpan.Zero),
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Contains("UserIds", exception.Errors.Keys);
+        Assert.Contains("UserA Test", exception.Errors["UserIds"].Single());
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenExistingShiftIsCancelled_CreatesShiftEntry()
+    {
+        await AddShiftEntryAsync(locationId: 5, statusTypeCode: CalendarEventStatusTypeCodes.Cancelled);
+
+        var result = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenOneCandidateUserAlreadyHasShift_ThrowsConflict()
+    {
+        await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(userIds: [UserB]),
+            TestContext.Current.CancellationToken
+        );
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftEntryAsync(
+                CreateShiftEntryRequest(userIds: [UserA, UserB]),
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_OnDstTransition_UsesLocationLocalStartDate()
+    {
+        var request = CreateShiftEntryRequest(
+            startAtUtc: new DateTimeOffset(2026, 3, 8, 9, 0, 0, TimeSpan.Zero),
+            endAtUtc: new DateTimeOffset(2026, 3, 8, 10, 0, 0, TimeSpan.Zero)
+        );
+        await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftEntryAsync(
+                request with
+                {
+                    StartAtUtc = new DateTimeOffset(2026, 3, 8, 10, 30, 0, TimeSpan.Zero),
+                    EndAtUtc = new DateTimeOffset(2026, 3, 8, 11, 30, 0, TimeSpan.Zero),
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenDifferentUsersOverlap_CreatesShiftEntry()
+    {
+        // Arrange
+        var request = CreateShiftEntryRequest();
+        await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _service.CreateShiftEntryAsync(
+            request with
+            {
+                UserIds = [UserB],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(request.LocationId, result.LocationId);
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenShiftsAreAdjacentAcrossStartDates_CreatesShiftEntry()
+    {
+        // Arrange
+        var request = CreateShiftEntryRequest(
+            startAtUtc: new DateTimeOffset(2026, 6, 1, 20, 0, 0, TimeSpan.Zero),
+            endAtUtc: new DateTimeOffset(2026, 6, 2, 4, 0, 0, TimeSpan.Zero)
+        ) with
+        {
+            TimeZoneId = "UTC",
+        };
+        await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _service.CreateShiftEntryAsync(
+            request with
+            {
+                StartAtUtc = request.EndAtUtc!.Value,
+                EndAtUtc = request.EndAtUtc.Value.AddHours(8),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        Assert.Equal(request.EndAtUtc, result.StartAtUtc);
+    }
+
+    [Fact]
+    public async Task CreateShiftEntryAsync_WhenOvernightShiftOverlapsNextDateShift_ThrowsConflict()
+    {
+        // Arrange
+        await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(
+                startAtUtc: new DateTimeOffset(2026, 6, 1, 20, 0, 0, TimeSpan.Zero),
+                endAtUtc: new DateTimeOffset(2026, 6, 2, 4, 0, 0, TimeSpan.Zero)
+            ),
+            TestContext.Current.CancellationToken
+        );
+        var overlapping = CreateShiftEntryRequest(
+            startAtUtc: new DateTimeOffset(2026, 6, 2, 3, 0, 0, TimeSpan.Zero),
+            endAtUtc: new DateTimeOffset(2026, 6, 2, 11, 0, 0, TimeSpan.Zero)
+        );
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.CreateShiftEntryAsync(overlapping, TestContext.Current.CancellationToken)
+        );
+    }
+
     [Fact]
     public async Task GetShiftEntriesAsync_WhenFiltersProvided_MatchesChildUserSeriesAndEvent()
     {
@@ -890,11 +1309,22 @@ public class ShiftServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         var first = await _service.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(shiftSeriesId: series.Id, userIds: [UserA, UserB]),
+            CreateShiftEntryRequest(
+                shiftSeriesId: series.Id,
+                userIds: [UserA, UserB],
+                startAtUtc: new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+                endAtUtc: new DateTimeOffset(2026, 6, 2, 23, 0, 0, TimeSpan.Zero)
+            ),
             TestContext.Current.CancellationToken
         );
         await _service.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(shiftSeriesId: null, title: "Other", userIds: [UserC]),
+            CreateShiftEntryRequest(
+                shiftSeriesId: null,
+                title: "Other",
+                userIds: [UserC],
+                startAtUtc: new DateTimeOffset(2026, 6, 3, 16, 0, 0, TimeSpan.Zero),
+                endAtUtc: new DateTimeOffset(2026, 6, 3, 23, 0, 0, TimeSpan.Zero)
+            ),
             TestContext.Current.CancellationToken
         );
 
@@ -916,6 +1346,115 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetShiftEntriesAsync_WhenLocationAndDateRangeProvided_ReturnsOnlyOverlappingEntries()
+    {
+        // Arrange
+        var matching = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(),
+            TestContext.Current.CancellationToken
+        );
+        await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(title: "Wrong location") with
+            {
+                LocationId = 9,
+                UserIds = [UserB],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(
+                title: "Outside range",
+                startAtUtc: new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+                endAtUtc: new DateTimeOffset(2026, 6, 2, 23, 0, 0, TimeSpan.Zero)
+            ),
+            TestContext.Current.CancellationToken
+        );
+        var cancelled = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(
+                title: "Cancelled",
+                startAtUtc: new DateTimeOffset(2026, 6, 1, 8, 0, 0, TimeSpan.Zero),
+                endAtUtc: new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),
+                userIds: [UserC]
+            ),
+            TestContext.Current.CancellationToken
+        );
+        var cancelledEvent = await _dbContext.Events.SingleAsync(
+            eventEntity => eventEntity.Id == cancelled.EventId,
+            TestContext.Current.CancellationToken
+        );
+        cancelledEvent.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _service.GetShiftEntriesAsync(
+            new ShiftEntryQueryParams
+            {
+                LocationId = 5,
+                StartAtUtc = new DateTimeOffset(2026, 6, 1, 7, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, 2, 7, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var item = Assert.Single(result);
+        Assert.Equal(matching.Id, item.Id);
+    }
+
+    [Fact]
+    public async Task GetShiftEntriesAsync_WhenEndIsNull_ReturnsOnlyActivePointOnRequestedDayAndLocation()
+    {
+        // Arrange
+        var matching = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest() with
+            {
+                EndAtUtc = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest() with
+            {
+                EndAtUtc = null,
+                StartAtUtc = new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+                UserIds = [UserB],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest() with
+            {
+                EndAtUtc = null,
+                LocationId = 9,
+                UserIds = [UserC],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await AddShiftEntryAsync(
+            title: "Cancelled",
+            startAtUtc: new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero),
+            openEnded: true,
+            statusTypeCode: CalendarEventStatusTypeCodes.Cancelled
+        );
+
+        // Act
+        var results = await _service.GetShiftEntriesAsync(
+            new ShiftEntryQueryParams
+            {
+                LocationId = 5,
+                StartAtUtc = new DateTimeOffset(2026, 6, 1, 7, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 6, 2, 7, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        var result = Assert.Single(results);
+        Assert.Equal(matching.Id, result.Id);
+        Assert.Null(result.EndAtUtc);
+    }
+
+    [Fact]
     public async Task GetShiftEntryByIdAsync_WhenMissing_ReturnsNull()
     {
         // Act
@@ -934,18 +1473,31 @@ public class ShiftServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         var newSeries = await _service.CreateShiftSeriesAsync(
-            CreateShiftSeriesRequest(title: "New series", userIds: [UserC]),
+            CreateShiftSeriesRequest(title: "New series", userIds: [UserC]) with
+            {
+                LocationId = 9,
+            },
             TestContext.Current.CancellationToken
         );
         var entry = await _service.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(shiftSeriesId: originalSeries.Id, userIds: [UserA, UserB]),
+            CreateShiftEntryRequest(
+                shiftSeriesId: originalSeries.Id,
+                userIds: [UserA, UserB],
+                startAtUtc: new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+                endAtUtc: new DateTimeOffset(2026, 6, 2, 23, 0, 0, TimeSpan.Zero)
+            ),
             TestContext.Current.CancellationToken
         );
         var request = CreateShiftEntryRequest(
             shiftSeriesId: newSeries.Id,
             title: "Updated entry",
             userIds: [UserB, UserC]
-        );
+        ) with
+        {
+            LocationId = 9,
+            StartAtUtc = new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
+            EndAtUtc = new DateTimeOffset(2026, 6, 2, 23, 0, 0, TimeSpan.Zero),
+        };
 
         // Act
         var result = await _service.UpdateShiftEntryAsync(entry.Id, request, TestContext.Current.CancellationToken);
@@ -962,6 +1514,42 @@ public class ShiftServiceTests : IAsyncLifetime
         Assert.Equal("Updated entry", entity.Event!.Title);
         Assert.Equal(newSeries.EventSeriesId, entity.Event.EventSeriesId);
         Assert.Equal([UserB, UserC], entity.Users.Select(x => x.UserId).Order().ToArray());
+    }
+
+    [Fact]
+    public async Task UpdateShiftEntryAsync_WhenLocationAndTimeAreUnchanged_AllowsSelfUpdate()
+    {
+        // Arrange
+        var request = CreateShiftEntryRequest();
+        var entry = await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _service.UpdateShiftEntryAsync(entry.Id, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(entry.Id, result.Id);
+    }
+
+    [Fact]
+    public async Task UpdateShiftEntryAsync_WhenMovedOntoAnotherShiftLocalStartDate_ThrowsConflict()
+    {
+        // Arrange
+        var existingRequest = CreateShiftEntryRequest();
+        await _service.CreateShiftEntryAsync(existingRequest, TestContext.Current.CancellationToken);
+        var entry = await _service.CreateShiftEntryAsync(
+            existingRequest with
+            {
+                StartAtUtc = existingRequest.StartAtUtc.AddDays(1),
+                EndAtUtc = existingRequest.EndAtUtc.Value.AddDays(1),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.UpdateShiftEntryAsync(entry.Id, existingRequest, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
