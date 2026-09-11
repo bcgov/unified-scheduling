@@ -15,7 +15,7 @@ public sealed class SubCategoryService(UnifiedDbContext db, ILogger<SubCategoryS
     {
         logger.LogDebug("Retrieving sub-categories for category {CategoryId}", categoryId);
 
-        var query = db.SubCategories.AsNoTracking();
+        var query = db.SubCategories.AsNoTracking().Where(sc => !sc.IsArchived);
 
         if (categoryId is int id)
             query = query.Where(sc => sc.CategoryId == id);

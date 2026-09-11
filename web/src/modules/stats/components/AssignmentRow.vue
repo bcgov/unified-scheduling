@@ -59,7 +59,7 @@ const effectiveGroupId = computed(() => props.fixedGroupId ?? model.value.groupI
 
 const categoryOptions = computed(() => {
   const filtered = props.categories
-    .filter((c) => !c.isArchived && (effectiveGroupId.value === null || c.groupId === effectiveGroupId.value))
+    .filter((c) => effectiveGroupId.value === null || c.groupId === effectiveGroupId.value)
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     .map((c) => ({ code: c.id!, description: c.name! }));
 
@@ -74,10 +74,18 @@ const categoryOptions = computed(() => {
 
 const subCategoryOptions = computed(() => {
   if (!model.value.categoryId) return [];
-  return props.subCategories
+  const filtered = props.subCategories
     .filter((sc) => sc.categoryId === model.value.categoryId)
     .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     .map((sc) => ({ code: sc.id!, description: sc.name! }));
+
+  const selectedId = model.value.subCategoryId;
+  if (selectedId && !filtered.some((o) => o.code === selectedId)) {
+    const match = props.subCategories.find((sc) => sc.id === selectedId);
+    if (match) filtered.unshift({ code: match.id!, description: match.name! });
+  }
+
+  return filtered;
 });
 
 const showSubCategorySelect = computed(() => subCategoryOptions.value.length > 1);

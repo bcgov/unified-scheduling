@@ -16,6 +16,7 @@ public sealed class StatCategoryService(UnifiedDbContext db, ILogger<StatCategor
 
         return await db
             .StatCategories.AsNoTracking()
+            .Where(c => !c.IsArchived)
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
             .ProjectToType<StatCategoryResponse>()

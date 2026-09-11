@@ -14,26 +14,26 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
 
     private static readonly StatCategory[] SeedCategories =
     [
-        // Non-Supervision (GroupId = 1)
-        new()
-        {
-            Id = 1,
-            GroupId = 1,
-            Name = "Court Security",
-            DisplayOrder = 1,
-        },
+        // Non-Supervision (GroupId = 1) — alphabetical
         new()
         {
             Id = 2,
             GroupId = 1,
             Name = "Circuit court related travel",
-            DisplayOrder = 2,
+            DisplayOrder = 1,
         },
         new()
         {
             Id = 3,
             GroupId = 1,
             Name = "Coroner Jury Administration",
+            DisplayOrder = 2,
+        },
+        new()
+        {
+            Id = 1,
+            GroupId = 1,
+            Name = "Court Security",
             DisplayOrder = 3,
         },
         new()
@@ -59,139 +59,148 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
         },
         new()
         {
-            Id = 7,
-            GroupId = 1,
-            Name = "Transports Air - Hours-Trips",
-            DisplayOrder = 7,
-        },
-        new()
-        {
-            Id = 8,
-            GroupId = 1,
-            Name = "Transports Ground - Hours-Trips-Kilometres",
-            DisplayOrder = 8,
-        },
-        new()
-        {
-            Id = 9,
-            GroupId = 1,
-            Name = "Transports Females - Transported",
-            DisplayOrder = 9,
-        },
-        new()
-        {
-            Id = 10,
-            GroupId = 1,
-            Name = "Transports Males - Transported",
-            DisplayOrder = 10,
-        },
-        new()
-        {
             Id = 11,
             GroupId = 1,
             Name = "Holding area/cellblock",
-            DisplayOrder = 11,
+            DisplayOrder = 7,
         },
         new()
         {
             Id = 12,
             GroupId = 1,
             Name = "Other",
-            DisplayOrder = 12,
+            DisplayOrder = 8,
         },
         new()
         {
             Id = 13,
             GroupId = 1,
             Name = "PIO/SIO",
-            DisplayOrder = 13,
+            DisplayOrder = 9,
         },
         new()
         {
             Id = 14,
             GroupId = 1,
             Name = "Training",
-            DisplayOrder = 14,
+            DisplayOrder = 10,
         },
-        // Supervision (GroupId = 2)
         new()
         {
-            Id = 15,
-            GroupId = 2,
-            Name = "Court Security",
-            DisplayOrder = 1,
+            Id = 7,
+            GroupId = 1,
+            Name = "Transports Air",
+            DisplayOrder = 11,
         },
+        new()
+        {
+            Id = 9,
+            GroupId = 1,
+            Name = "Transports Females",
+            IsArchived = true,
+            DisplayOrder = 12,
+        },
+        new()
+        {
+            Id = 8,
+            GroupId = 1,
+            Name = "Transports Ground",
+            DisplayOrder = 13,
+        },
+        new()
+        {
+            Id = 10,
+            GroupId = 1,
+            Name = "Transports Males",
+            IsArchived = true,
+            DisplayOrder = 14,
+        },
+        // Supervision (GroupId = 2) — alphabetical
         new()
         {
             Id = 16,
             GroupId = 2,
             Name = "Circuit court related travel",
+            DisplayOrder = 1,
+        },
+        new()
+        {
+            Id = 34,
+            GroupId = 2,
+            Name = "Coroner Jury Administration",
             DisplayOrder = 2,
+        },
+        new()
+        {
+            Id = 15,
+            GroupId = 2,
+            Name = "Court Security",
+            DisplayOrder = 3,
         },
         new()
         {
             Id = 17,
             GroupId = 2,
             Name = "Documents Civil/Family",
-            DisplayOrder = 3,
+            DisplayOrder = 4,
         },
         new()
         {
             Id = 18,
             GroupId = 2,
             Name = "Documents Criminal",
-            DisplayOrder = 4,
-        },
-        new()
-        {
-            Id = 19,
-            GroupId = 2,
-            Name = "Transports Air - Hours-Trips",
             DisplayOrder = 5,
-        },
-        new()
-        {
-            Id = 20,
-            GroupId = 2,
-            Name = "Transports Ground - Hours-Trips-Kilometres",
-            DisplayOrder = 6,
         },
         new()
         {
             Id = 21,
             GroupId = 2,
             Name = "Holding area/cellblock",
-            DisplayOrder = 7,
+            DisplayOrder = 6,
         },
         new()
         {
             Id = 22,
             GroupId = 2,
             Name = "Jury Administration",
-            DisplayOrder = 8,
+            DisplayOrder = 7,
         },
         new()
         {
             Id = 23,
             GroupId = 2,
             Name = "Other",
-            DisplayOrder = 9,
+            DisplayOrder = 8,
         },
         new()
         {
             Id = 24,
             GroupId = 2,
             Name = "PIO/SIO",
-            DisplayOrder = 10,
+            DisplayOrder = 9,
         },
         new()
         {
             Id = 25,
             GroupId = 2,
             Name = "Training",
+            DisplayOrder = 10,
+        },
+        new()
+        {
+            Id = 19,
+            GroupId = 2,
+            Name = "Transports Air",
             DisplayOrder = 11,
         },
-        // Location Level (GroupId = 3)
+        new()
+        {
+            Id = 20,
+            GroupId = 2,
+            Name = "Transports Ground",
+            DisplayOrder = 12,
+        },
+        // Location Level (GroupId = 3) — alphabetical
         new()
         {
             Id = 26,
@@ -201,38 +210,66 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
         },
         new()
         {
-            Id = 27,
-            GroupId = 3,
-            Name = "Transports Air - Trips",
-            DisplayOrder = 2,
-        },
-        new()
-        {
-            Id = 28,
-            GroupId = 3,
-            Name = "Transports Ground - Trips-Kilometres",
-            DisplayOrder = 3,
-        },
-        new()
-        {
-            Id = 29,
-            GroupId = 3,
-            Name = "Holding area/cellblock",
-            DisplayOrder = 4,
-        },
-        new()
-        {
             Id = 30,
             GroupId = 3,
             Name = "Coroner Jury Administration",
-            DisplayOrder = 5,
+            DisplayOrder = 2,
         },
         new()
         {
             Id = 31,
             GroupId = 3,
             Name = "Criminal/Civil Jury Administration",
+            DisplayOrder = 3,
+        },
+        new()
+        {
+            Id = 35,
+            GroupId = 3,
+            Name = "Documents Civil/Family",
+            DisplayOrder = 4,
+        },
+        new()
+        {
+            Id = 36,
+            GroupId = 3,
+            Name = "Documents Criminal",
+            DisplayOrder = 5,
+        },
+        new()
+        {
+            Id = 29,
+            GroupId = 3,
+            Name = "Holding area/cellblock",
             DisplayOrder = 6,
+        },
+        new()
+        {
+            Id = 27,
+            GroupId = 3,
+            Name = "Transports Air",
+            DisplayOrder = 7,
+        },
+        new()
+        {
+            Id = 32,
+            GroupId = 3,
+            Name = "Transports Females",
+            DisplayOrder = 8,
+        },
+        new()
+        {
+            Id = 28,
+            GroupId = 3,
+            Name = "Transports Ground",
+            DisplayOrder = 9,
+        },
+        new()
+        {
+            Id = 33,
+            GroupId = 3,
+            Name = "Transports Males",
+            DisplayOrder = 10,
         },
     ];
 

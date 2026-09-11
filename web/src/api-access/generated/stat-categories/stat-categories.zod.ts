@@ -10,7 +10,6 @@ export const GetApiStatsCategoriesResponseItem = zod.object({
   id: zod.int().optional(),
   groupId: zod.int().optional(),
   name: zod.string().optional(),
-  isArchived: zod.boolean().optional(),
   isHighSecurity: zod.boolean().optional(),
   displayOrder: zod.int().optional(),
 });
@@ -24,7 +23,6 @@ export const GetApiStatsCategoriesIdResponse = zod.object({
   id: zod.int().optional(),
   groupId: zod.int().optional(),
   name: zod.string().optional(),
-  isArchived: zod.boolean().optional(),
   isHighSecurity: zod.boolean().optional(),
   displayOrder: zod.int().optional(),
 });

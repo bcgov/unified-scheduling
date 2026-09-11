@@ -323,6 +323,80 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Name = "Concluded",
             UnitOfMeasure = "count (received/concluded)",
         },
+        // Holding area/cellblock – demographic counts (IDs 50-55)
+        new()
+        {
+            Id = 50,
+            Name = "Adult Females - Provincial",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 51,
+            Name = "Adult Males - Provincial",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 52,
+            Name = "Federal Females",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 53,
+            Name = "Federal Males",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 54,
+            Name = "Youth Females - Provincial",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 55,
+            Name = "Youth Males - Provincial",
+            UnitOfMeasure = "count",
+        },
+        // Transports – demographic counts (IDs 56-61)
+        new()
+        {
+            Id = 56,
+            Name = "Number of Adult Females",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 57,
+            Name = "Number of Federal Females",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 58,
+            Name = "Number of Youth Females",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 59,
+            Name = "Number of Adult Males",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 60,
+            Name = "Number of Federal Males",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 61,
+            Name = "Number of Youth Males",
+            UnitOfMeasure = "count",
+        },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
