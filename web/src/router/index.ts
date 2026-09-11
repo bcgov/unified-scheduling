@@ -95,9 +95,11 @@ export const initializeRouter = (pinia: ReturnType<typeof createPinia>) => {
   const featureFlags = (accessControl.featureFlags?.value ?? {}) as FeatureFlagsResponse;
 
   dashboardModule.registerModule(routes);
-  myTeamsModule.registerModule(routes, featureFlags);
   statsModule.registerModule(routes, featureFlags);
   calendarModule.registerModule(routes, featureFlags);
+  // MyTeamModule registers the leave calendar contribution, which requires CalendarModule to
+  // have already registered its calendarRegistry — keep this call after calendarModule's.
+  myTeamsModule.registerModule(routes, featureFlags);
   if (featureFlags.Scheduling?.enabled) {
     calendarSchedulingModule.registerModule();
   }

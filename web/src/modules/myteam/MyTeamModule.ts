@@ -3,6 +3,8 @@ import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 import { type NavigationLink, useNavigationStore } from '@/stores/NavigationStore';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { Permissions } from '@/api-access/generated/models';
+import { calendarRegistry } from '@/modules/calendar/registry/calendarRegistry';
+import { calendarLeaveEventsContribution } from './contributions/calendarLeaveEventsContribution';
 
 const myTeamRoutes: RouteRecordRaw[] = [
   {
@@ -108,5 +110,11 @@ export function registerModule(routes: RouteRecordRaw[], featureFlags: FeatureFl
 
   if (accessControl.hasPermission(Permissions.RolesView)) {
     navigationStore.registerLink(rolesAndPermissionsNavLink);
+  }
+
+  // Must run after CalendarModule.registerModule() has populated calendarRegistry
+  // (see router/index.ts registration order).
+  if (featureFlags.Calendar?.enabled) {
+    calendarRegistry.registerModuleContribution(calendarLeaveEventsContribution);
   }
 }
