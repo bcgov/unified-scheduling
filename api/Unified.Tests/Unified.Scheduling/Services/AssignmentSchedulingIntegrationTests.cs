@@ -447,6 +447,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         var assignmentEvent = Assert.Single(matching.Events);
         Assert.Equal($"scheduling.assignment-entry.{assignment.Id}", assignmentEvent.Id);
+        Assert.Equal(assignment.AssignmentDefinitionId, assignmentEvent.AssignmentDefinitionId);
         Assert.Equal([UserA.ToString()], assignmentEvent.ResourceIds);
         Assert.Empty(nonMatching.Events);
         Assert.True(await _db.ShiftEntries.AnyAsync(x => x.Id == shift.Id, TestContext.Current.CancellationToken));
@@ -533,6 +534,25 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 StartAtUtc = At(9),
                 EndAtUtc = At(13),
             },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(created.Id, Assert.Single(results).Id);
+    }
+
+    [Fact]
+    public async Task GetAssignmentSeriesAsync_WhenLaterOccurrenceOverlapsRange_ReturnsSeries()
+    {
+        var created = await _assignmentService.CreateAssignmentSeriesAsync(
+            CreateAssignmentSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=3",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var results = await _assignmentService.GetAssignmentSeriesAsync(
+            new AssignmentSeriesQueryParams { StartAtUtc = AtDay(2, 9), EndAtUtc = AtDay(2, 13) },
             TestContext.Current.CancellationToken
         );
 
