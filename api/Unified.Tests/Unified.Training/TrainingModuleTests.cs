@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.Common.Jobs;
 using Unified.Common.Mvc;
 using Unified.Training;
 using Unified.Training.Controllers;
+using Unified.Training.Jobs;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
@@ -27,6 +29,11 @@ public sealed class TrainingModuleTests
 
         // Assert
         AssertContainsScopedRegistration<IUserTrainingService, UserTrainingService>(services);
+        AssertContainsScopedRegistration<
+            IUserTrainingExpiryNotificationService,
+            UserTrainingExpiryNotificationService
+        >(services);
+        AssertContainsScopedRegistration<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>(services);
         AssertContainsScopedRegistration<ITrainingLookupStrategy, TrainingLookupStrategy>(services);
         AssertContainsScopedSelfRegistration<TrainingLookupRequestValidator>(services);
         AssertContainsScopedSelfRegistration<UserTrainingRequestValidator>(services);
@@ -46,6 +53,11 @@ public sealed class TrainingModuleTests
 
         // Assert
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IUserTrainingService));
+        Assert.DoesNotContain(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IUserTrainingExpiryNotificationService)
+        );
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IRecurringJob));
         Assert.Empty(userTrainingActions);
     }
 
