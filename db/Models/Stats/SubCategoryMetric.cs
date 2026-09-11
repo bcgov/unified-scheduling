@@ -22,4 +22,6 @@ public class SubCategoryMetric : BaseEntity
     /// When true, the user must provide a value for this metric before saving.
     /// </summary>
     public bool IsRequired { get; set; }
+
+    public bool IsArchived { get; set; }
 }

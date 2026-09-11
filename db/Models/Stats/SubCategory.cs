@@ -15,5 +15,7 @@ public class SubCategory : BaseEntity
     [Required]
     public string Name { get; set; } = string.Empty;
 
+    public bool IsArchived { get; set; }
+
     public int DisplayOrder { get; set; }
 }

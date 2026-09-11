@@ -32,11 +32,11 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
     public override string Name => "SubCategoryMetric";
 
     /// <summary>
-    /// SubCategoryMetric IDs that have been moved from employee-level forms (NS/SUP)
-    /// to the Location Level form (GroupId 3). These are removed from the seed set and
-    /// deleted from the database during seeding.
+    /// SubCategoryMetric IDs that have been retired (moved to Location Level or dropped).
+    /// These are marked as IsArchived = true during seeding so they no longer appear
+    /// on forms, but remain in the database for FK integrity with existing StatRecords.
     /// </summary>
-    private static readonly HashSet<int> MovedToLocationLevelIds =
+    private static readonly HashSet<int> ArchivedIds =
     [
         // Circuit travel NS (SubCat 18) → km Travelled
         71,
@@ -52,6 +52,110 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         118,
         119,
         120,
+        // Transports Air NS (SubCat 29) → L1/L2/L3 Air counts (dropped, not in legacy system)
+        121,
+        122,
+        123,
+        // Transports Ground LL (SubCat 94) → Trips, km, L1/L2/L3 Ground counts (dropped)
+        370,
+        374,
+        378,
+        379,
+        380,
+        // Holding NS SubCats 37-43 — all remaining SCM entries (subcategories archived)
+        166,
+        170,
+        174,
+        178,
+        182,
+        184,
+        187,
+        // Holding LL SubCats 95-101 — all SCM entries (subcategories archived, replaced by ID 105)
+        381,
+        382,
+        383,
+        384,
+        385,
+        386,
+        387,
+        388,
+        389,
+        390,
+        391,
+        392,
+        393,
+        394,
+        395,
+        396,
+        397,
+        // Documents Civil/Family NS (SubCats 21-24) → Received, Concluded (moved to LL)
+        82,
+        83,
+        86,
+        87,
+        90,
+        91,
+        94,
+        95,
+        // Documents Criminal NS (SubCats 25-28) → Received, Concluded (moved to LL)
+        98,
+        99,
+        102,
+        103,
+        106,
+        107,
+        110,
+        111,
+        // Documents Civil/Family SUP (SubCats 71-74) → Received, Concluded (moved to LL)
+        286,
+        287,
+        290,
+        291,
+        294,
+        295,
+        298,
+        299,
+        // Documents Criminal SUP (SubCats 75-78) → Received, Concluded (moved to LL)
+        302,
+        303,
+        306,
+        307,
+        310,
+        311,
+        314,
+        315,
+        // Training NS Student (SubCat 52) → PTO Hours, PTO Overtime (moved to Instruction)
+        208,
+        209,
+        // Training SUP Student (SubCat 91) → PTO Hours, PTO Overtime (moved to Instruction)
+        361,
+        362,
+        // Transports Females NS SubCats 31-33 — archived, moved to LL
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        // Transports Males NS SubCats 34-36 — archived, moved to LL
+        153,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
         // Transports Ground NS (SubCat 30) → Trips, km, ground counts
         130,
         131,
@@ -1657,9 +1761,9 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         );
         // IDs 359-365
 
-        // Remove entries that have been moved to Location Level (GroupId 3).
-        // The original IDs are preserved so that remaining entries keep stable IDs.
-        list.RemoveAll(scm => MovedToLocationLevelIds.Contains(scm.Id));
+        // Remove archived entries from the seed set — they are handled separately
+        // in ExecuteAsync where they are marked IsArchived = true in the database.
+        list.RemoveAll(scm => ArchivedIds.Contains(scm.Id));
 
         // ── Location Level (GroupId 3) ─────────────────────────────────────────
 
@@ -1704,22 +1808,14 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         ); // L3 Trips
 
         // Transports Ground LL (SubCategory 94 – General)
-        list.Add(
-            new()
-            {
-                Id = 370,
-                SubCategoryId = 94,
-                MetricId = 29,
-                DisplayOrder = 1,
-            }
-        ); // Trips
+        // Removed: 370 (Trips), 374 (km), 378/379/380 (L1/L2/L3 Ground counts)
         list.Add(
             new()
             {
                 Id = 371,
                 SubCategoryId = 94,
                 MetricId = 30,
-                DisplayOrder = 2,
+                DisplayOrder = 1,
             }
         ); // L1 Trips
         list.Add(
@@ -1728,7 +1824,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
                 Id = 372,
                 SubCategoryId = 94,
                 MetricId = 31,
-                DisplayOrder = 3,
+                DisplayOrder = 2,
             }
         ); // L2 Trips
         list.Add(
@@ -1737,25 +1833,16 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
                 Id = 373,
                 SubCategoryId = 94,
                 MetricId = 32,
-                DisplayOrder = 4,
+                DisplayOrder = 3,
             }
         ); // L3 Trips
-        list.Add(
-            new()
-            {
-                Id = 374,
-                SubCategoryId = 94,
-                MetricId = 43,
-                DisplayOrder = 5,
-            }
-        ); // km
         list.Add(
             new()
             {
                 Id = 375,
                 SubCategoryId = 94,
                 MetricId = 44,
-                DisplayOrder = 6,
+                DisplayOrder = 4,
             }
         ); // L1 Ground km
         list.Add(
@@ -1764,7 +1851,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
                 Id = 376,
                 SubCategoryId = 94,
                 MetricId = 45,
-                DisplayOrder = 7,
+                DisplayOrder = 5,
             }
         ); // L2 Ground km
         list.Add(
@@ -1773,44 +1860,17 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
                 Id = 377,
                 SubCategoryId = 94,
                 MetricId = 46,
-                DisplayOrder = 8,
+                DisplayOrder = 6,
             }
         ); // L3 Ground km
-        list.Add(
-            new()
-            {
-                Id = 378,
-                SubCategoryId = 94,
-                MetricId = 37,
-                DisplayOrder = 9,
-            }
-        ); // L1 Ground count
-        list.Add(
-            new()
-            {
-                Id = 379,
-                SubCategoryId = 94,
-                MetricId = 39,
-                DisplayOrder = 10,
-            }
-        ); // L2 Ground count
-        list.Add(
-            new()
-            {
-                Id = 380,
-                SubCategoryId = 94,
-                MetricId = 41,
-                DisplayOrder = 11,
-            }
-        ); // L3 Ground count
 
-        // Holding area/cellblock LL (SubCategories 95-101)
-        // 95=Adult females Prov
+        // Holding area/cellblock LL – single "General" subcategory (SubCategory 105)
+        // Old SubCats 95-101 archived; IDs 381-397 deleted via MovedToLocationLevelIds
         list.Add(
             new()
             {
-                Id = 381,
-                SubCategoryId = 95,
+                Id = 407,
+                SubCategoryId = 105,
                 MetricId = 14,
                 DisplayOrder = 1,
             }
@@ -1818,153 +1878,250 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         list.Add(
             new()
             {
-                Id = 382,
-                SubCategoryId = 95,
-                MetricId = 33,
+                Id = 408,
+                SubCategoryId = 105,
+                MetricId = 50,
                 DisplayOrder = 2,
             }
-        ); // Regulars
+        ); // Adult Females - Provincial
         list.Add(
             new()
             {
-                Id = 383,
-                SubCategoryId = 95,
-                MetricId = 34,
+                Id = 409,
+                SubCategoryId = 105,
+                MetricId = 51,
                 DisplayOrder = 3,
             }
-        ); // SEG
-        // 96=Adult males Prov
+        ); // Adult Males - Provincial
         list.Add(
             new()
             {
-                Id = 384,
-                SubCategoryId = 96,
-                MetricId = 14,
+                Id = 410,
+                SubCategoryId = 105,
+                MetricId = 52,
+                DisplayOrder = 4,
+            }
+        ); // Federal Females
+        list.Add(
+            new()
+            {
+                Id = 411,
+                SubCategoryId = 105,
+                MetricId = 53,
+                DisplayOrder = 5,
+            }
+        ); // Federal Males
+        list.Add(
+            new()
+            {
+                Id = 412,
+                SubCategoryId = 105,
+                MetricId = 54,
+                DisplayOrder = 6,
+            }
+        ); // Youth Females - Provincial
+        list.Add(
+            new()
+            {
+                Id = 413,
+                SubCategoryId = 105,
+                MetricId = 55,
+                DisplayOrder = 7,
+            }
+        ); // Youth Males - Provincial
+
+        // ── Transports Females LL (SubCategory 106 – General) ──────────────────
+        list.Add(
+            new()
+            {
+                Id = 418,
+                SubCategoryId = 106,
+                MetricId = 56,
                 DisplayOrder = 1,
             }
-        );
+        ); // Number of Adult Females
         list.Add(
             new()
             {
-                Id = 385,
-                SubCategoryId = 96,
-                MetricId = 33,
+                Id = 419,
+                SubCategoryId = 106,
+                MetricId = 57,
                 DisplayOrder = 2,
             }
-        );
+        ); // Number of Federal Females
         list.Add(
             new()
             {
-                Id = 386,
-                SubCategoryId = 96,
-                MetricId = 34,
+                Id = 420,
+                SubCategoryId = 106,
+                MetricId = 58,
                 DisplayOrder = 3,
             }
-        );
-        // 97=Federal Females
+        ); // Number of Youth Females
         list.Add(
             new()
             {
-                Id = 387,
-                SubCategoryId = 97,
-                MetricId = 14,
+                Id = 424,
+                SubCategoryId = 106,
+                MetricId = 33,
+                DisplayOrder = 4,
+            }
+        ); // Custodies - Number of Regulars
+        list.Add(
+            new()
+            {
+                Id = 425,
+                SubCategoryId = 106,
+                MetricId = 34,
+                DisplayOrder = 5,
+            }
+        ); // Custodies - Number of SEG/PC/MH
+
+        // ── Transports Males LL (SubCategory 107 – General) ────────────────────
+        list.Add(
+            new()
+            {
+                Id = 421,
+                SubCategoryId = 107,
+                MetricId = 59,
                 DisplayOrder = 1,
             }
-        );
+        ); // Number of Adult Males
         list.Add(
             new()
             {
-                Id = 388,
-                SubCategoryId = 97,
-                MetricId = 33,
+                Id = 422,
+                SubCategoryId = 107,
+                MetricId = 60,
                 DisplayOrder = 2,
             }
-        );
+        ); // Number of Federal Males
         list.Add(
             new()
             {
-                Id = 389,
-                SubCategoryId = 97,
-                MetricId = 34,
+                Id = 423,
+                SubCategoryId = 107,
+                MetricId = 61,
                 DisplayOrder = 3,
             }
-        );
-        // 98=Federal Males
+        ); // Number of Youth Males
         list.Add(
             new()
             {
-                Id = 390,
-                SubCategoryId = 98,
-                MetricId = 14,
-                DisplayOrder = 1,
-            }
-        );
-        list.Add(
-            new()
-            {
-                Id = 391,
-                SubCategoryId = 98,
+                Id = 426,
+                SubCategoryId = 107,
                 MetricId = 33,
-                DisplayOrder = 2,
+                DisplayOrder = 4,
             }
-        );
+        ); // Custodies - Number of Regulars
         list.Add(
             new()
             {
-                Id = 392,
-                SubCategoryId = 98,
+                Id = 427,
+                SubCategoryId = 107,
                 MetricId = 34,
+                DisplayOrder = 5,
+            }
+        ); // Custodies - Number of SEG/PC/MH
+
+        // ── Documents Civil/Family LL (SubCategories 109-112) ───────────────────
+        for (var scId = 109; scId <= 112; scId++)
+        {
+            list.Add(
+                new()
+                {
+                    Id = 433 + (scId - 109) * 2,
+                    SubCategoryId = scId,
+                    MetricId = 48,
+                    DisplayOrder = 1,
+                }
+            ); // Received
+            list.Add(
+                new()
+                {
+                    Id = 434 + (scId - 109) * 2,
+                    SubCategoryId = scId,
+                    MetricId = 49,
+                    DisplayOrder = 2,
+                }
+            ); // Concluded
+        }
+        // IDs 433-440
+
+        // ── Documents Criminal LL (SubCategories 113-116) ──────────────────────
+        for (var scId = 113; scId <= 116; scId++)
+        {
+            list.Add(
+                new()
+                {
+                    Id = 441 + (scId - 113) * 2,
+                    SubCategoryId = scId,
+                    MetricId = 48,
+                    DisplayOrder = 1,
+                }
+            ); // Received
+            list.Add(
+                new()
+                {
+                    Id = 442 + (scId - 113) * 2,
+                    SubCategoryId = scId,
+                    MetricId = 49,
+                    DisplayOrder = 2,
+                }
+            ); // Concluded
+        }
+        // IDs 441-448
+
+        // ── Training NS Instruction (SubCategory 51) – add PTO Hours/Overtime ──
+        list.Add(
+            new()
+            {
+                Id = 429,
+                SubCategoryId = 51,
+                MetricId = 9,
                 DisplayOrder = 3,
             }
-        );
-        // 99=Hours
+        ); // PTO Hours
         list.Add(
             new()
             {
-                Id = 393,
-                SubCategoryId = 99,
-                MetricId = 14,
+                Id = 430,
+                SubCategoryId = 51,
+                MetricId = 10,
+                DisplayOrder = 4,
+            }
+        ); // PTO Overtime
+
+        // ── Training SUP Instruction (SubCategory 90) – add PTO Hours/Overtime ──
+        list.Add(
+            new()
+            {
+                Id = 431,
+                SubCategoryId = 90,
+                MetricId = 9,
+                DisplayOrder = 3,
+            }
+        ); // PTO Hours
+        list.Add(
+            new()
+            {
+                Id = 432,
+                SubCategoryId = 90,
+                MetricId = 10,
+                DisplayOrder = 4,
+            }
+        ); // PTO Overtime
+
+        // ── Coroner Jury Administration SUP (SubCategory 108 – General) ─────────
+        list.Add(
+            new()
+            {
+                Id = 428,
+                SubCategoryId = 108,
+                MetricId = 17,
                 DisplayOrder = 1,
             }
-        );
-        // 100=Youth females Prov
-        list.Add(
-            new()
-            {
-                Id = 394,
-                SubCategoryId = 100,
-                MetricId = 14,
-                DisplayOrder = 1,
-            }
-        );
-        list.Add(
-            new()
-            {
-                Id = 395,
-                SubCategoryId = 100,
-                MetricId = 33,
-                DisplayOrder = 2,
-            }
-        );
-        // 101=Youth males Prov
-        list.Add(
-            new()
-            {
-                Id = 396,
-                SubCategoryId = 101,
-                MetricId = 14,
-                DisplayOrder = 1,
-            }
-        );
-        list.Add(
-            new()
-            {
-                Id = 397,
-                SubCategoryId = 101,
-                MetricId = 33,
-                DisplayOrder = 2,
-            }
-        );
+        ); // Coroner Jury Administration Hours
 
         // Coroner Jury Administration LL (SubCategory 102 – General)
         list.Add(
@@ -2025,26 +2182,44 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         ); // Sum Total ($)
         // IDs 366-403
 
+        // ── Holding area/cellblock NS – new "General" subcategory (SubCategory 104) ──
+        list.Add(
+            new()
+            {
+                Id = 404,
+                SubCategoryId = 104,
+                MetricId = 1,
+                DisplayOrder = 1,
+            }
+        ); // Staff Hours
+        list.Add(
+            new()
+            {
+                Id = 405,
+                SubCategoryId = 104,
+                MetricId = 15,
+                DisplayOrder = 2,
+            }
+        ); // Overtime Staff Hours
+
+        // ── Holding area/cellblock SUP (SubCategory 81) – add Staff Hours ──
+        list.Add(
+            new()
+            {
+                Id = 406,
+                SubCategoryId = 81,
+                MetricId = 1,
+                DisplayOrder = 1,
+            }
+        ); // Staff Hours
+        // IDs 404-406
+
         return [.. list];
     }
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
     {
         Logger.LogInformation("Updating sub-category metrics...");
-
-        // Delete entries that have been moved to Location Level (GroupId 3).
-        var movedRecords = await dbContext
-            .SubCategoryMetrics.Where(scm => MovedToLocationLevelIds.Contains(scm.Id))
-            .ToListAsync(cancellationToken);
-        if (movedRecords.Count > 0)
-        {
-            dbContext.SubCategoryMetrics.RemoveRange(movedRecords);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            Logger.LogInformation(
-                "Removed {Count} SubCategoryMetric entries moved to Location Level.",
-                movedRecords.Count
-            );
-        }
 
         var createdCount = 0;
         var updatedCount = 0;
@@ -2068,8 +2243,26 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
             existing.SubCategoryId = seed.SubCategoryId;
             existing.MetricId = seed.MetricId;
             existing.DisplayOrder = seed.DisplayOrder;
+            existing.IsArchived = false;
             updatedCount++;
         }
+
+        // Mark archived entries — these remain in DB for FK integrity with existing
+        // StatRecords but won't appear on forms.
+        var archivedCount = 0;
+        foreach (var archivedId in ArchivedIds)
+        {
+            var existing = await dbContext.SubCategoryMetrics.FirstOrDefaultAsync(
+                scm => scm.Id == archivedId,
+                cancellationToken
+            );
+            if (existing is not null && !existing.IsArchived)
+            {
+                existing.IsArchived = true;
+                archivedCount++;
+            }
+        }
+        Logger.LogInformation("Archived {ArchivedCount} SubCategoryMetric entries.", archivedCount);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         Logger.LogInformation(

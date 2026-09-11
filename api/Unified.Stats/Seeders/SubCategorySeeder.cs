@@ -232,12 +232,13 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "Security level and hours",
             DisplayOrder = 1,
         },
-        // Transports Females - Transported (CategoryId = 9), IDs 31-33
+        // Transports Females (CategoryId = 9) — archived, moved to Location Level
         new()
         {
             Id = 31,
             CategoryId = 9,
             Name = "Number of adult females",
+            IsArchived = true,
             DisplayOrder = 1,
         },
         new()
@@ -245,6 +246,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 32,
             CategoryId = 9,
             Name = "Number of Federal females",
+            IsArchived = true,
             DisplayOrder = 2,
         },
         new()
@@ -252,14 +254,16 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 33,
             CategoryId = 9,
             Name = "Number of youth females",
+            IsArchived = true,
             DisplayOrder = 3,
         },
-        // Transports Males - Transported (CategoryId = 10), IDs 34-36
+        // Transports Males (CategoryId = 10) — archived, moved to Location Level
         new()
         {
             Id = 34,
             CategoryId = 10,
             Name = "Number of Adult males",
+            IsArchived = true,
             DisplayOrder = 1,
         },
         new()
@@ -267,6 +271,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 35,
             CategoryId = 10,
             Name = "Number of Federal males",
+            IsArchived = true,
             DisplayOrder = 2,
         },
         new()
@@ -274,14 +279,17 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 36,
             CategoryId = 10,
             Name = "Number of Youth males",
+            IsArchived = true,
             DisplayOrder = 3,
         },
-        // Holding area/cellblock - Non-Supervision (CategoryId = 11), IDs 37-43
+        // Holding area/cellblock - Non-Supervision (CategoryId = 11)
+        // IDs 37-43 archived — replaced by single "General" subcategory (ID 104)
         new()
         {
             Id = 37,
             CategoryId = 11,
             Name = "Adult females - Provincial",
+            IsArchived = true,
             DisplayOrder = 1,
         },
         new()
@@ -289,6 +297,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 38,
             CategoryId = 11,
             Name = "Adult males - Provincial",
+            IsArchived = true,
             DisplayOrder = 2,
         },
         new()
@@ -296,6 +305,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 39,
             CategoryId = 11,
             Name = "Federal Females",
+            IsArchived = true,
             DisplayOrder = 3,
         },
         new()
@@ -303,6 +313,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 40,
             CategoryId = 11,
             Name = "Federal Males",
+            IsArchived = true,
             DisplayOrder = 4,
         },
         new()
@@ -310,6 +321,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 41,
             CategoryId = 11,
             Name = "Hours",
+            IsArchived = true,
             DisplayOrder = 5,
         },
         new()
@@ -317,6 +329,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 42,
             CategoryId = 11,
             Name = "Youth females - Provincial",
+            IsArchived = true,
             DisplayOrder = 6,
         },
         new()
@@ -324,7 +337,15 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 43,
             CategoryId = 11,
             Name = "Youth males - Provincial",
+            IsArchived = true,
             DisplayOrder = 7,
+        },
+        new()
+        {
+            Id = 104,
+            CategoryId = 11,
+            Name = "General",
+            DisplayOrder = 1,
         },
         // Other - Non-Supervision (CategoryId = 12), IDs 44-49
         new()
@@ -599,7 +620,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
         {
             Id = 81,
             CategoryId = 21,
-            Name = "Hours",
+            Name = "General",
             DisplayOrder = 1,
         },
         // Jury Administration - Supervision (CategoryId = 22), ID 82
@@ -701,55 +722,70 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Name = "General",
             DisplayOrder = 1,
         },
-        // Holding area/cellblock (CategoryId = 29), IDs 95-101
+        // Holding area/cellblock (CategoryId = 29)
+        // IDs 95-101 archived — replaced by single "General" subcategory (ID 105)
         new()
         {
             Id = 95,
             CategoryId = 29,
             Name = "Adult females - Provincial",
-            DisplayOrder = 1,
+            IsArchived = true,
+            DisplayOrder = 2,
         },
         new()
         {
             Id = 96,
             CategoryId = 29,
             Name = "Adult males - Provincial",
-            DisplayOrder = 2,
+            IsArchived = true,
+            DisplayOrder = 3,
         },
         new()
         {
             Id = 97,
             CategoryId = 29,
             Name = "Federal Females",
-            DisplayOrder = 3,
+            IsArchived = true,
+            DisplayOrder = 4,
         },
         new()
         {
             Id = 98,
             CategoryId = 29,
             Name = "Federal Males",
-            DisplayOrder = 4,
+            IsArchived = true,
+            DisplayOrder = 5,
         },
         new()
         {
             Id = 99,
             CategoryId = 29,
             Name = "Hours",
-            DisplayOrder = 5,
+            IsArchived = true,
+            DisplayOrder = 6,
         },
         new()
         {
             Id = 100,
             CategoryId = 29,
             Name = "Youth females - Provincial",
-            DisplayOrder = 6,
+            IsArchived = true,
+            DisplayOrder = 7,
         },
         new()
         {
             Id = 101,
             CategoryId = 29,
             Name = "Youth males - Provincial",
-            DisplayOrder = 7,
+            IsArchived = true,
+            DisplayOrder = 8,
+        },
+        new()
+        {
+            Id = 105,
+            CategoryId = 29,
+            Name = "General",
+            DisplayOrder = 1,
         },
         // Coroner Jury Administration (CategoryId = 30), ID 102
         new()
@@ -764,6 +800,88 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
         {
             Id = 103,
             CategoryId = 31,
+            Name = "General",
+            DisplayOrder = 1,
+        },
+        // Documents Civil/Family LL (CategoryId = 35), IDs 109-112
+        new()
+        {
+            Id = 109,
+            CategoryId = 35,
+            Name = "Courts Orders",
+            DisplayOrder = 1,
+        },
+        new()
+        {
+            Id = 110,
+            CategoryId = 35,
+            Name = "Documents",
+            DisplayOrder = 2,
+        },
+        new()
+        {
+            Id = 111,
+            CategoryId = 35,
+            Name = "Others",
+            DisplayOrder = 3,
+        },
+        new()
+        {
+            Id = 112,
+            CategoryId = 35,
+            Name = "Warrants",
+            DisplayOrder = 4,
+        },
+        // Documents Criminal LL (CategoryId = 36), IDs 113-116
+        new()
+        {
+            Id = 113,
+            CategoryId = 36,
+            Name = "Courts Orders",
+            DisplayOrder = 1,
+        },
+        new()
+        {
+            Id = 114,
+            CategoryId = 36,
+            Name = "Documents",
+            DisplayOrder = 2,
+        },
+        new()
+        {
+            Id = 115,
+            CategoryId = 36,
+            Name = "Others",
+            DisplayOrder = 3,
+        },
+        new()
+        {
+            Id = 116,
+            CategoryId = 36,
+            Name = "Warrants",
+            DisplayOrder = 4,
+        },
+        // Coroner Jury Administration SUP (CategoryId = 34), ID 108
+        new()
+        {
+            Id = 108,
+            CategoryId = 34,
+            Name = "General",
+            DisplayOrder = 1,
+        },
+        // Transports Females LL (CategoryId = 32), ID 106
+        new()
+        {
+            Id = 106,
+            CategoryId = 32,
+            Name = "General",
+            DisplayOrder = 1,
+        },
+        // Transports Males LL (CategoryId = 33), ID 107
+        new()
+        {
+            Id = 107,
+            CategoryId = 33,
             Name = "General",
             DisplayOrder = 1,
         },
@@ -791,6 +909,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Logger.LogInformation("Updating fields for SubCategory with Id {Id}...", seed.Id);
             existing.CategoryId = seed.CategoryId;
             existing.Name = seed.Name;
+            existing.IsArchived = seed.IsArchived;
             existing.DisplayOrder = seed.DisplayOrder;
             updatedCount++;
         }

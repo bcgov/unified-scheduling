@@ -9,7 +9,6 @@ export interface StatCategoryResponse {
   id?: number;
   groupId?: number;
   name?: string;
-  isArchived?: boolean;
   isHighSecurity?: boolean;
   displayOrder?: number;
 }
