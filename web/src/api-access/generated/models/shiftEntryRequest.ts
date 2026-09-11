@@ -29,5 +29,6 @@ export interface ShiftEntryRequest {
   /** @nullable */
   locationId?: number | null;
   userIds?: string[];
-  assignmentEntryLinks?: AssignmentEntryLinkRequest[];
+  /** @nullable */
+  assignmentEntryLinks?: AssignmentEntryLinkRequest[] | null;
 }

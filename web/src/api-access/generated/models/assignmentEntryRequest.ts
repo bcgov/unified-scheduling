@@ -29,5 +29,6 @@ export interface AssignmentEntryRequest {
   categoryId?: number;
   subCategoryId?: number;
   capacity?: number;
-  shiftEntryLinks?: ShiftEntryLinkRequest[];
+  /** @nullable */
+  shiftEntryLinks?: ShiftEntryLinkRequest[] | null;
 }

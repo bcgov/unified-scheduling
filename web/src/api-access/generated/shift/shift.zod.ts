@@ -284,7 +284,7 @@ export const PostApiSchedulingShiftsEntriesBody = zod.strictObject({
         assignedUserIds: zod.array(zod.uuid()).optional(),
       }),
     )
-    .optional(),
+    .nullish(),
 });
 
 export const PostApiSchedulingShiftsEntriesResponse = zod.object({
@@ -370,7 +370,7 @@ export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
         assignedUserIds: zod.array(zod.uuid()).optional(),
       }),
     )
-    .optional(),
+    .nullish(),
 });
 
 export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({
