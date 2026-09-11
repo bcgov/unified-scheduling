@@ -15,15 +15,14 @@ namespace Unified.Db.Migrations
                 table: "SubCategoryMetrics",
                 type: "boolean",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsArchived",
-                table: "SubCategoryMetrics");
+            migrationBuilder.DropColumn(name: "IsArchived", table: "SubCategoryMetrics");
         }
     }
 }
