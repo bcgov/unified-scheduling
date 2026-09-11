@@ -87,6 +87,12 @@ public enum Permissions
     AwayLocationsEdit,
     AwayLocationsExpire,
 
+    // --- Leave ---
+    LeaveView,
+    LeaveCreate,
+    LeaveEdit,
+    LeaveExpire,
+
     // --- IDIR ---
     IdirEdit,
 
