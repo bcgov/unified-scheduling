@@ -18,6 +18,11 @@ export const GetApiConfigResponse = zod.object({
               enabled: zod.boolean(),
             })
             .optional(),
+          leave: zod
+            .object({
+              enabled: zod.boolean(),
+            })
+            .optional(),
         })
         .optional(),
       Calendar: zod

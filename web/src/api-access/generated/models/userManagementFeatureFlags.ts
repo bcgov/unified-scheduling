@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { UserManagementFeatureFlagsLeave } from './userManagementFeatureFlagsLeave.ts';
 import type { UserManagementFeatureFlagsUserBadgeNumber } from './userManagementFeatureFlagsUserBadgeNumber.ts';
 
 export interface UserManagementFeatureFlags {
@@ -11,4 +12,5 @@ export interface UserManagementFeatureFlags {
   source?: string | null;
   enabled: boolean;
   userBadgeNumber?: UserManagementFeatureFlagsUserBadgeNumber;
+  leave?: UserManagementFeatureFlagsLeave;
 }
