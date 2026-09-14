@@ -42,8 +42,8 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         record.ActorName = actor.ActorName;
         record.Action = MapAction(entry.Action);
         record.EntityType = entityType.ClrType.Name;
-        record.TableName = entry.Table; // Every table in this schema uses a single "Id" column as its primary key.
-        record.EntityPK = entry.PrimaryKey.Values.Single()?.ToString() ?? string.Empty;
+        record.TableName = entry.Table;
+        record.EntityPK = FormatPrimaryKey(entry.PrimaryKey.Values);
         record.OldValues = BuildValues(entry, entityType, oldValues: true);
         record.NewValues = BuildValues(entry, entityType, oldValues: false);
         record.ChangedColumns = changedColumns is { Length: > 0 } ? changedColumns : null;
@@ -119,4 +119,24 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
             "Delete" => "Deleted",
             _ => action,
         };
+
+    private static string FormatPrimaryKey(IReadOnlyDictionary<string, object> primaryKeyValues)
+    {
+        if (primaryKeyValues.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (primaryKeyValues.Count == 1)
+        {
+            return primaryKeyValues.Values.FirstOrDefault()?.ToString() ?? string.Empty;
+        }
+
+        return string.Join(
+            "|",
+            primaryKeyValues
+                .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
+                .Select(kvp => $"{kvp.Key}:{kvp.Value}")
+        );
+    }
 }
