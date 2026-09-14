@@ -18,4 +18,6 @@ export interface UserRequestDto {
   /** @nullable */
   badgeNumber?: string | null;
   employeeNumber: string;
+  /** @nullable */
+  trainingProfileId?: number | null;
 }

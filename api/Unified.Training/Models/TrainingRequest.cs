@@ -17,4 +17,6 @@ public sealed record TrainingRequest
     public int? TrainingCategoryId { get; init; }
 
     public int Order { get; init; }
+
+    public IReadOnlyCollection<int>? MandatoryTrainingProfileIds { get; init; }
 }

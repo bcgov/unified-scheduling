@@ -7,6 +7,7 @@ using Unified.Audit;
 using Unified.Audit.Options;
 using Unified.Db;
 using Unified.Db.Models;
+using Unified.Db.Models.Training;
 using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Unified.Audit;
@@ -215,6 +216,46 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         Assert.Equal(courtRoom.Id.ToString(), courtRoomRecord.EntityPK);
         // Confirms the FK fix-up (LocationId) was captured in the audited NewValues, not just the in-memory entity.
         Assert.Contains($"\"LocationId\":{location.Id}", courtRoomRecord.NewValues);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_When_Entity_Has_Composite_Primary_Key_Should_Write_AuditRecord_With_Composite_EntityPK()
+    {
+        var (connection, dbContext) = await CreateSqliteDbContextAsync();
+        await using var _ = connection;
+        await using var __ = dbContext;
+
+        var profile = new TrainingProfile
+        {
+            Code = "CARBINE",
+            Description = "Carbine Operator",
+            EffectiveDate = DateTimeOffset.UtcNow,
+        };
+        var training = new global::Unified.Db.Models.Training.Training
+        {
+            Code = "MAND-1",
+            Description = "Mandatory Training",
+            EffectiveDate = DateTimeOffset.UtcNow,
+            Mandatory = true,
+            Order = 1,
+        };
+
+        dbContext.TrainingProfiles.Add(profile);
+        dbContext.Trainings.Add(training);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.TrainingMandatoryTrainingProfiles.Add(
+            new TrainingMandatoryTrainingProfile { TrainingId = training.Id, TrainingProfileId = profile.Id }
+        );
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var record = Assert.Single(
+            await dbContext
+                .AuditRecords.Where(r => r.EntityType == nameof(TrainingMandatoryTrainingProfile) && r.Action == "Added")
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal($"TrainingId:{training.Id}|TrainingProfileId:{profile.Id}", record.EntityPK);
     }
 
     [Fact]
