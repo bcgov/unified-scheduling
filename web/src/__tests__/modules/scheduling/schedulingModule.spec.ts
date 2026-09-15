@@ -27,10 +27,7 @@ describe('calendar scheduling module integration', () => {
       expect.arrayContaining(['calendar.matrix-schedule', 'calendar.matrix-assignment']),
     );
     const contributionIds = calendarRegistry
-      .getAvailableModuleContributions(
-        runtimeContext,
-        { startDate: '2025-01-01', endDate: '2025-01-08', filters: {} },
-      )
+      .getAvailableModuleContributions(runtimeContext, { startDate: '2025-01-01', endDate: '2025-01-08', filters: {} })
       .map((contribution) => contribution.contributionId);
     expect(contributionIds).toEqual(expect.arrayContaining(['scheduling.events', 'scheduling.assignment-resources']));
     expect(contributionIds).not.toContain('scheduling.assignment-events');
