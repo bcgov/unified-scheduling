@@ -242,20 +242,6 @@ function hasDateMatchWithoutTimeOverlap(
   );
 }
 
-function entryOverlapsShiftDate(entry: AssignmentEntryResponse, occurrence: ShiftOccurrence, timeZoneId: string) {
-  const interval = getEntryInterval(entry, timeZoneId);
-  if (!interval) {
-    return false;
-  }
-
-  return intervalsOverlap(
-    occurrence.start.startOf('day'),
-    occurrence.start.plus({ days: 1 }).startOf('day'),
-    interval.start,
-    interval.end,
-  );
-}
-
 function getEntryInterval(entry: AssignmentEntryResponse, timeZoneId: string) {
   if (!entry.startAtUtc) {
     return null;
