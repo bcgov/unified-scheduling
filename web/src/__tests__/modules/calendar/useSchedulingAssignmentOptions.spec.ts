@@ -108,20 +108,16 @@ describe('useSchedulingAssignmentOptions', () => {
 
     await flushPromises();
 
-    expect(loadAssignmentEntries).toHaveBeenCalledWith(
-      {
-        LocationId: 12,
-        StartAtUtc: '2026-07-13T07:00:00Z',
-        EndAtUtc: '2026-07-14T07:00:00Z',
-      },
-    );
-    expect(loadAssignmentSeries).toHaveBeenCalledWith(
-      {
-        LocationId: 12,
-        StartAtUtc: '2026-07-13T07:00:00Z',
-        EndAtUtc: '2026-07-15T07:00:00Z',
-      },
-    );
+    expect(loadAssignmentEntries).toHaveBeenCalledWith({
+      LocationId: 12,
+      StartAtUtc: '2026-07-13T07:00:00Z',
+      EndAtUtc: '2026-07-14T07:00:00Z',
+    });
+    expect(loadAssignmentSeries).toHaveBeenCalledWith({
+      LocationId: 12,
+      StartAtUtc: '2026-07-13T07:00:00Z',
+      EndAtUtc: '2026-07-15T07:00:00Z',
+    });
     expect(loadAssignmentEntries).toHaveBeenCalledTimes(1);
     expect(loadAssignmentSeries).toHaveBeenCalledTimes(1);
     expect(result.assignmentEntryOptions.value.map((option) => option.code)).toEqual([42]);
