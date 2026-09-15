@@ -70,6 +70,8 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         182,
         184,
         187,
+        // Holding LL Cell Block Hours (SubCat 105) — hours are employee-level only
+        407,
         // Holding LL SubCats 95-101 — all SCM entries (subcategories archived, replaced by ID 105)
         381,
         382,
@@ -1866,24 +1868,26 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
 
         // Holding area/cellblock LL – single "General" subcategory (SubCategory 105)
         // Old SubCats 95-101 archived; IDs 381-397 deleted via MovedToLocationLevelIds
-        list.Add(
-            new()
-            {
-                Id = 407,
-                SubCategoryId = 105,
-                MetricId = 14,
-                DisplayOrder = 1,
-            }
-        ); // Cell Block Hours
+        // Each demographic is followed by its SEG/PC/MH counterpart.
+        // Cell Block Hours (ID 407) removed — hours are employee-level only (NS/SUP).
         list.Add(
             new()
             {
                 Id = 408,
                 SubCategoryId = 105,
                 MetricId = 50,
-                DisplayOrder = 2,
+                DisplayOrder = 1,
             }
         ); // Adult Females - Provincial
+        list.Add(
+            new()
+            {
+                Id = 422,
+                SubCategoryId = 105,
+                MetricId = 62,
+                DisplayOrder = 2,
+            }
+        ); // Adult Females - Provincial (SEG/PC/MH)
         list.Add(
             new()
             {
@@ -1896,39 +1900,85 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         list.Add(
             new()
             {
+                Id = 423,
+                SubCategoryId = 105,
+                MetricId = 63,
+                DisplayOrder = 4,
+            }
+        ); // Adult Males - Provincial (SEG/PC/MH)
+        list.Add(
+            new()
+            {
                 Id = 410,
                 SubCategoryId = 105,
                 MetricId = 52,
-                DisplayOrder = 4,
+                DisplayOrder = 5,
             }
         ); // Federal Females
+        list.Add(
+            new()
+            {
+                Id = 424,
+                SubCategoryId = 105,
+                MetricId = 64,
+                DisplayOrder = 6,
+            }
+        ); // Federal Females (SEG/PC/MH)
         list.Add(
             new()
             {
                 Id = 411,
                 SubCategoryId = 105,
                 MetricId = 53,
-                DisplayOrder = 5,
+                DisplayOrder = 7,
             }
         ); // Federal Males
+        list.Add(
+            new()
+            {
+                Id = 425,
+                SubCategoryId = 105,
+                MetricId = 65,
+                DisplayOrder = 8,
+            }
+        ); // Federal Males (SEG/PC/MH)
         list.Add(
             new()
             {
                 Id = 412,
                 SubCategoryId = 105,
                 MetricId = 54,
-                DisplayOrder = 6,
+                DisplayOrder = 9,
             }
         ); // Youth Females - Provincial
+        list.Add(
+            new()
+            {
+                Id = 426,
+                SubCategoryId = 105,
+                MetricId = 66,
+                DisplayOrder = 10,
+            }
+        ); // Youth Females - Provincial (SEG/PC/MH)
         list.Add(
             new()
             {
                 Id = 413,
                 SubCategoryId = 105,
                 MetricId = 55,
-                DisplayOrder = 7,
+                DisplayOrder = 11,
             }
         ); // Youth Males - Provincial
+        list.Add(
+            new()
+            {
+                Id = 427,
+                SubCategoryId = 105,
+                MetricId = 67,
+                DisplayOrder = 12,
+            }
+        ); // Youth Males - Provincial (SEG/PC/MH)
+        // IDs 408-413, 422-427
 
         // ── Transports Females LL (SubCategory 106 – General) ──────────────────
         list.Add(
@@ -2213,6 +2263,29 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
             }
         ); // Staff Hours
         // IDs 404-406
+
+        // ── Missing SEG/PC/MH for Youth subcategories (NS) ────────────────────
+        // Youth females Prov (SubCat 42) and Youth males Prov (SubCat 43) were
+        // missing MetricId 34 (SEG/PC/MH) that all other Holding subcategories have.
+        list.Add(
+            new()
+            {
+                Id = 420,
+                SubCategoryId = 42,
+                MetricId = 34,
+                DisplayOrder = 4,
+            }
+        ); // Youth females - SEG/PC/MH
+        list.Add(
+            new()
+            {
+                Id = 421,
+                SubCategoryId = 43,
+                MetricId = 34,
+                DisplayOrder = 4,
+            }
+        ); // Youth males - SEG/PC/MH
+        // IDs 420-421
 
         return [.. list];
     }

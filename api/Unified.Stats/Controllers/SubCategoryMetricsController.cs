@@ -15,10 +15,11 @@ public class SubCategoryMetricsController(ISubCategoryMetricService service) : C
     [ProducesResponseType(typeof(IEnumerable<SubCategoryMetricResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<SubCategoryMetricResponse>>> GetAll(
         [FromQuery] int? subCategoryId,
-        CancellationToken cancellationToken
+        [FromQuery] bool includeArchived = false,
+        CancellationToken cancellationToken = default
     )
     {
-        return Ok(await service.GetAllAsync(subCategoryId, cancellationToken));
+        return Ok(await service.GetAllAsync(subCategoryId, includeArchived, cancellationToken));
     }
 
     [HttpGet("{id:int}")]

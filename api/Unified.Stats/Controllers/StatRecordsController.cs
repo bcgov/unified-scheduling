@@ -26,12 +26,23 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
             return Unauthorized();
 
-        // Non-supervisors may only query their own records — except for location-level
-        // groups where data is per-location, not per-employee.
+        // Determine whether the requested group is location-level from the database,
+        // not from user input alone, to prevent authorization bypass.
         var isLocationLevel =
             queryParams?.GroupId is int gid && await service.IsLocationLevelGroupAsync(gid, cancellationToken);
-        if (!callerCanEnterForOthers && !isLocationLevel)
+
+        if (isLocationLevel)
+        {
+            // Location-level queries are scoped to the caller's home location.
+            if (!TryGetHomeLocationId(out var homeLocationId))
+                return Unauthorized();
+            queryParams = (queryParams ?? new()) with { LocationId = homeLocationId };
+        }
+        else if (!callerCanEnterForOthers)
+        {
+            // Non-supervisors may only query their own employee-level records.
             queryParams = (queryParams ?? new()) with { UserId = callerUserId };
+        }
 
         return Ok(await service.GetAllAsync(queryParams, cancellationToken));
     }
@@ -106,6 +117,7 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<StatRecordResponse>>> SaveDay(
         [FromBody] SaveDayRequest request,
         CancellationToken cancellationToken
@@ -113,6 +125,15 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     {
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
             return Unauthorized();
+
+        // For location-level saves, restrict to the caller's home location.
+        var isLocationLevel =
+            await service.IsLocationLevelGroupAsync(request.GroupId, cancellationToken);
+        if (isLocationLevel)
+        {
+            if (!TryGetHomeLocationId(out var homeLocationId) || request.LocationId != homeLocationId)
+                return Forbid();
+        }
 
         var result = await service.SaveDayAsync(
             request,
@@ -155,6 +176,12 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
 
         callerUserId = Guid.Empty;
         return false;
+    }
+
+    private bool TryGetHomeLocationId(out int homeLocationId)
+    {
+        var value = User.FindFirst(UnifiedClaimTypes.HomeLocationId)?.Value;
+        return int.TryParse(value, out homeLocationId);
     }
 
     private bool HasOverrideSignedOffPermission() =>

@@ -20,7 +20,7 @@ export const GetApiStatsDashboardEntriesQueryParams = zod.strictObject({
 
 export const GetApiStatsDashboardEntriesResponseItem = zod.object({
   id: zod.int().optional(),
-  userId: zod.uuid().optional(),
+  userId: zod.uuid().nullish(),
   employeeName: zod.string().optional(),
   badgeNumber: zod.string().nullish(),
   date: zod.iso.date().optional(),

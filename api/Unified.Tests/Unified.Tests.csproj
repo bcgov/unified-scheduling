@@ -29,7 +29,7 @@
     <ProjectReference Include="..\Unified.Training\Unified.Training.csproj" />
     <ProjectReference Include="..\Unified.Scheduling\Unified.Scheduling.csproj" />
     <ProjectReference Include="..\Unified.UserManagement\Unified.UserManagement.csproj" />
-    <ProjectReference Include="..\Unified.Api\Unified.Api.csproj" />
+    <ProjectReference Include="..\Unified.Stats\Unified.Stats.csproj" />
     <ProjectReference Include="..\..\db\db.csproj" />
   </ItemGroup>
 </Project>

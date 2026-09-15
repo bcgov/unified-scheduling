@@ -18,7 +18,7 @@ export const getGetApiStatsRecordsResponseMock = (): StatRecordResponse[] =>
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -46,7 +46,7 @@ export const getGetApiStatsRecordsResponseMock = (): StatRecordResponse[] =>
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -74,7 +74,7 @@ export const getGetApiStatsRecordsResponseMock = (): StatRecordResponse[] =>
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -108,7 +108,7 @@ export const getPostApiStatsRecordsResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -137,7 +137,7 @@ export const getPostApiStatsRecordsResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -166,7 +166,7 @@ export const getPostApiStatsRecordsResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -201,7 +201,7 @@ export const getGetApiStatsRecordsIdResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -230,7 +230,7 @@ export const getGetApiStatsRecordsIdResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -259,7 +259,7 @@ export const getGetApiStatsRecordsIdResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -294,7 +294,7 @@ export const getPutApiStatsRecordsIdResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -323,7 +323,7 @@ export const getPutApiStatsRecordsIdResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -352,7 +352,7 @@ export const getPutApiStatsRecordsIdResponseMock = (
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -385,7 +385,7 @@ export const getPostApiStatsRecordsBatchResponseMock = (): StatRecordResponse[] 
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -413,7 +413,7 @@ export const getPostApiStatsRecordsBatchResponseMock = (): StatRecordResponse[] 
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -441,7 +441,7 @@ export const getPostApiStatsRecordsBatchResponseMock = (): StatRecordResponse[] 
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -473,7 +473,7 @@ export const getPutApiStatsRecordsDayResponseMock = (): StatRecordResponse[] =>
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -501,7 +501,7 @@ export const getPutApiStatsRecordsDayResponseMock = (): StatRecordResponse[] =>
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),
@@ -529,7 +529,7 @@ export const getPutApiStatsRecordsDayResponseMock = (): StatRecordResponse[] =>
       dateFrom: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       dateTo: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]),
       periodType: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
-      userId: faker.helpers.arrayElement([faker.string.uuid(), undefined]),
+      userId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.uuid(), null]), undefined]),
       locationId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       performedAtLocationId: faker.helpers.arrayElement([
         faker.helpers.arrayElement([faker.number.int(), null]),

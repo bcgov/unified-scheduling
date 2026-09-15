@@ -4,6 +4,6 @@ namespace Unified.Stats.Services;
 
 public interface IStatCategoryService
 {
-    Task<IReadOnlyCollection<StatCategoryResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<StatCategoryResponse>> GetAllAsync(bool includeArchived = false, CancellationToken cancellationToken = default);
     Task<StatCategoryResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 }

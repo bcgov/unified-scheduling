@@ -8,6 +8,7 @@ import type { MaybeRef } from 'vue';
 
 export type OriginalGetApiStatsSubCategoryMetricsParams = {
   subCategoryId?: number;
+  includeArchived?: boolean;
 };
 
 export type GetApiStatsSubCategoryMetricsParams = MaybeRef<OriginalGetApiStatsSubCategoryMetricsParams>;

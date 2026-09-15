@@ -55,6 +55,7 @@ export * from './getApiSchedulingAssignmentsEntriesParams.ts';
 export * from './getApiSchedulingAssignmentsSeriesParams.ts';
 export * from './getApiSchedulingShiftsEntriesParams.ts';
 export * from './getApiSchedulingShiftsSeriesParams.ts';
+export * from './getApiStatsCategoriesParams.ts';
 export * from './getApiStatsDashboardEntriesParams.ts';
 export * from './getApiStatsDashboardSummaryParams.ts';
 export * from './getApiStatsRecordsParams.ts';

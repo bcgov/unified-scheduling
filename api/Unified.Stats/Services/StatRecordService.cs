@@ -1,3 +1,4 @@
+using FluentValidation;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -203,6 +204,9 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
             callerUserId
         );
 
+        if (request.Records.Count == 0)
+            throw new ValidationException("At least one record is required.");
+
         // Verify whether this group is location-level from the database, not the request.
         var isLocationLevel = await db.StatGroups.AnyAsync(
             g => g.Id == request.GroupId && g.IsLocationLevel,
@@ -212,6 +216,23 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
         // Location-level entries are per-location, not per-employee — skip user auth.
         if (!isLocationLevel)
             EnsureAuthorizedToSubmitFor(request.UserId, callerUserId, callerCanEnterForOthers);
+
+        // Verify all submitted metrics belong to the requested group to prevent
+        // location-level metrics from being entered via employee forms and vice versa.
+        var requestedMetricIds = request.Records.Select(r => r.SubCategoryMetricId).Distinct().ToList();
+        var metricUnits = await db
+            .SubCategoryMetrics.Where(scm =>
+                requestedMetricIds.Contains(scm.Id)
+                && !scm.IsArchived
+                && scm.SubCategory!.Category!.GroupId == request.GroupId
+            )
+            .Select(scm => new { scm.Id, scm.Metric!.UnitOfMeasure })
+            .ToListAsync(cancellationToken);
+        if (metricUnits.Count != requestedMetricIds.Count)
+            throw new ValidationException("One or more metrics do not belong to the requested group.");
+
+        var unitByMetricId = metricUnits.ToDictionary(m => m.Id, m => m.UnitOfMeasure);
+        ValidateRecordValues(request.Records, unitByMetricId);
 
         // Load existing records for this user/location/date scoped to the same group so we can
         // diff within one transaction without touching records that belong to other group forms.
@@ -249,9 +270,8 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
                 var entity = existingRecords.FirstOrDefault(r => r.Id == item.Id.Value);
                 if (entity is null || (!canOverrideSignedOff && entity.Status == StatRecordStatus.SignedOff))
                 {
-                    continue; // stale ID or signed-off — skip
                     logger.LogDebug("Skipping stale stat record id {StatRecordId} while saving day", item.Id.Value);
-                    continue; // stale ID - skip rather than error
+                    continue;
                 }
 
                 entity.SubCategoryMetricId = item.SubCategoryMetricId;
@@ -306,6 +326,40 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
     {
         if (!callerCanEnterForOthers && requestedUserId != callerUserId)
             throw new ForbiddenException();
+    }
+
+    private static void ValidateRecordValues(
+        IReadOnlyList<SaveDayRecordItem> records,
+        Dictionary<int, string> unitByMetricId
+    )
+    {
+        foreach (var record in records)
+        {
+            if (record.Value is not { } value || value == 0)
+                continue;
+
+            if (value < 0)
+                throw new ValidationException($"Value must not be negative (metric {record.SubCategoryMetricId}).");
+
+            if (!unitByMetricId.TryGetValue(record.SubCategoryMetricId, out var unit))
+                continue;
+
+            switch (unit)
+            {
+                case "hours" when value % 0.25m != 0:
+                    throw new ValidationException(
+                        $"Hours must be in 0.25 increments (metric {record.SubCategoryMetricId})."
+                    );
+                case "count" or "count (received/concluded)" when value != Math.Truncate(value):
+                    throw new ValidationException(
+                        $"Count values must be whole numbers (metric {record.SubCategoryMetricId})."
+                    );
+                case "$" when value * 100 != Math.Truncate(value * 100):
+                    throw new ValidationException(
+                        $"Dollar values must be in 0.01 increments (metric {record.SubCategoryMetricId})."
+                    );
+            }
+        }
     }
 
     private static StatRecord MapToEntity(StatRecordRequest request) =>

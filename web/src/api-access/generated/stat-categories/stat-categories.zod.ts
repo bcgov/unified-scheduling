@@ -6,6 +6,12 @@
  */
 import * as zod from 'zod';
 
+export const getApiStatsCategoriesQueryIncludeArchivedDefault = false;
+
+export const GetApiStatsCategoriesQueryParams = zod.strictObject({
+  includeArchived: zod.boolean().default(getApiStatsCategoriesQueryIncludeArchivedDefault),
+});
+
 export const GetApiStatsCategoriesResponseItem = zod.object({
   id: zod.int().optional(),
   groupId: zod.int().optional(),

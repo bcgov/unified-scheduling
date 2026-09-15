@@ -24,7 +24,7 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
             .Select(r => new DashboardEntryResponse
             {
                 Id = r.Id,
-                UserId = r.UserId ?? Guid.Empty,
+                UserId = r.UserId,
                 EmployeeName = r.User != null ? $"{r.User.FirstName} {r.User.LastName}".Trim() : string.Empty,
                 BadgeNumber = r.User != null ? r.User.BadgeNumber : null,
                 Date = r.DateFrom,
@@ -117,7 +117,14 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
             .StatRecords.Where(r =>
                 (
                     (r.User != null && r.User.HomeLocationId == callerHomeLocationId)
-                    || (r.UserId == null && r.LocationId == callerHomeLocationId)
+                    || (
+                        r.SubCategoryMetric != null
+                        && r.SubCategoryMetric.SubCategory != null
+                        && r.SubCategoryMetric.SubCategory.Category != null
+                        && r.SubCategoryMetric.SubCategory.Category.Group != null
+                        && r.SubCategoryMetric.SubCategory.Category.Group.IsLocationLevel
+                        && r.LocationId == callerHomeLocationId
+                    )
                 )
                 && request.EntryIds.Contains(r.Id)
                 && (r.Status == StatRecordStatus.Draft || r.Status == StatRecordStatus.Submitted)
@@ -155,12 +162,19 @@ public sealed class DashboardService(UnifiedDbContext db, ILogger<DashboardServi
         );
 
         // Include employee records scoped to the caller's home location, plus
-        // location-level records (UserId is null) for the same location.
+        // location-level records for the same location.
         var query = db
             .StatRecords.AsNoTracking()
             .Where(r =>
                 (r.User != null && r.User.HomeLocationId == callerHomeLocationId)
-                || (r.UserId == null && r.LocationId == callerHomeLocationId)
+                || (
+                    r.SubCategoryMetric != null
+                    && r.SubCategoryMetric.SubCategory != null
+                    && r.SubCategoryMetric.SubCategory.Category != null
+                    && r.SubCategoryMetric.SubCategory.Category.Group != null
+                    && r.SubCategoryMetric.SubCategory.Category.Group.IsLocationLevel
+                    && r.LocationId == callerHomeLocationId
+                )
             );
 
         if (queryParams?.EmployeeId is Guid employeeId)

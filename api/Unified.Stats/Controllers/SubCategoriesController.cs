@@ -15,10 +15,11 @@ public class SubCategoriesController(ISubCategoryService service) : ControllerBa
     [ProducesResponseType(typeof(IEnumerable<SubCategoryResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<SubCategoryResponse>>> GetAll(
         [FromQuery] int? categoryId,
-        CancellationToken cancellationToken
+        [FromQuery] bool includeArchived = false,
+        CancellationToken cancellationToken = default
     )
     {
-        return Ok(await service.GetAllAsync(categoryId, cancellationToken));
+        return Ok(await service.GetAllAsync(categoryId, includeArchived, cancellationToken));
     }
 
     [HttpGet("{id:int}")]

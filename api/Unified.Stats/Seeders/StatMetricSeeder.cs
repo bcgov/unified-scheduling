@@ -397,6 +397,43 @@ public class StatMetricSeeder(ILogger<StatMetricSeeder> logger) : SeederBase<Uni
             Name = "Number of Youth Males",
             UnitOfMeasure = "count",
         },
+        // Holding area/cellblock – SEG/PC/MH per demographic (IDs 62-67)
+        new()
+        {
+            Id = 62,
+            Name = "Adult Females - Provincial (SEG/PC/MH)",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 63,
+            Name = "Adult Males - Provincial (SEG/PC/MH)",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 64,
+            Name = "Federal Females (SEG/PC/MH)",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 65,
+            Name = "Federal Males (SEG/PC/MH)",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 66,
+            Name = "Youth Females - Provincial (SEG/PC/MH)",
+            UnitOfMeasure = "count",
+        },
+        new()
+        {
+            Id = 67,
+            Name = "Youth Males - Provincial (SEG/PC/MH)",
+            UnitOfMeasure = "count",
+        },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)

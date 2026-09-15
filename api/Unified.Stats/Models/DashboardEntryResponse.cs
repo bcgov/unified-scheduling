@@ -3,7 +3,7 @@ namespace Unified.Stats.Models;
 public sealed record DashboardEntryResponse
 {
     public int Id { get; init; }
-    public Guid UserId { get; init; }
+    public Guid? UserId { get; init; }
     public string EmployeeName { get; init; } = string.Empty;
     public string? BadgeNumber { get; init; }
     public DateOnly Date { get; init; }

@@ -13,9 +13,12 @@ public class StatCategoriesController(IStatCategoryService service) : Controller
 {
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<StatCategoryResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<StatCategoryResponse>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<IEnumerable<StatCategoryResponse>>> GetAll(
+        [FromQuery] bool includeArchived = false,
+        CancellationToken cancellationToken = default
+    )
     {
-        return Ok(await service.GetAllAsync(cancellationToken));
+        return Ok(await service.GetAllAsync(includeArchived, cancellationToken));
     }
 
     [HttpGet("{id:int}")]

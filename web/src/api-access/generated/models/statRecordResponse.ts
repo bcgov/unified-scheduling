@@ -10,7 +10,8 @@ export interface StatRecordResponse {
   dateFrom?: string;
   dateTo?: string;
   periodType?: string;
-  userId?: string;
+  /** @nullable */
+  userId?: string | null;
   locationId?: number;
   /** @nullable */
   performedAtLocationId?: number | null;

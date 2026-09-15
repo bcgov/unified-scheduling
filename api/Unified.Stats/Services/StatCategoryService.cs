@@ -9,14 +9,17 @@ namespace Unified.Stats.Services;
 public sealed class StatCategoryService(UnifiedDbContext db, ILogger<StatCategoryService> logger) : IStatCategoryService
 {
     public async Task<IReadOnlyCollection<StatCategoryResponse>> GetAllAsync(
+        bool includeArchived = false,
         CancellationToken cancellationToken = default
     )
     {
         logger.LogDebug("Retrieving stat categories");
 
-        return await db
-            .StatCategories.AsNoTracking()
-            .Where(c => !c.IsArchived)
+        var query = db.StatCategories.AsNoTracking();
+        if (!includeArchived)
+            query = query.Where(c => !c.IsArchived);
+
+        return await query
             .OrderBy(c => c.DisplayOrder)
             .ThenBy(c => c.Name)
             .ProjectToType<StatCategoryResponse>()

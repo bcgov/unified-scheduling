@@ -90,6 +90,12 @@ const subCategoryOptions = computed(() => {
 
 const showSubCategorySelect = computed(() => subCategoryOptions.value.length > 1);
 
+const filteredLocationOptions = computed(() => {
+  if (!props.locationOptions) return [];
+  if (props.homeLocationId == null) return props.locationOptions;
+  return props.locationOptions.filter((o) => o.code !== props.homeLocationId);
+});
+
 const metricDetails = computed(() => {
   if (!model.value.subCategoryId) return [];
   return props.subCategoryMetrics
@@ -277,7 +283,7 @@ const onLocationOverrideChange = (value: SelectValue | undefined) => {
       />
 
       <!-- Location override -->
-      <template v-if="locationOptions && locationOptions.length > 0">
+      <template v-if="filteredLocationOptions.length > 0">
         <label class="ua-form-label">Location</label>
         <div class="location-override">
           <v-checkbox
@@ -296,7 +302,7 @@ const onLocationOverrideChange = (value: SelectValue | undefined) => {
             v-if="showLocationOverride"
             :id="`location-${model.id}`"
             label="Select Location"
-            :items="locationOptions"
+            :items="filteredLocationOptions"
             :model-value="model.performedAtLocationId"
             :disabled="readonly"
             @update:model-value="onLocationOverrideChange"

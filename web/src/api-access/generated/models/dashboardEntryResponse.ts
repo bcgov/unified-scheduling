@@ -7,7 +7,8 @@
 
 export interface DashboardEntryResponse {
   id?: number;
-  userId?: string;
+  /** @nullable */
+  userId?: string | null;
   employeeName?: string;
   /** @nullable */
   badgeNumber?: string | null;

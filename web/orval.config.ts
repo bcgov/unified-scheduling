@@ -66,7 +66,7 @@ export default defineConfig({
       tsconfig: './tsconfig.app.json',
     },
     input: {
-      target: 'http://localhost:5000/openapi/v1.json',
+      target: 'http://host.docker.internal:5000/openapi/v1.json',
     },
     hooks: {
       afterAllFilesWrite: 'npm run format',
@@ -97,7 +97,7 @@ export default defineConfig({
       tsconfig: './tsconfig.app.json',
     },
     input: {
-      target: 'http://localhost:5000/openapi/v1.json',
+      target: 'http://host.docker.internal:5000/openapi/v1.json',
     },
   },
 });

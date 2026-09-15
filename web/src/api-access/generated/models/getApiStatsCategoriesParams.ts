@@ -6,9 +6,8 @@
  */
 import type { MaybeRef } from 'vue';
 
-export type OriginalGetApiStatsSubCategoriesParams = {
-  categoryId?: number;
+export type OriginalGetApiStatsCategoriesParams = {
   includeArchived?: boolean;
 };
 
-export type GetApiStatsSubCategoriesParams = MaybeRef<OriginalGetApiStatsSubCategoriesParams>;
+export type GetApiStatsCategoriesParams = MaybeRef<OriginalGetApiStatsCategoriesParams>;

@@ -33,6 +33,9 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropColumn(name: "IsRequired", table: "SubCategoryMetrics");
 
+            // Set any null values to 0 before making the column non-nullable
+            migrationBuilder.Sql("""UPDATE "StatRecords" SET "Value" = 0 WHERE "Value" IS NULL""");
+
             migrationBuilder.AlterColumn<decimal>(
                 name: "Value",
                 table: "StatRecords",

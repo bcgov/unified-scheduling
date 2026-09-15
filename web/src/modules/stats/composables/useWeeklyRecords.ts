@@ -172,8 +172,7 @@ export function useWeeklyRecords(
         metricValues,
         existingRecordIds,
         comment: firstRecord.comment ?? '',
-        performedAtLocationId:
-          ((firstRecord as Record<string, unknown>).performedAtLocationId as number | null) ?? null,
+        performedAtLocationId: firstRecord.performedAtLocationId ?? null,
       };
     });
   }

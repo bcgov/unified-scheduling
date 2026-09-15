@@ -10,12 +10,15 @@ public sealed class SubCategoryService(UnifiedDbContext db, ILogger<SubCategoryS
 {
     public async Task<IReadOnlyCollection<SubCategoryResponse>> GetAllAsync(
         int? categoryId = null,
+        bool includeArchived = false,
         CancellationToken cancellationToken = default
     )
     {
         logger.LogDebug("Retrieving sub-categories for category {CategoryId}", categoryId);
 
-        var query = db.SubCategories.AsNoTracking().Where(sc => !sc.IsArchived);
+        var query = db.SubCategories.AsNoTracking();
+        if (!includeArchived)
+            query = query.Where(sc => !sc.IsArchived);
 
         if (categoryId is int id)
             query = query.Where(sc => sc.CategoryId == id);

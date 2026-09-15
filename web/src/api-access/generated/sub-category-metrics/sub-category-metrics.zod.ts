@@ -6,8 +6,11 @@
  */
 import * as zod from 'zod';
 
+export const getApiStatsSubCategoryMetricsQueryIncludeArchivedDefault = false;
+
 export const GetApiStatsSubCategoryMetricsQueryParams = zod.strictObject({
   subCategoryId: zod.int().optional(),
+  includeArchived: zod.boolean().default(getApiStatsSubCategoryMetricsQueryIncludeArchivedDefault),
 });
 
 export const GetApiStatsSubCategoryMetricsResponseItem = zod.object({

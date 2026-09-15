@@ -4,14 +4,17 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
-import type { StatCategoryResponse } from '../models';
+import type { GetApiStatsCategoriesParams, StatCategoryResponse } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI.ts';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
-export const getApiStatsCategories = (options?: SecondParameter<typeof useFetchAPI<StatCategoryResponse[]>>) => {
-  return useFetchAPI<StatCategoryResponse[]>({ url: `/api/stats/categories`, method: 'GET' }, options);
+export const getApiStatsCategories = (
+  params?: GetApiStatsCategoriesParams,
+  options?: SecondParameter<typeof useFetchAPI<StatCategoryResponse[]>>,
+) => {
+  return useFetchAPI<StatCategoryResponse[]>({ url: `/api/stats/categories`, method: 'GET', params }, options);
 };
 export const getApiStatsCategoriesId = (
   id: number,

@@ -11,12 +11,15 @@ public sealed class SubCategoryMetricService(UnifiedDbContext db, ILogger<SubCat
 {
     public async Task<IReadOnlyCollection<SubCategoryMetricResponse>> GetAllAsync(
         int? subCategoryId = null,
+        bool includeArchived = false,
         CancellationToken cancellationToken = default
     )
     {
         logger.LogDebug("Retrieving sub-category metrics for sub-category {SubCategoryId}", subCategoryId);
 
-        var query = db.SubCategoryMetrics.AsNoTracking().Where(scm => !scm.IsArchived);
+        var query = db.SubCategoryMetrics.AsNoTracking();
+        if (!includeArchived)
+            query = query.Where(scm => !scm.IsArchived);
 
         if (subCategoryId is int id)
             query = query.Where(scm => scm.SubCategoryId == id);
