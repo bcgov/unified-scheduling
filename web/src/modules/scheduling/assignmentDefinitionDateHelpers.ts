@@ -35,12 +35,7 @@ export function isAssignmentDefinitionSelectableForAssignmentDate(
     return true;
   }
 
-  return assignmentDefinitionOverlapsCalendarDateRange(
-    definition,
-    targetDate,
-    addDays(targetDate, 1),
-    timeZoneId,
-  );
+  return assignmentDefinitionOverlapsCalendarDateRange(definition, targetDate, addDays(targetDate, 1), timeZoneId);
 }
 
 export function assignmentDefinitionOverlapsCalendarDateRange(

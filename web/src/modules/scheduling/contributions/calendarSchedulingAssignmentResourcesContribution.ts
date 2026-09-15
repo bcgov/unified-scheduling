@@ -88,9 +88,7 @@ async function loadAssignmentDefinitions(locationId: number, signal?: AbortSigna
   return data.value ?? [];
 }
 
-function mapAssignmentResources(
-  definitions: AssignmentDefinitionResponse[],
-): CalendarSchedulingAssignmentResource[] {
+function mapAssignmentResources(definitions: AssignmentDefinitionResponse[]): CalendarSchedulingAssignmentResource[] {
   return definitions
     .filter((definition): definition is AssignmentDefinitionResponse & { id: number } => Boolean(definition.id))
     .map((definition) => {
