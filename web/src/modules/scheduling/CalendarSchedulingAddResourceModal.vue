@@ -301,7 +301,8 @@ async function handleSave() {
         return;
       }
 
-      apiError.value = saveResult.error.value.message ||
+      apiError.value =
+        saveResult.error.value.message ||
         (payload.kind === 'series' ? 'Failed to create shift series.' : 'Failed to create shift entry.');
       return;
     }

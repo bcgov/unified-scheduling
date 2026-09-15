@@ -132,9 +132,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
   it('does not load shift lists when opening the modal', async () => {
     const loadEntries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
     const loadSeries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
-    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
-      buildShiftApiMock({ loadEntries, loadSeries }),
-    );
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => buildShiftApiMock({ loadEntries, loadSeries }));
     vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
 
     const { default: CalendarSchedulingAddResourceModal } =
@@ -156,9 +154,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
   it('does not load shift lists when location changes', async () => {
     const loadEntries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
     const loadSeries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
-    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
-      buildShiftApiMock({ loadEntries, loadSeries }),
-    );
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => buildShiftApiMock({ loadEntries, loadSeries }));
     vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
 
     const { default: CalendarSchedulingAddResourceModal } =
