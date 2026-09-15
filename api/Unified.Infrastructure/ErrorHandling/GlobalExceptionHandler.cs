@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Unified.Common.Validation;
 using Unified.Core.Email;
 
 namespace Unified.Infrastructure.ErrorHandling;
@@ -44,6 +45,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             EmailValidationException ex => HandleEmailValidationException(ex, httpContext),
             EmailDeliveryStateUnknownException ex => HandleEmailDeliveryStateUnknownException(ex, httpContext),
             EmailDeliveryException ex => HandleEmailDeliveryException(ex, httpContext),
+            ConflictValidationException ex => HandleConflictValidationException(ex, httpContext),
             ForbiddenException ex => HandleForbiddenException(ex, httpContext),
             KeyNotFoundException ex => HandleKeyNotFoundException(ex, httpContext),
             InvalidDataException ex => HandleInvalidDataException(ex, httpContext),
@@ -133,6 +135,22 @@ public class GlobalExceptionHandler : IExceptionHandler
             Status = StatusCodes.Status502BadGateway,
             Title = "Email submission outcome unknown.",
             Detail = "The email provider did not confirm whether the submission was accepted.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+        };
+    }
+
+    private ValidationProblemDetails HandleConflictValidationException(
+        ConflictValidationException ex,
+        HttpContext httpContext
+    )
+    {
+        _logger.LogInformation(ex, "Validation conflict: {Message}", ex.Message);
+        httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+
+        return new ValidationProblemDetails(new Dictionary<string, string[]>(ex.Errors))
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "Conflict.",
             Extensions = { ["traceId"] = httpContext.TraceIdentifier },
         };
     }
