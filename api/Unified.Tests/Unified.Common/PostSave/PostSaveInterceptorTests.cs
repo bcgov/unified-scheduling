@@ -193,5 +193,4 @@ public sealed class PostSaveInterceptorTests
         public Task HandleAsync(DbContext db, SaveContext context, CancellationToken cancellationToken) =>
             handleAsync(db, context, cancellationToken);
     }
-
 }

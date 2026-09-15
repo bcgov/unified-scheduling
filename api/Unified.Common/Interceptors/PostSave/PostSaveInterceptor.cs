@@ -8,14 +8,13 @@ namespace Unified.Common.Interceptors.PostSave;
 /// Captures changes with registered handlers before save; dispatches only after the initial EF save succeeds.
 /// UnifiedDbContext owns the transaction around the initial save, handler saves, and auditing.
 /// </summary>
-public sealed class PostSaveInterceptor(
-    IEnumerable<IPostSaveHandler> handlers,
-    TimeProvider? timeProvider = null
-) : SaveChangesInterceptor
+public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, TimeProvider? timeProvider = null)
+    : SaveChangesInterceptor
 {
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
-    private readonly ILookup<(Type, SaveAction), IPostSaveHandler> _handlers =
-        handlers.ToLookup(handler => (handler.EntityType, handler.Action));
+    private readonly ILookup<(Type, SaveAction), IPostSaveHandler> _handlers = handlers.ToLookup(handler =>
+        (handler.EntityType, handler.Action)
+    );
     private readonly ConditionalWeakTable<DbContext, SaveState> _states = [];
 
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
