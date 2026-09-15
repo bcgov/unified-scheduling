@@ -138,10 +138,6 @@ const modalTitle = computed(() => {
   return 'Add Type Definition';
 });
 const locationOptions = computed(() => locationsStore.selectOptions);
-const activeDefinitionTimeZoneId = computed(() => {
-  const locationId = normalizeNumber(formData.value.locationId) ?? activeLocationId.value;
-  return locationId ? locationsStore.entitiesMap[locationId]?.timezone : undefined;
-});
 const assignmentCategoryOptions = computed<SelectOption[]>(() =>
   assignmentCategoryTypes.value
     .filter(
