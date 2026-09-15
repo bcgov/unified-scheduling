@@ -16,6 +16,8 @@ public static class InterceptorRegistration
         // Interceptors are executed by EF Core in the order they are registered.
         // 1. Business save rules
         services.AddScoped<IInterceptor, SaveRulesInterceptor>();
+        // 2. Capture matching changes, then dispatch after a successful EF save.
+        services.AddScoped<IInterceptor, PostSaveInterceptor>();
 
         return services;
     }
