@@ -771,7 +771,7 @@ describe('calendarSchedulingActions', () => {
     };
     const readOnlyContext = { featureFlags: {}, permissions: [Permissions.AssignmentsView] };
 
-    expect(calendarAddAssignmentAction.isAvailable(context, readOnlyContext)).toBe(false);
+    expect(calendarAddAssignmentAction.isAvailable?.(context, readOnlyContext)).toBe(false);
     await calendarAddAssignmentAction.execute(context, readOnlyContext);
     expect(calendarSchedulingAssignmentModalDate.value).toBeUndefined();
   });
