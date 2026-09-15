@@ -158,7 +158,7 @@ describe('Calendar alerts', () => {
     });
     await flushPromises();
 
-    const alertMessages = Array.from(document.querySelectorAll('[role="alert"]')).map((alert) => alert.textContent);
+    const alertMessages = wrapper.findAll('.calendar-alerts [role="alert"]').map((alert) => alert.text());
     expect(alertMessages).toEqual(['Unable to load scheduling assignments.', 'Unable to load training events.']);
 
     wrapper.unmount();
