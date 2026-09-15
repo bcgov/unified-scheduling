@@ -1,4 +1,4 @@
-namespace Unified.Common.PostSave;
+namespace Unified.Common.Interceptors.PostSave;
 
 /// <summary>
 /// Describes an entity save that must succeed before post-save handlers run.

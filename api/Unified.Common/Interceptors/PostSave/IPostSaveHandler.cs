@@ -1,22 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace Unified.Common.PostSave;
+namespace Unified.Common.Interceptors.PostSave;
 
 /// <summary>
-/// Stages module-owned changes after the initial entity save has succeeded.
-/// Register implementations as scoped services in the module that owns the behavior.
+/// Runs module-owned logic after a successful save and stages follow-up changes.
 /// </summary>
 /// <remarks>
-/// Post-save does not mean post-commit: handlers execute sequentially inside the save's
-/// transaction and can query the saved entity through the same scoped database context.
-/// Do not save, commit, or perform external side effects. The interceptor saves handler changes
-/// and the DbContext commits only after all handlers succeed. Exceptions roll back the entire save.
-/// Unlike ISaveRule, this contract handles successful saves rather than validating pending changes.
-/// Register directly with AddScoped&lt;IPostSaveHandler, THandler&gt;, like ISaveRule.
-/// Do not inject DbContext in the constructor: use the context passed to HandleAsync to avoid
-/// a circular dependency while EF constructs its interceptors.
-/// Ordinary SaveChangesAsync calls invoke matching handlers.
-/// Follow-up handler saves do not cascade into additional post-save handlers.
+/// Register handlers as scoped services.
+/// Use the DbContext passed to HandleAsync (do not inject DbContext in the constructor).
+/// Handlers stage changes only; no SaveChanges/commit/external side effects.
+/// Handler changes are saved once by the interceptor and are not re-dispatched.
 /// </remarks>
 public interface IPostSaveHandler
 {

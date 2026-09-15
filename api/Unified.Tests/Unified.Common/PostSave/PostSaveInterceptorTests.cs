@@ -2,8 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Api.Services;
-using Unified.Common.Interceptors;
-using Unified.Common.PostSave;
+using Unified.Common.Interceptors.PostSave;
 using Unified.Common.Seeding;
 
 namespace Unified.Tests.Common.PostSave;
@@ -62,7 +61,12 @@ public sealed class PostSaveInterceptorTests
         var otherAction = new FakePostSaveHandler(
             typeof(ExampleEntity),
             action == SaveAction.Create ? SaveAction.Update : SaveAction.Create,
-            (_, _, _) => throw new InvalidOperationException("Wrong action dispatched.")
+            (_, context, _) =>
+            {
+                if (context.Action == action)
+                    throw new InvalidOperationException("Wrong action dispatched.");
+                return Task.CompletedTask;
+            }
         );
         var interceptor = new PostSaveInterceptor([handler, second, other, otherAction], TimeProvider.System);
         await using var context = await CreateDbAsync(interceptor);
@@ -72,10 +76,12 @@ public sealed class PostSaveInterceptorTests
         if (action != SaveAction.Create)
         {
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
             if (action == SaveAction.Delete)
                 db.Remove(entity);
             else
                 entity.Value = "Saved" + " update";
+
             if (action == SaveAction.Update)
             {
                 entity.Value = "Saved";
@@ -150,7 +156,7 @@ public sealed class PostSaveInterceptorTests
     }
 
     [Fact]
-    public async Task SaveChangesWithoutAcceptingChanges_RejectsDispatchRatherThanReplayingOriginalInsert()
+    public async Task SaveChangesWithoutAcceptingChanges_DispatchesMatchingHandlers()
     {
         var calls = 0;
         var handler = new FakePostSaveHandler(
@@ -166,13 +172,12 @@ public sealed class PostSaveInterceptorTests
         db.Add(new ExampleEntity());
         await using var transaction = await db.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            db.SaveChangesAsync(false, TestContext.Current.CancellationToken)
-        );
-        await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+        var result = await db.SaveChangesAsync(false, TestContext.Current.CancellationToken);
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(0, calls);
-        Assert.Empty(await db.Set<ExampleEntity>().AsNoTracking().ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, result);
+        Assert.Equal(1, calls);
+        Assert.Single(await db.Set<ExampleEntity>().AsNoTracking().ToListAsync(TestContext.Current.CancellationToken));
     }
 
     private static async Task<SaveTestDbContext> CreateDbAsync(IInterceptor interceptor)
