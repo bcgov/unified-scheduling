@@ -140,9 +140,6 @@ const modalTitle = computed(() => {
 const locationOptions = computed(() => locationsStore.selectOptions);
 const assignmentCategoryOptions = computed<SelectOption[]>(() =>
   assignmentCategoryTypes.value
-    .filter(
-      (assignmentCategory) => !assignmentCategory.isArchived || assignmentCategory.id === formData.value.categoryId,
-    )
     .filter((assignmentCategory) => typeof assignmentCategory.id === 'number')
     .map((assignmentCategory) => ({
       code: assignmentCategory.id as number,

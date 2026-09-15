@@ -226,7 +226,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     wrapper.unmount();
   });
 
-  it('preserves the selected archived category while listing active categories', async () => {
+  it('preserves the selected category while listing the categories returned by the API', async () => {
     vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
       getApiSchedulingAssignmentDefinitionsId: vi.fn().mockReturnValue(
         createFetchResult({
@@ -248,7 +248,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     vi.doMock('@/api-access/generated/stat-categories/stat-categories', () => ({
       getApiStatsCategories: vi.fn().mockReturnValue(
         createFetchResult([
-          { id: 10, name: 'Selected archived court', isArchived: true },
+          { id: 10, name: 'Selected court' },
           { id: 11, name: 'Future category' },
           { id: 12, name: 'Too future category' },
         ]),
