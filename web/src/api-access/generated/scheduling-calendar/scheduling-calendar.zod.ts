@@ -21,8 +21,10 @@ export const PostApiSchedulingCalendarEventsResponse = zod.object({
     .array(
       zod.object({
         id: zod.string(),
-        shiftEntryId: zod.int().optional(),
+        shiftEntryId: zod.int().nullish(),
         shiftSeriesId: zod.int().nullish(),
+        assignmentEntryId: zod.int().nullish(),
+        assignmentSeriesId: zod.int().nullish(),
         eventId: zod.int().optional(),
         userIds: zod.array(zod.uuid()).optional(),
         type: zod.string(),
@@ -45,6 +47,14 @@ export const PostApiSchedulingCalendarEventsResponse = zod.object({
         cancellationReason: zod.string().nullish(),
         locationId: zod.int().nullish(),
         resourceIds: zod.array(zod.string()).optional(),
+        categoryId: zod.int().nullish(),
+        categoryName: zod.string().nullish(),
+        subCategoryId: zod.int().nullish(),
+        subCategoryName: zod.string().nullish(),
+        capacity: zod.int().nullish(),
+        assignedUserCount: zod.int().nullish(),
+        linkedShiftEntryIds: zod.array(zod.int()).optional(),
+        assignedUserIds: zod.array(zod.uuid()).optional(),
       }),
     )
     .optional(),
