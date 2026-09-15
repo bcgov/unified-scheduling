@@ -147,7 +147,8 @@ describe('CalendarMatrixCell', () => {
       },
     });
 
-    expect(wrapper.classes()).toEqual(expect.arrayContaining(['is-today', 'is-drop-active']));
+    expect(wrapper.classes()).toContain('is-today');
+    expect(wrapper.classes()).not.toContain('is-drop-target');
     expect(wrapper.attributes('role')).toBe('gridcell');
     expect(wrapper.attributes('aria-label')).toContain('Room 101 on 2025-01-13');
     expect(wrapper.findComponent({ name: 'CalendarMatrixCellHeader' }).exists()).toBe(true);
@@ -170,8 +171,10 @@ describe('CalendarMatrixCell', () => {
 
     const dropTransfer = createDataTransfer(activeDragPayload);
     await wrapper.trigger('dragenter', { dataTransfer: dropTransfer });
+    expect(wrapper.classes()).toContain('is-drop-target');
     await wrapper.trigger('dragover', { dataTransfer: dropTransfer });
     await wrapper.trigger('drop', { dataTransfer: dropTransfer });
+    expect(wrapper.classes()).not.toContain('is-drop-target');
 
     expect(wrapper.emitted('headerClick')?.[0]?.[0]).toMatchObject({ header: cell.headers?.[0] });
     expect(wrapper.emitted('headerAction')?.[0]?.[0]).toMatchObject({ actionId: 'header-action' });
@@ -208,6 +211,40 @@ describe('CalendarMatrixCell', () => {
 
     expect(wrapper.classes()).toContain('is-empty');
     await wrapper.trigger('drop', { dataTransfer: createDataTransfer('{invalid') });
+    expect(wrapper.emitted('cellDrop')).toBeUndefined();
+  });
+
+  it('clears drop target highlighting when a child handles and stops the drop event', async () => {
+    const activeDragPayload = { source: 'side-panel', itemId: 'drag-1', itemType: 'user' } as CalendarMatrixDragPayload;
+
+    const { wrapper } = await mountWithApp(CalendarMatrixCell, {
+      props: { cell, resource, isToday: true },
+      slots: {
+        cell: '<div class="child-drop-target" @drop.stop.prevent>Child target</div>',
+      },
+      global: {
+        provide: {
+          [calendarMatrixContextKey as symbol]: {
+            selectedEventId: { value: undefined },
+            selectedResourceId: { value: undefined },
+            activeDragPayload: { value: activeDragPayload },
+            selectEvent: vi.fn(),
+            selectResource: vi.fn(),
+            startDrag: vi.fn(),
+            clearDrag: vi.fn(),
+            dropOnCell: vi.fn(),
+          },
+        },
+      },
+    });
+
+    const dropTransfer = createDataTransfer(activeDragPayload);
+    await wrapper.trigger('dragenter', { dataTransfer: dropTransfer });
+    expect(wrapper.classes()).toContain('is-drop-target');
+
+    await wrapper.get('.child-drop-target').trigger('drop', { dataTransfer: dropTransfer });
+
+    expect(wrapper.classes()).not.toContain('is-drop-target');
     expect(wrapper.emitted('cellDrop')).toBeUndefined();
   });
 });
