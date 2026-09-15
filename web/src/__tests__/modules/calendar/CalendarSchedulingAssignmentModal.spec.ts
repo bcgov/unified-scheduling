@@ -9,15 +9,22 @@ import { DateTime } from 'luxon';
 const hasPermission = vi.hoisted(() => vi.fn(() => true));
 vi.mock('@/composables/useAccessControl', () => ({ useAccessControl: () => ({ hasPermission }) }));
 
-function createThenableFetchResult<T>(value: T, execute = vi.fn().mockResolvedValue(undefined)) {
-  return {
+function createAwaitGuardedFetchResult<T>(value: T, execute = vi.fn().mockResolvedValue(undefined)) {
+  const result = {
     data: { value },
     error: { value: null },
     execute,
-    then: vi.fn(() => {
-      throw new Error('useFetch result should not be awaited before execute()');
-    }),
   };
+
+  return new Proxy(result, {
+    get(target, property, receiver) {
+      if (property === 'then') {
+        throw new Error('useFetch result should not be awaited before execute()');
+      }
+
+      return Reflect.get(target, property, receiver);
+    },
+  });
 }
 
 function createFetchResult<T>({
@@ -426,7 +433,9 @@ describe('CalendarSchedulingAssignmentModal', () => {
       execute: postAssignmentDefinitionExecute,
     });
 
-    const postAssignmentEntry = vi.fn().mockReturnValue(createThenableFetchResult({ id: 901 }, postAssignmentExecute));
+    const postAssignmentEntry = vi
+      .fn()
+      .mockReturnValue(createAwaitGuardedFetchResult({ id: 901 }, postAssignmentExecute));
 
     vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
       getApiSchedulingAssignmentDefinitions: getAssignmentDefinitions,
@@ -1373,7 +1382,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     }));
     vi.doMock('@/api-access/generated/assignment/assignment', () => ({
       getApiSchedulingAssignmentsEntriesId: vi.fn().mockReturnValue(
-        createThenableFetchResult(
+        createAwaitGuardedFetchResult(
           {
             id: 257,
             assignmentSeriesId: 211,
@@ -1491,7 +1500,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     vi.doMock('@/api-access/generated/assignment/assignment', () => ({
       getApiSchedulingAssignmentsEntriesId: vi.fn(),
       getApiSchedulingAssignmentsSeriesId: vi.fn().mockReturnValue(
-        createThenableFetchResult(
+        createAwaitGuardedFetchResult(
           {
             id: 211,
             assignmentDefinitionId: 7,
@@ -1832,11 +1841,13 @@ describe('CalendarSchedulingAssignmentModal', () => {
 
   it('filters assignment type options by the loaded assignment date in edit mode', async () => {
     const localUsers = [{ id: 'local-user', firstName: 'Local', lastName: 'User' }];
-    const getApiUsers = vi.fn().mockImplementation((params: { LocationId?: number }) =>
-      params.LocationId
-        ? createFetchResult({ value: localUsers })
-        : createFetchResult({ value: [], error: new Error('All users unavailable.') }),
-    );
+    const getApiUsers = vi
+      .fn()
+      .mockImplementation((params: { LocationId?: number }) =>
+        params.LocationId
+          ? createFetchResult({ value: localUsers })
+          : createFetchResult({ value: [], error: new Error('All users unavailable.') }),
+      );
     vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
       getApiSchedulingAssignmentDefinitions: vi.fn().mockReturnValue(
         createFetchResult({

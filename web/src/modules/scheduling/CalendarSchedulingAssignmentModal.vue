@@ -1139,9 +1139,7 @@ function resolveOverlappingShiftEntryIdsForCurrentAssignment() {
     return [];
   }
 
-  return futureShiftEntries.value
-    .filter((entry) => typeof entry.id === 'number')
-    .map((entry) => entry.id as number);
+  return futureShiftEntries.value.filter((entry) => typeof entry.id === 'number').map((entry) => entry.id as number);
 }
 
 function getAssignmentDayRange() {
@@ -1400,9 +1398,7 @@ async function handleLifecycleAction() {
     return;
   }
 
-  const hasPermission = assignmentLifecycle.value.canCancel
-    ? canExpireAssignment.value
-    : canDeleteAssignment.value;
+  const hasPermission = assignmentLifecycle.value.canCancel ? canExpireAssignment.value : canDeleteAssignment.value;
   if (!hasPermission) {
     apiError.value = 'You do not have permission to delete or cancel assignments.';
     return;

@@ -507,7 +507,10 @@ function mapAssignmentDefinitionToFormData(
       </UaAlert>
     </template>
 
-    <div v-if="isReadOnly && canEditDefinition && assignmentDefinitionId" class="assignment-definition-modal__body-actions">
+    <div
+      v-if="isReadOnly && canEditDefinition && assignmentDefinitionId"
+      class="assignment-definition-modal__body-actions"
+    >
       <UaBtn
         :disabled="isSaving || isLoading"
         :prepend-icon="mdiPencil"
