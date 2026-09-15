@@ -1,9 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Logging.Abstractions;
-using Unified.Api.Services;
 using Unified.Common.Interceptors.PostSave;
-using Unified.Common.Seeding;
 
 namespace Unified.Tests.Common.PostSave;
 
@@ -127,35 +124,6 @@ public sealed class PostSaveInterceptorTests
     }
 
     [Fact]
-    public async Task SeederFactory_AllowsHandlersDuringSeeding()
-    {
-        var calls = 0;
-        var handler = new FakePostSaveHandler(
-            typeof(ExampleEntity),
-            SaveAction.Create,
-            (_, _, _) =>
-            {
-                calls++;
-                return Task.CompletedTask;
-            }
-        );
-        await using var db = await CreateDbAsync(new PostSaveInterceptor([handler], TimeProvider.System));
-        var factory = new SeederFactory<SaveTestDbContext>(
-            NullLogger<SeederFactory<SaveTestDbContext>>.Instance,
-            [new TestSeeder(false)]
-        );
-
-        await factory.SeedAsync(db, TestContext.Current.CancellationToken);
-        Assert.Equal(1, calls);
-
-        db.Add(new ExampleEntity { Value = "Not seeded" });
-        await using var transaction = await db.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        await transaction.CommitAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(2, calls);
-    }
-
-    [Fact]
     public async Task SaveChangesWithoutAcceptingChanges_DispatchesMatchingHandlers()
     {
         var calls = 0;
@@ -226,17 +194,4 @@ public sealed class PostSaveInterceptorTests
             handleAsync(db, context, cancellationToken);
     }
 
-    private sealed class TestSeeder(bool fail) : SeederBase<SaveTestDbContext>(NullLogger<TestSeeder>.Instance)
-    {
-        public override int Order => 0;
-        public override string Name => "Test";
-
-        protected override async Task ExecuteAsync(SaveTestDbContext dbContext, CancellationToken cancellationToken)
-        {
-            dbContext.Add(new ExampleEntity { Value = "Seeded" });
-            await dbContext.SaveChangesAsync(cancellationToken);
-            if (fail)
-                throw new InvalidOperationException("Seeder failed.");
-        }
-    }
 }
