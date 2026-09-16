@@ -115,7 +115,10 @@ public class UnifiedDbContext : AuditDbContext
             }
             catch
             {
-                await ambientTransaction.RollbackToSavepointAsync(savepointName, CancellationToken.None);
+                await ambientTransaction.RollbackToSavepointAsync(
+                    savepointName,
+                    CancellationToken.None
+                );
 
                 throw;
             }
