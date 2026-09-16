@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -31,12 +32,15 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
             return new(result);
 
         state.Pending.Clear();
+        state.SavedEntities.Clear();
 
         var timestamp = _timeProvider.GetUtcNow();
         foreach (var entry in db.ChangeTracker.Entries())
         {
             if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
                 continue;
+
+            state.SavedEntities.Add(entry.Entity);
 
             var action = entry.State switch
             {
@@ -74,8 +78,32 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
             foreach (var save in pending)
                 await save.Handler.HandleAsync(db, save.Context, cancellationToken);
 
-            if (db.ChangeTracker.HasChanges())
-                await db.SaveChangesAsync(cancellationToken);
+            var changedEntries = db.ChangeTracker
+                .Entries()
+                .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+                .ToArray();
+
+            var hasFollowUpChanges = changedEntries.Any(entry => !state.SavedEntities.Contains(entry.Entity));
+            if (hasFollowUpChanges)
+            {
+                var suppressedEntries = changedEntries
+                    .Where(entry => state.SavedEntities.Contains(entry.Entity))
+                    .Select(entry => new SuppressedEntry(entry, entry.State))
+                    .ToArray();
+
+                foreach (var suppressed in suppressedEntries)
+                    suppressed.Entry.State = EntityState.Unchanged;
+
+                try
+                {
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+                finally
+                {
+                    foreach (var suppressed in suppressedEntries)
+                        suppressed.Entry.State = suppressed.State;
+                }
+            }
 
             // Preserve EF's original row count, rather than including nested business/audit saves.
             return result;
@@ -84,6 +112,7 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
         {
             state.Dispatching = false;
             state.Pending.Clear();
+            state.SavedEntities.Clear();
         }
     }
 
@@ -91,7 +120,10 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
     {
         public bool Dispatching;
         public List<PendingSave> Pending { get; } = [];
+        public HashSet<object> SavedEntities { get; } = new(ReferenceEqualityComparer.Instance);
     }
 
     private sealed record PendingSave(SaveContext Context, IPostSaveHandler Handler);
+
+    private sealed record SuppressedEntry(EntityEntry Entry, EntityState State);
 }

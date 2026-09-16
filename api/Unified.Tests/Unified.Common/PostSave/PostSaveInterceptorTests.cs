@@ -123,6 +123,35 @@ public sealed class PostSaveInterceptorTests
         Assert.Single(await db.Set<ExampleEntity>().ToListAsync(TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task SaveChangesWithoutAcceptingChanges_DoesNotRepersistOuterEntries()
+    {
+        var calls = 0;
+        var handler = new FakePostSaveHandler(
+            typeof(ExampleEntity),
+            SaveAction.Create,
+            (_, _, _) =>
+            {
+                calls++;
+                return Task.CompletedTask;
+            }
+        );
+        var interceptor = new PostSaveInterceptor([handler], TimeProvider.System);
+        await using var db = await CreateDbAsync(interceptor);
+        db.Add(new ExampleEntity { Value = "Original" });
+
+        var result = await db.SaveChangesAsync(false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, result);
+        Assert.Equal(1, calls);
+        var rows = await db.Set<ExampleEntity>()
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Single(rows);
+        Assert.Equal("Original", rows[0].Value);
+    }
+
     private static async Task<SaveTestDbContext> CreateDbAsync(IInterceptor interceptor)
     {
         var db = new SaveTestDbContext(
