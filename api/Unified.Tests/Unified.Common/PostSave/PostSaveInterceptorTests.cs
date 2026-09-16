@@ -152,6 +152,31 @@ public sealed class PostSaveInterceptorTests
         Assert.Equal("Original", rows[0].Value);
     }
 
+    [Fact]
+    public async Task HandlerUpdate_OnOriginalEntity_IsPersisted()
+    {
+        var calls = 0;
+        var handler = new FakePostSaveHandler(
+            typeof(ExampleEntity),
+            SaveAction.Create,
+            (_, context, _) =>
+            {
+                calls++;
+                ((ExampleEntity)context.Entity).Value = "Updated by handler";
+                return Task.CompletedTask;
+            }
+        );
+        var interceptor = new PostSaveInterceptor([handler], TimeProvider.System);
+        await using var db = await CreateDbAsync(interceptor);
+        db.Add(new ExampleEntity { Value = "Original" });
+
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, calls);
+        var row = await db.Set<ExampleEntity>().AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("Updated by handler", row.Value);
+    }
+
     private static async Task<SaveTestDbContext> CreateDbAsync(IInterceptor interceptor)
     {
         var db = new SaveTestDbContext(

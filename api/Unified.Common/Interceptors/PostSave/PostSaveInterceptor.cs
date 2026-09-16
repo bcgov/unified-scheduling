@@ -75,6 +75,11 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
         state.Dispatching = true;
         try
         {
+            var statesBeforeHandlers = db
+                .ChangeTracker.Entries()
+                .Where(entry => state.SavedEntities.Contains(entry.Entity))
+                .ToDictionary(entry => entry.Entity, entry => entry.State, ReferenceEqualityComparer.Instance);
+
             foreach (var save in pending)
                 await save.Handler.HandleAsync(db, save.Context, cancellationToken);
 
@@ -83,11 +88,20 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
                 .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
                 .ToArray();
 
-            var hasFollowUpChanges = changedEntries.Any(entry => !state.SavedEntities.Contains(entry.Entity));
+            var hasFollowUpChanges = changedEntries.Any(entry =>
+                !state.SavedEntities.Contains(entry.Entity)
+                || !statesBeforeHandlers.TryGetValue(entry.Entity, out var stateBeforeHandler)
+                || stateBeforeHandler != entry.State
+            );
+
             if (hasFollowUpChanges)
             {
                 var suppressedEntries = changedEntries
-                    .Where(entry => state.SavedEntities.Contains(entry.Entity))
+                    .Where(entry =>
+                        state.SavedEntities.Contains(entry.Entity)
+                        && statesBeforeHandlers.TryGetValue(entry.Entity, out var stateBeforeHandler)
+                        && stateBeforeHandler == entry.State
+                    )
                     .Select(entry => new SuppressedEntry(entry, entry.State))
                     .ToArray();
 
