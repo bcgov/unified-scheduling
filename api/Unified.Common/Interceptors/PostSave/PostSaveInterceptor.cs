@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Unified.Common.Interceptors.PostSave;
@@ -78,8 +78,8 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
             foreach (var save in pending)
                 await save.Handler.HandleAsync(db, save.Context, cancellationToken);
 
-            var changedEntries = db.ChangeTracker
-                .Entries()
+            var changedEntries = db
+                .ChangeTracker.Entries()
                 .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
                 .ToArray();
 
