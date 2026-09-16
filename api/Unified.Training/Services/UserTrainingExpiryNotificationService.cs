@@ -27,9 +27,10 @@ public sealed class UserTrainingExpiryNotificationService(
         var candidates = await db
             .UserTrainings.Include(ut => ut.User)
             .Include(ut => ut.Training)
+            .AsNoTracking()
             .Where(ut => ut.ExpiryDate > now)
             .Where(ut => ut.Training.AdvanceNoticeDays > 0)
-            .Where(ut => ut.NoticeState != UserTrainingNoticeStates.Sent)
+            .Where(ut => ut.NoticeState == UserTrainingNoticeStates.None)
             .Where(ut => ut.User.IsEnabled)
             .Where(ut => !string.IsNullOrWhiteSpace(ut.User.Email))
             .Where(ut =>
@@ -57,21 +58,59 @@ public sealed class UserTrainingExpiryNotificationService(
             var subject = $"Training expiry notice: {candidate.Training.Code}";
             var body = BuildBody(candidate, daysUntilExpiry);
 
-            await _emailService.SendAsync(
-                new EmailMessage
-                {
-                    To = [candidate.User.Email.Trim()],
-                    Subject = subject,
-                    Body = body,
-                    UnifiedCorrelationId = $"training-expiry-notice:{candidate.Id}",
-                },
-                cancellationToken
-            );
+            var claimedCount = await db
+                .UserTrainings.Where(ut => ut.Id == candidate.Id)
+                .Where(ut => ut.NoticeState == UserTrainingNoticeStates.None)
+                .ExecuteUpdateAsync(
+                    updates => updates.SetProperty(ut => ut.NoticeState, UserTrainingNoticeStates.Pending),
+                    cancellationToken
+                );
 
-            candidate.NoticeState = UserTrainingNoticeStates.Sent;
-            sentCount++;
+            if (claimedCount == 0)
+            {
+                continue;
+            }
 
-            await db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _emailService.SendAsync(
+                    new EmailMessage
+                    {
+                        To = [candidate.User.Email.Trim()],
+                        Subject = subject,
+                        Body = body,
+                        UnifiedCorrelationId = $"training-expiry-notice:{candidate.Id}",
+                    },
+                    cancellationToken
+                );
+
+                await db
+                    .UserTrainings.Where(ut => ut.Id == candidate.Id)
+                    .Where(ut => ut.NoticeState == UserTrainingNoticeStates.Pending)
+                    .ExecuteUpdateAsync(
+                        updates => updates.SetProperty(ut => ut.NoticeState, UserTrainingNoticeStates.Sent),
+                        cancellationToken
+                    );
+
+                sentCount++;
+            }
+            catch (EmailDeliveryStateUnknownException)
+            {
+                // Leave the row in Pending so retries do not duplicate delivery when provider outcome is unknown.
+                throw;
+            }
+            catch
+            {
+                await db
+                    .UserTrainings.Where(ut => ut.Id == candidate.Id)
+                    .Where(ut => ut.NoticeState == UserTrainingNoticeStates.Pending)
+                    .ExecuteUpdateAsync(
+                        updates => updates.SetProperty(ut => ut.NoticeState, UserTrainingNoticeStates.None),
+                        cancellationToken
+                    );
+
+                throw;
+            }
         }
 
         return sentCount;

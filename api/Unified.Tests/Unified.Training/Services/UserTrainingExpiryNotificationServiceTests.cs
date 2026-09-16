@@ -51,10 +51,9 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         Assert.Equal(1, sentCount);
         Assert.Single(emailService.Messages);
 
-        var saved = await _db.UserTrainings.SingleAsync(
-            ut => ut.UserId == UserId,
-            TestContext.Current.CancellationToken
-        );
+        var saved = await _db
+            .UserTrainings.AsNoTracking()
+            .SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
         Assert.Equal(UserTrainingNoticeStates.Sent, saved.NoticeState);
     }
 
@@ -91,10 +90,9 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Assert
         Assert.Equal(0, sentCount);
 
-        var saved = await _db.UserTrainings.SingleAsync(
-            ut => ut.UserId == UserId,
-            TestContext.Current.CancellationToken
-        );
+        var saved = await _db
+            .UserTrainings.AsNoTracking()
+            .SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
         Assert.Equal(UserTrainingNoticeStates.None, saved.NoticeState);
     }
 
@@ -125,11 +123,68 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
 
         var versions = await _db
             .UserTrainings.Where(ut => ut.UserId == UserId)
+            .AsNoTracking()
             .OrderBy(ut => ut.Version)
             .ToArrayAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(UserTrainingNoticeStates.None, versions[0].NoticeState);
         Assert.Equal(UserTrainingNoticeStates.Sent, versions[1].NoticeState);
+    }
+
+    [Fact]
+    public async Task SendDueExpiryNoticesAsync_WhenEmailSubmissionFails_ResetsPendingForRetry()
+    {
+        // Arrange
+        var emailService = new FailingEmailService();
+        await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(1), noticeState: UserTrainingNoticeStates.None);
+        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+
+        // Act
+        await Assert.ThrowsAsync<EmailDeliveryException>(() =>
+            sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken)
+        );
+
+        // Assert
+        var saved = await _db
+            .UserTrainings.AsNoTracking()
+            .SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
+        Assert.Equal(UserTrainingNoticeStates.None, saved.NoticeState);
+    }
+
+    [Fact]
+    public async Task SendDueExpiryNoticesAsync_WhenEmailOutcomeIsUnknown_LeavesPendingToPreventDuplicates()
+    {
+        // Arrange
+        var emailService = new UnknownOutcomeEmailService();
+        await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(1), noticeState: UserTrainingNoticeStates.None);
+        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+
+        // Act
+        await Assert.ThrowsAsync<EmailDeliveryStateUnknownException>(() =>
+            sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken)
+        );
+
+        // Assert
+        var saved = await _db
+            .UserTrainings.AsNoTracking()
+            .SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
+        Assert.Equal(UserTrainingNoticeStates.Pending, saved.NoticeState);
+    }
+
+    [Fact]
+    public async Task SendDueExpiryNoticesAsync_WhenNoticeAlreadyPending_DoesNotSendAgain()
+    {
+        // Arrange
+        var emailService = new RecordingEmailService();
+        await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(1), noticeState: UserTrainingNoticeStates.Pending);
+        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+
+        // Act
+        var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(0, sentCount);
+        Assert.Empty(emailService.Messages);
     }
 
     private async Task SeedAsync()
@@ -202,6 +257,34 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
                     Tag = "tag",
                     Messages = [],
                 }
+            );
+        }
+    }
+
+    private sealed class FailingEmailService : IEmailService
+    {
+        public Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+        {
+            throw new EmailDeliveryException(
+                tag: "tag",
+                correlationId: message.UnifiedCorrelationId,
+                recipientCount: message.To.Count,
+                attachmentCount: 0,
+                statusCode: 503
+            );
+        }
+    }
+
+    private sealed class UnknownOutcomeEmailService : IEmailService
+    {
+        public Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+        {
+            throw new EmailDeliveryStateUnknownException(
+                tag: "tag",
+                correlationId: message.UnifiedCorrelationId,
+                recipientCount: message.To.Count,
+                attachmentCount: 0,
+                innerException: new InvalidOperationException("timeout")
             );
         }
     }

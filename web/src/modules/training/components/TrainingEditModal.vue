@@ -68,14 +68,14 @@ watch(
 
 const categoryDisplay = computed(() => props.training.trainingCategoryName?.trim() || 'Uncategorized');
 
-const parseOptionalNonNegativeNumber = (value: string, fieldName: keyof TrainingFormData): number | null | symbol => {
+const parseOptionalPositiveNumber = (value: string, fieldName: keyof TrainingFormData): number | null | symbol => {
   const trimmedValue = value.trim();
   if (!trimmedValue) {
     return null;
   }
 
   const parsedValue = Number(trimmedValue);
-  if (!Number.isInteger(parsedValue) || parsedValue < 0) {
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
     formErrors.value[fieldName] = validationMessages.invalid;
     return Symbol(fieldName);
   }
@@ -104,7 +104,7 @@ const validateForm = (): TrainingLookupRequest | null => {
     formErrors.value.validityDays = validationMessages.invalid;
   }
 
-  const advanceNoticeDays = parseOptionalNonNegativeNumber(formData.value.advanceNoticeDays, 'advanceNoticeDays');
+  const advanceNoticeDays = parseOptionalPositiveNumber(formData.value.advanceNoticeDays, 'advanceNoticeDays');
 
   if (Object.keys(formErrors.value).length > 0) {
     return null;
@@ -213,7 +213,7 @@ const handleSave = async () => {
         id="training-advance-notice-days"
         label="Advance Notice (Days)"
         type="number"
-        min="0"
+        min="1"
         step="1"
         :model-value="formData.advanceNoticeDays"
         :error-messages="formErrors.advanceNoticeDays"
