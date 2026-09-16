@@ -16,8 +16,6 @@ public sealed class UserTrainingExpiryNoticeRecurringJob(
     public string CronSchedule =>
         optionsMonitor.CurrentValue.Enabled ? optionsMonitor.CurrentValue.CronSchedule : "disabled";
 
-    public async Task Execute(PerformContext? context, CancellationToken cancellationToken)
-    {
-        await notificationService.SendDueExpiryNoticesAsync(cancellationToken);
-    }
+    public Task Execute(PerformContext? context, CancellationToken cancellationToken) =>
+        notificationService.SendDueExpiryNoticesAsync(cancellationToken);
 }

@@ -42,11 +42,7 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Arrange
         var emailService = new RecordingEmailService();
         await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(2), noticeState: UserTrainingNoticeStates.None);
-        var sut = new UserTrainingExpiryNotificationService(
-            _db,
-            [emailService],
-            new FixedTimeProvider(FixedNow)
-        );
+        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
 
         // Act
         var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
@@ -55,7 +51,10 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         Assert.Equal(1, sentCount);
         Assert.Single(emailService.Messages);
 
-        var saved = await _db.UserTrainings.SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
+        var saved = await _db.UserTrainings.SingleAsync(
+            ut => ut.UserId == UserId,
+            TestContext.Current.CancellationToken
+        );
         Assert.Equal(UserTrainingNoticeStates.Sent, saved.NoticeState);
     }
 
@@ -65,11 +64,7 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Arrange
         var emailService = new RecordingEmailService();
         await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(3), noticeState: UserTrainingNoticeStates.None);
-        var sut = new UserTrainingExpiryNotificationService(
-            _db,
-            [emailService],
-            new FixedTimeProvider(FixedNow)
-        );
+        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
 
         // Act
         var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
@@ -96,7 +91,10 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Assert
         Assert.Equal(0, sentCount);
 
-        var saved = await _db.UserTrainings.SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
+        var saved = await _db.UserTrainings.SingleAsync(
+            ut => ut.UserId == UserId,
+            TestContext.Current.CancellationToken
+        );
         Assert.Equal(UserTrainingNoticeStates.None, saved.NoticeState);
     }
 
@@ -116,11 +114,7 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
             version: 2
         );
 
-        var sut = new UserTrainingExpiryNotificationService(
-            _db,
-            [emailService],
-            new FixedTimeProvider(FixedNow)
-        );
+        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
 
         // Act
         var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);

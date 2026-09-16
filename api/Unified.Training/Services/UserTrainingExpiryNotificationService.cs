@@ -23,16 +23,15 @@ public sealed class UserTrainingExpiryNotificationService(
         var now = timeProvider.GetUtcNow();
         var today = now.UtcDateTime.Date;
 
+        // Find all latest user-trainings that are expiring soon and have not yet been sent a notice.
         var candidates = await db
             .UserTrainings.Include(ut => ut.User)
             .Include(ut => ut.Training)
-            .Where(ut => ut.ExpiryDate.HasValue)
             .Where(ut => ut.ExpiryDate > now)
-            .Where(ut => ut.Training.AdvanceNoticeDays.HasValue)
             .Where(ut => ut.Training.AdvanceNoticeDays > 0)
             .Where(ut => ut.NoticeState != UserTrainingNoticeStates.Sent)
             .Where(ut => ut.User.IsEnabled)
-            .Where(ut => ut.User.Email != null && ut.User.Email != string.Empty)
+            .Where(ut => !string.IsNullOrWhiteSpace(ut.User.Email))
             .Where(ut =>
                 !db.UserTrainings.Any(newerVersion =>
                     newerVersion.UserId == ut.UserId
@@ -83,8 +82,7 @@ public sealed class UserTrainingExpiryNotificationService(
         var expiresOn = userTraining.ExpiryDate!.Value.UtcDateTime.ToString("yyyy-MM-dd");
         var countdown = daysUntilExpiry == 0 ? "today" : $"in {daysUntilExpiry} day(s)";
 
-        return
-            $"Hi {userTraining.User.FirstName},\n\n"
+        return $"Hello {userTraining.User.FirstName},\n\n"
             + $"This is a reminder that your training '{userTraining.Training.Code}' expires {countdown} ({expiresOn} UTC).\n"
             + "Please renew it before expiry if renewal is required.\n\n"
             + "Unified Scheduling";

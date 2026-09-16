@@ -29,10 +29,9 @@ public sealed class TrainingModuleTests
 
         // Assert
         AssertContainsScopedRegistration<IUserTrainingService, UserTrainingService>(services);
-        AssertContainsScopedRegistration<
-            IUserTrainingExpiryNotificationService,
-            UserTrainingExpiryNotificationService
-        >(services);
+        AssertContainsScopedRegistration<IUserTrainingExpiryNotificationService, UserTrainingExpiryNotificationService>(
+            services
+        );
         AssertContainsScopedRegistration<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>(services);
         AssertContainsScopedRegistration<ITrainingLookupStrategy, TrainingLookupStrategy>(services);
         AssertContainsScopedSelfRegistration<TrainingLookupRequestValidator>(services);
