@@ -20,7 +20,7 @@ public sealed class ShiftEntryRequestValidator : AbstractValidator<ShiftEntryReq
         RuleFor(request => request.SeriesStartAtUtc)
             .LessThan(request => request.SeriesEndAtUtc!.Value)
             .When(request => request.SeriesStartAtUtc.HasValue && request.SeriesEndAtUtc.HasValue);
-        RuleFor(request => request.LocationId).GreaterThan(0).When(request => request.LocationId.HasValue);
+        RuleFor(request => request.LocationId).GreaterThan(0);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
         RuleFor(request => request.AssignmentEntryLinks)

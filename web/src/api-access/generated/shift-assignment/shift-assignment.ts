@@ -5,6 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
+  ProposedShiftAssignmentOptionsRequest,
+  ProposedShiftAssignmentOptionsResponse,
   ShiftAssignmentEntryRequest,
   ShiftAssignmentEntryResponse,
   ShiftAssignmentEntryUpdateRequest,
@@ -17,6 +19,20 @@ import { useFetchAPI } from '../../useFetchAPI.ts';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+export const postApiSchedulingShiftAssignmentsOptions = (
+  proposedShiftAssignmentOptionsRequest: ProposedShiftAssignmentOptionsRequest,
+  options?: SecondParameter<typeof useFetchAPI<ProposedShiftAssignmentOptionsResponse>>,
+) => {
+  return useFetchAPI<ProposedShiftAssignmentOptionsResponse>(
+    {
+      url: `/api/scheduling/shift-assignments/options`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: proposedShiftAssignmentOptionsRequest,
+    },
+    options,
+  );
+};
 export const postApiSchedulingShiftAssignmentsEntries = (
   shiftAssignmentEntryRequest: ShiftAssignmentEntryRequest,
   options?: SecondParameter<typeof useFetchAPI<ShiftAssignmentEntryResponse>>,
@@ -87,6 +103,9 @@ export const deleteApiSchedulingShiftAssignmentsSeriesId = (
 ) => {
   return useFetchAPI<void>({ url: `/api/scheduling/shift-assignments/series/${id}`, method: 'DELETE' }, options);
 };
+export type PostApiSchedulingShiftAssignmentsOptionsResult = NonNullable<
+  Awaited<ReturnType<typeof postApiSchedulingShiftAssignmentsOptions>>
+>;
 export type PostApiSchedulingShiftAssignmentsEntriesResult = NonNullable<
   Awaited<ReturnType<typeof postApiSchedulingShiftAssignmentsEntries>>
 >;
