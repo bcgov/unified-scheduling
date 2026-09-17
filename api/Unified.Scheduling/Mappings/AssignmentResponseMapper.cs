@@ -120,6 +120,7 @@ internal static class AssignmentResponseMapper
             Id = $"scheduling.assignment-entry.{assignmentEntry.Id}",
             AssignmentEntryId = assignmentEntry.Id,
             AssignmentSeriesId = assignmentEntry.AssignmentSeriesId,
+            AssignmentDefinitionId = assignmentEntry.AssignmentDefinitionId,
             EventId = assignmentEntry.EventId,
             UserIds = assignedUserIds,
             ResourceIds = assignedUserIds.Select(userId => userId.ToString()).ToList(),

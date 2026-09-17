@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
@@ -8,8 +9,11 @@ using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
 
-public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logger, UnifiedDbContext db)
-    : IShiftAssignmentService
+public sealed class ShiftAssignmentService(
+    ILogger<ShiftAssignmentService> logger,
+    UnifiedDbContext db,
+    ITimeZoneService timeZoneService
+) : IShiftAssignmentService
 {
     public async Task<ShiftAssignmentEntryResponse> LinkShiftEntryAsync(
         ShiftAssignmentEntryRequest request,
@@ -53,7 +57,9 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
 
     public async Task<bool> DeleteShiftEntryLinkAsync(int id, CancellationToken cancellationToken = default)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         var link = await db
             .ShiftAssignmentEntries.Include(entryLink => entryLink.Users)
             .SingleOrDefaultAsync(entryLink => entryLink.Id == id, cancellationToken);
@@ -66,9 +72,52 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             RemoveLinks([link]);
 
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Unlinked shift-assignment entry link {ShiftAssignmentEntryLinkId}.", id);
         return true;
+    }
+
+    public async Task ReplaceShiftEntryLinksAsync(
+        int shiftEntryId,
+        IReadOnlyCollection<AssignmentEntryLinkRequest>? links,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (links is null)
+            return;
+
+        EnsureAmbientTransaction();
+        var existingLinks = await db
+            .ShiftAssignmentEntries.Include(link => link.Users)
+            .Where(link => link.ShiftEntryId == shiftEntryId)
+            .ToListAsync(cancellationToken);
+        await ReplaceEntryLinksAsync(
+            existingLinks,
+            links.Select(link => new EntryLinkReplacement(shiftEntryId, link.AssignmentEntryId, link.AssignedUserIds)),
+            cancellationToken
+        );
+    }
+
+    public async Task ReplaceAssignmentEntryLinksAsync(
+        int assignmentEntryId,
+        IReadOnlyCollection<ShiftEntryLinkRequest>? links,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (links is null)
+            return;
+
+        EnsureAmbientTransaction();
+        var existingLinks = await db
+            .ShiftAssignmentEntries.Include(link => link.Users)
+            .Where(link => link.AssignmentEntryId == assignmentEntryId)
+            .ToListAsync(cancellationToken);
+        await ReplaceEntryLinksAsync(
+            existingLinks,
+            links.Select(link => new EntryLinkReplacement(link.ShiftEntryId, assignmentEntryId, link.AssignedUserIds)),
+            cancellationToken
+        );
     }
 
     public async Task<ShiftAssignmentSeriesLinkResponse> LinkShiftSeriesAsync(
@@ -113,7 +162,9 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
 
     public async Task<bool> DeleteShiftSeriesLinkAsync(int id, CancellationToken cancellationToken = default)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         var link = await db
             .ShiftAssignmentSeriesLinks.Include(seriesLink => seriesLink.Users)
             .Include(seriesLink => seriesLink.EntryLinks)
@@ -124,9 +175,51 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
 
         RemoveSeriesLinks([link]);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Removed shift-assignment series link {ShiftAssignmentSeriesLinkId}.", id);
         return true;
+    }
+
+    public async Task ReplaceShiftSeriesLinksAsync(
+        int shiftSeriesId,
+        IReadOnlyCollection<AssignmentSeriesLinkRequest> links,
+        CancellationToken cancellationToken = default
+    )
+    {
+        EnsureAmbientTransaction();
+        var existingLinks = await LoadSeriesLinksAsync(link => link.ShiftSeriesId == shiftSeriesId, cancellationToken);
+        await ReplaceSeriesLinksAsync(
+            existingLinks,
+            links.Select(link => new SeriesLinkReplacement(
+                shiftSeriesId,
+                link.AssignmentSeriesId,
+                link.AssignedUserIds
+            )),
+            cancellationToken
+        );
+    }
+
+    public async Task ReplaceAssignmentSeriesLinksAsync(
+        int assignmentSeriesId,
+        IReadOnlyCollection<ShiftSeriesLinkRequest> links,
+        CancellationToken cancellationToken = default
+    )
+    {
+        EnsureAmbientTransaction();
+        var existingLinks = await LoadSeriesLinksAsync(
+            link => link.AssignmentSeriesId == assignmentSeriesId,
+            cancellationToken
+        );
+        await ReplaceSeriesLinksAsync(
+            existingLinks,
+            links.Select(link => new SeriesLinkReplacement(
+                link.ShiftSeriesId,
+                assignmentSeriesId,
+                link.AssignedUserIds
+            )),
+            cancellationToken
+        );
     }
 
     private async Task<ShiftAssignmentSeriesLinkResponse> CreateOrUpdateShiftSeriesLinkAsync(
@@ -136,7 +229,9 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         CancellationToken cancellationToken
     )
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         var selectedUserIds = ShiftAssignmentGuards.NormalizeRequiredUserIds(request.AssignedUserIds);
         var shiftSeriesExists = await db.ShiftSeries.AnyAsync(
             series => series.Id == request.ShiftSeriesId,
@@ -167,20 +262,27 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         var intersections = (
             from shiftEntry in shiftEntries
             from assignmentEntry in assignmentEntries
-            where UtcIntervalsOverlap(shiftEntry.Event!, assignmentEntry.Event!)
+            where
+                ShiftAssignmentGuards.AssignmentStartsOnShiftDate(
+                    shiftEntry.Event!.StartAtUtc,
+                    shiftEntry.Event.EndAtUtc,
+                    assignmentEntry.Event!.StartAtUtc,
+                    shiftEntry.Event.TimeZoneId,
+                    timeZoneService
+                )
             select (shiftEntry, assignmentEntry)
         ).ToList();
 
         if (intersections.Count == 0)
             throw new InvalidOperationException(
-                $"Shift series {request.ShiftSeriesId} did not overlap any assignment entries in assignment series {request.AssignmentSeriesId}."
+                $"Shift series {request.ShiftSeriesId} did not share a valid start date with any assignment entries in assignment series {request.AssignmentSeriesId}."
             );
 
         foreach (var shiftEntry in intersections.Select(pair => pair.shiftEntry).DistinctBy(entry => entry.Id))
             ShiftAssignmentGuards.EnsureUsersBelongToShiftEntry(
                 shiftEntry,
                 selectedUserIds,
-                "Selected users must belong to every intersecting shift entry."
+                "Selected users must belong to every matching shift entry."
             );
 
         var shiftEntryIds = intersections.Select(pair => pair.shiftEntry.Id).Distinct().ToList();
@@ -299,7 +401,8 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             .ToList();
 
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation(
             "Linked shift series {ShiftSeriesId} to assignment series {AssignmentSeriesId}; created {LinkCount} links.",
@@ -318,7 +421,9 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         CancellationToken cancellationToken
     )
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         var response = await UpsertSingleShiftAssignmentLinkAsync(
             request.ShiftEntryId,
             request.AssignmentEntryId,
@@ -327,9 +432,126 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             updateExisting,
             expectedLinkId
         );
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
         return response;
     }
+
+    private async Task ReplaceEntryLinksAsync(
+        IReadOnlyCollection<ShiftAssignmentEntry> existingLinks,
+        IEnumerable<EntryLinkReplacement> requestedLinks,
+        CancellationToken cancellationToken
+    )
+    {
+        var replacements = requestedLinks.ToList();
+        EnsureDistinctEntryLinks(replacements);
+        var requestedIds = replacements.Select(link => (link.ShiftEntryId, link.AssignmentEntryId)).ToHashSet();
+        var removedLinks = existingLinks
+            .Where(link => !requestedIds.Contains((link.ShiftEntryId, link.AssignmentEntryId)))
+            .ToList();
+        SuppressSeriesBackedLinks(removedLinks.Where(link => link.ShiftAssignmentSeriesLinkId.HasValue).ToList());
+        RemoveLinks(removedLinks.Where(link => !link.ShiftAssignmentSeriesLinkId.HasValue).ToList());
+        await db.SaveChangesAsync(cancellationToken);
+
+        var existingById = existingLinks
+            .Except(removedLinks)
+            .ToDictionary(link => (link.ShiftEntryId, link.AssignmentEntryId));
+        foreach (var requestedLink in replacements)
+        {
+            existingById.TryGetValue(
+                (requestedLink.ShiftEntryId, requestedLink.AssignmentEntryId),
+                out var existingLink
+            );
+            await UpsertSingleShiftAssignmentLinkAsync(
+                requestedLink.ShiftEntryId,
+                requestedLink.AssignmentEntryId,
+                requestedLink.AssignedUserIds,
+                cancellationToken,
+                updateExisting: existingLink is not null,
+                expectedLinkId: existingLink?.Id
+            );
+        }
+    }
+
+    private async Task ReplaceSeriesLinksAsync(
+        IReadOnlyCollection<ShiftAssignmentSeriesLink> existingLinks,
+        IEnumerable<SeriesLinkReplacement> requestedLinks,
+        CancellationToken cancellationToken
+    )
+    {
+        var replacements = requestedLinks.ToList();
+        EnsureDistinctSeriesLinks(replacements);
+        var requestedIds = replacements.Select(link => (link.ShiftSeriesId, link.AssignmentSeriesId)).ToHashSet();
+        var removedLinks = existingLinks
+            .Where(link => !requestedIds.Contains((link.ShiftSeriesId, link.AssignmentSeriesId)))
+            .ToList();
+        RemoveSeriesLinks(removedLinks);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var existingById = existingLinks
+            .Except(removedLinks)
+            .ToDictionary(link => (link.ShiftSeriesId, link.AssignmentSeriesId));
+        foreach (var requestedLink in replacements)
+        {
+            existingById.TryGetValue(
+                (requestedLink.ShiftSeriesId, requestedLink.AssignmentSeriesId),
+                out var existingLink
+            );
+            await CreateOrUpdateShiftSeriesLinkAsync(
+                new ShiftAssignmentSeriesRequest
+                {
+                    ShiftSeriesId = requestedLink.ShiftSeriesId,
+                    AssignmentSeriesId = requestedLink.AssignmentSeriesId,
+                    AssignedUserIds = requestedLink.AssignedUserIds,
+                },
+                updateExisting: existingLink is not null,
+                expectedLinkId: existingLink?.Id,
+                cancellationToken
+            );
+        }
+    }
+
+    private async Task<List<ShiftAssignmentSeriesLink>> LoadSeriesLinksAsync(
+        System.Linq.Expressions.Expression<Func<ShiftAssignmentSeriesLink, bool>> predicate,
+        CancellationToken cancellationToken
+    ) =>
+        await db
+            .ShiftAssignmentSeriesLinks.Include(link => link.Users)
+            .Include(link => link.EntryLinks)
+                .ThenInclude(link => link.Users)
+            .Where(predicate)
+            .ToListAsync(cancellationToken);
+
+    private void EnsureAmbientTransaction()
+    {
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Relationship replacement requires an active transaction.");
+    }
+
+    private static void EnsureDistinctEntryLinks(IReadOnlyCollection<EntryLinkReplacement> links) =>
+        EnsureDistinctLinks(links.Select(link => (link.ShiftEntryId, link.AssignmentEntryId)));
+
+    private static void EnsureDistinctSeriesLinks(IReadOnlyCollection<SeriesLinkReplacement> links) =>
+        EnsureDistinctLinks(links.Select(link => (link.ShiftSeriesId, link.AssignmentSeriesId)));
+
+    private static void EnsureDistinctLinks(IEnumerable<(int ShiftId, int AssignmentId)> links)
+    {
+        var ids = links.ToList();
+        if (ids.Any(link => link.ShiftId <= 0 || link.AssignmentId <= 0) || ids.Distinct().Count() != ids.Count)
+            throw new InvalidOperationException("Relationship IDs must be positive and unique.");
+    }
+
+    private sealed record EntryLinkReplacement(
+        int ShiftEntryId,
+        int AssignmentEntryId,
+        IReadOnlyCollection<Guid> AssignedUserIds
+    );
+
+    private sealed record SeriesLinkReplacement(
+        int ShiftSeriesId,
+        int AssignmentSeriesId,
+        IReadOnlyCollection<Guid> AssignedUserIds
+    );
 
     private async Task<ShiftAssignmentEntryResponse> UpsertSingleShiftAssignmentLinkAsync(
         int shiftEntryId,
@@ -344,7 +566,7 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
         var shiftEntry = await LoadShiftEntryAsync(shiftEntryId, cancellationToken);
         var assignmentEntry = await LoadAssignmentEntryAsync(assignmentEntryId, cancellationToken);
 
-        ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, selectedUserIds);
+        ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, selectedUserIds, timeZoneService);
 
         var link = await db
             .ShiftAssignmentEntries.Include(existingLink => existingLink.Users)
@@ -397,14 +619,6 @@ public sealed class ShiftAssignmentService(ILogger<ShiftAssignmentService> logge
             .AssignmentEntries.Include(entry => entry.Event)
             .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken)
         ?? throw new KeyNotFoundException($"Assignment entry {id} not found.");
-
-    private static bool UtcIntervalsOverlap(Event shiftEvent, Event assignmentEvent) =>
-        ShiftAssignmentGuards.UtcIntervalsOverlap(
-            shiftEvent.StartAtUtc,
-            shiftEvent.EndAtUtc,
-            assignmentEvent.StartAtUtc,
-            assignmentEvent.EndAtUtc
-        );
 
     private void RemoveSeriesLinks(IReadOnlyCollection<ShiftAssignmentSeriesLink> seriesLinks)
     {
