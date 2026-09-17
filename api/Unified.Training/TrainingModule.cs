@@ -3,10 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Common.FeatureFlags;
+using Unified.Common.Interceptors.PostSave;
 using Unified.Common.Options;
 using Unified.Common.Reporting;
 using Unified.Core.Services.Lookup;
 using Unified.Training.FeatureFlags;
+using Unified.Training.Handlers;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Services.Reporting;
@@ -47,6 +49,7 @@ public static class TrainingModule
         }
 
         services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IPostSaveHandler, AssignMandatoryTrainingOnUserCreationHandler>();
         services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
         services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();
