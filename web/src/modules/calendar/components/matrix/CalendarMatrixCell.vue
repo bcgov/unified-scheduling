@@ -43,7 +43,6 @@ const headers = computed(() => props.cell.headers ?? []);
 const hasEvents = computed(() => props.cell.groups.some((group) => group.events.length > 0));
 const hasContent = computed(() => headers.value.length > 0 || hasEvents.value);
 const canAddEmptyCellResource = computed(() => !hasContent.value && !!props.resource?.action);
-const isDropActive = computed(() => !!matrixContext?.activeDragPayload.value);
 const cellAriaLabel = computed(() => {
   const resourceTitle = props.resource?.title ?? props.cell.resourceId;
   const eventCount = props.cell.groups.reduce((total, group) => total + group.events.length, 0);
@@ -147,6 +146,10 @@ function handleDrop(event: DragEvent) {
   });
 }
 
+function handleDropCapture() {
+  isDropTarget.value = false;
+}
+
 function handleEventAction(payload: CalendarMatrixEventBlockActionEvent) {
   emit('eventAction', payload);
 }
@@ -186,13 +189,13 @@ function handleEmptyCellAdd() {
     :aria-label="cellAriaLabel"
     :class="{
       'is-empty': !hasContent,
-      'is-drop-active': isDropActive,
       'is-drop-target': isDropTarget,
       'is-today': isToday,
     }"
     @dragenter="handleDragEnter"
     @dragleave="handleDragLeave"
     @dragover="handleDragOver"
+    @drop.capture="handleDropCapture"
     @drop="handleDrop"
   >
     <slot name="cell" :cell="cell" :resource="resource" :is-today="isToday">
@@ -261,7 +264,7 @@ function handleEmptyCellAdd() {
   align-content: start;
   align-items: start;
   display: grid;
-  gap: var(--ua-spacing-sm);
+  gap: 1px;
   grid-auto-rows: max-content;
   padding: var(--ua-spacing-sm);
 }
@@ -276,11 +279,6 @@ function handleEmptyCellAdd() {
     rgb(var(--v-theme-surface)) border-box;
 }
 
-.calendar-matrix-cell.is-drop-active {
-  outline: 2px groove rgba(var(--v-theme-on-surface), 0.4);
-  outline-offset: -4px;
-}
-
 .calendar-matrix-cell.is-drop-target {
   background-color: rgb(var(--v-theme-surface-variant));
   outline: 2px groove rgba(var(--v-theme-primary));
@@ -291,8 +289,12 @@ function handleEmptyCellAdd() {
   align-content: start;
   align-items: start;
   display: grid;
-  gap: var(--ua-spacing-xs);
+  gap: 1px;
   grid-auto-rows: max-content;
+}
+
+.calendar-matrix-cell-header + .calendar-matrix-cell__group {
+  margin-top: calc(var(--ua-spacing-xs) * -1);
 }
 
 .calendar-matrix-cell__empty-add {

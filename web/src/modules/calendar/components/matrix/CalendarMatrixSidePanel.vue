@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import UaBtn from '@/shared/components/UaBtn.vue';
 import CalendarMatrixSidePanelItem from './CalendarMatrixSidePanelItem.vue';
-import type { CalendarMatrixDragPayload, CalendarMatrixSidePanel } from './calendarMatrixTypes';
+import type {
+  CalendarMatrixDragPayload,
+  CalendarMatrixSidePanel,
+  CalendarMatrixSidePanelItem as CalendarMatrixSidePanelItemModel,
+} from './calendarMatrixTypes';
 
 defineProps<{
   panel: CalendarMatrixSidePanel;
@@ -9,6 +13,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (event: 'action'): void;
+  (event: 'itemClick', payload: CalendarMatrixSidePanelItemModel): void;
   (event: 'itemDragStart', payload: CalendarMatrixDragPayload): void;
 }>();
 </script>
@@ -33,6 +38,7 @@ const emit = defineEmits<{
         v-for="item in panel.items"
         :key="item.id"
         :item="item"
+        @item-click="emit('itemClick', $event)"
         @drag-start="emit('itemDragStart', $event)"
       >
         <template v-if="$slots.item" #default="slotProps">

@@ -16,6 +16,7 @@ export interface CalendarModuleContribution {
   contributionId: string;
   load: (context: CalendarQueryContext, options?: CalendarContributionLoadOptions) => Promise<CalendarContributionData>;
   isAvailable?: (runtimeContext: CalendarRuntimeContext, queryContext: CalendarQueryContext) => boolean;
+  onDeactivate?: () => void;
 }
 
 export interface CalendarViewDefinition<TModel = unknown> {
@@ -23,6 +24,7 @@ export interface CalendarViewDefinition<TModel = unknown> {
   label: string;
   order?: number;
   component: Component;
+  loadingVariant?: 'default' | 'matrix';
   supportedPeriods?: readonly CalendarPeriod[];
   buildModel: (
     data: CalendarDataResponse,
