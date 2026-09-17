@@ -1907,15 +1907,48 @@ namespace Unified.Db.Migrations
 
             modelBuilder.Entity("Unified.Db.Models.Training.TrainingMandatoryTrainingProfile", b =>
                 {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
                     b.Property<int>("TrainingId")
                         .HasColumnType("integer");
 
                     b.Property<int>("TrainingProfileId")
                         .HasColumnType("integer");
 
-                    b.HasKey("TrainingId", "TrainingProfileId");
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("TrainingId", "TrainingProfileId")
+                        .IsUnique();
 
                     b.HasIndex("TrainingProfileId");
+
+                    b.HasIndex("UpdatedById");
 
                     b.ToTable("TrainingMandatoryTrainingProfiles");
                 });
@@ -3434,6 +3467,11 @@ namespace Unified.Db.Migrations
 
             modelBuilder.Entity("Unified.Db.Models.Training.TrainingMandatoryTrainingProfile", b =>
                 {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Unified.Db.Models.Training.Training", "Training")
                         .WithMany("MandatoryTrainingProfiles")
                         .HasForeignKey("TrainingId")
@@ -3446,9 +3484,18 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
                     b.Navigation("Training");
 
                     b.Navigation("TrainingProfile");
+
+                    b.Navigation("UpdatedBy");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
