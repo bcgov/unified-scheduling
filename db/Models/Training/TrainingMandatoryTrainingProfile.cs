@@ -1,7 +1,11 @@
+using Unified.Db.Models.Abstract;
+
 namespace Unified.Db.Models.Training;
 
-public class TrainingMandatoryTrainingProfile
+public class TrainingMandatoryTrainingProfile : BaseEntity
 {
+    public int Id { get; set; }
+
     public int TrainingId { get; set; }
 
     public int TrainingProfileId { get; set; }

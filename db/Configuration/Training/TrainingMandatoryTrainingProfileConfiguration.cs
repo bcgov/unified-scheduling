@@ -5,11 +5,15 @@ using Unified.Db.Models.Training;
 namespace Unified.Db.Configuration.Training;
 
 public class TrainingMandatoryTrainingProfileConfiguration
-    : IEntityTypeConfiguration<TrainingMandatoryTrainingProfile>
+    : BaseEntityConfiguration<TrainingMandatoryTrainingProfile>
 {
-    public void Configure(EntityTypeBuilder<TrainingMandatoryTrainingProfile> builder)
+    public override void Configure(EntityTypeBuilder<TrainingMandatoryTrainingProfile> builder)
     {
-        builder.HasKey(x => new { x.TrainingId, x.TrainingProfileId });
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.Id).UseIdentityByDefaultColumn();
+
+        builder.HasIndex(x => new { x.TrainingId, x.TrainingProfileId }).IsUnique();
 
         builder.HasIndex(x => x.TrainingProfileId);
 
@@ -24,5 +28,7 @@ public class TrainingMandatoryTrainingProfileConfiguration
             .WithMany(x => x.MandatoryTrainings)
             .HasForeignKey(x => x.TrainingProfileId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        base.Configure(builder);
     }
 }
