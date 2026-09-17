@@ -22,6 +22,7 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.2" />
     <ProjectReference Include="..\..\db\db.csproj" />
     <ProjectReference Include="..\Unified.Authorization\Unified.Authorization.csproj" />
+    <ProjectReference Include="..\Unified.Calendar\Unified.Calendar.csproj" />
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
   </ItemGroup>
 </Project>
