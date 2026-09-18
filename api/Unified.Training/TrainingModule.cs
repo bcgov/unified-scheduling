@@ -56,6 +56,7 @@ public static class TrainingModule
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<IUserTrainingExpiryNotificationService, UserTrainingExpiryNotificationService>();
+        services.AddScoped<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
         services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
