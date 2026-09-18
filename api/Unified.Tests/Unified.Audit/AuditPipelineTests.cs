@@ -251,7 +251,9 @@ public sealed class AuditPipelineTests : IAsyncLifetime
 
         var record = Assert.Single(
             await dbContext
-                .AuditRecords.Where(r => r.EntityType == nameof(TrainingMandatoryTrainingProfile) && r.Action == "Added")
+                .AuditRecords.Where(r =>
+                    r.EntityType == nameof(TrainingMandatoryTrainingProfile) && r.Action == "Added"
+                )
                 .ToListAsync(TestContext.Current.CancellationToken)
         );
 

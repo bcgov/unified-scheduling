@@ -65,7 +65,10 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         await EnsureCategoryExistsAsync(request.TrainingCategoryId, cancellationToken);
 
         var normalizedRequest = NormalizeRequest(request);
-        await EnsureMandatoryTrainingProfilesExistAsync(normalizedRequest.MandatoryTrainingProfileIds, cancellationToken);
+        await EnsureMandatoryTrainingProfilesExistAsync(
+            normalizedRequest.MandatoryTrainingProfileIds,
+            cancellationToken
+        );
 
         var entity = normalizedRequest.Adapt<TrainingEntity>();
         if (entity.EffectiveDate == default)
@@ -95,7 +98,10 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         await EnsureCategoryExistsAsync(request.TrainingCategoryId, cancellationToken);
 
         var normalizedRequest = NormalizeRequest(request);
-        await EnsureMandatoryTrainingProfilesExistAsync(normalizedRequest.MandatoryTrainingProfileIds, cancellationToken);
+        await EnsureMandatoryTrainingProfilesExistAsync(
+            normalizedRequest.MandatoryTrainingProfileIds,
+            cancellationToken
+        );
         normalizedRequest.Adapt(entity);
 
         await SyncMandatoryTrainingProfilesAsync(entity.Id, normalizedRequest, cancellationToken);
@@ -237,26 +243,23 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         var mandatoryProfileLinks = await db
             .TrainingMandatoryTrainingProfiles.AsNoTracking()
             .Where(link => trainingIds.Contains(link.TrainingId))
-            .Select(link => new MandatoryProfileLinkRow(link.TrainingId, link.TrainingProfileId, link.TrainingProfile.Code))
+            .Select(link => new MandatoryProfileLinkRow(
+                link.TrainingId,
+                link.TrainingProfileId,
+                link.TrainingProfile.Code
+            ))
             .ToListAsync(cancellationToken);
 
         var groupedLinks = mandatoryProfileLinks
             .GroupBy(link => link.TrainingId)
-            .ToDictionary(
-                group => group.Key,
-                group => group.OrderBy(link => link.TrainingProfileCode).ToArray()
-            );
+            .ToDictionary(group => group.Key, group => group.OrderBy(link => link.TrainingProfileCode).ToArray());
 
         return trainings
             .Select(training =>
             {
                 if (!groupedLinks.TryGetValue(training.Id, out var links))
                 {
-                    return training with
-                    {
-                        MandatoryTrainingProfileIds = [],
-                        MandatoryTrainingProfileCodes = [],
-                    };
+                    return training with { MandatoryTrainingProfileIds = [], MandatoryTrainingProfileCodes = [] };
                 }
 
                 return training with
@@ -299,9 +302,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             .TrainingMandatoryTrainingProfiles.Where(link => link.TrainingId == trainingId)
             .ToListAsync(cancellationToken);
 
-        var profileIds = request.Mandatory
-            ? request.MandatoryTrainingProfileIds?.Distinct().ToArray() ?? []
-            : [];
+        var profileIds = request.Mandatory ? request.MandatoryTrainingProfileIds?.Distinct().ToArray() ?? [] : [];
 
         var requestedIds = profileIds.ToHashSet();
         var existingIds = existingLinks.Select(link => link.TrainingProfileId).ToHashSet();
