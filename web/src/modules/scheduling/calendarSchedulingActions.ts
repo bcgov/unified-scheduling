@@ -24,7 +24,11 @@ import {
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { isSchedulingCancelled } from './schedulingLifecycle';
-import { defaultSchedulingTimeZoneId } from './schedulingTimeZone';
+import {
+  defaultSchedulingTimeZoneId,
+  resolveSchedulingTimeZoneFromFilters,
+  resolveSchedulingTimeZoneId,
+} from './schedulingTimeZone';
 import {
   canAssignAssignments,
   canCreateAssignments,
@@ -216,8 +220,19 @@ export const calendarSchedulingEventDetailAction: CalendarViewDetailAction = {
     if (isAssignmentEvent(context.event)) {
       const assignmentEntryId = resolveAssignmentEntryId(context.event);
       if (assignmentEntryId) {
+        const eventDate = toDateTime(
+          context.event.start,
+          resolveSchedulingTimeZoneId(
+            context.event.timeZoneId,
+            resolveSchedulingTimeZoneFromFilters(context.queryContext?.filters ?? {}),
+          ),
+        ).toISODate();
+        if (!eventDate) {
+          return;
+        }
+
         useCalendarStore().clearSelectedEvent();
-        showCalendarSchedulingAssignmentModal(context.event.start.slice(0, 10), {
+        showCalendarSchedulingAssignmentModal(eventDate, {
           mode: 'view',
           assignmentEntryId,
           assignmentSeriesId: resolveAssignmentSeriesId(context.event) ?? undefined,

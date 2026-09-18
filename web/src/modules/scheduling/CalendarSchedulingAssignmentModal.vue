@@ -18,7 +18,7 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { mapToValidationErrors } from '@/shared/validation/validationErrors';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { SelectOption, SelectValue } from '@/types/select';
-import { formatCalendarDateTimeDate, formatCalendarTime } from '@/utils/date';
+import { formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarTime } from '@/utils/date';
 import { DateTime } from 'luxon';
 import { RRule } from 'rrule';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -55,6 +55,7 @@ import {
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { createLatestRequestGuard } from './latestRequestGuard';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
+import { toUtcBusinessDateInput } from './assignmentDefinitionDateHelpers';
 import {
   buildLocalDateTimeRange,
   formatTimeOptionRange,
@@ -579,17 +580,12 @@ function applyInitialSelections() {
       const assignmentDefinition = assignmentDefinitions.value.find(
         (candidate) => candidate.id === props.initialAssignmentDefinitionId,
       );
-      const effectiveDate = assignmentDefinition?.effectiveDateUtc
-        ? DateTime.fromISO(assignmentDefinition.effectiveDateUtc, { setZone: true })
-            .setZone(timeZoneId.value)
-            .startOf('day')
-        : null;
+      const effectiveDate = toUtcBusinessDateInput(assignmentDefinition?.effectiveDateUtc);
+      const contextDate = calendarContextDate.value.toISODate();
 
-      if (effectiveDate?.isValid && effectiveDate > calendarContextDate.value.startOf('day')) {
-        apiError.value = `Assignment ${assignmentDefinition?.name || 'type'} is not effective until ${formatCalendarDateTimeDate(
-          assignmentDefinition?.effectiveDateUtc ?? '',
-          timeZoneId.value,
-        )}`;
+      if (effectiveDate && contextDate && effectiveDate > contextDate) {
+        const formattedEffectiveDate = formatCalendarDateOnly(effectiveDate);
+        apiError.value = `Assignment ${assignmentDefinition?.name || 'type'} is not effective until ${formattedEffectiveDate}`;
       }
       return;
     }
