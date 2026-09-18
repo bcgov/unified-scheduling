@@ -13,6 +13,8 @@ public sealed class UserTrainingExpiryNotificationService(
     ILogger<UserTrainingExpiryNotificationService> logger
 ) : IUserTrainingExpiryNotificationService
 {
+    private const int CandidateLookaheadDays = 365;
+
     private readonly IEmailService? _emailService = emailServices.FirstOrDefault();
 
     public async Task<int> SendDueExpiryNoticesAsync(CancellationToken cancellationToken = default)
@@ -26,8 +28,13 @@ public sealed class UserTrainingExpiryNotificationService(
         var now = timeProvider.GetUtcNow();
         var today = now.UtcDateTime.Date;
         var todayUtc = new DateTimeOffset(today, TimeSpan.Zero);
+        var candidateUpperBoundUtc = todayUtc.AddDays(CandidateLookaheadDays + 1);
 
-        logger.LogDebug("Selecting expiry notice candidates for UTC date {TodayUtc}", todayUtc);
+        logger.LogDebug(
+            "Selecting expiry notice candidates for UTC date {TodayUtc} with upper bound {CandidateUpperBoundUtc}",
+            todayUtc,
+            candidateUpperBoundUtc
+        );
 
         // Find all latest user-trainings that are expiring soon and have not yet been sent a notice.
         var candidates = await db
@@ -35,6 +42,7 @@ public sealed class UserTrainingExpiryNotificationService(
             .Include(ut => ut.Training)
             .AsNoTracking()
             .Where(ut => ut.ExpiryDate >= todayUtc)
+            .Where(ut => ut.ExpiryDate < candidateUpperBoundUtc)
             .Where(ut => ut.Training.AdvanceNoticeDays > 0)
             .Where(ut => ut.NoticeState == UserTrainingNoticeStates.None)
             .Where(ut => ut.User.IsEnabled)
