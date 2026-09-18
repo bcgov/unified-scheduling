@@ -15,7 +15,9 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
     private UnifiedDbContext _db = null!;
 
     private static readonly Guid UserId = Guid.NewGuid();
+    private static readonly Guid SecondUserId = Guid.NewGuid();
     private const int TrainingId = 201;
+    private const int NonRotatingTrainingId = 202;
     private static readonly DateTimeOffset FixedNow = new(2026, 9, 11, 9, 0, 0, TimeSpan.Zero);
 
     public async ValueTask InitializeAsync()
@@ -61,6 +63,60 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
             .UserTrainings.AsNoTracking()
             .SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
         Assert.Equal(UserTrainingNoticeStates.Sent, saved.NoticeState);
+    }
+
+    [Fact]
+    public async Task SendDueExpiryNoticesAsync_WhenTrainingIsRotating_UsesRequalificationTemplate()
+    {
+        // Arrange
+        var emailService = new RecordingEmailService();
+        await SeedUserTrainingAsync(
+            expiryDate: FixedNow.AddDays(1),
+            noticeState: UserTrainingNoticeStates.None,
+            trainingId: TrainingId
+        );
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
+
+        // Act
+        var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(1, sentCount);
+        Assert.Single(emailService.Messages);
+        Assert.Equal("Training requalification notice: DEMO", emailService.Messages[0].Subject);
+        Assert.Contains("Please complete requalification", emailService.Messages[0].Body);
+    }
+
+    [Fact]
+    public async Task SendDueExpiryNoticesAsync_WhenTrainingIsNotRotating_UsesExpiryTemplate()
+    {
+        // Arrange
+        var emailService = new RecordingEmailService();
+        await SeedUserTrainingAsync(
+            expiryDate: FixedNow.AddDays(1),
+            noticeState: UserTrainingNoticeStates.None,
+            trainingId: NonRotatingTrainingId
+        );
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
+
+        // Act
+        var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(1, sentCount);
+        Assert.Single(emailService.Messages);
+        Assert.Equal("Training expiry notice: DEMO-NR", emailService.Messages[0].Subject);
+        Assert.Contains("No immediate action is required", emailService.Messages[0].Body);
     }
 
     [Fact]
@@ -189,7 +245,7 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         );
 
         // Act
-        await Assert.ThrowsAsync<EmailDeliveryException>(() =>
+        await Assert.ThrowsAsync<AggregateException>(() =>
             sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken)
         );
 
@@ -214,7 +270,7 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         );
 
         // Act
-        await Assert.ThrowsAsync<EmailDeliveryStateUnknownException>(() =>
+        await Assert.ThrowsAsync<AggregateException>(() =>
             sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken)
         );
 
@@ -223,6 +279,52 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
             .UserTrainings.AsNoTracking()
             .SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
         Assert.Equal(UserTrainingNoticeStates.Pending, saved.NoticeState);
+    }
+
+    [Fact]
+    public async Task SendDueExpiryNoticesAsync_WhenOneEmailFails_ContinuesAndSendsRemainingCandidates()
+    {
+        // Arrange
+        var emailService = new FirstAttemptFailsEmailService();
+        await SeedUserTrainingAsync(
+            expiryDate: FixedNow.AddDays(1),
+            noticeState: UserTrainingNoticeStates.None,
+            userId: UserId
+        );
+        await SeedUserTrainingAsync(
+            expiryDate: FixedNow.AddDays(1),
+            noticeState: UserTrainingNoticeStates.None,
+            userId: SecondUserId
+        );
+
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
+
+        // Act
+        var ex = await Assert.ThrowsAsync<AggregateException>(() =>
+            sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken)
+        );
+
+        // Assert
+        Assert.Single(ex.InnerExceptions);
+        Assert.IsType<EmailDeliveryException>(ex.InnerExceptions[0]);
+        Assert.Single(emailService.Messages);
+
+        var records = await _db
+            .UserTrainings.AsNoTracking()
+            .Where(ut => ut.TrainingId == TrainingId)
+            .OrderBy(ut => ut.UserId)
+            .ToArrayAsync(TestContext.Current.CancellationToken);
+
+        var firstUserRecord = records.Single(ut => ut.UserId == UserId);
+        var secondUserRecord = records.Single(ut => ut.UserId == SecondUserId);
+
+        Assert.Equal(UserTrainingNoticeStates.None, firstUserRecord.NoticeState);
+        Assert.Equal(UserTrainingNoticeStates.Sent, secondUserRecord.NoticeState);
     }
 
     [Fact]
@@ -262,6 +364,20 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
             }
         );
 
+        _db.Users.Add(
+            new User
+            {
+                Id = SecondUserId,
+                IdirName = "test.user.two",
+                IdirId = Guid.NewGuid(),
+                IsEnabled = true,
+                FirstName = "Second",
+                LastName = "User",
+                Email = "test.user.two@gov.bc.ca",
+                Gender = Gender.Other,
+            }
+        );
+
         _db.TrainingCategories.Add(new TrainingCategory { Id = 1, Name = "General" });
 
         _db.Trainings.Add(
@@ -276,16 +392,34 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
             }
         );
 
+        _db.Trainings.Add(
+            new global::Unified.Db.Models.Training.Training
+            {
+                Id = NonRotatingTrainingId,
+                Code = "DEMO-NR",
+                Description = "Demo non-rotating training",
+                TrainingCategoryId = 1,
+                Rotating = false,
+                AdvanceNoticeDays = 2,
+            }
+        );
+
         await _db.SaveChangesAsync();
     }
 
-    private async Task SeedUserTrainingAsync(DateTimeOffset expiryDate, string noticeState, int version = 1)
+    private async Task SeedUserTrainingAsync(
+        DateTimeOffset expiryDate,
+        string noticeState,
+        int version = 1,
+        Guid? userId = null,
+        int trainingId = TrainingId
+    )
     {
         _db.UserTrainings.Add(
             new UserTraining
             {
-                UserId = UserId,
-                TrainingId = TrainingId,
+                UserId = userId ?? UserId,
+                TrainingId = trainingId,
                 Version = version,
                 AwardedOn = FixedNow.AddDays(-100),
                 EndingOn = FixedNow.AddDays(-99),
@@ -344,6 +478,38 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
                 recipientCount: message.To.Count,
                 attachmentCount: 0,
                 innerException: new InvalidOperationException("timeout")
+            );
+        }
+    }
+
+    private sealed class FirstAttemptFailsEmailService : IEmailService
+    {
+        private int _attemptCount;
+        public List<EmailMessage> Messages { get; } = [];
+
+        public Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+        {
+            _attemptCount++;
+
+            if (_attemptCount == 1)
+            {
+                throw new EmailDeliveryException(
+                    tag: "tag",
+                    correlationId: message.UnifiedCorrelationId,
+                    recipientCount: message.To.Count,
+                    attachmentCount: 0,
+                    statusCode: 503
+                );
+            }
+
+            Messages.Add(message);
+            return Task.FromResult(
+                new EmailSendResult
+                {
+                    TransactionId = "tx",
+                    Tag = "tag",
+                    Messages = [],
+                }
             );
         }
     }

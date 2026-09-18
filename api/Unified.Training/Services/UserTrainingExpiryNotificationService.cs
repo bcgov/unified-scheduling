@@ -53,6 +53,7 @@ public sealed class UserTrainingExpiryNotificationService(
         var sentCount = 0;
         var outsideWindowCount = 0;
         var alreadyClaimedCount = 0;
+        var failures = new List<Exception>();
 
         foreach (var candidate in candidates)
         {
@@ -80,7 +81,7 @@ public sealed class UserTrainingExpiryNotificationService(
                 continue;
             }
 
-            var subject = $"Training expiry notice: {candidate.Training.Code}";
+            var subject = BuildSubject(candidate);
             var body = BuildBody(candidate, daysUntilExpiry);
 
             try
@@ -104,7 +105,8 @@ public sealed class UserTrainingExpiryNotificationService(
                     "Email delivery outcome unknown for user training {UserTrainingId}; leaving notice state as Pending",
                     candidate.Id
                 );
-                throw;
+                failures.Add(ex);
+                continue;
             }
             catch (Exception ex)
             {
@@ -133,7 +135,8 @@ public sealed class UserTrainingExpiryNotificationService(
                     );
                 }
 
-                throw;
+                failures.Add(ex);
+                continue;
             }
 
             try
@@ -166,17 +169,27 @@ public sealed class UserTrainingExpiryNotificationService(
                     "Email sent for user training {UserTrainingId}, but persisting Sent state failed; leaving state as Pending",
                     candidate.Id
                 );
-                throw;
+                failures.Add(ex);
+                continue;
             }
         }
 
         logger.LogInformation(
-            "Expiry notice run complete: candidates {CandidateCount}, sent {SentCount}, skipped outside window {OutsideWindowCount}, already claimed {AlreadyClaimedCount}",
+            "Expiry notice run complete: candidates {CandidateCount}, sent {SentCount}, skipped outside window {OutsideWindowCount}, already claimed {AlreadyClaimedCount}, failures {FailureCount}",
             candidates.Count,
             sentCount,
             outsideWindowCount,
-            alreadyClaimedCount
+            alreadyClaimedCount,
+            failures.Count
         );
+
+        if (failures.Count > 0)
+        {
+            throw new AggregateException(
+                $"One or more training expiry notices failed. Failure count: {failures.Count}.",
+                failures
+            );
+        }
 
         return sentCount;
     }
@@ -186,9 +199,22 @@ public sealed class UserTrainingExpiryNotificationService(
         var expiresOn = userTraining.ExpiryDate!.Value.UtcDateTime.ToString("yyyy-MM-dd");
         var countdown = daysUntilExpiry == 0 ? "today" : $"in {daysUntilExpiry} day(s)";
 
+        if (userTraining.Training.Rotating)
+        {
+            return $"Hello {userTraining.User.FirstName},\n\n"
+                + $"This is a reminder that your rotating training '{userTraining.Training.Code}' expires {countdown} ({expiresOn} UTC).\n"
+                + "Please complete requalification by retaking this training before expiry.\n\n"
+                + "Unified Scheduling";
+        }
+
         return $"Hello {userTraining.User.FirstName},\n\n"
             + $"This is a reminder that your training '{userTraining.Training.Code}' expires {countdown} ({expiresOn} UTC).\n"
-            + "Please renew it before expiry if renewal is required.\n\n"
+            + "No immediate action is required; this is a heads up that it is approaching expiry.\n\n"
             + "Unified Scheduling";
     }
+
+    private static string BuildSubject(UserTraining userTraining) =>
+        userTraining.Training.Rotating
+            ? $"Training requalification notice: {userTraining.Training.Code}"
+            : $"Training expiry notice: {userTraining.Training.Code}";
 }
