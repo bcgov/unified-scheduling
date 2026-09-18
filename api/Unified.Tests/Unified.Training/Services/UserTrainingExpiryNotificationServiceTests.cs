@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Core.Email;
 using Unified.Db;
 using Unified.Db.Models.Training;
@@ -42,7 +43,12 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Arrange
         var emailService = new RecordingEmailService();
         await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(2), noticeState: UserTrainingNoticeStates.None);
-        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
 
         // Act
         var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
@@ -63,7 +69,12 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Arrange
         var emailService = new RecordingEmailService();
         await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(3), noticeState: UserTrainingNoticeStates.None);
-        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
 
         // Act
         var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
@@ -74,6 +85,33 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SendDueExpiryNoticesAsync_WhenExpiryWasEarlierToday_StillSendsTodayNotice()
+    {
+        // Arrange
+        var emailService = new RecordingEmailService();
+        await SeedUserTrainingAsync(expiryDate: FixedNow.AddHours(-1), noticeState: UserTrainingNoticeStates.None);
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
+
+        // Act
+        var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(1, sentCount);
+        Assert.Single(emailService.Messages);
+        Assert.Contains("expires today", emailService.Messages[0].Body);
+
+        var saved = await _db
+            .UserTrainings.AsNoTracking()
+            .SingleAsync(ut => ut.UserId == UserId, TestContext.Current.CancellationToken);
+        Assert.Equal(UserTrainingNoticeStates.Sent, saved.NoticeState);
+    }
+
+    [Fact]
     public async Task SendDueExpiryNoticesAsync_WhenNoEmailProviderRegistered_SkipsWithoutFailing()
     {
         // Arrange
@@ -81,7 +119,8 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         var sut = new UserTrainingExpiryNotificationService(
             _db,
             Enumerable.Empty<IEmailService>(),
-            new FixedTimeProvider(FixedNow)
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
         );
 
         // Act
@@ -112,7 +151,12 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
             version: 2
         );
 
-        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
 
         // Act
         var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
@@ -137,7 +181,12 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Arrange
         var emailService = new FailingEmailService();
         await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(1), noticeState: UserTrainingNoticeStates.None);
-        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
 
         // Act
         await Assert.ThrowsAsync<EmailDeliveryException>(() =>
@@ -157,7 +206,12 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Arrange
         var emailService = new UnknownOutcomeEmailService();
         await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(1), noticeState: UserTrainingNoticeStates.None);
-        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
 
         // Act
         await Assert.ThrowsAsync<EmailDeliveryStateUnknownException>(() =>
@@ -177,7 +231,12 @@ public sealed class UserTrainingExpiryNotificationServiceTests : IAsyncLifetime
         // Arrange
         var emailService = new RecordingEmailService();
         await SeedUserTrainingAsync(expiryDate: FixedNow.AddDays(1), noticeState: UserTrainingNoticeStates.Pending);
-        var sut = new UserTrainingExpiryNotificationService(_db, [emailService], new FixedTimeProvider(FixedNow));
+        var sut = new UserTrainingExpiryNotificationService(
+            _db,
+            [emailService],
+            new FixedTimeProvider(FixedNow),
+            NullLogger<UserTrainingExpiryNotificationService>.Instance
+        );
 
         // Act
         var sentCount = await sut.SendDueExpiryNoticesAsync(TestContext.Current.CancellationToken);
