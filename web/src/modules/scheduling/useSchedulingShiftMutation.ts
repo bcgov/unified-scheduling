@@ -62,13 +62,14 @@ export function useSchedulingShiftMutation(options: {
   }
 
   async function saveShift() {
-    const validated = validateForm();
-    if (!validated) {
+    if (options.activeLocationId.value == null) {
+      apiError.value = 'A location is required before saving this shift.';
+      formErrors.value = {};
       return false;
     }
 
-    if (options.activeLocationId.value == null) {
-      apiError.value = 'A location is required before saving this shift.';
+    const validated = validateForm();
+    if (!validated) {
       return false;
     }
 

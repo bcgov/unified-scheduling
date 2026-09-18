@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { AssignmentEntryLinkRequest } from './assignmentEntryLinkRequest.ts';
 
 export interface ShiftEntryRequest {
   /** @nullable */
@@ -25,7 +26,8 @@ export interface ShiftEntryRequest {
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;
-  /** @nullable */
-  locationId?: number | null;
+  locationId?: number;
   userIds?: string[];
+  /** @nullable */
+  assignmentEntryLinks?: AssignmentEntryLinkRequest[] | null;
 }
