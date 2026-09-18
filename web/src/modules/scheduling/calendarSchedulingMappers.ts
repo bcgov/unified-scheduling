@@ -2,7 +2,6 @@ import {
   addDays,
   DATE_FORMAT,
   formatCalendarEventTimeRange,
-  formatLocalDateOnly,
   hasExplicitTimeZoneOffset,
   parseLocalDateOnly,
   startOfWeek,
@@ -38,6 +37,7 @@ import {
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import { calendarMatrixColorMap } from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
+import { DateTime } from 'luxon';
 import { defaultSchedulingTimeZoneId, resolveSchedulingTimeZoneFromFilters } from './schedulingTimeZone';
 import { isSchedulingCancelled } from './schedulingLifecycle';
 
@@ -70,8 +70,8 @@ export function buildCalendarSchedulingViewModel(
     };
   }
 
-  const days = buildDays(context.startDate, period);
   const timeZone = resolveMatrixTimeZone(context);
+  const days = buildDays(context.startDate, period, timeZone);
   const schedulingEvents = selectSchedulingShiftEvents(response);
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
@@ -183,8 +183,8 @@ export function buildCalendarAssignmentViewModel(
     };
   }
 
-  const days = buildDays(context.startDate, period);
   const timeZone = resolveMatrixTimeZone(context);
+  const days = buildDays(context.startDate, period, timeZone);
   const resources = buildAssignmentResourceRows(response);
   const assignmentEvents = selectSchedulingAssignmentEvents(response);
   const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
@@ -669,10 +669,10 @@ function buildPulldownAction(): CalendarMatrixActionDisplay {
   };
 }
 
-function buildDays(startDate: string, period: CalendarPeriod): CalendarMatrixDay[] {
+function buildDays(startDate: string, period: CalendarPeriod, timeZone: string): CalendarMatrixDay[] {
   const firstDate = period === 'day' ? startDate : startOfWeek(startDate);
   const dayCount = resolveDayCount(period);
-  const today = formatLocalDateOnly(new Date());
+  const today = DateTime.now().setZone(timeZone).toISODate();
 
   return Array.from({ length: dayCount }, (_, dayIndex) => {
     const date = addDays(firstDate, dayIndex);
