@@ -6,6 +6,8 @@ namespace Unified.Common.Interceptors.PostSave;
 /// Runs module-owned logic after a successful save and stages follow-up changes.
 /// </summary>
 /// <remarks>
+/// Use for module-agnostic save concerns only.
+/// Feature-specific business fan-out should use explicit in-process signals via IEventDispatcher.
 /// Register handlers as scoped services.
 /// Use the DbContext passed to HandleAsync (do not inject DbContext in the constructor).
 /// Handlers stage changes only; no SaveChanges/commit/external side effects.

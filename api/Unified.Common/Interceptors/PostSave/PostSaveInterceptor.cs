@@ -8,6 +8,7 @@ namespace Unified.Common.Interceptors.PostSave;
 /// <summary>
 /// Captures changes with registered handlers before save; dispatches only after the initial EF save succeeds.
 /// UnifiedDbContext owns the transaction around the initial save, handler saves, and auditing.
+/// Intended for module-agnostic save concerns; feature workflows should use explicit signal dispatch.
 /// </summary>
 public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, TimeProvider? timeProvider = null)
     : SaveChangesInterceptor

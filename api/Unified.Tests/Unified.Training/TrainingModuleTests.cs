@@ -1,14 +1,12 @@
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Unified.Api.Services;
-using Unified.Common.Interceptors.PostSave;
+using Unified.Common.Contracts;
+using Unified.Common.Events;
 using Unified.Common.Mvc;
 using Unified.Db;
-using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
 using Unified.Training;
 using Unified.Training.Controllers;
@@ -36,18 +34,22 @@ public sealed class TrainingModuleTests
 
         // Assert
         AssertContainsScopedRegistration<IUserTrainingService, UserTrainingService>(services);
-        AssertContainsScopedRegistration<IPostSaveHandler, AssignMandatoryTrainingOnUserCreationHandler>(services);
+        AssertContainsScopedRegistration<
+            IEntitySideEffect<UserCreatedSignal>,
+            AssignMandatoryTrainingOnUserCreationHandler
+        >(services);
         using var scope = provider.CreateScope();
-        // Handlers are resolved with the interceptor and do not inject the context being constructed.
+        // Handlers are resolved from DI and use the scoped context.
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<UnifiedDbContext>());
         var handler = Assert.IsType<AssignMandatoryTrainingOnUserCreationHandler>(
-            Assert.Single(scope.ServiceProvider.GetServices<IPostSaveHandler>())
+            Assert.Single(scope.ServiceProvider.GetServices<IEntitySideEffect<UserCreatedSignal>>())
         );
-        Assert.Same(handler, Assert.Single(scope.ServiceProvider.GetServices<IPostSaveHandler>()));
-        Assert.Equal(typeof(User), handler.EntityType);
-        Assert.Equal(SaveAction.Create, handler.Action);
+        Assert.Same(handler, Assert.Single(scope.ServiceProvider.GetServices<IEntitySideEffect<UserCreatedSignal>>()));
         using var otherScope = provider.CreateScope();
-        Assert.NotSame(handler, Assert.Single(otherScope.ServiceProvider.GetServices<IPostSaveHandler>()));
+        Assert.NotSame(
+            handler,
+            Assert.Single(otherScope.ServiceProvider.GetServices<IEntitySideEffect<UserCreatedSignal>>())
+        );
         AssertContainsScopedRegistration<ITrainingLookupStrategy, TrainingLookupStrategy>(services);
         AssertContainsScopedSelfRegistration<TrainingLookupRequestValidator>(services);
         AssertContainsScopedSelfRegistration<UserTrainingRequestValidator>(services);
@@ -68,7 +70,10 @@ public sealed class TrainingModuleTests
 
         // Assert
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IUserTrainingService));
-        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IPostSaveHandler));
+        Assert.DoesNotContain(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IEntitySideEffect<UserCreatedSignal>)
+        );
         Assert.DoesNotContain(
             services,
             descriptor => descriptor.ServiceType == typeof(AssignMandatoryTrainingOnUserCreationHandler)
@@ -108,12 +113,8 @@ public sealed class TrainingModuleTests
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddTrainingModule(configuration);
-        services.AddInterceptors();
         services.AddScoped<UnifiedDbContext>(sp => new SqliteTestUnifiedDbContext(
-            new DbContextOptionsBuilder<UnifiedDbContext>()
-                .UseSqlite("Data Source=:memory:")
-                .AddInterceptors(sp.GetServices<IInterceptor>())
-                .Options
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("Data Source=:memory:").Options
         ));
 
         var mvcBuilder = services.AddControllers();
