@@ -6,10 +6,8 @@ using Unified.JCInterface.Services;
 
 namespace Unified.JCInterface.Jobs;
 
-public sealed class JCSyncRecurringJob(
-    JCDataUpdaterService dataUpdaterService,
-    IOptions<JCInterfaceOptions> options
-) : IRecurringJob
+public sealed class JCSyncRecurringJob(JCDataUpdaterService dataUpdaterService, IOptions<JCInterfaceOptions> options)
+    : IRecurringJob
 {
     public string JobName => "jc-interface-sync";
 
