@@ -17,7 +17,7 @@ namespace Unified.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.11")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1943,12 +1943,12 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("TrainingId", "TrainingProfileId")
-                        .IsUnique();
-
                     b.HasIndex("TrainingProfileId");
 
                     b.HasIndex("UpdatedById");
+
+                    b.HasIndex("TrainingId", "TrainingProfileId")
+                        .IsUnique();
 
                     b.ToTable("TrainingMandatoryTrainingProfiles");
                 });
@@ -1980,17 +1980,6 @@ namespace Unified.Db.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTimeOffset>("EffectiveDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
