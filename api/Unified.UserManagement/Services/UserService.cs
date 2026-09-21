@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Unified.Common.Contracts;
-using Unified.Common.Logging;
 using Unified.Common.Events;
+using Unified.Common.Logging;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Extensions;
@@ -102,7 +102,10 @@ public sealed class UserService(
         await using var transaction = await DB.Database.BeginTransactionAsync(cancellationToken);
 
         await DB.SaveChangesAsync(cancellationToken);
-        await eventDispatcher.PublishAsync(new UserCreatedSignal(userEntity.Id, DateTimeOffset.UtcNow), cancellationToken);
+        await eventDispatcher.PublishAsync(
+            new UserCreatedSignal(userEntity.Id, DateTimeOffset.UtcNow),
+            cancellationToken
+        );
         await DB.SaveChangesAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
