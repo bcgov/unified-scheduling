@@ -10,13 +10,14 @@ public sealed class TrainingProfileSeeder(ILogger<TrainingProfileSeeder> logger)
 {
     public override int Order => 2;
 
-    public override string Name => "TrainingProfile";
+    public override string Name => "TrainingProfileType";
 
-    private static readonly TrainingProfile[] SeedProfiles =
+    private static readonly TrainingProfileType[] SeedProfiles =
     [
         new()
         {
             Code = "CARBINE_OPERATOR",
+            Name = "Carbine Operator",
         },
     ];
 
@@ -25,13 +26,18 @@ public sealed class TrainingProfileSeeder(ILogger<TrainingProfileSeeder> logger)
         foreach (var seedProfile in SeedProfiles)
         {
             var existingProfile = await dbContext
-                .TrainingProfiles.AsQueryable()
+                .TrainingProfileTypes.AsQueryable()
                 .FirstOrDefaultAsync(profile => profile.Code == seedProfile.Code, cancellationToken);
 
             if (existingProfile is null)
             {
-                await dbContext.TrainingProfiles.AddAsync(seedProfile, cancellationToken);
+                await dbContext.TrainingProfileTypes.AddAsync(seedProfile, cancellationToken);
                 continue;
+            }
+
+            if (existingProfile.Name != seedProfile.Name)
+            {
+                existingProfile.Name = seedProfile.Name;
             }
         }
 

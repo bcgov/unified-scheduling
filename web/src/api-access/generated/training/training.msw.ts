@@ -9,7 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { TrainingLookupResponse, TrainingProfileLookupResponse } from '../models';
+import type { TrainingLookupResponse } from '../models';
 
 export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[] =>
   faker.helpers.arrayElement([
@@ -666,55 +666,6 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
     },
   ]);
 
-export const getGetApiLookupTrainingProfilesResponseMock = (): TrainingProfileLookupResponse[] =>
-  faker.helpers.arrayElement([
-    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
-      code: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      description: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      effectiveDate: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      createdOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-    })),
-    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
-      code: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      description: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      effectiveDate: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      createdOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-    })),
-    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
-      id: faker.number.int(),
-      code: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      description: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      effectiveDate: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-      createdOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
-    })),
-  ]);
-
 export const getGetApiLookupTrainingsMockHandler = (
   overrideResponse?:
     | TrainingLookupResponse[]
@@ -868,30 +819,6 @@ export const getPatchApiLookupTrainingsIdUnexpireMockHandler = (
     options,
   );
 };
-
-export const getGetApiLookupTrainingProfilesMockHandler = (
-  overrideResponse?:
-    | TrainingProfileLookupResponse[]
-    | ((
-        info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<TrainingProfileLookupResponse[]> | TrainingProfileLookupResponse[]),
-  options?: RequestHandlerOptions,
-) => {
-  return http.get(
-    '*/api/lookup/training-profiles',
-    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
-      return HttpResponse.json(
-        overrideResponse !== undefined
-          ? typeof overrideResponse === 'function'
-            ? await overrideResponse(info)
-            : overrideResponse
-          : getGetApiLookupTrainingProfilesResponseMock(),
-        { status: 200 },
-      );
-    },
-    options,
-  );
-};
 export const getTrainingMock = () => [
   getGetApiLookupTrainingsMockHandler(),
   getPostApiLookupTrainingsMockHandler(),
@@ -900,5 +827,4 @@ export const getTrainingMock = () => [
   getPatchApiLookupTrainingsIdOrderMockHandler(),
   getPatchApiLookupTrainingsIdExpireMockHandler(),
   getPatchApiLookupTrainingsIdUnexpireMockHandler(),
-  getGetApiLookupTrainingProfilesMockHandler(),
 ];

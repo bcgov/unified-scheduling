@@ -5,12 +5,10 @@
  * OpenAPI spec version: 1.0.0
  */
 import type {
-  GetApiLookupTrainingProfilesParams,
   GetApiLookupTrainingsParams,
   TrainingLookupMoveOrderRequest,
   TrainingLookupRequest,
   TrainingLookupResponse,
-  TrainingProfileLookupResponse,
 } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI.ts';
@@ -79,15 +77,6 @@ export const patchApiLookupTrainingsIdExpire = (id: number, options?: SecondPara
 export const patchApiLookupTrainingsIdUnexpire = (id: number, options?: SecondParameter<typeof useFetchAPI<void>>) => {
   return useFetchAPI<void>({ url: `/api/lookup/trainings/${id}/unexpire`, method: 'PATCH' }, options);
 };
-export const getApiLookupTrainingProfiles = (
-  params?: GetApiLookupTrainingProfilesParams,
-  options?: SecondParameter<typeof useFetchAPI<TrainingProfileLookupResponse[]>>,
-) => {
-  return useFetchAPI<TrainingProfileLookupResponse[]>(
-    { url: `/api/lookup/training-profiles`, method: 'GET', params },
-    options,
-  );
-};
 export type GetApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainings>>>;
 export type PostApiLookupTrainingsResult = NonNullable<Awaited<ReturnType<typeof postApiLookupTrainings>>>;
 export type GetApiLookupTrainingsIdResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainingsId>>>;
@@ -101,4 +90,3 @@ export type PatchApiLookupTrainingsIdExpireResult = NonNullable<
 export type PatchApiLookupTrainingsIdUnexpireResult = NonNullable<
   Awaited<ReturnType<typeof patchApiLookupTrainingsIdUnexpire>>
 >;
-export type GetApiLookupTrainingProfilesResult = NonNullable<Awaited<ReturnType<typeof getApiLookupTrainingProfiles>>>;

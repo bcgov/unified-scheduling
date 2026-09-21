@@ -1905,7 +1905,7 @@ namespace Unified.Db.Migrations
                     b.ToTable("TrainingCategories");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingMandatoryTrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1930,7 +1930,7 @@ namespace Unified.Db.Migrations
                     b.Property<int>("TrainingId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("TrainingProfileId")
+                    b.Property<int>("TrainingProfileTypeId")
                         .HasColumnType("integer");
 
                     b.Property<Guid?>("UpdatedById")
@@ -1943,17 +1943,17 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("TrainingProfileId");
+                    b.HasIndex("TrainingProfileTypeId");
 
                     b.HasIndex("UpdatedById");
 
-                    b.HasIndex("TrainingId", "TrainingProfileId")
+                    b.HasIndex("TrainingId", "TrainingProfileTypeId")
                         .IsUnique();
 
-                    b.ToTable("TrainingMandatoryTrainingProfiles");
+                    b.ToTable("TrainingMandatoryTrainingProfiles", (string)null);
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileType", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1981,6 +1981,21 @@ namespace Unified.Db.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("EffectiveDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
 
@@ -1996,7 +2011,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("TrainingProfiles");
+                    b.ToTable("TrainingProfileTypes");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.UserTraining", b =>
@@ -3454,7 +3469,7 @@ namespace Unified.Db.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingMandatoryTrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
@@ -3462,14 +3477,14 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.Training.Training", "Training")
-                        .WithMany("MandatoryTrainingProfiles")
+                        .WithMany("TrainingProfiles")
                         .HasForeignKey("TrainingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Unified.Db.Models.Training.TrainingProfile", "TrainingProfile")
-                        .WithMany("MandatoryTrainings")
-                        .HasForeignKey("TrainingProfileId")
+                    b.HasOne("Unified.Db.Models.Training.TrainingProfileType", "TrainingProfileType")
+                        .WithMany("TrainingProfiles")
+                        .HasForeignKey("TrainingProfileTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -3482,12 +3497,12 @@ namespace Unified.Db.Migrations
 
                     b.Navigation("Training");
 
-                    b.Navigation("TrainingProfile");
+                    b.Navigation("TrainingProfileType");
 
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileType", b =>
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
@@ -3615,7 +3630,7 @@ namespace Unified.Db.Migrations
                         .WithMany()
                         .HasForeignKey("HomeLocationId");
 
-                    b.HasOne("Unified.Db.Models.Training.TrainingProfile", "TrainingProfile")
+                    b.HasOne("Unified.Db.Models.Training.TrainingProfileType", "TrainingProfileType")
                         .WithMany("Users")
                         .HasForeignKey("TrainingProfileId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3629,7 +3644,7 @@ namespace Unified.Db.Migrations
 
                     b.Navigation("HomeLocation");
 
-                    b.Navigation("TrainingProfile");
+                    b.Navigation("TrainingProfileType");
 
                     b.Navigation("UpdatedBy");
                 });
@@ -3828,7 +3843,7 @@ namespace Unified.Db.Migrations
 
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
                 {
-                    b.Navigation("MandatoryTrainingProfiles");
+                    b.Navigation("TrainingProfiles");
 
                     b.Navigation("UserTrainings");
                 });
@@ -3838,9 +3853,9 @@ namespace Unified.Db.Migrations
                     b.Navigation("Trainings");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileType", b =>
                 {
-                    b.Navigation("MandatoryTrainings");
+                    b.Navigation("TrainingProfiles");
 
                     b.Navigation("Users");
                 });

@@ -287,14 +287,14 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
         Assert.Equal(LookupCodeTypes.Trainings, _strategy.CodeType);
     }
 
-    private async Task<TrainingProfile> SeedTrainingProfileAsync(string code, string _description)
+    private async Task<TrainingProfileType> SeedTrainingProfileAsync(string code, string _description)
     {
-        var profile = new TrainingProfile
+        var profile = new TrainingProfileType
         {
             Code = code,
         };
 
-        _dbContext.TrainingProfiles.Add(profile);
+        _dbContext.TrainingProfileTypes.Add(profile);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return profile;

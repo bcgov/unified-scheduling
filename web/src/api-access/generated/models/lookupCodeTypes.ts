@@ -12,4 +12,5 @@ export const LookupCodeTypes = {
   EventTypes: 'EventTypes',
   EventStatusTypes: 'EventStatusTypes',
   Trainings: 'Trainings',
+  TrainingProfiles: 'TrainingProfiles',
 } as const;

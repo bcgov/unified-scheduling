@@ -12,7 +12,7 @@ import { mapToValidationErrors, validationMessages } from '@/shared/validation/v
 import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref } from 'vue';
-import { useTrainingProfileLookup } from '../trainingProfileApi';
+import { useTrainingProfiles } from '../trainingProfileApi';
 import {
   annualValidityDayCode,
   defaultValidityDayCode,
@@ -56,11 +56,11 @@ const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-const { data: trainingProfiles } = useTrainingProfileLookup();
+const { data: trainingProfiles } = useTrainingProfiles();
 const trainingProfileOptions = computed<SelectOption[]>(() => {
   return (trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,
-    description: profile.code,
+    description: profile.name,
   }));
 });
 

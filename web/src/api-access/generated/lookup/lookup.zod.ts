@@ -7,7 +7,7 @@
 import * as zod from 'zod';
 
 export const GetApiLookupCodeTypeParams = zod.strictObject({
-  codeType: zod.enum(['PositionTypes', 'EventTypes', 'EventStatusTypes', 'Trainings']),
+  codeType: zod.enum(['PositionTypes', 'EventTypes', 'EventStatusTypes', 'Trainings', 'TrainingProfiles']),
 });
 
 export const GetApiLookupCodeTypeResponseItem = zod.object({

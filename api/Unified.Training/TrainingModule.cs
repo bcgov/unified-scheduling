@@ -57,6 +57,9 @@ public static class TrainingModule
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );
+        services.AddScoped<ILookupStrategy>(serviceProvider =>
+            serviceProvider.GetRequiredService<ITrainingProfileLookupStrategy>()
+        );
         services.AddSeeder<UnifiedDbContext, TrainingProfileSeeder>();
 
         services.AddScoped<TrainingLookupRequestValidator>();

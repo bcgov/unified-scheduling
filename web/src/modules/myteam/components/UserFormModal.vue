@@ -10,7 +10,8 @@ import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { useAccessControl } from '@/composables/useAccessControl';
-import { useTrainingProfileLookup } from '@/modules/training/trainingProfileApi';
+import { useTrainingProfiles } from '@/modules/training/trainingProfileApi';
+import type { SelectOption } from '@/types/select';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
 import { mapToSelectOptions } from '@/utils/select';
@@ -46,14 +47,17 @@ const isEditMode = computed(() => !!currentUser.value);
 
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
 const homeLocationOptions = locationsStore.selectOptions;
-const { data: trainingProfiles } = useTrainingProfileLookup();
-const trainingProfileOptions = computed(() => [
-  { code: null, description: 'No training profile' },
-  ...(trainingProfiles.value ?? []).map((profile) => ({
-    code: profile.id,
-    description: profile.code,
-  })),
-]);
+const { data: trainingProfiles } = useTrainingProfiles();
+const trainingProfileOptions = computed(
+  () =>
+    [
+      { code: null, description: 'No training profile' },
+      ...(trainingProfiles.value ?? []).map((profile) => ({
+        code: profile.id,
+        description: profile.name,
+      })),
+    ] as unknown as SelectOption[],
+);
 const genderOptions = mapToSelectOptions(
   Object.values(Gender),
   (gender) => gender,

@@ -157,20 +157,3 @@ export const PatchApiLookupTrainingsIdUnexpireParams = zod.strictObject({
 });
 
 export const PatchApiLookupTrainingsIdUnexpireResponse = zod.void();
-
-export const getApiLookupTrainingProfilesQueryIncludeExpiredDefault = false;
-
-export const GetApiLookupTrainingProfilesQueryParams = zod.strictObject({
-  includeExpired: zod.boolean().default(getApiLookupTrainingProfilesQueryIncludeExpiredDefault),
-});
-
-export const GetApiLookupTrainingProfilesResponseItem = zod.object({
-  id: zod.int(),
-  code: zod.string(),
-  description: zod.string(),
-  effectiveDate: zod.iso.datetime({ offset: true }),
-  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
-  createdOn: zod.iso.datetime({ offset: true }),
-  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
-});
-export const GetApiLookupTrainingProfilesResponse = zod.array(GetApiLookupTrainingProfilesResponseItem);

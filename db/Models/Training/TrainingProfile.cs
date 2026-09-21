@@ -1,17 +1,16 @@
-using System.ComponentModel.DataAnnotations;
 using Unified.Db.Models.Abstract;
-using Unified.Db.Models.UserManagement;
 
 namespace Unified.Db.Models.Training;
 
 public class TrainingProfile : BaseEntity
 {
-    [Key]
     public int Id { get; set; }
 
-    public string Code { get; set; } = string.Empty;
+    public int TrainingId { get; set; }
 
-    public virtual ICollection<User> Users { get; set; } = [];
+    public int TrainingProfileTypeId { get; set; }
 
-    public virtual ICollection<TrainingMandatoryTrainingProfile> MandatoryTrainings { get; set; } = [];
+    public virtual Training Training { get; set; } = null!;
+
+    public virtual TrainingProfileType TrainingProfileType { get; set; } = null!;
 }

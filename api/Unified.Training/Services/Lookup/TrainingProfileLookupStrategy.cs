@@ -1,27 +1,29 @@
 using Microsoft.EntityFrameworkCore;
+using Unified.Core.Models;
 using Unified.Db;
-using Unified.Training.Models;
 
 namespace Unified.Training.Services.Lookup;
 
 public sealed class TrainingProfileLookupStrategy(UnifiedDbContext db) : ITrainingProfileLookupStrategy
 {
-    public async Task<IReadOnlyCollection<TrainingProfileLookupResponse>> GetAllAsync(
-        bool includeExpired = false,
-        CancellationToken cancellationToken = default
-    )
-    {
-        var query = db.TrainingProfiles.AsNoTracking().AsQueryable();
+	public LookupCodeTypes CodeType => LookupCodeTypes.TrainingProfiles;
 
-        return await query
-            .OrderBy(profile => profile.Code)
-            .Select(profile => new TrainingProfileLookupResponse
-            {
-                Id = profile.Id,
-                Code = profile.Code,
-                CreatedOn = profile.CreatedOn,
-                UpdatedOn = profile.UpdatedOn,
-            })
-            .ToListAsync(cancellationToken);
-    }
+	public async Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
+		CancellationToken cancellationToken = default
+	)
+	{
+		return await db
+			.TrainingProfileTypes.AsNoTracking()
+			.OrderBy(profile => profile.Name)
+			.ThenBy(profile => profile.Code)
+			.Select(profile => new LookupCodeResponse
+			{
+				Id = profile.Id,
+				Code = profile.Code,
+				Description = profile.Name,
+				EffectiveDate = profile.CreatedOn,
+				ExpiryDate = null,
+			})
+			.ToListAsync(cancellationToken);
+	}
 }

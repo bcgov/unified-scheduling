@@ -1,11 +1,5 @@
-using Unified.Training.Models;
+using Unified.Core.Services.Lookup;
 
 namespace Unified.Training.Services.Lookup;
 
-public interface ITrainingProfileLookupStrategy
-{
-    Task<IReadOnlyCollection<TrainingProfileLookupResponse>> GetAllAsync(
-        bool includeExpired = false,
-        CancellationToken cancellationToken = default
-    );
-}
+public interface ITrainingProfileLookupStrategy : ILookupStrategy;

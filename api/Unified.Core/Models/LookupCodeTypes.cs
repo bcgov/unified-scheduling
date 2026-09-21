@@ -12,4 +12,5 @@ public enum LookupCodeTypes
     EventTypes,
     EventStatusTypes,
     Trainings,
+    TrainingProfiles,
 }

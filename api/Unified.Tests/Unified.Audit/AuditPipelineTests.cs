@@ -225,9 +225,10 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         await using var _ = connection;
         await using var __ = dbContext;
 
-        var profile = new TrainingProfile
+        var profile = new TrainingProfileType
         {
             Code = "CARBINE",
+            Name = "Carbine",
         };
         var training = new global::Unified.Db.Models.Training.Training
         {
@@ -238,18 +239,18 @@ public sealed class AuditPipelineTests : IAsyncLifetime
             Order = 1,
         };
 
-        dbContext.TrainingProfiles.Add(profile);
+        dbContext.TrainingProfileTypes.Add(profile);
         dbContext.Trainings.Add(training);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var link = new TrainingMandatoryTrainingProfile { TrainingId = training.Id, TrainingProfileId = profile.Id };
-        dbContext.TrainingMandatoryTrainingProfiles.Add(link);
+        var link = new TrainingProfile { TrainingId = training.Id, TrainingProfileTypeId = profile.Id };
+        dbContext.TrainingProfiles.Add(link);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var record = Assert.Single(
             await dbContext
                 .AuditRecords.Where(r =>
-                    r.EntityType == nameof(TrainingMandatoryTrainingProfile) && r.Action == "Added"
+                    r.EntityType == nameof(TrainingProfile) && r.Action == "Added"
                 )
                 .ToListAsync(TestContext.Current.CancellationToken)
         );
