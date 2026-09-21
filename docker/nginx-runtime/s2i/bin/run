@@ -64,6 +64,12 @@ getApiProxyConfigSection() {
             proxy_buffers           4 256k;
             proxy_busy_buffers_size 256k;
             proxy_read_timeout 600s;
+            proxy_intercept_errors on;
+            error_page 401 = @hangfire_unauthorized;
+          }
+
+          location @hangfire_unauthorized {
+            return 302 ${WEB_BASE_HREF};
           }
 EOF
 }

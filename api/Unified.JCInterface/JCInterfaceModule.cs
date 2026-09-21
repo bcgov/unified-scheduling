@@ -4,6 +4,8 @@ using JCCommon.Clients.LocationServices;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Unified.Common.Jobs;
+using Unified.JCInterface.Jobs;
 using Unified.JCInterface.Options;
 using Unified.JCInterface.Services;
 
@@ -68,6 +70,7 @@ public static class JCInterfaceModule
 
         // Register the sync orchestrator as scoped — it holds a DbContext.
         services.AddScoped<JCDataUpdaterService>();
+        services.AddScoped<IRecurringJob, JCSyncRecurringJob>();
 
         return services;
     }
