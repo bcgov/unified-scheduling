@@ -19,6 +19,8 @@ EOF
 
 getApiProxyConfigSection() {
   local apiUrl="${1%/}"
+  local apiPath="${API_PATH%/}"
+  local apiServiceUrl="${apiUrl%${apiPath}}"
 
   cat <<EOF
         location /api {
@@ -42,6 +44,27 @@ getApiProxyConfigSection() {
             proxy_cookie_path /api/auth ${WEB_BASE_HREF}api/auth;
             proxy_read_timeout 600s;
         }
+
+          location /hangfire {
+            limit_except OPTIONS {
+              ${HTTP_BASIC:-}
+            }
+            proxy_set_header Host               \$host;
+            proxy_set_header X-Real-IP          \$remote_addr;
+            proxy_set_header X-Forwarded-For    \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host   \$host;
+            proxy_set_header X-Forwarded-Proto  \$http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Port   \$http_x_forwarded_port;
+            proxy_set_header X-Base-Href        ${WEB_BASE_HREF};
+            proxy_pass_request_headers on;
+            proxy_pass_header Authorization;
+            proxy_pass_header Accept;
+            proxy_pass ${apiServiceUrl};
+            proxy_buffer_size       128k;
+            proxy_buffers           4 256k;
+            proxy_busy_buffers_size 256k;
+            proxy_read_timeout 600s;
+          }
 EOF
 }
 
