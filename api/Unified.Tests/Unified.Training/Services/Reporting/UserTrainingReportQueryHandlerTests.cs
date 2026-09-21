@@ -528,13 +528,11 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         return training;
     }
 
-    private async Task<TrainingProfile> SeedTrainingProfileAsync(string code, string description)
+    private async Task<TrainingProfile> SeedTrainingProfileAsync(string code, string _description)
     {
         var profile = new TrainingProfile
         {
             Code = code,
-            Description = description,
-            EffectiveDate = _fixedNow.AddDays(-30),
         };
 
         _db.TrainingProfiles.Add(profile);

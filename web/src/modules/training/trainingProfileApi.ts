@@ -3,9 +3,6 @@ import { useFetchAPI, type UseFetchAPIOptions } from '@/api-access/useFetchAPI';
 export type TrainingProfileLookupResponse = {
   id: number;
   code: string;
-  description: string;
-  effectiveDate: string;
-  expiryDate?: string | null;
   createdOn: string;
   updatedOn?: string | null;
 };

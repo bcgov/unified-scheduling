@@ -11,7 +11,6 @@ public class TrainingProfileConfiguration : BaseEntityConfiguration<TrainingProf
         builder.Property(b => b.Id).HasIdentityOptions(startValue: 200);
 
         builder.Property(b => b.Code).HasMaxLength(50).IsRequired();
-        builder.Property(b => b.Description).HasMaxLength(200).IsRequired();
 
         builder.HasIndex(b => b.Code).IsUnique();
 

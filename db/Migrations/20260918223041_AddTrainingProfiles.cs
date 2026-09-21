@@ -25,15 +25,12 @@ namespace Unified.Db.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:IdentitySequenceOptions", "'200', '1', '', '', 'False', '1'")
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: true),
                     CreatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
                     UpdatedById = table.Column<Guid>(type: "uuid", nullable: true),
                     UpdatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
-                    Code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Description = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    EffectiveDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ExpiryDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -70,12 +67,6 @@ namespace Unified.Db.Migrations
                 {
                     table.PrimaryKey("PK_TrainingMandatoryTrainingProfiles", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_TrainingMandatoryTrainingProfiles_Users_CreatedById",
-                        column: x => x.CreatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
                         name: "FK_TrainingMandatoryTrainingProfiles_TrainingProfiles_Training~",
                         column: x => x.TrainingProfileId,
                         principalTable: "TrainingProfiles",
@@ -87,6 +78,12 @@ namespace Unified.Db.Migrations
                         principalTable: "Trainings",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TrainingMandatoryTrainingProfiles_Users_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_TrainingMandatoryTrainingProfiles_Users_UpdatedById",
                         column: x => x.UpdatedById,
@@ -101,20 +98,20 @@ namespace Unified.Db.Migrations
                 column: "TrainingProfileId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TrainingMandatoryTrainingProfiles_TrainingProfileId",
-                table: "TrainingMandatoryTrainingProfiles",
-                column: "TrainingProfileId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_TrainingMandatoryTrainingProfiles_CreatedById",
                 table: "TrainingMandatoryTrainingProfiles",
                 column: "CreatedById");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TrainingMandatoryTrainingProfiles_TrainingId_TrainingProfileId",
+                name: "IX_TrainingMandatoryTrainingProfiles_TrainingId_TrainingProfil~",
                 table: "TrainingMandatoryTrainingProfiles",
                 columns: new[] { "TrainingId", "TrainingProfileId" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TrainingMandatoryTrainingProfiles_TrainingProfileId",
+                table: "TrainingMandatoryTrainingProfiles",
+                column: "TrainingProfileId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TrainingMandatoryTrainingProfiles_UpdatedById",

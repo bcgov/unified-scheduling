@@ -51,7 +51,7 @@ const trainingProfileOptions = computed(() => [
   { code: null, description: 'No training profile' },
   ...(trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,
-    description: profile.description?.trim() || profile.code,
+    description: profile.code,
   })),
 ]);
 const genderOptions = mapToSelectOptions(

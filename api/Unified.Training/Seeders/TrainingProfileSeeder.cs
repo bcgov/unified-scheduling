@@ -12,15 +12,11 @@ public sealed class TrainingProfileSeeder(ILogger<TrainingProfileSeeder> logger)
 
     public override string Name => "TrainingProfile";
 
-    private static readonly DateTimeOffset SeedEffectiveDate = new(2026, 9, 14, 0, 0, 0, TimeSpan.Zero);
-
     private static readonly TrainingProfile[] SeedProfiles =
     [
         new()
         {
             Code = "CARBINE_OPERATOR",
-            Description = "Carbine Operator",
-            EffectiveDate = SeedEffectiveDate,
         },
     ];
 
@@ -37,10 +33,6 @@ public sealed class TrainingProfileSeeder(ILogger<TrainingProfileSeeder> logger)
                 await dbContext.TrainingProfiles.AddAsync(seedProfile, cancellationToken);
                 continue;
             }
-
-            existingProfile.Description = seedProfile.Description;
-            existingProfile.EffectiveDate = seedProfile.EffectiveDate;
-            existingProfile.ExpiryDate = seedProfile.ExpiryDate;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

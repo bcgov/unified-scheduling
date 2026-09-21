@@ -219,7 +219,7 @@ public sealed class AuditPipelineTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SaveChangesAsync_When_Entity_Has_Composite_Primary_Key_Should_Write_AuditRecord_With_Composite_EntityPK()
+    public async Task SaveChangesAsync_When_Entity_Has_Identity_Primary_Key_Should_Write_AuditRecord_With_EntityPK()
     {
         var (connection, dbContext) = await CreateSqliteDbContextAsync();
         await using var _ = connection;
@@ -228,8 +228,6 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         var profile = new TrainingProfile
         {
             Code = "CARBINE",
-            Description = "Carbine Operator",
-            EffectiveDate = DateTimeOffset.UtcNow,
         };
         var training = new global::Unified.Db.Models.Training.Training
         {
@@ -244,9 +242,8 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         dbContext.Trainings.Add(training);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        dbContext.TrainingMandatoryTrainingProfiles.Add(
-            new TrainingMandatoryTrainingProfile { TrainingId = training.Id, TrainingProfileId = profile.Id }
-        );
+        var link = new TrainingMandatoryTrainingProfile { TrainingId = training.Id, TrainingProfileId = profile.Id };
+        dbContext.TrainingMandatoryTrainingProfiles.Add(link);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var record = Assert.Single(
@@ -257,7 +254,7 @@ public sealed class AuditPipelineTests : IAsyncLifetime
                 .ToListAsync(TestContext.Current.CancellationToken)
         );
 
-        Assert.Equal($"TrainingId:{training.Id}|TrainingProfileId:{profile.Id}", record.EntityPK);
+        Assert.Equal(link.Id.ToString(), record.EntityPK);
     }
 
     [Fact]

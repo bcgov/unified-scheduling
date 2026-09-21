@@ -13,21 +13,12 @@ public sealed class TrainingProfileLookupStrategy(UnifiedDbContext db) : ITraini
     {
         var query = db.TrainingProfiles.AsNoTracking().AsQueryable();
 
-        if (!includeExpired)
-        {
-            var now = DateTimeOffset.UtcNow;
-            query = query.Where(profile => profile.ExpiryDate == null || profile.ExpiryDate > now);
-        }
-
         return await query
             .OrderBy(profile => profile.Code)
             .Select(profile => new TrainingProfileLookupResponse
             {
                 Id = profile.Id,
                 Code = profile.Code,
-                Description = profile.Description,
-                EffectiveDate = profile.EffectiveDate,
-                ExpiryDate = profile.ExpiryDate,
                 CreatedOn = profile.CreatedOn,
                 UpdatedOn = profile.UpdatedOn,
             })
