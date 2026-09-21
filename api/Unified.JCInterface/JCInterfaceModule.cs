@@ -43,6 +43,8 @@ public static class JCInterfaceModule
             optionsBuilder.ValidateDataAnnotations().ValidateOnStart();
         }
 
+        services.AddTransient<JCInterfaceLoggingHandler>();
+
         // Register the typed HttpClient for the JC Interface API.
         // Basic Auth credentials and the base URL come from JCInterfaceOptions
         // so no raw IConfiguration reads are needed in service constructors.
@@ -66,7 +68,7 @@ public static class JCInterfaceModule
                 );
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
             }
-        );
+        ).AddHttpMessageHandler<JCInterfaceLoggingHandler>();
 
         // Register the sync orchestrator as scoped — it holds a DbContext.
         services.AddScoped<JCDataUpdaterService>();
