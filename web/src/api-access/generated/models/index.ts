@@ -105,6 +105,8 @@ export * from './statSignoffResponse.ts';
 export * from './statutoryHolidayType.ts';
 export * from './subCategoryMetricResponse.ts';
 export * from './subCategoryResponse.ts';
+export * from './testEmailRequest.ts';
+export * from './testEmailResponse.ts';
 export * from './trainingFeatureFlags.ts';
 export * from './trainingLookupMoveOrderRequest.ts';
 export * from './trainingLookupRequest.ts';
