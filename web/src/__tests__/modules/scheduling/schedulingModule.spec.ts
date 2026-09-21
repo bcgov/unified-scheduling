@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Permissions } from '@/api-access/generated/models';
 
 describe('calendar scheduling module integration', () => {
   beforeEach(() => {
@@ -21,11 +22,11 @@ describe('calendar scheduling module integration', () => {
     expect(
       calendarRegistry
         .getAvailableModuleContributions(
-          { featureFlags: { Scheduling: { enabled: true } } },
+          { featureFlags: { Scheduling: { enabled: true } }, permissions: [Permissions.ShiftsView] },
           { startDate: '2025-01-01', endDate: '2025-01-08', filters: {} },
         )
         .map((contribution) => contribution.contributionId),
-    ).toContain('scheduling.shift-events');
+    ).toContain('scheduling.events');
     expect(
       calendarActionRegistry.getCreateActions(
         { startDate: '2025-01-01', endDate: '2025-01-08', activeViewId: 'calendar.matrix-schedule', filters: {} },
