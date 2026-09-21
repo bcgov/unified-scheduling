@@ -10,6 +10,8 @@ export type OriginalGetApiSchedulingShiftsSeriesParams = {
   EventSeriesId?: number;
   UserId?: string;
   LocationId?: number;
+  StartAtUtc?: string;
+  EndAtUtc?: string;
 };
 
 export type GetApiSchedulingShiftsSeriesParams = MaybeRef<OriginalGetApiSchedulingShiftsSeriesParams>;
