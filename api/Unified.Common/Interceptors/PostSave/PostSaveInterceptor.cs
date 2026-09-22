@@ -25,7 +25,8 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
         CancellationToken cancellationToken = default
     )
     {
-        if (eventData.Context is not { } db || result.HasResult || _handlers.Count == 0)
+        var db = eventData.Context;
+        if (db is null || result.HasResult || _handlers.Count == 0)
             return new(result);
 
         var state = _states.GetValue(db, _ => new SaveState());
@@ -64,7 +65,8 @@ public sealed class PostSaveInterceptor(IEnumerable<IPostSaveHandler> handlers, 
         CancellationToken cancellationToken = default
     )
     {
-        if (eventData.Context is not { } db)
+        var db = eventData.Context;
+        if (db is null)
             return result;
 
         if (!_states.TryGetValue(db, out var state) || state.Dispatching || state.Pending.Count == 0)
