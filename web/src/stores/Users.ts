@@ -22,8 +22,32 @@ export const useUsersStore = defineStore('users', () => {
   let allUsersInFlight: InFlightUserRequest | null = null;
 
   const usersById = computed(() => {
-    const entries = [...allUsers.value, ...Array.from(usersByLocation.value.values()).flatMap((users) => users)];
-    return new Map(entries.map((user) => [user.id, user]));
+    const records = new Map<string, { user: UserResponse; loadedAt: number }>();
+    const globalLoadedAt = allUsersLoadedAt.value;
+
+    for (const [locationId, users] of usersByLocation.value) {
+      const loadedAt = loadedAtByLocation.value.get(locationId) ?? 0;
+      if (globalLoadedAt != null && loadedAt <= globalLoadedAt) {
+        continue;
+      }
+
+      for (const user of users) {
+        const existing = records.get(user.id);
+        if (!existing || loadedAt > existing.loadedAt) {
+          records.set(user.id, { user, loadedAt });
+        }
+      }
+    }
+
+    const loadedAt = globalLoadedAt ?? 0;
+    for (const user of allUsers.value) {
+      const existing = records.get(user.id);
+      if (!existing || loadedAt >= existing.loadedAt) {
+        records.set(user.id, { user, loadedAt });
+      }
+    }
+
+    return new Map(Array.from(records, ([userId, record]) => [userId, record.user]));
   });
 
   const entitiesMap = computed<Record<string, UserResponse>>(() => {

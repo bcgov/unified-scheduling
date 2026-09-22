@@ -22,8 +22,7 @@ export interface ShiftSeriesRequest {
   /** @nullable */
   endAtUtc?: string | null;
   allDay?: boolean;
-  /** @nullable */
-  locationId?: number | null;
+  locationId?: number;
   userIds?: string[];
   assignmentSeriesLinks?: AssignmentSeriesLinkRequest[];
 }

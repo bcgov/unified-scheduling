@@ -76,8 +76,8 @@ const activeLocationId = computed<number | undefined>(() => {
 
 const assignmentDefinitionCreateSchema = PostApiSchedulingAssignmentDefinitionsBody.extend({
   locationId: zod.number().min(1, validationMessages.required),
-  name: zod.string().trim().min(1, validationMessages.required).max(200, validationMessages.tooLong),
-  description: zod.string().trim().max(200, validationMessages.tooLong).optional(),
+  name: zod.string().trim().min(1, validationMessages.required).max(100, validationMessages.tooLong),
+  description: zod.string().trim().max(500, validationMessages.tooLong).optional(),
   categoryId: zod.number().min(1, validationMessages.required),
   subCategoryId: zod.number().min(1, validationMessages.required),
   color: zod.string().optional(),
