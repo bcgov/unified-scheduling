@@ -55,14 +55,10 @@ public static class TrainingModule
         services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<ITrainingProfileTypeService, TrainingProfileTypeService>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
-        services.AddScoped<ITrainingProfileLookupStrategy, TrainingProfileLookupStrategy>();
         services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();
         services.AddScoped<ISaveRule, TrainingProfileTypeExistsRule>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
-        );
-        services.AddScoped<ILookupStrategy>(serviceProvider =>
-            serviceProvider.GetRequiredService<ITrainingProfileLookupStrategy>()
         );
         services.AddSeeder<UnifiedDbContext, TrainingProfileSeeder>();
 
