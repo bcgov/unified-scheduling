@@ -14,9 +14,14 @@ const { useTrainingLookupMock, expireTrainingLookupMock, unexpireTrainingLookupM
     patchApiTrainingsIdOrderMock: vi.fn(),
   }));
 
-vi.mock('@/api-access/generated/training/training', () => ({
-  patchApiLookupTrainingsIdOrder: patchApiTrainingsIdOrderMock,
-}));
+vi.mock('@/api-access/generated/training/training', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api-access/generated/training/training')>();
+
+  return {
+    ...actual,
+    patchApiLookupTrainingsIdOrder: patchApiTrainingsIdOrderMock,
+  };
+});
 
 vi.mock('@/modules/training/trainingLookupApi', () => ({
   useTrainingLookup: useTrainingLookupMock,

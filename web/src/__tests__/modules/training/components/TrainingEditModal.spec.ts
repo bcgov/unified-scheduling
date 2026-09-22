@@ -9,9 +9,14 @@ const { putApiTrainingsIdMock } = vi.hoisted(() => ({
   putApiTrainingsIdMock: vi.fn(),
 }));
 
-vi.mock('@/api-access/generated/training/training', () => ({
-  putApiLookupTrainingsId: putApiTrainingsIdMock,
-}));
+vi.mock('@/api-access/generated/training/training', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api-access/generated/training/training')>();
+
+  return {
+    ...actual,
+    putApiLookupTrainingsId: putApiTrainingsIdMock,
+  };
+});
 
 const training: TrainingLookupResponse = {
   id: 10,
@@ -93,6 +98,7 @@ describe('TrainingEditModal', () => {
       code: 'FIRE',
       description: 'Updated qualification',
       mandatory: true,
+      mandatoryTrainingProfileIds: [],
       validityDays: 365,
       advanceNoticeDays: 30,
       rotating: false,

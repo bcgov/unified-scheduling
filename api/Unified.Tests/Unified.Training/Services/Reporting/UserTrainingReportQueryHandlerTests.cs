@@ -530,11 +530,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
 
     private async Task<TrainingProfileType> SeedTrainingProfileAsync(string code, string _description)
     {
-        var profile = new TrainingProfileType
-        {
-            Code = code,
-            Name = code,
-        };
+        var profile = new TrainingProfileType { Code = code, Name = code };
 
         _db.TrainingProfileTypes.Add(profile);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);

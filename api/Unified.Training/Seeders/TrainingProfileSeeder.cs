@@ -14,11 +14,7 @@ public sealed class TrainingProfileSeeder(ILogger<TrainingProfileSeeder> logger)
 
     private static readonly TrainingProfileType[] SeedProfiles =
     [
-        new()
-        {
-            Code = "CARBINE_OPERATOR",
-            Name = "Carbine Operator",
-        },
+        new() { Code = "CARBINE_OPERATOR", Name = "Carbine Operator" },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)

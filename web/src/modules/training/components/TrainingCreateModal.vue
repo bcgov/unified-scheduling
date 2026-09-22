@@ -35,10 +35,6 @@ type TrainingCreateFormData = {
   rotating: boolean;
 };
 
-type TrainingLookupRequestWithProfiles = TrainingLookupRequest & {
-  mandatoryTrainingProfileIds?: number[];
-};
-
 const formData = ref<TrainingCreateFormData>({
   code: '',
   description: '',
@@ -82,7 +78,7 @@ const parseOptionalNonNegativeNumber = (
   return parsedValue;
 };
 
-const validateForm = (): TrainingLookupRequestWithProfiles | null => {
+const validateForm = (): TrainingLookupRequest | null => {
   formErrors.value = {};
 
   const code = formData.value.code.trim();

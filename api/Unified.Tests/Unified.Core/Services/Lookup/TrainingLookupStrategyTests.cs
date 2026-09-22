@@ -289,10 +289,7 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
 
     private async Task<TrainingProfileType> SeedTrainingProfileAsync(string code, string _description)
     {
-        var profile = new TrainingProfileType
-        {
-            Code = code,
-        };
+        var profile = new TrainingProfileType { Code = code };
 
         _dbContext.TrainingProfileTypes.Add(profile);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);

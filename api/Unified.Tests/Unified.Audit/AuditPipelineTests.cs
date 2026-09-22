@@ -225,11 +225,7 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         await using var _ = connection;
         await using var __ = dbContext;
 
-        var profile = new TrainingProfileType
-        {
-            Code = "CARBINE",
-            Name = "Carbine",
-        };
+        var profile = new TrainingProfileType { Code = "CARBINE", Name = "Carbine" };
         var training = new global::Unified.Db.Models.Training.Training
         {
             Code = "MAND-1",
@@ -249,9 +245,7 @@ public sealed class AuditPipelineTests : IAsyncLifetime
 
         var record = Assert.Single(
             await dbContext
-                .AuditRecords.Where(r =>
-                    r.EntityType == nameof(TrainingProfile) && r.Action == "Added"
-                )
+                .AuditRecords.Where(r => r.EntityType == nameof(TrainingProfile) && r.Action == "Added")
                 .ToListAsync(TestContext.Current.CancellationToken)
         );
 

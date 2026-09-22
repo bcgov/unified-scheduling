@@ -6,24 +6,23 @@ namespace Unified.Training.Services.Lookup;
 
 public sealed class TrainingProfileLookupStrategy(UnifiedDbContext db) : ITrainingProfileLookupStrategy
 {
-	public LookupCodeTypes CodeType => LookupCodeTypes.TrainingProfiles;
+    public LookupCodeTypes CodeType => LookupCodeTypes.TrainingProfiles;
 
-	public async Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
-		CancellationToken cancellationToken = default
-	)
-	{
-		return await db
-			.TrainingProfileTypes.AsNoTracking()
-			.OrderBy(profile => profile.Name)
-			.ThenBy(profile => profile.Code)
-			.Select(profile => new LookupCodeResponse
-			{
-				Id = profile.Id,
-				Code = profile.Code,
-				Description = profile.Name,
-				EffectiveDate = profile.CreatedOn,
-				ExpiryDate = null,
-			})
-			.ToListAsync(cancellationToken);
-	}
+    public async Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        return await db
+            .TrainingProfileTypes.AsNoTracking()
+            .OrderBy(profile => profile.Name)
+            .ThenBy(profile => profile.Code)
+            .Select(profile => new LookupCodeResponse
+            {
+                Code = profile.Code,
+                Description = profile.Name,
+                EffectiveDate = profile.CreatedOn,
+                ExpiryDate = null,
+            })
+            .ToListAsync(cancellationToken);
+    }
 }
