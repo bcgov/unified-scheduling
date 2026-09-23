@@ -20,6 +20,7 @@ import {
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
   toggleCalendarSchedulingConflict,
+  toggleCalendarSchedulingHeaderConflict,
 } from './calendarSchedulingState';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
@@ -179,8 +180,7 @@ export const calendarSchedulingShowConflictAction: CalendarMatrixEventBlockActio
   label: 'Show conflict',
   order: 20,
   isAvailable: (context) =>
-    context.actionId === calendarSchedulingActionIds.showConflict &&
-    context.event.sourceModule === CalendarModuleId.SchedulingUi,
+    context.actionId === calendarSchedulingActionIds.showConflict && isSchedulingMatrixEvent(context.event),
   execute: (context) => {
     toggleCalendarSchedulingConflict(context.event.id);
   },
@@ -192,8 +192,7 @@ export const calendarSchedulingResolveConflictAction: CalendarMatrixEventBlockAc
   label: 'Resolve conflict',
   order: 30,
   isAvailable: (context) =>
-    context.actionId === calendarSchedulingActionIds.resolveConflict &&
-    context.event.sourceModule === CalendarModuleId.SchedulingUi,
+    context.actionId === calendarSchedulingActionIds.resolveConflict && isSchedulingMatrixEvent(context.event),
   execute: (_context) => {
     closeCalendarSchedulingConflict();
   },
@@ -270,7 +269,7 @@ export const calendarSchedulingHeaderShowConflictAction: CalendarMatrixCellHeade
     context.actionId === calendarSchedulingActionIds.showConflict && isCalendarEventBase(context.header.payload),
   execute: (context) => {
     if (isCalendarEventBase(context.header.payload)) {
-      toggleCalendarSchedulingConflict(context.header.payload.id);
+      toggleCalendarSchedulingHeaderConflict(context.header.payload.id);
     }
   },
 };
@@ -298,6 +297,14 @@ function isCalendarEventBase(value: unknown): value is CalendarEventBase {
     'sourceModule' in value &&
     'title' in value &&
     'start' in value
+  );
+}
+
+function isSchedulingMatrixEvent(event: CalendarEventBase) {
+  return (
+    event.sourceModule === CalendarModuleId.SchedulingUi ||
+    event.sourceModule === CalendarModuleId.Scheduling ||
+    isAssignmentEvent(event)
   );
 }
 

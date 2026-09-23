@@ -16,6 +16,7 @@ export const calendarSchedulingResourceActionDate = ref<string>();
 export const calendarSchedulingResourceActionAssignmentEntryId = ref<number>();
 export const calendarSchedulingResourceActionAssignmentEvents = ref<CalendarEventBase[]>([]);
 export const calendarSchedulingConflictEventId = ref<string>();
+export const calendarSchedulingConflictHeaderId = ref<string>();
 export const calendarSchedulingDetailEvent = ref<CalendarEventBase>();
 export const calendarSchedulingDetailInitialOpenScope = ref<'event' | 'series'>();
 export const calendarSchedulingExistingShiftChoice = ref<{
@@ -99,10 +100,18 @@ export function closeCalendarSchedulingExistingShiftChoice() {
 
 export function toggleCalendarSchedulingConflict(eventId: string) {
   calendarSchedulingConflictEventId.value = calendarSchedulingConflictEventId.value === eventId ? undefined : eventId;
+  calendarSchedulingConflictHeaderId.value = undefined;
+}
+
+export function toggleCalendarSchedulingHeaderConflict(headerId: string) {
+  calendarSchedulingConflictHeaderId.value =
+    calendarSchedulingConflictHeaderId.value === headerId ? undefined : headerId;
+  calendarSchedulingConflictEventId.value = undefined;
 }
 
 export function closeCalendarSchedulingConflict() {
   calendarSchedulingConflictEventId.value = undefined;
+  calendarSchedulingConflictHeaderId.value = undefined;
 }
 
 export function showCalendarSchedulingEventDetail(

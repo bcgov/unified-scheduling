@@ -264,6 +264,46 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     wrapper.unmount();
   });
 
+  it('keeps the edit screen open when publication fails', async () => {
+    const wrapper = await mountShiftDetailModal('Draft');
+    const shiftApi = await import('@/modules/scheduling/calendarSchedulingShiftApi');
+    vi.mocked(shiftApi.updateShiftEntry).mockResolvedValue({
+      data: { value: { id: 42 } },
+      error: { value: null },
+    } as never);
+    vi.mocked(shiftApi.publishShiftEntry).mockResolvedValue({
+      data: {
+        value: {
+          message: 'This operation would cause a conflict with an existing event',
+          conflicts: [{ id: 'conflict-1' }],
+        },
+      },
+      error: { value: new Error('Conflict.') },
+    } as never);
+    const vm = wrapper.vm as unknown as {
+      activeTab: string;
+      apiError: string;
+      editFormData: { publish: 'yes' | 'no' };
+      selectTab: (tabId: 'edit') => void;
+      handleSaveEdit: () => Promise<void>;
+    };
+
+    vm.selectTab('edit');
+    vm.editFormData.publish = 'yes';
+    await vm.handleSaveEdit();
+    await flushPromises();
+
+    expect(shiftApi.publishShiftEntry).toHaveBeenCalledWith(42);
+    expect(vm.activeTab).toBe('edit');
+    expect(vm.apiError).toBe(
+      'The shift could not be published because linked assignments have unresolved conflicts. Resolve or override the conflicts, then try again.',
+    );
+    expect(document.body.textContent).toContain('Edit Shift');
+    expect(wrapper.emitted('close')).toBeUndefined();
+
+    wrapper.unmount();
+  });
+
   it('preserves linked assignments when opening one shift entry from a series', async () => {
     const wrapper = await mountShiftDetailModal('Draft', true);
 
