@@ -5,6 +5,7 @@ using Unified.Authorization;
 using Unified.Common.Contracts;
 using Unified.Common.Events;
 using Unified.Common.FeatureFlags;
+using Unified.Common.Interceptors;
 using Unified.Common.Jobs;
 using Unified.Common.Options;
 using Unified.Common.Reporting;
@@ -12,6 +13,7 @@ using Unified.Common.Seeding;
 using Unified.Core.Services.Lookup;
 using Unified.Db;
 using Unified.Training.FeatureFlags;
+using Unified.Training.Rules;
 using Unified.Training.Handlers;
 using Unified.Training.Jobs;
 using Unified.Training.Options;
@@ -62,11 +64,12 @@ public static class TrainingModule
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IEntitySideEffect<UserCreatedSignal>, AssignMandatoryTrainingOnUserCreationHandler>();
         services.AddScoped<IUserTrainingService, UserTrainingService>();
+        services.AddScoped<ITrainingProfileTypeService, TrainingProfileTypeService>();
         services.AddScoped<IUserTrainingExpiryNotificationService, UserTrainingExpiryNotificationService>();
         services.AddScoped<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
-        services.AddScoped<ITrainingProfileLookupStrategy, TrainingProfileLookupStrategy>();
         services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();
+        services.AddScoped<ISaveRule, TrainingProfileTypeExistsRule>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );

@@ -10,18 +10,11 @@ public sealed class TrainingProfileSeeder(ILogger<TrainingProfileSeeder> logger)
 {
     public override int Order => 2;
 
-    public override string Name => "TrainingProfile";
+    public override string Name => "TrainingProfileType";
 
-    private static readonly DateTimeOffset SeedEffectiveDate = new(2026, 9, 14, 0, 0, 0, TimeSpan.Zero);
-
-    private static readonly TrainingProfile[] SeedProfiles =
+    private static readonly TrainingProfileType[] SeedProfiles =
     [
-        new()
-        {
-            Code = "CARBINE_OPERATOR",
-            Description = "Carbine Operator",
-            EffectiveDate = SeedEffectiveDate,
-        },
+        new() { Code = "CARBINE_OPERATOR", Name = "Carbine Operator" },
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
@@ -29,18 +22,19 @@ public sealed class TrainingProfileSeeder(ILogger<TrainingProfileSeeder> logger)
         foreach (var seedProfile in SeedProfiles)
         {
             var existingProfile = await dbContext
-                .TrainingProfiles.AsQueryable()
+                .TrainingProfileTypes.AsQueryable()
                 .FirstOrDefaultAsync(profile => profile.Code == seedProfile.Code, cancellationToken);
 
             if (existingProfile is null)
             {
-                await dbContext.TrainingProfiles.AddAsync(seedProfile, cancellationToken);
+                await dbContext.TrainingProfileTypes.AddAsync(seedProfile, cancellationToken);
                 continue;
             }
 
-            existingProfile.Description = seedProfile.Description;
-            existingProfile.EffectiveDate = seedProfile.EffectiveDate;
-            existingProfile.ExpiryDate = seedProfile.ExpiryDate;
+            if (existingProfile.Name != seedProfile.Name)
+            {
+                existingProfile.Name = seedProfile.Name;
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

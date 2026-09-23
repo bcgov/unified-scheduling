@@ -219,18 +219,13 @@ public sealed class AuditPipelineTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SaveChangesAsync_When_Entity_Has_Composite_Primary_Key_Should_Write_AuditRecord_With_Composite_EntityPK()
+    public async Task SaveChangesAsync_When_Entity_Has_Identity_Primary_Key_Should_Write_AuditRecord_With_EntityPK()
     {
         var (connection, dbContext) = await CreateSqliteDbContextAsync();
         await using var _ = connection;
         await using var __ = dbContext;
 
-        var profile = new TrainingProfile
-        {
-            Code = "CARBINE",
-            Description = "Carbine Operator",
-            EffectiveDate = DateTimeOffset.UtcNow,
-        };
+        var profile = new TrainingProfileType { Code = "CARBINE", Name = "Carbine" };
         var training = new global::Unified.Db.Models.Training.Training
         {
             Code = "MAND-1",
@@ -240,22 +235,21 @@ public sealed class AuditPipelineTests : IAsyncLifetime
             Order = 1,
         };
 
-        dbContext.TrainingProfiles.Add(profile);
+        dbContext.TrainingProfileTypes.Add(profile);
         dbContext.Trainings.Add(training);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        dbContext.TrainingMandatoryTrainingProfiles.Add(
-            new TrainingMandatoryTrainingProfile { TrainingId = training.Id, TrainingProfileId = profile.Id }
-        );
+        var link = new TrainingProfile { TrainingId = training.Id, TrainingProfileTypeId = profile.Id };
+        dbContext.TrainingProfiles.Add(link);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var record = Assert.Single(
             await dbContext
-                .AuditRecords.Where(r => r.EntityType == nameof(TrainingMandatoryTrainingProfile) && r.Action == "Added")
+                .AuditRecords.Where(r => r.EntityType == nameof(TrainingProfile) && r.Action == "Added")
                 .ToListAsync(TestContext.Current.CancellationToken)
         );
 
-        Assert.Equal($"TrainingId:{training.Id}|TrainingProfileId:{profile.Id}", record.EntityPK);
+        Assert.Equal(link.Id.ToString(), record.EntityPK);
     }
 
     [Fact]
