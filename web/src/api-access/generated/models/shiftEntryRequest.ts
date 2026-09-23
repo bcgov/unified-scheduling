@@ -26,8 +26,7 @@ export interface ShiftEntryRequest {
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;
-  /** @nullable */
-  locationId?: number | null;
+  locationId?: number;
   userIds?: string[];
   /** @nullable */
   assignmentEntryLinks?: AssignmentEntryLinkRequest[] | null;

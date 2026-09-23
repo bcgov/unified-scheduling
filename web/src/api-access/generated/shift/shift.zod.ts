@@ -48,7 +48,7 @@ export const PostApiSchedulingShiftsSeriesBody = zod.strictObject({
   startAtUtc: zod.iso.datetime({ offset: true }),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   allDay: zod.boolean().optional(),
-  locationId: zod.int().nullish(),
+  locationId: zod.int().optional(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentSeriesLinks: zod
     .array(
@@ -124,7 +124,7 @@ export const PutApiSchedulingShiftsSeriesIdBody = zod.strictObject({
   startAtUtc: zod.iso.datetime({ offset: true }),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   allDay: zod.boolean().optional(),
-  locationId: zod.int().nullish(),
+  locationId: zod.int().optional(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentSeriesLinks: zod
     .array(
@@ -275,7 +275,7 @@ export const PostApiSchedulingShiftsEntriesBody = zod.strictObject({
   seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
-  locationId: zod.int().nullish(),
+  locationId: zod.int().optional(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentEntryLinks: zod
     .array(
@@ -361,7 +361,7 @@ export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
   seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
-  locationId: zod.int().nullish(),
+  locationId: zod.int().optional(),
   userIds: zod.array(zod.uuid()).optional(),
   assignmentEntryLinks: zod
     .array(

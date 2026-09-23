@@ -19,7 +19,7 @@ public sealed class ShiftSeriesRequestValidator : AbstractValidator<ShiftSeriesR
         RuleFor(request => request.StartAtUtc)
             .LessThan(request => request.EndAtUtc!.Value)
             .When(request => request.EndAtUtc.HasValue);
-        RuleFor(request => request.LocationId).GreaterThan(0).When(request => request.LocationId.HasValue);
+        RuleFor(request => request.LocationId).GreaterThan(0);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
         RuleFor(request => request.AssignmentSeriesLinks)
