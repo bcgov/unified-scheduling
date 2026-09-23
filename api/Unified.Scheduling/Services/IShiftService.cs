@@ -47,8 +47,9 @@ public interface IShiftService
 
     Task<ShiftEntryResponse?> UpdateShiftEntryAsync(
         int id,
-        ShiftEntryRequest request,
-        CancellationToken cancellationToken = default
+        ShiftEntryUpdateRequest request,
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     );
 
     Task<ShiftEntryResponse?> PublishShiftEntryAsync(int id, CancellationToken cancellationToken = default);
