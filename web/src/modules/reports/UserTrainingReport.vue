@@ -360,29 +360,11 @@ function formatDateCellValue(value: unknown): unknown {
 }
 
 .ua-data-table-wrapper :deep(.v-table tbody tr.user-training-report-row--missing-mandatory > td) {
-  background:
-    linear-gradient(rgba(var(--v-theme-error), 0.14), rgba(var(--v-theme-error), 0.14)),
-    repeating-linear-gradient(
-      -45deg,
-      rgba(var(--v-theme-error), 0.06) 0,
-      rgba(var(--v-theme-error), 0.06) 10px,
-      rgba(var(--v-theme-error), 0.02) 10px,
-      rgba(var(--v-theme-error), 0.02) 20px
-    );
-  border-top: 1px solid rgba(var(--v-theme-error), 0.5) !important;
-  border-bottom: 1px solid rgba(var(--v-theme-error), 0.5) !important;
-}
-
-.ua-data-table-wrapper :deep(.v-table tbody tr.user-training-report-row--missing-mandatory > td:first-child) {
-  border-left: 3px solid rgba(var(--v-theme-error), 0.8) !important;
-}
-
-.ua-data-table-wrapper :deep(.v-table tbody tr.user-training-report-row--missing-mandatory > td:last-child) {
-  border-right: 1px solid rgba(var(--v-theme-error), 0.5) !important;
+  background-color: rgba(var(--v-theme-error), 0.14);
 }
 
 .ua-data-table-wrapper :deep(.v-table tbody tr.user-training-report-row--missing-mandatory:hover > td) {
-  background-color: rgba(var(--v-theme-error), 0.18) !important;
+  background-color: rgba(var(--v-theme-error), 0.2) !important;
 }
 
 @media (max-width: 1400px) {
