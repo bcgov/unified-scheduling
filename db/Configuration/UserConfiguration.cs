@@ -17,7 +17,7 @@ public class UserConfiguration : BaseEntityConfiguration<User>
         builder.HasIndex(b => b.TrainingProfileId);
 
         builder
-            .HasOne(b => b.TrainingProfile)
+            .HasOne(b => b.TrainingProfileType)
             .WithMany(p => p.Users)
             .HasForeignKey(b => b.TrainingProfileId)
             .IsRequired(false)

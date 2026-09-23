@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using Unified.Db.Models;
+using Npgsql;
 
 namespace Unified.Db;
 
@@ -13,8 +13,9 @@ public class UnifiedDbContextFactory : IDesignTimeDbContextFactory<UnifiedDbCont
 {
     public UnifiedDbContext CreateDbContext(string[] args)
     {
-        // Try to get connection string from environment variable
-        var connectionString = Environment.GetEnvironmentVariable("DatabaseConnectionString");
+        var connectionString =
+            Environment.GetEnvironmentVariable("DatabaseConnectionString")
+            ?? BuildDefaultConnectionString();
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
@@ -27,4 +28,29 @@ public class UnifiedDbContextFactory : IDesignTimeDbContextFactory<UnifiedDbCont
 
         return new UnifiedDbContext(optionsBuilder.Options);
     }
+
+    private static string BuildDefaultConnectionString()
+    {
+        var host = IsRunningInContainer() ? "db" : "localhost";
+
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = host,
+            Port = 5432,
+            Database = "unifieddb",
+            Username = "uniuser",
+            Password = "unipassword",
+            Enlist = true,
+            MinPoolSize = 10,
+        };
+
+        return builder.ConnectionString;
+    }
+
+    private static bool IsRunningInContainer() =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
+            "true",
+            StringComparison.OrdinalIgnoreCase
+        );
 }
