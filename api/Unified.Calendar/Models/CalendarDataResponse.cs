@@ -7,4 +7,6 @@ public sealed record CalendarDataResponse
     public string ContributionId { get; init; } = "calendar.events";
 
     public IReadOnlyCollection<CalendarEventResponse> Events { get; init; } = [];
+
+    public IReadOnlyCollection<CalendarConflictResponse> Conflicts { get; init; } = [];
 }
