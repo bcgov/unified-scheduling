@@ -1,4 +1,5 @@
 using FluentValidation;
+using Unified.Calendar.Validators;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Validators;
@@ -12,6 +13,7 @@ public sealed class ShiftAssignmentEntryRequestValidator : AbstractValidator<Shi
         RuleFor(request => request.UserIds).NotEmpty();
         RuleFor(request => request.UserIds).Must(HaveUniqueUsers).WithMessage("Selected users must be unique.");
         RuleForEach(request => request.UserIds).NotEmpty();
+        RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }
 
     private static bool HaveUniqueUsers(IReadOnlyCollection<Guid> userIds) =>
@@ -27,6 +29,7 @@ public sealed class ShiftAssignmentSeriesRequestValidator : AbstractValidator<Sh
         RuleFor(request => request.AssignedUserIds).NotEmpty();
         RuleFor(request => request.AssignedUserIds).Must(HaveUniqueUsers).WithMessage("Selected users must be unique.");
         RuleForEach(request => request.AssignedUserIds).NotEmpty();
+        RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }
 
     private static bool HaveUniqueUsers(IReadOnlyCollection<Guid> userIds) =>
@@ -40,6 +43,7 @@ public sealed class ShiftAssignmentEntryUpdateRequestValidator : AbstractValidat
         RuleFor(request => request.UserIds).NotEmpty();
         RuleFor(request => request.UserIds).Must(HaveUniqueUsers).WithMessage("Selected users must be unique.");
         RuleForEach(request => request.UserIds).NotEmpty();
+        RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }
 
     private static bool HaveUniqueUsers(IReadOnlyCollection<Guid> userIds) =>
@@ -53,6 +57,7 @@ public sealed class ShiftAssignmentSeriesUpdateRequestValidator : AbstractValida
         RuleFor(request => request.AssignedUserIds).NotEmpty();
         RuleFor(request => request.AssignedUserIds).Must(HaveUniqueUsers).WithMessage("Selected users must be unique.");
         RuleForEach(request => request.AssignedUserIds).NotEmpty();
+        RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }
 
     private static bool HaveUniqueUsers(IReadOnlyCollection<Guid> userIds) =>

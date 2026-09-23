@@ -1,3 +1,5 @@
+using Unified.Calendar.Models;
+
 namespace Unified.Scheduling.Models;
 
 public sealed record ShiftAssignmentSeriesRequest
@@ -7,4 +9,6 @@ public sealed record ShiftAssignmentSeriesRequest
     public int AssignmentSeriesId { get; init; }
 
     public IReadOnlyCollection<Guid> AssignedUserIds { get; init; } = [];
+
+    public IReadOnlyCollection<CalendarConflictAcknowledgement>? ConflictOverrides { get; init; }
 }
