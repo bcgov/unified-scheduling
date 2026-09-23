@@ -78,7 +78,7 @@ const headers = computed(() => [
 const trainingOptions = computed<SelectOption[]>(() =>
   (trainings.value ?? []).map((training: TrainingLookupResponse) => ({
     code: training.id,
-    description: training.description?.trim() || training.code?.trim() || `Training ${training.id}`,
+    description: training.code?.trim() || training.description?.trim() || `Training ${training.id}`,
   })),
 );
 

@@ -5,12 +5,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Common.Contracts;
 using Unified.Common.Events;
+using Unified.Common.Jobs;
 using Unified.Common.Mvc;
 using Unified.Db;
 using Unified.Tests.TestHelpers;
 using Unified.Training;
 using Unified.Training.Controllers;
 using Unified.Training.Handlers;
+using Unified.Training.Jobs;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Validators;
@@ -34,6 +36,10 @@ public sealed class TrainingModuleTests
 
         // Assert
         AssertContainsScopedRegistration<IUserTrainingService, UserTrainingService>(services);
+        AssertContainsScopedRegistration<IUserTrainingExpiryNotificationService, UserTrainingExpiryNotificationService>(
+            services
+        );
+        AssertContainsScopedRegistration<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>(services);
         AssertContainsScopedRegistration<
             IEntitySideEffect<UserCreatedSignal>,
             AssignMandatoryTrainingOnUserCreationHandler
@@ -70,6 +76,11 @@ public sealed class TrainingModuleTests
 
         // Assert
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IUserTrainingService));
+        Assert.DoesNotContain(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IUserTrainingExpiryNotificationService)
+        );
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IRecurringJob));
         Assert.DoesNotContain(
             services,
             descriptor => descriptor.ServiceType == typeof(IEntitySideEffect<UserCreatedSignal>)

@@ -139,4 +139,35 @@ describe('TrainingEditModal', () => {
 
     wrapper.unmount();
   });
+
+  it('blocks save when advance notice days is zero', async () => {
+    const app = await createTestApp();
+
+    const wrapper = mount(TrainingEditModal, {
+      props: { training },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const advanceNoticeField = document.querySelector('#training-advance-notice-days') as HTMLInputElement;
+    advanceNoticeField.value = '0';
+    advanceNoticeField.dispatchEvent(new Event('input', { bubbles: true }));
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Save Changes'),
+    );
+
+    (saveButton as HTMLButtonElement).click();
+    await flushPromises();
+
+    const content = document.body.textContent ?? '';
+    expect(content).toContain('Invalid');
+    expect(putApiTrainingsIdMock).not.toHaveBeenCalled();
+
+    wrapper.unmount();
+  });
 });
