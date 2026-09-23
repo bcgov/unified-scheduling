@@ -10,12 +10,19 @@ import {
 } from '@/utils/date';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
 import { CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
-import { selectContribution } from '@/modules/calendar/calendarSelectors';
+import {
+  getCalendarConflictsForEvent,
+  getCalendarConflictsForEventAndResource,
+  resolveCalendarEventId,
+  selectCalendarConflicts,
+  selectContribution,
+} from '@/modules/calendar/calendarSelectors';
 import type { CalendarDataResponse, CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
 import {
   CalendarMatrixActionType,
   type CalendarMatrixCell,
   type CalendarMatrixCellHeader,
+  type CalendarMatrixConflictItem,
   type CalendarMatrixDay,
   type CalendarMatrixActionDisplay,
   type CalendarMatrixEventItem,
@@ -58,9 +65,11 @@ export function buildCalendarSchedulingViewModel(
   context: CalendarQueryContext,
   period: CalendarPeriod,
 ): CalendarMatrixViewModel {
+  const timeZone = resolveMatrixTimeZone(context);
   if (period === 'month') {
     return {
       unsupportedMessage: 'Not supported',
+      timeZone,
       days: [],
       primaryColumn: {
         label: 'TEAM',
@@ -70,11 +79,11 @@ export function buildCalendarSchedulingViewModel(
     };
   }
 
-  const timeZone = resolveMatrixTimeZone(context);
   const days = buildDays(context.startDate, period, timeZone);
   const schedulingEvents = selectSchedulingShiftEvents(response);
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const conflicts = selectCalendarConflicts(response);
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
@@ -102,13 +111,19 @@ export function buildCalendarSchedulingViewModel(
       cells.push({
         resourceId: user.id,
         date: day.date,
-        headers: userShiftEvents.map((event) => buildCellHeader(event, timeZone)),
+        headers: userShiftEvents.map((event) =>
+          buildCellHeader(
+            event,
+            timeZone,
+            getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
+          ),
+        ),
         groups: [
           {
             id: 'assignments',
             variant: 'primary',
             showColorBar: true,
-            events: toScheduleMatrixEventItems(userAssignmentEvents, userShiftEvents),
+            events: toScheduleMatrixEventItems(userAssignmentEvents, userShiftEvents, conflicts, user.id),
           },
         ],
       });
@@ -171,9 +186,11 @@ export function buildCalendarAssignmentViewModel(
   context: CalendarQueryContext,
   period: CalendarPeriod,
 ): CalendarMatrixViewModel {
+  const timeZone = resolveMatrixTimeZone(context);
   if (period === 'month') {
     return {
       unsupportedMessage: 'Not supported',
+      timeZone,
       days: [],
       primaryColumn: {
         label: 'ASSIGNMENTS',
@@ -183,11 +200,11 @@ export function buildCalendarAssignmentViewModel(
     };
   }
 
-  const timeZone = resolveMatrixTimeZone(context);
   const days = buildDays(context.startDate, period, timeZone);
   const resources = buildAssignmentResourceRows(response);
   const assignmentEvents = selectSchedulingAssignmentEvents(response);
   const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
+  const conflicts = selectCalendarConflicts(response);
   const cells: CalendarMatrixCell[] = [];
 
   for (const assignment of resources) {
@@ -214,7 +231,7 @@ export function buildCalendarAssignmentViewModel(
             id: 'assignments',
             variant: 'primary',
             showColorBar: true,
-            events: toScheduleMatrixEventItems(dayAssignmentEvents, dayShiftEvents),
+            events: toScheduleMatrixEventItems(dayAssignmentEvents, dayShiftEvents, conflicts),
           },
         ],
       });
@@ -424,6 +441,38 @@ function resolveLinkedShiftsForAssignment(assignmentEvent: CalendarEventBase, us
   );
 }
 
+function getConflictsForLinkedAssignments(
+  shiftEvent: CalendarEventBase,
+  assignmentEvents: ReadonlyArray<CalendarEventBase>,
+  resourceId: string,
+  conflicts: ReadonlyArray<import('@/modules/calendar/calendarTypes').CalendarConflict>,
+) {
+  if (!isCalendarSchedulingEvent(shiftEvent) || shiftEvent.metadata.shiftEntryId == null) {
+    return [];
+  }
+
+  const shiftEntryId = String(shiftEvent.metadata.shiftEntryId);
+  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
+  for (const event of assignmentEvents) {
+    if (!isCalendarSchedulingEvent(event) || event.metadata.assignedShiftIds?.includes(shiftEntryId) !== true) {
+      continue;
+    }
+
+    const currentEventId = resolveCalendarEventId(event);
+    if (currentEventId == null) {
+      continue;
+    }
+
+    for (const conflict of getCalendarConflictsForEventAndResource(currentEventId, resourceId, conflicts)) {
+      if (!conflictsById.has(conflict.id)) {
+        conflictsById.set(conflict.id, { conflict, currentEventId });
+      }
+    }
+  }
+
+  return [...conflictsById.values()];
+}
+
 function selectSchedulingUserResources(response: CalendarDataResponse): CalendarSchedulingUserResource[] {
   const contribution = selectContribution(response, schedulingShiftContributionId);
 
@@ -583,7 +632,11 @@ function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrix
   }));
 }
 
-function buildCellHeader(event: CalendarEventBase, timeZone = defaultSchedulingTimeZoneId): CalendarMatrixCellHeader {
+function buildCellHeader(
+  event: CalendarEventBase,
+  timeZone = defaultSchedulingTimeZoneId,
+  conflicts: CalendarMatrixConflictItem[] = [],
+): CalendarMatrixCellHeader {
   return {
     id: event.id,
     text: formatCalendarEventTimeRange(event.start, event.end, {
@@ -605,7 +658,8 @@ function buildCellHeader(event: CalendarEventBase, timeZone = defaultSchedulingT
         }
       : undefined,
     actionId: calendarSchedulingActionIds.viewHeaderDetails,
-    action: eventHasConflict(event) ? buildPulldownAction() : undefined,
+    action: conflicts.length > 0 ? buildPulldownAction() : undefined,
+    conflicts,
     payload: event,
   };
 }
@@ -616,10 +670,6 @@ function eventBelongsToSeries(event: CalendarEventBase) {
   }
 
   return isCalendarSchedulingEvent(event) && event.metadata.shiftSeriesId != null;
-}
-
-function eventHasConflict(event: CalendarEventBase) {
-  return 'isConflict' in event && event.isConflict === true;
 }
 
 export function getCalendarEventDateKey(
@@ -709,27 +759,44 @@ function formatDayLabel(value: string) {
 function toScheduleMatrixEventItems(
   events: ReadonlyArray<CalendarEventBase>,
   userShiftEvents: ReadonlyArray<CalendarEventBase>,
+  conflicts: ReadonlyArray<import('@/modules/calendar/calendarTypes').CalendarConflict>,
+  resourceId?: string,
 ): CalendarMatrixEventItem[] {
   return events.flatMap((event) => {
     const linkedShifts = resolveLinkedShiftsForAssignment(event, [...userShiftEvents]);
     const activeLinkedShifts = linkedShifts.filter((shift) => !isSchedulingCancelled(shift.statusTypeCode));
     const displayLinkedShifts = activeLinkedShifts.length > 0 ? activeLinkedShifts : linkedShifts;
-    const status = displayLinkedShifts[0]?.statusTypeCode ?? event.statusTypeCode;
 
     if (linkedShifts.length > 0 && linkedShifts.every((shift) => isSchedulingCancelled(shift.statusTypeCode))) {
       return [];
     }
 
     const displayEvent = withAssignmentCapacitySlotStates(event, displayLinkedShifts);
+    const eventId = resolveCalendarEventId(event);
+    const eventConflicts = resourceId
+      ? getCalendarConflictsForEventAndResource(eventId, resourceId, conflicts)
+      : getCalendarConflictsForEvent(eventId, conflicts);
+    const conflictItems =
+      eventId == null ? [] : eventConflicts.map((conflict) => ({ conflict, currentEventId: eventId }));
 
     return [
       {
         event: displayEvent,
         display: {
           color: resolveCalendarSchedulingColor(event.color),
-          status,
+          status: event.statusTypeCode,
           draggable: false,
+          action:
+            conflictItems.length > 0
+              ? {
+                  actionId: calendarSchedulingActionIds.showConflict,
+                  icon: mdiAlertCircle,
+                  ariaLabel: 'Show conflict',
+                  type: CalendarMatrixActionType.Button,
+                }
+              : undefined,
         },
+        conflicts: conflictItems,
       },
     ];
   });
