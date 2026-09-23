@@ -16,7 +16,8 @@ namespace Unified.Db.Migrations
                 name: "TrainingProfileId",
                 table: "Users",
                 type: "integer",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateTable(
                 name: "TrainingProfileTypes",
