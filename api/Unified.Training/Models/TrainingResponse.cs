@@ -22,6 +22,10 @@ public sealed record TrainingResponse
 
     public int Order { get; init; }
 
+    public IReadOnlyCollection<int> MandatoryTrainingProfileIds { get; init; } = [];
+
+    public IReadOnlyCollection<string> MandatoryTrainingProfileCodes { get; init; } = [];
+
     public DateTimeOffset CreatedOn { get; init; }
 
     public DateTimeOffset? UpdatedOn { get; init; }

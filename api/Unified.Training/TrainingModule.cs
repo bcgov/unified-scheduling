@@ -8,11 +8,14 @@ using Unified.Common.FeatureFlags;
 using Unified.Common.Jobs;
 using Unified.Common.Options;
 using Unified.Common.Reporting;
+using Unified.Common.Seeding;
 using Unified.Core.Services.Lookup;
+using Unified.Db;
 using Unified.Training.FeatureFlags;
 using Unified.Training.Handlers;
 using Unified.Training.Jobs;
 using Unified.Training.Options;
+using Unified.Training.Seeders;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Services.Reporting;
@@ -62,10 +65,12 @@ public static class TrainingModule
         services.AddScoped<IUserTrainingExpiryNotificationService, UserTrainingExpiryNotificationService>();
         services.AddScoped<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
+        services.AddScoped<ITrainingProfileLookupStrategy, TrainingProfileLookupStrategy>();
         services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );
+        services.AddSeeder<UnifiedDbContext, TrainingProfileSeeder>();
 
         services.AddScoped<TrainingLookupRequestValidator>();
         services.AddScoped<UserTrainingRequestValidator>();

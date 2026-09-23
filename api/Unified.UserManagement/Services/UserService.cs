@@ -80,6 +80,7 @@ public sealed class UserService(
     public async Task<UserResponse> CreateAsync(UserRequestDto request, CancellationToken cancellationToken = default)
     {
         await EnsureIdirNameIsUniqueAsync(request.IdirName, cancellationToken: cancellationToken);
+        await EnsureTrainingProfileExistsAsync(request.TrainingProfileId, cancellationToken);
 
         var userEntity = new User
         {
@@ -94,6 +95,7 @@ public sealed class UserService(
             BadgeNumber = request.BadgeNumber?.Trim(),
             EmployeeNumber = request.EmployeeNumber.Trim(),
             HomeLocationId = request.HomeLocationId,
+            TrainingProfileId = request.TrainingProfileId,
             PendingRegistration = true,
         };
 
@@ -138,11 +140,15 @@ public sealed class UserService(
             await EnsureIdirNameIsUniqueAsync(request.IdirName, userEntity.Id, cancellationToken);
             userEntity.IdirName = request.IdirName;
         }
+
+        await EnsureTrainingProfileExistsAsync(request.TrainingProfileId, cancellationToken);
+
         userEntity.Gender = request.Gender;
         userEntity.Rank = request.Rank?.Trim();
         userEntity.BadgeNumber = request.BadgeNumber?.Trim();
         userEntity.EmployeeNumber = request.EmployeeNumber.Trim();
         userEntity.HomeLocationId = request.HomeLocationId;
+        userEntity.TrainingProfileId = request.TrainingProfileId;
 
         await DB.SaveChangesAsync(cancellationToken);
 
@@ -168,6 +174,26 @@ public sealed class UserService(
         if (exists)
         {
             throw new InvalidOperationException($"A user with IDIR name '{normalizedIdirUsername}' already exists.");
+        }
+    }
+
+    private async Task EnsureTrainingProfileExistsAsync(
+        int? trainingProfileId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (trainingProfileId is null)
+        {
+            return;
+        }
+
+        var exists = await DB
+            .TrainingProfiles.AsNoTracking()
+            .AnyAsync(profile => profile.Id == trainingProfileId, cancellationToken);
+
+        if (!exists)
+        {
+            throw new InvalidOperationException($"Training profile '{trainingProfileId}' was not found.");
         }
     }
 
