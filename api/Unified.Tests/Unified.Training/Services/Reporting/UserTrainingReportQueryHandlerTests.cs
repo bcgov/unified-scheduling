@@ -514,11 +514,11 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
 
         if (mandatoryTrainingProfileIds is { Count: > 0 })
         {
-            _db.TrainingMandatoryTrainingProfiles.AddRange(
-                mandatoryTrainingProfileIds.Select(profileId => new TrainingMandatoryTrainingProfile
+            _db.TrainingProfiles.AddRange(
+                mandatoryTrainingProfileIds.Select(profileId => new TrainingProfile
                 {
                     TrainingId = training.Id,
-                    TrainingProfileId = profileId,
+                    TrainingProfileTypeId = profileId,
                 })
             );
 
@@ -528,16 +528,11 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         return training;
     }
 
-    private async Task<TrainingProfile> SeedTrainingProfileAsync(string code, string description)
+    private async Task<TrainingProfileType> SeedTrainingProfileAsync(string code, string _description)
     {
-        var profile = new TrainingProfile
-        {
-            Code = code,
-            Description = description,
-            EffectiveDate = _fixedNow.AddDays(-30),
-        };
+        var profile = new TrainingProfileType { Code = code, Name = code };
 
-        _db.TrainingProfiles.Add(profile);
+        _db.TrainingProfileTypes.Add(profile);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         return profile;
