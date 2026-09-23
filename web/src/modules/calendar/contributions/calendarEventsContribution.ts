@@ -1,7 +1,7 @@
 import { postApiCalendarEvents } from '@/api-access/generated/calendar/calendar';
 import type { CalendarDataRequestFilters } from '@/api-access/generated/models';
 import { addDays, toApiDateString } from '@/utils/date';
-import type { CalendarEventBase } from '../calendarTypes';
+import type { CalendarConflict, CalendarEventBase } from '../calendarTypes';
 import type { CalendarModuleContribution } from '../registry/calendarRegistryTypes';
 import { mapApiCalendarEventToCalendarEventBase } from './calendarEventMappers';
 
@@ -36,6 +36,7 @@ export const calendarEventsContribution: CalendarModuleContribution = {
       moduleId: 'calendar',
       contributionId: 'calendar.events',
       events: (data.value?.events ?? []).map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
+      data: { conflicts: (data.value?.conflicts ?? []) as CalendarConflict[] },
     };
   },
 };
