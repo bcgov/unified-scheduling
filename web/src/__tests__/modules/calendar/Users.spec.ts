@@ -1,9 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 
 describe('useUsersStore', () => {
   beforeEach(() => {
     vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('dedupes in-flight location user requests and returns cached users', async () => {
@@ -69,6 +73,83 @@ describe('useUsersStore', () => {
 
     await expect(store.ensureUsersForLocation(null)).resolves.toEqual([]);
     expect(getApiUsers).not.toHaveBeenCalled();
+  });
+
+  it('uses the newest cached record when a user exists in both location and all-user results', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-17T10:00:00Z'));
+
+    const locationUsers = [{ id: 'user-1', firstName: 'Stale location name' }];
+    const allUsers = [{ id: 'user-1', firstName: 'Current global name' }];
+    const getApiUsers = vi.fn().mockImplementation((params: { LocationId?: number }) => ({
+      data: { value: params.LocationId ? locationUsers : allUsers },
+      error: { value: null },
+      execute: vi.fn().mockResolvedValue(undefined),
+    }));
+
+    vi.doMock('@/api-access/generated/users/users', () => ({ getApiUsers }));
+    const [{ useUsersStore }, app] = await Promise.all([
+      import('@/stores/Users'),
+      createTestApp({ loadConfig: false }),
+    ]);
+    const store = useUsersStore(app.pinia);
+
+    await store.ensureUsersForLocation(12);
+    vi.advanceTimersByTime(1);
+    await store.ensureAllUsers();
+
+    expect(store.getUserById('user-1')).toEqual(allUsers[0]);
+  });
+
+  it('uses a newer location record instead of an older all-user record', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-17T10:00:00Z'));
+
+    const allUsers = [{ id: 'user-1', firstName: 'Stale global name' }];
+    const locationUsers = [{ id: 'user-1', firstName: 'Current location name' }];
+    const getApiUsers = vi.fn().mockImplementation((params: { LocationId?: number }) => ({
+      data: { value: params.LocationId ? locationUsers : allUsers },
+      error: { value: null },
+      execute: vi.fn().mockResolvedValue(undefined),
+    }));
+
+    vi.doMock('@/api-access/generated/users/users', () => ({ getApiUsers }));
+    const [{ useUsersStore }, app] = await Promise.all([
+      import('@/stores/Users'),
+      createTestApp({ loadConfig: false }),
+    ]);
+    const store = useUsersStore(app.pinia);
+
+    await store.ensureAllUsers();
+    vi.advanceTimersByTime(1);
+    await store.ensureUsersForLocation(12);
+
+    expect(store.getUserById('user-1')).toEqual(locationUsers[0]);
+  });
+
+  it('removes a user from the combined lookup when a newer all-user result omits it', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-17T10:00:00Z'));
+
+    const locationUsers = [{ id: 'user-1', firstName: 'Disabled user' }];
+    const getApiUsers = vi.fn().mockImplementation((params: { LocationId?: number }) => ({
+      data: { value: params.LocationId ? locationUsers : [] },
+      error: { value: null },
+      execute: vi.fn().mockResolvedValue(undefined),
+    }));
+
+    vi.doMock('@/api-access/generated/users/users', () => ({ getApiUsers }));
+    const [{ useUsersStore }, app] = await Promise.all([
+      import('@/stores/Users'),
+      createTestApp({ loadConfig: false }),
+    ]);
+    const store = useUsersStore(app.pinia);
+
+    await store.ensureUsersForLocation(12);
+    vi.advanceTimersByTime(1);
+    await store.ensureAllUsers();
+
+    expect(store.getUserById('user-1')).toBeUndefined();
   });
 
   it('does not let an invalidated location request overwrite or clear a newer request', async () => {

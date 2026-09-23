@@ -572,7 +572,7 @@ function buildRequestPayload(validated: ShiftResourceFormData) {
     formData: validated,
     scope: selectedOpenScope.value === 'series' ? 'series' : 'entry',
     timeZoneId: activeTimeZoneId.value,
-    locationId: activeLocationId.value,
+    locationId: validated.locationId ?? null,
     fallbackTitle: buildShiftTitle(props.event.title),
     shiftSeriesId: resolveShiftSeriesId(),
     existingRecurrenceRule: selectedSeries.value?.recurrenceRule ?? null,

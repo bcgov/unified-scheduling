@@ -41,7 +41,11 @@ export interface ShiftAssignmentLinkFormData {
 export type ShiftAssignmentEntryLinkFormData = ShiftAssignmentLinkFormData;
 export type ShiftAssignmentSeriesLinkFormData = ShiftAssignmentLinkFormData;
 
-export type ShiftResourceFormData = Partial<zod.infer<typeof PostApiSchedulingShiftsEntriesBody>> & {
+export type ShiftResourceFormData = Omit<
+  Partial<zod.infer<typeof PostApiSchedulingShiftsEntriesBody>>,
+  'locationId'
+> & {
+  locationId?: number | null;
   date?: string;
   startTime?: string;
   endTime?: string;
@@ -98,6 +102,7 @@ const guidLikeSchema = zod
   });
 const optionalUserIdsSchema = zod.array(guidLikeSchema).optional();
 export const shiftEntryRequestSchema = PostApiSchedulingShiftsEntriesBody.extend({
+  locationId: zod.number().int().positive(),
   userIds: optionalUserIdsSchema,
   assignmentEntryLinks: zod
     .array(
@@ -109,6 +114,7 @@ export const shiftEntryRequestSchema = PostApiSchedulingShiftsEntriesBody.extend
     .optional(),
 });
 export const shiftSeriesRequestSchema = PostApiSchedulingShiftsSeriesBody.extend({
+  locationId: zod.number().int().positive(),
   userIds: optionalUserIdsSchema,
   assignmentSeriesLinks: zod
     .array(
@@ -404,6 +410,7 @@ export function getFieldErrors(error: zod.ZodError): Record<string, string> {
 function createShiftFormSchema(options: ShiftFormValidationOptions) {
   return PostApiSchedulingShiftsEntriesBody.partial()
     .extend({
+      locationId: zod.number({ error: validationMessages.required }).int().min(1, validationMessages.required),
       date: zod.string().min(1, validationMessages.required),
       startTime: zod.string().min(1, validationMessages.required),
       endTime: zod.string().min(1, validationMessages.required),
@@ -471,6 +478,10 @@ function buildShiftPayload(
     isCreate: boolean;
   },
 ): ShiftSavePayload | null {
+  if (options.locationId == null) {
+    return null;
+  }
+
   const startAtUtc = toUtcIso(options.formData.date, options.formData.startTime, options.timeZoneId);
   const endAtUtc = toUtcIso(options.formData.date, options.formData.endTime, options.timeZoneId);
 

@@ -9,7 +9,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { mapToValidationErrors } from '@/shared/validation/validationErrors';
-import { CalendarEventStatusTypeCode } from '@/api-access/generated/models';
+import { CalendarEventStatusTypeCode, Permissions } from '@/api-access/generated/models';
 import CalendarSchedulingShiftForm from './CalendarSchedulingShiftForm.vue';
 import {
   buildCreateShiftPayload,
@@ -29,7 +29,6 @@ import { useSchedulingEmployeeOptions } from './useSchedulingEmployeeOptions';
 import { useSchedulingAssignmentOptions } from './useSchedulingAssignmentOptions';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import type { SelectOption } from '@/types/select';
-import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 
 const props = defineProps<{
