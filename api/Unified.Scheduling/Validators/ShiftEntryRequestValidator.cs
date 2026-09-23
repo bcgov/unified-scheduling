@@ -1,4 +1,5 @@
 using FluentValidation;
+using Unified.Calendar.Validators;
 using Unified.Common.Time;
 using Unified.Scheduling.Models;
 
@@ -39,5 +40,14 @@ public sealed class ShiftEntryRequestValidator : AbstractValidator<ShiftEntryReq
             return false;
 
         return userIds.Distinct().Count() == userIds.Count;
+    }
+}
+
+public sealed class ShiftEntryUpdateRequestValidator : AbstractValidator<ShiftEntryUpdateRequest>
+{
+    public ShiftEntryUpdateRequestValidator()
+    {
+        Include(new ShiftEntryRequestValidator());
+        RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }
 }
