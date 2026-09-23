@@ -44,6 +44,8 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<Event> Events { get; set; }
     public DbSet<TrainingCategory> TrainingCategories { get; set; }
     public DbSet<Training> Trainings { get; set; }
+    public DbSet<TrainingProfile> TrainingProfiles { get; set; }
+    public DbSet<TrainingMandatoryTrainingProfile> TrainingMandatoryTrainingProfiles { get; set; }
     public DbSet<UserTraining> UserTrainings { get; set; }
 
     // Scheduling
