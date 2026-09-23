@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -12,26 +14,30 @@ namespace Unified.Scheduling.Services;
 public sealed class ShiftAssignmentService(
     ILogger<ShiftAssignmentService> logger,
     UnifiedDbContext db,
-    ITimeZoneService timeZoneService
+    ITimeZoneService timeZoneService,
+    ICalendarConflictService calendarConflictService
 ) : IShiftAssignmentService
 {
     public async Task<ShiftAssignmentEntryResponse> LinkShiftEntryAsync(
         ShiftAssignmentEntryRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     )
     {
         return await CreateOrUpdateShiftEntryLinkAsync(
             request,
             updateExisting: false,
             expectedLinkId: null,
-            cancellationToken
+            cancellationToken,
+            conflictOverrideActorId
         );
     }
 
     public async Task<ShiftAssignmentEntryResponse?> UpdateShiftEntryLinkAsync(
         int id,
         ShiftAssignmentEntryUpdateRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     )
     {
         var linkIdentity = await db
@@ -48,10 +54,12 @@ public sealed class ShiftAssignmentService(
                 ShiftEntryId = linkIdentity.ShiftEntryId,
                 AssignmentEntryId = linkIdentity.AssignmentEntryId,
                 UserIds = request.UserIds,
+                ConflictOverrides = request.ConflictOverrides,
             },
             updateExisting: true,
             expectedLinkId: id,
-            cancellationToken
+            cancellationToken,
+            conflictOverrideActorId
         );
     }
 
@@ -72,6 +80,7 @@ public sealed class ShiftAssignmentService(
             RemoveLinks([link]);
 
         await db.SaveChangesAsync(cancellationToken);
+        await InvalidateAssignmentEntryOverridesAsync([link.AssignmentEntryId], cancellationToken);
         if (transaction is not null)
             await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Unlinked shift-assignment entry link {ShiftAssignmentEntryLinkId}.", id);
@@ -97,6 +106,10 @@ public sealed class ShiftAssignmentService(
             links.Select(link => new EntryLinkReplacement(shiftEntryId, link.AssignmentEntryId, link.AssignedUserIds)),
             cancellationToken
         );
+        await InvalidateAssignmentEntryOverridesAsync(
+            existingLinks.Select(link => link.AssignmentEntryId).Concat(links.Select(link => link.AssignmentEntryId)),
+            cancellationToken
+        );
     }
 
     public async Task ReplaceAssignmentEntryLinksAsync(
@@ -118,25 +131,29 @@ public sealed class ShiftAssignmentService(
             links.Select(link => new EntryLinkReplacement(link.ShiftEntryId, assignmentEntryId, link.AssignedUserIds)),
             cancellationToken
         );
+        await InvalidateAssignmentEntryOverridesAsync([assignmentEntryId], cancellationToken);
     }
 
     public async Task<ShiftAssignmentSeriesLinkResponse> LinkShiftSeriesAsync(
         ShiftAssignmentSeriesRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     )
     {
         return await CreateOrUpdateShiftSeriesLinkAsync(
             request,
             updateExisting: false,
             expectedLinkId: null,
-            cancellationToken
+            cancellationToken,
+            conflictOverrideActorId
         );
     }
 
     public async Task<ShiftAssignmentSeriesLinkResponse?> UpdateShiftSeriesLinkAsync(
         int id,
         ShiftAssignmentSeriesUpdateRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     )
     {
         var linkIdentity = await db
@@ -153,10 +170,12 @@ public sealed class ShiftAssignmentService(
                 ShiftSeriesId = linkIdentity.ShiftSeriesId,
                 AssignmentSeriesId = linkIdentity.AssignmentSeriesId,
                 AssignedUserIds = request.AssignedUserIds,
+                ConflictOverrides = request.ConflictOverrides,
             },
             updateExisting: true,
             expectedLinkId: id,
-            cancellationToken
+            cancellationToken,
+            conflictOverrideActorId
         );
     }
 
@@ -175,6 +194,7 @@ public sealed class ShiftAssignmentService(
 
         RemoveSeriesLinks([link]);
         await db.SaveChangesAsync(cancellationToken);
+        await InvalidateAssignmentSeriesOverridesAsync([link.AssignmentSeriesId], cancellationToken);
         if (transaction is not null)
             await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Removed shift-assignment series link {ShiftAssignmentSeriesLinkId}.", id);
@@ -196,6 +216,10 @@ public sealed class ShiftAssignmentService(
                 link.AssignmentSeriesId,
                 link.AssignedUserIds
             )),
+            cancellationToken
+        );
+        await InvalidateAssignmentSeriesOverridesAsync(
+            existingLinks.Select(link => link.AssignmentSeriesId).Concat(links.Select(link => link.AssignmentSeriesId)),
             cancellationToken
         );
     }
@@ -220,13 +244,16 @@ public sealed class ShiftAssignmentService(
             )),
             cancellationToken
         );
+        await InvalidateAssignmentSeriesOverridesAsync([assignmentSeriesId], cancellationToken);
     }
 
     private async Task<ShiftAssignmentSeriesLinkResponse> CreateOrUpdateShiftSeriesLinkAsync(
         ShiftAssignmentSeriesRequest request,
         bool updateExisting,
         int? expectedLinkId,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Guid? conflictOverrideActorId = null,
+        bool validateConflicts = true
     )
     {
         await using var transaction = db.Database.CurrentTransaction is null
@@ -401,6 +428,22 @@ public sealed class ShiftAssignmentService(
             .ToList();
 
         await db.SaveChangesAsync(cancellationToken);
+        if (validateConflicts)
+        {
+            var conflictCandidates =
+                await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+                    db,
+                    assignmentEntryIds,
+                    cancellationToken
+                );
+            await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
+                conflictCandidates,
+                request.ConflictOverrides,
+                conflictOverrideActorId,
+                cancellationToken
+            );
+            await InvalidateAssignmentEntryOverridesAsync(assignmentEntryIds, cancellationToken);
+        }
         if (transaction is not null)
             await transaction.CommitAsync(cancellationToken);
 
@@ -418,7 +461,8 @@ public sealed class ShiftAssignmentService(
         ShiftAssignmentEntryRequest request,
         bool updateExisting,
         int? expectedLinkId,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        Guid? conflictOverrideActorId
     )
     {
         await using var transaction = db.Database.CurrentTransaction is null
@@ -430,7 +474,9 @@ public sealed class ShiftAssignmentService(
             request.UserIds,
             cancellationToken,
             updateExisting,
-            expectedLinkId
+            expectedLinkId,
+            request.ConflictOverrides,
+            conflictOverrideActorId
         );
         if (transaction is not null)
             await transaction.CommitAsync(cancellationToken);
@@ -468,7 +514,8 @@ public sealed class ShiftAssignmentService(
                 requestedLink.AssignedUserIds,
                 cancellationToken,
                 updateExisting: existingLink is not null,
-                expectedLinkId: existingLink?.Id
+                expectedLinkId: existingLink?.Id,
+                validateConflicts: false
             );
         }
     }
@@ -506,7 +553,8 @@ public sealed class ShiftAssignmentService(
                 },
                 updateExisting: existingLink is not null,
                 expectedLinkId: existingLink?.Id,
-                cancellationToken
+                cancellationToken,
+                validateConflicts: false
             );
         }
     }
@@ -559,7 +607,10 @@ public sealed class ShiftAssignmentService(
         IReadOnlyCollection<Guid> assignedUserIds,
         CancellationToken cancellationToken,
         bool updateExisting = true,
-        int? expectedLinkId = null
+        int? expectedLinkId = null,
+        IReadOnlyCollection<CalendarConflictAcknowledgement>? conflictOverrides = null,
+        Guid? conflictOverrideActorId = null,
+        bool validateConflicts = true
     )
     {
         var selectedUserIds = ShiftAssignmentGuards.NormalizeRequiredUserIds(assignedUserIds);
@@ -597,6 +648,23 @@ public sealed class ShiftAssignmentService(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        if (validateConflicts)
+        {
+            var conflictCandidates =
+                await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+                    db,
+                    [assignmentEntry.Id],
+                    cancellationToken
+                );
+            await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
+                conflictCandidates,
+                conflictOverrides,
+                conflictOverrideActorId,
+                cancellationToken
+            );
+        }
+        if (validateConflicts)
+            await InvalidateAssignmentEntryOverridesAsync([assignmentEntry.Id], cancellationToken);
 
         logger.LogInformation(
             "Linked shift entry {ShiftEntryId} to assignment entry {AssignmentEntryId}.",
@@ -619,6 +687,40 @@ public sealed class ShiftAssignmentService(
             .AssignmentEntries.Include(entry => entry.Event)
             .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken)
         ?? throw new KeyNotFoundException($"Assignment entry {id} not found.");
+
+    private async Task InvalidateAssignmentEntryOverridesAsync(
+        IEnumerable<int> assignmentEntryIds,
+        CancellationToken cancellationToken
+    )
+    {
+        var ids = assignmentEntryIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return;
+
+        var eventIds = await db
+            .AssignmentEntries.Where(entry => ids.Contains(entry.Id))
+            .Select(entry => entry.EventId)
+            .ToListAsync(cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(eventIds, cancellationToken: cancellationToken);
+    }
+
+    private async Task InvalidateAssignmentSeriesOverridesAsync(
+        IEnumerable<int> assignmentSeriesIds,
+        CancellationToken cancellationToken
+    )
+    {
+        var ids = assignmentSeriesIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return;
+
+        var eventIds = await db
+            .AssignmentEntries.Where(entry =>
+                entry.AssignmentSeriesId.HasValue && ids.Contains(entry.AssignmentSeriesId.Value)
+            )
+            .Select(entry => entry.EventId)
+            .ToListAsync(cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(eventIds, cancellationToken: cancellationToken);
+    }
 
     private void RemoveSeriesLinks(IReadOnlyCollection<ShiftAssignmentSeriesLink> seriesLinks)
     {

@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
 using Unified.Common.Validation;
@@ -20,7 +21,8 @@ public sealed class AssignmentService(
     IShiftAssignmentService shiftAssignmentService,
     CalendarLifecycleService calendarLifecycleService,
     ITimeZoneService timeZoneService,
-    TimeProvider timeProvider
+    TimeProvider timeProvider,
+    ICalendarConflictService calendarConflictService
 ) : IAssignmentService
 {
     private static readonly RecurrenceValidationOptions AssignmentRecurrenceValidationOptions = new()
@@ -238,6 +240,22 @@ public sealed class AssignmentService(
             request.ShiftSeriesLinks,
             cancellationToken
         );
+        var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
+            db,
+            id,
+            cancellationToken
+        );
+        // Series regeneration can replace occurrence event IDs, so series updates cannot safely use
+        // ID-based acknowledgements from a rolled-back attempt.
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
+        var affectedEventIds = await db
+            .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == id)
+            .Select(entry => entry.EventId)
+            .ToListAsync(cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(
+            affectedEventIds,
+            cancellationToken: cancellationToken
+        );
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -251,6 +269,12 @@ public sealed class AssignmentService(
     )
     {
         logger.LogInformation("Publishing assignment series {AssignmentSeriesId}.", id);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
+
         var assignmentSeries = await db
             .AssignmentSeries.Include(series => series.EventSeries!)
                 .ThenInclude(series => series.Events)
@@ -263,6 +287,15 @@ public sealed class AssignmentService(
             assignmentSeries.EventSeries!.Events.ToList()
         );
         await db.SaveChangesAsync(cancellationToken);
+
+        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
+            db,
+            assignmentSeries.Id,
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
         logger.LogInformation("Published assignment series {AssignmentSeriesId}.", id);
         return await MapToAssignmentSeriesResponseAsync(assignmentSeries, cancellationToken);
     }
@@ -293,6 +326,11 @@ public sealed class AssignmentService(
         );
 
         await db.SaveChangesAsync(cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(
+            assignmentSeries.EventSeries.Events.Select(eventEntity => eventEntity.Id).ToList(),
+            updatedById: cancelledByUserId,
+            cancellationToken: cancellationToken
+        );
         logger.LogInformation("Expired assignment series {AssignmentSeriesId}.", id);
         return await MapToAssignmentSeriesResponseAsync(assignmentSeries, cancellationToken);
     }
@@ -482,7 +520,8 @@ public sealed class AssignmentService(
     public async Task<AssignmentEntryResponse?> UpdateAssignmentEntryAsync(
         int id,
         AssignmentEntryUpdateRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     )
     {
         var definition = await GetActiveDefinitionAsync(
@@ -573,6 +612,21 @@ public sealed class AssignmentService(
             requestedShiftEntryLinks,
             cancellationToken
         );
+        var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+            db,
+            [assignmentEntry.Id],
+            cancellationToken
+        );
+        await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
+            updatedConflictState,
+            request.ConflictOverrides,
+            conflictOverrideActorId,
+            cancellationToken
+        );
+        await calendarConflictService.InvalidateResolvedOverridesAsync(
+            [assignmentEntry.EventId],
+            cancellationToken: cancellationToken
+        );
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -586,6 +640,12 @@ public sealed class AssignmentService(
     )
     {
         logger.LogInformation("Publishing assignment entry {AssignmentEntryId}.", id);
+
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
+
         var assignmentEntry = await IncludeAssignmentEntryGraph(db.AssignmentEntries)
             .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken);
         if (assignmentEntry is null)
@@ -593,6 +653,15 @@ public sealed class AssignmentService(
         ValidateAssignmentEventType(assignmentEntry.Event!);
         calendarLifecycleService.Publish(assignmentEntry.Event!);
         await db.SaveChangesAsync(cancellationToken);
+
+        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+            db,
+            [assignmentEntry.Id],
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
         logger.LogInformation("Published assignment entry {AssignmentEntryId}.", id);
         return AssignmentResponseMapper.ToAssignmentEntryResponse(assignmentEntry);
     }
@@ -620,6 +689,11 @@ public sealed class AssignmentService(
         );
 
         await db.SaveChangesAsync(cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(
+            [assignmentEntry.EventId],
+            updatedById: cancelledByUserId,
+            cancellationToken: cancellationToken
+        );
         logger.LogInformation("Expired assignment entry {AssignmentEntryId}.", id);
         return AssignmentResponseMapper.ToAssignmentEntryResponse(assignmentEntry);
     }

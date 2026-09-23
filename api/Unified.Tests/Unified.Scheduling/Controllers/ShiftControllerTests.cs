@@ -457,10 +457,13 @@ public class ShiftControllerTests
         var controller = new ShiftController(
             service,
             new ShiftSeriesRequestValidator(),
-            new ShiftEntryRequestValidator()
+            new ShiftEntryRequestValidator(),
+            new ShiftEntryUpdateRequestValidator()
         );
 
-        var claims = userId.HasValue ? new[] { new Claim(UnifiedClaimTypes.UserId, userId.Value.ToString()) } : [];
+        var claims = new List<Claim>();
+        if (userId.HasValue)
+            claims.Add(new Claim(UnifiedClaimTypes.UserId, userId.Value.ToString()));
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims)) },
@@ -480,7 +483,7 @@ public class ShiftControllerTests
             UserIds = userIds ?? [UserA, UserB],
         };
 
-    private static ShiftEntryRequest CreateShiftEntryRequest(IReadOnlyCollection<Guid>? userIds = null) =>
+    private static ShiftEntryUpdateRequest CreateShiftEntryRequest(IReadOnlyCollection<Guid>? userIds = null) =>
         new()
         {
             ShiftSeriesId = 1,
@@ -609,8 +612,9 @@ public class ShiftControllerTests
 
         public Task<ShiftEntryResponse?> UpdateShiftEntryAsync(
             int id,
-            ShiftEntryRequest request,
-            CancellationToken cancellationToken = default
+            ShiftEntryUpdateRequest request,
+            CancellationToken cancellationToken = default,
+            Guid? conflictOverrideActorId = null
         )
         {
             LastShiftEntryRequest = request;

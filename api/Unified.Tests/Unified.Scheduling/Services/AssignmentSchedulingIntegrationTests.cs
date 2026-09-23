@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
@@ -37,6 +39,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     private AssignmentService _assignmentService = null!;
     private ShiftService _shiftService = null!;
     private ShiftAssignmentService _linkService = null!;
+    private CalendarConflictService _conflictService = null!;
     private SchedulingCalendarService _calendarService = null!;
     private ProposedShiftAssignmentOptionsService _assignmentOptionsService = null!;
     private readonly TransactionIsolationRecorder _transactionIsolationRecorder = new();
@@ -72,13 +75,23 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             recurrenceExpander
         );
         var timeProvider = new FixedTimeProvider(FixedNow);
+        _conflictService = new CalendarConflictService(
+            [new SchedulingConflictParticipantProvider(_db)],
+            _db,
+            timeProvider
+        );
 
         _definitionService = new AssignmentDefinitionService(
             NullLogger<AssignmentDefinitionService>.Instance,
             _db,
             timeProvider
         );
-        _linkService = new ShiftAssignmentService(NullLogger<ShiftAssignmentService>.Instance, _db, timeZoneService);
+        _linkService = new ShiftAssignmentService(
+            NullLogger<ShiftAssignmentService>.Instance,
+            _db,
+            timeZoneService,
+            _conflictService
+        );
         _assignmentService = new AssignmentService(
             NullLogger<AssignmentService>.Instance,
             _db,
@@ -87,7 +100,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _linkService,
             new CalendarLifecycleService(),
             timeZoneService,
-            timeProvider
+            timeProvider,
+            _conflictService
         );
         _shiftService = new ShiftService(
             NullLogger<ShiftService>.Instance,
@@ -98,7 +112,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _linkService,
             new CalendarLifecycleService(),
             timeZoneService,
-            timeProvider
+            timeProvider,
+            _conflictService
         );
         _calendarService = new SchedulingCalendarService(
             NullLogger<SchedulingCalendarService>.Instance,
@@ -804,6 +819,224 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         Assert.NotEqual(0, overlapping.Id);
         Assert.Equal(2, await _db.AssignmentEntries.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task PublishAssignmentEntryAsync_WhenActivationCreatesConflict_RollsBackToDraft()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(12)) with
+            {
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken);
+        var secondAssignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(12)) with
+            {
+                AssignmentDefinitionId = 101,
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var exception = await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            _assignmentService.PublishAssignmentEntryAsync(secondAssignment.Id, TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(UserA, Assert.Single(exception.Conflicts).ResourceId);
+        _db.ChangeTracker.Clear();
+        var stored = await _db
+            .AssignmentEntries.Include(entry => entry.Event)
+            .SingleAsync(entry => entry.Id == secondAssignment.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, stored.Event!.StatusTypeCode);
+    }
+
+    [Fact]
+    public async Task CreateAssignmentEntryAsync_WhenDraftConflicts_PersistsWithStableEventId()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(8), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var first = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(8), At(10)) with
+            {
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken);
+
+        var created = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(9), At(11)) with
+            {
+                AssignmentDefinitionId = 101,
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.True(created.EventId > 0);
+        var exception = await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            _assignmentService.PublishAssignmentEntryAsync(created.Id, TestContext.Current.CancellationToken)
+        );
+        var conflict = Assert.Single(exception.Conflicts);
+        Assert.Contains(created.EventId, new[] { conflict.Entry.EventId, conflict.Overlaps.EventId });
+        _db.ChangeTracker.Clear();
+
+        await _conflictService.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstEventId = conflict.Entry.EventId,
+                SecondEventId = conflict.Overlaps.EventId,
+                ResourceId = conflict.ResourceId,
+                Note = "Approved before publication",
+            },
+            UserA,
+            TestContext.Current.CancellationToken
+        );
+        var published = await _assignmentService.PublishAssignmentEntryAsync(
+            created.Id,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, published!.StatusTypeCode);
+    }
+
+    [Fact]
+    public async Task PublishShiftEntryAsync_WhenActivationCreatesConflict_RollsBackToDraft()
+    {
+        var (shift, firstAssignment, secondAssignment) = await CreateDraftConflictAsync();
+
+        var exception = await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(UserA, Assert.Single(exception.Conflicts).ResourceId);
+        _db.ChangeTracker.Clear();
+        var stored = await _db
+            .ShiftEntries.Include(entry => entry.Event)
+            .SingleAsync(entry => entry.Id == shift.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, stored.Event!.StatusTypeCode);
+        var assignmentStatuses = await _db
+            .AssignmentEntries.Where(entry => entry.Id == firstAssignment.Id || entry.Id == secondAssignment.Id)
+            .Select(entry => entry.Event!.StatusTypeCode)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.All(assignmentStatuses, status => Assert.Equal(CalendarEventStatusTypeCodes.Draft, status));
+    }
+
+    [Fact]
+    public async Task PublishShiftEntryAsync_WithLinkedDraftAssignment_PublishesAssignmentInSameTransaction()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var assignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(11)),
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = assignment.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var published = await _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, published.StatusTypeCode);
+        _db.ChangeTracker.Clear();
+        var assignmentStatus = await _db
+            .AssignmentEntries.Where(entry => entry.Id == assignment.Id)
+            .Select(entry => entry.Event!.StatusTypeCode)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, assignmentStatus);
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentEntryAsync_RetryWithCurrentConflictAcknowledgement_CommitsMutationAndOverride()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(8), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var first = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(8), At(10)),
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = first.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken);
+        var second = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(12)) with
+            {
+                AssignmentDefinitionId = 101,
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = second.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var update = CreateAssignmentEntryUpdateRequest(At(9), At(11)) with { AssignmentDefinitionId = 101 };
+        var exception = await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            _assignmentService.UpdateAssignmentEntryAsync(second.Id, update, TestContext.Current.CancellationToken)
+        );
+        var conflict = Assert.Single(exception.Conflicts);
+        _db.ChangeTracker.Clear();
+        var rolledBack = await _db
+            .AssignmentEntries.Include(entry => entry.Event)
+            .SingleAsync(entry => entry.Id == second.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(At(10), rolledBack.Event!.StartAtUtc);
+
+        var updated = await _assignmentService.UpdateAssignmentEntryAsync(
+            second.Id,
+            update with
+            {
+                ConflictOverrides =
+                [
+                    new CalendarConflictAcknowledgement
+                    {
+                        FirstEventId = conflict.Entry.EventId,
+                        SecondEventId = conflict.Overlaps.EventId,
+                        ResourceId = conflict.ResourceId,
+                        Note = "Operationally approved",
+                    },
+                ],
+            },
+            TestContext.Current.CancellationToken,
+            UserA
+        );
+
+        Assert.Equal(At(9), updated!.StartAtUtc);
+        var persistedOverride = Assert.Single(
+            await _db.CalendarConflictOverrides.ToListAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal("Operationally approved", persistedOverride.Note);
+        Assert.Equal(UserA, persistedOverride.CreatedById);
     }
 
     [Fact]
@@ -1579,6 +1812,48 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         );
     }
 
+    private async Task<(
+        ShiftEntryResponse Shift,
+        AssignmentEntryResponse FirstAssignment,
+        AssignmentEntryResponse SecondAssignment
+    )> CreateDraftConflictAsync()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var firstAssignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var secondAssignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(12)) with
+            {
+                AssignmentDefinitionId = 101,
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = firstAssignment.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = secondAssignment.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+        return (shift, firstAssignment, secondAssignment);
+    }
+
     private Task<SchedulingCalendarDataResponse> GetCalendarAsync(
         IReadOnlyCollection<Guid>? userIds,
         bool includeShifts,
@@ -1659,7 +1934,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 Name = "Subcategory 21",
             }
         );
-        _db.AssignmentDefinitions.Add(
+        _db.AssignmentDefinitions.AddRange(
             new AssignmentDefinition
             {
                 Id = 100,
@@ -1669,6 +1944,20 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 CategoryId = 10,
                 SubCategoryId = 11,
                 Color = "definition-color",
+                DefaultStartTime = new TimeOnly(8, 0),
+                DefaultEndTime = new TimeOnly(16, 0),
+                DefaultCapacity = 3,
+                EffectiveDateUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            },
+            new AssignmentDefinition
+            {
+                Id = 101,
+                LocationId = 5,
+                Name = "Alternate definition",
+                NormalizedName = "ALTERNATE DEFINITION",
+                CategoryId = 10,
+                SubCategoryId = 11,
+                Color = "alternate-color",
                 DefaultStartTime = new TimeOnly(8, 0),
                 DefaultEndTime = new TimeOnly(16, 0),
                 DefaultCapacity = 3,
@@ -1757,7 +2046,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             UserIds = [UserA],
         };
 
-    private static ShiftEntryRequest CreateShiftEntryRequest(DateTimeOffset startAtUtc, DateTimeOffset endAtUtc) =>
+    private static ShiftEntryUpdateRequest CreateShiftEntryRequest(
+        DateTimeOffset startAtUtc,
+        DateTimeOffset endAtUtc
+    ) =>
         new()
         {
             Title = "Shift",

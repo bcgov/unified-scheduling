@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -38,19 +40,34 @@ public sealed class ShiftAssignmentController(
     [Authorize(Policy = SchedulingPolicies.AssignmentsAssign)]
     [ProducesResponseType(typeof(ShiftAssignmentEntryResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(CalendarConflictRejectionResponse), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ShiftAssignmentEntryResponse>> LinkShiftEntry(
         [FromBody] ShiftAssignmentEntryRequest request,
         CancellationToken cancellationToken
     )
     {
         await entryRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftAssignmentService.LinkShiftEntryAsync(request, cancellationToken);
+        if (
+            !CalendarConflictAcknowledgementAuthorization.TryResolveActor(
+                User,
+                request.ConflictOverrides,
+                out var conflictOverrideActorId
+            )
+        )
+            return Forbid();
+
+        var result = await shiftAssignmentService.LinkShiftEntryAsync(
+            request,
+            cancellationToken,
+            conflictOverrideActorId
+        );
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpPut("entries/{id:int}")]
     [Authorize(Policy = SchedulingPolicies.AssignmentsAssign)]
     [ProducesResponseType(typeof(ShiftAssignmentEntryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CalendarConflictRejectionResponse), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftAssignmentEntryResponse>> UpdateShiftEntryLink(
         int id,
@@ -59,7 +76,21 @@ public sealed class ShiftAssignmentController(
     )
     {
         await entryUpdateRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftAssignmentService.UpdateShiftEntryLinkAsync(id, request, cancellationToken);
+        if (
+            !CalendarConflictAcknowledgementAuthorization.TryResolveActor(
+                User,
+                request.ConflictOverrides,
+                out var conflictOverrideActorId
+            )
+        )
+            return Forbid();
+
+        var result = await shiftAssignmentService.UpdateShiftEntryLinkAsync(
+            id,
+            request,
+            cancellationToken,
+            conflictOverrideActorId
+        );
         return result is null ? NotFound() : Ok(result);
     }
 
@@ -74,19 +105,34 @@ public sealed class ShiftAssignmentController(
     [Authorize(Policy = SchedulingPolicies.AssignmentsAssign)]
     [ProducesResponseType(typeof(ShiftAssignmentSeriesLinkResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(CalendarConflictRejectionResponse), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ShiftAssignmentSeriesLinkResponse>> LinkShiftSeries(
         [FromBody] ShiftAssignmentSeriesRequest request,
         CancellationToken cancellationToken
     )
     {
         await seriesRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftAssignmentService.LinkShiftSeriesAsync(request, cancellationToken);
+        if (
+            !CalendarConflictAcknowledgementAuthorization.TryResolveActor(
+                User,
+                request.ConflictOverrides,
+                out var conflictOverrideActorId
+            )
+        )
+            return Forbid();
+
+        var result = await shiftAssignmentService.LinkShiftSeriesAsync(
+            request,
+            cancellationToken,
+            conflictOverrideActorId
+        );
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpPut("series/{id:int}")]
     [Authorize(Policy = SchedulingPolicies.AssignmentsAssign)]
     [ProducesResponseType(typeof(ShiftAssignmentSeriesLinkResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CalendarConflictRejectionResponse), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftAssignmentSeriesLinkResponse>> UpdateShiftSeriesLink(
         int id,
@@ -95,7 +141,21 @@ public sealed class ShiftAssignmentController(
     )
     {
         await seriesUpdateRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftAssignmentService.UpdateShiftSeriesLinkAsync(id, request, cancellationToken);
+        if (
+            !CalendarConflictAcknowledgementAuthorization.TryResolveActor(
+                User,
+                request.ConflictOverrides,
+                out var conflictOverrideActorId
+            )
+        )
+            return Forbid();
+
+        var result = await shiftAssignmentService.UpdateShiftSeriesLinkAsync(
+            id,
+            request,
+            cancellationToken,
+            conflictOverrideActorId
+        );
         return result is null ? NotFound() : Ok(result);
     }
 
