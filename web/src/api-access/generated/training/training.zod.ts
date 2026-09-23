@@ -20,8 +20,15 @@ export const GetApiLookupTrainingsResponseItem = zod.object({
   trainingCategoryId: zod.int().nullish(),
   trainingCategoryName: zod.string().nullish(),
   order: zod.int().optional(),
-  mandatoryTrainingProfileIds: zod.array(zod.int()).optional(),
-  mandatoryTrainingProfileCodes: zod.array(zod.string()).optional(),
+  mandatoryTrainingProfiles: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        code: zod.string().optional(),
+        name: zod.string().optional(),
+      }),
+    )
+    .optional(),
   id: zod.int(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
@@ -51,8 +58,15 @@ export const PostApiLookupTrainingsResponse = zod.object({
   trainingCategoryId: zod.int().nullish(),
   trainingCategoryName: zod.string().nullish(),
   order: zod.int().optional(),
-  mandatoryTrainingProfileIds: zod.array(zod.int()).optional(),
-  mandatoryTrainingProfileCodes: zod.array(zod.string()).optional(),
+  mandatoryTrainingProfiles: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        code: zod.string().optional(),
+        name: zod.string().optional(),
+      }),
+    )
+    .optional(),
   id: zod.int(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
@@ -74,8 +88,15 @@ export const GetApiLookupTrainingsIdResponse = zod.object({
   trainingCategoryId: zod.int().nullish(),
   trainingCategoryName: zod.string().nullish(),
   order: zod.int().optional(),
-  mandatoryTrainingProfileIds: zod.array(zod.int()).optional(),
-  mandatoryTrainingProfileCodes: zod.array(zod.string()).optional(),
+  mandatoryTrainingProfiles: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        code: zod.string().optional(),
+        name: zod.string().optional(),
+      }),
+    )
+    .optional(),
   id: zod.int(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
@@ -108,8 +129,15 @@ export const PutApiLookupTrainingsIdResponse = zod.object({
   trainingCategoryId: zod.int().nullish(),
   trainingCategoryName: zod.string().nullish(),
   order: zod.int().optional(),
-  mandatoryTrainingProfileIds: zod.array(zod.int()).optional(),
-  mandatoryTrainingProfileCodes: zod.array(zod.string()).optional(),
+  mandatoryTrainingProfiles: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        code: zod.string().optional(),
+        name: zod.string().optional(),
+      }),
+    )
+    .optional(),
   id: zod.int(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
@@ -135,8 +163,15 @@ export const PatchApiLookupTrainingsIdOrderResponse = zod.object({
   trainingCategoryId: zod.int().nullish(),
   trainingCategoryName: zod.string().nullish(),
   order: zod.int().optional(),
-  mandatoryTrainingProfileIds: zod.array(zod.int()).optional(),
-  mandatoryTrainingProfileCodes: zod.array(zod.string()).optional(),
+  mandatoryTrainingProfiles: zod
+    .array(
+      zod.object({
+        id: zod.int().optional(),
+        code: zod.string().optional(),
+        name: zod.string().optional(),
+      }),
+    )
+    .optional(),
   id: zod.int(),
   createdOn: zod.iso.datetime({ offset: true }).optional(),
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
@@ -158,19 +193,9 @@ export const PatchApiLookupTrainingsIdUnexpireParams = zod.strictObject({
 
 export const PatchApiLookupTrainingsIdUnexpireResponse = zod.void();
 
-export const getApiLookupTrainingProfilesQueryIncludeExpiredDefault = false;
-
-export const GetApiLookupTrainingProfilesQueryParams = zod.strictObject({
-  includeExpired: zod.boolean().default(getApiLookupTrainingProfilesQueryIncludeExpiredDefault),
+export const GetApiTrainingProfileTypesResponseItem = zod.object({
+  id: zod.int().optional(),
+  code: zod.string().optional(),
+  name: zod.string().optional(),
 });
-
-export const GetApiLookupTrainingProfilesResponseItem = zod.object({
-  id: zod.int(),
-  code: zod.string(),
-  description: zod.string(),
-  effectiveDate: zod.iso.datetime({ offset: true }),
-  expiryDate: zod.iso.datetime({ offset: true }).nullish(),
-  createdOn: zod.iso.datetime({ offset: true }),
-  updatedOn: zod.iso.datetime({ offset: true }).nullish(),
-});
-export const GetApiLookupTrainingProfilesResponse = zod.array(GetApiLookupTrainingProfilesResponseItem);
+export const GetApiTrainingProfileTypesResponse = zod.array(GetApiTrainingProfileTypesResponseItem);

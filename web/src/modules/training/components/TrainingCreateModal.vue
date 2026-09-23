@@ -12,7 +12,7 @@ import { mapToValidationErrors, validationMessages } from '@/shared/validation/v
 import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref } from 'vue';
-import { useTrainingProfileLookup } from '../trainingProfileApi';
+import { useTrainingProfiles } from '../trainingProfileApi';
 import {
   annualValidityDayCode,
   defaultValidityDayCode,
@@ -35,10 +35,6 @@ type TrainingCreateFormData = {
   rotating: boolean;
 };
 
-type TrainingLookupRequestWithProfiles = TrainingLookupRequest & {
-  mandatoryTrainingProfileIds?: number[];
-};
-
 const formData = ref<TrainingCreateFormData>({
   code: '',
   description: '',
@@ -56,11 +52,11 @@ const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-const { data: trainingProfiles } = useTrainingProfileLookup();
+const { data: trainingProfiles } = useTrainingProfiles();
 const trainingProfileOptions = computed<SelectOption[]>(() => {
   return (trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,
-    description: profile.description?.trim() || profile.code,
+    description: profile.name,
   }));
 });
 
@@ -82,7 +78,7 @@ const parseOptionalNonNegativeNumber = (
   return parsedValue;
 };
 
-const validateForm = (): TrainingLookupRequestWithProfiles | null => {
+const validateForm = (): TrainingLookupRequest | null => {
   formErrors.value = {};
 
   const code = formData.value.code.trim();

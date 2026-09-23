@@ -12,7 +12,7 @@ import { mapToValidationErrors, validationMessages } from '@/shared/validation/v
 import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
-import { useTrainingProfileLookup } from '../trainingProfileApi';
+import { useTrainingProfiles } from '../trainingProfileApi';
 import {
   annualValidityDayCode,
   getValidityDayCodeFromDays,
@@ -40,23 +40,15 @@ type TrainingFormData = {
   trainingCategoryId?: number | null;
 };
 
-type TrainingLookupResponseWithProfiles = TrainingLookupResponse & {
-  mandatoryTrainingProfileIds?: number[];
-};
-
-type TrainingLookupRequestWithProfiles = TrainingLookupRequest & {
-  mandatoryTrainingProfileIds?: number[];
-};
-
 const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-const { data: trainingProfiles } = useTrainingProfileLookup();
+const { data: trainingProfiles, isFetching: isTrainingProfilesLoading } = useTrainingProfiles();
 const trainingProfileOptions = computed<SelectOption[]>(() => {
   return (trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,
-    description: profile.description?.trim() || profile.code,
+    description: profile.name,
   }));
 });
 
@@ -64,7 +56,10 @@ const populateFromTraining = (training: TrainingLookupResponse): TrainingFormDat
   code: training.code ?? '',
   description: training.description ?? '',
   mandatory: training.mandatory ?? false,
-  mandatoryTrainingProfileIds: (training as TrainingLookupResponseWithProfiles).mandatoryTrainingProfileIds ?? [],
+  mandatoryTrainingProfileIds:
+    training.mandatoryTrainingProfiles
+      ?.map((profile) => profile.id)
+      .filter((id): id is number => typeof id === 'number') ?? [],
   validityDayCode: getValidityDayCodeFromDays(training.validityDays),
   advanceNoticeDays: training.advanceNoticeDays == null ? '' : String(training.advanceNoticeDays),
   rotating: training.rotating ?? false,
@@ -103,7 +98,7 @@ const parseOptionalNonNegativeNumber = (value: string, fieldName: keyof Training
   return parsedValue;
 };
 
-const validateForm = (): TrainingLookupRequestWithProfiles | null => {
+const validateForm = (): TrainingLookupRequest | null => {
   formErrors.value = {};
 
   const code = formData.value.code.trim();
@@ -262,10 +257,24 @@ const handleSave = async () => {
 
       <label class="ua-form-label" for="edit-training-mandatory-profiles">Mandatory Profiles</label>
       <div class="validity-field">
+        <div
+          v-if="
+            isTrainingProfilesLoading &&
+            formData.mandatoryTrainingProfileIds.length > 0 &&
+            trainingProfileOptions.length === 0
+          "
+          class="loading-inline"
+        >
+          <v-progress-circular color="primary" indeterminate size="18" width="2" />
+          <span>Loading selected training profiles…</span>
+        </div>
+
         <UaSelect
+          v-else
           id="edit-training-mandatory-profiles"
           v-model="formData.mandatoryTrainingProfileIds"
           :items="trainingProfileOptions"
+          :loading="isTrainingProfilesLoading"
           :disabled="isLoading || !formData.mandatory"
           :hint="
             formData.mandatory
@@ -328,6 +337,15 @@ const handleSave = async () => {
 }
 
 .validity-field__hint {
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-sm);
+}
+
+.loading-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--ua-spacing-sm);
+  min-height: 40px;
   color: var(--ua-text-secondary);
   font-size: var(--ua-font-size-sm);
 }

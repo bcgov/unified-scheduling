@@ -14,9 +14,14 @@ vi.mock('@/api-access/generated/user-training/user-training', () => ({
   getApiTrainingsUsersUserId: getApiTrainingsUsersUserIdMock,
 }));
 
-vi.mock('@/api-access/generated/training/training', () => ({
-  getApiLookupTrainings: getApiLookupTrainingsMock,
-}));
+vi.mock('@/api-access/generated/training/training', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api-access/generated/training/training')>();
+
+  return {
+    ...actual,
+    getApiLookupTrainings: getApiLookupTrainingsMock,
+  };
+});
 
 vi.mock('@/composables/useAccessControl', () => ({
   useAccessControl: () => ({
