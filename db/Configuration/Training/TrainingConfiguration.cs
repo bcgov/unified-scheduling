@@ -24,7 +24,7 @@ public class TrainingConfiguration : BaseEntityConfiguration<TrainingEntity>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder
-            .HasMany(b => b.MandatoryTrainingProfiles)
+            .HasMany(b => b.TrainingProfiles)
             .WithOne(c => c.Training)
             .HasForeignKey(c => c.TrainingId)
             .OnDelete(DeleteBehavior.Cascade);
