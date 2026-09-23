@@ -350,6 +350,16 @@ export const PutApiSchedulingShiftsEntriesIdParams = zod.strictObject({
 });
 
 export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
+  conflictOverrides: zod
+    .array(
+      zod.strictObject({
+        firstEventId: zod.int(),
+        secondEventId: zod.int(),
+        resourceId: zod.uuid(),
+        note: zod.string(),
+      }),
+    )
+    .nullish(),
   shiftSeriesId: zod.int().nullish(),
   title: zod.string(),
   description: zod.string().nullish(),
