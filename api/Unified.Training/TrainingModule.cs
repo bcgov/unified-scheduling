@@ -5,8 +5,11 @@ using Unified.Authorization;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Reporting;
+using Unified.Common.Seeding;
 using Unified.Core.Services.Lookup;
+using Unified.Db;
 using Unified.Training.FeatureFlags;
+using Unified.Training.Seeders;
 using Unified.Training.Services;
 using Unified.Training.Services.Lookup;
 using Unified.Training.Services.Reporting;
@@ -49,10 +52,12 @@ public static class TrainingModule
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<ITrainingLookupStrategy, TrainingLookupStrategy>();
+        services.AddScoped<ITrainingProfileLookupStrategy, TrainingProfileLookupStrategy>();
         services.AddScoped<IReportQueryHandler, UserTrainingReportQueryHandler>();
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );
+        services.AddSeeder<UnifiedDbContext, TrainingProfileSeeder>();
 
         services.AddScoped<TrainingLookupRequestValidator>();
         services.AddScoped<UserTrainingRequestValidator>();
