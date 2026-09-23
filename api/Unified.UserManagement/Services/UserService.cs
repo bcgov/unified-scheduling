@@ -175,7 +175,7 @@ public sealed class UserService(
         }
 
         var exists = await DB
-            .TrainingProfiles.AsNoTracking()
+            .TrainingProfileTypes.AsNoTracking()
             .AnyAsync(profile => profile.Id == trainingProfileId, cancellationToken);
 
         if (!exists)
