@@ -4,7 +4,8 @@ using Unified.Db.Models.Training;
 
 namespace Unified.Db.Configuration.Training;
 
-public class TrainingProfileConfiguration : BaseEntityConfiguration<TrainingProfile>
+public class TrainingProfileConfiguration
+    : BaseEntityConfiguration<TrainingProfile>
 {
     public override void Configure(EntityTypeBuilder<TrainingProfile> builder)
     {
