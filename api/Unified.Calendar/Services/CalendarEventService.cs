@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
 using Unified.Common.Time;
@@ -14,7 +15,8 @@ public sealed class CalendarEventService(
     UnifiedDbContext db,
     StatutoryHolidayCalendarDataProvider statutoryHolidayProvider,
     ICalendarTimeZoneResolver timeZoneResolver,
-    ITimeZoneService timeZoneService
+    ITimeZoneService timeZoneService,
+    ICalendarConflictService calendarConflictService
 ) : ICalendarEventService
 {
     public async Task<CalendarDataResponse> GetCalendarDataAsync(
@@ -68,7 +70,15 @@ public sealed class CalendarEventService(
             .ThenBy(calendarEvent => calendarEvent.Title, StringComparer.Ordinal)
             .ThenBy(calendarEvent => calendarEvent.Id, StringComparer.Ordinal)
             .ToList();
-        var response = new CalendarDataResponse { Events = events };
+        var conflicts = await calendarConflictService.GetConflictsAsync(
+            new CalendarConflictQuery(utcRange.StartAtUtc, utcRange.EndAtUtc),
+            cancellationToken
+        );
+        var response = new CalendarDataResponse
+        {
+            Events = events,
+            Conflicts = conflicts.Select(CalendarConflictResponse.FromConflict).ToList(),
+        };
 
         logger.LogDebug(
             "Calendar data query completed for local date range {StartDate} to {EndDate} with location filter {LocationId}; {EventCount} events matched.",

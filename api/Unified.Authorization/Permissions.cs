@@ -32,6 +32,9 @@ public enum Permissions
     TypesEdit,
     TypesExpire,
 
+    // --- Calendar ---
+    CalendarConflictsOverride,
+
     // --- Shifts ---
     ShiftsView,
     ShiftsCreateAndAssign,
