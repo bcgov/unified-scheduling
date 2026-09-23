@@ -3,7 +3,6 @@ import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntry
 import type { ShiftEntryResponse } from '@/api-access/generated/models/shiftEntryResponse';
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
 import type { ShiftSeriesResponse } from '@/api-access/generated/models/shiftSeriesResponse';
-import type { UserResponse } from '@/api-access/generated/models/userResponse';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type { SelectOption } from '@/types/select';
@@ -384,11 +383,6 @@ export function buildUpdateShiftPayloadWithErrors(options: BuildUpdateShiftPaylo
 
 export function buildShiftTitle(employeeName: string) {
   return `${employeeName} shift`;
-}
-
-export function formatUserOptionLabel(user: UserResponse) {
-  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
-  return fullName || user.idirName;
 }
 
 export function getFieldErrors(error: zod.ZodError): Record<string, string> {

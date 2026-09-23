@@ -369,8 +369,11 @@ async function handleSaveEdit() {
         ? await publishShiftSeries(resolveShiftSeriesId(), payload.publish)
         : await publishShiftEntry(resolveShiftEntryId(), payload.publish);
     if (!published) {
+      const publicationError = apiError.value;
       await reloadShiftAfterPublicationFailure(payload.kind);
-      apiError.value = 'The shift was updated as Draft, but publication failed. Its current status has been reloaded.';
+      apiError.value =
+        publicationError ||
+        'The shift was updated as Draft, but publication failed. Its current status has been reloaded.';
       return;
     }
 
@@ -389,7 +392,6 @@ async function reloadShiftAfterPublicationFailure(kind: 'entry' | 'series') {
   } else {
     await loadSelectedEntry();
   }
-  calendarStore.refresh();
 }
 
 async function handleDeleteShift() {
@@ -514,7 +516,7 @@ async function publishShiftSeries(id: number | null, shouldPublish: boolean) {
   const publishResult = await shiftApi.publishShiftSeries(id);
 
   if (publishResult.error.value) {
-    apiError.value = publishResult.error.value.message || 'Shift updated but failed to publish.';
+    apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
     return false;
   }
 
@@ -529,11 +531,28 @@ async function publishShiftEntry(id: number | null, shouldPublish: boolean) {
   const publishResult = await shiftApi.publishShiftEntry(id);
 
   if (publishResult.error.value) {
-    apiError.value = publishResult.error.value.message || 'Shift updated but failed to publish.';
+    apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
     return false;
   }
 
   return true;
+}
+
+function resolveShiftPublishError(data: unknown, error: unknown) {
+  const errorData = error && typeof error === 'object' ? (error as { data?: unknown }).data : undefined;
+  const hasConflicts = [data, errorData].some((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return false;
+    return (
+      Array.isArray((candidate as { conflicts?: unknown }).conflicts) &&
+      (candidate as { conflicts: unknown[] }).conflicts.length > 0
+    );
+  });
+
+  if (hasConflicts) {
+    return 'The shift could not be published because linked assignments have unresolved conflicts. Resolve or override the conflicts, then try again.';
+  }
+
+  return error instanceof Error && error.message ? error.message : 'Shift updated but failed to publish.';
 }
 
 async function cancelShiftSeries(id: number | null, shouldCancel: boolean) {

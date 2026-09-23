@@ -12,6 +12,8 @@ import {
   calendarDropUserOnAssignmentResourceAction,
   calendarScheduleStaffAction,
   calendarSchedulingEventDetailAction,
+  calendarSchedulingResolveConflictAction,
+  calendarSchedulingShowConflictAction,
 } from '@/modules/scheduling/calendarSchedulingActions';
 import {
   calendarSchedulingAssignmentModalAssignmentDefinitionId,
@@ -20,6 +22,8 @@ import {
   calendarSchedulingAssignmentModalMode,
   calendarSchedulingAssignmentModalSeriesId,
   calendarSchedulingAssignmentModalShiftEntryIds,
+  calendarSchedulingConflictEventId,
+  calendarSchedulingConflictHeaderId,
   calendarSchedulingDetailEvent,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionAssignmentEntryId,
@@ -68,6 +72,43 @@ describe('calendarSchedulingActions', () => {
     );
 
     expect(calendarSchedulingAssignmentModalDate.value).toBe('2026-07-27');
+  });
+
+  it('shows and resolves conflicts for canonical scheduling assignment events', async () => {
+    const event = {
+      id: 'assignment-entry-90',
+      type: 'scheduling.assignment',
+      sourceModule: 'scheduling',
+      title: 'Court Room Monitor',
+      start: '2026-07-12T16:00:00Z',
+      metadata: { assignmentEntryId: '90' },
+    };
+    const model = {
+      timeZone: 'America/Vancouver',
+      days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
+      primaryColumn: { label: 'TEAM', resources: [] },
+      cells: [],
+    };
+    const showContext = {
+      event,
+      actionId: calendarSchedulingActionIds.showConflict,
+      actionType: 'button' as const,
+      model,
+    };
+    calendarSchedulingConflictHeaderId.value = event.id;
+
+    expect(calendarSchedulingShowConflictAction.isAvailable?.(showContext, writableRuntimeContext)).toBe(true);
+    await calendarSchedulingShowConflictAction.execute(showContext, writableRuntimeContext);
+    expect(calendarSchedulingConflictEventId.value).toBe(event.id);
+    expect(calendarSchedulingConflictHeaderId.value).toBeUndefined();
+
+    const resolveContext = {
+      ...showContext,
+      actionId: calendarSchedulingActionIds.resolveConflict,
+    };
+    expect(calendarSchedulingResolveConflictAction.isAvailable?.(resolveContext, writableRuntimeContext)).toBe(true);
+    await calendarSchedulingResolveConflictAction.execute(resolveContext, writableRuntimeContext);
+    expect(calendarSchedulingConflictEventId.value).toBeUndefined();
   });
 
   it('opens the assignment modal for the dropped assignment and pre-links shift entries from the target cell header', async () => {
