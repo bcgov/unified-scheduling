@@ -17,6 +17,8 @@ export interface TrainingLookupResponse {
   /** @nullable */
   trainingCategoryName?: string | null;
   order?: number;
+  mandatoryTrainingProfileIds?: number[];
+  mandatoryTrainingProfileCodes?: string[];
   id: number;
   createdOn?: string;
   /** @nullable */
