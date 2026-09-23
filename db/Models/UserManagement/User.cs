@@ -37,7 +37,7 @@ public class User : BaseEntity
     public string? EmployeeNumber { get; set; }
     public string? Rank { get; set; }
     public int? TrainingProfileId { get; set; }
-    public virtual TrainingProfile? TrainingProfile { get; set; }
+    public virtual TrainingProfileType? TrainingProfileType { get; set; }
     public DateTimeOffset? LastLogin { get; set; }
     public byte[]? Photo { get; set; }
     public bool PendingRegistration { get; set; }
