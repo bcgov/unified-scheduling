@@ -771,6 +771,14 @@ public sealed class ShiftService(
         await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
+        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
+            db,
+            [entity.Id],
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
         logger.LogInformation("Published shift entry {ShiftEntryId}.", id);
 
         return ShiftResponseMapper.ToShiftEntryResponse(entity);
