@@ -22,6 +22,12 @@ public class TrainingConfiguration : BaseEntityConfiguration<TrainingEntity>
             .HasForeignKey(b => b.TrainingCategoryId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
+        
+        builder
+            .HasMany(b => b.TrainingProfiles)
+            .WithOne(c => c.Training)
+            .HasForeignKey(c => c.TrainingId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         base.Configure(builder);
     }
