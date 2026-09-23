@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Unified.Db;
@@ -11,9 +12,11 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    partial class UnifiedDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914172458_AddTrainingProfiles")]
+    partial class AddTrainingProfiles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -96,68 +99,6 @@ namespace Unified.Db.Migrations
                         .HasDatabaseName("ix_audit_entity");
 
                     b.ToTable("AuditRecords");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.Calendar.CalendarConflictOverride", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<uint>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int>("FirstEventId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("InvalidatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<Guid>("ResourceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("SecondEventId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("SecondEventId");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.HasIndex("FirstEventId", "SecondEventId", "ResourceId")
-                        .IsUnique();
-
-                    b.ToTable("CalendarConflictOverrides", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_CalendarConflictOverrides_NormalizedPair", "\"FirstEventId\" < \"SecondEventId\"");
-                        });
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.Event", b =>
@@ -2636,39 +2577,6 @@ namespace Unified.Db.Migrations
                         .IsUnique();
 
                     b.ToTable("UserRoles");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.Calendar.CalendarConflictOverride", b =>
-                {
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Unified.Db.Models.Calendar.Event", "FirstEvent")
-                        .WithMany()
-                        .HasForeignKey("FirstEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.Calendar.Event", "SecondEvent")
-                        .WithMany()
-                        .HasForeignKey("SecondEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("FirstEvent");
-
-                    b.Navigation("SecondEvent");
-
-                    b.Navigation("UpdatedBy");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.Event", b =>
