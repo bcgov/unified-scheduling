@@ -17,4 +17,8 @@ public sealed record TrainingLookupResponse : LookupCodeEntityResponse
     public string? TrainingCategoryName { get; init; }
 
     public int Order { get; init; }
+
+    public IReadOnlyCollection<int> MandatoryTrainingProfileIds { get; init; } = [];
+
+    public IReadOnlyCollection<string> MandatoryTrainingProfileCodes { get; init; } = [];
 }

@@ -125,6 +125,8 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
     [Fact]
     public async Task CreateAsync_Should_Create_Training_Response()
     {
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+
         var result = await _strategy.CreateAsync(
             new TrainingLookupRequest
             {
@@ -133,6 +135,7 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
                 TrainingCategoryId = 1,
                 ValidityDays = 365,
                 Mandatory = true,
+                MandatoryTrainingProfileIds = [profile.Id],
             },
             TestContext.Current.CancellationToken
         );
@@ -143,6 +146,40 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
         Assert.Equal(1, result.TrainingCategoryId);
         Assert.Equal("Mandatory", result.TrainingCategoryName);
         Assert.True(result.Mandatory);
+        Assert.Equal([profile.Id], result.MandatoryTrainingProfileIds);
+        Assert.Equal(["CARBINE"], result.MandatoryTrainingProfileCodes);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Clear_Mandatory_Training_Profiles_When_Training_Is_Not_Mandatory()
+    {
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+        var created = await _strategy.CreateAsync(
+            new TrainingLookupRequest
+            {
+                Code = "MAND-PROFILE",
+                Description = "Profile Mandatory",
+                Mandatory = true,
+                MandatoryTrainingProfileIds = [profile.Id],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var updated = await _strategy.UpdateAsync(
+            created.Id,
+            new TrainingLookupRequest
+            {
+                Code = created.Code,
+                Description = created.Description,
+                Mandatory = false,
+                MandatoryTrainingProfileIds = [profile.Id],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.False(updated!.Mandatory);
+        Assert.Empty(updated.MandatoryTrainingProfileIds);
     }
 
     [Fact]
@@ -248,5 +285,20 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
     public void CodeType_Should_Match_LookupCodeType_Trainings()
     {
         Assert.Equal(LookupCodeTypes.Trainings, _strategy.CodeType);
+    }
+
+    private async Task<TrainingProfile> SeedTrainingProfileAsync(string code, string description)
+    {
+        var profile = new TrainingProfile
+        {
+            Code = code,
+            Description = description,
+            EffectiveDate = DateTimeOffset.UtcNow.AddDays(-10),
+        };
+
+        _dbContext.TrainingProfiles.Add(profile);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return profile;
     }
 }
