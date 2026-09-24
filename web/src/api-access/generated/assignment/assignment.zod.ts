@@ -527,6 +527,16 @@ export const PutApiSchedulingAssignmentsEntriesIdBody = zod.strictObject({
       }),
     )
     .nullish(),
+  conflictOverrides: zod
+    .array(
+      zod.strictObject({
+        firstEventId: zod.int(),
+        secondEventId: zod.int(),
+        resourceId: zod.uuid(),
+        note: zod.string(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PutApiSchedulingAssignmentsEntriesIdResponse = zod.object({
