@@ -5,6 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface TestEmailRequest {
-  recipient: string;
+export interface TrainingProfileTypeSummary {
+  id?: number;
+  code?: string;
+  name?: string;
 }

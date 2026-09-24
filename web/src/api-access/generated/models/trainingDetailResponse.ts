@@ -6,7 +6,7 @@
  */
 import type { TrainingProfileTypeSummary } from './trainingProfileTypeSummary.ts';
 
-export interface TrainingLookupResponse {
+export interface TrainingDetailResponse {
   mandatory?: boolean;
   /** @nullable */
   validityDays?: number | null;
