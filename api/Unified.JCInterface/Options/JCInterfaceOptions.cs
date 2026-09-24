@@ -57,6 +57,12 @@ public class JCInterfaceOptions
     public bool SkipSync { get; set; } = false;
 
     /// <summary>
+    /// Cron expression for the JC Interface recurring sync. Set to an empty string,
+    /// "disable", or "disabled" to remove the recurring job.
+    /// </summary>
+    public string SyncCron { get; set; } = "disabled";
+
+    /// <summary>
     /// When true, regions absent from the JC Interface response have their
     /// ExpiryDate set to UtcNow.
     /// </summary>
