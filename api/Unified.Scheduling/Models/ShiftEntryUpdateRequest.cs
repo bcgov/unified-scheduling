@@ -2,9 +2,7 @@ using Unified.Calendar.Models;
 
 namespace Unified.Scheduling.Models;
 
-public sealed record ShiftAssignmentSeriesUpdateRequest
+public sealed record ShiftEntryUpdateRequest : ShiftEntryRequest
 {
-    public IReadOnlyCollection<Guid> AssignedUserIds { get; init; } = [];
-
     public IReadOnlyCollection<CalendarConflictAcknowledgement>? ConflictOverrides { get; init; }
 }

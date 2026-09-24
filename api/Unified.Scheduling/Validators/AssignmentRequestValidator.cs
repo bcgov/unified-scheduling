@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using FluentValidation;
+using Unified.Calendar.Validators;
 using Unified.Common.Time;
 using Unified.Scheduling.Models;
 
@@ -72,6 +73,7 @@ public sealed class AssignmentEntryUpdateRequestValidator : AbstractValidator<As
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
         this.AddShiftEntryLinkRules(request => request.ShiftEntryLinks);
+        RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }
 }
 
