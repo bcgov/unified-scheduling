@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Unified.Authorization;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.FeatureFlags;
 using Unified.Calendar.Holidays;
 using Unified.Calendar.Options;
@@ -63,13 +66,18 @@ public static class CalendarModule
         }
         services.AddSeeder<UnifiedDbContext, EventTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, EventStatusTypeSeeder>();
+        services.AddSingleton(CalendarPermissionSeedData.Configuration);
 
         services.AddScoped<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>();
         services.AddScoped<CalendarLifecycleService>();
+        services.AddScoped<ICalendarConflictService, CalendarConflictService>();
         services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();
         services.AddScoped<IRecurrenceRuleValidator, IcalNetRecurrenceRuleValidator>();
         services.AddScoped<IEventSeriesMaterializationService, EventSeriesMaterializationService>();
         services.AddScoped<CalendarDataRequestValidator>();
+        services.AddScoped<CalendarConflictAcknowledgementValidator>();
+        services.AddAuthorizationBuilder().AddPermissionPolicy(Permissions.CalendarConflictsOverride);
+        services.Configure<MvcOptions>(options => options.Filters.Add<CalendarConflictExceptionFilter>());
 
         return services;
     }
