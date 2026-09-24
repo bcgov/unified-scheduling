@@ -146,8 +146,8 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
         Assert.Equal(1, result.TrainingCategoryId);
         Assert.Equal("Mandatory", result.TrainingCategoryName);
         Assert.True(result.Mandatory);
-        Assert.Equal([profile.Id], result.MandatoryTrainingProfileIds);
-        Assert.Equal(["CARBINE"], result.MandatoryTrainingProfileCodes);
+        Assert.Equal([profile.Id], result.MandatoryTrainingProfiles.Select(profileType => profileType.Id));
+        Assert.Equal(["CARBINE"], result.MandatoryTrainingProfiles.Select(profileType => profileType.Code));
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
 
         Assert.NotNull(updated);
         Assert.False(updated!.Mandatory);
-        Assert.Empty(updated.MandatoryTrainingProfileIds);
+        Assert.Empty(updated.MandatoryTrainingProfiles);
     }
 
     [Fact]
