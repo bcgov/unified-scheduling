@@ -1,4 +1,5 @@
 import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntryRequest';
+import type { ShiftEntryUpdateRequest } from '@/api-access/generated/models/shiftEntryUpdateRequest';
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
 import {
   deleteApiSchedulingShiftsEntriesId,
@@ -27,7 +28,7 @@ export async function createShiftSeries(body: ShiftSeriesRequest) {
   return result;
 }
 
-export async function updateShiftEntry(id: number, body: ShiftEntryRequest) {
+export async function updateShiftEntry(id: number, body: ShiftEntryUpdateRequest) {
   const result = putApiSchedulingShiftsEntriesId(id, body, { options: { immediate: false } });
   await result.execute();
   return result;

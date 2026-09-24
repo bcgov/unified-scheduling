@@ -7,7 +7,11 @@ import type { AssignmentSeriesResponse } from '@/api-access/generated/models/ass
 import type { ShiftEntryResponse } from '@/api-access/generated/models/shiftEntryResponse';
 import type { ShiftSeriesResponse } from '@/api-access/generated/models/shiftSeriesResponse';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
+import type { CalendarConflictAcknowledgement } from '@/api-access/generated/models/calendarConflictAcknowledgement';
+import type { CalendarConflictResponse } from '@/api-access/generated/models/calendarConflictResponse';
+import type { CalendarConflictRejectionResponse } from '@/api-access/generated/models/calendarConflictRejectionResponse';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -34,14 +38,15 @@ import {
   type ShiftSeriesLinkFormData,
 } from './calendarSchedulingAssignmentForm';
 import { resolveShiftSeriesLinksFromAssignmentSeries } from './calendarSchedulingAssignmentSeriesLinks';
-import { useSchedulingAssignmentMutation } from './useSchedulingAssignmentMutation';
+import { useSchedulingAssignmentMutation, type SaveAssignmentOptions } from './useSchedulingAssignmentMutation';
 import { useSchedulingAssignmentLoad } from './useSchedulingAssignmentLoad';
 import {
   promoteAssignmentShiftEntryLinks,
   useSchedulingAssignmentShiftOptions,
 } from './useSchedulingAssignmentShiftOptions';
 import CalendarSchedulingAssignmentDefinitionCreateModal from './CalendarSchedulingAssignmentDefinitionCreateModal.vue';
-import { formatUserOptionLabel, repeatOptions } from './calendarSchedulingShiftForm';
+import { repeatOptions } from './calendarSchedulingShiftForm';
+import { formatUserName } from '@/utils/user';
 import CalendarSchedulingAssignmentDetailsPanel from './CalendarSchedulingAssignmentDetailsPanel.vue';
 import CalendarSchedulingAssignmentLifecyclePanel from './CalendarSchedulingAssignmentLifecyclePanel.vue';
 import { useAssignmentDefinitionOptions } from './useAssignmentDefinitionOptions';
@@ -91,6 +96,7 @@ const canEditAssignment = computed(() => accessControl.hasPermission(Permissions
 const canAssignAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsAssign));
 const canDeleteAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsDelete));
 const canExpireAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsExpire));
+const canOverrideConflicts = computed(() => accessControl.hasPermission(Permissions.CalendarConflictsOverride));
 
 type AssignmentDetailTabId = 'details' | 'edit' | 'delete';
 type AssignmentOpenScope = 'event' | 'series';
@@ -117,6 +123,10 @@ const isLoadingAssignment = assignmentLoad.isLoading;
 const assignmentStatusTypeCode = assignmentLoad.statusTypeCode;
 const formErrors = ref<Record<string, string>>({});
 const recurrenceError = ref('');
+const pendingConflict = ref<CalendarConflictResponse | null>(null);
+const pendingSaveOptions = ref<SaveAssignmentOptions | null>(null);
+const conflictOverrides = ref<CalendarConflictAcknowledgement[]>([]);
+const conflictRetryError = ref('');
 const existingShiftEntryLinks = ref<ShiftEntryLinkFormData[]>([]);
 const existingShiftSeriesLinks = ref<ShiftSeriesLinkFormData[]>([]);
 const users = ref<UserResponse[]>([]);
@@ -127,7 +137,7 @@ const hasAppliedInitialAssignmentDefinitionSelection = ref(false);
 const selectedShiftSeriesId = ref<number | null>(null);
 const selectedShiftEntryId = ref<number | null>(null);
 const modalMode = ref<'create' | 'view' | 'edit'>(props.mode ?? 'create');
-const activeTab = ref<AssignmentDetailTabId>('details');
+const activeTab = ref<AssignmentDetailTabId>(props.mode === 'edit' ? 'edit' : 'details');
 const selectedOpenScope = ref<AssignmentOpenScope | null>(getInitialOpenScope());
 
 const appBarLocationId = computed<number | null>(() => {
@@ -357,7 +367,7 @@ watch(
   ([initialDate]) => {
     selectedOpenScope.value = getInitialOpenScope();
     modalMode.value = props.mode ?? 'create';
-    activeTab.value = 'details';
+    activeTab.value = props.mode === 'edit' ? 'edit' : 'details';
     formData.value = createInitialFormData(initialDate);
     hasAppliedInitialShiftEntrySelection.value = false;
     hasAppliedInitialAssignmentDefinitionSelection.value = false;
@@ -771,6 +781,7 @@ function updateShiftEntryLinkUsers(index: number, value: SelectValue | undefined
 
 function handleClose() {
   if (!isBusy.value) {
+    clearPendingConflict();
     emit('close');
   }
 }
@@ -905,7 +916,7 @@ function formatShiftEntryUsers(entry: ShiftEntryResponse) {
   return userIds
     .map((userId) => {
       const user = allUsersById.value.get(userId);
-      return user ? formatUserOptionLabel(user) : userId;
+      return user ? formatUserName(user) : userId;
     })
     .join(', ');
 }
@@ -1007,7 +1018,7 @@ function formatAssignmentDetailLinkUsers(userIds?: string[] | null) {
 
 function formatUserId(userId: string) {
   const user = allUsersById.value.get(userId);
-  return user ? formatUserOptionLabel(user) : userId;
+  return user ? formatUserName(user) : userId;
 }
 
 function shiftSeriesDaysOverlapAssignment(series: ShiftSeriesResponse) {
@@ -1295,14 +1306,24 @@ async function handleSave() {
       return;
     }
 
-    const saveResult = await assignmentMutation.save({
+    const saveOptions: SaveAssignmentOptions = {
       payload,
       isEdit: isEditMode.value,
       assignmentEntryId: props.assignmentEntryId,
       assignmentSeriesId: props.assignmentSeriesId,
-    });
+    };
+    const saveResult = await assignmentMutation.save(saveOptions);
 
     if (saveResult.error.value) {
+      const conflictRejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
+      if (isEditMode.value && !isSeriesScope.value && conflictRejection?.conflicts[0]) {
+        pendingSaveOptions.value = saveOptions;
+        conflictOverrides.value = [];
+        pendingConflict.value = conflictRejection.conflicts[0];
+        conflictRetryError.value = '';
+        return;
+      }
+
       if (applyServerValidationErrors(saveResult.error.value.data)) {
         apiError.value = 'Could not save the assignment. Check the highlighted fields.';
         return;
@@ -1327,6 +1348,112 @@ async function handleSave() {
     isSaving.value = false;
   }
 }
+
+async function handleConflictOverride(note: string) {
+  const conflict = pendingConflict.value;
+  const saveOptions = pendingSaveOptions.value;
+  if (!conflict || !saveOptions || !canOverrideConflicts.value) {
+    return;
+  }
+
+  const firstEventId = conflict.entry.eventId;
+  const secondEventId = conflict.overlaps.eventId;
+
+  conflictOverrides.value = [
+    ...conflictOverrides.value,
+    {
+      firstEventId,
+      secondEventId,
+      resourceId: conflict.resourceId,
+      note,
+    },
+  ];
+  isSaving.value = true;
+  conflictRetryError.value = '';
+
+  try {
+    const saveResult = await assignmentMutation.save({
+      ...saveOptions,
+      conflictOverrides: conflictOverrides.value,
+    });
+    if (saveResult.error.value) {
+      const rejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
+      if (rejection?.conflicts[0]) {
+        pendingConflict.value = rejection.conflicts[0];
+        return;
+      }
+
+      conflictRetryError.value = resolveAssignmentSaveError(
+        saveResult.error.value,
+        'Failed to override the assignment conflict.',
+      );
+      return;
+    }
+
+    clearPendingConflict();
+    calendarStore.refresh();
+    emit('close');
+  } catch (error: unknown) {
+    conflictRetryError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+  } finally {
+    isSaving.value = false;
+  }
+}
+
+function clearPendingConflict() {
+  pendingConflict.value = null;
+  pendingSaveOptions.value = null;
+  conflictOverrides.value = [];
+  conflictRetryError.value = '';
+}
+
+function getConflictRejection(data: unknown, error: unknown): CalendarConflictRejectionResponse | null {
+  const errorData = error && typeof error === 'object' ? (error as { data?: unknown }).data : undefined;
+  for (const candidate of [data, errorData]) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+
+    const response = candidate as { message?: unknown; conflicts?: unknown };
+    if (
+      typeof response.message === 'string' &&
+      Array.isArray(response.conflicts) &&
+      response.conflicts.every(isCalendarConflictResponse)
+    ) {
+      return {
+        message: response.message,
+        conflicts: response.conflicts,
+      };
+    }
+  }
+
+  return null;
+}
+
+function isCalendarConflictResponse(value: unknown): value is CalendarConflictResponse {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const conflict = value as Partial<CalendarConflictResponse>;
+  return (
+    typeof conflict.resourceId === 'string' &&
+    typeof conflict.entry?.eventId === 'number' &&
+    typeof conflict.overlaps?.eventId === 'number'
+  );
+}
+
+const pendingConflictCurrentEventId = computed(() => {
+  const conflict = pendingConflict.value;
+  if (!conflict) {
+    return 0;
+  }
+
+  const currentEvent = [conflict.entry, conflict.overlaps].find(
+    (event) => event.sourceModule === 'scheduling' && event.sourceEntityId === props.assignmentEntryId,
+  );
+  return currentEvent?.eventId ?? conflict.entry.eventId;
+});
 
 function applyServerValidationErrors(rawError: unknown) {
   const mapped = mapToValidationErrors(rawError);
@@ -1957,6 +2084,19 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       </template>
     </template>
   </UaModal>
+
+  <CalendarConflictDetailModal
+    v-if="pendingConflict"
+    :conflict="pendingConflict"
+    :current-event-id="pendingConflictCurrentEventId"
+    :time-zone="timeZoneId"
+    :loading="isSaving"
+    :error-message="conflictRetryError"
+    :can-edit-event="false"
+    :can-override="canOverrideConflicts"
+    @close="clearPendingConflict"
+    @override="handleConflictOverride"
+  />
 
   <CalendarSchedulingAssignmentDefinitionCreateModal
     v-if="isAssignmentDefinitionModalOpen"
