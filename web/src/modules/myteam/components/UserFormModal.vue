@@ -13,6 +13,7 @@ import { useAccessControl } from '@/composables/useAccessControl';
 import { useTrainingProfileLookup } from '@/modules/training/trainingProfileApi';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
+import type { SelectOption } from '@/types/select';
 import { mapToSelectOptions } from '@/utils/select';
 import { mdiCamera, mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -47,13 +48,12 @@ const isEditMode = computed(() => !!currentUser.value);
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
 const homeLocationOptions = locationsStore.selectOptions;
 const { data: trainingProfiles } = useTrainingProfileLookup();
-const trainingProfileOptions = computed(() => [
-  { code: null, description: 'No training profile' },
-  ...(trainingProfiles.value ?? []).map((profile) => ({
+const trainingProfileOptions = computed<SelectOption[]>(() =>
+  (trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,
     description: profile.description?.trim() || profile.code,
   })),
-]);
+);
 const genderOptions = mapToSelectOptions(
   Object.values(Gender),
   (gender) => gender,
@@ -390,6 +390,7 @@ const handleSave = async () => {
         v-model="formData.trainingProfileId"
         label="Training Profile"
         :items="trainingProfileOptions"
+        clearable
       />
 
       <span class="ua-form-label">Is enabled</span>
