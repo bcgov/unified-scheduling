@@ -93,6 +93,7 @@ describe('TrainingEditModal', () => {
       code: 'FIRE',
       description: 'Updated qualification',
       mandatory: true,
+      mandatoryTrainingProfileIds: [],
       validityDays: 365,
       advanceNoticeDays: 30,
       rotating: false,
