@@ -141,6 +141,92 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it('shows user-specific conflicts in assignment resource rows', () => {
+    const assignmentEvent: CalendarSchedulingEvent = {
+      id: 'scheduling.assignment-entry.90',
+      type: 'scheduling.assignment',
+      sourceModule: 'scheduling',
+      title: 'Court Room Monitor',
+      start: '2025-01-13T17:00:00Z',
+      end: '2025-01-13T18:00:00Z',
+      metadata: {
+        eventId: 900,
+        assignmentEntryId: '90',
+        assignmentDefinitionId: '20',
+      },
+    };
+    const viewModel = buildCalendarAssignmentViewModel(
+      {
+        contributions: {
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: {
+              conflicts: [
+                {
+                  id: '900:901:user-1',
+                  resourceId: 'user-1',
+                  entry: {
+                    eventId: 900,
+                    sourceModule: 'scheduling',
+                    title: 'Court Room Monitor',
+                    start: '2025-01-13T17:00:00Z',
+                    end: '2025-01-13T18:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlaps: {
+                    eventId: 901,
+                    sourceModule: 'scheduling',
+                    title: 'Other assignment',
+                    start: '2025-01-13T17:30:00Z',
+                    end: '2025-01-13T18:30:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlapStart: '2025-01-13T17:30:00Z',
+                  overlapEnd: '2025-01-13T18:00:00Z',
+                  isOverridden: false,
+                },
+              ],
+            },
+          },
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            events: [assignmentEvent],
+            resources: [],
+          },
+          'scheduling.assignment-resources': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.assignment-resources',
+            events: [],
+            resources: [
+              {
+                id: 'assignment-definition-20',
+                type: 'assignment',
+                sourceModule: 'scheduling',
+                label: 'Court Room Monitor',
+                title: 'Court Room Monitor',
+                assignmentDefinitionId: 20,
+              },
+            ] as CalendarSchedulingAssignmentResource[],
+          },
+        },
+      },
+      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      'week',
+    );
+
+    const item = viewModel.cells.find(
+      (cell) => cell.resourceId === 'assignment-definition-20' && cell.date === '2025-01-13',
+    )?.groups[0]?.events[0];
+
+    expect(item?.conflicts).toHaveLength(1);
+    expect(item?.display?.action?.ariaLabel).toBe('Show conflict');
+  });
+
   it('enriches a shift-contribution assignment with its definition before cross-user drop matching', () => {
     const assignmentEvent: CalendarSchedulingEvent = {
       id: 'scheduling.assignment-entry.90',
@@ -214,6 +300,79 @@ describe('scheduling calendar view model', () => {
     expect(otherUserCell?.groups[0]?.events.map((item) => item.event.id)).toEqual(['scheduling.assignment-entry.90']);
   });
 
+  it('uses the assignment status for every user row when linked shift statuses differ', () => {
+    const assignmentEvent: CalendarSchedulingEvent = {
+      id: 'scheduling.assignment-entry.90',
+      type: 'scheduling.assignment',
+      sourceModule: 'scheduling',
+      title: 'Court Room Monitor',
+      start: '2025-01-13T17:00:00Z',
+      end: '2025-01-13T18:00:00Z',
+      statusTypeCode: CalendarEventStatusTypeCode.Active,
+      metadata: {
+        assignmentEntryId: '90',
+        assignedUserIds: ['user-1', 'user-2'],
+        assignedShiftIds: ['41', '42'],
+      },
+    };
+    const shiftEvents: CalendarSchedulingEvent[] = [
+      {
+        id: 'scheduling.shift-entry.41',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Published shift',
+        start: '2025-01-13T09:00:00Z',
+        end: '2025-01-14T01:00:00Z',
+        statusTypeCode: CalendarEventStatusTypeCode.Active,
+        resourceIds: ['user-1'],
+        metadata: { shiftEntryId: '41', userIds: ['user-1'] },
+      },
+      {
+        id: 'scheduling.shift-entry.42',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Draft shift',
+        start: '2025-01-13T09:00:00Z',
+        end: '2025-01-14T01:00:00Z',
+        statusTypeCode: CalendarEventStatusTypeCode.Draft,
+        resourceIds: ['user-2'],
+        metadata: { shiftEntryId: '42', userIds: ['user-2'] },
+      },
+    ];
+    const users = ['user-1', 'user-2'].map((id) => ({
+      id,
+      type: 'user',
+      sourceModule: 'scheduling',
+      label: id,
+      title: id,
+    })) as CalendarSchedulingUserResource[];
+
+    const viewModel = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            events: [...shiftEvents, assignmentEvent],
+            resources: users,
+          },
+        },
+      },
+      {
+        startDate: '2025-01-13',
+        endDate: '2025-01-20',
+        filters: { timeZone: 'America/Vancouver' },
+      },
+      'week',
+    );
+
+    const assignmentStatuses = viewModel.cells
+      .filter((cell) => ['user-1', 'user-2'].includes(cell.resourceId) && cell.date === '2025-01-13')
+      .map((cell) => cell.groups[0]?.events[0]?.display?.status);
+
+    expect(assignmentStatuses).toEqual([CalendarEventStatusTypeCode.Active, CalendarEventStatusTypeCode.Active]);
+  });
+
   it('uses scheduling.events as the assignment view event source without duplication', () => {
     const assignmentEvent: CalendarSchedulingEvent = {
       id: 'scheduling.assignment-entry.90',
@@ -264,7 +423,7 @@ describe('scheduling calendar view model', () => {
     expect(events.map((item) => item.event.id)).toEqual(['scheduling.assignment-entry.90']);
   });
 
-  it('shows the conflict action only when a shift event has isConflict', () => {
+  it('shows the conflict action only when a linked assignment has a conflict for that shift user', () => {
     const shiftEvents: CalendarSchedulingEvent[] = [
       {
         id: 'shift-conflict',
@@ -274,8 +433,7 @@ describe('scheduling calendar view model', () => {
         start: '2025-01-13T09:00:00',
         end: '2025-01-13T17:00:00',
         resourceIds: ['user-1'],
-        isConflict: true,
-        metadata: { userIds: ['user-1'] },
+        metadata: { eventId: 101, shiftEntryId: '41', userIds: ['user-1'] },
       },
       {
         id: 'shift-normal',
@@ -285,17 +443,66 @@ describe('scheduling calendar view model', () => {
         start: '2025-01-14T09:00:00',
         end: '2025-01-14T17:00:00',
         resourceIds: ['user-1'],
-        metadata: { userIds: ['user-1'], shiftSeriesId: 100 },
+        metadata: { eventId: 102, userIds: ['user-1'], shiftSeriesId: 100 },
+      },
+    ];
+    const assignmentEvents: CalendarSchedulingEvent[] = [
+      {
+        id: 'assignment-conflict',
+        type: 'scheduling.assignment',
+        sourceModule: 'calendar-scheduling',
+        title: 'Conflict assignment',
+        start: '2025-01-13T10:00:00',
+        end: '2025-01-13T12:00:00',
+        metadata: {
+          eventId: 201,
+          assignedShiftIds: ['41'],
+          assignedUserIds: ['user-1'],
+        },
       },
     ];
 
     const viewModel = buildCalendarSchedulingViewModel(
       {
         contributions: {
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: {
+              conflicts: [
+                {
+                  id: '201:202:user-1',
+                  resourceId: 'user-1',
+                  entry: {
+                    eventId: 201,
+                    sourceModule: 'scheduling',
+                    title: 'Conflict assignment',
+                    start: '2025-01-13T10:00:00Z',
+                    end: '2025-01-13T12:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlaps: {
+                    eventId: 202,
+                    sourceModule: 'scheduling',
+                    title: 'Assignment',
+                    start: '2025-01-13T10:00:00Z',
+                    end: '2025-01-13T12:00:00Z',
+                    sourceEntityId: null,
+                    timeZoneId: null,
+                  },
+                  overlapStart: '2025-01-13T10:00:00Z',
+                  overlapEnd: '2025-01-13T12:00:00Z',
+                  isOverridden: false,
+                },
+              ],
+            },
+          },
           'scheduling.events': {
             moduleId: 'scheduling',
             contributionId: 'scheduling.events',
-            events: shiftEvents,
+            events: [...shiftEvents, ...assignmentEvents],
             resources: [
               {
                 id: 'user-1',
@@ -314,7 +521,10 @@ describe('scheduling calendar view model', () => {
 
     const headers = viewModel.cells.flatMap((cell) => cell.headers ?? []);
 
-    expect(headers.find((header) => header.id === 'shift-conflict')?.action?.ariaLabel).toBe('Show Conflict Details');
+    const conflictHeader = headers.find((header) => header.id === 'shift-conflict');
+    expect(conflictHeader?.action?.ariaLabel).toBe('Show Conflict Details');
+    expect(conflictHeader?.conflicts?.[0]?.currentEventId).toBe(201);
+    expect(conflictHeader?.conflicts?.[0]?.conflict.id).toBe('201:202:user-1');
     expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
     expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
       icon: mdiCalendarSync,

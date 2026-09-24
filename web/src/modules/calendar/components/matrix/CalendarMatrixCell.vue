@@ -220,8 +220,10 @@ function handleEmptyCellAdd() {
           <template v-for="eventItem in group.events" :key="eventItem.event.id">
             <slot
               name="event-block"
+              :cell="cell"
               :event="eventItem.event"
               :display="resolveEventDisplay(eventItem, group)"
+              :conflicts="eventItem.conflicts ?? []"
               :group="group"
               :on-event-action="handleEventAction"
               :on-event-click="handleEventClick"

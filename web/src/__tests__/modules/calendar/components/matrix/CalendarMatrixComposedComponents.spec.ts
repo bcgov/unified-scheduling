@@ -65,6 +65,7 @@ const cell: CalendarMatrixCellModel = {
 };
 
 const model: CalendarMatrixViewModel = {
+  timeZone: 'America/Vancouver',
   days: [{ date: '2025-01-13', label: 'Mon', isToday: true }],
   primaryColumn: {
     label: 'Resources',
