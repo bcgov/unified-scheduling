@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
@@ -55,6 +56,10 @@ public class ShiftServiceTests : IAsyncLifetime
             recurrenceExpander
         );
         var materializationHandler = new ShiftSeriesMaterializationHandler(_dbContext);
+        var conflictService = new CalendarConflictService(
+            [new SchedulingConflictParticipantProvider(_dbContext)],
+            _dbContext
+        );
 
         _service = new ShiftService(
             NullLogger<ShiftService>.Instance,
@@ -62,10 +67,16 @@ public class ShiftServiceTests : IAsyncLifetime
             materializationService,
             recurrenceExpander,
             materializationHandler,
-            new ShiftAssignmentService(NullLogger<ShiftAssignmentService>.Instance, _dbContext, timeZoneService),
+            new ShiftAssignmentService(
+                NullLogger<ShiftAssignmentService>.Instance,
+                _dbContext,
+                timeZoneService,
+                conflictService
+            ),
             new CalendarLifecycleService(),
             timeZoneService,
-            TimeProvider.System
+            TimeProvider.System,
+            conflictService
         );
     }
 
@@ -1920,7 +1931,7 @@ public class ShiftServiceTests : IAsyncLifetime
             UserIds = userIds ?? [UserA],
         };
 
-    private static ShiftEntryRequest CreateShiftEntryRequest(
+    private static ShiftEntryUpdateRequest CreateShiftEntryRequest(
         int? shiftSeriesId = null,
         string title = "Entry",
         IReadOnlyCollection<Guid>? userIds = null,

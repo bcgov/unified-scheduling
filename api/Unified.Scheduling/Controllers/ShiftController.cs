@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Authorization.Claims;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -15,7 +17,8 @@ namespace Unified.Scheduling.Controllers;
 public sealed class ShiftController(
     IShiftService shiftService,
     ShiftSeriesRequestValidator shiftSeriesRequestValidator,
-    ShiftEntryRequestValidator shiftEntryRequestValidator
+    ShiftEntryRequestValidator shiftEntryRequestValidator,
+    ShiftEntryUpdateRequestValidator shiftEntryUpdateRequestValidator
 ) : ControllerBase
 {
     [HttpGet("series")]
@@ -153,15 +156,24 @@ public sealed class ShiftController(
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(typeof(ShiftEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(CalendarConflictRejectionResponse), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftEntryResponse>> UpdateShiftEntry(
         int id,
-        [FromBody] ShiftEntryRequest request,
+        [FromBody] ShiftEntryUpdateRequest request,
         CancellationToken cancellationToken
     )
     {
-        await shiftEntryRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await shiftService.UpdateShiftEntryAsync(id, request, cancellationToken);
+        await shiftEntryUpdateRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
+        if (
+            !CalendarConflictAcknowledgementAuthorization.TryResolveActor(
+                User,
+                request.ConflictOverrides,
+                out var conflictOverrideActorId
+            )
+        )
+            return Forbid();
+        var result = await shiftService.UpdateShiftEntryAsync(id, request, cancellationToken, conflictOverrideActorId);
         return result is null ? NotFound() : Ok(result);
     }
 
