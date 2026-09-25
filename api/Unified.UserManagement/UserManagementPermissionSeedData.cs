@@ -15,6 +15,7 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
     private const string PermissionGroupActingPositions = "ActingPositions";
     private const string PermissionGroupAdmin = "Admin";
     private const string PermissionGroupAwayLocations = "AwayLocations";
+    private const string PermissionGroupLeave = "Leave";
     public static ISeedData<PermissionSeedDefinition> Instance { get; } = new UserManagementPermissionSeedData();
 
     private UserManagementPermissionSeedData() { }
@@ -139,6 +140,31 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
             Group = PermissionGroupAwayLocations,
             Id = nameof(Permissions.AwayLocationsExpire),
             Description = "Expire away locations",
+        },
+        // Leave
+        new()
+        {
+            Group = PermissionGroupLeave,
+            Id = nameof(Permissions.LeaveView),
+            Description = "View leave",
+        },
+        new()
+        {
+            Group = PermissionGroupLeave,
+            Id = nameof(Permissions.LeaveCreate),
+            Description = "Create leave",
+        },
+        new()
+        {
+            Group = PermissionGroupLeave,
+            Id = nameof(Permissions.LeaveEdit),
+            Description = "Edit leave",
+        },
+        new()
+        {
+            Group = PermissionGroupLeave,
+            Id = nameof(Permissions.LeaveExpire),
+            Description = "Expire leave",
         },
     ];
 }
