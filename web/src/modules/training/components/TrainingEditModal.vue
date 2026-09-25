@@ -40,10 +40,6 @@ type TrainingFormData = {
   trainingCategoryId?: number | null;
 };
 
-type TrainingLookupResponseWithProfiles = TrainingLookupResponse & {
-  mandatoryTrainingProfileIds?: number[];
-};
-
 type TrainingLookupRequestWithProfiles = TrainingLookupRequest & {
   mandatoryTrainingProfileIds?: number[];
 };
@@ -56,7 +52,7 @@ const { data: trainingProfiles } = useTrainingProfileLookup();
 const trainingProfileOptions = computed<SelectOption[]>(() => {
   return (trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,
-    description: profile.description?.trim() || profile.code,
+    description: profile.name?.trim() || profile.code,
   }));
 });
 
@@ -64,7 +60,7 @@ const populateFromTraining = (training: TrainingLookupResponse): TrainingFormDat
   code: training.code ?? '',
   description: training.description ?? '',
   mandatory: training.mandatory ?? false,
-  mandatoryTrainingProfileIds: (training as TrainingLookupResponseWithProfiles).mandatoryTrainingProfileIds ?? [],
+  mandatoryTrainingProfileIds: (training.mandatoryTrainingProfiles ?? []).map((profile) => profile.id),
   validityDayCode: getValidityDayCodeFromDays(training.validityDays),
   advanceNoticeDays: training.advanceNoticeDays == null ? '' : String(training.advanceNoticeDays),
   rotating: training.rotating ?? false,
