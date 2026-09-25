@@ -25,6 +25,7 @@ export const GetApiUsersResponseItem = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
@@ -43,6 +44,7 @@ export const PostApiUsersBody = zod.strictObject({
   rank: zod.string(),
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
+  trainingProfileId: zod.int().nullish(),
 });
 
 export const PostApiUsersResponse = zod.object({
@@ -58,6 +60,7 @@ export const PostApiUsersResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
@@ -81,6 +84,7 @@ export const GetApiUsersIdResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
@@ -102,6 +106,7 @@ export const PutApiUsersIdBody = zod.strictObject({
   rank: zod.string(),
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
+  trainingProfileId: zod.int().nullish(),
 });
 
 export const PutApiUsersIdResponse = zod.object({
@@ -117,6 +122,7 @@ export const PutApiUsersIdResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),
@@ -201,6 +207,7 @@ export const PostApiUsersIdUploadPhotoResponse = zod.object({
   badgeNumber: zod.string().nullish(),
   employeeNumber: zod.string(),
   homeLocationId: zod.int().nullish(),
+  trainingProfileId: zod.int().nullish(),
   lastLogin: zod.iso.datetime({ offset: true }).nullish(),
   pendingRegistration: zod.boolean().optional(),
   photoUrl: zod.string().nullish(),

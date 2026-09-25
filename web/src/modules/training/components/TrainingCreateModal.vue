@@ -9,8 +9,10 @@ import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
+import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref } from 'vue';
+import { useTrainingProfileLookup } from '../trainingProfileApi';
 import {
   annualValidityDayCode,
   defaultValidityDayCode,
@@ -27,15 +29,21 @@ type TrainingCreateFormData = {
   code: string;
   description: string;
   mandatory: boolean;
+  mandatoryTrainingProfileIds: number[];
   validityDayCode: string;
   advanceNoticeDays: string;
   rotating: boolean;
+};
+
+type TrainingLookupRequestWithProfiles = TrainingLookupRequest & {
+  mandatoryTrainingProfileIds?: number[];
 };
 
 const formData = ref<TrainingCreateFormData>({
   code: '',
   description: '',
   mandatory: false,
+  mandatoryTrainingProfileIds: [],
   validityDayCode: defaultValidityDayCode,
   advanceNoticeDays: '',
   rotating: false,
@@ -47,6 +55,14 @@ const isAnnualValiditySelected = computed(() => formData.value.validityDayCode =
 const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
+
+const { data: trainingProfiles } = useTrainingProfileLookup();
+const trainingProfileOptions = computed<SelectOption[]>(() => {
+  return (trainingProfiles.value ?? []).map((profile) => ({
+    code: profile.id,
+    description: profile.name?.trim() || profile.code,
+  }));
+});
 
 const parseOptionalPositiveNumber = (
   value: string,
@@ -66,7 +82,7 @@ const parseOptionalPositiveNumber = (
   return parsedValue;
 };
 
-const validateForm = (): TrainingLookupRequest | null => {
+const validateForm = (): TrainingLookupRequestWithProfiles | null => {
   formErrors.value = {};
 
   const code = formData.value.code.trim();
@@ -97,6 +113,7 @@ const validateForm = (): TrainingLookupRequest | null => {
     code,
     description,
     mandatory: formData.value.mandatory,
+    mandatoryTrainingProfileIds: formData.value.mandatory ? formData.value.mandatoryTrainingProfileIds : [],
     validityDays: validityDays as number | null,
     advanceNoticeDays: advanceNoticeDays as number | null,
     rotating: formData.value.rotating,
@@ -219,6 +236,26 @@ const handleSave = async () => {
           material
           :disabled="isLoading"
           base-color="white"
+        />
+      </div>
+
+      <label class="ua-form-label" for="create-training-mandatory-profiles">Mandatory Profiles</label>
+      <div class="validity-field">
+        <UaSelect
+          id="create-training-mandatory-profiles"
+          v-model="formData.mandatoryTrainingProfileIds"
+          :items="trainingProfileOptions"
+          :disabled="isLoading || !formData.mandatory"
+          :hint="
+            formData.mandatory
+              ? 'Leave blank to make this mandatory for all users.'
+              : 'Enable Mandatory first to restrict by training profile.'
+          "
+          persistent-hint
+          multiple
+          chips
+          closable-chips
+          clearable
         />
       </div>
 

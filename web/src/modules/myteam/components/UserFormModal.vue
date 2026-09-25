@@ -10,8 +10,10 @@ import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { useAccessControl } from '@/composables/useAccessControl';
+import { useTrainingProfileLookup } from '@/modules/training/trainingProfileApi';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
+import type { SelectOption } from '@/types/select';
 import { mapToSelectOptions } from '@/utils/select';
 import { mdiCamera, mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -45,6 +47,13 @@ const isEditMode = computed(() => !!currentUser.value);
 
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
 const homeLocationOptions = locationsStore.selectOptions;
+const { data: trainingProfiles } = useTrainingProfileLookup();
+const trainingProfileOptions = computed<SelectOption[]>(() =>
+  (trainingProfiles.value ?? []).map((profile) => ({
+    code: profile.id,
+    description: profile.name?.trim() || profile.code,
+  })),
+);
 const genderOptions = mapToSelectOptions(
   Object.values(Gender),
   (gender) => gender,
@@ -89,6 +98,8 @@ onUnmounted(() => {
 const formErrors = ref<Record<string, string>>({});
 
 type UserRequestFormData = Partial<UserRequestDto>;
+type UserRequestPayload = UserRequestDto & { trainingProfileId?: number | null };
+type UserResponseWithTrainingProfile = UserResponse & { trainingProfileId?: number | null };
 
 const createInitialFormData = (): UserRequestFormData => ({});
 
@@ -103,6 +114,7 @@ const populateFromUser = (user: UserResponse): UserRequestFormData => ({
   badgeNumber: user.badgeNumber ?? '',
   employeeNumber: user.employeeNumber ?? '',
   homeLocationId: user.homeLocationId ?? undefined,
+  trainingProfileId: (user as UserResponseWithTrainingProfile).trainingProfileId ?? null,
 });
 
 const formData = ref<UserRequestFormData>(props.user ? populateFromUser(props.user) : createInitialFormData());
@@ -120,6 +132,7 @@ const createUserFormSchema = PostApiUsersBody.extend({
   homeLocationId: PostApiUsersBody.shape.homeLocationId.refine((value) => value !== undefined, {
     message: validationMessages.required,
   }),
+  trainingProfileId: zod.number().int().positive().nullable().optional(),
   gender: PostApiUsersBody.shape.gender.refine((value) => !!value, {
     message: validationMessages.required,
   }),
@@ -153,7 +166,7 @@ const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
   return errors;
 };
 
-const validateForm = (): UserRequestDto | null => {
+const validateForm = (): UserRequestPayload | null => {
   formErrors.value = {};
   const schema = isEditMode.value ? editUserFormSchema : createUserFormSchema;
   const validationResult = schema.safeParse(formData.value);
@@ -369,6 +382,15 @@ const handleSave = async () => {
         label="Home Location"
         :items="homeLocationOptions"
         :error-messages="formErrors.homeLocationId"
+      />
+
+      <label class="ua-form-label" for="training-profile">Training Profile</label>
+      <UaSelect
+        id="training-profile"
+        v-model="formData.trainingProfileId"
+        label="Training Profile"
+        :items="trainingProfileOptions"
+        clearable
       />
 
       <span class="ua-form-label">Is enabled</span>
