@@ -44,5 +44,15 @@ public sealed class TrainingLookupRequestValidator : AbstractValidator<TrainingL
             .WithErrorCode(ApiValidationErrorCodes.Invalid)
             .WithMessage(ApiValidationErrorCodes.Invalid)
             .When(x => x.AdvanceNoticeDays.HasValue && x.ValidityDays.HasValue);
+
+        RuleForEach(x => x.MandatoryTrainingProfileIds)
+            .GreaterThan(0)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage(ApiValidationErrorCodes.Invalid);
+
+        RuleFor(x => x)
+            .Must(x => x.Mandatory || x.MandatoryTrainingProfileIds is null || x.MandatoryTrainingProfileIds.Count == 0)
+            .WithErrorCode(ApiValidationErrorCodes.Invalid)
+            .WithMessage(ApiValidationErrorCodes.Invalid);
     }
 }

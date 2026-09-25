@@ -4,6 +4,7 @@ using Unified.Core.Models;
 using Unified.Db;
 using Unified.Training.Models;
 using TrainingEntity = Unified.Db.Models.Training.Training;
+using TrainingProfileLinkEntity = Unified.Db.Models.Training.TrainingProfile;
 
 namespace Unified.Training.Services.Lookup;
 
@@ -24,11 +25,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             query = query.Where(t => t.ExpiryDate == null || t.ExpiryDate > now);
         }
 
-        return await query
-            .OrderBy(t => t.Order)
-            .ThenBy(t => t.Code)
-            .ProjectToType<TrainingLookupResponse>()
-            .ToListAsync(cancellationToken);
+        return await BuildResponseQuery(query.OrderBy(t => t.Order).ThenBy(t => t.Code)).ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
@@ -41,10 +38,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
 
     public async Task<TrainingLookupResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await db
-            .Trainings.AsNoTracking()
-            .Where(t => t.Id == id)
-            .ProjectToType<TrainingLookupResponse>()
+        return await BuildResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -53,15 +47,18 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         CancellationToken cancellationToken = default
     )
     {
-        await EnsureCategoryExistsAsync(request.TrainingCategoryId, cancellationToken);
-
         var normalizedRequest = NormalizeRequest(request);
+        var profileTypeIds = ResolveMandatoryProfileTypeIds(normalizedRequest);
 
         var entity = normalizedRequest.Adapt<TrainingEntity>();
         if (entity.EffectiveDate == default)
         {
             entity.EffectiveDate = DateTimeOffset.UtcNow;
         }
+
+        entity.TrainingProfiles = profileTypeIds
+            .Select(profileTypeId => new TrainingProfileLinkEntity { TrainingProfileTypeId = profileTypeId })
+            .ToList();
 
         db.Trainings.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -75,14 +72,38 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         CancellationToken cancellationToken = default
     )
     {
-        var entity = await db.Trainings.SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
+        var entity = await db
+            .Trainings.Include(t => t.TrainingProfiles)
+            .SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
         if (entity is null)
             return null;
 
-        await EnsureCategoryExistsAsync(request.TrainingCategoryId, cancellationToken);
-
         var normalizedRequest = NormalizeRequest(request);
+        var profileTypeIds = ResolveMandatoryProfileTypeIdsForUpdate(normalizedRequest);
+
         normalizedRequest.Adapt(entity);
+
+        if (profileTypeIds is not null)
+        {
+            var existingProfileLinks = entity.TrainingProfiles.ToList();
+            foreach (
+                var existing in existingProfileLinks.Where(existing =>
+                    !profileTypeIds.Contains(existing.TrainingProfileTypeId)
+                )
+            )
+            {
+                entity.TrainingProfiles.Remove(existing);
+            }
+
+            foreach (
+                var profileTypeId in profileTypeIds.Where(profileTypeId =>
+                    entity.TrainingProfiles.All(existing => existing.TrainingProfileTypeId != profileTypeId)
+                )
+            )
+            {
+                entity.TrainingProfiles.Add(new TrainingProfileLinkEntity { TrainingProfileTypeId = profileTypeId });
+            }
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -166,25 +187,56 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         return await GetRequiredByIdAsync(id, cancellationToken);
     }
 
-    private async Task EnsureCategoryExistsAsync(int? trainingCategoryId, CancellationToken cancellationToken)
+    private async Task<TrainingLookupResponse> GetRequiredByIdAsync(int id, CancellationToken cancellationToken) =>
+        await BuildResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id)).SingleAsync(cancellationToken);
+
+    private static HashSet<int> ResolveMandatoryProfileTypeIds(TrainingLookupRequest request)
     {
-        if (trainingCategoryId is null)
-            return;
+        if (!request.Mandatory || request.MandatoryTrainingProfileIds is null)
+        {
+            return [];
+        }
 
-        var categoryExists = await db
-            .TrainingCategories.AsNoTracking()
-            .AnyAsync(tc => tc.Id == trainingCategoryId, cancellationToken);
-
-        if (!categoryExists)
-            throw new InvalidOperationException("Training category was not found.");
+        return [.. request.MandatoryTrainingProfileIds.Where(id => id > 0)];
     }
 
-    private async Task<TrainingLookupResponse> GetRequiredByIdAsync(int id, CancellationToken cancellationToken) =>
-        await db
-            .Trainings.AsNoTracking()
-            .Where(t => t.Id == id)
-            .ProjectToType<TrainingLookupResponse>()
-            .SingleAsync(cancellationToken);
+    private static HashSet<int>? ResolveMandatoryProfileTypeIdsForUpdate(TrainingLookupRequest request)
+    {
+        if (request.Mandatory && request.MandatoryTrainingProfileIds is null)
+        {
+            return null;
+        }
+
+        return ResolveMandatoryProfileTypeIds(request);
+    }
+
+    private static IQueryable<TrainingLookupResponse> BuildResponseQuery(IQueryable<TrainingEntity> query) =>
+        query.Select(training => new TrainingLookupResponse
+        {
+            Id = training.Id,
+            Code = training.Code,
+            Description = training.Description,
+            EffectiveDate = training.EffectiveDate,
+            ExpiryDate = training.ExpiryDate,
+            Mandatory = training.Mandatory,
+            ValidityDays = training.ValidityDays,
+            AdvanceNoticeDays = training.AdvanceNoticeDays,
+            Rotating = training.Rotating,
+            TrainingCategoryId = training.TrainingCategoryId,
+            TrainingCategoryName = training.TrainingCategory != null ? training.TrainingCategory.Name : null,
+            CreatedOn = training.CreatedOn,
+            UpdatedOn = training.UpdatedOn,
+            Order = training.Order,
+            MandatoryTrainingProfiles = training
+                .TrainingProfiles.OrderBy(profile => profile.TrainingProfileType.Code)
+                .Select(profile => new TrainingProfileTypeSummary
+                {
+                    Id = profile.TrainingProfileType.Id,
+                    Code = profile.TrainingProfileType.Code,
+                    Name = profile.TrainingProfileType.Name,
+                })
+                .ToList(),
+        });
 
     private static TrainingLookupRequest NormalizeRequest(TrainingLookupRequest request) =>
         request with

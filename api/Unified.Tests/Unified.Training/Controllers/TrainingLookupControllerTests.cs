@@ -57,7 +57,13 @@ public class TrainingLookupControllerTests
         var result = await controller.GetById(10, TestContext.Current.CancellationToken);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        Assert.Equal(training, okResult.Value);
+        var payload = Assert.IsType<TrainingDetailResponse>(okResult.Value);
+        Assert.Equal(training.Id, payload.Id);
+        Assert.Equal(training.Code, payload.Code);
+        Assert.Equal(training.Description, payload.Description);
+        Assert.Equal(training.EffectiveDate, payload.EffectiveDate);
+        Assert.Equal(training.CreatedOn, payload.CreatedOn);
+        Assert.Equal(training.Mandatory, payload.Mandatory);
     }
 
     [Fact]
