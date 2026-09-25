@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { HttpResponse, http } from 'msw';
+import { ref } from 'vue';
 import UserFormModal from '@/modules/myteam/components/UserFormModal.vue';
 import {
   getPostApiUsersMockHandler,
@@ -15,9 +16,18 @@ import { createTestApp } from '../../../helpers/createTestApp';
 import type { UserResponse } from '@/api-access/generated/models';
 import { Gender } from '@/api-access/generated/models';
 
+const { useTrainingProfileLookupMock } = vi.hoisted(() => ({
+  useTrainingProfileLookupMock: vi.fn(),
+}));
+
+vi.mock('@/modules/training/trainingProfileApi', () => ({
+  useTrainingProfileLookup: useTrainingProfileLookupMock,
+}));
+
 afterEach(() => {
   document.body.innerHTML = '';
   vi.restoreAllMocks();
+  useTrainingProfileLookupMock.mockReset();
 });
 
 const baseUser: UserResponse = {
@@ -49,11 +59,22 @@ const validFormData = {
   badgeNumber: 'B001',
   employeeNumber: 'EMP001',
   homeLocationId: 1,
+  trainingProfileId: 2,
   isEnabled: true,
+};
+
+const setupTrainingProfileLookupMock = () => {
+  useTrainingProfileLookupMock.mockReturnValue({
+    data: ref([
+      { id: 2, code: 'SUP', name: 'Supervisor' },
+      { id: 3, code: 'OPS', name: 'Operations' },
+    ]),
+  });
 };
 
 describe('UserFormModal — photo upload', () => {
   it('shows initials avatar placeholder when no photo', async () => {
+    setupTrainingProfileLookupMock();
     const app = await createTestApp();
 
     const wrapper = mount(UserFormModal, {
@@ -72,6 +93,7 @@ describe('UserFormModal — photo upload', () => {
   });
 
   it('shows current photo in edit mode when user has a photoUrl', async () => {
+    setupTrainingProfileLookupMock();
     const app = await createTestApp();
     const userWithPhoto: UserResponse = { ...baseUser, photoUrl: '/api/users/user-123/photo' };
 
@@ -91,6 +113,7 @@ describe('UserFormModal — photo upload', () => {
   });
 
   it('calls upload-photo after successful create when a file is selected', async () => {
+    setupTrainingProfileLookupMock();
     const app = await createTestApp();
 
     const createdUser = getPostApiUsersResponseMock({ id: 'new-user-id', photoUrl: null });
@@ -141,6 +164,7 @@ describe('UserFormModal — photo upload', () => {
   });
 
   it('calls upload-photo after successful update when a file is selected', async () => {
+    setupTrainingProfileLookupMock();
     const app = await createTestApp();
 
     const updatedMeta = getPutApiUsersIdResponseMock({ id: 'user-123', photoUrl: null });
@@ -189,6 +213,7 @@ describe('UserFormModal — photo upload', () => {
   });
 
   it('does not call upload-photo when no file is selected', async () => {
+    setupTrainingProfileLookupMock();
     const app = await createTestApp();
 
     const createdUser = getPostApiUsersResponseMock({ id: 'no-photo-user', photoUrl: null });
@@ -232,6 +257,7 @@ describe('UserFormModal — photo upload', () => {
 
 describe('UserFormModal — retry after photo upload failure', () => {
   it('does not create a second user when retrying after a failed photo upload', async () => {
+    setupTrainingProfileLookupMock();
     const app = await createTestApp();
 
     const createdUser = getPostApiUsersResponseMock({ id: 'retry-user-id', photoUrl: null });
@@ -317,6 +343,7 @@ describe('UserFormModal — retry after photo upload failure', () => {
 
 describe('UserFormModal — badge number validation', () => {
   it('requires badge number when badge feature is enabled', async () => {
+    setupTrainingProfileLookupMock();
     const app = await createTestApp({
       featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: true } } },
     });
@@ -359,6 +386,7 @@ describe('UserFormModal — badge number validation', () => {
   });
 
   it('allows empty badge number when badge feature is disabled', async () => {
+    setupTrainingProfileLookupMock();
     const app = await createTestApp({
       featureFlags: { UserManagement: { enabled: true, userBadgeNumber: { enabled: false } } },
     });
@@ -393,6 +421,77 @@ describe('UserFormModal — badge number validation', () => {
 
     expect(createCallCount).toBe(1);
     expect(wrapper.emitted('created')).toBeTruthy();
+
+    wrapper.unmount();
+  });
+});
+
+describe('UserFormModal — training profile', () => {
+  it('prepopulates trainingProfileId in edit mode', async () => {
+    setupTrainingProfileLookupMock();
+    const app = await createTestApp();
+
+    const wrapper = mount(UserFormModal, {
+      props: {
+        user: {
+          ...baseUser,
+          trainingProfileId: 3,
+        } as UserResponse,
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: { trainingProfileId?: number | null };
+    };
+    expect(vm.formData.trainingProfileId).toBe(3);
+
+    wrapper.unmount();
+  });
+
+  it('submits trainingProfileId in create payload', async () => {
+    setupTrainingProfileLookupMock();
+    const app = await createTestApp();
+
+    let capturedPayload: unknown = null;
+
+    server.use(
+      http.post('*/api/users', async ({ request }) => {
+        capturedPayload = await request.json();
+        return HttpResponse.json(getPostApiUsersResponseMock({ id: 'training-profile-create' }), { status: 200 });
+      }),
+    );
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: typeof validFormData;
+    };
+    Object.assign(vm.formData, validFormData, { trainingProfileId: 3 });
+
+    await flushPromises();
+
+    const saveButton = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Add Member'),
+    );
+    saveButton?.dispatchEvent(new Event('click', { bubbles: true }));
+
+    await flushPromises();
+
+    expect(capturedPayload).toEqual(
+      expect.objectContaining({
+        trainingProfileId: 3,
+      }),
+    );
 
     wrapper.unmount();
   });
