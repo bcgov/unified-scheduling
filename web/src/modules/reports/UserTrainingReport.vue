@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { Permissions } from '@/api-access/generated/models';
 import { getApiLocationAll } from '@/api-access/generated/location/location';
 import { getApiRegion } from '@/api-access/generated/region/region';
@@ -17,6 +17,8 @@ import { useTrainingLookup } from '@/modules/training/trainingLookupApi';
 import { useUserTrainingReport, type UserTrainingReportItem } from './userTrainingReportApi';
 import { exportReportToCsv, type ReportCsvColumn } from './reportCsvExport';
 
+const maxMultiSelectOptions = 25;
+
 const accessControl = useAccessControl();
 const canAccessUserTrainingReport = computed(() => accessControl.hasPermission(Permissions.ReportsGenerate));
 
@@ -28,6 +30,7 @@ const selectedTrainingCodeFilter = ref<string[]>([]);
 const startDateFilter = ref<string>('');
 const endDateFilter = ref<string>('');
 const selectedReportTypeFilter = ref<string>('training');
+const selectionLimitWarning = ref<string>('');
 
 const reportQuery = computed(() => ({
   sortBy: 'userDisplayName',
@@ -189,6 +192,12 @@ const exportCsv = () => {
   });
 };
 
+enforceMultiSelectLimit(selectedUserIdFilter, 'User');
+enforceMultiSelectLimit(selectedTrainingCodeFilter, 'Training Types');
+enforceMultiSelectLimit(selectedRegionIdFilter, 'Region');
+enforceMultiSelectLimit(selectedLocationIdFilter, 'Location');
+enforceMultiSelectLimit(statusFilter, 'Statuses');
+
 if (canAccessUserTrainingReport.value) {
   void executeTrainingLookup();
   void executeUsersQuery();
@@ -201,6 +210,17 @@ function buildUserLabel(user: { firstName: string; lastName: string }): string {
   const lastName = user.lastName?.trim() ?? '';
 
   return [lastName, firstName].filter(Boolean).join(', ');
+}
+
+function enforceMultiSelectLimit<T>(selectionRef: Ref<T[]>, filterLabel: string): void {
+  watch(selectionRef, (values) => {
+    if (values.length <= maxMultiSelectOptions) {
+      return;
+    }
+
+    selectionRef.value = values.slice(0, maxMultiSelectOptions);
+    selectionLimitWarning.value = `${filterLabel} is limited to ${maxMultiSelectOptions} selections.`;
+  });
 }
 
 function buildSelectOptions<TItem>(
@@ -247,6 +267,10 @@ function formatDateCellValue(value: unknown): unknown {
 
   <div v-else class="user-training-report-page">
     <UaCard title="Filters">
+      <UaAlert v-if="selectionLimitWarning" type="warning" :closable="false">
+        {{ selectionLimitWarning }}
+      </UaAlert>
+
       <div class="filters-grid">
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-user-name">User</label>

@@ -4,6 +4,8 @@ namespace Unified.Training.Services.Reporting;
 
 internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
 {
+    internal const int MaxFilterValuesPerField = 25;
+
     private const string UserIdFilterKey = "userId";
     private const string RegionIdFilterKey = "regionId";
     private const string LocationIdFilterKey = "locationId";
@@ -85,6 +87,13 @@ internal sealed class UserTrainingReportQueryParser : ReportQueryHandlerBase
             .Select(value => value.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+        if (parsedValues.Length > MaxFilterValuesPerField)
+        {
+            throw new ArgumentException(
+                $"Filter '{filterKey}' cannot contain more than {MaxFilterValuesPerField} values."
+            );
+        }
 
         return parsedValues.Length == 0 ? null : parsedValues;
     }

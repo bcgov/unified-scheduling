@@ -483,6 +483,28 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         Assert.Equal("CODE_A", row.TrainingCode);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Should_Throw_When_UserId_Filter_Exceeds_Max_Values()
+    {
+        var userIds = Enumerable.Range(0, 26).Select(_ => Guid.NewGuid().ToString()).ToArray();
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["userId"] = userIds,
+        };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _handler.ExecuteAsync(
+                filters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Contains("userId", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("25", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<User> SeedUserAsync(
         string firstName,
         string lastName,
