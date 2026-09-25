@@ -16,24 +16,53 @@ namespace Unified.Db.Migrations
                 name: "TrainingProfileId",
                 table: "Users",
                 type: "integer",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateTable(
                 name: "TrainingProfiles",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:IdentitySequenceOptions", "'200', '1', '', '', 'False', '1'")
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:IdentitySequenceOptions",
+                            "'200', '1', '', '', 'False', '1'"
+                        )
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    CreatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
+                    CreatedOn = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "now()"
+                    ),
                     UpdatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    UpdatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    UpdatedOn = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                     xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
-                    Code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Description = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    EffectiveDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ExpiryDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Code = table.Column<string>(
+                        type: "character varying(50)",
+                        maxLength: 50,
+                        nullable: false
+                    ),
+                    Description = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: false
+                    ),
+                    EffectiveDate = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: false
+                    ),
+                    ExpiryDate = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                 },
                 constraints: table =>
                 {
@@ -43,28 +72,42 @@ namespace Unified.Db.Migrations
                         column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.SetNull
+                    );
                     table.ForeignKey(
                         name: "FK_TrainingProfiles_Users_UpdatedById",
                         column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                });
+                        onDelete: ReferentialAction.SetNull
+                    );
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "TrainingMandatoryTrainingProfiles",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     TrainingId = table.Column<int>(type: "integer", nullable: false),
                     TrainingProfileId = table.Column<int>(type: "integer", nullable: false),
                     CreatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    CreatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
+                    CreatedOn = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: false,
+                        defaultValueSql: "now()"
+                    ),
                     UpdatedById = table.Column<Guid>(type: "uuid", nullable: true),
-                    UpdatedOn = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
+                    UpdatedOn = table.Column<DateTimeOffset>(
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
+                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
                 },
                 constraints: table =>
                 {
@@ -74,68 +117,81 @@ namespace Unified.Db.Migrations
                         column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.SetNull
+                    );
                     table.ForeignKey(
                         name: "FK_TrainingMandatoryTrainingProfiles_TrainingProfiles_Training~",
                         column: x => x.TrainingProfileId,
                         principalTable: "TrainingProfiles",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Cascade
+                    );
                     table.ForeignKey(
                         name: "FK_TrainingMandatoryTrainingProfiles_Trainings_TrainingId",
                         column: x => x.TrainingId,
                         principalTable: "Trainings",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Cascade
+                    );
                     table.ForeignKey(
                         name: "FK_TrainingMandatoryTrainingProfiles_Users_UpdatedById",
                         column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                });
+                        onDelete: ReferentialAction.SetNull
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_TrainingProfileId",
                 table: "Users",
-                column: "TrainingProfileId");
+                column: "TrainingProfileId"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_TrainingMandatoryTrainingProfiles_TrainingProfileId",
                 table: "TrainingMandatoryTrainingProfiles",
-                column: "TrainingProfileId");
+                column: "TrainingProfileId"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_TrainingMandatoryTrainingProfiles_CreatedById",
                 table: "TrainingMandatoryTrainingProfiles",
-                column: "CreatedById");
+                column: "CreatedById"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_TrainingMandatoryTrainingProfiles_TrainingId_TrainingProfileId",
                 table: "TrainingMandatoryTrainingProfiles",
                 columns: new[] { "TrainingId", "TrainingProfileId" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_TrainingMandatoryTrainingProfiles_UpdatedById",
                 table: "TrainingMandatoryTrainingProfiles",
-                column: "UpdatedById");
+                column: "UpdatedById"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_TrainingProfiles_Code",
                 table: "TrainingProfiles",
                 column: "Code",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_TrainingProfiles_CreatedById",
                 table: "TrainingProfiles",
-                column: "CreatedById");
+                column: "CreatedById"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_TrainingProfiles_UpdatedById",
                 table: "TrainingProfiles",
-                column: "UpdatedById");
+                column: "UpdatedById"
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Users_TrainingProfiles_TrainingProfileId",
@@ -143,7 +199,8 @@ namespace Unified.Db.Migrations
                 column: "TrainingProfileId",
                 principalTable: "TrainingProfiles",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
+                onDelete: ReferentialAction.SetNull
+            );
         }
 
         /// <inheritdoc />
@@ -151,21 +208,16 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_Users_TrainingProfiles_TrainingProfileId",
-                table: "Users");
+                table: "Users"
+            );
 
-            migrationBuilder.DropTable(
-                name: "TrainingMandatoryTrainingProfiles");
+            migrationBuilder.DropTable(name: "TrainingMandatoryTrainingProfiles");
 
-            migrationBuilder.DropTable(
-                name: "TrainingProfiles");
+            migrationBuilder.DropTable(name: "TrainingProfiles");
 
-            migrationBuilder.DropIndex(
-                name: "IX_Users_TrainingProfileId",
-                table: "Users");
+            migrationBuilder.DropIndex(name: "IX_Users_TrainingProfileId", table: "Users");
 
-            migrationBuilder.DropColumn(
-                name: "TrainingProfileId",
-                table: "Users");
+            migrationBuilder.DropColumn(name: "TrainingProfileId", table: "Users");
         }
     }
 }
