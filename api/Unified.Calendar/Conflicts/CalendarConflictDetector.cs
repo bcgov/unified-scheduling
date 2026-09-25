@@ -1,3 +1,5 @@
+using Unified.Common.Calendar.Conflicts;
+
 namespace Unified.Calendar.Conflicts;
 
 public static class CalendarConflictDetector
@@ -16,7 +18,8 @@ public static class CalendarConflictDetector
                 .Where(participant => participant.End > participant.Start)
                 .OrderBy(participant => participant.Start)
                 .ThenBy(participant => participant.End)
-                .ThenBy(participant => participant.EventId)
+                .ThenBy(participant => participant.SourceModule, StringComparer.Ordinal)
+                .ThenBy(participant => participant.EventId, StringComparer.Ordinal)
                 .ToList();
 
             for (var leftIndex = 0; leftIndex < ordered.Count; leftIndex++)
@@ -47,14 +50,16 @@ public static class CalendarConflictDetector
 
         return conflicts
             .OrderBy(conflict => conflict.OverlapStart)
-            .ThenBy(conflict => conflict.Entry.EventId)
-            .ThenBy(conflict => conflict.Overlaps.EventId)
+            .ThenBy(conflict => conflict.Entry.SourceModule, StringComparer.Ordinal)
+            .ThenBy(conflict => conflict.Entry.EventId, StringComparer.Ordinal)
+            .ThenBy(conflict => conflict.Overlaps.SourceModule, StringComparer.Ordinal)
+            .ThenBy(conflict => conflict.Overlaps.EventId, StringComparer.Ordinal)
             .ThenBy(conflict => conflict.ResourceId)
             .ToList();
     }
 
     private static bool IsSameEvent(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
-        left.EventId == right.EventId;
+        left.Identity == right.Identity;
 
     private static (CalendarConflictParticipant Entry, CalendarConflictParticipant Overlaps) OrderForDisplay(
         CalendarConflictParticipant left,
@@ -63,7 +68,9 @@ public static class CalendarConflictDetector
     {
         var comparison = left.Start.CompareTo(right.Start);
         if (comparison == 0)
-            comparison = left.EventId.CompareTo(right.EventId);
+            comparison = StringComparer.Ordinal.Compare(left.SourceModule, right.SourceModule);
+        if (comparison == 0)
+            comparison = StringComparer.Ordinal.Compare(left.EventId, right.EventId);
         return comparison <= 0 ? (left, right) : (right, left);
     }
 }

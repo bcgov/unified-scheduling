@@ -1,4 +1,6 @@
+using System.Globalization;
 using Unified.Calendar.Conflicts;
+using Unified.Common.Calendar.Conflicts;
 
 namespace Unified.Tests.Calendar.Conflicts;
 
@@ -55,6 +57,18 @@ public sealed class CalendarConflictDetectorTests
     }
 
     [Fact]
+    public void Detect_WhenModulesUseSameEventId_DetectsConflict()
+    {
+        var conflicts = CalendarConflictDetector.Detect([
+            Participant(1, ResourceA, 0, 60),
+            Participant(1, ResourceA, 30, 90) with { SourceModule = "training" },
+        ]);
+
+        var conflict = Assert.Single(conflicts);
+        Assert.NotEqual(conflict.Entry.SourceModule, conflict.Overlaps.SourceModule);
+    }
+
+    [Fact]
     public void Detect_WhenThreeIntervalsOverlap_ReturnsEachPairOnce()
     {
         var conflicts = CalendarConflictDetector.Detect([
@@ -98,7 +112,7 @@ public sealed class CalendarConflictDetectorTests
 
     private static CalendarConflictParticipant Participant(int id, Guid resourceId, int startMinutes, int endMinutes) =>
         new(
-            id,
+            id.ToString(CultureInfo.InvariantCulture),
             "scheduling",
             resourceId,
             Baseline.AddMinutes(startMinutes),

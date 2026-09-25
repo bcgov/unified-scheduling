@@ -22,8 +22,26 @@ namespace Unified.Db.Migrations
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
-                    FirstEventId = table.Column<int>(type: "integer", nullable: false),
-                    SecondEventId = table.Column<int>(type: "integer", nullable: false),
+                    FirstSourceModule = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: false
+                    ),
+                    FirstEventId = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: false
+                    ),
+                    SecondSourceModule = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: false
+                    ),
+                    SecondEventId = table.Column<string>(
+                        type: "character varying(200)",
+                        maxLength: 200,
+                        nullable: false
+                    ),
                     ResourceId = table.Column<Guid>(type: "uuid", nullable: false),
                     Note = table.Column<string>(
                         type: "character varying(2000)",
@@ -34,7 +52,7 @@ namespace Unified.Db.Migrations
                         type: "timestamp with time zone",
                         nullable: true
                     ),
-                    CreatedById = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedById = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedOn = table.Column<DateTimeOffset>(
                         type: "timestamp with time zone",
                         nullable: false,
@@ -50,30 +68,12 @@ namespace Unified.Db.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CalendarConflictOverrides", x => x.Id);
-                    table.CheckConstraint(
-                        "CK_CalendarConflictOverrides_NormalizedPair",
-                        "\"FirstEventId\" < \"SecondEventId\""
-                    );
-                    table.ForeignKey(
-                        name: "FK_CalendarConflictOverrides_Events_FirstEventId",
-                        column: x => x.FirstEventId,
-                        principalTable: "Events",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade
-                    );
-                    table.ForeignKey(
-                        name: "FK_CalendarConflictOverrides_Events_SecondEventId",
-                        column: x => x.SecondEventId,
-                        principalTable: "Events",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade
-                    );
                     table.ForeignKey(
                         name: "FK_CalendarConflictOverrides_Users_CreatedById",
                         column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull
+                        onDelete: ReferentialAction.Restrict
                     );
                     table.ForeignKey(
                         name: "FK_CalendarConflictOverrides_Users_UpdatedById",
@@ -92,16 +92,17 @@ namespace Unified.Db.Migrations
             );
 
             migrationBuilder.CreateIndex(
-                name: "IX_CalendarConflictOverrides_FirstEventId_SecondEventId_Resour~",
+                name: "IX_CalendarConflictOverrides_FirstSourceModule_FirstEventId_Se~",
                 table: "CalendarConflictOverrides",
-                columns: new[] { "FirstEventId", "SecondEventId", "ResourceId" },
+                columns: new[]
+                {
+                    "FirstSourceModule",
+                    "FirstEventId",
+                    "SecondSourceModule",
+                    "SecondEventId",
+                    "ResourceId",
+                },
                 unique: true
-            );
-
-            migrationBuilder.CreateIndex(
-                name: "IX_CalendarConflictOverrides_SecondEventId",
-                table: "CalendarConflictOverrides",
-                column: "SecondEventId"
             );
 
             migrationBuilder.CreateIndex(

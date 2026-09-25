@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Calendar.Models;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 
@@ -44,7 +45,6 @@ public sealed class CalendarConflictService(
             return;
 
         var candidateIdentities = candidates.Select(CalendarConflictParticipantIdentity.Create).ToHashSet();
-        var candidateEventIds = candidates.Select(candidate => candidate.EventId).ToHashSet();
         var query = new CalendarConflictQuery(
             candidates.Min(candidate => candidate.Start),
             candidates.Max(candidate => candidate.End),
@@ -52,7 +52,7 @@ public sealed class CalendarConflictService(
             IncludeDraftParticipants: false
         );
         var existing = (await LoadParticipantsAsync(query, cancellationToken)).Where(participant =>
-            !candidateEventIds.Contains(participant.EventId)
+            !candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(participant))
         );
         var allParticipants = existing
             .Concat(candidates)
@@ -95,22 +95,22 @@ public sealed class CalendarConflictService(
 
     public async Task CreateOverrideAsync(
         CalendarConflictAcknowledgement acknowledgement,
-        Guid? createdById,
+        Guid createdById,
         CancellationToken cancellationToken = default
     )
     {
         var key = NormalizeAcknowledgement(acknowledgement).Key;
-        var events = await db
-            .Events.AsNoTracking()
-            .Where(eventEntity => eventEntity.Id == key.FirstEventId || eventEntity.Id == key.SecondEventId)
-            .ToListAsync(cancellationToken);
-        if (events.Count != 2)
-            throw new KeyNotFoundException("Both calendar events must exist before a conflict can be overridden.");
+        var firstParticipant = await LoadParticipantAsync(key.FirstEvent, key.ResourceId, cancellationToken);
+        var secondParticipant = await LoadParticipantAsync(key.SecondEvent, key.ResourceId, cancellationToken);
+        if (firstParticipant is null || secondParticipant is null)
+            throw new KeyNotFoundException("Both calendar conflict participants must exist before a conflict can be overridden.");
 
-        var rangeStart = events.Min(eventEntity => eventEntity.StartAtUtc);
-        var rangeEnd = events.Max(eventEntity => eventEntity.EndAtUtc ?? eventEntity.StartAtUtc.AddTicks(1));
+        var rangeStart = firstParticipant.Start < secondParticipant.Start
+            ? firstParticipant.Start
+            : secondParticipant.Start;
+        var rangeEnd = firstParticipant.End > secondParticipant.End ? firstParticipant.End : secondParticipant.End;
         var participants = await LoadParticipantsAsync(
-            new CalendarConflictQuery(rangeStart, rangeEnd),
+            new CalendarConflictQuery(rangeStart, rangeEnd, [key.ResourceId]),
             cancellationToken
         );
         var conflict = CalendarConflictDetector
@@ -126,7 +126,7 @@ public sealed class CalendarConflictService(
     private async Task<CalendarConflictOverride> UpsertOverrideAsync(
         CalendarConflictKey key,
         string note,
-        Guid? actorId,
+        Guid actorId,
         CancellationToken cancellationToken
     )
     {
@@ -134,8 +134,10 @@ public sealed class CalendarConflictService(
         var now = _timeProvider.GetUtcNow();
         var overrideEntity = await db.CalendarConflictOverrides.SingleOrDefaultAsync(
             candidate =>
-                candidate.FirstEventId == key.FirstEventId
-                && candidate.SecondEventId == key.SecondEventId
+                candidate.FirstSourceModule == key.FirstEvent.SourceModule
+                && candidate.FirstEventId == key.FirstEvent.EventId
+                && candidate.SecondSourceModule == key.SecondEvent.SourceModule
+                && candidate.SecondEventId == key.SecondEvent.EventId
                 && candidate.ResourceId == key.ResourceId,
             cancellationToken
         );
@@ -143,8 +145,10 @@ public sealed class CalendarConflictService(
         {
             overrideEntity = new CalendarConflictOverride
             {
-                FirstEventId = key.FirstEventId,
-                SecondEventId = key.SecondEventId,
+                FirstSourceModule = key.FirstEvent.SourceModule,
+                FirstEventId = key.FirstEvent.EventId,
+                SecondSourceModule = key.SecondEvent.SourceModule,
+                SecondEventId = key.SecondEvent.EventId,
                 ResourceId = key.ResourceId,
                 Note = normalizedNote,
                 CreatedById = actorId,
@@ -164,70 +168,107 @@ public sealed class CalendarConflictService(
     }
 
     public async Task InvalidateResolvedOverridesAsync(
-        IReadOnlyCollection<int> eventIds,
+        IReadOnlyCollection<CalendarConflictEventIdentity> eventIdentities,
         Guid? updatedById = null,
         CancellationToken cancellationToken = default
     )
     {
-        if (eventIds.Count == 0)
+        if (eventIdentities.Count == 0)
             return;
 
-        var ids = eventIds.Distinct().ToList();
-        var overrides = await db
+        var identities = eventIdentities
+            .Select(identity => CalendarConflictEventIdentity.Create(identity.SourceModule, identity.EventId))
+            .ToHashSet();
+        var sourceModules = identities.Select(identity => identity.SourceModule).ToList();
+        var eventIds = identities.Select(identity => identity.EventId).ToList();
+        var possibleOverrides = await db
             .CalendarConflictOverrides.Where(overrideEntity =>
                 overrideEntity.InvalidatedOn == null
-                && (ids.Contains(overrideEntity.FirstEventId) || ids.Contains(overrideEntity.SecondEventId))
-            )
-            .ToListAsync(cancellationToken);
-        if (overrides.Count == 0)
-            return;
-
-        var overrideEventIds = overrides
-            .SelectMany(overrideEntity => new[] { overrideEntity.FirstEventId, overrideEntity.SecondEventId })
-            .Distinct()
-            .ToList();
-        var events = await db
-            .Events.AsNoTracking()
-            .Where(eventEntity => overrideEventIds.Contains(eventEntity.Id))
-            .ToListAsync(cancellationToken);
-        var activeConflictKeys = new HashSet<CalendarConflictKey>();
-        if (events.Count > 0)
-        {
-            var rangeStart = events.Min(eventEntity => eventEntity.StartAtUtc);
-            var rangeEnd = events.Max(eventEntity => eventEntity.EndAtUtc ?? eventEntity.StartAtUtc.AddTicks(1));
-            var participants = await LoadParticipantsAsync(
-                new CalendarConflictQuery(rangeStart, rangeEnd),
-                cancellationToken
-            );
-            activeConflictKeys = CalendarConflictDetector
-                .Detect(participants)
-                .Select(CalendarConflictKey.Create)
-                .ToHashSet();
-        }
-
-        var resolvedOverrides = overrides
-            .Where(overrideEntity =>
-                !activeConflictKeys.Contains(
-                    CalendarConflictKey.Create(
-                        overrideEntity.FirstEventId,
-                        overrideEntity.SecondEventId,
-                        overrideEntity.ResourceId
+                && (
+                    (
+                        sourceModules.Contains(overrideEntity.FirstSourceModule)
+                        && eventIds.Contains(overrideEntity.FirstEventId)
+                    )
+                    || (
+                        sourceModules.Contains(overrideEntity.SecondSourceModule)
+                        && eventIds.Contains(overrideEntity.SecondEventId)
                     )
                 )
             )
+            .ToListAsync(cancellationToken);
+        var overrides = possibleOverrides
+            .Where(overrideEntity =>
+                identities.Contains(CreateFirstIdentity(overrideEntity))
+                || identities.Contains(CreateSecondIdentity(overrideEntity))
+            )
             .ToList();
-        if (resolvedOverrides.Count == 0)
+        if (overrides.Count == 0)
             return;
 
         var now = _timeProvider.GetUtcNow();
-        foreach (var overrideEntity in resolvedOverrides)
+        foreach (var overrideEntity in overrides)
         {
-            overrideEntity.InvalidatedOn = now;
-            overrideEntity.UpdatedOn = now;
-            overrideEntity.UpdatedById = updatedById;
+            if (!await IsConflictActiveAsync(overrideEntity, cancellationToken))
+                Invalidate(overrideEntity, now, updatedById);
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<bool> IsConflictActiveAsync(
+        CalendarConflictOverride overrideEntity,
+        CancellationToken cancellationToken
+    )
+    {
+        var key = CalendarConflictKey.Create(
+            CreateFirstIdentity(overrideEntity),
+            CreateSecondIdentity(overrideEntity),
+            overrideEntity.ResourceId
+        );
+        var firstParticipant = await LoadParticipantAsync(key.FirstEvent, key.ResourceId, cancellationToken);
+        var secondParticipant = await LoadParticipantAsync(key.SecondEvent, key.ResourceId, cancellationToken);
+        if (firstParticipant is null || secondParticipant is null)
+            return false;
+
+        var rangeStart = firstParticipant.Start < secondParticipant.Start
+            ? firstParticipant.Start
+            : secondParticipant.Start;
+        var rangeEnd = firstParticipant.End > secondParticipant.End ? firstParticipant.End : secondParticipant.End;
+        var participants = await LoadParticipantsAsync(
+            new CalendarConflictQuery(rangeStart, rangeEnd, [key.ResourceId]),
+            cancellationToken
+        );
+        return CalendarConflictDetector.Detect(participants).Select(CalendarConflictKey.Create).Contains(key);
+    }
+
+    private static void Invalidate(CalendarConflictOverride overrideEntity, DateTimeOffset now, Guid? updatedById)
+    {
+        overrideEntity.InvalidatedOn = now;
+        overrideEntity.UpdatedOn = now;
+        overrideEntity.UpdatedById = updatedById;
+    }
+
+    private async Task<CalendarConflictParticipant?> LoadParticipantAsync(
+        CalendarConflictEventIdentity identity,
+        Guid resourceId,
+        CancellationToken cancellationToken
+    )
+    {
+        CalendarConflictParticipant? participant = null;
+        foreach (var provider in _participantProviders)
+        {
+            var candidate = await provider.GetParticipantAsync(identity, resourceId, cancellationToken);
+            if (candidate is null)
+                continue;
+            if (candidate.Identity != identity || candidate.ResourceId != resourceId)
+                throw new InvalidOperationException("A calendar conflict provider returned a participant for the wrong identity or resource.");
+            if (participant is not null)
+                throw new InvalidOperationException("Multiple calendar conflict providers returned the same participant.");
+
+            participant = candidate;
+        }
+
+        return participant;
     }
 
     private async Task<IReadOnlyCollection<CalendarConflictParticipant>> LoadParticipantsAsync(
@@ -263,16 +304,22 @@ public sealed class CalendarConflictService(
         CalendarConflictAcknowledgement acknowledgement
     )
     {
-        if (acknowledgement.FirstEventId <= 0 || acknowledgement.SecondEventId <= 0)
-            throw new InvalidOperationException("A conflict acknowledgement requires two valid calendar events.");
-        if (acknowledgement.FirstEventId == acknowledgement.SecondEventId)
+        var firstEvent = CalendarConflictEventIdentity.Create(
+            acknowledgement.FirstSourceModule,
+            acknowledgement.FirstEventId
+        );
+        var secondEvent = CalendarConflictEventIdentity.Create(
+            acknowledgement.SecondSourceModule,
+            acknowledgement.SecondEventId
+        );
+        if (firstEvent == secondEvent)
             throw new InvalidOperationException("A conflict acknowledgement requires two different calendar events.");
         if (acknowledgement.ResourceId == Guid.Empty)
             throw new InvalidOperationException("A conflict acknowledgement requires a resource.");
 
         var normalized = acknowledgement with { Note = NormalizeNote(acknowledgement.Note) };
         return (
-            CalendarConflictKey.Create(normalized.FirstEventId, normalized.SecondEventId, normalized.ResourceId),
+            CalendarConflictKey.Create(firstEvent, secondEvent, normalized.ResourceId),
             normalized
         );
     }
@@ -297,22 +344,26 @@ public sealed class CalendarConflictService(
         if (conflicts.Count == 0)
             return conflicts;
 
-        var eventIds = conflicts
-            .SelectMany(conflict => new[] { conflict.Entry.EventId, conflict.Overlaps.EventId })
+        var eventIdentities = conflicts
+            .SelectMany(conflict => new[] { conflict.Entry.Identity, conflict.Overlaps.Identity })
             .Distinct()
             .ToList();
+        var sourceModules = eventIdentities.Select(identity => identity.SourceModule).ToList();
+        var eventIds = eventIdentities.Select(identity => identity.EventId).ToList();
         var overrides = await db
             .CalendarConflictOverrides.AsNoTracking()
             .Where(overrideEntity =>
                 overrideEntity.InvalidatedOn == null
+                && sourceModules.Contains(overrideEntity.FirstSourceModule)
                 && eventIds.Contains(overrideEntity.FirstEventId)
+                && sourceModules.Contains(overrideEntity.SecondSourceModule)
                 && eventIds.Contains(overrideEntity.SecondEventId)
             )
             .ToListAsync(cancellationToken);
         var overridesByConflict = overrides.ToDictionary(overrideEntity =>
             CalendarConflictKey.Create(
-                overrideEntity.FirstEventId,
-                overrideEntity.SecondEventId,
+                CreateFirstIdentity(overrideEntity),
+                CreateSecondIdentity(overrideEntity),
                 overrideEntity.ResourceId
             )
         );
@@ -340,9 +391,18 @@ public sealed class CalendarConflictService(
         };
     }
 
-    private readonly record struct CalendarConflictParticipantIdentity(int EventId, Guid ResourceId)
+    private static CalendarConflictEventIdentity CreateFirstIdentity(CalendarConflictOverride overrideEntity) =>
+        CalendarConflictEventIdentity.Create(overrideEntity.FirstSourceModule, overrideEntity.FirstEventId);
+
+    private static CalendarConflictEventIdentity CreateSecondIdentity(CalendarConflictOverride overrideEntity) =>
+        CalendarConflictEventIdentity.Create(overrideEntity.SecondSourceModule, overrideEntity.SecondEventId);
+
+    private readonly record struct CalendarConflictParticipantIdentity(
+        CalendarConflictEventIdentity EventIdentity,
+        Guid ResourceId
+    )
     {
         public static CalendarConflictParticipantIdentity Create(CalendarConflictParticipant participant) =>
-            new(participant.EventId, participant.ResourceId);
+            new(participant.Identity, participant.ResourceId);
     }
 }

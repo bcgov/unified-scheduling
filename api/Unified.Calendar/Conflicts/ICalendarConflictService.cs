@@ -1,4 +1,5 @@
 using Unified.Calendar.Models;
+using Unified.Common.Calendar.Conflicts;
 
 namespace Unified.Calendar.Conflicts;
 
@@ -23,12 +24,12 @@ public interface ICalendarConflictService
 
     Task CreateOverrideAsync(
         CalendarConflictAcknowledgement acknowledgement,
-        Guid? createdById,
+        Guid createdById,
         CancellationToken cancellationToken = default
     );
 
     Task InvalidateResolvedOverridesAsync(
-        IReadOnlyCollection<int> eventIds,
+        IReadOnlyCollection<CalendarConflictEventIdentity> eventIdentities,
         Guid? updatedById = null,
         CancellationToken cancellationToken = default
     );

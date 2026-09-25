@@ -1,4 +1,4 @@
-namespace Unified.Calendar.Conflicts;
+namespace Unified.Common.Calendar.Conflicts;
 
 public sealed record CalendarConflictQuery(
     DateTimeOffset StartAtUtc,

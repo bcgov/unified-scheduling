@@ -1,7 +1,9 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Lookup;
@@ -51,18 +53,23 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         await _service.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
-                FirstEventId = 2,
-                SecondEventId = 1,
+                FirstSourceModule = "scheduling",
+                FirstEventId = "2",
+                SecondSourceModule = "scheduling",
+                SecondEventId = "1",
                 ResourceId = ResourceId,
                 Note = "Manager approved",
             },
-            null,
+            ActorId,
             TestContext.Current.CancellationToken
         );
 
         var persistedOverride = await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(1, persistedOverride.FirstEventId);
-        Assert.Equal(2, persistedOverride.SecondEventId);
+        Assert.Equal("scheduling", persistedOverride.FirstSourceModule);
+        Assert.Equal("1", persistedOverride.FirstEventId);
+        Assert.Equal("scheduling", persistedOverride.SecondSourceModule);
+        Assert.Equal("2", persistedOverride.SecondEventId);
+        Assert.Equal(ActorId, persistedOverride.CreatedById);
         var conflict = Assert.Single(
             await _service.GetConflictsAsync(
                 new CalendarConflictQuery(Baseline(7), Baseline(12)),
@@ -79,18 +86,23 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         await _service.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
-                FirstEventId = 1,
-                SecondEventId = 2,
+                FirstSourceModule = "scheduling",
+                FirstEventId = "1",
+                SecondSourceModule = "scheduling",
+                SecondEventId = "2",
                 ResourceId = ResourceId,
                 Note = "Temporary",
             },
-            null,
+            ActorId,
             TestContext.Current.CancellationToken
         );
 
         _provider.Participants = [CreateParticipant(1, 8, 10), CreateParticipant(2, 10, 11)];
 
-        await _service.InvalidateResolvedOverridesAsync([1], cancellationToken: TestContext.Current.CancellationToken);
+        await _service.InvalidateResolvedOverridesAsync(
+            [new CalendarConflictEventIdentity("scheduling", "1")],
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         var persisted = await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(persisted.InvalidatedOn);
@@ -102,17 +114,22 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         await _service.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
-                FirstEventId = 1,
-                SecondEventId = 2,
+                FirstSourceModule = "scheduling",
+                FirstEventId = "1",
+                SecondSourceModule = "scheduling",
+                SecondEventId = "2",
                 ResourceId = ResourceId,
                 Note = "Original state",
             },
-            null,
+            ActorId,
             TestContext.Current.CancellationToken
         );
         _provider.Participants = [CreateParticipant(1, 8, 10), CreateParticipant(2, 9, 10, 30)];
 
-        await _service.InvalidateResolvedOverridesAsync([1], cancellationToken: TestContext.Current.CancellationToken);
+        await _service.InvalidateResolvedOverridesAsync(
+            [new CalendarConflictEventIdentity("scheduling", "1")],
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         var conflict = Assert.Single(
             await _service.GetConflictsAsync(
@@ -143,8 +160,10 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         await _service.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
-                FirstEventId = 1,
-                SecondEventId = 2,
+                FirstSourceModule = "scheduling",
+                FirstEventId = "1",
+                SecondSourceModule = "scheduling",
+                SecondEventId = "2",
                 ResourceId = ResourceId,
                 Note = "Initial approval",
             },
@@ -154,8 +173,10 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         await _service.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
-                FirstEventId = 1,
-                SecondEventId = 2,
+                FirstSourceModule = "scheduling",
+                FirstEventId = "1",
+                SecondSourceModule = "scheduling",
+                SecondEventId = "2",
                 ResourceId = ResourceId,
                 Note = "Updated approval",
             },
@@ -208,7 +229,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         {
             Participants =
             [
-                new CalendarConflictParticipant(2, "training", ResourceId, Baseline(9), Baseline(11), "Training 2"),
+                new CalendarConflictParticipant("2", "training", ResourceId, Baseline(9), Baseline(11), "Training 2"),
             ],
         };
         var service = new CalendarConflictService([scheduling, training], _db);
@@ -222,6 +243,81 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
 
         Assert.Equal("scheduling", conflict.Entry.SourceModule);
         Assert.Equal("training", conflict.Overlaps.SourceModule);
+    }
+
+    [Fact]
+    public async Task CreateOverrideAsync_WithExternalParticipant_PersistsSourceQualifiedIdentity()
+    {
+        var training = new MutableProvider
+        {
+            Participants =
+            [
+                new CalendarConflictParticipant(
+                    "course-42",
+                    "training",
+                    ResourceId,
+                    Baseline(9),
+                    Baseline(11),
+                    "Course 42"
+                ),
+            ],
+        };
+        var service = new CalendarConflictService([_provider, training], _db);
+
+        await service.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = "training",
+                FirstEventId = "course-42",
+                SecondSourceModule = "scheduling",
+                SecondEventId = "1",
+                ResourceId = ResourceId,
+                Note = "Approved",
+            },
+            ActorId,
+            TestContext.Current.CancellationToken
+        );
+
+        var persisted = await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("scheduling", persisted.FirstSourceModule);
+        Assert.Equal("1", persisted.FirstEventId);
+        Assert.Equal("training", persisted.SecondSourceModule);
+        Assert.Equal("course-42", persisted.SecondEventId);
+    }
+
+    [Fact]
+    public async Task CreateOverrideAsync_WhenParticipantCannotBeResolved_ThrowsKeyNotFoundException()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _service.CreateOverrideAsync(
+                new CalendarConflictAcknowledgement
+                {
+                    FirstSourceModule = "scheduling",
+                    FirstEventId = "1",
+                    SecondSourceModule = "training",
+                    SecondEventId = "missing",
+                    ResourceId = ResourceId,
+                    Note = "Approved",
+                },
+                ActorId,
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task CreateOverrideAsync_WhenMultipleProvidersResolveParticipant_ThrowsInvalidOperationException()
+    {
+        var duplicateProvider = new MutableProvider { Participants = _provider.Participants };
+        var service = new CalendarConflictService([_provider, duplicateProvider], _db);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreateOverrideAsync(
+                CreateAcknowledgement(1, 2, "Approved"),
+                ActorId,
+                TestContext.Current.CancellationToken
+            )
+        );
     }
 
     [Fact]
@@ -240,8 +336,8 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         var persisted = Assert.Single(
             await _db.CalendarConflictOverrides.ToListAsync(TestContext.Current.CancellationToken)
         );
-        Assert.Equal(1, persisted.FirstEventId);
-        Assert.Equal(2, persisted.SecondEventId);
+        Assert.Equal("1", persisted.FirstEventId);
+        Assert.Equal("2", persisted.SecondEventId);
         Assert.Equal("Approved", persisted.Note);
         Assert.Equal(actorId, persisted.CreatedById);
     }
@@ -311,12 +407,14 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         await _service.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
-                FirstEventId = 1,
-                SecondEventId = 2,
+                FirstSourceModule = "scheduling",
+                FirstEventId = "1",
+                SecondSourceModule = "scheduling",
+                SecondEventId = "2",
                 ResourceId = ResourceId,
                 Note = "Already approved",
             },
-            null,
+            ActorId,
             TestContext.Current.CancellationToken
         );
 
@@ -365,8 +463,10 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
     ) =>
         new()
         {
-            FirstEventId = firstEventId,
-            SecondEventId = secondEventId,
+            FirstSourceModule = "scheduling",
+            FirstEventId = firstEventId.ToString(CultureInfo.InvariantCulture),
+            SecondSourceModule = "scheduling",
+            SecondEventId = secondEventId.ToString(CultureInfo.InvariantCulture),
             ResourceId = ResourceId,
             Note = note,
         };
@@ -389,7 +489,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         int endMinute = 0
     ) =>
         new(
-            id,
+            id.ToString(CultureInfo.InvariantCulture),
             "scheduling",
             ResourceId,
             Baseline(startHour),
@@ -403,10 +503,29 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
     {
         public IReadOnlyCollection<CalendarConflictParticipant> Participants { get; set; } = [];
 
-        public Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
-            CalendarConflictQuery query,
-            CancellationToken cancellationToken = default
-        ) => Task.FromResult(Participants);
+        Task<CalendarConflictParticipant?> ICalendarConflictParticipantProvider.GetParticipantAsync(
+            CalendarConflictEventIdentity identity,
+            Guid resourceId,
+            CancellationToken _cancellationToken = default
+        )
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(
+                Participants.SingleOrDefault(participant =>
+                    participant.Identity == identity && participant.ResourceId == resourceId
+                )
+            );
+        }
+
+        Task<IReadOnlyCollection<CalendarConflictParticipant>> ICalendarConflictParticipantProvider.GetParticipantsAsync(
+            CalendarConflictQuery _query,
+            CancellationToken _cancellationToken = default
+        )
+        {
+            _ = _query;
+            _cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Participants);
+        }
     }
 
     private sealed class BlockingProvider : ICalendarConflictParticipantProvider
@@ -414,11 +533,25 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
-            CalendarConflictQuery query,
+        Task<CalendarConflictParticipant?> ICalendarConflictParticipantProvider.GetParticipantAsync(
+            CalendarConflictEventIdentity _identity,
+            Guid _resourceId,
+            CancellationToken _cancellationToken = default
+        )
+        {
+            _ = Started;
+            _ = _identity;
+            _ = _resourceId;
+            _cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<CalendarConflictParticipant?>(null);
+        }
+
+        async Task<IReadOnlyCollection<CalendarConflictParticipant>> ICalendarConflictParticipantProvider.GetParticipantsAsync(
+            CalendarConflictQuery _query,
             CancellationToken cancellationToken = default
         )
         {
+            _ = _query;
             Started.TrySetResult();
             await Release.Task.WaitAsync(cancellationToken);
             return [];
@@ -429,11 +562,26 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
     {
         public bool WasCalled { get; private set; }
 
-        public Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
-            CalendarConflictQuery query,
-            CancellationToken cancellationToken = default
+        Task<CalendarConflictParticipant?> ICalendarConflictParticipantProvider.GetParticipantAsync(
+            CalendarConflictEventIdentity _identity,
+            Guid _resourceId,
+            CancellationToken _cancellationToken = default
         )
         {
+            _ = WasCalled;
+            _ = _identity;
+            _ = _resourceId;
+            _cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<CalendarConflictParticipant?>(null);
+        }
+
+        Task<IReadOnlyCollection<CalendarConflictParticipant>> ICalendarConflictParticipantProvider.GetParticipantsAsync(
+            CalendarConflictQuery _query,
+            CancellationToken _cancellationToken = default
+        )
+        {
+            _ = _query;
+            _cancellationToken.ThrowIfCancellationRequested();
             WasCalled = true;
             return Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([]);
         }

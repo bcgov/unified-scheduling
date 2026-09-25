@@ -1,7 +1,7 @@
-namespace Unified.Calendar.Conflicts;
+namespace Unified.Common.Calendar.Conflicts;
 
 public sealed record CalendarConflictParticipant(
-    int EventId,
+    string EventId,
     string SourceModule,
     Guid ResourceId,
     DateTimeOffset Start,
@@ -9,4 +9,7 @@ public sealed record CalendarConflictParticipant(
     string Title,
     int? SourceEntityId = null,
     string? TimeZoneId = null
-);
+)
+{
+    public CalendarConflictEventIdentity Identity => CalendarConflictEventIdentity.Create(SourceModule, EventId);
+}

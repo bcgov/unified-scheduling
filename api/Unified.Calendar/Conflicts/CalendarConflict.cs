@@ -1,3 +1,5 @@
+using Unified.Common.Calendar.Conflicts;
+
 namespace Unified.Calendar.Conflicts;
 
 public sealed record CalendarConflict(
@@ -19,7 +21,9 @@ public sealed record CalendarConflict(
         get
         {
             var key = CalendarConflictKey.Create(this);
-            return $"conflict:{key.FirstEventId}:{key.SecondEventId}:{key.ResourceId}";
+            return $"conflict:{Encode(key.FirstEvent.SourceModule)}:{Encode(key.FirstEvent.EventId)}:{Encode(key.SecondEvent.SourceModule)}:{Encode(key.SecondEvent.EventId)}:{key.ResourceId}";
         }
     }
+
+    private static string Encode(string value) => Uri.EscapeDataString(value);
 }
