@@ -14,6 +14,7 @@ public class UserConfiguration : BaseEntityConfiguration<User>
         builder.HasIndex(b => b.IdirId).IsUnique();
         builder.HasIndex(b => b.KeyCloakId).IsUnique();
         builder.HasIndex(b => b.EmployeeNumber).IsUnique();
+        builder.HasIndex(b => b.TrainingProfileId);
 
         builder
             .HasOne(b => b.TrainingProfileType)
