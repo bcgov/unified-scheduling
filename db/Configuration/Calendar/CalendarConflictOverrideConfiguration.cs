@@ -47,6 +47,5 @@ public sealed class CalendarConflictOverrideConfiguration
                 overrideEntity.ResourceId,
             })
             .IsUnique();
-
     }
 }

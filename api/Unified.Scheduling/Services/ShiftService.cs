@@ -327,9 +327,7 @@ public sealed class ShiftService(
         ShiftGuards.EnsureShiftEventSeriesType(entity.EventSeries!);
         var eventSeries = entity.EventSeries!;
         var draftEntries = entity
-            .ShiftEntries.Where(shiftEntry =>
-                shiftEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Draft
-            )
+            .ShiftEntries.Where(shiftEntry => shiftEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Draft)
             .ToList();
         await EnsureShiftsDoNotConflictAsync(
             CreateShiftConflictCandidates(draftEntries),

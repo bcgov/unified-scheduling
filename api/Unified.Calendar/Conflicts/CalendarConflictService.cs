@@ -103,11 +103,12 @@ public sealed class CalendarConflictService(
         var firstParticipant = await LoadParticipantAsync(key.FirstEvent, key.ResourceId, cancellationToken);
         var secondParticipant = await LoadParticipantAsync(key.SecondEvent, key.ResourceId, cancellationToken);
         if (firstParticipant is null || secondParticipant is null)
-            throw new KeyNotFoundException("Both calendar conflict participants must exist before a conflict can be overridden.");
+            throw new KeyNotFoundException(
+                "Both calendar conflict participants must exist before a conflict can be overridden."
+            );
 
-        var rangeStart = firstParticipant.Start < secondParticipant.Start
-            ? firstParticipant.Start
-            : secondParticipant.Start;
+        var rangeStart =
+            firstParticipant.Start < secondParticipant.Start ? firstParticipant.Start : secondParticipant.Start;
         var rangeEnd = firstParticipant.End > secondParticipant.End ? firstParticipant.End : secondParticipant.End;
         var participants = await LoadParticipantsAsync(
             new CalendarConflictQuery(rangeStart, rangeEnd, [key.ResourceId]),
@@ -230,9 +231,8 @@ public sealed class CalendarConflictService(
         if (firstParticipant is null || secondParticipant is null)
             return false;
 
-        var rangeStart = firstParticipant.Start < secondParticipant.Start
-            ? firstParticipant.Start
-            : secondParticipant.Start;
+        var rangeStart =
+            firstParticipant.Start < secondParticipant.Start ? firstParticipant.Start : secondParticipant.Start;
         var rangeEnd = firstParticipant.End > secondParticipant.End ? firstParticipant.End : secondParticipant.End;
         var participants = await LoadParticipantsAsync(
             new CalendarConflictQuery(rangeStart, rangeEnd, [key.ResourceId]),
@@ -261,9 +261,13 @@ public sealed class CalendarConflictService(
             if (candidate is null)
                 continue;
             if (candidate.Identity != identity || candidate.ResourceId != resourceId)
-                throw new InvalidOperationException("A calendar conflict provider returned a participant for the wrong identity or resource.");
+                throw new InvalidOperationException(
+                    "A calendar conflict provider returned a participant for the wrong identity or resource."
+                );
             if (participant is not null)
-                throw new InvalidOperationException("Multiple calendar conflict providers returned the same participant.");
+                throw new InvalidOperationException(
+                    "Multiple calendar conflict providers returned the same participant."
+                );
 
             participant = candidate;
         }
@@ -318,10 +322,7 @@ public sealed class CalendarConflictService(
             throw new InvalidOperationException("A conflict acknowledgement requires a resource.");
 
         var normalized = acknowledgement with { Note = NormalizeNote(acknowledgement.Note) };
-        return (
-            CalendarConflictKey.Create(firstEvent, secondEvent, normalized.ResourceId),
-            normalized
-        );
+        return (CalendarConflictKey.Create(firstEvent, secondEvent, normalized.ResourceId), normalized);
     }
 
     private static string NormalizeNote(string? note)

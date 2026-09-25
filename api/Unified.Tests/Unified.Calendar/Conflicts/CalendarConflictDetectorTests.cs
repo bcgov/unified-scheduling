@@ -61,7 +61,10 @@ public sealed class CalendarConflictDetectorTests
     {
         var conflicts = CalendarConflictDetector.Detect([
             Participant(1, ResourceA, 0, 60),
-            Participant(1, ResourceA, 30, 90) with { SourceModule = "training" },
+            Participant(1, ResourceA, 30, 90) with
+            {
+                SourceModule = "training",
+            },
         ]);
 
         var conflict = Assert.Single(conflicts);

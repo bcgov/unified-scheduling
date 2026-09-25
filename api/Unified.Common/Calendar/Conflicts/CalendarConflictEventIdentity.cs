@@ -8,9 +8,13 @@ public readonly record struct CalendarConflictEventIdentity(string SourceModule,
     public static CalendarConflictEventIdentity Create(string sourceModule, string eventId)
     {
         if (string.IsNullOrWhiteSpace(sourceModule) || sourceModule.Length > SourceModuleMaxLength)
-            throw new InvalidOperationException($"A source module between 1 and {SourceModuleMaxLength} characters is required.");
+            throw new InvalidOperationException(
+                $"A source module between 1 and {SourceModuleMaxLength} characters is required."
+            );
         if (string.IsNullOrWhiteSpace(eventId) || eventId.Length > EventIdMaxLength)
-            throw new InvalidOperationException($"An event ID between 1 and {EventIdMaxLength} characters is required.");
+            throw new InvalidOperationException(
+                $"An event ID between 1 and {EventIdMaxLength} characters is required."
+            );
 
         return new CalendarConflictEventIdentity(sourceModule, eventId);
     }

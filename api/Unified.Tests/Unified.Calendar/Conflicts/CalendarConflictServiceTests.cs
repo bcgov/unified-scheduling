@@ -517,7 +517,9 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             );
         }
 
-        Task<IReadOnlyCollection<CalendarConflictParticipant>> ICalendarConflictParticipantProvider.GetParticipantsAsync(
+        Task<
+            IReadOnlyCollection<CalendarConflictParticipant>
+        > ICalendarConflictParticipantProvider.GetParticipantsAsync(
             CalendarConflictQuery _query,
             CancellationToken _cancellationToken = default
         )
@@ -546,7 +548,9 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             return Task.FromResult<CalendarConflictParticipant?>(null);
         }
 
-        async Task<IReadOnlyCollection<CalendarConflictParticipant>> ICalendarConflictParticipantProvider.GetParticipantsAsync(
+        async Task<
+            IReadOnlyCollection<CalendarConflictParticipant>
+        > ICalendarConflictParticipantProvider.GetParticipantsAsync(
             CalendarConflictQuery _query,
             CancellationToken cancellationToken = default
         )
@@ -575,7 +579,9 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             return Task.FromResult<CalendarConflictParticipant?>(null);
         }
 
-        Task<IReadOnlyCollection<CalendarConflictParticipant>> ICalendarConflictParticipantProvider.GetParticipantsAsync(
+        Task<
+            IReadOnlyCollection<CalendarConflictParticipant>
+        > ICalendarConflictParticipantProvider.GetParticipantsAsync(
             CalendarConflictQuery _query,
             CancellationToken _cancellationToken = default
         )
