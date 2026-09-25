@@ -23,6 +23,13 @@ public class UserConfiguration : BaseEntityConfiguration<User>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder
+            .HasOne(b => b.TrainingProfileType)
+            .WithMany(p => p.Users)
+            .HasForeignKey(b => b.TrainingProfileId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // @TODO: Enable after adding User Roles
         // builder
         //     .HasMany(m => m.UserRoles)

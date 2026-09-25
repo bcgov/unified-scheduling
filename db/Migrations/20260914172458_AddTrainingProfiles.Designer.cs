@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Unified.Db;
@@ -11,13 +12,15 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    partial class UnifiedDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914172458_AddTrainingProfiles")]
+    partial class AddTrainingProfiles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -96,68 +99,6 @@ namespace Unified.Db.Migrations
                         .HasDatabaseName("ix_audit_entity");
 
                     b.ToTable("AuditRecords");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.Calendar.CalendarConflictOverride", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<uint>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int>("FirstEventId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("InvalidatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Note")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<Guid>("ResourceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("SecondEventId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("SecondEventId");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.HasIndex("FirstEventId", "SecondEventId", "ResourceId")
-                        .IsUnique();
-
-                    b.ToTable("CalendarConflictOverrides", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_CalendarConflictOverrides_NormalizedPair", "\"FirstEventId\" < \"SecondEventId\"");
-                        });
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.Event", b =>
@@ -1967,7 +1908,7 @@ namespace Unified.Db.Migrations
                     b.ToTable("TrainingCategories");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingMandatoryTrainingProfile", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1992,7 +1933,7 @@ namespace Unified.Db.Migrations
                     b.Property<int>("TrainingId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("TrainingProfileTypeId")
+                    b.Property<int>("TrainingProfileId")
                         .HasColumnType("integer");
 
                     b.Property<Guid?>("UpdatedById")
@@ -2005,17 +1946,17 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("TrainingProfileTypeId");
+                    b.HasIndex("TrainingId", "TrainingProfileId")
+                        .IsUnique();
+
+                    b.HasIndex("TrainingProfileId");
 
                     b.HasIndex("UpdatedById");
 
-                    b.HasIndex("TrainingId", "TrainingProfileTypeId")
-                        .IsUnique();
-
-                    b.ToTable("TrainingMandatoryTrainingProfiles", (string)null);
+                    b.ToTable("TrainingMandatoryTrainingProfiles");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileType", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2045,18 +1986,14 @@ namespace Unified.Db.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<DateTimeOffset>("EffectiveDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
@@ -2073,7 +2010,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("TrainingProfileTypes");
+                    b.ToTable("TrainingProfiles");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.UserTraining", b =>
@@ -2640,39 +2577,6 @@ namespace Unified.Db.Migrations
                         .IsUnique();
 
                     b.ToTable("UserRoles");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.Calendar.CalendarConflictOverride", b =>
-                {
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Unified.Db.Models.Calendar.Event", "FirstEvent")
-                        .WithMany()
-                        .HasForeignKey("FirstEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.Calendar.Event", "SecondEvent")
-                        .WithMany()
-                        .HasForeignKey("SecondEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("FirstEvent");
-
-                    b.Navigation("SecondEvent");
-
-                    b.Navigation("UpdatedBy");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.Event", b =>
@@ -3564,7 +3468,7 @@ namespace Unified.Db.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingMandatoryTrainingProfile", b =>
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
@@ -3572,14 +3476,14 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.Training.Training", "Training")
-                        .WithMany("TrainingProfiles")
+                        .WithMany("MandatoryTrainingProfiles")
                         .HasForeignKey("TrainingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Unified.Db.Models.Training.TrainingProfileType", "TrainingProfileType")
-                        .WithMany("TrainingProfiles")
-                        .HasForeignKey("TrainingProfileTypeId")
+                    b.HasOne("Unified.Db.Models.Training.TrainingProfile", "TrainingProfile")
+                        .WithMany("MandatoryTrainings")
+                        .HasForeignKey("TrainingProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -3592,12 +3496,12 @@ namespace Unified.Db.Migrations
 
                     b.Navigation("Training");
 
-                    b.Navigation("TrainingProfileType");
+                    b.Navigation("TrainingProfile");
 
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileType", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
@@ -3725,7 +3629,7 @@ namespace Unified.Db.Migrations
                         .WithMany()
                         .HasForeignKey("HomeLocationId");
 
-                    b.HasOne("Unified.Db.Models.Training.TrainingProfileType", "TrainingProfileType")
+                    b.HasOne("Unified.Db.Models.Training.TrainingProfile", "TrainingProfile")
                         .WithMany("Users")
                         .HasForeignKey("TrainingProfileId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3739,7 +3643,7 @@ namespace Unified.Db.Migrations
 
                     b.Navigation("HomeLocation");
 
-                    b.Navigation("TrainingProfileType");
+                    b.Navigation("TrainingProfile");
 
                     b.Navigation("UpdatedBy");
                 });
@@ -3938,7 +3842,7 @@ namespace Unified.Db.Migrations
 
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
                 {
-                    b.Navigation("TrainingProfiles");
+                    b.Navigation("MandatoryTrainingProfiles");
 
                     b.Navigation("UserTrainings");
                 });
@@ -3948,9 +3852,9 @@ namespace Unified.Db.Migrations
                     b.Navigation("Trainings");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileType", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
                 {
-                    b.Navigation("TrainingProfiles");
+                    b.Navigation("MandatoryTrainings");
 
                     b.Navigation("Users");
                 });
