@@ -215,6 +215,7 @@ function buildUserLabel(user: { firstName: string; lastName: string }): string {
 function enforceMultiSelectLimit<T>(selectionRef: Ref<T[]>, filterLabel: string): void {
   watch(selectionRef, (values) => {
     if (values.length <= maxMultiSelectOptions) {
+      selectionLimitWarning.value = '';
       return;
     }
 
