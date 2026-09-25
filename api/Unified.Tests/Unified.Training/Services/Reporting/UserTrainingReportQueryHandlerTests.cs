@@ -328,6 +328,59 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ExecuteAsync_Should_Only_Include_Missing_Mandatory_For_Matching_Training_Profile()
+    {
+        var carbineProfile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+        var defensiveTacticsProfile = await SeedTrainingProfileAsync("DT", "Defensive Tactics");
+
+        await SeedTrainingAsync(
+            450,
+            "CARB-MAND",
+            "Carbine Mandatory",
+            mandatory: true,
+            mandatoryTrainingProfileIds: [carbineProfile.Id]
+        );
+
+        await SeedUserAsync("Cara", "Carbine", trainingProfileId: carbineProfile.Id);
+        await SeedUserAsync("Dee", "Defensive", trainingProfileId: defensiveTacticsProfile.Id);
+        await SeedUserAsync("Una", "Unassigned");
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters: new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.True(row.HasMissingMandatoryTrainingAssignment);
+        Assert.Equal("Carbine, Cara", row.UserDisplayName);
+        Assert.Equal("Not Taken", row.Status);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Apply_Global_Mandatory_To_All_Users_Even_When_Profiles_Exist()
+    {
+        await SeedTrainingAsync(460, "GLOBAL", "Global Mandatory", mandatory: true, mandatoryTrainingProfileIds: []);
+
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+        await SeedUserAsync("Pia", "Profiled", trainingProfileId: profile.Id);
+        await SeedUserAsync("Ned", "NoProfile");
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters: new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(2, result.Rows.Count);
+        Assert.All(result.Rows, row => Assert.True(row.HasMissingMandatoryTrainingAssignment));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_Should_Filter_By_Region_Using_User_HomeLocation_Region()
     {
         var training = await SeedTrainingAsync(500, "REGION", "Region Filter Training", mandatory: false);
@@ -404,6 +457,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         string firstName,
         string lastName,
         int? homeLocationId = null,
+        int? trainingProfileId = null,
         bool isEnabled = true
     )
     {
@@ -417,6 +471,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             LastName = lastName,
             Gender = Gender.Other,
             HomeLocationId = homeLocationId,
+            TrainingProfileId = trainingProfileId,
         };
 
         _db.Users.Add(user);
@@ -429,7 +484,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         int id,
         string code,
         string description,
-        bool mandatory
+        bool mandatory,
+        IReadOnlyCollection<int>? mandatoryTrainingProfileIds = null
     )
     {
         var category = await _db.TrainingCategories.FirstOrDefaultAsync(
@@ -456,7 +512,30 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         _db.Trainings.Add(training);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
+        if (mandatoryTrainingProfileIds is { Count: > 0 })
+        {
+            _db.TrainingProfiles.AddRange(
+                mandatoryTrainingProfileIds.Select(profileId => new TrainingProfile
+                {
+                    TrainingId = training.Id,
+                    TrainingProfileTypeId = profileId,
+                })
+            );
+
+            await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
         return training;
+    }
+
+    private async Task<TrainingProfileType> SeedTrainingProfileAsync(string code, string _description)
+    {
+        var profile = new TrainingProfileType { Code = code, Name = code };
+
+        _db.TrainingProfileTypes.Add(profile);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return profile;
     }
 
     private async Task<Region> SeedRegionAsync(string name)

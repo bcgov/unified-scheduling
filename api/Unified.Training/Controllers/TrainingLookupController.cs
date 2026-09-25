@@ -1,4 +1,5 @@
 using FluentValidation;
+using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,12 +36,12 @@ public class TrainingLookupController(
 
     [HttpGet("{id:int}")]
     [Authorize(Policy = TrainingsViewPolicy)]
-    [ProducesResponseType(typeof(TrainingLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TrainingDetailResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<TrainingLookupResponse>> GetById(int id, CancellationToken cancellationToken)
+    public async Task<ActionResult<TrainingDetailResponse>> GetById(int id, CancellationToken cancellationToken)
     {
         var result = await trainingLookupStrategy.GetByIdAsync(id, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        return result is null ? NotFound() : Ok(result.Adapt<TrainingDetailResponse>());
     }
 
     [HttpPost]
