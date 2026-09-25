@@ -73,7 +73,7 @@ public static class TrainingModule
         services.AddScoped<ILookupStrategy>(serviceProvider =>
             serviceProvider.GetRequiredService<ITrainingLookupStrategy>()
         );
-        services.AddSeeder<UnifiedDbContext, TrainingProfileSeeder>();
+        services.AddSeeder<UnifiedDbContext, TrainingProfileTypeSeeder>();
 
         services.AddScoped<TrainingLookupRequestValidator>();
         services.AddScoped<UserTrainingRequestValidator>();
