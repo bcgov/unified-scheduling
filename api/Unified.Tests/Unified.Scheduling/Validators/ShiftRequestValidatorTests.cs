@@ -42,6 +42,40 @@ public sealed class ShiftRequestValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.TimeZoneId);
     }
 
+    [Fact]
+    public async Task ShiftSeriesRequestValidator_WhenLocationIdIsNotPositive_HasLocationError()
+    {
+        // Arrange
+        var validator = new ShiftSeriesRequestValidator();
+        var request = CreateShiftSeriesRequest() with { LocationId = 0 };
+
+        // Act
+        var result = await validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        result.ShouldHaveValidationErrorFor(x => x.LocationId);
+    }
+
+    [Fact]
+    public async Task ShiftEntryRequestValidator_WhenLocationIdIsNotPositive_HasLocationError()
+    {
+        // Arrange
+        var validator = new ShiftEntryRequestValidator();
+        var request = CreateShiftEntryRequest() with { LocationId = 0 };
+
+        // Act
+        var result = await validator.TestValidateAsync(
+            request,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        // Assert
+        result.ShouldHaveValidationErrorFor(x => x.LocationId);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -98,6 +132,7 @@ public sealed class ShiftRequestValidatorTests
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
             EndAtUtc = new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero),
             TimeZoneId = timeZoneId,
+            LocationId = 1,
             UserIds = [UserA],
         };
 
@@ -108,6 +143,7 @@ public sealed class ShiftRequestValidatorTests
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
             EndAtUtc = new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero),
             TimeZoneId = timeZoneId,
+            LocationId = 1,
             UserIds = [UserA],
         };
 }

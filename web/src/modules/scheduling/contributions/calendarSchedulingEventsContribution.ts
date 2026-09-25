@@ -1,12 +1,14 @@
 import { getApiUsersUserIdActingPositions } from '@/api-access/generated/acting-positions/acting-positions';
 import { postApiSchedulingCalendarEvents } from '@/api-access/generated/scheduling-calendar/scheduling-calendar';
-import { getApiUsers } from '@/api-access/generated/users/users';
 import type { ActingPositionResponseDto, SchedulingCalendarRequest, UserResponse } from '@/api-access/generated/models';
 import type { CalendarResourceBase } from '@/modules/calendar/calendarTypes';
 import { CalendarContributionId, CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
 import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
-import type { CalendarSchedulingEvent } from '../calendarSchedulingData';
+import type { CalendarSchedulingEvent, CalendarUser } from '../calendarSchedulingData';
+import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
+import { canViewAssignments, canViewShifts } from '../calendarSchedulingPermissions';
+import { useUsersStore } from '@/stores/Users';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
@@ -17,16 +19,23 @@ export interface CalendarSchedulingUserResource extends CalendarResourceBase {
 
 interface CalendarSchedulingResourceData {
   users: UserResponse[];
+  getUserById(userId: string): UserResponse | undefined;
   actingPositionsByUserId: Map<string, ActingPositionResponseDto[]>;
 }
 
-const resourceDataCache = new Map<string, Promise<CalendarSchedulingResourceData>>();
+const actingPositionsByUserIdCache = new Map<string, ActingPositionResponseDto[]>();
 
 export const calendarSchedulingEventsContribution: CalendarModuleContribution = {
   moduleId: CalendarModuleId.Scheduling,
-  contributionId: CalendarContributionId.SchedulingShiftEvents,
+  contributionId: CalendarContributionId.SchedulingEvents,
   isAvailable(runtimeContext) {
-    return runtimeContext.featureFlags.Scheduling?.enabled ?? true;
+    return (
+      (runtimeContext.featureFlags.Scheduling?.enabled ?? true) &&
+      (canViewShifts(runtimeContext) || canViewAssignments(runtimeContext))
+    );
+  },
+  onDeactivate() {
+    actingPositionsByUserIdCache.clear();
   },
   async load(context, options) {
     const userIds = extractUserIds(context.filters);
@@ -36,7 +45,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
         {
           startDate: context.startDate,
           endDate: context.endDate,
-          timeZoneId: resolveTimeZoneId(context.filters),
+          timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
           locationId: context.locationId,
           userIds,
         },
@@ -50,43 +59,73 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
 
     return {
       moduleId: CalendarModuleId.Scheduling,
-      contributionId: CalendarContributionId.SchedulingShiftEvents,
-      events: events.map<CalendarSchedulingEvent>((event) => ({
-        id: event.id,
-        type: event.type,
-        sourceModule: event.sourceModule,
-        title: event.title,
-        description: event.description ?? undefined,
-        notes: event.notes ?? undefined,
-        color: event.color ?? undefined,
-        start: event.start,
-        end: event.end ?? undefined,
-        seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
-        seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
-        allDay: event.allDay ?? false,
-        isException: event.isException ?? false,
-        isConflict: eventHasConflict(event),
-        eventTypeCode: event.eventTypeCode,
-        statusTypeCode: event.statusTypeCode,
-        cancelledAt: event.cancelledAt ?? undefined,
-        cancelledByUserId: event.cancelledByUserId ?? undefined,
-        cancellationReason: event.cancellationReason ?? undefined,
-        timeZoneId: event.timeZoneId ?? undefined,
-        locationId: event.locationId ?? undefined,
-        resourceIds: event.resourceIds ?? [],
-        metadata: {
-          shiftEntryId: event.shiftEntryId === undefined ? undefined : String(event.shiftEntryId),
-          userIds: event.userIds ?? [],
-          eventId: event.eventId,
-          shiftSeriesId: event.shiftSeriesId ?? undefined,
-        },
-      })),
+      contributionId: CalendarContributionId.SchedulingEvents,
+      events: events.map<CalendarSchedulingEvent>((event) => {
+        const assignedUserIds = event.assignedUserIds ?? [];
+
+        return {
+          id: event.id,
+          type: event.type,
+          sourceModule: event.sourceModule,
+          title: event.title,
+          description: event.description ?? undefined,
+          notes: event.notes ?? undefined,
+          color: event.color ?? undefined,
+          start: event.start,
+          end: event.end ?? undefined,
+          seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
+          seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
+          allDay: event.allDay ?? false,
+          isException: event.isException ?? false,
+          isConflict: eventHasConflict(event),
+          eventTypeCode: event.eventTypeCode,
+          statusTypeCode: event.statusTypeCode,
+          cancelledAt: event.cancelledAt ?? undefined,
+          cancelledByUserId: event.cancelledByUserId ?? undefined,
+          cancellationReason: event.cancellationReason ?? undefined,
+          timeZoneId: event.timeZoneId ?? undefined,
+          locationId: event.locationId ?? undefined,
+          resourceIds: event.resourceIds ?? [],
+          metadata: {
+            shiftEntryId: event.shiftEntryId == null ? undefined : String(event.shiftEntryId),
+            shiftSeriesId: event.shiftSeriesId ?? undefined,
+            assignmentEntryId: event.assignmentEntryId == null ? undefined : String(event.assignmentEntryId),
+            assignmentSeriesId: event.assignmentSeriesId == null ? undefined : String(event.assignmentSeriesId),
+            assignmentDefinitionId: resolveAssignmentDefinitionId(event),
+            userIds: event.userIds ?? [],
+            eventId: event.eventId,
+            capacity: event.capacity ?? undefined,
+            assignedCount: event.assignedUserCount ?? assignedUserIds.length,
+            assignedShiftIds: (event.linkedShiftEntryIds ?? []).map(String),
+            assignedUserIds,
+            assignedUsers: assignedUserIds.flatMap((userId) => {
+              const user = resourceData.getUserById(userId);
+              return user ? [mapUserToCalendarUser(user)] : [];
+            }),
+            categoryId: event.categoryId ?? undefined,
+            categoryName: event.categoryName ?? undefined,
+            subCategoryId: event.subCategoryId ?? undefined,
+            subCategoryName: event.subCategoryName ?? undefined,
+          },
+        };
+      }),
       resources: resourceUsers.map<CalendarSchedulingUserResource>((user) =>
         mapUserToCalendarSchedulingResource(user, resourceData.actingPositionsByUserId.get(user.id) ?? []),
       ),
     };
   },
 };
+
+function resolveAssignmentDefinitionId(event: unknown) {
+  if (!event || typeof event !== 'object' || !('assignmentDefinitionId' in event)) {
+    return undefined;
+  }
+
+  const assignmentDefinitionId = Number(event.assignmentDefinitionId);
+  return Number.isInteger(assignmentDefinitionId) && assignmentDefinitionId > 0
+    ? String(assignmentDefinitionId)
+    : undefined;
+}
 
 function eventHasConflict(event: unknown) {
   return typeof event === 'object' && event !== null && 'isConflict' in event && event.isConflict === true;
@@ -120,6 +159,18 @@ function mapUserToCalendarSchedulingResource(
     title,
     subtitle: subtitle || undefined,
     meta: meta.length ? meta : undefined,
+    avatarText: toAvatarText(user.firstName, user.lastName, user.idirName),
+  };
+}
+
+function mapUserToCalendarUser(user: UserResponse): CalendarUser {
+  const title = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.idirName;
+
+  return {
+    id: user.id,
+    type: 'user',
+    title,
+    subtitle: user.rank ?? undefined,
     avatarText: toAvatarText(user.firstName, user.lastName, user.idirName),
   };
 }
@@ -169,11 +220,6 @@ function toAvatarText(firstName?: string, lastName?: string, fallback?: string) 
   return fallback?.trim().slice(0, 2).toUpperCase() || undefined;
 }
 
-function resolveTimeZoneId(filters: Record<string, unknown>) {
-  const timeZone = filters.timeZoneId ?? filters.timeZone;
-  return typeof timeZone === 'string' && timeZone.trim() ? timeZone : undefined;
-}
-
 function extractUserIds(filters: Record<string, unknown>) {
   const candidate = filters.userIds;
 
@@ -200,72 +246,39 @@ async function loadSchedulingCalendarData(request: SchedulingCalendarRequest, si
   return data.value ?? {};
 }
 
-async function loadSchedulingCalendarUsers(locationId?: number, signal?: AbortSignal): Promise<UserResponse[]> {
-  const { data, error, execute } = getApiUsers(
-    {
-      IsEnabled: true,
-      LocationId: locationId,
-    },
-    {
-      fetchOptions: { signal },
-      options: { immediate: false },
-    },
-  );
-
-  await execute();
-
-  if (error.value) {
-    throw error.value;
-  }
-
-  return data.value ?? [];
-}
-
 async function loadSchedulingResourceData(
   locationId?: number,
   signal?: AbortSignal,
 ): Promise<CalendarSchedulingResourceData> {
-  const cacheKey = createResourceDataCacheKey(locationId);
-  const cachedResourceData = resourceDataCache.get(cacheKey);
-
-  if (cachedResourceData) {
-    return cachedResourceData;
+  if (!locationId) {
+    return {
+      users: [],
+      getUserById: () => undefined,
+      actingPositionsByUserId: new Map(),
+    };
   }
 
-  const resourceData = loadSchedulingResourceDataFromApi(locationId, signal);
-  resourceDataCache.set(cacheKey, resourceData);
-
-  try {
-    return await resourceData;
-  } catch (error) {
-    if (resourceDataCache.get(cacheKey) === resourceData) {
-      resourceDataCache.delete(cacheKey);
-    }
-
-    throw error;
-  }
-}
-
-async function loadSchedulingResourceDataFromApi(
-  locationId?: number,
-  signal?: AbortSignal,
-): Promise<CalendarSchedulingResourceData> {
-  const users = await loadSchedulingCalendarUsers(locationId, signal);
+  const usersStore = useUsersStore();
+  const [users] = await Promise.all([
+    usersStore.ensureUsersForLocation(locationId, signal),
+    usersStore.ensureAllUsers(signal),
+  ]);
   const actingPositionsByUserId = await loadActingPositionsByUser(users, signal);
 
   return {
     users,
+    getUserById: usersStore.getUserById,
     actingPositionsByUserId,
   };
-}
-
-function createResourceDataCacheKey(locationId?: number) {
-  return locationId == null ? 'all-locations' : String(locationId);
 }
 
 async function loadActingPositionsByUser(users: UserResponse[], signal?: AbortSignal) {
   const entries = await Promise.all(
     users.map(async (user) => {
+      if (actingPositionsByUserIdCache.has(user.id)) {
+        return [user.id, actingPositionsByUserIdCache.get(user.id) ?? []] as const;
+      }
+
       const { data, error, execute } = getApiUsersUserIdActingPositions(user.id, {
         fetchOptions: { signal },
         options: { immediate: false },
@@ -277,7 +290,9 @@ async function loadActingPositionsByUser(users: UserResponse[], signal?: AbortSi
         throw error.value;
       }
 
-      return [user.id, data.value ?? []] as const;
+      const actingPositions = data.value ?? [];
+      actingPositionsByUserIdCache.set(user.id, actingPositions);
+      return [user.id, actingPositions] as const;
     }),
   );
 

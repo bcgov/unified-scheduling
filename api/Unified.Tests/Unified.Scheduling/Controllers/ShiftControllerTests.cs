@@ -476,6 +476,7 @@ public class ShiftControllerTests
             RecurrenceRule = "FREQ=DAILY;COUNT=1",
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
             EndAtUtc = new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero),
+            LocationId = 1,
             UserIds = userIds ?? [UserA, UserB],
         };
 
@@ -486,6 +487,7 @@ public class ShiftControllerTests
             Title = "Entry",
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
             EndAtUtc = new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero),
+            LocationId = 1,
             UserIds = userIds ?? [UserA, UserB],
         };
 

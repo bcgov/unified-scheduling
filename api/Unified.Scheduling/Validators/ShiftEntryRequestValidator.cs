@@ -20,9 +20,17 @@ public sealed class ShiftEntryRequestValidator : AbstractValidator<ShiftEntryReq
         RuleFor(request => request.SeriesStartAtUtc)
             .LessThan(request => request.SeriesEndAtUtc!.Value)
             .When(request => request.SeriesStartAtUtc.HasValue && request.SeriesEndAtUtc.HasValue);
-        RuleFor(request => request.LocationId).GreaterThan(0).When(request => request.LocationId.HasValue);
+        RuleFor(request => request.LocationId).GreaterThan(0);
         RuleFor(request => request.UserIds).NotEmpty().Must(HaveDistinctValues);
         RuleForEach(request => request.UserIds).NotEmpty();
+        RuleFor(request => request.AssignmentEntryLinks)
+            .Must(links =>
+                links is null || links.Select(link => link.AssignmentEntryId).Distinct().Count() == links.Count
+            )
+            .WithMessage("Assignment entry links must be unique.");
+        RuleForEach(request => request.AssignmentEntryLinks!)
+            .SetValidator(new AssignmentEntryLinkRequestValidator())
+            .When(request => request.AssignmentEntryLinks is not null);
     }
 
     private static bool HaveDistinctValues(IReadOnlyCollection<Guid>? userIds)

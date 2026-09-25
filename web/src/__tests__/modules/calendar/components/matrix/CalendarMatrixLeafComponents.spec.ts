@@ -289,6 +289,40 @@ describe('CalendarMatrixEventBlock', () => {
     expect(wrapper.find('.calendar-matrix-event-block__action.is-static').exists()).toBe(true);
     expect(wrapper.classes()).toEqual(expect.arrayContaining(['is-active', 'has-primary-variant']));
   });
+
+  it('uses a light color background and color bar for active colored events', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixEventBlock, {
+      props: {
+        event: { ...event, id: 'event-3' },
+        showColorBar: true,
+        display: {
+          color: '#123456',
+          status: 'active',
+        },
+      },
+    });
+
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['is-active', 'has-color-bar']));
+    expect(wrapper.attributes('style')).toContain('--calendar-event-border-color: #123456');
+    expect(wrapper.attributes('style')).toContain('--calendar-event-bg: rgba(18, 52, 86, 0.16)');
+  });
+
+  it('emits click without selecting the event when selection on click is disabled', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixEventBlock, {
+      props: {
+        event: { ...event, id: 'event-4' },
+        selectOnClick: false,
+      },
+      global: {
+        provide: { [calendarMatrixContextKey as symbol]: matrixContext },
+      },
+    });
+
+    await wrapper.get('button.calendar-matrix-event-block__main').trigger('click');
+
+    expect(matrixContext.selectEvent).not.toHaveBeenCalled();
+    expect(wrapper.emitted('eventClick')?.[0]).toEqual([{ ...event, id: 'event-4' }]);
+  });
 });
 
 describe('CalendarMatrixResourceRow', () => {
@@ -343,6 +377,7 @@ describe('CalendarMatrixSidePanelItem', () => {
       currentTarget: wrapper.get('.calendar-matrix-side-panel-item').element,
     });
     await wrapper.get('.calendar-matrix-side-panel-item').trigger('dragend');
+    await wrapper.get('.calendar-matrix-side-panel-item').trigger('click');
 
     expect(wrapper.text()).toContain('Ada Lovelace');
     expect(wrapper.attributes('role')).toBe('listitem');
@@ -356,6 +391,14 @@ describe('CalendarMatrixSidePanelItem', () => {
     });
     expect(matrixContext.clearDrag).toHaveBeenCalledOnce();
     expect(wrapper.emitted('dragStart')?.[0]?.[0]).toMatchObject({ source: 'side-panel', itemId: 'item-1' });
+    expect(wrapper.emitted('itemClick')?.[0]).toEqual([sidePanelItem]);
+    expect(wrapper.classes()).toContain('is-hoverable');
+
+    const assignmentWrapper = await mountWithApp(CalendarMatrixSidePanelItem, {
+      props: { item: { ...sidePanelItem, type: 'assignment' } },
+    });
+    expect(assignmentWrapper.classes()).toContain('is-clickable');
+    expect(assignmentWrapper.classes()).toContain('is-hoverable');
   });
 });
 
@@ -371,21 +414,23 @@ describe('CalendarMatrixSidePanel', () => {
           },
           CalendarMatrixSidePanelItem: {
             props: ['item'],
-            emits: ['dragStart'],
+            emits: ['dragStart', 'itemClick'],
             template:
-              '<button class="side-panel-item-stub" @click="$emit(\'dragStart\', { source: \'side-panel\', itemId: item.id, itemType: item.type })">{{ item.title }}</button>',
+              '<div><button class="side-panel-drag-stub" @click="$emit(\'dragStart\', { source: \'side-panel\', itemId: item.id, itemType: item.type })">Drag</button><button class="side-panel-item-stub" @click="$emit(\'itemClick\', item)">{{ item.title }}</button></div>',
           },
         },
       },
     });
 
     await wrapper.get('.ua-btn-stub').trigger('click');
+    await wrapper.get('.side-panel-drag-stub').trigger('click');
     await wrapper.get('.side-panel-item-stub').trigger('click');
 
     expect(wrapper.attributes('aria-label')).toBe('People');
     expect(wrapper.text()).toContain('People');
     expect(wrapper.emitted('action')).toHaveLength(1);
     expect(wrapper.emitted('itemDragStart')?.[0]?.[0]).toMatchObject({ itemId: 'item-1', itemType: 'user' });
+    expect(wrapper.emitted('itemClick')?.[0]).toEqual([sidePanelItem]);
   });
 
   it('renders the empty state when there are no items', async () => {

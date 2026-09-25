@@ -24,7 +24,9 @@ public sealed record ShiftEntryRequest
 
     public bool AllDay { get; init; }
 
-    public int? LocationId { get; init; }
+    public int LocationId { get; init; }
 
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
+
+    public IReadOnlyCollection<AssignmentEntryLinkRequest>? AssignmentEntryLinks { get; init; }
 }

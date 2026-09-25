@@ -42,6 +42,7 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<CourtRoom> CourtRooms { get; set; }
     public DbSet<EventSeries> EventSeries { get; set; }
     public DbSet<Event> Events { get; set; }
+    public DbSet<CalendarConflictOverride> CalendarConflictOverrides { get; set; }
     public DbSet<TrainingCategory> TrainingCategories { get; set; }
     public DbSet<Training> Trainings { get; set; }
     public DbSet<UserTraining> UserTrainings { get; set; }
@@ -81,8 +82,6 @@ public class UnifiedDbContext : AuditDbContext
         }
     }
 
-    private const string SavepointName = "UnifiedDbContext_SaveChanges";
-
     // Shares one transaction across the entity save and the nested AuditRecord insert Audit.NET
     // performs on success, so a failure in either rolls back both together. Guarded by
     // IsRelational() since the in-memory provider (used only in tests) doesn't support
@@ -101,7 +100,8 @@ public class UnifiedDbContext : AuditDbContext
 
         if (Database.CurrentTransaction is { } ambientTransaction)
         {
-            await ambientTransaction.CreateSavepointAsync(SavepointName, cancellationToken);
+            var savepointName = $"UnifiedSave_{Guid.NewGuid():N}";
+            await ambientTransaction.CreateSavepointAsync(savepointName, cancellationToken);
 
             try
             {
@@ -110,13 +110,16 @@ public class UnifiedDbContext : AuditDbContext
                     cancellationToken
                 );
 
-                await ambientTransaction.ReleaseSavepointAsync(SavepointName, cancellationToken);
+                await ambientTransaction.ReleaseSavepointAsync(savepointName, cancellationToken);
 
                 return result;
             }
             catch
             {
-                await ambientTransaction.RollbackToSavepointAsync(SavepointName, cancellationToken);
+                await ambientTransaction.RollbackToSavepointAsync(
+                    savepointName,
+                    CancellationToken.None
+                );
 
                 throw;
             }
@@ -140,19 +143,20 @@ public class UnifiedDbContext : AuditDbContext
 
         if (Database.CurrentTransaction is { } ambientTransaction)
         {
-            ambientTransaction.CreateSavepoint(SavepointName);
+            var savepointName = $"UnifiedSave_{Guid.NewGuid():N}";
+            ambientTransaction.CreateSavepoint(savepointName);
 
             try
             {
                 var result = base.SaveChanges(acceptAllChangesOnSuccess);
 
-                ambientTransaction.ReleaseSavepoint(SavepointName);
+                ambientTransaction.ReleaseSavepoint(savepointName);
 
                 return result;
             }
             catch
             {
-                ambientTransaction.RollbackToSavepoint(SavepointName);
+                ambientTransaction.RollbackToSavepoint(savepointName);
 
                 throw;
             }

@@ -16,7 +16,8 @@ public sealed class SeederFactoryTests
             [new TestSeeder(2, "B", executions), new TestSeeder(1, "B", executions), new TestSeeder(1, "A", executions)]
         );
 
-        await factory.SeedAsync(null!, TestContext.Current.CancellationToken);
+        using var context = new DbContext(new DbContextOptionsBuilder<DbContext>().Options);
+        await factory.SeedAsync(context, TestContext.Current.CancellationToken);
 
         Assert.Equal(["A", "B", "B"], executions);
     }

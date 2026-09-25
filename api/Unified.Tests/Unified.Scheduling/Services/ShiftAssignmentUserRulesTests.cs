@@ -1,3 +1,4 @@
+using Unified.Common.Time;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Services;
@@ -31,7 +32,7 @@ public sealed class ShiftAssignmentUserRulesTests
         var assignmentEntry = new AssignmentEntry { Event = CreateEvent(9, 0, 10, 0) };
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, [requestedUserId])
+            ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, [requestedUserId], new TimeZoneService())
         );
 
         Assert.Equal("Selected users must belong to the linked shift entry.", exception.Message);

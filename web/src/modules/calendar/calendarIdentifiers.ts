@@ -6,5 +6,5 @@ export enum CalendarModuleId {
 
 export enum CalendarContributionId {
   Events = 'calendar.events',
-  SchedulingShiftEvents = 'scheduling.shift-events',
+  SchedulingEvents = 'scheduling.events',
 }

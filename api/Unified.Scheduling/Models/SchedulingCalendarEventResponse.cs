@@ -7,6 +7,7 @@ public sealed record SchedulingCalendarEventResponse
     public int? ShiftSeriesId { get; init; }
     public int? AssignmentEntryId { get; init; }
     public int? AssignmentSeriesId { get; init; }
+    public int? AssignmentDefinitionId { get; init; }
     public int EventId { get; init; }
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
     public required string Type { get; init; }

@@ -51,6 +51,7 @@ public static class SchedulingModule
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
+        services.AddScoped<IProposedShiftAssignmentOptionsService, ProposedShiftAssignmentOptionsService>();
         services.AddScoped<ShiftSeriesMaterializationHandler>();
         services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();
@@ -63,6 +64,7 @@ public static class SchedulingModule
         services.AddScoped<ShiftAssignmentSeriesRequestValidator>();
         services.AddScoped<ShiftAssignmentEntryUpdateRequestValidator>();
         services.AddScoped<ShiftAssignmentSeriesUpdateRequestValidator>();
+        services.AddScoped<ProposedShiftAssignmentOptionsRequestValidator>();
         services.AddScoped<SchedulingCalendarRequestValidator>();
         services.AddSeeder<Unified.Db.UnifiedDbContext, ShiftEventTypeSeeder>();
         services.AddSingleton(SchedulingPermissionSeedData.Configuration);

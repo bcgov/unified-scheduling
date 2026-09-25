@@ -1,8 +1,10 @@
 import type { CalendarRegistry } from './registry/calendarRegistry';
+import type { CalendarModuleContribution } from './registry/calendarRegistryTypes';
 import type { CalendarDataResponse, CalendarQueryContext, CalendarRuntimeContext } from './calendarTypes';
 
 class CalendarDataService {
   private activeAbortController: AbortController | null = null;
+  private readonly sessionContributions = new Set<CalendarModuleContribution>();
 
   async loadData(
     runtimeContext: CalendarRuntimeContext,
@@ -15,6 +17,7 @@ class CalendarDataService {
     this.activeAbortController = abortController;
 
     const contributions = registry.getAvailableModuleContributions(runtimeContext, queryContext);
+    contributions.forEach((contribution) => this.sessionContributions.add(contribution));
     const entries = await Promise.all(
       contributions.map(async (contribution) => {
         const data = await contribution.load(queryContext, { signal: abortController.signal });
@@ -34,6 +37,14 @@ class CalendarDataService {
   cancel() {
     this.activeAbortController?.abort();
     this.activeAbortController = null;
+  }
+
+  endSession() {
+    this.cancel();
+
+    const contributions = [...this.sessionContributions];
+    this.sessionContributions.clear();
+    contributions.forEach((contribution) => contribution.onDeactivate?.());
   }
 }
 

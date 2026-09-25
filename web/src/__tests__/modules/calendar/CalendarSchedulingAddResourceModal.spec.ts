@@ -7,9 +7,21 @@ import * as directives from 'vuetify/directives';
 import LuxonAdapter from '@date-io/luxon';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import { useAuthStore } from '@/stores/auth';
+import { Permissions } from '@/api-access/generated/models';
 
 function createModalTestApp() {
   const pinia = createPinia();
+  useAuthStore(pinia).setUserInfo({
+    isAuthenticated: true,
+    isRegistered: true,
+    name: 'Unit Test User',
+    authenticationType: 'test',
+    claims: [],
+    permissions: Object.values(Permissions),
+    userId: null,
+    homeLocationId: null,
+  });
   const vuetify = createVuetify({
     components,
     directives,
@@ -24,6 +36,8 @@ type ShiftApiRequest = {
 };
 
 type ShiftApiMock = {
+  loadEntries?: ReturnType<typeof vi.fn>;
+  loadSeries?: ReturnType<typeof vi.fn>;
   postEntry?: (body: unknown, options?: unknown) => ShiftApiRequest;
   postEntryPublish?: (id: unknown, options?: unknown) => ShiftApiRequest;
   postSeries?: (body: unknown, options?: unknown) => ShiftApiRequest;
@@ -37,6 +51,18 @@ async function executeRequest(request: ShiftApiRequest | undefined) {
 
 function buildShiftApiMock(api: ShiftApiMock) {
   return {
+    loadShiftEntries:
+      api.loadEntries ??
+      vi.fn().mockResolvedValue({
+        data: { value: [] },
+        error: { value: null },
+      }),
+    loadShiftSeriesList:
+      api.loadSeries ??
+      vi.fn().mockResolvedValue({
+        data: { value: [] },
+        error: { value: null },
+      }),
     createShiftEntry: (body: unknown) => executeRequest(api.postEntry?.(body, { options: { immediate: false } })),
     createShiftSeries: (body: unknown) => executeRequest(api.postSeries?.(body, { options: { immediate: false } })),
     publishShiftEntry: (id: unknown) => executeRequest(api.postEntryPublish?.(id, { options: { immediate: false } })),
@@ -103,8 +129,55 @@ describe('CalendarSchedulingAddResourceModal', () => {
     document.body.innerHTML = '';
   });
 
+  it('does not load shift lists when opening the modal', async () => {
+    const loadEntries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
+    const loadSeries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => buildShiftApiMock({ loadEntries, loadSeries }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp();
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: { initialDate: '2026-08-24', timeZone: 'America/Vancouver' },
+      global: { plugins: app.mountPlugins },
+    });
+
+    await flushPromises();
+
+    expect(loadEntries).not.toHaveBeenCalled();
+    expect(loadSeries).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('does not load shift lists when location changes', async () => {
+    const loadEntries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
+    const loadSeries = vi.fn().mockResolvedValue({ data: { value: [] }, error: { value: null } });
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => buildShiftApiMock({ loadEntries, loadSeries }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp();
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      global: { plugins: app.mountPlugins },
+    });
+
+    await flushPromises();
+
+    useLocationsStore(app.pinia).setSelectedLocationId(9);
+    await flushPromises();
+
+    expect(loadEntries).not.toHaveBeenCalled();
+    expect(loadSeries).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
   it('posts a shift entry, refreshes the calendar, and closes the modal', async () => {
     const postEntryExecute = vi.fn().mockResolvedValue(undefined);
+    const publishEntryExecute = vi.fn().mockResolvedValue(undefined);
     const postEntry = vi.fn().mockReturnValue({
       data: { value: { id: 321 } },
       error: { value: null },
@@ -112,7 +185,11 @@ describe('CalendarSchedulingAddResourceModal', () => {
     });
 
     const postSeries = vi.fn();
-    const postEntryPublish = vi.fn();
+    const postEntryPublish = vi.fn().mockReturnValue({
+      data: { value: { id: 321 } },
+      error: { value: null },
+      execute: publishEntryExecute,
+    });
     const postSeriesPublish = vi.fn();
 
     vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
@@ -152,7 +229,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
 
     expect(vm.formData.cancel).toBe('no');
     vm.formData.date = '2026-07-02';
-    vm.formData.publish = 'no';
+    vm.formData.publish = 'yes';
 
     const saveButton = Array.from(document.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Save'),
@@ -169,8 +246,120 @@ describe('CalendarSchedulingAddResourceModal', () => {
       expect.objectContaining({ options: { immediate: false } }),
     );
     expect(postEntryExecute).toHaveBeenCalled();
-    expect(postEntryPublish).not.toHaveBeenCalled();
+    expect(postEntryPublish).toHaveBeenCalledWith(321, expect.objectContaining({ options: { immediate: false } }));
+    expect(publishEntryExecute).toHaveBeenCalled();
     expect(calendarStore.refreshNonce).toBe(1);
+    expect(wrapper.emitted('close')).toBeTruthy();
+
+    wrapper.unmount();
+  });
+
+  it('maps a structured create conflict to employees and does not publish', async () => {
+    const postEntryPublish = vi.fn();
+    const postEntry = vi.fn().mockReturnValue({
+      data: { value: { errors: { UserIds: ['Alex Alpha already has a shift at this location.'] } } },
+      error: {
+        value: new Error('Conflict.'),
+      },
+      execute: vi.fn().mockResolvedValue(undefined),
+    });
+
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
+      buildShiftApiMock({
+        postEntry,
+        postEntryPublish,
+        postSeries: vi.fn(),
+        postSeriesPublish: vi.fn(),
+      }),
+    );
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp();
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialDate: '2026-07-02',
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+    const vm = wrapper.vm as unknown as { handleSave: () => Promise<void> };
+    await vm.handleSave();
+
+    expect(document.body.textContent).toContain(
+      'One or more selected employees already have a shift at this location on the selected date.',
+    );
+    expect(document.body.textContent).toContain('Alex Alpha already has a shift at this location.');
+    expect(wrapper.emitted('close')).toBeUndefined();
+    expect(postEntryPublish).not.toHaveBeenCalled();
+    expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.includes('Save'))).toBe(
+      true,
+    );
+    expect(postEntry).toHaveBeenCalledOnce();
+
+    wrapper.unmount();
+  });
+
+  it('posts a shift entry from the create action without a preselected resource', async () => {
+    const postEntryExecute = vi.fn().mockResolvedValue(undefined);
+    const postEntry = vi.fn().mockReturnValue({
+      data: { value: { id: 322 } },
+      error: { value: null },
+      execute: postEntryExecute,
+    });
+
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
+      buildShiftApiMock({
+        postEntry,
+        postEntryPublish: vi.fn(),
+        postSeries: vi.fn(),
+        postSeriesPublish: vi.fn(),
+      }),
+    );
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: { initialDate: '2026-08-24', timeZone: 'America/Vancouver' },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+    locationsStore.setSelectedLocationId(12);
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      handleSave: () => Promise<void>;
+      formErrors: Record<string, string>;
+      formData: { locationId?: number | null };
+      apiError: string;
+    };
+    expect(vm.formData.locationId).toBe(12);
+    await vm.handleSave();
+
+    expect(vm.formErrors).toEqual({});
+    expect(vm.apiError).toBe('');
+    expect(postEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'New shift',
+        locationId: 12,
+        userIds: [],
+      }),
+      expect.objectContaining({ options: { immediate: false } }),
+    );
+    expect(postEntryExecute).toHaveBeenCalled();
     expect(wrapper.emitted('close')).toBeTruthy();
 
     wrapper.unmount();
@@ -253,6 +442,87 @@ describe('CalendarSchedulingAddResourceModal', () => {
     wrapper.unmount();
   });
 
+  it.each([
+    { kind: 'entry' as const, createdId: 701 },
+    { kind: 'series' as const, createdId: 702 },
+  ])('prevents duplicate $kind creation when publication fails', async ({ kind, createdId }) => {
+    const createExecute = vi.fn().mockResolvedValue(undefined);
+    const publishExecute = vi.fn().mockResolvedValue(undefined);
+    const create = vi.fn().mockReturnValue({
+      data: { value: { id: createdId } },
+      error: { value: null },
+      execute: createExecute,
+    });
+    const publish = vi.fn().mockReturnValue({
+      data: { value: null },
+      error: { value: { message: 'Publish failed.' } },
+      execute: publishExecute,
+    });
+
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
+      buildShiftApiMock({
+        postEntry: kind === 'entry' ? create : vi.fn(),
+        postEntryPublish: kind === 'entry' ? publish : vi.fn(),
+        postSeries: kind === 'series' ? create : vi.fn(),
+        postSeriesPublish: kind === 'series' ? publish : vi.fn(),
+      }),
+    );
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp();
+    const calendarStore = useCalendarStore(app.pinia);
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialDate: '2026-07-02',
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      formData: {
+        publish: 'yes' | 'no';
+        repeatMode: 'never' | 'custom';
+        recurrenceRule?: string | null;
+      };
+      handleSave: () => Promise<void>;
+    };
+    vm.formData.publish = 'yes';
+    if (kind === 'series') {
+      vm.formData.repeatMode = 'custom';
+      vm.formData.recurrenceRule = 'FREQ=WEEKLY;COUNT=2';
+    }
+
+    await vm.handleSave();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(calendarStore.refreshNonce).toBe(1);
+    expect(document.body.textContent).toContain('The shift was created and remains Draft');
+    expect(document.body.textContent).toContain('could not be published');
+    expect(wrapper.emitted('close')).toBeUndefined();
+    expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.includes('Save'))).toBe(
+      false,
+    );
+    expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent === 'Close')).toBe(true);
+
+    await vm.handleSave();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledTimes(1);
+
+    wrapper.unmount();
+  });
+
   it('shows inline field errors when save is clicked with invalid values', async () => {
     vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
       buildShiftApiMock({
@@ -305,6 +575,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
     await flushPromises();
 
     const content = document.body.textContent ?? '';
+    expect(content).toContain('Could not save the shift. Check the highlighted fields.');
     expect(content).toContain('Required');
     expect((content.match(/Required/g) ?? []).length).toBeGreaterThanOrEqual(3);
 
@@ -508,6 +779,243 @@ describe('CalendarSchedulingAddResourceModal', () => {
     );
     expect(postEntryExecute).toHaveBeenCalled();
     expect(document.body.textContent ?? '').not.toContain('Invalid UUID');
+
+    wrapper.unmount();
+  });
+
+  it('keeps a label option for an initially selected assignment while async options load', async () => {
+    vi.doMock('@/api-access/generated/shift/shift', () => ({
+      postApiSchedulingShiftEntries: vi.fn(),
+      postApiSchedulingShiftEntriesIdPublish: vi.fn(),
+      postApiSchedulingShiftSeries: vi.fn(),
+      postApiSchedulingShiftSeriesIdPublish: vi.fn(),
+    }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialAssignmentEntryId: 251,
+        initialAssignmentEvents: [
+          {
+            id: 'scheduling.assignment-entry.251',
+            type: 'scheduling.assignment',
+            sourceModule: 'scheduling',
+            title: 'Yellow Assignment',
+            start: '2026-07-13T16:00:00Z',
+            end: '2026-07-14T00:00:00Z',
+            timeZoneId: 'America/Vancouver',
+            metadata: {
+              assignmentEntryId: '251',
+            },
+          } as never,
+        ],
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: {
+        assignmentEntryIds?: number[];
+      };
+      mergedAssignmentEntryOptions: Array<{ code: number | string; description: string }>;
+    };
+
+    expect(vm.formData.assignmentEntryIds).toEqual([251]);
+    expect(vm.mergedAssignmentEntryOptions).toContainEqual({
+      code: 251,
+      description: 'Yellow Assignment (9:00 AM - 5:00 PM)',
+    });
+
+    wrapper.unmount();
+  });
+
+  it('initializes assignment entry links with assignedUserIds for the selected user', async () => {
+    vi.doMock('@/api-access/generated/shift/shift', () => ({
+      postApiSchedulingShiftEntries: vi.fn(),
+      postApiSchedulingShiftEntriesIdPublish: vi.fn(),
+      postApiSchedulingShiftSeries: vi.fn(),
+      postApiSchedulingShiftSeriesIdPublish: vi.fn(),
+    }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialAssignmentEntryId: 251,
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: {
+        assignmentEntryLinks?: Array<{
+          assignmentEntryId?: number;
+          assignedUserIds?: string[];
+          userIds?: string[];
+        }>;
+      };
+    };
+
+    expect(vm.formData.assignmentEntryLinks).toEqual([
+      {
+        assignmentEntryId: 251,
+        assignedUserIds: ['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62'],
+      },
+    ]);
+    expect(vm.formData.assignmentEntryLinks?.[0]).not.toHaveProperty('userIds');
+
+    wrapper.unmount();
+  });
+
+  it('sends assignedUserIds when saving a shift created from assignment and user context', async () => {
+    const postEntryExecute = vi.fn().mockResolvedValue(undefined);
+    const postEntry = vi.fn().mockReturnValue({
+      data: { value: { id: 321 } },
+      error: { value: null },
+      execute: postEntryExecute,
+    });
+
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () =>
+      buildShiftApiMock({ postEntry, postEntryPublish: vi.fn(), postSeries: vi.fn(), postSeriesPublish: vi.fn() }),
+    );
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialAssignmentEntryId: 251,
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      formData: {
+        date?: string;
+      };
+      handleSave: () => Promise<void>;
+      formErrors: Record<string, string>;
+      apiError: string;
+    };
+    vm.formData.date = '2026-07-12';
+    await vm.handleSave();
+
+    expect(vm.formErrors).toEqual({});
+    expect(vm.apiError).toBe('');
+    expect(postEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignmentEntryLinks: [
+          {
+            assignmentEntryId: 251,
+            assignedUserIds: ['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62'],
+          },
+        ],
+      }),
+      expect.objectContaining({ options: { immediate: false } }),
+    );
+    expect(postEntryExecute).toHaveBeenCalled();
+
+    wrapper.unmount();
+  });
+
+  it('uses the initial assignment event label when only an assignment id is preselected', async () => {
+    vi.doMock('@/api-access/generated/shift/shift', () => ({
+      postApiSchedulingShiftEntries: vi.fn(),
+      postApiSchedulingShiftEntriesIdPublish: vi.fn(),
+      postApiSchedulingShiftSeries: vi.fn(),
+      postApiSchedulingShiftSeriesIdPublish: vi.fn(),
+    }));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+
+    const app = createModalTestApp();
+    const locationsStore = useLocationsStore(app.pinia);
+    locationsStore.setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: {
+        initialAssignmentEntryId: 259,
+        initialAssignmentEvents: [
+          {
+            id: 'scheduling.assignment-entry.259',
+            type: 'scheduling.assignment',
+            sourceModule: 'scheduling',
+            title: 'Yellow Assignment',
+            start: '2026-07-13T16:00:00Z',
+            end: '2026-07-14T00:00:00Z',
+            timeZoneId: 'America/Vancouver',
+            metadata: {
+              assignmentEntryId: '259',
+            },
+          } as never,
+        ],
+        resource: {
+          id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
+          type: 'user',
+          title: 'Alex Alpha',
+        },
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as {
+      mergedAssignmentEntryOptions: Array<{ code: number | string; description: string }>;
+    };
+
+    expect(vm.mergedAssignmentEntryOptions.find((option) => option.code === 259)?.description).toBe(
+      'Yellow Assignment (9:00 AM - 5:00 PM)',
+    );
 
     wrapper.unmount();
   });

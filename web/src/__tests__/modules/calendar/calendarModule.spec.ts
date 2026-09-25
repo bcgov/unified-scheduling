@@ -278,4 +278,32 @@ describe('calendar module integration', () => {
       },
     });
   });
+
+  it('deactivates loaded contributions once when the calendar session ends', async () => {
+    const onDeactivate = vi.fn();
+    const contribution = {
+      moduleId: 'calendar',
+      contributionId: 'session-contribution',
+      onDeactivate,
+      load: vi.fn(async () => ({
+        moduleId: 'calendar',
+        contributionId: 'session-contribution',
+        events: [] as [],
+      })),
+    };
+    const registry = {
+      getAvailableModuleContributions: vi.fn(() => [contribution]),
+    };
+    const { calendarDataService } = await import('@/modules/calendar/calendarDataService');
+    const runtimeContext = { featureFlags: {} };
+    const queryContext = { startDate: '2025-01-01', endDate: '2025-01-02', filters: {} };
+
+    await calendarDataService.loadData(runtimeContext, queryContext, registry);
+    await calendarDataService.loadData(runtimeContext, queryContext, registry);
+
+    calendarDataService.endSession();
+    calendarDataService.endSession();
+
+    expect(onDeactivate).toHaveBeenCalledOnce();
+  });
 });

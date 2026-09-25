@@ -1,10 +1,14 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Common.Contracts;
+using Unified.Common.Events;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.UserManagement;
+using Unified.Tests.TestHelpers;
 using Unified.UserManagement.FeatureFlags;
 using Unified.UserManagement.Models;
 using Unified.UserManagement.Services;
@@ -13,47 +17,23 @@ namespace Unified.Tests.UserManagement.Services;
 
 public class UserServiceTests : IAsyncLifetime
 {
+    private SqliteConnection _connection = null!;
     private UnifiedDbContext _dbContext = null!;
     private UserService _userService = null!;
     private readonly ITimeZoneService _timeZoneService = new TimeZoneService();
+    private readonly RecordingEventDispatcher _eventDispatcher = new();
 
-    public ValueTask InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
-        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
+        _connection = new SqliteConnection("Data Source=:memory:");
+        await _connection.OpenAsync(TestContext.Current.CancellationToken);
 
-        _dbContext = new UnifiedDbContext(options);
-        _userService = CreateUserService(userBadgeNumberEnabled: false);
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options;
 
-        return ValueTask.CompletedTask;
-    }
+        _dbContext = new SqliteTestUnifiedDbContext(options);
+        await _dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-    private UserService CreateUserService(bool userBadgeNumberEnabled)
-    {
-        return new UserService(
-            _dbContext,
-            Options.Create(
-                new UserManagementFeatureFlags
-                {
-                    Enabled = true,
-                    UserBadgeNumber = new UserBadgeNumberFlags { Enabled = userBadgeNumberEnabled },
-                }
-            ),
-            NullLogger<UserService>.Instance,
-            _timeZoneService
-        );
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await _dbContext.DisposeAsync();
-    }
-
-    private async Task SeedTestData()
-    {
-        var locations = new[]
-        {
+        _dbContext.Locations.AddRange(
             new Location
             {
                 Id = 1,
@@ -68,8 +48,44 @@ public class UserServiceTests : IAsyncLifetime
                 Name = "Surrey Court",
                 Timezone = "America/Vancouver",
             },
-        };
+            new Location
+            {
+                Id = 5,
+                AgencyId = "LOC-005",
+                Name = "Kelowna Court",
+                Timezone = "America/Vancouver",
+            }
+        );
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
+        _userService = CreateUserService(userBadgeNumberEnabled: false);
+    }
+
+    private UserService CreateUserService(bool userBadgeNumberEnabled)
+    {
+        return new UserService(
+            _dbContext,
+            Options.Create(
+                new UserManagementFeatureFlags
+                {
+                    Enabled = true,
+                    UserBadgeNumber = new UserBadgeNumberFlags { Enabled = userBadgeNumberEnabled },
+                }
+            ),
+            NullLogger<UserService>.Instance,
+            _timeZoneService,
+            _eventDispatcher
+        );
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _dbContext.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
+
+    private async Task SeedTestData()
+    {
         var users = new[]
         {
             new User
@@ -129,8 +145,6 @@ public class UserServiceTests : IAsyncLifetime
                 LastLogin = DateTimeOffset.UtcNow.AddDays(-4),
             },
         };
-
-        _dbContext.Locations.AddRange(locations);
         _dbContext.Users.AddRange(users);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
@@ -332,6 +346,9 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Null(userInDb.IdirId);
         Assert.Null(userInDb.LastLogin);
         Assert.True(userInDb.PendingRegistration);
+
+        var userCreatedSignal = Assert.IsType<UserCreatedSignal>(Assert.Single(_eventDispatcher.PublishedSignals));
+        Assert.Equal(result.Id, userCreatedSignal.UserId);
     }
 
     [Fact]
@@ -591,7 +608,10 @@ public class UserServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedTestData();
-        var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        var user = await _dbContext.Users.SingleAsync(
+            x => x.IdirName == "jsmith",
+            TestContext.Current.CancellationToken
+        );
         _dbContext.Roles.Add(
             new Role
             {
@@ -644,7 +664,10 @@ public class UserServiceTests : IAsyncLifetime
     {
         // Arrange
         await SeedTestData();
-        var user = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        var user = await _dbContext.Users.SingleAsync(
+            x => x.IdirName == "jsmith",
+            TestContext.Current.CancellationToken
+        );
         _dbContext.Roles.Add(
             new Role
             {
@@ -1025,5 +1048,16 @@ public class UserServiceTests : IAsyncLifetime
 
         // Assert
         Assert.Null(result);
+    }
+
+    private sealed class RecordingEventDispatcher : IEventDispatcher
+    {
+        public List<object> PublishedSignals { get; } = [];
+
+        public Task PublishAsync<TSignal>(TSignal signal, CancellationToken cancellationToken = default)
+        {
+            PublishedSignals.Add(signal!);
+            return Task.CompletedTask;
+        }
     }
 }

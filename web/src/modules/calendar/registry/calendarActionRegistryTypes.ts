@@ -23,7 +23,7 @@ export interface CalendarCreateAction {
   label: string;
   moduleId: string;
   disabled?: boolean;
-  run?: (context: CalendarCreateContext) => void | Promise<void>;
+  run?: (context: CalendarCreateContext, runtimeContext: CalendarRuntimeContext) => void | Promise<void>;
   isAvailable?: (createContext: CalendarCreateContext, runtimeContext: CalendarRuntimeContext) => boolean;
 }
 
@@ -118,14 +118,12 @@ export interface CalendarMatrixEventBlockAction extends CalendarMatrixActionBase
 }
 
 export interface CalendarDropAction extends CalendarMatrixActionBase {
-  isAvailable?: (
-    drag: CalendarMatrixDragPayload,
-    drop: CalendarMatrixCellDropContext,
-    runtimeContext: CalendarRuntimeContext,
-  ) => boolean;
-  execute: (
-    drag: CalendarMatrixDragPayload,
-    drop: CalendarMatrixCellDropContext,
-    runtimeContext: CalendarRuntimeContext,
-  ) => void | Promise<void>;
+  isAvailable?: (context: CalendarMatrixDropActionContext, runtimeContext: CalendarRuntimeContext) => boolean;
+  execute: (context: CalendarMatrixDropActionContext, runtimeContext: CalendarRuntimeContext) => void | Promise<void>;
+}
+
+export interface CalendarMatrixDropActionContext {
+  drag: CalendarMatrixDragPayload;
+  drop: CalendarMatrixCellDropContext;
+  model: CalendarMatrixViewModel;
 }

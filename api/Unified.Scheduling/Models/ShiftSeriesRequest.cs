@@ -20,7 +20,9 @@ public sealed record ShiftSeriesRequest
 
     public bool AllDay { get; init; }
 
-    public int? LocationId { get; init; }
+    public int LocationId { get; init; }
 
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
+
+    public IReadOnlyCollection<AssignmentSeriesLinkRequest> AssignmentSeriesLinks { get; init; } = [];
 }

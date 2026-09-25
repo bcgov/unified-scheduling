@@ -166,7 +166,13 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
         EnsureExpiryIsAfterPreviousVersion(expiryDate, previousVersionExpiryDate);
         EnsureExpiryIsBeforeNextVersion(expiryDate, nextVersionExpiryDate);
 
+        var previousExpiryDate = entity.ExpiryDate;
         MapToEntity(normalizedRequest, entity, expiryDate);
+
+        if (previousExpiryDate != expiryDate)
+        {
+            entity.NoticeState = UserTrainingNoticeStates.None;
+        }
 
         await db.SaveChangesAsync(cancellationToken);
 

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Unified.Common.Validation;
 using Unified.Core.Email;
 using Unified.Infrastructure.ErrorHandling;
 using Unified.Tests.TestHelpers;
@@ -69,6 +70,28 @@ public class GlobalExceptionHandlerTests
 
         var body = await ReadJsonBodyAsync(context);
         Assert.Equal("Conflict.", body.RootElement.GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_Should_Map_ConflictValidationException_To_409_With_FieldErrors()
+    {
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = new ConflictValidationException(
+            new Dictionary<string, string[]> { ["AssignmentDefinitionId"] = ["An assignment already exists."] }
+        );
+
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status409Conflict, context.Response.StatusCode);
+
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal("Conflict.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "An assignment already exists.",
+            body.RootElement.GetProperty("errors").GetProperty("AssignmentDefinitionId")[0].GetString()
+        );
     }
 
     [Fact]

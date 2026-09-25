@@ -18,11 +18,13 @@ const props = withDefaults(
     display?: CalendarMatrixEventDisplay;
     variant?: CalendarMatrixEventGroupVariant;
     showColorBar?: boolean;
+    selectOnClick?: boolean;
     timeZone?: string;
   }>(),
   {
     variant: 'primary',
     showColorBar: false,
+    selectOnClick: true,
   },
 );
 
@@ -47,7 +49,7 @@ defineSlots<{
 
 const matrixContext = inject(calendarMatrixContextKey, undefined);
 
-const activeColorBackgroundAlpha = 0.35;
+const colorBackgroundAlpha = 0.16;
 const allowedVariants = new Set<CalendarMatrixEventGroupVariant>(['primary', 'secondary', 'muted', 'warning']);
 
 const statusClass = computed(() => resolveMatrixStatusClass(props.display?.status));
@@ -73,10 +75,10 @@ const eventBlockStyle = computed(() => {
     '--calendar-event-border-color': props.display.color,
   };
 
-  const activeColorBackground = toRgba(props.display.color, activeColorBackgroundAlpha);
+  const colorBackground = toRgba(props.display.color, colorBackgroundAlpha);
 
-  if (hasColorBar.value && statusClass.value !== 'active' && activeColorBackground) {
-    style['--calendar-event-bg'] = activeColorBackground;
+  if (hasColorBar.value && colorBackground) {
+    style['--calendar-event-bg'] = colorBackground;
   }
 
   return style;
@@ -90,7 +92,9 @@ const timeDisplay = computed(() =>
 );
 
 function handleClick() {
-  matrixContext?.selectEvent(props.event.id);
+  if (props.selectOnClick) {
+    matrixContext?.selectEvent(props.event.id);
+  }
   emit('eventClick', props.event);
 }
 
@@ -223,7 +227,8 @@ function handleDragEnd() {
   color: var(--ua-text-primary);
   display: grid;
   align-content: start;
-  overflow: visible;
+  min-width: 0;
+  overflow: hidden;
   padding: 0.375rem 0.5rem;
   position: relative;
 }
@@ -235,6 +240,8 @@ function handleDragEnd() {
   cursor: pointer;
   display: grid;
   gap: 0.275rem;
+  min-width: 0;
+  overflow: hidden;
   padding: 0;
   text-align: left;
   width: 100%;
@@ -348,18 +355,20 @@ button.calendar-matrix-event-block__action {
 }
 
 .calendar-matrix-event-block.is-active.has-color-bar {
-  padding-left: 0.5rem;
+  border-color: var(--calendar-event-border-color, rgba(var(--v-theme-on-surface), 0.82));
+  color: var(--ua-text-primary);
+  padding-left: 0.75rem;
 }
 
 .calendar-matrix-event-block.is-active.has-color-bar::before {
-  display: none;
+  display: block;
 }
 
-.calendar-matrix-event-block.is-active .calendar-matrix-event-block__meta {
+.calendar-matrix-event-block.is-active:not(.has-color-bar) .calendar-matrix-event-block__meta {
   color: rgb(var(--v-theme-surface));
 }
 
-.calendar-matrix-event-block.is-active .calendar-matrix-event-block__action {
+.calendar-matrix-event-block.is-active:not(.has-color-bar) .calendar-matrix-event-block__action {
   background: transparent;
   border-color: transparent;
   color: rgb(var(--v-theme-surface));
@@ -369,11 +378,17 @@ button.calendar-matrix-event-block__action {
   font-size: var(--ua-font-size-sm);
   font-weight: var(--ua-font-weight-semibold);
   line-height: 1.25;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .calendar-matrix-event-block__meta {
   color: var(--ua-text-secondary);
   font-size: var(--ua-font-size-xs);
   line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
