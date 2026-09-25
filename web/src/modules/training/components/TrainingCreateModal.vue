@@ -60,7 +60,7 @@ const { data: trainingProfiles } = useTrainingProfileLookup();
 const trainingProfileOptions = computed<SelectOption[]>(() => {
   return (trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,
-    description: profile.description?.trim() || profile.code,
+    description: profile.name?.trim() || profile.code,
   }));
 });
 

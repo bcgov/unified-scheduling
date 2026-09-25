@@ -16,10 +16,6 @@ type DataTableReorderPayload = {
   oldIndex: number;
 };
 
-type TrainingLookupResponseWithProfiles = TrainingLookupResponse & {
-  mandatoryTrainingProfileCodes?: string[];
-};
-
 const props = defineProps<{
   items: TrainingLookupResponse[];
   loading: boolean;
@@ -74,8 +70,10 @@ const formatMandatoryScope = (item: TrainingLookupResponse): string => {
     return '—';
   }
 
-  const codes = (item as TrainingLookupResponseWithProfiles).mandatoryTrainingProfileCodes ?? [];
-  return codes.length > 0 ? codes.join(', ') : 'All users';
+  const names = (item.mandatoryTrainingProfiles ?? [])
+    .map((profile) => profile.name?.trim() || profile.code)
+    .filter(Boolean);
+  return names.length > 0 ? names.join(', ') : 'All users';
 };
 
 const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {

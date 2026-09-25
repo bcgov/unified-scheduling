@@ -3,17 +3,13 @@ import { useFetchAPI, type UseFetchAPIOptions } from '@/api-access/useFetchAPI';
 export type TrainingProfileLookupResponse = {
   id: number;
   code: string;
-  description: string;
-  effectiveDate: string;
-  expiryDate?: string | null;
-  createdOn: string;
-  updatedOn?: string | null;
+  name: string;
 };
 
 export const useTrainingProfileLookup = (options?: UseFetchAPIOptions) => {
   return useFetchAPI<TrainingProfileLookupResponse[]>(
     {
-      url: '/api/lookup/training-profiles',
+      url: '/api/training/profile-types',
       method: 'GET',
     },
     options,
