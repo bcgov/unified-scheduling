@@ -16,6 +16,10 @@ type DataTableReorderPayload = {
   oldIndex: number;
 };
 
+type TrainingLookupResponseWithProfiles = TrainingLookupResponse & {
+  mandatoryTrainingProfileCodes?: string[];
+};
+
 const props = defineProps<{
   items: TrainingLookupResponse[];
   loading: boolean;
@@ -48,6 +52,7 @@ const headers = [
   { title: 'Training', key: 'code', sortable: true },
   { title: 'Description', key: 'description', sortable: true },
   { title: 'Mandatory', key: 'mandatory', sortable: true, align: 'center' as const },
+  { title: 'Mandatory Scope', key: 'mandatoryScope', sortable: false },
   { title: 'Validity (Days)', key: 'validityDays', sortable: true, align: 'end' as const },
   { title: 'Advance Notice (Days)', key: 'advanceNoticeDays', sortable: true, align: 'end' as const },
   { title: 'Rotating', key: 'rotating', sortable: true, align: 'center' as const },
@@ -62,6 +67,15 @@ const formatOptionalNumber = (value: number | null | undefined): string => {
 
 const formatOptionalText = (value: string | null | undefined): string => {
   return value?.trim() ? value : '—';
+};
+
+const formatMandatoryScope = (item: TrainingLookupResponse): string => {
+  if (!item.mandatory) {
+    return '—';
+  }
+
+  const codes = (item as TrainingLookupResponseWithProfiles).mandatoryTrainingProfileCodes ?? [];
+  return codes.length > 0 ? codes.join(', ') : 'All users';
 };
 
 const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
@@ -121,6 +135,10 @@ const getRowProps = (context: { item: TrainingLookupResponse }) => {
 
     <template #[`item.mandatory`]="{ item }">
       <v-icon v-if="item.mandatory" :icon="mdiCheck" color="success" size="small" />
+    </template>
+
+    <template #[`item.mandatoryScope`]="{ item }">
+      {{ formatMandatoryScope(item) }}
     </template>
 
     <template #[`item.validityDays`]="{ item }">

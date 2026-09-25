@@ -9,7 +9,7 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { TrainingLookupResponse } from '../models';
+import type { TrainingDetailResponse, TrainingLookupResponse, TrainingProfileTypeResponse } from '../models';
 
 export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[] =>
   faker.helpers.arrayElement([
@@ -30,6 +30,14 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -61,6 +69,14 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -92,6 +108,14 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -129,6 +153,14 @@ export const getPostApiLookupTrainingsResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -161,6 +193,14 @@ export const getPostApiLookupTrainingsResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -193,6 +233,14 @@ export const getPostApiLookupTrainingsResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -211,8 +259,8 @@ export const getPostApiLookupTrainingsResponseMock = (
   ]);
 
 export const getGetApiLookupTrainingsIdResponseMock = (
-  overrideResponse: Partial<Extract<TrainingLookupResponse, object>> = {},
-): TrainingLookupResponse =>
+  overrideResponse: Partial<Extract<TrainingDetailResponse, object>> = {},
+): TrainingDetailResponse =>
   faker.helpers.arrayElement([
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
@@ -231,6 +279,14 @@ export const getGetApiLookupTrainingsIdResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -263,6 +319,14 @@ export const getGetApiLookupTrainingsIdResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -295,6 +359,14 @@ export const getGetApiLookupTrainingsIdResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -333,6 +405,14 @@ export const getPutApiLookupTrainingsIdResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -365,6 +445,14 @@ export const getPutApiLookupTrainingsIdResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -397,6 +485,14 @@ export const getPutApiLookupTrainingsIdResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -435,6 +531,14 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -467,6 +571,14 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -499,6 +611,14 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
         undefined,
       ]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      mandatoryTrainingProfiles: faker.helpers.arrayElement([
+        Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+          id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+          code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+          name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+        })),
+        undefined,
+      ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
       updatedOn: faker.helpers.arrayElement([
@@ -514,6 +634,25 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
       ]),
       ...overrideResponse,
     },
+  ]);
+
+export const getGetApiTrainingProfileTypesResponseMock = (): TrainingProfileTypeResponse[] =>
+  faker.helpers.arrayElement([
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+    })),
+    Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      id: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+      name: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
+    })),
   ]);
 
 export const getGetApiLookupTrainingsMockHandler = (
@@ -566,10 +705,10 @@ export const getPostApiLookupTrainingsMockHandler = (
 
 export const getGetApiLookupTrainingsIdMockHandler = (
   overrideResponse?:
-    | TrainingLookupResponse
+    | TrainingDetailResponse
     | ((
         info: Parameters<Parameters<typeof http.get>[1]>[0],
-      ) => Promise<TrainingLookupResponse> | TrainingLookupResponse),
+      ) => Promise<TrainingDetailResponse> | TrainingDetailResponse),
   options?: RequestHandlerOptions,
 ) => {
   return http.get(
@@ -669,6 +808,30 @@ export const getPatchApiLookupTrainingsIdUnexpireMockHandler = (
     options,
   );
 };
+
+export const getGetApiTrainingProfileTypesMockHandler = (
+  overrideResponse?:
+    | TrainingProfileTypeResponse[]
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<TrainingProfileTypeResponse[]> | TrainingProfileTypeResponse[]),
+  options?: RequestHandlerOptions,
+) => {
+  return http.get(
+    '*/api/training/profile-types',
+    async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+      return HttpResponse.json(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetApiTrainingProfileTypesResponseMock(),
+        { status: 200 },
+      );
+    },
+    options,
+  );
+};
 export const getTrainingMock = () => [
   getGetApiLookupTrainingsMockHandler(),
   getPostApiLookupTrainingsMockHandler(),
@@ -677,4 +840,5 @@ export const getTrainingMock = () => [
   getPatchApiLookupTrainingsIdOrderMockHandler(),
   getPatchApiLookupTrainingsIdExpireMockHandler(),
   getPatchApiLookupTrainingsIdUnexpireMockHandler(),
+  getGetApiTrainingProfileTypesMockHandler(),
 ];

@@ -24,6 +24,8 @@ export interface UserResponse {
   /** @nullable */
   homeLocationId?: number | null;
   /** @nullable */
+  trainingProfileId?: number | null;
+  /** @nullable */
   lastLogin?: string | null;
   pendingRegistration?: boolean;
   /** @nullable */
