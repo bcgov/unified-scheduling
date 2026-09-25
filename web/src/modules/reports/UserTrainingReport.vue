@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { Permissions } from '@/api-access/generated/models';
 import { getApiLocationAll } from '@/api-access/generated/location/location';
 import { getApiRegion } from '@/api-access/generated/region/region';
@@ -17,26 +17,29 @@ import { useTrainingLookup } from '@/modules/training/trainingLookupApi';
 import { useUserTrainingReport, type UserTrainingReportItem } from './userTrainingReportApi';
 import { exportReportToCsv, type ReportCsvColumn } from './reportCsvExport';
 
+const maxMultiSelectOptions = 25;
+
 const accessControl = useAccessControl();
 const canAccessUserTrainingReport = computed(() => accessControl.hasPermission(Permissions.ReportsGenerate));
 
-const statusFilter = ref<'all' | 'active' | 'expired' | 'notTaken'>('all');
-const selectedUserIdFilter = ref<string>('');
-const selectedRegionIdFilter = ref<number | ''>('');
-const selectedLocationIdFilter = ref<number | ''>('');
-const selectedTrainingCodeFilter = ref<string>('');
+const statusFilter = ref<Array<'active' | 'expired' | 'notTaken'>>([]);
+const selectedUserIdFilter = ref<string[]>([]);
+const selectedRegionIdFilter = ref<number[]>([]);
+const selectedLocationIdFilter = ref<number[]>([]);
+const selectedTrainingCodeFilter = ref<string[]>([]);
 const startDateFilter = ref<string>('');
 const endDateFilter = ref<string>('');
 const selectedReportTypeFilter = ref<string>('training');
+const selectionLimitWarning = ref<string>('');
 
 const reportQuery = computed(() => ({
   sortBy: 'userDisplayName',
   sortDir: 'asc' as const,
-  userId: selectedUserIdFilter.value || undefined,
-  regionId: selectedRegionIdFilter.value === '' ? undefined : selectedRegionIdFilter.value,
-  locationId: selectedLocationIdFilter.value === '' ? undefined : selectedLocationIdFilter.value,
-  trainingCode: selectedTrainingCodeFilter.value.trim() || undefined,
-  status: statusFilter.value === 'all' ? undefined : statusFilter.value,
+  userId: selectedUserIdFilter.value.length > 0 ? selectedUserIdFilter.value : undefined,
+  regionId: selectedRegionIdFilter.value.length > 0 ? selectedRegionIdFilter.value : undefined,
+  locationId: selectedLocationIdFilter.value.length > 0 ? selectedLocationIdFilter.value : undefined,
+  trainingCode: selectedTrainingCodeFilter.value.length > 0 ? selectedTrainingCodeFilter.value : undefined,
+  status: statusFilter.value.length > 0 ? statusFilter.value : undefined,
   startDate: startDateFilter.value || undefined,
   endDate: endDateFilter.value || undefined,
 }));
@@ -72,7 +75,6 @@ const { data: trainingLookupData, execute: executeTrainingLookup } = useTraining
 });
 
 const statusOptions: SelectOption[] = [
-  { code: 'all', description: 'All statuses' },
   { code: 'active', description: 'Active' },
   { code: 'expired', description: 'Expired' },
   { code: 'notTaken', description: 'Not taken' },
@@ -81,7 +83,7 @@ const statusOptions: SelectOption[] = [
 const reportTypeOptions: SelectOption[] = [{ code: 'training', description: 'Training' }];
 
 const regionOptions = computed<SelectOption[]>(() => {
-  return buildSelectOptions(regionsData.value ?? [], 'All regions', (region) => {
+  return buildSelectOptions(regionsData.value ?? [], (region) => {
     const id = region.id;
     const name = region.name?.trim() ?? '';
 
@@ -95,7 +97,7 @@ const regionOptions = computed<SelectOption[]>(() => {
 });
 
 const locationOptions = computed<SelectOption[]>(() => {
-  return buildSelectOptions(locationsData.value ?? [], 'All locations', (location) => {
+  return buildSelectOptions(locationsData.value ?? [], (location) => {
     const id = location.id;
     const name = location.name?.trim() ?? '';
 
@@ -109,14 +111,14 @@ const locationOptions = computed<SelectOption[]>(() => {
 });
 
 const userOptions = computed<SelectOption[]>(() => {
-  return buildSelectOptions(usersData.value ?? [], 'All users', (user) => ({
+  return buildSelectOptions(usersData.value ?? [], (user) => ({
     code: user.id,
     description: buildUserLabel(user),
   }));
 });
 
 const trainingOptions = computed<SelectOption[]>(() => {
-  return buildSelectOptions(trainingLookupData.value ?? [], 'All trainings', (training) => {
+  return buildSelectOptions(trainingLookupData.value ?? [], (training) => {
     const code = training.code?.trim() ?? '';
 
     return {
@@ -190,6 +192,12 @@ const exportCsv = () => {
   });
 };
 
+enforceMultiSelectLimit(selectedUserIdFilter, 'User');
+enforceMultiSelectLimit(selectedTrainingCodeFilter, 'Training Types');
+enforceMultiSelectLimit(selectedRegionIdFilter, 'Region');
+enforceMultiSelectLimit(selectedLocationIdFilter, 'Location');
+enforceMultiSelectLimit(statusFilter, 'Statuses');
+
 if (canAccessUserTrainingReport.value) {
   void executeTrainingLookup();
   void executeUsersQuery();
@@ -204,17 +212,26 @@ function buildUserLabel(user: { firstName: string; lastName: string }): string {
   return [lastName, firstName].filter(Boolean).join(', ');
 }
 
+function enforceMultiSelectLimit<T>(selectionRef: Ref<T[]>, filterLabel: string): void {
+  watch(selectionRef, (values) => {
+    if (values.length <= maxMultiSelectOptions) {
+      selectionLimitWarning.value = '';
+      return;
+    }
+
+    selectionRef.value = values.slice(0, maxMultiSelectOptions);
+    selectionLimitWarning.value = `${filterLabel} is limited to ${maxMultiSelectOptions} selections.`;
+  });
+}
+
 function buildSelectOptions<TItem>(
   items: readonly TItem[],
-  allLabel: string,
   mapItem: (item: TItem) => SelectOption | null,
 ): SelectOption[] {
-  const options = items
+  return items
     .map(mapItem)
     .filter((option): option is SelectOption => option !== null)
     .sort((left, right) => left.description.localeCompare(right.description));
-
-  return [{ code: '', description: allLabel }, ...options];
 }
 
 function formatRow(row: UserTrainingReportItem): Record<string, unknown> {
@@ -251,10 +268,23 @@ function formatDateCellValue(value: unknown): unknown {
 
   <div v-else class="user-training-report-page">
     <UaCard title="Filters">
+      <UaAlert v-if="selectionLimitWarning" type="warning" :closable="false">
+        {{ selectionLimitWarning }}
+      </UaAlert>
+
       <div class="filters-grid">
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-user-name">User</label>
-          <UaSelect id="user-training-report-user-name" v-model="selectedUserIdFilter" :items="userOptions" label="" />
+          <UaSelect
+            id="user-training-report-user-name"
+            v-model="selectedUserIdFilter"
+            :items="userOptions"
+            label=""
+            multiple
+            chips
+            closable-chips
+            clearable
+          />
         </div>
 
         <div class="filter-field">
@@ -263,12 +293,25 @@ function formatDateCellValue(value: unknown): unknown {
             id="user-training-report-training-code"
             v-model="selectedTrainingCodeFilter"
             :items="trainingOptions"
+            multiple
+            chips
+            closable-chips
+            clearable
           />
         </div>
 
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-region">Region</label>
-          <UaSelect id="user-training-report-region" v-model="selectedRegionIdFilter" :items="regionOptions" label="" />
+          <UaSelect
+            id="user-training-report-region"
+            v-model="selectedRegionIdFilter"
+            :items="regionOptions"
+            label=""
+            multiple
+            chips
+            closable-chips
+            clearable
+          />
         </div>
 
         <div class="filter-field">
@@ -278,12 +321,25 @@ function formatDateCellValue(value: unknown): unknown {
             v-model="selectedLocationIdFilter"
             :items="locationOptions"
             label=""
+            multiple
+            chips
+            closable-chips
+            clearable
           />
         </div>
 
         <div class="filter-field">
           <label class="filter-label" for="user-training-report-status">Status</label>
-          <UaSelect id="user-training-report-status" v-model="statusFilter" :items="statusOptions" label="" />
+          <UaSelect
+            id="user-training-report-status"
+            v-model="statusFilter"
+            :items="statusOptions"
+            label=""
+            multiple
+            chips
+            closable-chips
+            clearable
+          />
         </div>
 
         <div class="filter-field">
@@ -303,6 +359,7 @@ function formatDateCellValue(value: unknown): unknown {
             v-model="selectedReportTypeFilter"
             :items="reportTypeOptions"
             label=""
+            clearable
           />
         </div>
       </div>

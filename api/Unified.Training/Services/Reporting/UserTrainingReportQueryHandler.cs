@@ -56,20 +56,26 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
             .Where(ut => ut.User.IsEnabled)
             .Where(ut => ut.Training.ExpiryDate == null || ut.Training.ExpiryDate > now);
 
-        query = queryFilters.UserId is Guid userId ? query.Where(ut => ut.UserId == userId) : query;
+        query = queryFilters.UserIds is { Count: > 0 } userIds ? query.Where(ut => userIds.Contains(ut.UserId)) : query;
 
-        query = queryFilters.RegionId is int regionId
-            ? query.Where(ut => ut.User.HomeLocation != null && ut.User.HomeLocation.RegionId == regionId)
+        query = queryFilters.RegionIds is { Count: > 0 } regionIds
+            ? query.Where(ut =>
+                ut.User.HomeLocation != null
+                && ut.User.HomeLocation.RegionId != null
+                && regionIds.Contains(ut.User.HomeLocation.RegionId.Value)
+            )
             : query;
 
-        query = queryFilters.LocationId is int locationId
-            ? query.Where(ut => ut.User.HomeLocationId == locationId)
+        query = queryFilters.LocationIds is { Count: > 0 } locationIds
+            ? query.Where(ut => ut.User.HomeLocationId != null && locationIds.Contains(ut.User.HomeLocationId.Value))
             : query;
 
-        query = queryFilters.TrainingId is int trainingId ? query.Where(ut => ut.TrainingId == trainingId) : query;
+        query = queryFilters.TrainingIds is { Count: > 0 } trainingIds
+            ? query.Where(ut => trainingIds.Contains(ut.TrainingId))
+            : query;
 
-        query = queryFilters.TrainingCode is string trainingCode
-            ? query.Where(ut => ut.Training.Code.Contains(trainingCode))
+        query = queryFilters.TrainingCodes is { Count: > 0 } trainingCodes
+            ? query.Where(ut => trainingCodes.Contains(ut.Training.Code))
             : query;
 
         var startDateValue = queryFilters.StartDate is DateOnly startDate
@@ -86,13 +92,18 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
             ? query.Where(ut => ut.AwardedOn < parsedEndDateValue)
             : query;
 
-        query = queryFilters.Status switch
+        if (!queryFilters.ShouldIncludeActiveRows && !queryFilters.ShouldIncludeExpiredRows)
         {
-            TrainingCompletionStatus.Active => query.Where(ut => ut.ExpiryDate == null || ut.ExpiryDate > now),
-            TrainingCompletionStatus.Expired => query.Where(ut => ut.ExpiryDate != null && ut.ExpiryDate <= now),
-            TrainingCompletionStatus.NotTaken => query.Where(_ => false),
-            _ => query,
-        };
+            query = query.Where(_ => false);
+        }
+        else if (!queryFilters.ShouldIncludeExpiredRows)
+        {
+            query = query.Where(ut => ut.ExpiryDate == null || ut.ExpiryDate > now);
+        }
+        else if (!queryFilters.ShouldIncludeActiveRows)
+        {
+            query = query.Where(ut => ut.ExpiryDate != null && ut.ExpiryDate <= now);
+        }
 
         query = query.Where(ut =>
             ut.Version
@@ -131,28 +142,34 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
     )
     {
         var usersQuery = db.Users.AsNoTracking().Where(user => user.IsEnabled);
-        usersQuery = queryFilters.UserId is Guid reportUserId
-            ? usersQuery.Where(user => user.Id == reportUserId)
+        usersQuery = queryFilters.UserIds is { Count: > 0 } reportUserIds
+            ? usersQuery.Where(user => reportUserIds.Contains(user.Id))
             : usersQuery;
 
-        usersQuery = queryFilters.RegionId is int reportRegionId
-            ? usersQuery.Where(user => user.HomeLocation != null && user.HomeLocation.RegionId == reportRegionId)
+        usersQuery = queryFilters.RegionIds is { Count: > 0 } reportRegionIds
+            ? usersQuery.Where(user =>
+                user.HomeLocation != null
+                && user.HomeLocation.RegionId != null
+                && reportRegionIds.Contains(user.HomeLocation.RegionId.Value)
+            )
             : usersQuery;
 
-        usersQuery = queryFilters.LocationId is int reportLocationId
-            ? usersQuery.Where(user => user.HomeLocationId == reportLocationId)
+        usersQuery = queryFilters.LocationIds is { Count: > 0 } reportLocationIds
+            ? usersQuery.Where(user =>
+                user.HomeLocationId != null && reportLocationIds.Contains(user.HomeLocationId.Value)
+            )
             : usersQuery;
 
         var mandatoryTrainingsQuery = db
             .Trainings.AsNoTracking()
             .Where(training => training.Mandatory && (training.ExpiryDate == null || training.ExpiryDate > now));
 
-        mandatoryTrainingsQuery = queryFilters.TrainingId is int reportTrainingId
-            ? mandatoryTrainingsQuery.Where(training => training.Id == reportTrainingId)
+        mandatoryTrainingsQuery = queryFilters.TrainingIds is { Count: > 0 } reportTrainingIds
+            ? mandatoryTrainingsQuery.Where(training => reportTrainingIds.Contains(training.Id))
             : mandatoryTrainingsQuery;
 
-        mandatoryTrainingsQuery = queryFilters.TrainingCode is string mandatoryTrainingCode
-            ? mandatoryTrainingsQuery.Where(training => training.Code.Contains(mandatoryTrainingCode))
+        mandatoryTrainingsQuery = queryFilters.TrainingCodes is { Count: > 0 } mandatoryTrainingCodes
+            ? mandatoryTrainingsQuery.Where(training => mandatoryTrainingCodes.Contains(training.Code))
             : mandatoryTrainingsQuery;
 
         return (
