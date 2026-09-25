@@ -211,7 +211,9 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             Rotating = training.Rotating,
             TrainingCategoryId = training.TrainingCategoryId,
             TrainingCategoryName = training.TrainingCategory != null ? training.TrainingCategory.Name : null,
-            Order = training.Order,
+CreatedOn = training.CreatedOn,
+            UpdatedOn = training.UpdatedOn,
+            Order = training.Order
             MandatoryTrainingProfiles = training
                 .TrainingProfiles.OrderBy(profile => profile.TrainingProfileType.Code)
                 .Select(profile => new TrainingProfileTypeSummary
