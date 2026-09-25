@@ -2,6 +2,7 @@
 import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
 import { mdiTimerSand } from '@mdi/js';
 import { useAccessControl } from '@/composables/useAccessControl';
+import { useTrainingProfileLookup } from '@/modules/training/trainingProfileApi';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
 import { computed, onMounted } from 'vue';
@@ -13,6 +14,7 @@ const { user } = defineProps<{
 const accessControl = useAccessControl();
 const locationsStore = useLocationsStore();
 const lookupStore = useLookupStore();
+const { data: trainingProfiles } = useTrainingProfileLookup();
 const showBadgeNumber = computed(
   () =>
     (accessControl.featureFlags.value?.UserManagement?.enabled &&
@@ -34,6 +36,15 @@ const positionDescription = computed(() => {
   }
 
   return lookupStore.getDescriptionFromCode(LookupCodeTypes.PositionTypes, user.rank);
+});
+
+const trainingProfileName = computed(() => {
+  if (user?.trainingProfileId == null) {
+    return '-';
+  }
+
+  const profile = (trainingProfiles.value ?? []).find((item) => item.id === user.trainingProfileId);
+  return profile?.name ?? profile?.code ?? `Profile ${user.trainingProfileId}`;
 });
 
 onMounted(async () => {
@@ -80,6 +91,9 @@ onMounted(async () => {
 
     <label class="identification-label">Location</label>
     <div>{{ locationName }}</div>
+
+    <label class="identification-label">Training Profile</label>
+    <div>{{ trainingProfileName }}</div>
 
     <label class="identification-label">Role</label>
     <div>Role</div>

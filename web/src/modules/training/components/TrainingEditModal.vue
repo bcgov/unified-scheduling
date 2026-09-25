@@ -48,19 +48,22 @@ const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-const { data: trainingProfiles } = useTrainingProfileLookup();
+const { data: trainingProfiles, isFetching: isTrainingProfilesFetching } = useTrainingProfileLookup();
 const trainingProfileOptions = computed<SelectOption[]>(() => {
   return (trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,
     description: profile.name?.trim() || profile.code,
   }));
 });
+const isTrainingProfilesLoading = computed(() => isTrainingProfilesFetching.value && !trainingProfiles.value);
 
 const populateFromTraining = (training: TrainingLookupResponse): TrainingFormData => ({
   code: training.code ?? '',
   description: training.description ?? '',
   mandatory: training.mandatory ?? false,
-  mandatoryTrainingProfileIds: (training.mandatoryTrainingProfiles ?? []).map((profile) => profile.id),
+  mandatoryTrainingProfileIds: (training.mandatoryTrainingProfiles ?? [])
+    .map((profile) => profile.id)
+    .filter((id): id is number => id != null),
   validityDayCode: getValidityDayCodeFromDays(training.validityDays),
   advanceNoticeDays: training.advanceNoticeDays == null ? '' : String(training.advanceNoticeDays),
   rotating: training.rotating ?? false,
@@ -73,7 +76,7 @@ const isAnnualValiditySelected = computed(() => formData.value.validityDayCode =
 
 watch(
   () => props.training,
-  (training) => {
+  (training: TrainingLookupResponse) => {
     formData.value = populateFromTraining(training);
     validityDayOptions.value = getValidityDayOptions(training.validityDays);
     formErrors.value = {};
@@ -259,6 +262,7 @@ const handleSave = async () => {
       <label class="ua-form-label" for="edit-training-mandatory-profiles">Mandatory Profiles</label>
       <div class="validity-field">
         <UaSelect
+          v-if="!isTrainingProfilesLoading"
           id="edit-training-mandatory-profiles"
           v-model="formData.mandatoryTrainingProfileIds"
           :items="trainingProfileOptions"
@@ -274,6 +278,9 @@ const handleSave = async () => {
           closable-chips
           clearable
         />
+        <div v-else class="mandatory-profiles-loading" aria-live="polite" aria-label="Loading mandatory profiles">
+          <v-progress-circular indeterminate color="primary" size="20" width="2" />
+        </div>
       </div>
 
       <span class="ua-form-label">Rotating</span>
@@ -326,5 +333,11 @@ const handleSave = async () => {
 .validity-field__hint {
   color: var(--ua-text-secondary);
   font-size: var(--ua-font-size-sm);
+}
+
+.mandatory-profiles-loading {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
 }
 </style>
