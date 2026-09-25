@@ -79,27 +79,30 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             return null;
 
         var normalizedRequest = NormalizeRequest(request);
-        var profileTypeIds = ResolveMandatoryProfileTypeIds(normalizedRequest);
+        var profileTypeIds = ResolveMandatoryProfileTypeIdsForUpdate(normalizedRequest);
 
         normalizedRequest.Adapt(entity);
 
-        var existingProfileLinks = entity.TrainingProfiles.ToList();
-        foreach (
-            var existing in existingProfileLinks.Where(existing =>
-                !profileTypeIds.Contains(existing.TrainingProfileTypeId)
-            )
-        )
+        if (profileTypeIds is not null)
         {
-            entity.TrainingProfiles.Remove(existing);
-        }
+            var existingProfileLinks = entity.TrainingProfiles.ToList();
+            foreach (
+                var existing in existingProfileLinks.Where(existing =>
+                    !profileTypeIds.Contains(existing.TrainingProfileTypeId)
+                )
+            )
+            {
+                entity.TrainingProfiles.Remove(existing);
+            }
 
-        foreach (
-            var profileTypeId in profileTypeIds.Where(profileTypeId =>
-                entity.TrainingProfiles.All(existing => existing.TrainingProfileTypeId != profileTypeId)
+            foreach (
+                var profileTypeId in profileTypeIds.Where(profileTypeId =>
+                    entity.TrainingProfiles.All(existing => existing.TrainingProfileTypeId != profileTypeId)
+                )
             )
-        )
-        {
-            entity.TrainingProfiles.Add(new TrainingProfileLinkEntity { TrainingProfileTypeId = profileTypeId });
+            {
+                entity.TrainingProfiles.Add(new TrainingProfileLinkEntity { TrainingProfileTypeId = profileTypeId });
+            }
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -197,6 +200,16 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         return [.. request.MandatoryTrainingProfileIds.Where(id => id > 0)];
     }
 
+    private static HashSet<int>? ResolveMandatoryProfileTypeIdsForUpdate(TrainingLookupRequest request)
+    {
+        if (request.Mandatory && request.MandatoryTrainingProfileIds is null)
+        {
+            return null;
+        }
+
+        return ResolveMandatoryProfileTypeIds(request);
+    }
+
     private static IQueryable<TrainingLookupResponse> BuildResponseQuery(IQueryable<TrainingEntity> query) =>
         query.Select(training => new TrainingLookupResponse
         {
@@ -211,9 +224,9 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             Rotating = training.Rotating,
             TrainingCategoryId = training.TrainingCategoryId,
             TrainingCategoryName = training.TrainingCategory != null ? training.TrainingCategory.Name : null,
-CreatedOn = training.CreatedOn,
+            CreatedOn = training.CreatedOn,
             UpdatedOn = training.UpdatedOn,
-            Order = training.Order
+            Order = training.Order,
             MandatoryTrainingProfiles = training
                 .TrainingProfiles.OrderBy(profile => profile.TrainingProfileType.Code)
                 .Select(profile => new TrainingProfileTypeSummary

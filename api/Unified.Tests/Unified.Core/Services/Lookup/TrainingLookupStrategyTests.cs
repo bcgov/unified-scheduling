@@ -183,6 +183,38 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAsync_Should_Preserve_Mandatory_Training_Profiles_When_Ids_Are_Omitted()
+    {
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+        var created = await _strategy.CreateAsync(
+            new TrainingLookupRequest
+            {
+                Code = "MAND-PROFILE-KEEP",
+                Description = "Profile Mandatory",
+                Mandatory = true,
+                MandatoryTrainingProfileIds = [profile.Id],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var updated = await _strategy.UpdateAsync(
+            created.Id,
+            new TrainingLookupRequest
+            {
+                Code = created.Code,
+                Description = "Updated Description",
+                Mandatory = true,
+                MandatoryTrainingProfileIds = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.True(updated!.Mandatory);
+        Assert.Equal([profile.Id], updated.MandatoryTrainingProfiles.Select(profileType => profileType.Id));
+    }
+
+    [Fact]
     public async Task UpdateAsync_Should_Return_Null_When_Not_Found()
     {
         var result = await _strategy.UpdateAsync(

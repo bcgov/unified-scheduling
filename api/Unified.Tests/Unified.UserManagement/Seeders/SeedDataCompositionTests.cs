@@ -7,6 +7,7 @@ using Unified.Db;
 using Unified.Reporting;
 using Unified.Stats;
 using Unified.Training;
+using Unified.Training.Seeders;
 using Unified.UserManagement;
 using Unified.UserManagement.Seeders;
 
@@ -41,6 +42,7 @@ public sealed class SeedDataCompositionTests
         Assert.Empty(composition.UserConfigurations);
         Assert.Empty(composition.RoleConfigurations);
         Assert.Empty(composition.PermissionConfigurations);
+        Assert.Empty(composition.TrainingProfileTypeConfigurations);
     }
 
     [Fact]
@@ -120,6 +122,20 @@ public sealed class SeedDataCompositionTests
         Assert.Equal([dataSet], composition.PermissionConfigurations.Select(x => x.Source));
     }
 
+    [Fact]
+    public void AddConfiguredSeedData_TrainingProfileTypesDataSet_RegistersTrainingProfiles()
+    {
+        var composition = GetComposition(
+            [TrainingSeedDataSets.TrainingPermissionsDataSet, TrainingSeedDataSets.TrainingProfileTypesDataSet],
+            enabledFeature: "Training:Enabled"
+        );
+
+        Assert.Equal(
+            [TrainingSeedDataSets.TrainingProfileTypesDataSet],
+            composition.TrainingProfileTypeConfigurations.Select(x => x.Source)
+        );
+    }
+
     private static SeedComposition GetComposition(params string[] dataSets) => GetComposition(dataSets, null);
 
     private static IReadOnlyList<SeedDataSetDescriptor> AllDataSets { get; } =
@@ -149,7 +165,8 @@ public sealed class SeedDataCompositionTests
             scope.ServiceProvider.GetServices<LocationSeedConfiguration>().ToArray(),
             scope.ServiceProvider.GetServices<UserSeedConfiguration>().ToArray(),
             scope.ServiceProvider.GetServices<RoleSeedConfiguration>().ToArray(),
-            scope.ServiceProvider.GetServices<PermissionSeedConfiguration>().ToArray()
+            scope.ServiceProvider.GetServices<PermissionSeedConfiguration>().ToArray(),
+            scope.ServiceProvider.GetServices<TrainingProfileTypeSeedConfiguration>().ToArray()
         );
     }
 
@@ -173,6 +190,7 @@ public sealed class SeedDataCompositionTests
         LocationSeedConfiguration[] LocationConfigurations,
         UserSeedConfiguration[] UserConfigurations,
         RoleSeedConfiguration[] RoleConfigurations,
-        PermissionSeedConfiguration[] PermissionConfigurations
+        PermissionSeedConfiguration[] PermissionConfigurations,
+        TrainingProfileTypeSeedConfiguration[] TrainingProfileTypeConfigurations
     );
 }
