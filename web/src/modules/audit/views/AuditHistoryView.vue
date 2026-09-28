@@ -6,7 +6,7 @@ import UaDataTableServer from '@/shared/components/UaDataTableServer.vue';
 import UaPageHeader from '@/shared/components/UaPageHeader.vue';
 import type { AuditRecordResponseDto } from '@/api-access/generated/models';
 import { AUDIT_ACTION_COLORS, type AuditAction } from '../constants';
-import { buildDiffRows, formatOccurredOn } from '../utils/auditFormat';
+import { buildDiffRows, formatOccurredOn, reconcileAction } from '../utils/auditFormat';
 import { useAuditHistory } from '../composables/useAuditHistory';
 import AuditFilters from '../components/AuditFilters.vue';
 
@@ -109,13 +109,20 @@ onMounted(async () => {
           </template>
 
           <template #[`item.action`]="{ item }">
-            <v-chip :color="AUDIT_ACTION_COLORS[item.action as AuditAction]" size="small" variant="tonal">
-              {{ item.action }}
+            <v-chip
+              :color="AUDIT_ACTION_COLORS[reconcileAction(item as AuditRecordResponseDto) as AuditAction]"
+              size="small"
+              variant="tonal"
+            >
+              {{ reconcileAction(item as AuditRecordResponseDto) }}
             </v-chip>
           </template>
 
           <template #[`item.changedColumns`]="{ item }">
-            <div v-if="item.action === 'Modified' && item.changedColumns?.length" class="changed-fields">
+            <div
+              v-if="reconcileAction(item as AuditRecordResponseDto) === 'Modified' && item.changedColumns?.length"
+              class="changed-fields"
+            >
               <v-chip v-for="field in item.changedColumns" :key="field" size="x-small" variant="tonal">
                 {{ fieldLabelByName.get(field) ?? field }}
               </v-chip>
