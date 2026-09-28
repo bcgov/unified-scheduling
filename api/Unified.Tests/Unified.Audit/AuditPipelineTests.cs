@@ -239,13 +239,13 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         dbContext.Trainings.Add(training);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var link = new TrainingProfile { TrainingId = training.Id, TrainingProfileTypeId = profile.Id };
-        dbContext.TrainingProfiles.Add(link);
+        var link = new TrainingProfileRequirement { TrainingId = training.Id, TrainingProfileTypeId = profile.Id };
+        dbContext.TrainingProfileRequirements.Add(link);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var record = Assert.Single(
             await dbContext
-                .AuditRecords.Where(r => r.EntityType == nameof(TrainingProfile) && r.Action == "Added")
+                .AuditRecords.Where(r => r.EntityType == nameof(TrainingProfileRequirement) && r.Action == "Added")
                 .ToListAsync(TestContext.Current.CancellationToken)
         );
 

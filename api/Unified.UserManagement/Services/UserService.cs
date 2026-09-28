@@ -187,13 +187,23 @@ public sealed class UserService(
             return;
         }
 
+        var now = DateTimeOffset.UtcNow;
+
         var exists = await DB
             .TrainingProfileTypes.AsNoTracking()
-            .AnyAsync(profile => profile.Id == trainingProfileId, cancellationToken);
+            .AnyAsync(
+                profile =>
+                    profile.Id == trainingProfileId
+                    && profile.EffectiveDate <= now
+                    && (profile.ExpiryDate == null || profile.ExpiryDate > now),
+                cancellationToken
+            );
 
         if (!exists)
         {
-            throw new InvalidOperationException($"Training profile '{trainingProfileId}' was not found.");
+            throw new InvalidOperationException(
+                $"Training profile '{trainingProfileId}' was not found or is not active."
+            );
         }
     }
 

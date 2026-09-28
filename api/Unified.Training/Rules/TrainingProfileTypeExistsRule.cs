@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Common.Interceptors;
-using TrainingProfileLinkEntity = Unified.Db.Models.Training.TrainingProfile;
+using TrainingProfileLinkEntity = Unified.Db.Models.Training.TrainingProfileRequirement;
 using TrainingProfileTypeEntity = Unified.Db.Models.Training.TrainingProfileType;
 
 namespace Unified.Training.Rules;

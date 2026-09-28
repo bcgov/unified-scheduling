@@ -7,7 +7,7 @@ using Unified.Tests.TestHelpers;
 using Unified.Training.Rules;
 using Xunit;
 using TrainingEntity = Unified.Db.Models.Training.Training;
-using TrainingProfileLinkEntity = Unified.Db.Models.Training.TrainingProfile;
+using TrainingProfileLinkEntity = Unified.Db.Models.Training.TrainingProfileRequirement;
 using TrainingProfileTypeEntity = Unified.Db.Models.Training.TrainingProfileType;
 
 namespace Unified.Tests.Training.Rules;
@@ -51,7 +51,7 @@ public sealed class TrainingProfileTypeExistsRuleTests : IAsyncLifetime
         _dbContext.TrainingProfileTypes.Add(profileType);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        _dbContext.TrainingProfiles.Add(
+        _dbContext.TrainingProfileRequirements.Add(
             new TrainingProfileLinkEntity { TrainingId = 1, TrainingProfileTypeId = profileType.Id }
         );
 
@@ -61,7 +61,9 @@ public sealed class TrainingProfileTypeExistsRuleTests : IAsyncLifetime
     [Fact]
     public async Task ExecuteAsync_WhenReferencedProfileTypeMissing_ShouldThrow()
     {
-        _dbContext.TrainingProfiles.Add(new TrainingProfileLinkEntity { TrainingId = 1, TrainingProfileTypeId = 999 });
+        _dbContext.TrainingProfileRequirements.Add(
+            new TrainingProfileLinkEntity { TrainingId = 1, TrainingProfileTypeId = 999 }
+        );
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _rule.ExecuteAsync(_dbContext, TestContext.Current.CancellationToken)
@@ -103,7 +105,7 @@ public sealed class TrainingProfileTypeExistsRuleTests : IAsyncLifetime
             context.Trainings.Add(training);
             await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            context.TrainingProfiles.Add(
+            context.TrainingProfileRequirements.Add(
                 new TrainingProfileLinkEntity { TrainingId = training.Id, TrainingProfileTypeId = 999 }
             );
 
@@ -119,7 +121,7 @@ public sealed class TrainingProfileTypeExistsRuleTests : IAsyncLifetime
         await using var verifyContext = new SqliteTestUnifiedDbContext(verifyOptions);
 
         var persistedLinks = await verifyContext
-            .TrainingProfiles.AsNoTracking()
+            .TrainingProfileRequirements.AsNoTracking()
             .CountAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, persistedLinks);

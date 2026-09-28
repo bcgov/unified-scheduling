@@ -159,10 +159,10 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
             from user in usersQuery
             from training in mandatoryTrainingsQuery
             where
-                !training.TrainingProfiles.Any()
+                !training.TrainingProfileRequirements.Any()
                 || (
                     user.TrainingProfileId != null
-                    && training.TrainingProfiles.Any(requiredProfile =>
+                    && training.TrainingProfileRequirements.Any(requiredProfile =>
                         requiredProfile.TrainingProfileTypeId == user.TrainingProfileId
                     )
                 )

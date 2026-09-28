@@ -514,8 +514,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
 
         if (mandatoryTrainingProfileIds is { Count: > 0 })
         {
-            _db.TrainingProfiles.AddRange(
-                mandatoryTrainingProfileIds.Select(profileId => new TrainingProfile
+            _db.TrainingProfileRequirements.AddRange(
+                mandatoryTrainingProfileIds.Select(profileId => new TrainingProfileRequirement
                 {
                     TrainingId = training.Id,
                     TrainingProfileTypeId = profileId,

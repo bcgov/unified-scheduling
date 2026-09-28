@@ -4,7 +4,7 @@ using Unified.Core.Models;
 using Unified.Db;
 using Unified.Training.Models;
 using TrainingEntity = Unified.Db.Models.Training.Training;
-using TrainingProfileLinkEntity = Unified.Db.Models.Training.TrainingProfile;
+using TrainingProfileLinkEntity = Unified.Db.Models.Training.TrainingProfileRequirement;
 
 namespace Unified.Training.Services.Lookup;
 
@@ -25,7 +25,8 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             query = query.Where(t => t.ExpiryDate == null || t.ExpiryDate > now);
         }
 
-        return await BuildResponseQuery(query.OrderBy(t => t.Order).ThenBy(t => t.Code)).ToListAsync(cancellationToken);
+        return await BuildListResponseQuery(query.OrderBy(t => t.Order).ThenBy(t => t.Code))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
@@ -38,7 +39,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
 
     public async Task<TrainingLookupResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await BuildResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id))
+        return await BuildDetailResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -56,7 +57,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             entity.EffectiveDate = DateTimeOffset.UtcNow;
         }
 
-        entity.TrainingProfiles = profileTypeIds
+        entity.TrainingProfileRequirements = profileTypeIds
             .Select(profileTypeId => new TrainingProfileLinkEntity { TrainingProfileTypeId = profileTypeId })
             .ToList();
 
@@ -73,7 +74,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
     )
     {
         var entity = await db
-            .Trainings.Include(t => t.TrainingProfiles)
+            .Trainings.Include(t => t.TrainingProfileRequirements)
             .SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
         if (entity is null)
             return null;
@@ -85,23 +86,25 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
 
         if (profileTypeIds is not null)
         {
-            var existingProfileLinks = entity.TrainingProfiles.ToList();
+            var existingProfileLinks = entity.TrainingProfileRequirements.ToList();
             foreach (
                 var existing in existingProfileLinks.Where(existing =>
                     !profileTypeIds.Contains(existing.TrainingProfileTypeId)
                 )
             )
             {
-                entity.TrainingProfiles.Remove(existing);
+                entity.TrainingProfileRequirements.Remove(existing);
             }
 
             foreach (
                 var profileTypeId in profileTypeIds.Where(profileTypeId =>
-                    entity.TrainingProfiles.All(existing => existing.TrainingProfileTypeId != profileTypeId)
+                    entity.TrainingProfileRequirements.All(existing => existing.TrainingProfileTypeId != profileTypeId)
                 )
             )
             {
-                entity.TrainingProfiles.Add(new TrainingProfileLinkEntity { TrainingProfileTypeId = profileTypeId });
+                entity.TrainingProfileRequirements.Add(
+                    new TrainingProfileLinkEntity { TrainingProfileTypeId = profileTypeId }
+                );
             }
         }
 
@@ -188,7 +191,8 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
     }
 
     private async Task<TrainingLookupResponse> GetRequiredByIdAsync(int id, CancellationToken cancellationToken) =>
-        await BuildResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id)).SingleAsync(cancellationToken);
+        await BuildDetailResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id))
+            .SingleAsync(cancellationToken);
 
     private static HashSet<int> ResolveMandatoryProfileTypeIds(TrainingLookupRequest request)
     {
@@ -210,7 +214,26 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         return ResolveMandatoryProfileTypeIds(request);
     }
 
-    private static IQueryable<TrainingLookupResponse> BuildResponseQuery(IQueryable<TrainingEntity> query) =>
+    private static IQueryable<TrainingLookupResponse> BuildListResponseQuery(IQueryable<TrainingEntity> query) =>
+        query.Select(training => new TrainingLookupResponse
+        {
+            Id = training.Id,
+            Code = training.Code,
+            Description = training.Description,
+            EffectiveDate = training.EffectiveDate,
+            ExpiryDate = training.ExpiryDate,
+            Mandatory = training.Mandatory,
+            ValidityDays = training.ValidityDays,
+            AdvanceNoticeDays = training.AdvanceNoticeDays,
+            Rotating = training.Rotating,
+            TrainingCategoryId = training.TrainingCategoryId,
+            TrainingCategoryName = training.TrainingCategory != null ? training.TrainingCategory.Name : null,
+            CreatedOn = training.CreatedOn,
+            UpdatedOn = training.UpdatedOn,
+            Order = training.Order,
+        });
+
+    private static IQueryable<TrainingLookupResponse> BuildDetailResponseQuery(IQueryable<TrainingEntity> query) =>
         query.Select(training => new TrainingLookupResponse
         {
             Id = training.Id,
@@ -228,7 +251,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             UpdatedOn = training.UpdatedOn,
             Order = training.Order,
             MandatoryTrainingProfiles = training
-                .TrainingProfiles.OrderBy(profile => profile.TrainingProfileType.Code)
+                .TrainingProfileRequirements.OrderBy(profile => profile.TrainingProfileType.Code)
                 .Select(profile => new TrainingProfileTypeSummary
                 {
                     Id = profile.TrainingProfileType.Id,

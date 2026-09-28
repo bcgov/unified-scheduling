@@ -7,6 +7,7 @@ using Unified.Common.Events;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
+using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
 using Unified.UserManagement.FeatureFlags;
@@ -405,6 +406,40 @@ public class UserServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateAsync_Should_Throw_When_TrainingProfile_Is_Expired()
+    {
+        var expiredProfile = new TrainingProfileType
+        {
+            Code = "EXPIRED-PROFILE",
+            Name = "Expired Profile",
+            Description = "Expired profile",
+            EffectiveDate = DateTimeOffset.UtcNow.AddDays(-30),
+            ExpiryDate = DateTimeOffset.UtcNow.AddDays(-1),
+        };
+        _dbContext.TrainingProfileTypes.Add(expiredProfile);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var request = new UserRequestDto
+        {
+            IdirName = "trainingprofileexpired",
+            IsEnabled = true,
+            FirstName = "Training",
+            LastName = "Profile",
+            Email = "training.profile@example.com",
+            Gender = Gender.Other,
+            Rank = "Deputy Sheriff",
+            BadgeNumber = "BADGE-TP-EXPIRED",
+            EmployeeNumber = "EMP-TP-EXPIRED",
+            HomeLocationId = 1,
+            TrainingProfileId = expiredProfile.Id,
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _userService.CreateAsync(request, TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public async Task UpdateAsync_Should_Throw_When_IdirName_Normalizes_To_Another_User()
     {
         await SeedTestData();
@@ -567,6 +602,43 @@ public class UserServiceTests : IAsyncLifetime
         var userInDb = await _dbContext.Users.FindAsync([existingUser.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(userInDb);
         Assert.Equal("updateduser", userInDb.IdirName);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Throw_When_TrainingProfile_Is_Not_Yet_Effective()
+    {
+        await SeedTestData();
+        var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+
+        var futureProfile = new TrainingProfileType
+        {
+            Code = "FUTURE-PROFILE",
+            Name = "Future Profile",
+            Description = "Future profile",
+            EffectiveDate = DateTimeOffset.UtcNow.AddDays(3),
+            ExpiryDate = null,
+        };
+        _dbContext.TrainingProfileTypes.Add(futureProfile);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var request = new UserRequestDto
+        {
+            IdirName = "updateduser",
+            IsEnabled = true,
+            FirstName = "Updated",
+            LastName = "User",
+            Email = "updated.user@example.com",
+            Gender = Gender.Other,
+            Rank = "Deputy Sheriff",
+            BadgeNumber = "BADGE-TP-FUTURE",
+            EmployeeNumber = "EMP-TP-FUTURE",
+            HomeLocationId = 1,
+            TrainingProfileId = futureProfile.Id,
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _userService.UpdateAsync(existingUser.Id, request, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]

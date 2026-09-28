@@ -172,7 +172,7 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
                 Code = created.Code,
                 Description = created.Description,
                 Mandatory = false,
-                MandatoryTrainingProfileIds = [profile.Id],
+                MandatoryTrainingProfileIds = [],
             },
             TestContext.Current.CancellationToken
         );
