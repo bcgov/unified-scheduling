@@ -13,5 +13,6 @@ public class TrainingProfileType : BaseCodeTypeEntity
 
     public virtual ICollection<User> Users { get; set; } = [];
 
-    public virtual ICollection<TrainingProfile> TrainingProfiles { get; set; } = [];
+    public virtual ICollection<TrainingProfileRequirement> TrainingProfileRequirements { get; set; } =
+    [];
 }

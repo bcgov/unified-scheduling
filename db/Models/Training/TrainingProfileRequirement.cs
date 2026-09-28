@@ -2,7 +2,7 @@ using Unified.Db.Models.Abstract;
 
 namespace Unified.Db.Models.Training;
 
-public class TrainingProfile : BaseEntity
+public class TrainingProfileRequirement : BaseEntity
 {
     public int Id { get; set; }
 

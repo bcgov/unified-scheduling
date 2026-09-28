@@ -4,9 +4,10 @@ using Unified.Db.Models.Training;
 
 namespace Unified.Db.Configuration.Training;
 
-public class TrainingProfileConfiguration : BaseEntityConfiguration<TrainingProfile>
+public class TrainingProfileRequirementConfiguration
+    : BaseEntityConfiguration<TrainingProfileRequirement>
 {
-    public override void Configure(EntityTypeBuilder<TrainingProfile> builder)
+    public override void Configure(EntityTypeBuilder<TrainingProfileRequirement> builder)
     {
         builder.ToTable("TrainingMandatoryTrainingProfiles");
 
@@ -20,13 +21,13 @@ public class TrainingProfileConfiguration : BaseEntityConfiguration<TrainingProf
 
         builder
             .HasOne(x => x.Training)
-            .WithMany(x => x.TrainingProfiles)
+            .WithMany(x => x.TrainingProfileRequirements)
             .HasForeignKey(x => x.TrainingId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder
             .HasOne(x => x.TrainingProfileType)
-            .WithMany(x => x.TrainingProfiles)
+            .WithMany(x => x.TrainingProfileRequirements)
             .HasForeignKey(x => x.TrainingProfileTypeId)
             .OnDelete(DeleteBehavior.Cascade);
 

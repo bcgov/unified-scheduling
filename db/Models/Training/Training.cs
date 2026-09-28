@@ -25,5 +25,6 @@ public class Training : BaseCodeTypeEntity
 
     public virtual ICollection<UserTraining> UserTrainings { get; set; } = [];
 
-    public virtual ICollection<TrainingProfile> TrainingProfiles { get; set; } = [];
+    public virtual ICollection<TrainingProfileRequirement> TrainingProfileRequirements { get; set; } =
+    [];
 }
