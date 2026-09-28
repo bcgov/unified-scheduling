@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Audit.Core;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -79,6 +80,11 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         Assert.Equal(ActorName, record.ActorName);
         Assert.Null(record.OldValues);
         Assert.Contains("South", record.NewValues);
+
+        using var newValues = JsonDocument.Parse(record.NewValues!);
+        var auditedCreatedOn = newValues.RootElement.GetProperty(nameof(Region.CreatedOn)).GetDateTimeOffset();
+        Assert.Equal(region.CreatedOn, auditedCreatedOn);
+        Assert.NotEqual(DateTimeOffset.MinValue, auditedCreatedOn);
     }
 
     [Fact]
