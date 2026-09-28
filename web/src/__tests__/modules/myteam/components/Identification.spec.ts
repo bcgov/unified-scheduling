@@ -3,21 +3,26 @@ import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 
 import { getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
+import type { Permissions } from '@/api-access/generated/models';
 import Identification from '@/modules/myteam/components/Identification.vue';
 import { createTestApp } from '../../../helpers/createTestApp';
 
-const { useTrainingProfileLookupMock } = vi.hoisted(() => ({
-  useTrainingProfileLookupMock: vi.fn(),
+const { getApiTrainingProfileTypesMock } = vi.hoisted(() => ({
+  getApiTrainingProfileTypesMock: vi.fn(),
 }));
 
-vi.mock('@/modules/training/trainingProfileApi', () => ({
-  useTrainingProfileLookup: useTrainingProfileLookupMock,
+vi.mock('@/api-access/generated/training/training', () => ({
+  getApiTrainingProfileTypes: getApiTrainingProfileTypesMock,
 }));
 
 describe('Identification', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useTrainingProfileLookupMock.mockReturnValue({ data: ref([]) });
+    getApiTrainingProfileTypesMock.mockReturnValue({
+      data: ref([]),
+      isFetching: ref(false),
+      execute: vi.fn().mockResolvedValue(undefined),
+    });
   });
 
   it('renders user identification details including badge when feature flag is enabled', async () => {
@@ -84,12 +89,14 @@ describe('Identification', () => {
   });
 
   it('shows training profile name when profile lookup contains matching id', async () => {
-    const app = await createTestApp();
-    useTrainingProfileLookupMock.mockReturnValue({
+    const app = await createTestApp({ permissions: ['TrainingsView' as unknown as Permissions] });
+    getApiTrainingProfileTypesMock.mockReturnValue({
       data: ref([
         { id: 2, code: 'SUP', name: 'Supervisor' },
         { id: 4, code: 'OPS', name: 'Operations' },
       ]),
+      isFetching: ref(false),
+      execute: vi.fn().mockResolvedValue(undefined),
     });
 
     const user = {
@@ -110,10 +117,12 @@ describe('Identification', () => {
     expect(wrapper.text()).toContain('Operations');
   });
 
-  it('falls back to generated profile label when id is not in lookup', async () => {
-    const app = await createTestApp();
-    useTrainingProfileLookupMock.mockReturnValue({
+  it('shows unavailable text when profile id is not in lookup', async () => {
+    const app = await createTestApp({ permissions: ['TrainingsView' as unknown as Permissions] });
+    getApiTrainingProfileTypesMock.mockReturnValue({
       data: ref([{ id: 2, code: 'SUP', name: 'Supervisor' }]),
+      isFetching: ref(false),
+      execute: vi.fn().mockResolvedValue(undefined),
     });
 
     const user = {
@@ -130,6 +139,58 @@ describe('Identification', () => {
       },
     });
 
-    expect(wrapper.text()).toContain('Profile 99');
+    expect(wrapper.text()).toContain('Training profile unavailable');
+  });
+
+  it('shows loading text while profile lookup is in progress', async () => {
+    const app = await createTestApp({ permissions: ['TrainingsView' as unknown as Permissions] });
+    getApiTrainingProfileTypesMock.mockReturnValue({
+      data: ref([]),
+      isFetching: ref(true),
+      execute: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const user = {
+      ...getGetApiUsersIdResponseMock(),
+      trainingProfileId: 99,
+    };
+
+    const wrapper = mount(Identification, {
+      props: {
+        user,
+      },
+      global: {
+        plugins: app.mountPlugins,
+      },
+    });
+
+    expect(wrapper.text()).toContain('Loading training profile...');
+  });
+
+  it('shows placeholder when user lacks TrainingsView permission', async () => {
+    const app = await createTestApp({ permissions: [] });
+    getApiTrainingProfileTypesMock.mockReturnValue({
+      data: ref([{ id: 4, code: 'OPS', name: 'Operations' }]),
+      isFetching: ref(false),
+      execute: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const user = {
+      ...getGetApiUsersIdResponseMock(),
+      trainingProfileId: 4,
+    };
+
+    const wrapper = mount(Identification, {
+      props: {
+        user,
+      },
+      global: {
+        plugins: app.mountPlugins,
+      },
+    });
+
+    expect(wrapper.text()).toContain('Training Profile');
+    expect(wrapper.text()).not.toContain('Operations');
+    expect(wrapper.text()).toContain('-');
   });
 });

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Gender, LookupCodeTypes, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
+import { getApiTrainingProfileTypes } from '@/api-access/generated/training/training';
 import { postApiUsers, postApiUsersIdUploadPhoto, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
@@ -10,7 +11,6 @@ import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
 import { useAccessControl } from '@/composables/useAccessControl';
-import { useTrainingProfileLookup } from '@/modules/training/trainingProfileApi';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
 import type { SelectOption } from '@/types/select';
@@ -47,12 +47,32 @@ const isEditMode = computed(() => !!currentUser.value);
 
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
 const homeLocationOptions = locationsStore.selectOptions;
-const { data: trainingProfiles } = useTrainingProfileLookup();
+const {
+  data: trainingProfiles,
+  error: trainingProfilesError,
+  isFetching: isTrainingProfilesFetching,
+} = getApiTrainingProfileTypes();
 const trainingProfileOptions = computed<SelectOption[]>(() =>
-  (trainingProfiles.value ?? []).map((profile) => ({
-    code: profile.id,
-    description: profile.name?.trim() || profile.code,
-  })),
+  (trainingProfiles.value ?? [])
+    .filter((profile): profile is { id: number; code?: string; name?: string } => profile.id != null)
+    .map((profile) => ({
+      code: profile.id,
+      description: profile.name?.trim() || profile.code || `Profile ${profile.id}`,
+    })),
+);
+const trainingProfilesLookupMessage = computed(() => {
+  if (isTrainingProfilesFetching.value && !trainingProfiles.value) {
+    return 'Loading training profiles...';
+  }
+
+  if (trainingProfilesError.value) {
+    return 'Training profile options are unavailable right now.';
+  }
+
+  return '';
+});
+const isTrainingProfileSelectDisabled = computed(
+  () => isLoading.value || isTrainingProfilesFetching.value || !!trainingProfilesError.value,
 );
 const genderOptions = mapToSelectOptions(
   Object.values(Gender),
@@ -275,6 +295,9 @@ const handleSave = async () => {
       <UaAlert v-if="apiErrorMessage" type="error" @close="apiErrorMessage = ''">
         Request failed: {{ apiErrorMessage }}
       </UaAlert>
+      <UaAlert v-else-if="trainingProfilesLookupMessage" type="warning">
+        {{ trainingProfilesLookupMessage }}
+      </UaAlert>
     </template>
 
     <!-- Photo upload -->
@@ -390,6 +413,9 @@ const handleSave = async () => {
         v-model="formData.trainingProfileId"
         label="Training Profile"
         :items="trainingProfileOptions"
+        :disabled="isTrainingProfileSelectDisabled"
+        :hint="trainingProfilesLookupMessage"
+        persistent-hint
         clearable
       />
 

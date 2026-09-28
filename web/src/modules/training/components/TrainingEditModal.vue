@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { putApiLookupTrainingsId } from '@/api-access/generated/training/training';
+import { getApiTrainingProfileTypes } from '@/api-access/generated/training/training';
 import type { TrainingLookupRequest, TrainingLookupResponse } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -12,7 +13,6 @@ import { mapToValidationErrors, validationMessages } from '@/shared/validation/v
 import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref, watch } from 'vue';
-import { useTrainingProfileLookup } from '../trainingProfileApi';
 import {
   annualValidityDayCode,
   getValidityDayCodeFromDays,
@@ -48,7 +48,7 @@ const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
 
-const { data: trainingProfiles, isFetching: isTrainingProfilesFetching } = useTrainingProfileLookup();
+const { data: trainingProfiles, isFetching: isTrainingProfilesFetching } = getApiTrainingProfileTypes();
 const trainingProfileOptions = computed<SelectOption[]>(() => {
   return (trainingProfiles.value ?? []).map((profile) => ({
     code: profile.id,

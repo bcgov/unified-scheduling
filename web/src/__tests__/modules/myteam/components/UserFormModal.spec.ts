@@ -16,18 +16,18 @@ import { createTestApp } from '../../../helpers/createTestApp';
 import type { UserResponse } from '@/api-access/generated/models';
 import { Gender } from '@/api-access/generated/models';
 
-const { useTrainingProfileLookupMock } = vi.hoisted(() => ({
-  useTrainingProfileLookupMock: vi.fn(),
+const { getApiTrainingProfileTypesMock } = vi.hoisted(() => ({
+  getApiTrainingProfileTypesMock: vi.fn(),
 }));
 
-vi.mock('@/modules/training/trainingProfileApi', () => ({
-  useTrainingProfileLookup: useTrainingProfileLookupMock,
+vi.mock('@/api-access/generated/training/training', () => ({
+  getApiTrainingProfileTypes: getApiTrainingProfileTypesMock,
 }));
 
 afterEach(() => {
   document.body.innerHTML = '';
   vi.restoreAllMocks();
-  useTrainingProfileLookupMock.mockReset();
+  getApiTrainingProfileTypesMock.mockReset();
 });
 
 const baseUser: UserResponse = {
@@ -63,12 +63,20 @@ const validFormData = {
   isEnabled: true,
 };
 
-const setupTrainingProfileLookupMock = () => {
-  useTrainingProfileLookupMock.mockReturnValue({
-    data: ref([
-      { id: 2, code: 'SUP', name: 'Supervisor' },
-      { id: 3, code: 'OPS', name: 'Operations' },
-    ]),
+const setupTrainingProfileLookupMock = (options?: {
+  profiles?: Array<{ id: number; code: string; name: string }>;
+  isFetching?: boolean;
+  error?: Error | null;
+}) => {
+  const profiles = options?.profiles ?? [
+    { id: 2, code: 'SUP', name: 'Supervisor' },
+    { id: 3, code: 'OPS', name: 'Operations' },
+  ];
+
+  getApiTrainingProfileTypesMock.mockReturnValue({
+    data: ref(profiles),
+    error: ref(options?.error ?? null),
+    isFetching: ref(options?.isFetching ?? false),
   });
 };
 
@@ -492,6 +500,26 @@ describe('UserFormModal — training profile', () => {
         trainingProfileId: 3,
       }),
     );
+
+    wrapper.unmount();
+  });
+
+  it('disables training profile select when profile lookup fails', async () => {
+    setupTrainingProfileLookupMock({ error: new Error('forbidden') });
+    const app = await createTestApp();
+
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+
+    const trainingProfileSelect = document.querySelector('#training-profile') as HTMLInputElement | null;
+    expect(trainingProfileSelect).toBeTruthy();
+    expect(trainingProfileSelect?.disabled).toBe(true);
+    expect(document.body.textContent ?? '').toContain('Training profile options are unavailable right now.');
 
     wrapper.unmount();
   });

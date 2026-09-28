@@ -136,7 +136,9 @@ const getRowProps = (context: { item: TrainingLookupResponse }) => {
     </template>
 
     <template #[`item.mandatoryScope`]="{ item }">
-      {{ formatMandatoryScope(item) }}
+      <span class="mandatory-scope-cell" :title="formatMandatoryScope(item)">
+        {{ formatMandatoryScope(item) }}
+      </span>
     </template>
 
     <template #[`item.validityDays`]="{ item }">
@@ -230,6 +232,15 @@ const getRowProps = (context: { item: TrainingLookupResponse }) => {
 .training-status-expired {
   color: rgb(var(--v-theme-warning));
   font-weight: var(--ua-font-weight-medium);
+}
+
+.mandatory-scope-cell {
+  display: inline-block;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .ua-data-table-wrapper :deep(.v-table tbody tr.training-row--expired > td) {

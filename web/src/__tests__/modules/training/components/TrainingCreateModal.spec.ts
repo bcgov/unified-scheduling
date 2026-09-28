@@ -4,28 +4,28 @@ import { ref } from 'vue';
 import TrainingCreateModal from '@/modules/training/components/TrainingCreateModal.vue';
 import { createTestApp } from '../../../helpers/createTestApp';
 
-const { postApiLookupTrainingsMock } = vi.hoisted(() => ({
+const { postApiLookupTrainingsMock, getApiTrainingProfileTypesMock } = vi.hoisted(() => ({
   postApiLookupTrainingsMock: vi.fn(),
+  getApiTrainingProfileTypesMock: vi.fn(),
 }));
 
 vi.mock('@/api-access/generated/training/training', () => ({
   postApiLookupTrainings: postApiLookupTrainingsMock,
-}));
-
-vi.mock('@/modules/training/trainingProfileApi', () => ({
-  useTrainingProfileLookup: () =>
-    ({
-      data: ref([
-        { id: 1, code: 'GEN', name: 'General Duty' },
-        { id: 2, code: 'SUP', name: 'Supervisor' },
-      ]),
-    }) as const,
+  getApiTrainingProfileTypes: getApiTrainingProfileTypesMock,
 }));
 
 describe('TrainingCreateModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     postApiLookupTrainingsMock.mockResolvedValue({ data: ref(null), error: ref(null) });
+    getApiTrainingProfileTypesMock.mockReturnValue({
+      data: ref([
+        { id: 1, code: 'GEN', name: 'General Duty' },
+        { id: 2, code: 'SUP', name: 'Supervisor' },
+      ]),
+      error: ref(null),
+      isFetching: ref(false),
+    });
   });
 
   afterEach(() => {
