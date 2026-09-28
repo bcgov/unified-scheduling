@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 using Unified.JCInterface.Jobs;
 using Unified.JCInterface.Options;
 
@@ -25,5 +26,10 @@ public class JCSyncRecurringJobTests
     }
 
     private static JCSyncRecurringJob CreateJob(string syncCron) =>
-        new(null!, Options.Create(new JCInterfaceOptions { SyncCron = syncCron }));
+        new(
+            null!,
+            Options.Create(new JCInterfaceOptions { SyncCron = syncCron }),
+            NullLogger<JCSyncRecurringJob>.Instance
+        );
 }
+// 
