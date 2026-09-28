@@ -12,6 +12,7 @@ public class TrainingProfileTypeConfiguration : BaseEntityConfiguration<Training
 
         builder.Property(b => b.Code).HasMaxLength(50).IsRequired();
         builder.Property(b => b.Name).HasMaxLength(100).IsRequired();
+        builder.Property(b => b.Description).HasMaxLength(100).IsRequired();
 
         builder.HasIndex(b => b.Code).IsUnique();
 
