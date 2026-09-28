@@ -50,10 +50,12 @@ const formErrors = ref<Record<string, string>>({});
 
 const { data: trainingProfiles, isFetching: isTrainingProfilesFetching } = getApiTrainingProfileTypes();
 const trainingProfileOptions = computed<SelectOption[]>(() => {
-  return (trainingProfiles.value ?? []).map((profile) => ({
-    code: profile.id,
-    description: profile.name?.trim() || profile.code,
-  }));
+  return (trainingProfiles.value ?? [])
+    .filter((profile): profile is typeof profile & { id: number } => profile.id != null)
+    .map((profile) => ({
+      code: profile.id,
+      description: profile.name?.trim() || profile.code?.trim() || String(profile.id),
+    }));
 });
 const isTrainingProfilesLoading = computed(() => isTrainingProfilesFetching.value && !trainingProfiles.value);
 
