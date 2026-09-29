@@ -1,4 +1,5 @@
 using Unified.Calendar.Conflicts;
+using Unified.Common.Calendar.Conflicts;
 
 namespace Unified.Calendar.Models;
 
