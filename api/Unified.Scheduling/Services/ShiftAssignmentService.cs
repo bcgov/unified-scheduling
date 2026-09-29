@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -701,7 +702,14 @@ public sealed class ShiftAssignmentService(
             .AssignmentEntries.Where(entry => ids.Contains(entry.Id))
             .Select(entry => entry.EventId)
             .ToListAsync(cancellationToken);
-        await calendarConflictService.InvalidateResolvedOverridesAsync(eventIds, cancellationToken: cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(
+            eventIds
+                .Select(eventId =>
+                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
+                )
+                .ToList(),
+            cancellationToken: cancellationToken
+        );
     }
 
     private async Task InvalidateAssignmentSeriesOverridesAsync(
@@ -719,7 +727,14 @@ public sealed class ShiftAssignmentService(
             )
             .Select(entry => entry.EventId)
             .ToListAsync(cancellationToken);
-        await calendarConflictService.InvalidateResolvedOverridesAsync(eventIds, cancellationToken: cancellationToken);
+        await calendarConflictService.InvalidateResolvedOverridesAsync(
+            eventIds
+                .Select(eventId =>
+                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
+                )
+                .ToList(),
+            cancellationToken: cancellationToken
+        );
     }
 
     private void RemoveSeriesLinks(IReadOnlyCollection<ShiftAssignmentSeriesLink> seriesLinks)

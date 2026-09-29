@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Calendar;
 using Unified.Calendar.Conflicts;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;

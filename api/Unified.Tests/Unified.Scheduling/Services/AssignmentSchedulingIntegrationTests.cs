@@ -887,13 +887,15 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _assignmentService.PublishAssignmentEntryAsync(created.Id, TestContext.Current.CancellationToken)
         );
         var conflict = Assert.Single(exception.Conflicts);
-        Assert.Contains(created.EventId, new[] { conflict.Entry.EventId, conflict.Overlaps.EventId });
+        Assert.Contains(created.EventId.ToString(), new[] { conflict.Entry.EventId, conflict.Overlaps.EventId });
         _db.ChangeTracker.Clear();
 
         await _conflictService.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
+                FirstSourceModule = conflict.Entry.SourceModule,
                 FirstEventId = conflict.Entry.EventId,
+                SecondSourceModule = conflict.Overlaps.SourceModule,
                 SecondEventId = conflict.Overlaps.EventId,
                 ResourceId = conflict.ResourceId,
                 Note = "Approved before publication",
@@ -1020,7 +1022,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 [
                     new CalendarConflictAcknowledgement
                     {
+                        FirstSourceModule = conflict.Entry.SourceModule,
                         FirstEventId = conflict.Entry.EventId,
+                        SecondSourceModule = conflict.Overlaps.SourceModule,
                         SecondEventId = conflict.Overlaps.EventId,
                         ResourceId = conflict.ResourceId,
                         Note = "Operationally approved",

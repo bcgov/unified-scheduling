@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
@@ -395,7 +396,11 @@ public sealed class ShiftService(
 
         await db.SaveChangesAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
-            linkedAssignmentEventIds,
+            linkedAssignmentEventIds
+                .Select(eventId =>
+                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
+                )
+                .ToList(),
             updatedById: cancelledByUserId,
             cancellationToken: cancellationToken
         );
@@ -816,7 +821,11 @@ public sealed class ShiftService(
         );
         await db.SaveChangesAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
-            linkedAssignmentEventIds,
+            linkedAssignmentEventIds
+                .Select(eventId =>
+                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
+                )
+                .ToList(),
             updatedById: cancelledByUserId,
             cancellationToken: cancellationToken
         );

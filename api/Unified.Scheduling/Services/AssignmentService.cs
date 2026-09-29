@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
@@ -253,7 +254,11 @@ public sealed class AssignmentService(
             .Select(entry => entry.EventId)
             .ToListAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
-            affectedEventIds,
+            affectedEventIds
+                .Select(eventId =>
+                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
+                )
+                .ToList(),
             cancellationToken: cancellationToken
         );
 
@@ -327,7 +332,14 @@ public sealed class AssignmentService(
 
         await db.SaveChangesAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
-            assignmentSeries.EventSeries.Events.Select(eventEntity => eventEntity.Id).ToList(),
+            assignmentSeries
+                .EventSeries.Events.Select(eventEntity =>
+                    new CalendarConflictEventIdentity(
+                        SchedulingConstants.SourceModule,
+                        eventEntity.Id.ToString()
+                    )
+                )
+                .ToList(),
             updatedById: cancelledByUserId,
             cancellationToken: cancellationToken
         );
@@ -624,7 +636,7 @@ public sealed class AssignmentService(
             cancellationToken
         );
         await calendarConflictService.InvalidateResolvedOverridesAsync(
-            [assignmentEntry.EventId],
+            [new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, assignmentEntry.EventId.ToString())],
             cancellationToken: cancellationToken
         );
 
@@ -690,7 +702,7 @@ public sealed class AssignmentService(
 
         await db.SaveChangesAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
-            [assignmentEntry.EventId],
+            [new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, assignmentEntry.EventId.ToString())],
             updatedById: cancelledByUserId,
             cancellationToken: cancellationToken
         );
