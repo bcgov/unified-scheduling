@@ -14,8 +14,7 @@ public sealed class JCSyncRecurringJob(
     JCDataUpdaterService dataUpdaterService,
     IOptions<JCInterfaceOptions> options,
     ILogger<JCSyncRecurringJob> logger
-)
-    : IRecurringJob
+) : IRecurringJob
 {
     public string JobName => "jc-interface-sync";
 

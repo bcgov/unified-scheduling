@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Unified.JCInterface.Jobs;
 using Unified.JCInterface.Options;
 
@@ -32,4 +32,4 @@ public class JCSyncRecurringJobTests
             NullLogger<JCSyncRecurringJob>.Instance
         );
 }
-// 
+//
