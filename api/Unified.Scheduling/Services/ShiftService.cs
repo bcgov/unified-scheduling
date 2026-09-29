@@ -761,7 +761,6 @@ public sealed class ShiftService(
         calendarLifecycleService.Publish(entity.Event!);
         await PublishLinkedDraftAssignmentsAsync([entity.Id], cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
