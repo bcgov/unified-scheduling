@@ -64,7 +64,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         CancellationToken cancellationToken = default
     )
     {
-        var participants = PublishedShiftParticipantQuery(db)
+        var participants = PublishedParticipantQuery(db)
             .Where(participant =>
                 participant.ShiftAssignmentEntry!.AssignmentEntry!.AssignmentSeriesId == assignmentSeriesId
             );
@@ -81,7 +81,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
             return Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([]);
 
         var ids = assignmentEntryIds.Distinct().ToList();
-        var participants = PublishedShiftParticipantQuery(db)
+        var participants = PublishedParticipantQuery(db)
             .Where(participant => ids.Contains(participant.ShiftAssignmentEntry!.AssignmentEntryId));
         return ProjectParticipantsAsync(participants, cancellationToken);
     }
@@ -145,6 +145,15 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         ActiveParticipantQuery(db)
             .Where(participant =>
                 participant.ShiftAssignmentEntry!.ShiftEntry!.Event!.StatusTypeCode
+                != CalendarEventStatusTypeCodes.Draft
+            );
+
+    private static IQueryable<Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser> PublishedParticipantQuery(
+        UnifiedDbContext db
+    ) =>
+        PublishedShiftParticipantQuery(db)
+            .Where(participant =>
+                participant.ShiftAssignmentEntry!.AssignmentEntry!.Event!.StatusTypeCode
                 != CalendarEventStatusTypeCodes.Draft
             );
 

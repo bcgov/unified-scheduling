@@ -966,7 +966,50 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateAssignmentEntryAsync_RetryWithCurrentConflictAcknowledgement_CommitsMutationAndOverride()
+    public async Task LinkShiftEntryAsync_WhenDraftAssignmentConflicts_PersistsWithoutOverride()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(8), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var first = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(8), At(10)),
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = first.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken);
+        var draft = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(9), At(11)) with
+            {
+                AssignmentDefinitionId = 101,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var link = await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = draft.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(draft.Id, link.AssignmentEntryId);
+        Assert.Empty(await _db.CalendarConflictOverrides.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentEntryAsync_WhenDraftConflicts_CommitsWithoutOverride()
     {
         var shift = await _shiftService.CreateShiftEntryAsync(
             CreateShiftEntryRequest(At(8), At(12)),
@@ -1004,43 +1047,14 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         );
 
         var update = CreateAssignmentEntryUpdateRequest(At(9), At(11)) with { AssignmentDefinitionId = 101 };
-        var exception = await Assert.ThrowsAsync<CalendarConflictException>(() =>
-            _assignmentService.UpdateAssignmentEntryAsync(second.Id, update, TestContext.Current.CancellationToken)
-        );
-        var conflict = Assert.Single(exception.Conflicts);
-        _db.ChangeTracker.Clear();
-        var rolledBack = await _db
-            .AssignmentEntries.Include(entry => entry.Event)
-            .SingleAsync(entry => entry.Id == second.Id, TestContext.Current.CancellationToken);
-        Assert.Equal(At(10), rolledBack.Event!.StartAtUtc);
-
         var updated = await _assignmentService.UpdateAssignmentEntryAsync(
             second.Id,
-            update with
-            {
-                ConflictOverrides =
-                [
-                    new CalendarConflictAcknowledgement
-                    {
-                        FirstSourceModule = conflict.Entry.SourceModule,
-                        FirstEventId = conflict.Entry.EventId,
-                        SecondSourceModule = conflict.Overlaps.SourceModule,
-                        SecondEventId = conflict.Overlaps.EventId,
-                        ResourceId = conflict.ResourceId,
-                        Note = "Operationally approved",
-                    },
-                ],
-            },
-            TestContext.Current.CancellationToken,
-            UserA
+            update,
+            TestContext.Current.CancellationToken
         );
 
         Assert.Equal(At(9), updated!.StartAtUtc);
-        var persistedOverride = Assert.Single(
-            await _db.CalendarConflictOverrides.ToListAsync(TestContext.Current.CancellationToken)
-        );
-        Assert.Equal("Operationally approved", persistedOverride.Note);
-        Assert.Equal(UserA, persistedOverride.CreatedById);
+        Assert.Empty(await _db.CalendarConflictOverrides.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
