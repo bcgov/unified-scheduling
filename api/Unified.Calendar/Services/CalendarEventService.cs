@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;

@@ -10,6 +10,7 @@ using Unified.Calendar.Controllers;
 using Unified.Calendar.Models;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
+using Unified.Common.Calendar.Conflicts;
 
 namespace Unified.Tests.Calendar.Controllers;
 
@@ -94,8 +95,10 @@ public class CalendarControllerTests
         // Arrange
         var request = new CalendarConflictAcknowledgement
         {
-            FirstEventId = 10,
-            SecondEventId = 20,
+            FirstSourceModule = "calendar",
+            FirstEventId = "10",
+            SecondSourceModule = "scheduling",
+            SecondEventId = "20",
             ResourceId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
             Note = "Approved overlap",
         };
@@ -144,27 +147,40 @@ public class CalendarControllerTests
     private sealed class FakeCalendarConflictService : ICalendarConflictService
     {
         public CalendarConflictAcknowledgement? LastOverrideRequest { get; private set; }
+        public IReadOnlyCollection<CalendarConflictParticipant>? LastCandidates { get; private set; }
+        public IReadOnlyCollection<CalendarConflictAcknowledgement>? LastAcknowledgements { get; private set; }
+        public Guid? LastActorId { get; private set; }
 
         public Task<IReadOnlyCollection<CalendarConflict>> GetConflictsAsync(
             CalendarConflictQuery query,
             CancellationToken cancellationToken = default
         ) => Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
 
-        public Task EnsureNoUnresolvedConflictsAsync(
+        Task ICalendarConflictService.EnsureNoUnresolvedConflictsAsync(
             IReadOnlyCollection<CalendarConflictParticipant> candidates,
             CancellationToken cancellationToken = default
-        ) => Task.CompletedTask;
+        )
+        {
+            LastCandidates = candidates;
+            return Task.CompletedTask;
+        }
 
-        public Task ValidateAndApplyConflictAcknowledgementsAsync(
+        Task ICalendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
             IReadOnlyCollection<CalendarConflictParticipant> candidates,
             IReadOnlyCollection<CalendarConflictAcknowledgement>? acknowledgements,
             Guid? actorId,
             CancellationToken cancellationToken = default
-        ) => Task.CompletedTask;
+        )
+        {
+            LastCandidates = candidates;
+            LastAcknowledgements = acknowledgements;
+            LastActorId = actorId;
+            return Task.CompletedTask;
+        }
 
         public Task CreateOverrideAsync(
             CalendarConflictAcknowledgement acknowledgement,
-            Guid? createdById,
+            Guid createdById,
             CancellationToken cancellationToken = default
         )
         {
@@ -173,7 +189,7 @@ public class CalendarControllerTests
         }
 
         public Task InvalidateResolvedOverridesAsync(
-            IReadOnlyCollection<int> eventIds,
+            IReadOnlyCollection<CalendarConflictEventIdentity> eventIdentities,
             Guid? updatedById = null,
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;

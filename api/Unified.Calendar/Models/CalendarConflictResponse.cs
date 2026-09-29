@@ -4,7 +4,7 @@ using Unified.Common.Calendar.Conflicts;
 namespace Unified.Calendar.Models;
 
 public sealed record CalendarConflictEventResponse(
-    int EventId,
+    string EventId,
     string SourceModule,
     string Title,
     DateTimeOffset Start,

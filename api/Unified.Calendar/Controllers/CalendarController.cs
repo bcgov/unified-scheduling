@@ -62,7 +62,7 @@ public sealed class CalendarController(
     )
     {
         await calendarConflictAcknowledgementValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var userId = User.TryGetCurrentUserId();
+        var userId = User.CurrentUserId();
         await calendarConflictService.CreateOverrideAsync(request, userId, cancellationToken);
         return NoContent();
     }

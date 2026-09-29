@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Routing;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
+using Unified.Common.Calendar.Conflicts;
 
 namespace Unified.Tests.Calendar.Conflicts;
 
@@ -17,9 +18,9 @@ public sealed class CalendarConflictExceptionFilterTests
         var resourceId = Guid.NewGuid();
         var start = new DateTimeOffset(2026, 9, 21, 16, 0, 0, TimeSpan.Zero);
         var conflict = new CalendarConflict(
-            new CalendarConflictParticipant(1, "scheduling", resourceId, start, start.AddHours(1), "First"),
+            new CalendarConflictParticipant("1", "scheduling", resourceId, start, start.AddHours(1), "First"),
             new CalendarConflictParticipant(
-                2,
+                "2",
                 "scheduling",
                 resourceId,
                 start.AddMinutes(30),
