@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Unified.Calendar.Conflicts;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 
@@ -7,6 +7,27 @@ namespace Unified.Scheduling.Services;
 
 public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) : ICalendarConflictParticipantProvider
 {
+    public async Task<CalendarConflictParticipant?> GetParticipantAsync(
+        CalendarConflictEventIdentity identity,
+        Guid resourceId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            identity.SourceModule != SchedulingConstants.SourceModule
+            || !int.TryParse(identity.EventId, out var eventId)
+        )
+            return null;
+
+        var participants = ActiveParticipantQuery(db)
+            .Where(participant =>
+                participant.ShiftAssignmentEntry!.AssignmentEntry!.EventId == eventId
+                && participant.UserId == resourceId
+            );
+
+        return (await ProjectParticipantsAsync(participants, cancellationToken)).SingleOrDefault();
+    }
+
     public async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
         CalendarConflictQuery query,
         CancellationToken cancellationToken = default
@@ -134,7 +155,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         (
             await query
                 .Select(participant => new CalendarConflictParticipant(
-                    participant.ShiftAssignmentEntry!.AssignmentEntry!.EventId,
+                    participant.ShiftAssignmentEntry!.AssignmentEntry!.EventId.ToString(),
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.SourceModule,
                     participant.UserId,
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc,
