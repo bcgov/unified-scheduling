@@ -8,6 +8,7 @@ using Unified.Audit;
 using Unified.Audit.Options;
 using Unified.Db;
 using Unified.Db.Models;
+using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Unified.Audit;
@@ -111,6 +112,35 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         Assert.Contains("Name", record.ChangedColumns!);
         Assert.Contains("South", record.OldValues);
         Assert.Contains("North", record.NewValues);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_WithAuditableEntityInterceptor_Should_StampActorColumns_WithoutResolvingNestedSave()
+    {
+        var explicitCreatorId = Guid.NewGuid();
+        var resolver = new CountingCurrentActorResolver(_actorId, ActorName);
+        var (connection, dbContext) = await CreateSqliteDbContextWithUsersAsync(resolver, _actorId, explicitCreatorId);
+        await using var _ = connection;
+        await using var __ = dbContext;
+
+        var region = new Region { Name = "South" };
+        var explicitlyAttributedRegion = new Region { Name = "North", CreatedById = explicitCreatorId };
+        dbContext.Regions.AddRange(region, explicitlyAttributedRegion);
+
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(_actorId, region.CreatedById);
+        Assert.Equal(explicitCreatorId, explicitlyAttributedRegion.CreatedById);
+        Assert.Equal(1, resolver.ResolveCount);
+        Assert.Equal(2, await dbContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken));
+
+        region.Name = "Central";
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(_actorId, region.CreatedById);
+        Assert.Equal(_actorId, region.UpdatedById);
+        Assert.Equal(2, resolver.ResolveCount);
+        Assert.Equal(3, await dbContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -281,8 +311,55 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         return (connection, dbContext);
     }
 
+    private static async Task<(
+        SqliteConnection Connection,
+        UnifiedDbContext DbContext
+    )> CreateSqliteDbContextWithUsersAsync(ICurrentActorResolver actorResolver, params Guid[] userIds)
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        var baseOptions = new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(connection).Options;
+        await using (var seedContext = new SqliteTestUnifiedDbContext(baseOptions))
+        {
+            await seedContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+            var auditWasDisabled = global::Audit.Core.Configuration.AuditDisabled;
+            global::Audit.Core.Configuration.AuditDisabled = true;
+            try
+            {
+                seedContext.Users.AddRange(
+                    userIds.Select((userId, index) => new User { Id = userId, IdirName = $"audit-user-{index}" })
+                );
+                await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+            finally
+            {
+                global::Audit.Core.Configuration.AuditDisabled = auditWasDisabled;
+            }
+        }
+
+        var options = new DbContextOptionsBuilder<UnifiedDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(new AuditableEntityInterceptor(actorResolver))
+            .Options;
+
+        return (connection, new SqliteTestUnifiedDbContext(options));
+    }
+
     private sealed class FakeCurrentActorResolver(Guid actorId, string actorName) : ICurrentActorResolver
     {
         public CurrentActor Resolve() => new(actorId, actorName);
+    }
+
+    private sealed class CountingCurrentActorResolver(Guid actorId, string actorName) : ICurrentActorResolver
+    {
+        public int ResolveCount { get; private set; }
+
+        public CurrentActor Resolve()
+        {
+            ResolveCount++;
+            return new(actorId, actorName);
+        }
     }
 }

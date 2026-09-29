@@ -75,18 +75,3 @@ export function buildDiffRows(
     after: formatDiffValue(newValues[field]),
   }));
 }
-
-const SOFT_DELETE_FIELDS = ['DeletedOn', 'DeletedById'];
-
-/**
- * Soft deletes are persisted as an UPDATE (only DeletedOn/DeletedById change), so the backend
- * records them as "Modified". Present them as "Deleted" to match what the user actually did.
- */
-export function reconcileAction(record: Pick<AuditRecordResponseDto, 'action' | 'changedColumns'>): string {
-  if (record.action !== 'Modified') {
-    return record.action;
-  }
-
-  const changed = record.changedColumns ?? [];
-  return changed.length > 0 && changed.every((field) => SOFT_DELETE_FIELDS.includes(field)) ? 'Deleted' : record.action;
-}
