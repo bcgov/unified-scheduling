@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { Gender, LookupCodeTypes, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
+import {
+  Gender,
+  LookupCodeTypes,
+  Permissions,
+  type UserRequestDto,
+  type UserResponse,
+} from '@/api-access/generated/models';
 import { getApiTrainingProfileTypes } from '@/api-access/generated/training/training';
 import { postApiUsers, postApiUsersIdUploadPhoto, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
@@ -35,6 +41,10 @@ const lookupStore = useLookupStore();
 const accessControl = useAccessControl();
 
 onMounted(async () => {
+  if (canViewTrainingProfiles.value) {
+    await trainingProfilesRequest.execute();
+  }
+
   await lookupStore.load(LookupCodeTypes.PositionTypes);
 });
 
@@ -46,14 +56,14 @@ const currentUser = ref<UserResponse | null>(props.user ?? null);
 const isEditMode = computed(() => !!currentUser.value);
 
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
-const homeLocationOptions = locationsStore.selectOptions;
-const {
-  data: trainingProfiles,
-  error: trainingProfilesError,
-  isFetching: isTrainingProfilesFetching,
-} = getApiTrainingProfileTypes();
+const canViewTrainingProfiles = computed(() => accessControl.hasPermission(Permissions.TrainingsView));
+const homeLocationOptions = computed(() => locationsStore.selectOptions);
+const trainingProfilesRequest = getApiTrainingProfileTypes({ options: { immediate: false } });
+const trainingProfiles = computed(() =>
+  Array.isArray(trainingProfilesRequest.data.value) ? trainingProfilesRequest.data.value : [],
+);
 const trainingProfileOptions = computed<SelectOption[]>(() =>
-  (trainingProfiles.value ?? [])
+  trainingProfiles.value
     .filter((profile): profile is { id: number; code?: string; name?: string } => profile.id != null)
     .map((profile) => ({
       code: profile.id,
@@ -61,18 +71,26 @@ const trainingProfileOptions = computed<SelectOption[]>(() =>
     })),
 );
 const trainingProfilesLookupMessage = computed(() => {
-  if (isTrainingProfilesFetching.value && !trainingProfiles.value) {
+  if (!canViewTrainingProfiles.value) {
+    return 'Training profile options are unavailable right now.';
+  }
+
+  if (trainingProfilesRequest.isFetching.value && trainingProfiles.value.length === 0) {
     return 'Loading training profiles...';
   }
 
-  if (trainingProfilesError.value) {
+  if (trainingProfilesRequest.error.value) {
     return 'Training profile options are unavailable right now.';
   }
 
   return '';
 });
 const isTrainingProfileSelectDisabled = computed(
-  () => isLoading.value || isTrainingProfilesFetching.value || !!trainingProfilesError.value,
+  () =>
+    isLoading.value ||
+    !canViewTrainingProfiles.value ||
+    trainingProfilesRequest.isFetching.value ||
+    !!trainingProfilesRequest.error.value,
 );
 const genderOptions = mapToSelectOptions(
   Object.values(Gender),
