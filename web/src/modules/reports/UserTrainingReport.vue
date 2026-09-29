@@ -378,7 +378,7 @@ function formatDateCellValue(value: unknown): unknown {
       :items="formattedRows"
       :row-props="getRowProps"
       :loading="isFetching"
-      :paginate="false"
+      :items-per-page="10"
       searchable
       search-placeholder="Search report rows"
     />
