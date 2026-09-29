@@ -52,24 +52,32 @@ jobs:
               - '.config/dotnet-tools.json'
               - '.github/workflows/build-and-test-api.yml'
               - '.github/actions/build-api/**'
+            ci_workflow_or_action:
+              - '.github/workflows/build-and-test-api.yml'
+              - '.github/actions/build-api/**'
 
       - name: Find csproj files
         if: steps.filter.outputs.api == 'true'
         id: find-csproj
         run: |
           csproj_files=()
-          for file in ${{ steps.filter.outputs.api_files }}; do
-            echo "$file was changed"
-            dir="./$file"
-            while [[ $dir != "." && $dir != "/" && $dir != $GITHUB_WORKSPACE ]]; do
-              if find "$dir" -maxdepth 1 -name "*.csproj" -print -quit | grep -q .; then
-                csproj_files+=("$(find "$dir" -maxdepth 1 -name "*.csproj" -print -quit)")
-                break
-              fi
-              dir=$(echo ${dir%/*})
+          if [[ "${{ steps.filter.outputs.ci_workflow_or_action }}" == "true" ]]; then
+            echo "CI workflow or build action changed; scanning all API solution projects"
+            mapfile -t csproj_files < <(find api db jc-interface-client -type f -name "*.csproj" -print | sort)
+          else
+            for file in ${{ steps.filter.outputs.api_files }}; do
+              echo "$file was changed"
+              dir="./$file"
+              while [[ $dir != "." && $dir != "/" && $dir != $GITHUB_WORKSPACE ]]; do
+                if find "$dir" -maxdepth 1 -name "*.csproj" -print -quit | grep -q .; then
+                  csproj_files+=("$(find "$dir" -maxdepth 1 -name "*.csproj" -print -quit)")
+                  break
+                fi
+                dir=$(echo ${dir%/*})
+              done
             done
-          done
-          csproj_files=($(printf "%s\n" "${csproj_files[@]}" | sort -u))
+            csproj_files=($(printf "%s\n" "${csproj_files[@]}" | sort -u))
+          fi
           echo "Found ${#csproj_files[@]} unique csproj/sln files: ${csproj_files[*]}"
           echo "csproj_files=${csproj_files[*]}" >> $GITHUB_OUTPUT
 
@@ -122,20 +130,24 @@ jobs:
         run: |
           dotnet test --no-build --configuration Release --verbosity minimal \
             --results-directory "$RUNNER_TEMP/test-results" \
-            --logger "trx;LogFilePrefix=test-results"
+            --report-xunit-trx \
+            --report-xunit-trx-filename "test-results.trx"
         working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Summary
         if: always()
         env:
           API_CHANGES: ${{ steps.filter.outputs.api }}
+          CI_WORKFLOW_OR_ACTION_CHANGES: ${{ steps.filter.outputs.ci_workflow_or_action }}
           BUILD_OUTCOME: ${{ steps.build-api.outcome }}
           TEST_OUTCOME: ${{ steps.test.outcome }}
           TEST_RESULTS_DIRECTORY: ${{ runner.temp }}/test-results
         run: |
           {
             echo "## Build and Test API"
-            if [[ "$API_CHANGES" == "true" ]]; then
+            if [[ "$CI_WORKFLOW_OR_ACTION_CHANGES" == "true" ]]; then
+              echo "- Reason: API CI workflow or build action changed; checking all API solution projects"
+            elif [[ "$API_CHANGES" == "true" ]]; then
               echo "- Reason: API build inputs changed"
             else
               echo "- Reason: no API build inputs changed"
