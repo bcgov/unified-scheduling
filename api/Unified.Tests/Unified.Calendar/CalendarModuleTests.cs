@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Unified.Authorization.Seeders;
 using Unified.Calendar;
 using Unified.Calendar.Controllers;
 using Unified.Calendar.Holidays;
@@ -40,6 +41,10 @@ public sealed class CalendarModuleTests
         AssertContainsScopedRegistration<ICalendarEventService, CalendarEventService>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventTypeSeeder>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventStatusTypeSeeder>(services);
+        AssertContainsSingletonInstance<PermissionSeedConfiguration>(
+            services,
+            CalendarPermissionSeedData.Configuration
+        );
 
         AssertContainsScopedSelfRegistration<CalendarDataRequestValidator>(services);
         Assert.Contains("api/calendar/events", calendarRoutes);
@@ -138,6 +143,18 @@ public sealed class CalendarModuleTests
                 descriptor.Lifetime == ServiceLifetime.Singleton
                 && descriptor.ServiceType == typeof(TService)
                 && descriptor.ImplementationType == typeof(TService)
+        );
+    }
+
+    private static void AssertContainsSingletonInstance<TService>(IServiceCollection services, TService instance)
+        where TService : class
+    {
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Singleton
+                && descriptor.ServiceType == typeof(TService)
+                && ReferenceEquals(descriptor.ImplementationInstance, instance)
         );
     }
 
