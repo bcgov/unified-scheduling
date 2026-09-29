@@ -25,8 +25,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
             query = query.Where(t => t.ExpiryDate == null || t.ExpiryDate > now);
         }
 
-        return await BuildListResponseQuery(query.OrderBy(t => t.Order).ThenBy(t => t.Code))
-            .ToListAsync(cancellationToken);
+        return await BuildResponseQuery(query.OrderBy(t => t.Order).ThenBy(t => t.Code)).ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyCollection<LookupCodeResponse>> GetAllAsync(
@@ -39,7 +38,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
 
     public async Task<TrainingLookupResponse?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await BuildDetailResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id))
+        return await BuildResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -191,8 +190,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
     }
 
     private async Task<TrainingLookupResponse> GetRequiredByIdAsync(int id, CancellationToken cancellationToken) =>
-        await BuildDetailResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id))
-            .SingleAsync(cancellationToken);
+        await BuildResponseQuery(db.Trainings.AsNoTracking().Where(t => t.Id == id)).SingleAsync(cancellationToken);
 
     private static HashSet<int> ResolveMandatoryProfileTypeIds(TrainingLookupRequest request)
     {
@@ -214,26 +212,7 @@ public sealed class TrainingLookupStrategy(UnifiedDbContext db) : ITrainingLooku
         return ResolveMandatoryProfileTypeIds(request);
     }
 
-    private static IQueryable<TrainingLookupResponse> BuildListResponseQuery(IQueryable<TrainingEntity> query) =>
-        query.Select(training => new TrainingLookupResponse
-        {
-            Id = training.Id,
-            Code = training.Code,
-            Description = training.Description,
-            EffectiveDate = training.EffectiveDate,
-            ExpiryDate = training.ExpiryDate,
-            Mandatory = training.Mandatory,
-            ValidityDays = training.ValidityDays,
-            AdvanceNoticeDays = training.AdvanceNoticeDays,
-            Rotating = training.Rotating,
-            TrainingCategoryId = training.TrainingCategoryId,
-            TrainingCategoryName = training.TrainingCategory != null ? training.TrainingCategory.Name : null,
-            CreatedOn = training.CreatedOn,
-            UpdatedOn = training.UpdatedOn,
-            Order = training.Order,
-        });
-
-    private static IQueryable<TrainingLookupResponse> BuildDetailResponseQuery(IQueryable<TrainingEntity> query) =>
+    private static IQueryable<TrainingLookupResponse> BuildResponseQuery(IQueryable<TrainingEntity> query) =>
         query.Select(training => new TrainingLookupResponse
         {
             Id = training.Id,

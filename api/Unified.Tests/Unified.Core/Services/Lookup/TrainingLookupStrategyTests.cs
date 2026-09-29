@@ -123,6 +123,33 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetAllTrainingsAsync_Should_Include_Mandatory_Training_Profiles()
+    {
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+
+        _dbContext.Trainings.Add(
+            new TrainingEntity
+            {
+                Code = "MANDATORY-CARBINE",
+                Description = "Mandatory for carbine profile",
+                Mandatory = true,
+                Order = 0,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-1),
+                TrainingProfileRequirements = [new TrainingProfileRequirement { TrainingProfileTypeId = profile.Id }],
+            }
+        );
+
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _strategy.GetAllTrainingsAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        var training = Assert.Single(result);
+        Assert.True(training.Mandatory);
+        Assert.Equal([profile.Id], training.MandatoryTrainingProfiles.Select(profileType => profileType.Id));
+        Assert.Equal(["CARBINE"], training.MandatoryTrainingProfiles.Select(profileType => profileType.Code));
+    }
+
+    [Fact]
     public async Task CreateAsync_Should_Create_Training_Response()
     {
         var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
