@@ -136,8 +136,6 @@ onUnmounted(() => {
 const formErrors = ref<Record<string, string>>({});
 
 type UserRequestFormData = Partial<UserRequestDto>;
-type UserRequestPayload = UserRequestDto & { trainingProfileId?: number | null };
-type UserResponseWithTrainingProfile = UserResponse & { trainingProfileId?: number | null };
 
 const createInitialFormData = (): UserRequestFormData => ({});
 
@@ -152,7 +150,7 @@ const populateFromUser = (user: UserResponse): UserRequestFormData => ({
   badgeNumber: user.badgeNumber ?? '',
   employeeNumber: user.employeeNumber ?? '',
   homeLocationId: user.homeLocationId ?? undefined,
-  trainingProfileId: (user as UserResponseWithTrainingProfile).trainingProfileId ?? null,
+  trainingProfileId: user.trainingProfileId ?? null,
 });
 
 const formData = ref<UserRequestFormData>(props.user ? populateFromUser(props.user) : createInitialFormData());
@@ -204,7 +202,7 @@ const getFieldErrors = (error: zod.ZodError): Record<string, string> => {
   return errors;
 };
 
-const validateForm = (): UserRequestPayload | null => {
+const validateForm = (): UserRequestDto | null => {
   formErrors.value = {};
   const schema = isEditMode.value ? editUserFormSchema : createUserFormSchema;
   const validationResult = schema.safeParse(formData.value);
