@@ -1,6 +1,6 @@
 namespace Unified.Scheduling.Models;
 
-public sealed record ShiftEntryRequest
+public record ShiftEntryRequest
 {
     public int? ShiftSeriesId { get; init; }
 

@@ -1,3 +1,5 @@
+using Unified.Calendar.Models;
+
 namespace Unified.Scheduling.Models;
 
 public sealed record AssignmentEntryUpdateRequest
@@ -29,4 +31,6 @@ public sealed record AssignmentEntryUpdateRequest
     public int Capacity { get; init; }
 
     public IReadOnlyCollection<ShiftEntryLinkRequest>? ShiftEntryLinks { get; init; }
+
+    public IReadOnlyCollection<CalendarConflictAcknowledgement>? ConflictOverrides { get; init; }
 }
