@@ -704,9 +704,10 @@ public sealed class ShiftAssignmentService(
             .ToListAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
             eventIds
-                .Select(eventId =>
-                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
-                )
+                .Select(eventId => new CalendarConflictEventIdentity(
+                    SchedulingConstants.SourceModule,
+                    eventId.ToString()
+                ))
                 .ToList(),
             cancellationToken: cancellationToken
         );
@@ -729,9 +730,10 @@ public sealed class ShiftAssignmentService(
             .ToListAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
             eventIds
-                .Select(eventId =>
-                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
-                )
+                .Select(eventId => new CalendarConflictEventIdentity(
+                    SchedulingConstants.SourceModule,
+                    eventId.ToString()
+                ))
                 .ToList(),
             cancellationToken: cancellationToken
         );

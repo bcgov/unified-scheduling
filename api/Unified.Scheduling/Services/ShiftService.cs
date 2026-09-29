@@ -397,9 +397,10 @@ public sealed class ShiftService(
         await db.SaveChangesAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
             linkedAssignmentEventIds
-                .Select(eventId =>
-                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
-                )
+                .Select(eventId => new CalendarConflictEventIdentity(
+                    SchedulingConstants.SourceModule,
+                    eventId.ToString()
+                ))
                 .ToList(),
             updatedById: cancelledByUserId,
             cancellationToken: cancellationToken
@@ -821,9 +822,10 @@ public sealed class ShiftService(
         await db.SaveChangesAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
             linkedAssignmentEventIds
-                .Select(eventId =>
-                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
-                )
+                .Select(eventId => new CalendarConflictEventIdentity(
+                    SchedulingConstants.SourceModule,
+                    eventId.ToString()
+                ))
                 .ToList(),
             updatedById: cancelledByUserId,
             cancellationToken: cancellationToken

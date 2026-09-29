@@ -255,9 +255,10 @@ public sealed class AssignmentService(
             .ToListAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
             affectedEventIds
-                .Select(eventId =>
-                    new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId.ToString())
-                )
+                .Select(eventId => new CalendarConflictEventIdentity(
+                    SchedulingConstants.SourceModule,
+                    eventId.ToString()
+                ))
                 .ToList(),
             cancellationToken: cancellationToken
         );
@@ -333,12 +334,10 @@ public sealed class AssignmentService(
         await db.SaveChangesAsync(cancellationToken);
         await calendarConflictService.InvalidateResolvedOverridesAsync(
             assignmentSeries
-                .EventSeries.Events.Select(eventEntity =>
-                    new CalendarConflictEventIdentity(
-                        SchedulingConstants.SourceModule,
-                        eventEntity.Id.ToString()
-                    )
-                )
+                .EventSeries.Events.Select(eventEntity => new CalendarConflictEventIdentity(
+                    SchedulingConstants.SourceModule,
+                    eventEntity.Id.ToString()
+                ))
                 .ToList(),
             updatedById: cancelledByUserId,
             cancellationToken: cancellationToken
