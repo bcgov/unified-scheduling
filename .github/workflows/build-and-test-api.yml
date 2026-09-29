@@ -11,6 +11,7 @@ on:
     paths:
       - "api/**"
       - "db/**"
+      - "jc-interface-client/**"
       - "unified.slnx"
       - "global.json"
       - ".config/dotnet-tools.json"
@@ -44,6 +45,7 @@ jobs:
             api:
               - 'api/**'
               - 'db/**'
+              - 'jc-interface-client/**'
               - 'unified.slnx'
               - 'global.json'
               - '.config/dotnet-tools.json'
@@ -119,6 +121,7 @@ jobs:
 
       - name: Build API codebase
         if: steps.filter.outputs.api == 'true'
+        id: build-api
         uses: ./.github/actions/build-api
         with:
           working_directory: ${{ env.WORKING_DIRECTORY }}
@@ -126,13 +129,33 @@ jobs:
 
       - name: Run tests
         if: steps.filter.outputs.api == 'true'
-        run: dotnet test --no-build --configuration Release
+        id: test
+        run: |
+          set -o pipefail
+          dotnet test --no-build --configuration Release --verbosity minimal 2>&1 | tee "$RUNNER_TEMP/dotnet-test-output.txt"
         working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Summary
+        if: always()
+        env:
+          API_CHANGES: ${{ steps.filter.outputs.api }}
+          BUILD_OUTCOME: ${{ steps.build-api.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          TEST_OUTPUT: ${{ runner.temp }}/dotnet-test-output.txt
         run: |
-          if [[ "${{ steps.filter.outputs.api }}" == "false" ]]; then
-            echo "✓ No API changes detected - check passed"
-          else
-            echo "✓ Build and tests completed successfully"
-          fi
+          {
+            echo "## Build and Test API"
+            if [[ "$API_CHANGES" == "true" ]]; then
+              echo "- Reason: API build inputs changed"
+            else
+              echo "- Reason: no API build inputs changed"
+            fi
+            echo "- API build: ${BUILD_OUTCOME:-skipped}"
+            echo "- Tests: ${TEST_OUTCOME:-skipped}"
+
+            if [[ "$TEST_OUTCOME" != "skipped" && -f "$TEST_OUTPUT" ]]; then
+              echo
+              echo "### Test output"
+              cat "$TEST_OUTPUT"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
