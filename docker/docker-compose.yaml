@@ -51,6 +51,7 @@ services:
       - Ches__AllowedAttachmentTypes__0__ContentType=${ChesAllowedAttachment0ContentType:-application/pdf}
       - Ches__MaxAttachmentSizeBytes=${ChesMaxAttachmentSizeBytes:-20971520}
       - Ches__MaxRecipientsPerMessage=${ChesMaxRecipientsPerMessage:-500}
+      - Branding__SelectedBrand=${Branding_SelectedBrand:-default}
     ports:
       - 5000:5000
     volumes:
