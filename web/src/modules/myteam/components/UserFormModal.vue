@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Gender, LookupCodeTypes, type UserRequestDto, type UserResponse } from '@/api-access/generated/models';
+import {
+  Gender,
+  LookupCodeTypes,
+  Permissions,
+  type UserRequestDto,
+  type UserResponse,
+} from '@/api-access/generated/models';
+import { getApiTrainingProfileTypes } from '@/api-access/generated/training/training';
 import { postApiUsers, postApiUsersIdUploadPhoto, putApiUsersId } from '@/api-access/generated/users/users';
 import { PostApiUsersBody } from '@/api-access/generated/users/users.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
@@ -12,6 +19,7 @@ import { mapToValidationErrors, validationMessages } from '@/shared/validation/v
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useLookupStore } from '@/stores/LookupStore';
+import type { SelectOption } from '@/types/select';
 import { mapToSelectOptions } from '@/utils/select';
 import { mdiCamera, mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -33,6 +41,10 @@ const lookupStore = useLookupStore();
 const accessControl = useAccessControl();
 
 onMounted(async () => {
+  if (canViewTrainingProfiles.value) {
+    await trainingProfilesRequest.execute();
+  }
+
   await lookupStore.load(LookupCodeTypes.PositionTypes);
 });
 
@@ -44,7 +56,42 @@ const currentUser = ref<UserResponse | null>(props.user ?? null);
 const isEditMode = computed(() => !!currentUser.value);
 
 const positionTypeOptions = computed(() => lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes));
-const homeLocationOptions = locationsStore.selectOptions;
+const canViewTrainingProfiles = computed(() => accessControl.hasPermission(Permissions.TrainingsView));
+const homeLocationOptions = computed(() => locationsStore.selectOptions);
+const trainingProfilesRequest = getApiTrainingProfileTypes({ options: { immediate: false } });
+const trainingProfiles = computed(() =>
+  Array.isArray(trainingProfilesRequest.data.value) ? trainingProfilesRequest.data.value : [],
+);
+const trainingProfileOptions = computed<SelectOption[]>(() =>
+  trainingProfiles.value
+    .filter((profile): profile is { id: number; code?: string; name?: string } => profile.id != null)
+    .map((profile) => ({
+      code: profile.id,
+      description: profile.name?.trim() || profile.code || `Profile ${profile.id}`,
+    })),
+);
+const trainingProfilesLookupMessage = computed(() => {
+  if (!canViewTrainingProfiles.value) {
+    return 'Training profile options are unavailable right now.';
+  }
+
+  if (trainingProfilesRequest.isFetching.value && trainingProfiles.value.length === 0) {
+    return 'Loading training profiles...';
+  }
+
+  if (trainingProfilesRequest.error.value) {
+    return 'Training profile options are unavailable right now.';
+  }
+
+  return '';
+});
+const isTrainingProfileSelectDisabled = computed(
+  () =>
+    isLoading.value ||
+    !canViewTrainingProfiles.value ||
+    trainingProfilesRequest.isFetching.value ||
+    !!trainingProfilesRequest.error.value,
+);
 const genderOptions = mapToSelectOptions(
   Object.values(Gender),
   (gender) => gender,
@@ -103,6 +150,7 @@ const populateFromUser = (user: UserResponse): UserRequestFormData => ({
   badgeNumber: user.badgeNumber ?? '',
   employeeNumber: user.employeeNumber ?? '',
   homeLocationId: user.homeLocationId ?? undefined,
+  trainingProfileId: user.trainingProfileId ?? null,
 });
 
 const formData = ref<UserRequestFormData>(props.user ? populateFromUser(props.user) : createInitialFormData());
@@ -120,6 +168,7 @@ const createUserFormSchema = PostApiUsersBody.extend({
   homeLocationId: PostApiUsersBody.shape.homeLocationId.refine((value) => value !== undefined, {
     message: validationMessages.required,
   }),
+  trainingProfileId: zod.number().int().positive().nullable().optional(),
   gender: PostApiUsersBody.shape.gender.refine((value) => !!value, {
     message: validationMessages.required,
   }),
@@ -262,6 +311,9 @@ const handleSave = async () => {
       <UaAlert v-if="apiErrorMessage" type="error" @close="apiErrorMessage = ''">
         Request failed: {{ apiErrorMessage }}
       </UaAlert>
+      <UaAlert v-else-if="trainingProfilesLookupMessage" type="warning">
+        {{ trainingProfilesLookupMessage }}
+      </UaAlert>
     </template>
 
     <!-- Photo upload -->
@@ -369,6 +421,18 @@ const handleSave = async () => {
         label="Home Location"
         :items="homeLocationOptions"
         :error-messages="formErrors.homeLocationId"
+      />
+
+      <label class="ua-form-label" for="training-profile">Training Profile</label>
+      <UaSelect
+        id="training-profile"
+        v-model="formData.trainingProfileId"
+        label="Training Profile"
+        :items="trainingProfileOptions"
+        :disabled="isTrainingProfileSelectDisabled"
+        :hint="trainingProfilesLookupMessage"
+        persistent-hint
+        clearable
       />
 
       <span class="ua-form-label">Is enabled</span>

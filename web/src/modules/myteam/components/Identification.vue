@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { LookupCodeTypes, type UserResponse } from '@/api-access/generated/models';
+import { LookupCodeTypes, Permissions, type UserResponse } from '@/api-access/generated/models';
+import { getApiTrainingProfileTypes } from '@/api-access/generated/training/training';
 import { mdiTimerSand } from '@mdi/js';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -13,6 +14,9 @@ const { user } = defineProps<{
 const accessControl = useAccessControl();
 const locationsStore = useLocationsStore();
 const lookupStore = useLookupStore();
+const canViewTrainingProfiles = computed(() => accessControl.hasPermission(Permissions.TrainingsView));
+const trainingProfilesRequest = getApiTrainingProfileTypes({ options: { immediate: false } });
+const trainingProfiles = computed(() => trainingProfilesRequest.data.value ?? []);
 const showBadgeNumber = computed(
   () =>
     (accessControl.featureFlags.value?.UserManagement?.enabled &&
@@ -36,7 +40,28 @@ const positionDescription = computed(() => {
   return lookupStore.getDescriptionFromCode(LookupCodeTypes.PositionTypes, user.rank);
 });
 
+const trainingProfileName = computed(() => {
+  if (user?.trainingProfileId == null) {
+    return '-';
+  }
+
+  if (!canViewTrainingProfiles.value) {
+    return '-';
+  }
+
+  if (trainingProfilesRequest.isFetching.value) {
+    return 'Loading training profile...';
+  }
+
+  const profile = (trainingProfiles.value ?? []).find((item) => item.id === user.trainingProfileId);
+  return profile?.name ?? profile?.code ?? 'Training profile unavailable';
+});
+
 onMounted(async () => {
+  if (canViewTrainingProfiles.value) {
+    await trainingProfilesRequest.execute();
+  }
+
   await lookupStore.load(LookupCodeTypes.PositionTypes);
 });
 </script>
@@ -80,6 +105,9 @@ onMounted(async () => {
 
     <label class="identification-label">Location</label>
     <div>{{ locationName }}</div>
+
+    <label class="identification-label">Training Profile</label>
+    <div>{{ trainingProfileName }}</div>
 
     <label class="identification-label">Role</label>
     <div>Role</div>

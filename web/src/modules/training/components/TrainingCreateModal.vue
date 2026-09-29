@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { postApiLookupTrainings } from '@/api-access/generated/training/training';
+import { getApiTrainingProfileTypes } from '@/api-access/generated/training/training';
 import type { TrainingLookupRequest, TrainingLookupResponse } from '@/api-access/generated/models';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
@@ -9,6 +10,7 @@ import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { mapToValidationErrors, validationMessages } from '@/shared/validation/validationErrors';
+import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiContentSave } from '@mdi/js';
 import { computed, ref } from 'vue';
 import {
@@ -27,6 +29,7 @@ type TrainingCreateFormData = {
   code: string;
   description: string;
   mandatory: boolean;
+  mandatoryTrainingProfileIds: number[];
   validityDayCode: string;
   advanceNoticeDays: string;
   rotating: boolean;
@@ -36,6 +39,7 @@ const formData = ref<TrainingCreateFormData>({
   code: '',
   description: '',
   mandatory: false,
+  mandatoryTrainingProfileIds: [],
   validityDayCode: defaultValidityDayCode,
   advanceNoticeDays: '',
   rotating: false,
@@ -47,6 +51,52 @@ const isAnnualValiditySelected = computed(() => formData.value.validityDayCode =
 const isLoading = ref(false);
 const apiErrorMessage = ref('');
 const formErrors = ref<Record<string, string>>({});
+
+const {
+  data: trainingProfiles,
+  error: trainingProfilesError,
+  isFetching: isTrainingProfilesFetching,
+} = getApiTrainingProfileTypes();
+const trainingProfileOptions = computed<SelectOption[]>(() => {
+  return (trainingProfiles.value ?? [])
+    .filter((profile): profile is { id: number; code?: string; name?: string } => profile.id != null)
+    .map((profile) => ({
+      code: profile.id,
+      description: profile.name?.trim() || profile.code || `Profile ${profile.id}`,
+    }));
+});
+const isTrainingProfilesLoaded = computed(
+  () => !isTrainingProfilesFetching.value && trainingProfiles.value !== undefined,
+);
+const isTrainingProfilesLookupLoading = computed(() => formData.value.mandatory && !isTrainingProfilesLoaded.value);
+const isTrainingProfilesLookupError = computed(
+  () => formData.value.mandatory && !!trainingProfilesError.value && !isTrainingProfilesLookupLoading.value,
+);
+const isTrainingProfilesListEmpty = computed(
+  () =>
+    formData.value.mandatory &&
+    isTrainingProfilesLoaded.value &&
+    !isTrainingProfilesLookupError.value &&
+    trainingProfileOptions.value.length === 0,
+);
+const trainingProfilesLookupMessage = computed(() => {
+  if (isTrainingProfilesLookupLoading.value) {
+    return 'Loading mandatory profile options...';
+  }
+
+  if (isTrainingProfilesLookupError.value) {
+    return 'Mandatory profile options could not be loaded. Please wait and try again.';
+  }
+
+  if (isTrainingProfilesListEmpty.value) {
+    return 'No mandatory profile options are available. Saving now will make this mandatory for all users.';
+  }
+
+  return '';
+});
+const isSaveBlockedByTrainingProfiles = computed(
+  () => isTrainingProfilesLookupLoading.value || isTrainingProfilesLookupError.value,
+);
 
 const parseOptionalPositiveNumber = (
   value: string,
@@ -97,6 +147,7 @@ const validateForm = (): TrainingLookupRequest | null => {
     code,
     description,
     mandatory: formData.value.mandatory,
+    mandatoryTrainingProfileIds: formData.value.mandatory ? formData.value.mandatoryTrainingProfileIds : [],
     validityDays: validityDays as number | null,
     advanceNoticeDays: advanceNoticeDays as number | null,
     rotating: formData.value.rotating,
@@ -121,6 +172,11 @@ const handleClose = () => {
 };
 
 const handleSave = async () => {
+  if (isSaveBlockedByTrainingProfiles.value) {
+    apiErrorMessage.value = trainingProfilesLookupMessage.value || 'Mandatory profile options are not ready yet.';
+    return;
+  }
+
   const payload = validateForm();
   if (!payload) {
     return;
@@ -156,6 +212,9 @@ const handleSave = async () => {
     <template #alerts>
       <UaAlert v-if="apiErrorMessage" type="error" @close="apiErrorMessage = ''">
         Request failed: {{ apiErrorMessage }}
+      </UaAlert>
+      <UaAlert v-else-if="trainingProfilesLookupMessage" :type="isTrainingProfilesLookupError ? 'error' : 'warning'">
+        {{ trainingProfilesLookupMessage }}
       </UaAlert>
     </template>
 
@@ -222,6 +281,32 @@ const handleSave = async () => {
         />
       </div>
 
+      <label class="ua-form-label" for="create-training-mandatory-profiles">Mandatory Profiles</label>
+      <div class="validity-field">
+        <UaSelect
+          id="create-training-mandatory-profiles"
+          v-model="formData.mandatoryTrainingProfileIds"
+          :items="trainingProfileOptions"
+          :disabled="isLoading || !formData.mandatory"
+          :hint="
+            formData.mandatory
+              ? 'Leave blank to make this mandatory for all users.'
+              : 'Enable Mandatory first to restrict by training profile.'
+          "
+          persistent-hint
+          multiple
+          chips
+          closable-chips
+          clearable
+        />
+        <div
+          v-if="formData.mandatory && isTrainingProfilesFetching && !isTrainingProfilesLoaded"
+          class="mandatory-profiles-loading"
+        >
+          <v-progress-circular indeterminate color="primary" size="20" width="2" />
+        </div>
+      </div>
+
       <span class="ua-form-label">Rotating</span>
       <div class="toggle-row">
         <v-switch
@@ -237,7 +322,13 @@ const handleSave = async () => {
 
     <template #actions>
       <UaBtn variant="outlined" :prepend-icon="mdiClose" :disabled="isLoading" @click="handleClose">Cancel</UaBtn>
-      <UaBtn color="primary" :prepend-icon="mdiContentSave" :loading="isLoading" @click="handleSave">
+      <UaBtn
+        color="primary"
+        :prepend-icon="mdiContentSave"
+        :loading="isLoading"
+        :disabled="isLoading || isSaveBlockedByTrainingProfiles"
+        @click="handleSave"
+      >
         Create Training
       </UaBtn>
     </template>
@@ -272,5 +363,11 @@ const handleSave = async () => {
 .validity-field__hint {
   color: var(--ua-text-secondary);
   font-size: var(--ua-font-size-sm);
+}
+
+.mandatory-profiles-loading {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
 }
 </style>

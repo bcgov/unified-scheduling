@@ -48,6 +48,7 @@ const headers = [
   { title: 'Training', key: 'code', sortable: true },
   { title: 'Description', key: 'description', sortable: true },
   { title: 'Mandatory', key: 'mandatory', sortable: true, align: 'center' as const },
+  { title: 'Mandatory Scope', key: 'mandatoryScope', sortable: false },
   { title: 'Validity (Days)', key: 'validityDays', sortable: true, align: 'end' as const },
   { title: 'Advance Notice (Days)', key: 'advanceNoticeDays', sortable: true, align: 'end' as const },
   { title: 'Rotating', key: 'rotating', sortable: true, align: 'center' as const },
@@ -62,6 +63,17 @@ const formatOptionalNumber = (value: number | null | undefined): string => {
 
 const formatOptionalText = (value: string | null | undefined): string => {
   return value?.trim() ? value : '—';
+};
+
+const formatMandatoryScope = (item: TrainingLookupResponse): string => {
+  if (!item.mandatory) {
+    return '—';
+  }
+
+  const names = (item.mandatoryTrainingProfiles ?? [])
+    .map((profile) => profile.name?.trim() || profile.code)
+    .filter(Boolean);
+  return names.length > 0 ? names.join(', ') : 'All users';
 };
 
 const handleReorder = ({ item, newIndex }: DataTableReorderPayload) => {
@@ -121,6 +133,12 @@ const getRowProps = (context: { item: TrainingLookupResponse }) => {
 
     <template #[`item.mandatory`]="{ item }">
       <v-icon v-if="item.mandatory" :icon="mdiCheck" color="success" size="small" />
+    </template>
+
+    <template #[`item.mandatoryScope`]="{ item }">
+      <span class="mandatory-scope-cell" :title="formatMandatoryScope(item)">
+        {{ formatMandatoryScope(item) }}
+      </span>
     </template>
 
     <template #[`item.validityDays`]="{ item }">
@@ -214,6 +232,15 @@ const getRowProps = (context: { item: TrainingLookupResponse }) => {
 .training-status-expired {
   color: rgb(var(--v-theme-warning));
   font-weight: var(--ua-font-weight-medium);
+}
+
+.mandatory-scope-cell {
+  display: inline-block;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .ua-data-table-wrapper :deep(.v-table tbody tr.training-row--expired > td) {
