@@ -41,6 +41,7 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d #v4.0.3
         id: filter
         with:
+          list-files: shell
           filters: |
             api:
               - 'api/**'
@@ -52,34 +53,22 @@ jobs:
               - '.github/workflows/build-and-test-api.yml'
               - '.github/actions/build-api/**'
 
-      - name: Get changed files
-        if: steps.filter.outputs.api == 'true'
-        id: changed-files
-        uses: jitterbit/get-changed-files@b17fbb00bdc0c0f63fcf166580804b4d2cdc2a42 #v1
-        continue-on-error: true
-
       - name: Find csproj files
         if: steps.filter.outputs.api == 'true'
         id: find-csproj
         run: |
           csproj_files=()
-          if [[ ${{ steps.changed-files.outcome }} == 'success' ]]; then
-            for file in ${{ steps.changed-files.outputs.added_modified }}; do
-              echo "$file was changed"
-              dir="./$file"
-              while [[ $dir != "." && $dir != "/" && $dir != $GITHUB_WORKSPACE ]]; do
-                if find "$dir" -maxdepth 1 -name "*.csproj" -print -quit | grep -q .; then
-                  csproj_files+=("$(find "$dir" -maxdepth 1 -name "*.csproj" -print -quit)")
-                  break
-                fi
-                dir=$(echo ${dir%/*})
-              done
+          for file in ${{ steps.filter.outputs.api_files }}; do
+            echo "$file was changed"
+            dir="./$file"
+            while [[ $dir != "." && $dir != "/" && $dir != $GITHUB_WORKSPACE ]]; do
+              if find "$dir" -maxdepth 1 -name "*.csproj" -print -quit | grep -q .; then
+                csproj_files+=("$(find "$dir" -maxdepth 1 -name "*.csproj" -print -quit)")
+                break
+              fi
+              dir=$(echo ${dir%/*})
             done
-          else
-            # if the changed-files step failed, run on the whole sln instead
-            echo "Running checks on whole solution"
-            csproj_files=$(find ./ -type f -name "*.sln" | tr '\n' ' ');
-          fi
+          done
           csproj_files=($(printf "%s\n" "${csproj_files[@]}" | sort -u))
           echo "Found ${#csproj_files[@]} unique csproj/sln files: ${csproj_files[*]}"
           echo "csproj_files=${csproj_files[*]}" >> $GITHUB_OUTPUT
@@ -131,8 +120,9 @@ jobs:
         if: steps.filter.outputs.api == 'true'
         id: test
         run: |
-          set -o pipefail
-          dotnet test --no-build --configuration Release --verbosity minimal 2>&1 | tee "$RUNNER_TEMP/dotnet-test-output.txt"
+          dotnet test --no-build --configuration Release --verbosity minimal \
+            --results-directory "$RUNNER_TEMP/test-results" \
+            --logger "trx;LogFilePrefix=test-results"
         working-directory: ${{ env.WORKING_DIRECTORY }}
 
       - name: Summary
@@ -141,7 +131,7 @@ jobs:
           API_CHANGES: ${{ steps.filter.outputs.api }}
           BUILD_OUTCOME: ${{ steps.build-api.outcome }}
           TEST_OUTCOME: ${{ steps.test.outcome }}
-          TEST_OUTPUT: ${{ runner.temp }}/dotnet-test-output.txt
+          TEST_RESULTS_DIRECTORY: ${{ runner.temp }}/test-results
         run: |
           {
             echo "## Build and Test API"
@@ -153,9 +143,49 @@ jobs:
             echo "- API build: ${BUILD_OUTCOME:-skipped}"
             echo "- Tests: ${TEST_OUTCOME:-skipped}"
 
-            if [[ "$TEST_OUTCOME" != "skipped" && -f "$TEST_OUTPUT" ]]; then
+            if [[ "$TEST_OUTCOME" != "skipped" ]]; then
               echo
-              echo "### Test output"
-              cat "$TEST_OUTPUT"
+              echo "### Test summary"
+              python3 - "$TEST_RESULTS_DIRECTORY" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ElementTree
+          from datetime import datetime
+          from pathlib import Path
+
+          results_directory = Path(sys.argv[1])
+          result_files = sorted(results_directory.glob("*.trx"))
+          if not result_files:
+              print("- Test results: no TRX files produced")
+              raise SystemExit(0)
+
+          totals = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+          duration_seconds = 0.0
+          failed_outcomes = {"failed", "error", "timeout", "aborted"}
+          skipped_outcomes = {"notexecuted", "notrunnable", "inconclusive", "warning"}
+
+          for result_file in result_files:
+              root = ElementTree.parse(result_file).getroot()
+              for result in root.findall(".//{*}UnitTestResult"):
+                  totals["total"] += 1
+                  outcome = result.get("outcome", "").lower()
+                  if outcome == "passed":
+                      totals["passed"] += 1
+                  elif outcome in failed_outcomes:
+                      totals["failed"] += 1
+                  elif outcome in skipped_outcomes:
+                      totals["skipped"] += 1
+
+              times = root.find(".//{*}Times")
+              if times is not None and times.get("start") and times.get("finish"):
+                  start = datetime.fromisoformat(times.get("start").replace("Z", "+00:00"))
+                  finish = datetime.fromisoformat(times.get("finish").replace("Z", "+00:00"))
+                  duration_seconds += (finish - start).total_seconds()
+
+          print(f"- Total: {totals['total']}")
+          print(f"- Passed: {totals['passed']}")
+          print(f"- Failed: {totals['failed']}")
+          print(f"- Skipped: {totals['skipped']}")
+          print(f"- Duration: {duration_seconds:.2f}s")
+          PY
             fi
           } >> "$GITHUB_STEP_SUMMARY"
