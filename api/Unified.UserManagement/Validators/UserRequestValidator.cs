@@ -58,5 +58,10 @@ public class UserRequestValidator : AbstractValidator<UserRequestDto>
             .WithMessage("Employee number is required.")
             .MaximumLength(100)
             .WithMessage("Employee number must be 100 characters or less.");
+
+        RuleFor(x => x.TrainingProfileId)
+            .GreaterThan(0)
+            .WithMessage("Training profile must be a valid value.")
+            .When(x => x.TrainingProfileId.HasValue);
     }
 }

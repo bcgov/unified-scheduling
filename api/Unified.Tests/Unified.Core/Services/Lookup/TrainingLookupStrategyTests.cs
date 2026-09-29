@@ -123,8 +123,37 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetAllTrainingsAsync_Should_Include_Mandatory_Training_Profiles()
+    {
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+
+        _dbContext.Trainings.Add(
+            new TrainingEntity
+            {
+                Code = "MANDATORY-CARBINE",
+                Description = "Mandatory for carbine profile",
+                Mandatory = true,
+                Order = 0,
+                EffectiveDate = DateTimeOffset.UtcNow.AddDays(-1),
+                TrainingProfileRequirements = [new TrainingProfileRequirement { TrainingProfileTypeId = profile.Id }],
+            }
+        );
+
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var result = await _strategy.GetAllTrainingsAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        var training = Assert.Single(result);
+        Assert.True(training.Mandatory);
+        Assert.Equal([profile.Id], training.MandatoryTrainingProfiles.Select(profileType => profileType.Id));
+        Assert.Equal(["CARBINE"], training.MandatoryTrainingProfiles.Select(profileType => profileType.Code));
+    }
+
+    [Fact]
     public async Task CreateAsync_Should_Create_Training_Response()
     {
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+
         var result = await _strategy.CreateAsync(
             new TrainingLookupRequest
             {
@@ -133,6 +162,7 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
                 TrainingCategoryId = 1,
                 ValidityDays = 365,
                 Mandatory = true,
+                MandatoryTrainingProfileIds = [profile.Id],
             },
             TestContext.Current.CancellationToken
         );
@@ -143,6 +173,72 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
         Assert.Equal(1, result.TrainingCategoryId);
         Assert.Equal("Mandatory", result.TrainingCategoryName);
         Assert.True(result.Mandatory);
+        Assert.Equal([profile.Id], result.MandatoryTrainingProfiles.Select(profileType => profileType.Id));
+        Assert.Equal(["CARBINE"], result.MandatoryTrainingProfiles.Select(profileType => profileType.Code));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Clear_Mandatory_Training_Profiles_When_Training_Is_Not_Mandatory()
+    {
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+        var created = await _strategy.CreateAsync(
+            new TrainingLookupRequest
+            {
+                Code = "MAND-PROFILE",
+                Description = "Profile Mandatory",
+                Mandatory = true,
+                MandatoryTrainingProfileIds = [profile.Id],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var updated = await _strategy.UpdateAsync(
+            created.Id,
+            new TrainingLookupRequest
+            {
+                Code = created.Code,
+                Description = created.Description,
+                Mandatory = false,
+                MandatoryTrainingProfileIds = [],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.False(updated!.Mandatory);
+        Assert.Empty(updated.MandatoryTrainingProfiles);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Preserve_Mandatory_Training_Profiles_When_Ids_Are_Omitted()
+    {
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+        var created = await _strategy.CreateAsync(
+            new TrainingLookupRequest
+            {
+                Code = "MAND-PROFILE-KEEP",
+                Description = "Profile Mandatory",
+                Mandatory = true,
+                MandatoryTrainingProfileIds = [profile.Id],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var updated = await _strategy.UpdateAsync(
+            created.Id,
+            new TrainingLookupRequest
+            {
+                Code = created.Code,
+                Description = "Updated Description",
+                Mandatory = true,
+                MandatoryTrainingProfileIds = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.True(updated!.Mandatory);
+        Assert.Equal([profile.Id], updated.MandatoryTrainingProfiles.Select(profileType => profileType.Id));
     }
 
     [Fact]
@@ -248,5 +344,15 @@ public class TrainingLookupStrategyTests : IAsyncLifetime
     public void CodeType_Should_Match_LookupCodeType_Trainings()
     {
         Assert.Equal(LookupCodeTypes.Trainings, _strategy.CodeType);
+    }
+
+    private async Task<TrainingProfileType> SeedTrainingProfileAsync(string code, string _description)
+    {
+        var profile = new TrainingProfileType { Code = code };
+
+        _dbContext.TrainingProfileTypes.Add(profile);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return profile;
     }
 }
