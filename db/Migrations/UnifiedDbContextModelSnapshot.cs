@@ -112,7 +112,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
 
-                    b.Property<Guid?>("CreatedById")
+                    b.Property<Guid>("CreatedById")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
@@ -120,8 +120,15 @@ namespace Unified.Db.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<int>("FirstEventId")
-                        .HasColumnType("integer");
+                    b.Property<string>("FirstEventId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FirstSourceModule")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<DateTimeOffset?>("InvalidatedOn")
                         .HasColumnType("timestamp with time zone");
@@ -134,8 +141,15 @@ namespace Unified.Db.Migrations
                     b.Property<Guid>("ResourceId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("SecondEventId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SecondEventId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SecondSourceModule")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid");
@@ -147,17 +161,12 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("SecondEventId");
-
                     b.HasIndex("UpdatedById");
 
-                    b.HasIndex("FirstEventId", "SecondEventId", "ResourceId")
+                    b.HasIndex("FirstSourceModule", "FirstEventId", "SecondSourceModule", "SecondEventId", "ResourceId")
                         .IsUnique();
 
-                    b.ToTable("CalendarConflictOverrides", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_CalendarConflictOverrides_NormalizedPair", "\"FirstEventId\" < \"SecondEventId\"");
-                        });
+                    b.ToTable("CalendarConflictOverrides");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.Event", b =>
@@ -2533,18 +2542,7 @@ namespace Unified.Db.Migrations
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Unified.Db.Models.Calendar.Event", "FirstEvent")
-                        .WithMany()
-                        .HasForeignKey("FirstEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.Calendar.Event", "SecondEvent")
-                        .WithMany()
-                        .HasForeignKey("SecondEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
@@ -2553,10 +2551,6 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("CreatedBy");
-
-                    b.Navigation("FirstEvent");
-
-                    b.Navigation("SecondEvent");
 
                     b.Navigation("UpdatedBy");
                 });

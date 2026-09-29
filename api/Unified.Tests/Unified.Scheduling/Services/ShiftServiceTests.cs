@@ -115,47 +115,48 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateShiftSeriesAsync_WhenUserAlreadyHasShiftOnStartDate_ThrowsConflict()
+    public async Task CreateShiftSeriesAsync_WhenUserAlreadyHasShiftOnStartDate_SavesDraft()
     {
         // Arrange
         var request = CreateShiftSeriesRequest();
         await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
 
-        // Act / Assert
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken)
-        );
+        // Act
+        var result = await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
 
-        Assert.Single(_dbContext.ShiftSeries);
-        Assert.Single(_dbContext.ShiftEntries);
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, await _dbContext.ShiftSeries.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(2, await _dbContext.ShiftEntries.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public async Task CreateShiftSeriesAsync_WhenOccurrenceConflictsWithExistingEntry_ThrowsConflict()
+    public async Task CreateShiftSeriesAsync_WhenOccurrenceConflictsWithExistingEntry_SavesDraft()
     {
         await _service.CreateShiftEntryAsync(CreateShiftEntryRequest(), TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftSeriesAsync(CreateShiftSeriesRequest(), TestContext.Current.CancellationToken)
+        var result = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(),
+            TestContext.Current.CancellationToken
         );
 
-        Assert.Empty(_dbContext.ShiftSeries);
-        Assert.Single(_dbContext.ShiftEntries);
+        Assert.NotNull(result);
+        Assert.Single(_dbContext.ShiftSeries);
+        Assert.Equal(2, await _dbContext.ShiftEntries.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public async Task CreateShiftSeriesAsync_WhenOccurrencesShareLocalStartDate_ThrowsConflictAndRollsBack()
+    public async Task CreateShiftSeriesAsync_WhenOccurrencesShareLocalStartDate_SavesDraft()
     {
         var request = CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2;BYHOUR=9,17");
 
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken)
-        );
+        var result = await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
 
-        Assert.Empty(_dbContext.EventSeries);
-        Assert.Empty(_dbContext.ShiftSeries);
-        Assert.Empty(_dbContext.Events);
-        Assert.Empty(_dbContext.ShiftEntries);
+        Assert.NotNull(result);
+        Assert.Single(_dbContext.EventSeries);
+        Assert.Single(_dbContext.ShiftSeries);
+        Assert.Equal(2, await _dbContext.Events.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(2, await _dbContext.ShiftEntries.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -245,7 +246,7 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateShiftSeriesAsync_WhenMaterializedShiftConflicts_ThrowsConflict()
+    public async Task UpdateShiftSeriesAsync_WhenMaterializedShiftConflicts_SavesDraft()
     {
         // Arrange
         var request = CreateShiftSeriesRequest();
@@ -261,10 +262,11 @@ public class ShiftServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        // Act / Assert
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.UpdateShiftSeriesAsync(other.Id, request, TestContext.Current.CancellationToken)
-        );
+        // Act
+        var result = await _service.UpdateShiftSeriesAsync(other.Id, request, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -797,6 +799,30 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PublishShiftSeriesAsync_WhenDraftChildConflicts_ThrowsConflict()
+    {
+        var existingEntry = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(),
+            TestContext.Current.CancellationToken
+        );
+        await _service.PublishShiftEntryAsync(existingEntry.Id, TestContext.Current.CancellationToken);
+        var draftSeries = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(),
+            TestContext.Current.CancellationToken
+        );
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.PublishShiftSeriesAsync(draftSeries.Id, TestContext.Current.CancellationToken)
+        );
+
+        var eventSeries = await _dbContext.EventSeries.SingleAsync(
+            eventSeries => eventSeries.Id == draftSeries.EventSeriesId,
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, eventSeries.StatusTypeCode);
+    }
+
+    [Fact]
     public async Task PublishShiftSeriesAsync_WhenSeriesIsNotDraft_ThrowsInvalidOperationException()
     {
         // Arrange
@@ -1087,7 +1113,7 @@ public class ShiftServiceTests : IAsyncLifetime
     [InlineData(0, 0)]
     [InlineData(1, 1)]
     [InlineData(8, 10)]
-    public async Task CreateShiftEntryAsync_WhenSameUserLocationAndLocalStartDate_ThrowsConflict(
+    public async Task CreateShiftEntryAsync_WhenSameUserLocationAndLocalStartDate_SavesDraft(
         int startOffsetHours,
         int endOffsetHours
     )
@@ -1102,21 +1128,25 @@ public class ShiftServiceTests : IAsyncLifetime
             EndAtUtc = request.EndAtUtc!.Value.AddHours(endOffsetHours),
         };
 
-        // Act / Assert
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftEntryAsync(secondRequest, TestContext.Current.CancellationToken)
-        );
-        Assert.Single(_dbContext.ShiftEntries);
+        // Act
+        var result = await _service.CreateShiftEntryAsync(secondRequest, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, await _dbContext.ShiftEntries.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public async Task CreateShiftEntryAsync_WhenExistingShiftIsActive_ThrowsConflict()
+    public async Task CreateShiftEntryAsync_WhenExistingShiftIsActive_SavesDraft()
     {
         await AddShiftEntryAsync(locationId: 5, statusTypeCode: CalendarEventStatusTypeCodes.Active);
 
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftEntryAsync(CreateShiftEntryRequest(), TestContext.Current.CancellationToken)
+        var result = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(),
+            TestContext.Current.CancellationToken
         );
+
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -1158,7 +1188,7 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateShiftEntryAsync_WhenDifferentUtcDatesHaveSameLocalStartDate_ThrowsConflict()
+    public async Task CreateShiftEntryAsync_WhenDifferentUtcDatesHaveSameLocalStartDate_SavesDraft()
     {
         var request = CreateShiftEntryRequest(
             startAtUtc: new DateTimeOffset(2026, 9, 8, 23, 0, 0, TimeSpan.Zero),
@@ -1166,19 +1196,16 @@ public class ShiftServiceTests : IAsyncLifetime
         );
         await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
 
-        var exception = await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftEntryAsync(
-                request with
-                {
-                    StartAtUtc = new DateTimeOffset(2026, 9, 9, 2, 0, 0, TimeSpan.Zero),
-                    EndAtUtc = new DateTimeOffset(2026, 9, 9, 3, 0, 0, TimeSpan.Zero),
-                },
-                TestContext.Current.CancellationToken
-            )
+        var result = await _service.CreateShiftEntryAsync(
+            request with
+            {
+                StartAtUtc = new DateTimeOffset(2026, 9, 9, 2, 0, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 9, 9, 3, 0, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
         );
 
-        Assert.Contains("UserIds", exception.Errors.Keys);
-        Assert.Contains("UserA Test", exception.Errors["UserIds"].Single());
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -1195,19 +1222,19 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateShiftEntryAsync_WhenOneCandidateUserAlreadyHasShift_ThrowsConflict()
+    public async Task CreateShiftEntryAsync_WhenOneCandidateUserAlreadyHasShift_SavesDraft()
     {
         await _service.CreateShiftEntryAsync(
             CreateShiftEntryRequest(userIds: [UserB]),
             TestContext.Current.CancellationToken
         );
 
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftEntryAsync(
-                CreateShiftEntryRequest(userIds: [UserA, UserB]),
-                TestContext.Current.CancellationToken
-            )
+        var result = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(userIds: [UserA, UserB]),
+            TestContext.Current.CancellationToken
         );
+
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -1219,16 +1246,16 @@ public class ShiftServiceTests : IAsyncLifetime
         );
         await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
 
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftEntryAsync(
-                request with
-                {
-                    StartAtUtc = new DateTimeOffset(2026, 3, 8, 10, 30, 0, TimeSpan.Zero),
-                    EndAtUtc = new DateTimeOffset(2026, 3, 8, 11, 30, 0, TimeSpan.Zero),
-                },
-                TestContext.Current.CancellationToken
-            )
+        var result = await _service.CreateShiftEntryAsync(
+            request with
+            {
+                StartAtUtc = new DateTimeOffset(2026, 3, 8, 10, 30, 0, TimeSpan.Zero),
+                EndAtUtc = new DateTimeOffset(2026, 3, 8, 11, 30, 0, TimeSpan.Zero),
+            },
+            TestContext.Current.CancellationToken
         );
+
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -1279,7 +1306,7 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateShiftEntryAsync_WhenOvernightShiftOverlapsNextDateShift_ThrowsConflict()
+    public async Task CreateShiftEntryAsync_WhenOvernightShiftOverlapsNextDateShift_SavesDraft()
     {
         // Arrange
         await _service.CreateShiftEntryAsync(
@@ -1294,10 +1321,11 @@ public class ShiftServiceTests : IAsyncLifetime
             endAtUtc: new DateTimeOffset(2026, 6, 2, 11, 0, 0, TimeSpan.Zero)
         );
 
-        // Act / Assert
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.CreateShiftEntryAsync(overlapping, TestContext.Current.CancellationToken)
-        );
+        // Act
+        var result = await _service.CreateShiftEntryAsync(overlapping, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -1532,7 +1560,7 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateShiftEntryAsync_WhenMovedOntoAnotherShiftLocalStartDate_ThrowsConflict()
+    public async Task UpdateShiftEntryAsync_WhenMovedOntoAnotherShiftLocalStartDate_SavesDraft()
     {
         // Arrange
         var existingRequest = CreateShiftEntryRequest();
@@ -1546,10 +1574,15 @@ public class ShiftServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        // Act / Assert
-        await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.UpdateShiftEntryAsync(entry.Id, existingRequest, TestContext.Current.CancellationToken)
+        // Act
+        var result = await _service.UpdateShiftEntryAsync(
+            entry.Id,
+            existingRequest,
+            TestContext.Current.CancellationToken
         );
+
+        // Assert
+        Assert.NotNull(result);
     }
 
     [Fact]
@@ -1668,6 +1701,38 @@ public class ShiftServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         Assert.Equal(CalendarEventStatusTypeCodes.Active, eventEntity.StatusTypeCode);
+    }
+
+    [Fact]
+    public async Task PublishShiftEntryAsync_WhenDraftConflicts_ThrowsConflict()
+    {
+        var request = CreateShiftEntryRequest();
+        var existingEntry = await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+        await _service.PublishShiftEntryAsync(existingEntry.Id, TestContext.Current.CancellationToken);
+        var conflictingDraft = await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.PublishShiftEntryAsync(conflictingDraft.Id, TestContext.Current.CancellationToken)
+        );
+
+        var eventEntity = await _dbContext.Events.SingleAsync(
+            eventEntity => eventEntity.Id == conflictingDraft.EventId,
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, eventEntity.StatusTypeCode);
+    }
+
+    [Fact]
+    public async Task PublishShiftEntryAsync_WhenOnlyAnotherDraftConflicts_Publishes()
+    {
+        var request = CreateShiftEntryRequest();
+        var entryToPublish = await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+        await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+
+        var result = await _service.PublishShiftEntryAsync(entryToPublish.Id, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, result.StatusTypeCode);
     }
 
     [Fact]
