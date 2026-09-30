@@ -24,7 +24,7 @@ public sealed class JCSyncRecurringJob(
     {
         cancellationToken.ThrowIfCancellationRequested();
         logger.LogInformation("Starting scheduled JC Interface sync");
-        await dataUpdaterService.SyncAllAsync();
+        await dataUpdaterService.SyncAllAsync(cancellationToken);
         logger.LogInformation("Completed scheduled JC Interface sync");
     }
 }

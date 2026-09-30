@@ -37,7 +37,7 @@ internal sealed class JCInterfaceLoggingHandler(
             );
             return response;
         }
-        catch (OperationCanceledException exception)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogError(
                 exception,
