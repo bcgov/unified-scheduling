@@ -245,7 +245,13 @@ describe('CalendarSchedulingView', () => {
     await flushPromises();
 
     expect(api.postOverride).toHaveBeenCalledWith(
-      expect.objectContaining({ firstEventId: 101, secondEventId: 103, note: 'Approved coverage' }),
+      expect.objectContaining({
+        firstSourceModule: 'scheduling',
+        firstEventId: '101',
+        secondSourceModule: 'scheduling',
+        secondEventId: '103',
+        note: 'Approved coverage',
+      }),
       expect.anything(),
     );
     expect(calendarStore.refreshNonce).toBe(1);
@@ -497,7 +503,7 @@ function createConflict(
   return {
     id: `conflict:${currentEventId}:${conflictingEventId}:${resourceId}`,
     entry: {
-      eventId: currentEventId,
+      eventId: String(currentEventId),
       sourceModule: 'scheduling',
       title: 'First assignment',
       start: '2025-01-13T10:00:00Z',
@@ -506,7 +512,7 @@ function createConflict(
       timeZoneId: null,
     },
     overlaps: {
-      eventId: conflictingEventId,
+      eventId: String(conflictingEventId),
       sourceModule: 'scheduling',
       title: conflictingTitle,
       start: '2025-01-13T11:00:00Z',

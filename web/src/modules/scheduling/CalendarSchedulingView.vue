@@ -207,7 +207,9 @@ async function overrideConflict(note: string) {
   conflictErrorMessage.value = '';
   const { error, execute } = postApiCalendarConflictsOverrides(
     {
+      firstSourceModule: conflict.entry.sourceModule,
       firstEventId: conflict.entry.eventId,
+      secondSourceModule: conflict.overlaps.sourceModule,
       secondEventId: conflict.overlaps.eventId,
       resourceId: conflict.resourceId,
       note,
@@ -226,7 +228,10 @@ async function overrideConflict(note: string) {
 }
 
 function editConflictEvent(event: CalendarConflictEvent) {
-  const scheduledEvent = findScheduledEvent(event.eventId);
+  const eventId = parsePositiveInteger(event.eventId);
+  if (!eventId) return;
+
+  const scheduledEvent = findScheduledEvent(eventId);
   if (!scheduledEvent) return;
 
   if (isAssignmentEvent(scheduledEvent)) {

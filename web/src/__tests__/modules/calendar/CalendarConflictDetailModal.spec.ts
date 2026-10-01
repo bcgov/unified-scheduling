@@ -149,7 +149,7 @@ function createConflict(
   return {
     id: `conflict:${entryEventId}:${overlapsEventId}`,
     entry: {
-      eventId: entryEventId,
+      eventId: String(entryEventId),
       sourceModule: 'scheduling',
       title: entryTitle,
       start: '2025-01-13T10:00:00Z',
@@ -158,7 +158,7 @@ function createConflict(
       timeZoneId: null,
     },
     overlaps: {
-      eventId: overlapsEventId,
+      eventId: String(overlapsEventId),
       sourceModule: 'scheduling',
       title: overlapsTitle,
       start: '2025-01-13T11:00:00Z',

@@ -1362,7 +1362,9 @@ async function handleConflictOverride(note: string) {
   conflictOverrides.value = [
     ...conflictOverrides.value,
     {
+      firstSourceModule: conflict.entry.sourceModule,
       firstEventId,
+      secondSourceModule: conflict.overlaps.sourceModule,
       secondEventId,
       resourceId: conflict.resourceId,
       note,
@@ -1438,8 +1440,8 @@ function isCalendarConflictResponse(value: unknown): value is CalendarConflictRe
   const conflict = value as Partial<CalendarConflictResponse>;
   return (
     typeof conflict.resourceId === 'string' &&
-    typeof conflict.entry?.eventId === 'number' &&
-    typeof conflict.overlaps?.eventId === 'number'
+    typeof conflict.entry?.eventId === 'string' &&
+    typeof conflict.overlaps?.eventId === 'string'
   );
 }
 
@@ -1452,7 +1454,7 @@ const pendingConflictCurrentEventId = computed(() => {
   const currentEvent = [conflict.entry, conflict.overlaps].find(
     (event) => event.sourceModule === 'scheduling' && event.sourceEntityId === props.assignmentEntryId,
   );
-  return currentEvent?.eventId ?? conflict.entry.eventId;
+  return Number(currentEvent?.eventId ?? conflict.entry.eventId);
 });
 
 function applyServerValidationErrors(rawError: unknown) {

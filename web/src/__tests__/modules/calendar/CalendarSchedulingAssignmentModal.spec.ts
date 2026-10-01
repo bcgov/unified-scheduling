@@ -2090,7 +2090,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     const conflict = {
       id: '41:52:feaa2a73-6898-48ae-9c32-9633b1ec5538',
       entry: {
-        eventId: 41,
+        eventId: '41',
         sourceModule: 'scheduling',
         title: 'Court Room Monitor',
         start: '2026-08-25T16:00:00Z',
@@ -2099,7 +2099,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         timeZoneId: 'America/Vancouver',
       },
       overlaps: {
-        eventId: 52,
+        eventId: '52',
         sourceModule: 'scheduling',
         title: 'Intake coverage',
         start: '2026-08-25T17:00:00Z',
@@ -2211,8 +2211,10 @@ describe('CalendarSchedulingAssignmentModal', () => {
       expect.objectContaining({
         conflictOverrides: [
           {
-            firstEventId: 41,
-            secondEventId: 52,
+            firstSourceModule: 'scheduling',
+            firstEventId: '41',
+            secondSourceModule: 'scheduling',
+            secondEventId: '52',
             resourceId,
             note: 'Operationally approved',
           },
