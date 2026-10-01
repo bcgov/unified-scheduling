@@ -28,7 +28,10 @@ export const getCalendarConflictsForEvent = (
     return [];
   }
 
-  return conflicts.filter((conflict) => conflict.entry.eventId === eventId || conflict.overlaps.eventId === eventId);
+  const conflictEventId = String(eventId);
+  return conflicts.filter(
+    (conflict) => conflict.entry.eventId === conflictEventId || conflict.overlaps.eventId === conflictEventId,
+  );
 };
 
 export const getCalendarConflictsForEventAndResource = (

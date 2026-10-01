@@ -12,7 +12,7 @@ export function getCalendarConflictEventTimeZoneLabel(event: CalendarConflictEve
 }
 
 export function resolveCalendarConflictSides(conflict: CalendarConflict, currentEventId: number) {
-  const currentEventIsOverlap = conflict.overlaps.eventId === currentEventId;
+  const currentEventIsOverlap = conflict.overlaps.eventId === String(currentEventId);
   return {
     current: currentEventIsOverlap ? conflict.overlaps : conflict.entry,
     other: currentEventIsOverlap ? conflict.entry : conflict.overlaps,

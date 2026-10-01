@@ -168,7 +168,7 @@ describe('scheduling calendar view model', () => {
                   id: '900:901:user-1',
                   resourceId: 'user-1',
                   entry: {
-                    eventId: 900,
+                    eventId: '900',
                     sourceModule: 'scheduling',
                     title: 'Court Room Monitor',
                     start: '2025-01-13T17:00:00Z',
@@ -177,7 +177,7 @@ describe('scheduling calendar view model', () => {
                     timeZoneId: null,
                   },
                   overlaps: {
-                    eventId: 901,
+                    eventId: '901',
                     sourceModule: 'scheduling',
                     title: 'Other assignment',
                     start: '2025-01-13T17:30:00Z',
@@ -475,7 +475,7 @@ describe('scheduling calendar view model', () => {
                   id: '201:202:user-1',
                   resourceId: 'user-1',
                   entry: {
-                    eventId: 201,
+                    eventId: '201',
                     sourceModule: 'scheduling',
                     title: 'Conflict assignment',
                     start: '2025-01-13T10:00:00Z',
@@ -484,7 +484,7 @@ describe('scheduling calendar view model', () => {
                     timeZoneId: null,
                   },
                   overlaps: {
-                    eventId: 202,
+                    eventId: '202',
                     sourceModule: 'scheduling',
                     title: 'Assignment',
                     start: '2025-01-13T10:00:00Z',
