@@ -15,6 +15,7 @@ using Unified.Common.Mvc;
 using Unified.Common.Scheduling;
 using Unified.Common.Time;
 using Unified.Core;
+using Unified.DataMigration;
 using Unified.Db;
 using Unified.Hangfire;
 using Unified.Hangfire.Options;
@@ -117,6 +118,7 @@ var hangfireOptions =
                 .Concat(AuditSeedDataSets.All)
         )
         .AddJCInterfaceModule(builder.Configuration)
+        .AddDataMigrationModule(builder.Configuration)
         .AddInterceptors()
         .AddLeaveModule(builder.Configuration)
         .AddLoanOutModule(builder.Configuration);
