@@ -6,8 +6,10 @@
  */
 
 export interface CalendarConflictAcknowledgement {
-  firstEventId: number;
-  secondEventId: number;
+  firstSourceModule: string;
+  firstEventId: string;
+  secondSourceModule: string;
+  secondEventId: string;
   resourceId: string;
   note: string;
 }

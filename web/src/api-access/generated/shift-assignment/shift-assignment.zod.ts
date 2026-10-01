@@ -116,8 +116,10 @@ export const PostApiSchedulingShiftAssignmentsEntriesBody = zod.strictObject({
   conflictOverrides: zod
     .array(
       zod.strictObject({
-        firstEventId: zod.int(),
-        secondEventId: zod.int(),
+        firstSourceModule: zod.string(),
+        firstEventId: zod.string(),
+        secondSourceModule: zod.string(),
+        secondEventId: zod.string(),
         resourceId: zod.uuid(),
         note: zod.string(),
       }),
@@ -145,8 +147,10 @@ export const PutApiSchedulingShiftAssignmentsEntriesIdBody = zod.strictObject({
   conflictOverrides: zod
     .array(
       zod.strictObject({
-        firstEventId: zod.int(),
-        secondEventId: zod.int(),
+        firstSourceModule: zod.string(),
+        firstEventId: zod.string(),
+        secondSourceModule: zod.string(),
+        secondEventId: zod.string(),
         resourceId: zod.uuid(),
         note: zod.string(),
       }),
@@ -178,8 +182,10 @@ export const PostApiSchedulingShiftAssignmentsSeriesBody = zod.strictObject({
   conflictOverrides: zod
     .array(
       zod.strictObject({
-        firstEventId: zod.int(),
-        secondEventId: zod.int(),
+        firstSourceModule: zod.string(),
+        firstEventId: zod.string(),
+        secondSourceModule: zod.string(),
+        secondEventId: zod.string(),
         resourceId: zod.uuid(),
         note: zod.string(),
       }),
@@ -219,8 +225,10 @@ export const PutApiSchedulingShiftAssignmentsSeriesIdBody = zod.strictObject({
   conflictOverrides: zod
     .array(
       zod.strictObject({
-        firstEventId: zod.int(),
-        secondEventId: zod.int(),
+        firstSourceModule: zod.string(),
+        firstEventId: zod.string(),
+        secondSourceModule: zod.string(),
+        secondEventId: zod.string(),
         resourceId: zod.uuid(),
         note: zod.string(),
       }),

@@ -72,7 +72,7 @@ export const PostApiCalendarEventsResponse = zod.object({
       zod.object({
         id: zod.string(),
         entry: zod.object({
-          eventId: zod.int(),
+          eventId: zod.string(),
           sourceModule: zod.string(),
           title: zod.string(),
           start: zod.iso.datetime({ offset: true }),
@@ -81,7 +81,7 @@ export const PostApiCalendarEventsResponse = zod.object({
           timeZoneId: zod.string().nullable(),
         }),
         overlaps: zod.object({
-          eventId: zod.int(),
+          eventId: zod.string(),
           sourceModule: zod.string(),
           title: zod.string(),
           start: zod.iso.datetime({ offset: true }),
@@ -104,8 +104,10 @@ export const PostApiCalendarEventsResponse = zod.object({
 });
 
 export const PostApiCalendarConflictsOverridesBody = zod.strictObject({
-  firstEventId: zod.int(),
-  secondEventId: zod.int(),
+  firstSourceModule: zod.string(),
+  firstEventId: zod.string(),
+  secondSourceModule: zod.string(),
+  secondEventId: zod.string(),
   resourceId: zod.uuid(),
   note: zod.string(),
 });

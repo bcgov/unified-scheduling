@@ -108,7 +108,7 @@ export const getPostApiCalendarEventsResponseMock = (
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.string.alpha({ length: { min: 10, max: 20 } }),
           entry: {
-            eventId: faker.number.int(),
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
             sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
             title: faker.string.alpha({ length: { min: 10, max: 20 } }),
             start: faker.date.past().toISOString().slice(0, 19) + 'Z',
@@ -117,7 +117,7 @@ export const getPostApiCalendarEventsResponseMock = (
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           overlaps: {
-            eventId: faker.number.int(),
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
             sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
             title: faker.string.alpha({ length: { min: 10, max: 20 } }),
             start: faker.date.past().toISOString().slice(0, 19) + 'Z',
@@ -231,7 +231,7 @@ export const getPostApiCalendarEventsResponseMock = (
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.string.alpha({ length: { min: 10, max: 20 } }),
           entry: {
-            eventId: faker.number.int(),
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
             sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
             title: faker.string.alpha({ length: { min: 10, max: 20 } }),
             start: faker.date.past().toISOString().slice(0, 19) + 'Z',
@@ -240,7 +240,7 @@ export const getPostApiCalendarEventsResponseMock = (
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           overlaps: {
-            eventId: faker.number.int(),
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
             sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
             title: faker.string.alpha({ length: { min: 10, max: 20 } }),
             start: faker.date.past().toISOString().slice(0, 19) + 'Z',
@@ -354,7 +354,7 @@ export const getPostApiCalendarEventsResponseMock = (
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.string.alpha({ length: { min: 10, max: 20 } }),
           entry: {
-            eventId: faker.number.int(),
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
             sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
             title: faker.string.alpha({ length: { min: 10, max: 20 } }),
             start: faker.date.past().toISOString().slice(0, 19) + 'Z',
@@ -363,7 +363,7 @@ export const getPostApiCalendarEventsResponseMock = (
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           overlaps: {
-            eventId: faker.number.int(),
+            eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
             sourceModule: faker.string.alpha({ length: { min: 10, max: 20 } }),
             title: faker.string.alpha({ length: { min: 10, max: 20 } }),
             start: faker.date.past().toISOString().slice(0, 19) + 'Z',

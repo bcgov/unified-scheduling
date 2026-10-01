@@ -6,7 +6,7 @@
  */
 
 export interface CalendarConflictEventResponse {
-  eventId: number;
+  eventId: string;
   sourceModule: string;
   title: string;
   start: string;
