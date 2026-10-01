@@ -50,6 +50,16 @@ services:
       - Hangfire__DashboardEnabled=${HangfireDashboardEnabled:-false}
       - Hangfire__PrepareSchemaIfNecessary=${HangfirePrepareSchemaIfNecessary:-true}
       - Hangfire__RetryCount=${HangfireRetryCount:-3}
+      - DataMigration__Sources__SS__ConnectionString=${DataMigrationSSConnectionString:-}
+      - DataMigration__Sources__SS__CronSchedule=${DataMigrationSSCronSchedule:-}
+      - DataMigration__Sources__SS__Enabled=${DataMigrationSSEnabled:-false}
+      - DataMigration__Sources__SS__BatchSize=${DataMigrationSSBatchSize:-100}
+      - DataMigration__Sources__SS__DryRun=${DataMigrationSSDryRun:-true}
+      - DataMigration__Sources__CASS__ConnectionString=${DataMigrationCASSConnectionString:-}
+      - DataMigration__Sources__CASS__CronSchedule=${DataMigrationCASSCronSchedule:-}
+      - DataMigration__Sources__CASS__Enabled=${DataMigrationCASSEnabled:-false}
+      - DataMigration__Sources__CASS__BatchSize=${DataMigrationCASSBatchSize:-100}
+      - DataMigration__Sources__CASS__DryRun=${DataMigrationCASSDryRun:-true}
       - Ches__Enabled=${ChesEnabled:-false}
       - Ches__BaseUrl=${ChesBaseUrl:-https://ches.api.gov.bc.ca/api/v1/}
       - Ches__AuthUrl=${ChesAuthUrl:-}
