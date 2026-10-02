@@ -119,6 +119,7 @@ export const calendarDropAction: CalendarDropAction = {
       : canCreateAssignments(runtimeContext)),
   execute: async (context, runtimeContext) => {
     const assignmentEntryId = resolveExistingAssignmentEntryId(context);
+    const assignedUserId = resolveTargetUserId(context);
     if (
       !canAssignAssignments(runtimeContext) ||
       (assignmentEntryId ? !canEditAssignments(runtimeContext) : !canCreateAssignments(runtimeContext))
@@ -132,10 +133,12 @@ export const calendarDropAction: CalendarDropAction = {
             mode: 'edit',
             assignmentEntryId,
             shiftEntryIds: resolveShiftEntryIds(context),
+            assignedUserId,
           }
         : {
             assignmentDefinitionId: resolveAssignmentDefinitionId(context) ?? undefined,
             shiftEntryIds: resolveShiftEntryIds(context),
+            assignedUserId,
           },
     );
   },
@@ -269,7 +272,7 @@ export const calendarSchedulingHeaderShowConflictAction: CalendarMatrixCellHeade
     context.actionId === calendarSchedulingActionIds.showConflict && isCalendarEventBase(context.header.payload),
   execute: (context) => {
     if (isCalendarEventBase(context.header.payload)) {
-      toggleCalendarSchedulingHeaderConflict(context.header.payload.id);
+      toggleCalendarSchedulingHeaderConflict(context.cell, context.header.payload.id);
     }
   },
 };
@@ -325,11 +328,7 @@ function resolveShiftEntryIds(context: CalendarMatrixDropActionContext) {
   const matchingCell = context.model.cells.find(
     (cell) => cell.resourceId === context.drop.resourceId && cell.date === context.drop.date,
   );
-  const targetResource = context.model.primaryColumn.resources.find(
-    (resource) => resource.id === context.drop.resourceId,
-  );
-  const targetUserId =
-    context.drop.resourceType === 'user' || targetResource?.type === 'user' ? context.drop.resourceId : undefined;
+  const targetUserId = resolveTargetUserId(context);
   const assignmentLocationId = resolveAssignmentLocationId(context);
   const ids =
     matchingCell?.headers
@@ -345,6 +344,13 @@ function resolveShiftEntryIds(context: CalendarMatrixDropActionContext) {
       })
       .filter((id): id is number => typeof id === 'number') ?? [];
   return [...new Set(ids)];
+}
+
+function resolveTargetUserId(context: CalendarMatrixDropActionContext) {
+  const targetResource = context.model.primaryColumn.resources.find(
+    (resource) => resource.id === context.drop.resourceId,
+  );
+  return context.drop.resourceType === 'user' || targetResource?.type === 'user' ? context.drop.resourceId : undefined;
 }
 
 function resolveExistingAssignmentEntryId(context: CalendarMatrixDropActionContext) {

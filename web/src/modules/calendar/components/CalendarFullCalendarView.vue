@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EventClickInfo, EventInput } from '@fullcalendar/vue3';
 import { computed } from 'vue';
+import '@/assets/styles/calendar.fullcalendar.css';
 import UaCalendar from '@/shared/components/UaCalendar.vue';
 import type { CalendarEventBase, CalendarFullCalendarViewModel } from '../calendarTypes';
 
@@ -43,11 +44,13 @@ const handleEventClick = (arg: EventClickInfo) => {
 </script>
 
 <template>
-  <UaCalendar
-    :events="events"
-    :view="model.view"
-    :initial-date="model.initialDate"
-    :weekends="model.weekends"
-    @event-click="handleEventClick"
-  />
+  <div class="calendar-full-calendar-view">
+    <UaCalendar
+      :events="events"
+      :view="model.view"
+      :initial-date="model.initialDate"
+      :weekends="model.weekends"
+      @event-click="handleEventClick"
+    />
+  </div>
 </template>

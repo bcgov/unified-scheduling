@@ -218,6 +218,40 @@ describe('CalendarSchedulingShiftForm', () => {
     expect(emitted.assignmentEntryLinks).toEqual([]);
     expect(emitted.assignmentEntryIds).toEqual([]);
   });
+
+  it('keeps linked-assignment user options stable when the selection changes', async () => {
+    const formData: ShiftResourceFormData = {
+      locationId: 1,
+      userIds: ['user-1', 'user-2'],
+      assignmentEntryLinks: [{ assignmentEntryId: 42, assignedUserIds: ['user-1'] }],
+      date: '2026-07-31',
+      repeatMode: 'never',
+      publish: 'no',
+      cancel: 'no',
+    };
+    const wrapper = mount(CalendarSchedulingShiftForm, {
+      props: {
+        modelValue: formData,
+        locationOptions: [{ code: 1, description: 'HQ' }],
+        employeeOptions: [
+          { code: 'user-1', description: 'Alex Alpha' },
+          { code: 'user-2', description: 'Blair Beta' },
+        ],
+        showRecurrence: false,
+      },
+    });
+    const vm = wrapper.vm as unknown as { currentShiftUserOptions: SelectOption[] };
+    const initialUserOptions = vm.currentShiftUserOptions;
+
+    await wrapper.setProps({
+      modelValue: {
+        ...formData,
+        assignmentEntryLinks: [{ assignmentEntryId: 42, assignedUserIds: ['user-1', 'user-2'] }],
+      },
+    });
+
+    expect(vm.currentShiftUserOptions).toBe(initialUserOptions);
+  });
 });
 
 describe('getShiftDeleteDisabledReason', () => {

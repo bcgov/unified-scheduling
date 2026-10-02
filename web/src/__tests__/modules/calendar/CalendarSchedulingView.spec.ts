@@ -22,6 +22,7 @@ import {
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingResourceActionModal,
+  getCalendarSchedulingHeaderConflictKey,
   showCalendarSchedulingAssignmentModal,
   showCalendarSchedulingExistingShiftChoice,
   showCalendarSchedulingResourceActionModal,
@@ -65,6 +66,7 @@ describe('CalendarSchedulingView', () => {
       assignmentSeriesId: 12,
       assignmentDefinitionId: 3,
       shiftEntryIds: [21, 22],
+      assignedUserId: 'user-1',
     });
 
     const app = await createTestApp({ loadConfig: false });
@@ -88,6 +90,7 @@ describe('CalendarSchedulingView', () => {
       assignmentSeriesId: 12,
       initialAssignmentDefinitionId: 3,
       initialShiftEntryIds: [21, 22],
+      initialAssignedUserId: 'user-1',
       timeZone: 'America/Vancouver',
     });
 
@@ -322,9 +325,25 @@ describe('CalendarSchedulingView', () => {
           ],
           groups: [{ id: 'assignments', events: [] }],
         },
+        {
+          resourceId: 'user-2',
+          date: '2025-01-13',
+          headers: [
+            {
+              id: shift.id,
+              text: '9:00 AM - 5:00 PM',
+              payload: shift,
+              conflicts: [{ conflict, currentEventId: 101 }],
+            },
+          ],
+          groups: [{ id: 'assignments', events: [] }],
+        },
       ],
     };
-    calendarSchedulingConflictHeaderId.value = shift.id;
+    calendarSchedulingConflictHeaderId.value = getCalendarSchedulingHeaderConflictKey(
+      conflictModel.cells[0]!,
+      shift.id,
+    );
     const app = await createTestApp({ loadConfig: false });
     const wrapper = mount(CalendarSchedulingView, {
       props: { model: conflictModel },
@@ -341,6 +360,7 @@ describe('CalendarSchedulingView', () => {
       },
     });
 
+    expect(wrapper.findAllComponents(CalendarSchedulingConflictOverlay)).toHaveLength(1);
     expect(wrapper.text()).toContain('Second assignment');
     await wrapper.get('.calendar-scheduling-conflict-overlay__resolve').trigger('click');
 
@@ -421,19 +441,20 @@ function createHeaderMatrixViewStub() {
       model: { type: Object as PropType<CalendarMatrixViewModel>, required: true },
     },
     setup(props, { slots }) {
-      return () => {
-        const cell = props.model.cells[0]!;
-        const header = cell.headers![0]!;
-        return h(
+      return () =>
+        h(
           'div',
-          slots['cell-header']?.({
-            cell,
-            header,
-            onHeaderAction: vi.fn(),
-            onHeaderClick: vi.fn(),
-          }),
+          props.model.cells.flatMap((cell) =>
+            (cell.headers ?? []).flatMap((header) =>
+              slots['cell-header']?.({
+                cell,
+                header,
+                onHeaderAction: vi.fn(),
+                onHeaderClick: vi.fn(),
+              }),
+            ),
+          ),
         );
-      };
     },
   });
 }

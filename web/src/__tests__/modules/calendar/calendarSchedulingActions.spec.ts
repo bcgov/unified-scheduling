@@ -12,11 +12,13 @@ import {
   calendarDropUserOnAssignmentResourceAction,
   calendarScheduleStaffAction,
   calendarSchedulingEventDetailAction,
+  calendarSchedulingHeaderShowConflictAction,
   calendarSchedulingResolveConflictAction,
   calendarSchedulingShowConflictAction,
 } from '@/modules/scheduling/calendarSchedulingActions';
 import {
   calendarSchedulingAssignmentModalAssignmentDefinitionId,
+  calendarSchedulingAssignmentModalAssignedUserId,
   calendarSchedulingAssignmentModalDate,
   calendarSchedulingAssignmentModalEntryId,
   calendarSchedulingAssignmentModalMode,
@@ -31,6 +33,7 @@ import {
   calendarSchedulingResourceActionResource,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingResourceActionModal,
+  getCalendarSchedulingHeaderConflictKey,
   showCalendarSchedulingEventDetail,
 } from '@/modules/scheduling/calendarSchedulingState';
 
@@ -109,6 +112,41 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingResolveConflictAction.isAvailable?.(resolveContext, writableRuntimeContext)).toBe(true);
     await calendarSchedulingResolveConflictAction.execute(resolveContext, writableRuntimeContext);
     expect(calendarSchedulingConflictEventId.value).toBeUndefined();
+  });
+
+  it('opens a shift-header conflict only for the clicked matrix cell', async () => {
+    const cell = {
+      resourceId: 'user-1',
+      date: '2026-07-12',
+      groups: [],
+    };
+    const header = {
+      id: 'shift-entry-44',
+      text: '9:00 AM - 5:00 PM',
+      payload: {
+        id: 'shift-entry-44',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Day shift',
+        start: '2026-07-12T16:00:00Z',
+      },
+    };
+    const context = {
+      cell,
+      header,
+      actionId: calendarSchedulingActionIds.showConflict,
+      actionType: 'button' as const,
+      model: {
+        timeZone: 'America/Vancouver',
+        days: [],
+        primaryColumn: { label: 'TEAM', resources: [] },
+        cells: [],
+      },
+    };
+
+    await calendarSchedulingHeaderShowConflictAction.execute(context, writableRuntimeContext);
+
+    expect(calendarSchedulingConflictHeaderId.value).toBe(getCalendarSchedulingHeaderConflictKey(cell, header.id));
   });
 
   it('opens the assignment modal for the dropped assignment and pre-links shift entries from the target cell header', async () => {
@@ -413,6 +451,7 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingAssignmentModalMode.value).toBe('edit');
     expect(calendarSchedulingAssignmentModalEntryId.value).toBe(90);
     expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
+    expect(calendarSchedulingAssignmentModalAssignedUserId.value).toBe('user-1');
   });
 
   it('pre-links only shifts belonging to the target user row when the drop payload omits resource type', async () => {

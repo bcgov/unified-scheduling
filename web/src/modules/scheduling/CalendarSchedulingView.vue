@@ -37,6 +37,7 @@ import { getCalendarEventDateKey } from './calendarSchedulingMappers';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import {
   calendarSchedulingAssignmentModalAssignmentDefinitionId,
+  calendarSchedulingAssignmentModalAssignedUserId,
   calendarSchedulingAssignmentModalDate,
   calendarSchedulingAssignmentModalEditScope,
   calendarSchedulingAssignmentModalEntryId,
@@ -56,6 +57,7 @@ import {
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingResourceActionModal,
+  getCalendarSchedulingHeaderConflictKey,
   isCalendarSchedulingAssignmentModalOpen,
   isCalendarSchedulingResourceActionModalOpen,
   showCalendarSchedulingAssignmentModal,
@@ -280,6 +282,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
 
 <template>
   <CalendarMatrixView
+    class="calendar-scheduling-matrix"
     :model="model"
     :runtime-context="runtimeContext"
     @event-click="emit('eventClick', $event)"
@@ -288,12 +291,19 @@ function isAssignmentEvent(event: CalendarEventBase) {
     <template #cell-header="{ cell, header, onHeaderAction, onHeaderClick }">
       <div
         class="calendar-scheduling-header"
-        :class="{ 'has-conflict-overlay': calendarSchedulingConflictHeaderId === header.id }"
+        :class="{
+          'has-conflict-overlay':
+            calendarSchedulingConflictHeaderId != null &&
+            calendarSchedulingConflictHeaderId === getCalendarSchedulingHeaderConflictKey(cell, header.id),
+        }"
       >
         <CalendarMatrixCellHeader :cell="cell" :header="header" @action="onHeaderAction" @click="onHeaderClick" />
 
         <CalendarSchedulingConflictOverlay
-          v-if="calendarSchedulingConflictHeaderId === header.id"
+          v-if="
+            calendarSchedulingConflictHeaderId != null &&
+            calendarSchedulingConflictHeaderId === getCalendarSchedulingHeaderConflictKey(cell, header.id)
+          "
           :conflicts="header.conflicts ?? []"
           :icon="header.action?.icon"
           :time-zone="model.timeZone"
@@ -358,6 +368,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :assignment-series-id="calendarSchedulingAssignmentModalSeriesId"
     :initial-assignment-definition-id="calendarSchedulingAssignmentModalAssignmentDefinitionId"
     :initial-shift-entry-ids="calendarSchedulingAssignmentModalShiftEntryIds"
+    :initial-assigned-user-id="calendarSchedulingAssignmentModalAssignedUserId"
     :time-zone="model.timeZone"
     @close="closeCalendarSchedulingAssignmentModal"
   />
@@ -401,6 +412,15 @@ function isAssignmentEvent(event: CalendarEventBase) {
 </template>
 
 <style scoped>
+.calendar-scheduling-matrix {
+  --calendar-matrix-scroll-padding-bottom: 10rem;
+}
+
+.calendar-scheduling-matrix :deep(.calendar-matrix-cell:has(.has-conflict-overlay)) {
+  position: relative;
+  z-index: 4;
+}
+
 .calendar-scheduling-event-block {
   position: relative;
 }

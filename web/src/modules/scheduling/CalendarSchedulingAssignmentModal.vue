@@ -79,6 +79,7 @@ const props = defineProps<{
   initialDate?: string;
   initialAssignmentDefinitionId?: number;
   initialShiftEntryIds?: number[];
+  initialAssignedUserId?: string;
   timeZone?: string;
 }>();
 
@@ -279,6 +280,22 @@ const selectedShiftSeriesIds = computed(
 const selectedShiftEntryIds = computed(
   () => new Set((formData.value.shiftEntryLinks ?? []).map((link) => link.shiftEntryId)),
 );
+const shiftSeriesUserOptionsById = computed(
+  () =>
+    new Map(
+      shiftSeries.value.flatMap((series) =>
+        typeof series.id === 'number' ? [[series.id, getUserOptions(series.userIds ?? [])] as const] : [],
+      ),
+    ),
+);
+const shiftEntryUserOptionsById = computed(
+  () =>
+    new Map(
+      shiftEntries.value.flatMap((entry) =>
+        typeof entry.id === 'number' ? [[entry.id, getUserOptions(entry.userIds ?? [])] as const] : [],
+      ),
+    ),
+);
 const shiftSeriesOptions = computed<ShiftOption[]>(() =>
   shiftSeries.value
     .filter((series) => typeof series.id === 'number')
@@ -355,6 +372,8 @@ interface UserOption extends SelectOption {
   code: string;
 }
 
+const emptyUserOptions: UserOption[] = [];
+
 onMounted(() => {
   void Promise.all([loadAssignmentDefinitions(), loadUsers()]);
   if (!shouldShowOpenScopeChoice.value) {
@@ -363,7 +382,15 @@ onMounted(() => {
 });
 
 watch(
-  () => [props.initialDate, props.assignmentEntryId, props.assignmentSeriesId, props.mode, props.editScope] as const,
+  () =>
+    [
+      props.initialDate,
+      props.assignmentEntryId,
+      props.assignmentSeriesId,
+      props.mode,
+      props.editScope,
+      props.initialAssignedUserId,
+    ] as const,
   ([initialDate]) => {
     selectedOpenScope.value = getInitialOpenScope();
     modalMode.value = props.mode ?? 'create';
@@ -386,7 +413,7 @@ watch(activeLocationId, () => {
 });
 
 watch(
-  () => [activeLocationId.value, formData.value.date, timeZoneId.value] as const,
+  [activeLocationId, () => formData.value.date, timeZoneId],
   () => {
     void loadShiftOptions();
   },
@@ -622,6 +649,7 @@ function applyInitialSelections() {
   }
 
   if (shiftEntryIds.length) {
+    const initialShiftEntryIdSet = new Set(shiftEntryIds);
     const existingLinks = (formData.value.shiftEntryLinks ?? []).flatMap((link) =>
       typeof link.shiftEntryId === 'number'
         ? [{ ...link, shiftEntryId: link.shiftEntryId, assignedUserIds: link.assignedUserIds ?? [] }]
@@ -633,13 +661,18 @@ function applyInitialSelections() {
     updateField('shiftEntryIds', mergedShiftEntryIds);
     updateField(
       'shiftEntryLinks',
-      mergedShiftEntryIds.map(
-        (shiftEntryId) =>
-          existingLinksById.get(shiftEntryId) ?? {
-            shiftEntryId,
-            assignedUserIds: getShiftEntryUserIds(shiftEntryId),
-          },
-      ),
+      mergedShiftEntryIds.map((shiftEntryId) => {
+        const link = existingLinksById.get(shiftEntryId) ?? {
+          shiftEntryId,
+          assignedUserIds: getShiftEntryUserIds(shiftEntryId),
+        };
+        const assignedUserIds =
+          props.initialAssignedUserId && initialShiftEntryIdSet.has(shiftEntryId)
+            ? [...new Set([...link.assignedUserIds, props.initialAssignedUserId])]
+            : link.assignedUserIds;
+
+        return { ...link, assignedUserIds };
+      }),
     );
     updateField('shiftSeriesIds', []);
     updateField('shiftSeriesLinks', []);
@@ -1108,11 +1141,11 @@ function getShiftEntryUserIds(shiftEntryId: number) {
 }
 
 function getShiftSeriesUserOptions(shiftSeriesId: number): UserOption[] {
-  return getUserOptions(getShiftSeriesUserIds(shiftSeriesId));
+  return shiftSeriesUserOptionsById.value.get(shiftSeriesId) ?? emptyUserOptions;
 }
 
 function getShiftEntryUserOptions(shiftEntryId: number): UserOption[] {
-  return getUserOptions(getShiftEntryUserIds(shiftEntryId));
+  return shiftEntryUserOptionsById.value.get(shiftEntryId) ?? emptyUserOptions;
 }
 
 function getUserOptions(userIds: string[]): UserOption[] {

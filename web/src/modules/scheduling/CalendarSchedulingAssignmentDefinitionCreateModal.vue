@@ -7,10 +7,12 @@ import {
 import { mdiPencil } from '@mdi/js';
 import { PostApiSchedulingAssignmentDefinitionsBody } from '@/api-access/generated/assignment-definition/assignment-definition.zod';
 import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
+import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
 import { getApiStatsSubCategories } from '@/api-access/generated/sub-categories/sub-categories';
 import type {
   AssignmentDefinitionResponse,
   StatCategoryResponse,
+  StatGroupResponse,
   SubCategoryResponse,
 } from '@/api-access/generated/models';
 import CalendarEventColorPicker from '@/modules/calendar/components/CalendarEventColorPicker.vue';
@@ -116,8 +118,10 @@ const formErrors = ref<Record<string, string>>({});
 const formData = ref<AssignmentDefinitionCreateFormData>(createInitialFormData());
 const loadedAssignmentDefinition = ref<AssignmentDefinitionResponse | null>(null);
 const modalMode = ref<'create' | 'view' | 'edit'>(props.mode ?? 'create');
+const assignmentGroupTypes = ref<StatGroupResponse[]>([]);
 const assignmentCategoryTypes = ref<StatCategoryResponse[]>([]);
 const assignmentSubCategoryTypes = ref<SubCategoryResponse[]>([]);
+const selectedAssignmentGroupId = ref<number>();
 
 const isReadOnly = computed(
   () =>
@@ -138,9 +142,21 @@ const modalTitle = computed(() => {
   return 'Add Type Definition';
 });
 const locationOptions = computed(() => locationsStore.selectOptions);
+const assignmentGroupOptions = computed<SelectOption[]>(() =>
+  assignmentGroupTypes.value
+    .filter((assignmentGroup) => typeof assignmentGroup.id === 'number')
+    .map((assignmentGroup) => ({
+      code: assignmentGroup.id as number,
+      description: assignmentGroup.name || 'Group',
+    }))
+    .sort((left, right) => left.description.localeCompare(right.description)),
+);
 const assignmentCategoryOptions = computed<SelectOption[]>(() =>
   assignmentCategoryTypes.value
-    .filter((assignmentCategory) => typeof assignmentCategory.id === 'number')
+    .filter(
+      (assignmentCategory) =>
+        assignmentCategory.groupId === selectedAssignmentGroupId.value && typeof assignmentCategory.id === 'number',
+    )
     .map((assignmentCategory) => ({
       code: assignmentCategory.id as number,
       description: assignmentCategory.name || 'Category',
@@ -161,6 +177,10 @@ const assignmentDefinitionDetailRows = computed<ShiftDetailRow[]>(() => [
   { label: 'Name', value: formData.value.name?.trim() || 'None' },
   { label: 'Description', value: formData.value.description?.trim() || 'None' },
   { label: 'Location', value: formatLocation(formData.value.locationId) },
+  {
+    label: 'Group',
+    value: formatSelectValue(selectedAssignmentGroupId.value, assignmentGroupOptions.value),
+  },
   {
     label: 'Category',
     value: formatSelectValue(formData.value.categoryId, assignmentCategoryOptions.value),
@@ -195,6 +215,7 @@ watch(
     } else {
       loadedAssignmentDefinition.value = null;
       formData.value = createInitialFormData();
+      selectedAssignmentGroupId.value = undefined;
     }
   },
 );
@@ -206,6 +227,9 @@ onMounted(async () => {
       await locationsStore.getEntities();
     }
 
+    const groupResult = getApiStatsGroups({
+      options: { immediate: false },
+    });
     const categoryResult = getApiStatsCategories({
       options: { immediate: false },
     });
@@ -213,16 +237,18 @@ onMounted(async () => {
       options: { immediate: false },
     });
 
-    await Promise.all([categoryResult.execute(), subCategoryResult.execute()]);
+    await Promise.all([groupResult.execute(), categoryResult.execute(), subCategoryResult.execute()]);
 
-    if (categoryResult.error.value || subCategoryResult.error.value) {
+    if (groupResult.error.value || categoryResult.error.value || subCategoryResult.error.value) {
       apiError.value =
+        groupResult.error.value?.message ||
         categoryResult.error.value?.message ||
         subCategoryResult.error.value?.message ||
         'Failed to load assignment definition options.';
       return;
     }
 
+    assignmentGroupTypes.value = groupResult.data.value ?? [];
     assignmentCategoryTypes.value = categoryResult.data.value ?? [];
     assignmentSubCategoryTypes.value = subCategoryResult.data.value ?? [];
 
@@ -261,6 +287,18 @@ function updateAssignmentCategory(value: SelectValue | undefined) {
   updateField('subCategoryId', undefined);
 }
 
+function updateAssignmentGroup(value: SelectValue | undefined) {
+  selectedAssignmentGroupId.value = normalizeNumber(value);
+  updateField('categoryId', undefined);
+  updateField('subCategoryId', undefined);
+}
+
+function syncAssignmentGroupFromCategory(categoryId?: number) {
+  selectedAssignmentGroupId.value = assignmentCategoryTypes.value.find(
+    (assignmentCategory) => assignmentCategory.id === categoryId,
+  )?.groupId;
+}
+
 function handleClose() {
   if (!isSaving.value) {
     emit('close');
@@ -278,6 +316,7 @@ function enterEditMode() {
 function cancelEdit() {
   if (props.assignmentDefinitionId && loadedAssignmentDefinition.value) {
     formData.value = mapAssignmentDefinitionToFormData(loadedAssignmentDefinition.value);
+    syncAssignmentGroupFromCategory(loadedAssignmentDefinition.value.categoryId);
     modalMode.value = 'view';
     apiError.value = '';
     formErrors.value = {};
@@ -381,6 +420,7 @@ async function loadAssignmentDefinition() {
 
     loadedAssignmentDefinition.value = data.value;
     formData.value = mapAssignmentDefinitionToFormData(data.value);
+    syncAssignmentGroupFromCategory(data.value.categoryId);
   } catch (error: unknown) {
     apiError.value = error instanceof Error ? error.message : 'Failed to load assignment definition.';
   } finally {
@@ -555,13 +595,23 @@ function mapAssignmentDefinitionToFormData(
         </p>
       </div>
 
+      <label class="assignment-definition-modal__label" for="assignment-definition-modal-group">Group</label>
+      <UaSelect
+        id="assignment-definition-modal-group"
+        :model-value="selectedAssignmentGroupId"
+        :items="assignmentGroupOptions"
+        :disabled="isSaving || isLoading"
+        :loading="isLoading"
+        @update:model-value="updateAssignmentGroup"
+      />
+
       <label class="assignment-definition-modal__label" for="assignment-definition-modal-category">Category</label>
       <UaSelect
         id="assignment-definition-modal-category"
         :model-value="formData.categoryId"
         :items="assignmentCategoryOptions"
         :error="Boolean(formErrors.categoryId)"
-        :disabled="isSaving || isLoading"
+        :disabled="isSaving || isLoading || !selectedAssignmentGroupId"
         :loading="isLoading"
         @update:model-value="updateAssignmentCategory"
       />

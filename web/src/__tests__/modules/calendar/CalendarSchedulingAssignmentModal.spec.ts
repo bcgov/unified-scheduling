@@ -1048,6 +1048,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     const vm = wrapper.vm as unknown as {
       formatShiftEntryLinkDetails: (shiftEntryId: number) => string;
       getShiftEntryUserOptions: (shiftEntryId: number) => Array<{ code: string; description: string }>;
+      updateShiftEntryLinkUsers: (index: number, value: string[]) => void;
     };
 
     expect(getApiUsers).toHaveBeenCalledOnce();
@@ -1059,12 +1060,19 @@ describe('CalendarSchedulingAssignmentModal', () => {
       },
     );
     expect(vm.formatShiftEntryLinkDetails(42)).toContain('00000000-0000-0000-0000-000000000099');
-    expect(vm.getShiftEntryUserOptions(42)).toEqual([
+    const initialUserOptions = vm.getShiftEntryUserOptions(42);
+    expect(initialUserOptions).toEqual([
       {
         code: '00000000-0000-0000-0000-000000000099',
         description: '00000000-0000-0000-0000-000000000099',
       },
     ]);
+
+    vm.updateShiftEntryLinkUsers(0, []);
+    await wrapper.vm.$nextTick();
+
+    expect(vm.getShiftEntryUserOptions(42)).toBe(initialUserOptions);
+    expect(getApiUsers).toHaveBeenCalledOnce();
 
     wrapper.unmount();
   });
@@ -1334,7 +1342,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
-  it('normalizes loaded assignment entry times for view and edit selects', async () => {
+  it('adds the dropped user without reloading shift users when the link selection changes', async () => {
     const getAssignmentDefinitionsExecute = vi.fn().mockResolvedValue(undefined);
     const getShiftSeriesExecute = vi.fn().mockResolvedValue(undefined);
     const getShiftEntriesExecute = vi.fn().mockResolvedValue(undefined);
@@ -1365,7 +1373,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
               timeZoneId: 'America/Vancouver',
               locationId: 12,
               statusTypeCode: 'Draft',
-              userIds: ['user-1'],
+              userIds: ['user-1', 'user-2'],
             },
           ],
         },
@@ -1375,7 +1383,12 @@ describe('CalendarSchedulingAssignmentModal', () => {
     }));
     vi.doMock('@/api-access/generated/users/users', () => ({
       getApiUsers: vi.fn().mockReturnValue({
-        data: { value: [] },
+        data: {
+          value: [
+            { id: 'user-1', firstName: 'Alex', lastName: 'Alpha' },
+            { id: 'user-2', firstName: 'Blair', lastName: 'Beta' },
+          ],
+        },
         error: { value: null },
         execute: getUsersExecute,
       }),
@@ -1395,8 +1408,9 @@ describe('CalendarSchedulingAssignmentModal', () => {
             categoryId: 10,
             subCategoryId: 20,
             capacity: 1,
-            linkedShiftEntryIds: [],
-            assignedUserIds: [],
+            linkedShiftEntryIds: [44],
+            assignedUserIds: ['user-2'],
+            assignmentLinks: [{ id: 301, shiftEntryId: 44, assignedUserIds: ['user-2'] }],
           },
           getAssignmentEntryExecute,
         ),
@@ -1421,6 +1435,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         mode: 'edit',
         assignmentEntryId: 257,
         initialShiftEntryIds: [44],
+        initialAssignedUserId: 'user-1',
         timeZone: 'America/Vancouver',
       },
       global: { plugins: app.mountPlugins },
@@ -1435,11 +1450,27 @@ describe('CalendarSchedulingAssignmentModal', () => {
         endTime?: string;
         shiftEntryLinks?: Array<{ shiftEntryId: number; assignedUserIds: string[] }>;
       };
+      getShiftEntryUserOptions: (shiftEntryId: number) => Array<{ code: string; description: string }>;
+      updateShiftEntryLinkUsers: (index: number, value: string[]) => void;
     };
 
     expect(vm.formData.startTime).toBe('09:00');
     expect(vm.formData.endTime).toBe('17:00');
-    expect(vm.formData.shiftEntryLinks).toEqual([{ shiftEntryId: 44, assignedUserIds: ['user-1'] }]);
+    expect(vm.formData.shiftEntryLinks).toEqual([{ id: 301, shiftEntryId: 44, assignedUserIds: ['user-2', 'user-1'] }]);
+    const initialUserOptions = vm.getShiftEntryUserOptions(44);
+    expect(initialUserOptions).toEqual([
+      { code: 'user-1', description: 'Alex Alpha' },
+      { code: 'user-2', description: 'Blair Beta' },
+    ]);
+    const shiftEntryLoadCount = getShiftEntriesExecute.mock.calls.length;
+    const shiftSeriesLoadCount = getShiftSeriesExecute.mock.calls.length;
+
+    vm.updateShiftEntryLinkUsers(0, ['user-1']);
+    await flushPromises();
+
+    expect(getShiftEntriesExecute).toHaveBeenCalledTimes(shiftEntryLoadCount);
+    expect(getShiftSeriesExecute).toHaveBeenCalledTimes(shiftSeriesLoadCount);
+    expect(vm.getShiftEntryUserOptions(44)).toBe(initialUserOptions);
 
     wrapper.unmount();
   });
