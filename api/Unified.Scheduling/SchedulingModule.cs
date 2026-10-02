@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Calendar;
+using Unified.Calendar.Conflicts;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
@@ -48,6 +50,7 @@ public static class SchedulingModule
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IShiftService, ShiftService>();
         services.AddScoped<ISchedulingCalendarService, SchedulingCalendarService>();
+        services.AddScoped<ICalendarConflictParticipantProvider, SchedulingConflictParticipantProvider>();
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
@@ -56,6 +59,7 @@ public static class SchedulingModule
         services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();
         services.AddScoped<ShiftEntryRequestValidator>();
+        services.AddScoped<ShiftEntryUpdateRequestValidator>();
         services.AddScoped<AssignmentSeriesRequestValidator>();
         services.AddScoped<AssignmentEntryRequestValidator>();
         services.AddScoped<AssignmentEntryUpdateRequestValidator>();
