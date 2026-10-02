@@ -12,6 +12,7 @@ import type {
 
 const runtimeContext: CalendarRuntimeContext = { featureFlags: {} };
 const model = {
+  timeZone: 'America/Vancouver',
   days: [],
   primaryColumn: { label: 'Resources', resources: [] },
   cells: [],

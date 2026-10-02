@@ -1,4 +1,4 @@
-import type { CalendarEventBase } from '../../calendarTypes';
+import type { CalendarConflict, CalendarEventBase } from '../../calendarTypes';
 
 export const CalendarMatrixEventGroupVariant = {
   Primary: 'primary',
@@ -51,6 +51,11 @@ export interface CalendarMatrixEventDisplay {
   action?: CalendarMatrixActionDisplay;
 }
 
+export interface CalendarMatrixConflictItem {
+  conflict: CalendarConflict;
+  currentEventId: number;
+}
+
 export interface CalendarMatrixDay {
   date: string;
   label: string;
@@ -75,6 +80,7 @@ export interface CalendarMatrixResourceAddEvent {
 export interface CalendarMatrixEventItem {
   event: CalendarEventBase;
   display?: CalendarMatrixEventDisplay;
+  conflicts?: CalendarMatrixConflictItem[];
 }
 
 export interface CalendarMatrixEventGroup {
@@ -104,6 +110,7 @@ export interface CalendarMatrixCellHeader {
   info?: CalendarMatrixCellHeaderInfo;
   actionId?: string;
   action?: CalendarMatrixActionDisplay;
+  conflicts?: CalendarMatrixConflictItem[];
   payload?: unknown;
 }
 
@@ -149,7 +156,7 @@ export interface CalendarMatrixSidePanelItem {
 
 export interface CalendarMatrixViewModel {
   unsupportedMessage?: string;
-  timeZone?: string;
+  timeZone: string;
   payload?: unknown;
   days: CalendarMatrixDay[];
   primaryColumn: {

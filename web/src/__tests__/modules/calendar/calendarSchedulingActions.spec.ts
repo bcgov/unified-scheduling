@@ -52,6 +52,7 @@ describe('calendarSchedulingActions', () => {
         },
         actionId: 'calendar-scheduling.add-assignment',
         model: {
+          timeZone: 'America/Vancouver',
           days: [
             { date: '2026-07-27', label: 'Mon, Jul 27' },
             { date: '2026-07-31', label: 'Fri, Jul 31', isToday: true },
@@ -85,6 +86,7 @@ describe('calendarSchedulingActions', () => {
         date: '2026-07-12',
       },
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
         primaryColumn: {
           label: 'TEAM',
@@ -387,6 +389,7 @@ describe('calendarSchedulingActions', () => {
         date: '2026-07-12',
       },
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
         primaryColumn: {
           label: 'TEAM',
@@ -460,6 +463,7 @@ describe('calendarSchedulingActions', () => {
         date: '2026-07-12',
       },
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
         primaryColumn: {
           label: 'TEAM',
@@ -536,6 +540,7 @@ describe('calendarSchedulingActions', () => {
         date: '2026-07-13',
       },
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
         primaryColumn: {
           label: 'TEAM',
@@ -613,6 +618,7 @@ describe('calendarSchedulingActions', () => {
         },
         actionId: 'calendar-scheduling.add-assignment-resource',
         model: {
+          timeZone: 'America/Vancouver',
           days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
           primaryColumn: {
             label: 'ASSIGNMENTS',
@@ -643,6 +649,7 @@ describe('calendarSchedulingActions', () => {
         },
         actionId: 'calendar-scheduling.add-resource',
         model: {
+          timeZone: 'America/Vancouver',
           days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
           primaryColumn: {
             label: 'TEAM',
@@ -692,6 +699,7 @@ describe('calendarSchedulingActions', () => {
           date: '2026-07-13',
         },
         model: {
+          timeZone: 'America/Vancouver',
           days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
           primaryColumn: {
             label: 'ASSIGNMENTS',
@@ -739,6 +747,7 @@ describe('calendarSchedulingActions', () => {
         },
         actionId: 'calendar-scheduling.schedule-staff',
         model: {
+          timeZone: 'America/Vancouver',
           days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
           primaryColumn: {
             label: 'ASSIGNMENTS',
@@ -764,6 +773,7 @@ describe('calendarSchedulingActions', () => {
       },
       actionId: calendarSchedulingActionIds.addAssignment,
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-27', label: 'Mon, Jul 27' }],
         primaryColumn: { label: 'TEAM', resources: [] },
         cells: [],
