@@ -72,7 +72,9 @@ public sealed class SeederRegistrationTests
             typeof(PermissionSeeder),
             typeof(RegionSeeder),
             typeof(LocationSeeder),
-            typeof(DevelopmentUserSeeder)
+            typeof(DevelopmentUserSeeder),
+            typeof(LeaveTypeSeeder),
+            typeof(UserManagementCalendarEventTypeSeeder)
         );
     }
 

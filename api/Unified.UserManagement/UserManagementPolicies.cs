@@ -41,4 +41,10 @@ public static class UserManagementPolicies
     public const string AwayLocationsEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.AwayLocationsEdit);
     public const string AwayLocationsExpire =
         AuthorizationModule.PolicyPrefix + nameof(Permissions.AwayLocationsExpire);
+
+    // --- Leave ---
+    public const string LeaveView = AuthorizationModule.PolicyPrefix + nameof(Permissions.LeaveView);
+    public const string LeaveCreate = AuthorizationModule.PolicyPrefix + nameof(Permissions.LeaveCreate);
+    public const string LeaveEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.LeaveEdit);
+    public const string LeaveExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.LeaveExpire);
 }
