@@ -6,6 +6,7 @@ import CalendarSchedulingShiftEditPanel from '@/modules/scheduling/CalendarSched
 import CalendarSchedulingShiftForm from '@/modules/scheduling/CalendarSchedulingShiftForm.vue';
 import { getShiftDeleteDisabledReason } from '@/modules/scheduling/useSchedulingShiftDelete';
 import type { ShiftResourceFormData } from '@/modules/scheduling/calendarSchedulingShiftForm';
+import type { SelectOption } from '@/types/select';
 
 const detailRows = [
   { label: 'Assignee(s)', value: 'Alex Alpha' },

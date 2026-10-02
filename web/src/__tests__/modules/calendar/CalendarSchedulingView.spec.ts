@@ -5,6 +5,7 @@ import CalendarSchedulingView from '@/modules/scheduling/CalendarSchedulingView.
 import CalendarSchedulingAssignmentModal from '@/modules/scheduling/CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingAddResourceModal from '@/modules/scheduling/CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentDefinitionCreateModal from '@/modules/scheduling/CalendarSchedulingAssignmentDefinitionCreateModal.vue';
+import CalendarSchedulingConflictOverlay from '@/modules/scheduling/CalendarSchedulingConflictOverlay.vue';
 import CalendarSchedulingShiftDetailModal from '@/modules/scheduling/CalendarSchedulingShiftDetailModal.vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';

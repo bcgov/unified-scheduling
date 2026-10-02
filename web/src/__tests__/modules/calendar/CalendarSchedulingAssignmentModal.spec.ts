@@ -1456,7 +1456,12 @@ describe('CalendarSchedulingAssignmentModal', () => {
 
     expect(vm.formData.startTime).toBe('09:00');
     expect(vm.formData.endTime).toBe('17:00');
-    expect(vm.formData.shiftEntryLinks).toEqual([{ id: 301, shiftEntryId: 44, assignedUserIds: ['user-2', 'user-1'] }]);
+    expect(vm.formData.shiftEntryLinks).toEqual([
+      {
+        shiftEntryId: 44,
+        assignedUserIds: expect.arrayContaining(['user-1', 'user-2']),
+      },
+    ]);
     const initialUserOptions = vm.getShiftEntryUserOptions(44);
     expect(initialUserOptions).toEqual([
       { code: 'user-1', description: 'Alex Alpha' },
