@@ -4,9 +4,12 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { CalendarConflictAcknowledgement } from './calendarConflictAcknowledgement.ts';
 
 export interface ShiftAssignmentEntryRequest {
   shiftEntryId?: number;
   assignmentEntryId?: number;
   userIds?: string[];
+  /** @nullable */
+  conflictOverrides?: CalendarConflictAcknowledgement[] | null;
 }

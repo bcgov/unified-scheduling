@@ -113,6 +113,18 @@ export const PostApiSchedulingShiftAssignmentsEntriesBody = zod.strictObject({
   shiftEntryId: zod.int().optional(),
   assignmentEntryId: zod.int().optional(),
   userIds: zod.array(zod.uuid()).optional(),
+  conflictOverrides: zod
+    .array(
+      zod.strictObject({
+        firstSourceModule: zod.string(),
+        firstEventId: zod.string(),
+        secondSourceModule: zod.string(),
+        secondEventId: zod.string(),
+        resourceId: zod.uuid(),
+        note: zod.string(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PostApiSchedulingShiftAssignmentsEntriesResponse = zod.object({
@@ -132,6 +144,18 @@ export const PutApiSchedulingShiftAssignmentsEntriesIdParams = zod.strictObject(
 
 export const PutApiSchedulingShiftAssignmentsEntriesIdBody = zod.strictObject({
   userIds: zod.array(zod.uuid()).optional(),
+  conflictOverrides: zod
+    .array(
+      zod.strictObject({
+        firstSourceModule: zod.string(),
+        firstEventId: zod.string(),
+        secondSourceModule: zod.string(),
+        secondEventId: zod.string(),
+        resourceId: zod.uuid(),
+        note: zod.string(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PutApiSchedulingShiftAssignmentsEntriesIdResponse = zod.object({
@@ -155,6 +179,18 @@ export const PostApiSchedulingShiftAssignmentsSeriesBody = zod.strictObject({
   shiftSeriesId: zod.int().optional(),
   assignmentSeriesId: zod.int().optional(),
   assignedUserIds: zod.array(zod.uuid()).optional(),
+  conflictOverrides: zod
+    .array(
+      zod.strictObject({
+        firstSourceModule: zod.string(),
+        firstEventId: zod.string(),
+        secondSourceModule: zod.string(),
+        secondEventId: zod.string(),
+        resourceId: zod.uuid(),
+        note: zod.string(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PostApiSchedulingShiftAssignmentsSeriesResponse = zod.object({
@@ -186,6 +222,18 @@ export const PutApiSchedulingShiftAssignmentsSeriesIdParams = zod.strictObject({
 
 export const PutApiSchedulingShiftAssignmentsSeriesIdBody = zod.strictObject({
   assignedUserIds: zod.array(zod.uuid()).optional(),
+  conflictOverrides: zod
+    .array(
+      zod.strictObject({
+        firstSourceModule: zod.string(),
+        firstEventId: zod.string(),
+        secondSourceModule: zod.string(),
+        secondEventId: zod.string(),
+        resourceId: zod.uuid(),
+        note: zod.string(),
+      }),
+    )
+    .nullish(),
 });
 
 export const PutApiSchedulingShiftAssignmentsSeriesIdResponse = zod.object({
