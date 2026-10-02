@@ -392,6 +392,8 @@ async function reloadShiftAfterPublicationFailure(kind: 'entry' | 'series') {
   } else {
     await loadSelectedEntry();
   }
+
+  calendarStore.refresh();
 }
 
 async function handleDeleteShift() {

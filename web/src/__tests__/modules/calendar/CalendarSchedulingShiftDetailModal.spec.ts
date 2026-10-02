@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 
@@ -266,6 +267,7 @@ describe('CalendarSchedulingShiftDetailModal', () => {
 
   it('keeps the edit screen open when publication fails', async () => {
     const wrapper = await mountShiftDetailModal('Draft');
+    const refreshCalendar = vi.spyOn(useCalendarStore(), 'refresh');
     const shiftApi = await import('@/modules/scheduling/calendarSchedulingShiftApi');
     vi.mocked(shiftApi.updateShiftEntry).mockResolvedValue({
       data: { value: { id: 42 } },
@@ -299,6 +301,7 @@ describe('CalendarSchedulingShiftDetailModal', () => {
       'The shift could not be published because linked assignments have unresolved conflicts. Resolve or override the conflicts, then try again.',
     );
     expect(document.body.textContent).toContain('Edit Shift');
+    expect(refreshCalendar).toHaveBeenCalledOnce();
     expect(wrapper.emitted('close')).toBeUndefined();
 
     wrapper.unmount();
