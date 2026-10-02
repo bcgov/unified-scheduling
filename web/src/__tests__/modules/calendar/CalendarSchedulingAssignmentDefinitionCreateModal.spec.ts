@@ -56,7 +56,10 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
       putApiSchedulingAssignmentDefinitionsId: vi.fn(),
     }));
     vi.doMock('@/api-access/generated/stat-categories/stat-categories', () => ({
-      getApiStatsCategories: vi.fn().mockReturnValue(createFetchResult([{ id: 10, name: 'Court' }])),
+      getApiStatsCategories: vi.fn().mockReturnValue(createFetchResult([{ id: 10, groupId: 3, name: 'Court' }])),
+    }));
+    vi.doMock('@/api-access/generated/stat-groups/stat-groups', () => ({
+      getApiStatsGroups: vi.fn().mockReturnValue(createFetchResult([{ id: 3, name: 'Location Level' }])),
     }));
     vi.doMock('@/api-access/generated/sub-categories/sub-categories', () => ({
       getApiStatsSubCategories: vi
@@ -89,6 +92,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     expect(wrapper.text()).toContain('Court Coverage');
     expect(wrapper.text()).toContain('Courtroom assignment');
     expect(wrapper.text()).toContain('Vancouver');
+    expect(wrapper.text()).toContain('Location Level');
     expect(wrapper.text()).toContain('Court');
     expect(wrapper.text()).toContain('Registry');
     expect(wrapper.text()).toContain('3');
@@ -128,7 +132,10 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
       putApiSchedulingAssignmentDefinitionsId,
     }));
     vi.doMock('@/api-access/generated/stat-categories/stat-categories', () => ({
-      getApiStatsCategories: vi.fn().mockReturnValue(createFetchResult([{ id: 10, name: 'Court' }])),
+      getApiStatsCategories: vi.fn().mockReturnValue(createFetchResult([{ id: 10, groupId: 3, name: 'Court' }])),
+    }));
+    vi.doMock('@/api-access/generated/stat-groups/stat-groups', () => ({
+      getApiStatsGroups: vi.fn().mockReturnValue(createFetchResult([{ id: 3, name: 'Location Level' }])),
     }));
     vi.doMock('@/api-access/generated/sub-categories/sub-categories', () => ({
       getApiStatsSubCategories: vi
@@ -177,6 +184,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
       }),
       expect.objectContaining({ options: { immediate: false } }),
     );
+    expect(putApiSchedulingAssignmentDefinitionsId.mock.calls[0]?.[1]).not.toHaveProperty('groupId');
 
     wrapper.unmount();
   });
@@ -189,6 +197,9 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     }));
     vi.doMock('@/api-access/generated/stat-categories/stat-categories', () => ({
       getApiStatsCategories: vi.fn().mockReturnValue(createFetchResult([])),
+    }));
+    vi.doMock('@/api-access/generated/stat-groups/stat-groups', () => ({
+      getApiStatsGroups: vi.fn().mockReturnValue(createFetchResult([])),
     }));
     vi.doMock('@/api-access/generated/sub-categories/sub-categories', () => ({
       getApiStatsSubCategories: vi.fn().mockReturnValue(createFetchResult([])),
@@ -226,7 +237,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     wrapper.unmount();
   });
 
-  it('preserves the selected category while listing the categories returned by the API', async () => {
+  it('selects the category group in edit mode and filters categories when the group changes', async () => {
     vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
       getApiSchedulingAssignmentDefinitionsId: vi.fn().mockReturnValue(
         createFetchResult({
@@ -248,9 +259,18 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     vi.doMock('@/api-access/generated/stat-categories/stat-categories', () => ({
       getApiStatsCategories: vi.fn().mockReturnValue(
         createFetchResult([
-          { id: 10, name: 'Selected court' },
-          { id: 11, name: 'Future category' },
-          { id: 12, name: 'Too future category' },
+          { id: 9, groupId: 1, name: 'Selected court' },
+          { id: 10, groupId: 3, name: 'Selected court' },
+          { id: 11, groupId: 3, name: 'Future category' },
+          { id: 12, groupId: 3, name: 'Too future category' },
+        ]),
+      ),
+    }));
+    vi.doMock('@/api-access/generated/stat-groups/stat-groups', () => ({
+      getApiStatsGroups: vi.fn().mockReturnValue(
+        createFetchResult([
+          { id: 1, name: 'Non-Supervision' },
+          { id: 3, name: 'Location Level' },
         ]),
       ),
     }));
@@ -286,12 +306,32 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     await flushPromises();
 
     const vm = wrapper.vm as unknown as {
+      formData: { categoryId?: number; subCategoryId?: number };
+      selectedAssignmentGroupId?: number;
+      assignmentGroupOptions: Array<{ code: number; description: string }>;
       assignmentCategoryOptions: Array<{ code: number; description: string }>;
       assignmentSubCategoryOptions: Array<{ code: number; description: string }>;
+      updateAssignmentGroup: (value: number) => void;
     };
 
-    expect(vm.assignmentCategoryOptions.map((option) => option.code)).toEqual([11, 10, 12]);
+    expect(vm.selectedAssignmentGroupId).toBe(3);
+    expect(vm.assignmentGroupOptions).toEqual([
+      { code: 3, description: 'Location Level' },
+      { code: 1, description: 'Non-Supervision' },
+    ]);
+    expect(vm.assignmentCategoryOptions).toEqual([
+      { code: 11, description: 'Future category' },
+      { code: 10, description: 'Selected court' },
+      { code: 12, description: 'Too future category' },
+    ]);
     expect(vm.assignmentSubCategoryOptions.map((option) => option.code)).toEqual([20]);
+
+    vm.updateAssignmentGroup(1);
+    await wrapper.vm.$nextTick();
+
+    expect(vm.formData.categoryId).toBeUndefined();
+    expect(vm.formData.subCategoryId).toBeUndefined();
+    expect(vm.assignmentCategoryOptions).toEqual([{ code: 9, description: 'Selected court' }]);
 
     wrapper.unmount();
   });

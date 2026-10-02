@@ -17,7 +17,12 @@ import {
   selectCalendarConflicts,
   selectContribution,
 } from '@/modules/calendar/calendarSelectors';
-import type { CalendarDataResponse, CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarDataResponse,
+  CalendarEventBase,
+  CalendarQueryContext,
+} from '@/modules/calendar/calendarTypes';
 import {
   CalendarMatrixActionType,
   type CalendarMatrixCell,
@@ -445,7 +450,7 @@ function getConflictsForLinkedAssignments(
   shiftEvent: CalendarEventBase,
   assignmentEvents: ReadonlyArray<CalendarEventBase>,
   resourceId: string,
-  conflicts: ReadonlyArray<import('@/modules/calendar/calendarTypes').CalendarConflict>,
+  conflicts: ReadonlyArray<CalendarConflict>,
 ) {
   if (!isCalendarSchedulingEvent(shiftEvent) || shiftEvent.metadata.shiftEntryId == null) {
     return [];
@@ -759,7 +764,7 @@ function formatDayLabel(value: string) {
 function toScheduleMatrixEventItems(
   events: ReadonlyArray<CalendarEventBase>,
   userShiftEvents: ReadonlyArray<CalendarEventBase>,
-  conflicts: ReadonlyArray<import('@/modules/calendar/calendarTypes').CalendarConflict>,
+  conflicts: ReadonlyArray<CalendarConflict>,
   resourceId?: string,
 ): CalendarMatrixEventItem[] {
   return events.flatMap((event) => {

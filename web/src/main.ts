@@ -10,7 +10,6 @@ import { useConfigStore } from '@/stores/config';
 
 import '@/assets/styles/variables.css';
 import '@/assets/styles/forms.css';
-import '@/assets/styles/calendar.fullcalendar.css';
 
 import App from './App.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';

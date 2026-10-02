@@ -1,6 +1,9 @@
 import { ref } from 'vue';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
-import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import type {
+  CalendarMatrixCell,
+  CalendarMatrixResource,
+} from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 
 export const isCalendarSchedulingAssignmentModalOpen = ref(false);
 export const calendarSchedulingAssignmentModalMode = ref<'create' | 'view' | 'edit'>('create');
@@ -10,12 +13,14 @@ export const calendarSchedulingAssignmentModalEntryId = ref<number>();
 export const calendarSchedulingAssignmentModalSeriesId = ref<number>();
 export const calendarSchedulingAssignmentModalAssignmentDefinitionId = ref<number>();
 export const calendarSchedulingAssignmentModalShiftEntryIds = ref<number[]>();
+export const calendarSchedulingAssignmentModalAssignedUserId = ref<string>();
 export const calendarSchedulingResourceActionResource = ref<CalendarMatrixResource>();
 export const isCalendarSchedulingResourceActionModalOpen = ref(false);
 export const calendarSchedulingResourceActionDate = ref<string>();
 export const calendarSchedulingResourceActionAssignmentEntryId = ref<number>();
 export const calendarSchedulingResourceActionAssignmentEvents = ref<CalendarEventBase[]>([]);
 export const calendarSchedulingConflictEventId = ref<string>();
+export const calendarSchedulingConflictHeaderId = ref<string>();
 export const calendarSchedulingDetailEvent = ref<CalendarEventBase>();
 export const calendarSchedulingDetailInitialOpenScope = ref<'event' | 'series'>();
 export const calendarSchedulingExistingShiftChoice = ref<{
@@ -35,6 +40,7 @@ export function showCalendarSchedulingAssignmentModal(
     assignmentSeriesId?: number;
     assignmentDefinitionId?: number;
     shiftEntryIds?: number[];
+    assignedUserId?: string;
   },
 ) {
   calendarSchedulingDetailEvent.value = undefined;
@@ -47,6 +53,7 @@ export function showCalendarSchedulingAssignmentModal(
   calendarSchedulingAssignmentModalSeriesId.value = options?.assignmentSeriesId;
   calendarSchedulingAssignmentModalAssignmentDefinitionId.value = options?.assignmentDefinitionId;
   calendarSchedulingAssignmentModalShiftEntryIds.value = options?.shiftEntryIds;
+  calendarSchedulingAssignmentModalAssignedUserId.value = options?.assignedUserId;
 }
 
 export function closeCalendarSchedulingAssignmentModal() {
@@ -58,6 +65,7 @@ export function closeCalendarSchedulingAssignmentModal() {
   calendarSchedulingAssignmentModalSeriesId.value = undefined;
   calendarSchedulingAssignmentModalAssignmentDefinitionId.value = undefined;
   calendarSchedulingAssignmentModalShiftEntryIds.value = undefined;
+  calendarSchedulingAssignmentModalAssignedUserId.value = undefined;
 }
 
 export function showCalendarSchedulingResourceActionModal(
@@ -99,10 +107,33 @@ export function closeCalendarSchedulingExistingShiftChoice() {
 
 export function toggleCalendarSchedulingConflict(eventId: string) {
   calendarSchedulingConflictEventId.value = calendarSchedulingConflictEventId.value === eventId ? undefined : eventId;
+  calendarSchedulingConflictHeaderId.value = undefined;
+}
+
+export function getCalendarSchedulingHeaderConflictKey(
+  cell: Pick<CalendarMatrixCell, 'resourceId' | 'date'>,
+  headerId?: string,
+) {
+  if (!headerId) {
+    return undefined;
+  }
+
+  return `${cell.resourceId}:${cell.date}:${headerId}`;
+}
+
+export function toggleCalendarSchedulingHeaderConflict(
+  cell: Pick<CalendarMatrixCell, 'resourceId' | 'date'>,
+  headerId: string,
+) {
+  const conflictKey = getCalendarSchedulingHeaderConflictKey(cell, headerId);
+  calendarSchedulingConflictHeaderId.value =
+    calendarSchedulingConflictHeaderId.value === conflictKey ? undefined : conflictKey;
+  calendarSchedulingConflictEventId.value = undefined;
 }
 
 export function closeCalendarSchedulingConflict() {
   calendarSchedulingConflictEventId.value = undefined;
+  calendarSchedulingConflictHeaderId.value = undefined;
 }
 
 export function showCalendarSchedulingEventDetail(

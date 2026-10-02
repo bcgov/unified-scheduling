@@ -73,9 +73,13 @@ function resolveCell(resourceId: string, date: string) {
         <CalendarMatrixHeader :primary-column-label="model.primaryColumn.label" :days="model.days" />
 
         <template v-if="model.primaryColumn.resources.length && model.days.length">
-          <template v-for="resource in model.primaryColumn.resources" :key="resource.id">
+          <template v-for="(resource, resourceIndex) in model.primaryColumn.resources" :key="resource.id">
             <div class="calendar-matrix-grid__row" role="row">
-              <CalendarMatrixResourceRow :resource="resource" @add-resource="emit('resourceAdd', { resource: $event })">
+              <CalendarMatrixResourceRow
+                :class="{ 'is-last-row': resourceIndex === model.primaryColumn.resources.length - 1 }"
+                :resource="resource"
+                @add-resource="emit('resourceAdd', { resource: $event })"
+              >
                 <template v-if="$slots['resource-row']" #default="slotProps">
                   <slot name="resource-row" v-bind="slotProps" />
                 </template>
@@ -86,6 +90,7 @@ function resolveCell(resourceId: string, date: string) {
               <CalendarMatrixCell
                 v-for="day in model.days"
                 :key="`${resource.id}-${day.date}`"
+                :class="{ 'is-last-row': resourceIndex === model.primaryColumn.resources.length - 1 }"
                 :cell="resolveCell(resource.id, day.date)"
                 :is-today="day.isToday"
                 :resource="resource"
@@ -128,7 +133,9 @@ function resolveCell(resourceId: string, date: string) {
 }
 
 .calendar-matrix-grid__scroller {
+  background: rgb(var(--v-theme-surface));
   overflow: auto;
+  padding-bottom: var(--calendar-matrix-scroll-padding-bottom, 0);
 }
 
 .calendar-matrix-grid__table {
@@ -147,6 +154,11 @@ function resolveCell(resourceId: string, date: string) {
   position: sticky;
   left: 0;
   z-index: 2;
+}
+
+:deep(.calendar-matrix-resource-row.is-last-row),
+:deep(.calendar-matrix-cell.is-last-row) {
+  border-bottom: 1px solid var(--ua-border-color);
 }
 
 .calendar-matrix-grid__empty {

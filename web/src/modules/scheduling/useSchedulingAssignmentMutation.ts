@@ -1,4 +1,5 @@
 import type { AssignmentSavePayload } from './calendarSchedulingAssignmentForm';
+import type { CalendarConflictAcknowledgement } from '@/api-access/generated/models/calendarConflictAcknowledgement';
 import * as assignmentApi from './calendarSchedulingAssignmentApi';
 
 export interface SaveAssignmentOptions {
@@ -6,6 +7,7 @@ export interface SaveAssignmentOptions {
   isEdit: boolean;
   assignmentEntryId?: number;
   assignmentSeriesId?: number;
+  conflictOverrides?: CalendarConflictAcknowledgement[];
 }
 
 export function useSchedulingAssignmentMutation() {
@@ -22,7 +24,10 @@ export function useSchedulingAssignmentMutation() {
       if (!isValidId(options.assignmentEntryId)) {
         throw new Error('An assignment entry ID is required when editing an entry.');
       }
-      return assignmentApi.updateAssignmentEntry(options.assignmentEntryId, payload.body);
+      return assignmentApi.updateAssignmentEntry(options.assignmentEntryId, {
+        ...payload.body,
+        conflictOverrides: options.conflictOverrides,
+      });
     }
     return payload.kind === 'series'
       ? assignmentApi.createAssignmentSeries(payload.body)
