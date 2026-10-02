@@ -7,11 +7,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { formatCalendarDateTimeRange } from '@/utils/date';
-import {
-  formatCalendarConflictEventDateTime,
-  getCalendarConflictEventTimeZoneLabel,
-  resolveCalendarConflictSides,
-} from '../calendarConflictFormatting';
+import { getCalendarConflictEventTimeZoneLabel, resolveCalendarConflictSides } from '../calendarConflictFormatting';
 import type { CalendarConflict, CalendarConflictEvent } from '../calendarTypes';
 
 const props = defineProps<{
@@ -49,7 +45,7 @@ watch(
 );
 
 function eventLabel(event: CalendarConflictEvent) {
-  return `${event.title} · ${formatCalendarConflictEventDateTime(event, props.timeZone)}`;
+  return `${event.title} · ${formatCalendarDateTimeRange(event.start, event.end, props.timeZone)}`;
 }
 
 function overlapTimeLabel() {

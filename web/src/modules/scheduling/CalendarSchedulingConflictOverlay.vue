@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import type { CalendarConflict, CalendarConflictEvent } from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixConflictItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
-import {
-  formatCalendarConflictEventDateTime,
-  resolveCalendarConflictSides,
-} from '@/modules/calendar/calendarConflictFormatting';
+import { resolveCalendarConflictSides } from '@/modules/calendar/calendarConflictFormatting';
+import { formatCalendarDateTimeRange } from '@/utils/date';
 
 const props = defineProps<{
   conflicts: CalendarMatrixConflictItem[];
@@ -21,7 +19,7 @@ function conflictingEvent(item: CalendarMatrixConflictItem) {
 }
 
 function timeLabel(event: CalendarConflictEvent) {
-  return formatCalendarConflictEventDateTime(event, props.timeZone);
+  return formatCalendarDateTimeRange(event.start, event.end, props.timeZone);
 }
 
 function resolveLabel(conflict: CalendarConflict) {
