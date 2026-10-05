@@ -23,4 +23,5 @@ public class ConfigResponse
     /// Application display name
     /// </summary>
     public string? ApplicationName { get; set; }
+    public string? SelectedBrand { get; internal set; }
 }

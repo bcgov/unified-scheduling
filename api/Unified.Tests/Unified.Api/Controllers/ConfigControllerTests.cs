@@ -29,7 +29,13 @@ public class ConfigControllerTests
         var applicationOptions = Options.Create(
             new ApplicationOptions { Name = "Unified Scheduling", SupportEmail = "support@example.com" }
         );
-        var controller = new ConfigController(NullLogger<ConfigController>.Instance, featureFlags, applicationOptions);
+        var brandingOptions = Options.Create(new BrandingOptions { SelectedBrand = "bcss" });
+        var controller = new ConfigController(
+            NullLogger<ConfigController>.Instance,
+            featureFlags,
+            applicationOptions,
+            brandingOptions
+        );
 
         var result = controller.Get();
 
@@ -44,5 +50,23 @@ public class ConfigControllerTests
         Assert.IsType<UserManagementFeatureFlags>(response.FeatureFlags[UserManagementFeatureFlags.SourceName]);
         Assert.Equal("Unified Scheduling", response.ApplicationName);
         Assert.Equal("support@example.com", response.SupportEmail);
+        Assert.Equal("bcss", response.SelectedBrand);
+    }
+
+    [Fact]
+    public void Get_Should_Return_Default_SelectedBrand_When_Not_Configured()
+    {
+        var controller = new ConfigController(
+            NullLogger<ConfigController>.Instance,
+            [],
+            Options.Create(new ApplicationOptions()),
+            Options.Create(new BrandingOptions())
+        );
+
+        var result = controller.Get();
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<ConfigResponse>(okResult.Value);
+        Assert.Equal("default", response.SelectedBrand);
     }
 }
