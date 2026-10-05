@@ -8,6 +8,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Mapster" Version="10.0.13" />
     <ProjectReference Include="..\..\db\db.csproj" />
     <ProjectReference Include="..\..\jc-interface-client\jc-interface-client.csproj" />
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
