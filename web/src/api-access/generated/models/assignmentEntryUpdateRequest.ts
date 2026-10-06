@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { CalendarConflictAcknowledgement } from './calendarConflictAcknowledgement.ts';
 import type { ShiftEntryLinkRequest } from './shiftEntryLinkRequest.ts';
 
 export interface AssignmentEntryUpdateRequest {
@@ -25,4 +26,6 @@ export interface AssignmentEntryUpdateRequest {
   capacity?: number;
   /** @nullable */
   shiftEntryLinks?: ShiftEntryLinkRequest[] | null;
+  /** @nullable */
+  conflictOverrides?: CalendarConflictAcknowledgement[] | null;
 }

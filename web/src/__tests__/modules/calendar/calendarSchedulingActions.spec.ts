@@ -12,14 +12,20 @@ import {
   calendarDropUserOnAssignmentResourceAction,
   calendarScheduleStaffAction,
   calendarSchedulingEventDetailAction,
+  calendarSchedulingHeaderShowConflictAction,
+  calendarSchedulingResolveConflictAction,
+  calendarSchedulingShowConflictAction,
 } from '@/modules/scheduling/calendarSchedulingActions';
 import {
   calendarSchedulingAssignmentModalAssignmentDefinitionId,
+  calendarSchedulingAssignmentModalAssignedUserId,
   calendarSchedulingAssignmentModalDate,
   calendarSchedulingAssignmentModalEntryId,
   calendarSchedulingAssignmentModalMode,
   calendarSchedulingAssignmentModalSeriesId,
   calendarSchedulingAssignmentModalShiftEntryIds,
+  calendarSchedulingConflictEventId,
+  calendarSchedulingConflictHeaderId,
   calendarSchedulingDetailEvent,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionAssignmentEntryId,
@@ -27,6 +33,7 @@ import {
   calendarSchedulingResourceActionResource,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingResourceActionModal,
+  getCalendarSchedulingHeaderConflictKey,
   showCalendarSchedulingEventDetail,
 } from '@/modules/scheduling/calendarSchedulingState';
 
@@ -52,6 +59,7 @@ describe('calendarSchedulingActions', () => {
         },
         actionId: 'calendar-scheduling.add-assignment',
         model: {
+          timeZone: 'America/Vancouver',
           days: [
             { date: '2026-07-27', label: 'Mon, Jul 27' },
             { date: '2026-07-31', label: 'Fri, Jul 31', isToday: true },
@@ -67,6 +75,78 @@ describe('calendarSchedulingActions', () => {
     );
 
     expect(calendarSchedulingAssignmentModalDate.value).toBe('2026-07-27');
+  });
+
+  it('shows and resolves conflicts for canonical scheduling assignment events', async () => {
+    const event = {
+      id: 'assignment-entry-90',
+      type: 'scheduling.assignment',
+      sourceModule: 'scheduling',
+      title: 'Court Room Monitor',
+      start: '2026-07-12T16:00:00Z',
+      metadata: { assignmentEntryId: '90' },
+    };
+    const model = {
+      timeZone: 'America/Vancouver',
+      days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
+      primaryColumn: { label: 'TEAM', resources: [] },
+      cells: [],
+    };
+    const showContext = {
+      event,
+      actionId: calendarSchedulingActionIds.showConflict,
+      actionType: 'button' as const,
+      model,
+    };
+    calendarSchedulingConflictHeaderId.value = event.id;
+
+    expect(calendarSchedulingShowConflictAction.isAvailable?.(showContext, writableRuntimeContext)).toBe(true);
+    await calendarSchedulingShowConflictAction.execute(showContext, writableRuntimeContext);
+    expect(calendarSchedulingConflictEventId.value).toBe(event.id);
+    expect(calendarSchedulingConflictHeaderId.value).toBeUndefined();
+
+    const resolveContext = {
+      ...showContext,
+      actionId: calendarSchedulingActionIds.resolveConflict,
+    };
+    expect(calendarSchedulingResolveConflictAction.isAvailable?.(resolveContext, writableRuntimeContext)).toBe(true);
+    await calendarSchedulingResolveConflictAction.execute(resolveContext, writableRuntimeContext);
+    expect(calendarSchedulingConflictEventId.value).toBeUndefined();
+  });
+
+  it('opens a shift-header conflict only for the clicked matrix cell', async () => {
+    const cell = {
+      resourceId: 'user-1',
+      date: '2026-07-12',
+      groups: [],
+    };
+    const header = {
+      id: 'shift-entry-44',
+      text: '9:00 AM - 5:00 PM',
+      payload: {
+        id: 'shift-entry-44',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Day shift',
+        start: '2026-07-12T16:00:00Z',
+      },
+    };
+    const context = {
+      cell,
+      header,
+      actionId: calendarSchedulingActionIds.showConflict,
+      actionType: 'button' as const,
+      model: {
+        timeZone: 'America/Vancouver',
+        days: [],
+        primaryColumn: { label: 'TEAM', resources: [] },
+        cells: [],
+      },
+    };
+
+    await calendarSchedulingHeaderShowConflictAction.execute(context, writableRuntimeContext);
+
+    expect(calendarSchedulingConflictHeaderId.value).toBe(getCalendarSchedulingHeaderConflictKey(cell, header.id));
   });
 
   it('opens the assignment modal for the dropped assignment and pre-links shift entries from the target cell header', async () => {
@@ -85,6 +165,7 @@ describe('calendarSchedulingActions', () => {
         date: '2026-07-12',
       },
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
         primaryColumn: {
           label: 'TEAM',
@@ -370,6 +451,7 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingAssignmentModalMode.value).toBe('edit');
     expect(calendarSchedulingAssignmentModalEntryId.value).toBe(90);
     expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
+    expect(calendarSchedulingAssignmentModalAssignedUserId.value).toBe('user-1');
   });
 
   it('pre-links only shifts belonging to the target user row when the drop payload omits resource type', async () => {
@@ -387,6 +469,7 @@ describe('calendarSchedulingActions', () => {
         date: '2026-07-12',
       },
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
         primaryColumn: {
           label: 'TEAM',
@@ -460,6 +543,7 @@ describe('calendarSchedulingActions', () => {
         date: '2026-07-12',
       },
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
         primaryColumn: {
           label: 'TEAM',
@@ -536,6 +620,7 @@ describe('calendarSchedulingActions', () => {
         date: '2026-07-13',
       },
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
         primaryColumn: {
           label: 'TEAM',
@@ -613,6 +698,7 @@ describe('calendarSchedulingActions', () => {
         },
         actionId: 'calendar-scheduling.add-assignment-resource',
         model: {
+          timeZone: 'America/Vancouver',
           days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
           primaryColumn: {
             label: 'ASSIGNMENTS',
@@ -643,6 +729,7 @@ describe('calendarSchedulingActions', () => {
         },
         actionId: 'calendar-scheduling.add-resource',
         model: {
+          timeZone: 'America/Vancouver',
           days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
           primaryColumn: {
             label: 'TEAM',
@@ -692,6 +779,7 @@ describe('calendarSchedulingActions', () => {
           date: '2026-07-13',
         },
         model: {
+          timeZone: 'America/Vancouver',
           days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
           primaryColumn: {
             label: 'ASSIGNMENTS',
@@ -739,6 +827,7 @@ describe('calendarSchedulingActions', () => {
         },
         actionId: 'calendar-scheduling.schedule-staff',
         model: {
+          timeZone: 'America/Vancouver',
           days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
           primaryColumn: {
             label: 'ASSIGNMENTS',
@@ -764,6 +853,7 @@ describe('calendarSchedulingActions', () => {
       },
       actionId: calendarSchedulingActionIds.addAssignment,
       model: {
+        timeZone: 'America/Vancouver',
         days: [{ date: '2026-07-27', label: 'Mon, Jul 27' }],
         primaryColumn: { label: 'TEAM', resources: [] },
         cells: [],

@@ -10,6 +10,7 @@ import type {
   GetApiSchedulingShiftsSeriesParams,
   ShiftEntryRequest,
   ShiftEntryResponse,
+  ShiftEntryUpdateRequest,
   ShiftSeriesRequest,
   ShiftSeriesResponse,
 } from '../models';
@@ -114,7 +115,7 @@ export const getApiSchedulingShiftsEntriesId = (
 };
 export const putApiSchedulingShiftsEntriesId = (
   id: number,
-  shiftEntryRequest: ShiftEntryRequest,
+  shiftEntryUpdateRequest: ShiftEntryUpdateRequest,
   options?: SecondParameter<typeof useFetchAPI<ShiftEntryResponse>>,
 ) => {
   return useFetchAPI<ShiftEntryResponse>(
@@ -122,7 +123,7 @@ export const putApiSchedulingShiftsEntriesId = (
       url: `/api/scheduling/shifts/entries/${id}`,
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      data: shiftEntryRequest,
+      data: shiftEntryUpdateRequest,
     },
     options,
   );

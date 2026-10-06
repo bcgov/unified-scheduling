@@ -43,6 +43,7 @@ export const GetApiAuthUserResponse = zod.object({
       'TypesCreate',
       'TypesEdit',
       'TypesExpire',
+      'CalendarConflictsOverride',
       'ShiftsView',
       'ShiftsCreateAndAssign',
       'ShiftsEdit',

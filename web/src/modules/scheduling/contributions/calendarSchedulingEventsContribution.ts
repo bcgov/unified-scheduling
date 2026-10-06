@@ -9,6 +9,7 @@ import type { CalendarSchedulingEvent, CalendarUser } from '../calendarSchedulin
 import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
 import { canViewAssignments, canViewShifts } from '../calendarSchedulingPermissions';
 import { useUsersStore } from '@/stores/Users';
+import { formatUserName } from '@/utils/user';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
@@ -77,7 +78,6 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
           seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
           allDay: event.allDay ?? false,
           isException: event.isException ?? false,
-          isConflict: eventHasConflict(event),
           eventTypeCode: event.eventTypeCode,
           statusTypeCode: event.statusTypeCode,
           cancelledAt: event.cancelledAt ?? undefined,
@@ -127,10 +127,6 @@ function resolveAssignmentDefinitionId(event: unknown) {
     : undefined;
 }
 
-function eventHasConflict(event: unknown) {
-  return typeof event === 'object' && event !== null && 'isConflict' in event && event.isConflict === true;
-}
-
 function filterResourceUsers(users: UserResponse[], userIds?: string[]) {
   if (!userIds?.length) {
     return users;
@@ -144,7 +140,7 @@ function mapUserToCalendarSchedulingResource(
   user: UserResponse,
   actingPositions: ActingPositionResponseDto[],
 ): CalendarSchedulingUserResource {
-  const title = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.idirName;
+  const title = formatUserName(user);
   const subtitle = user.rank ?? '';
   const meta = [
     ...mapActingPositionsToMeta(actingPositions),
@@ -164,7 +160,7 @@ function mapUserToCalendarSchedulingResource(
 }
 
 function mapUserToCalendarUser(user: UserResponse): CalendarUser {
-  const title = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.idirName;
+  const title = formatUserName(user);
 
   return {
     id: user.id,

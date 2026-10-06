@@ -22,6 +22,7 @@ export const Permissions = {
   TypesCreate: 'TypesCreate',
   TypesEdit: 'TypesEdit',
   TypesExpire: 'TypesExpire',
+  CalendarConflictsOverride: 'CalendarConflictsOverride',
   ShiftsView: 'ShiftsView',
   ShiftsCreateAndAssign: 'ShiftsCreateAndAssign',
   ShiftsEdit: 'ShiftsEdit',

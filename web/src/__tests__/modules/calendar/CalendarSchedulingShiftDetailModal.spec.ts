@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 
@@ -259,6 +260,48 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     await vm.handleSaveEdit();
 
     expect(vm.apiError).toBe('Shift save failed.');
+    expect(wrapper.emitted('close')).toBeUndefined();
+
+    wrapper.unmount();
+  });
+
+  it('keeps the edit screen open when publication fails', async () => {
+    const wrapper = await mountShiftDetailModal('Draft');
+    const refreshCalendar = vi.spyOn(useCalendarStore(), 'refresh');
+    const shiftApi = await import('@/modules/scheduling/calendarSchedulingShiftApi');
+    vi.mocked(shiftApi.updateShiftEntry).mockResolvedValue({
+      data: { value: { id: 42 } },
+      error: { value: null },
+    } as never);
+    vi.mocked(shiftApi.publishShiftEntry).mockResolvedValue({
+      data: {
+        value: {
+          message: 'This operation would cause a conflict with an existing event',
+          conflicts: [{ id: 'conflict-1' }],
+        },
+      },
+      error: { value: new Error('Conflict.') },
+    } as never);
+    const vm = wrapper.vm as unknown as {
+      activeTab: string;
+      apiError: string;
+      editFormData: { publish: 'yes' | 'no' };
+      selectTab: (tabId: 'edit') => void;
+      handleSaveEdit: () => Promise<void>;
+    };
+
+    vm.selectTab('edit');
+    vm.editFormData.publish = 'yes';
+    await vm.handleSaveEdit();
+    await flushPromises();
+
+    expect(shiftApi.publishShiftEntry).toHaveBeenCalledWith(42);
+    expect(vm.activeTab).toBe('edit');
+    expect(vm.apiError).toBe(
+      'The shift could not be published because linked assignments have unresolved conflicts. Resolve or override the conflicts, then try again.',
+    );
+    expect(document.body.textContent).toContain('Edit Shift');
+    expect(refreshCalendar).toHaveBeenCalledOnce();
     expect(wrapper.emitted('close')).toBeUndefined();
 
     wrapper.unmount();

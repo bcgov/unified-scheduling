@@ -7,8 +7,6 @@ import FullCalendar, {
 } from '@fullcalendar/vue3';
 import classicThemePlugin from '@fullcalendar/vue3/themes/classic';
 import dayGridPlugin from '@fullcalendar/vue3/daygrid';
-import interactionPlugin from '@fullcalendar/vue3/interaction';
-import listPlugin from '@fullcalendar/vue3/list';
 import timeGridPlugin from '@fullcalendar/vue3/timegrid';
 import { computed } from 'vue';
 
@@ -16,7 +14,7 @@ const emit = defineEmits<{
   (event: 'eventClick', payload: EventClickInfo): void;
 }>();
 
-type UaCalendarView = 'timeGridDay' | 'timeGridWeek' | 'dayGridMonth' | 'listWeek';
+type UaCalendarView = 'timeGridDay' | 'timeGridWeek' | 'dayGridMonth';
 
 type UaFullCalendarProps = {
   options?: Partial<CalendarOptions>;
@@ -78,7 +76,7 @@ const calendarKey = computed(
 );
 
 const defaultCalendarOptions = computed<CalendarOptions>(() => ({
-  plugins: [classicThemePlugin, dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin],
+  plugins: [classicThemePlugin, dayGridPlugin, timeGridPlugin],
   initialView: props.view,
   initialDate: props.initialDate,
   events: props.events,
@@ -108,12 +106,6 @@ const defaultCalendarOptions = computed<CalendarOptions>(() => ({
     minute: '2-digit',
     meridiem: 'short',
   },
-  listDayFormat: {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  },
-  listDayAltFormat: false,
   eventClick(arg) {
     emit('eventClick', arg);
   },
