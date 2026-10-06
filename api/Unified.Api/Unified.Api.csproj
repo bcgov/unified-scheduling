@@ -26,6 +26,7 @@
     <ProjectReference Include="..\Unified.Stats\Unified.Stats.csproj" />
     <ProjectReference Include="..\Unified.Training\Unified.Training.csproj" />
     <ProjectReference Include="..\Unified.Authorization\Unified.Authorization.csproj" />
+    <ProjectReference Include="..\Unified.DataMigration\Unified.DataMigration.csproj" />
     <ProjectReference Include="..\Unified.JCInterface\Unified.JCInterface.csproj" />
     <ProjectReference Include="..\Unified.Reporting\Unified.Reporting.csproj" />
   </ItemGroup>
