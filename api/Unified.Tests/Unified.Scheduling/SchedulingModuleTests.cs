@@ -27,7 +27,9 @@ public sealed class SchedulingModuleTests
             .ToArray();
 
         // Assert
-        AssertContainsScopedRegistration<IShiftService, ShiftService>(services);
+        AssertContainsScopedSelfRegistration<ShiftService>(services);
+        AssertContainsScopedFactoryRegistration<IShiftService>(services);
+        AssertContainsScopedFactoryRegistration<IShiftPublicationService>(services);
         AssertContainsScopedSelfRegistration<SchedulingCalendarRequestValidator>(services);
         AssertContainsSingletonInstance<PermissionSeedConfiguration>(
             services,
@@ -63,16 +65,15 @@ public sealed class SchedulingModuleTests
         Assert.Equal("Scheduling requires the Calendar module to be enabled.", exception.Message);
     }
 
-    private static void AssertContainsScopedRegistration<TService, TImplementation>(IServiceCollection services)
+    private static void AssertContainsScopedFactoryRegistration<TService>(IServiceCollection services)
         where TService : class
-        where TImplementation : class, TService
     {
         Assert.Contains(
             services,
             descriptor =>
                 descriptor.Lifetime == ServiceLifetime.Scoped
                 && descriptor.ServiceType == typeof(TService)
-                && descriptor.ImplementationType == typeof(TImplementation)
+                && descriptor.ImplementationFactory is not null
         );
     }
 

@@ -30,7 +30,10 @@ public sealed class SchedulingCalendarService(
                 .Select(location => location.Timezone)
                 .SingleOrDefaultAsync(cancellationToken)
             : null;
-        var timeZone = timeZoneResolver.Resolve(request.TimeZoneId, locationTimeZoneId);
+        var timeZone = timeZoneResolver.Resolve(
+            request.LocationId.HasValue ? null : request.TimeZoneId,
+            locationTimeZoneId
+        );
         var range = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
             request.StartDate,
             request.EndDate,
@@ -44,13 +47,7 @@ public sealed class SchedulingCalendarService(
                 .ShiftEntries.AsNoTracking()
                 .Include(entry => entry.Event)
                 .Include(entry => entry.Users)
-                .Where(entry => entry.Event != null && entry.Event.SourceModule == SchedulingConstants.SourceModule)
-                .Where(entry => entry.Event!.EventTypeCode == SchedulingConstants.ShiftEventTypeCode)
-                .Where(entry => entry.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
-                .Where(entry =>
-                    entry.Event!.StartAtUtc < range.EndAtUtc
-                    && (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) > range.StartAtUtc
-                );
+                .InSchedulingRange(range);
             if (request.LocationId.HasValue)
                 query = query.Where(entry =>
                     entry.Event!.LocationId == null || entry.Event.LocationId == request.LocationId.Value
@@ -74,13 +71,7 @@ public sealed class SchedulingCalendarService(
                 .Include(entry => entry.ShiftAssignmentEntries)
                     .ThenInclude(link => link.ShiftEntry)
                         .ThenInclude(shiftEntry => shiftEntry!.Event)
-                .Where(entry => entry.Event != null && entry.Event.SourceModule == SchedulingConstants.SourceModule)
-                .Where(entry => entry.Event!.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
-                .Where(entry => entry.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
-                .Where(entry =>
-                    entry.Event!.StartAtUtc < range.EndAtUtc
-                    && (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) > range.StartAtUtc
-                );
+                .InSchedulingRange(range);
             if (request.LocationId.HasValue)
                 query = query.Where(entry =>
                     entry.Event!.LocationId == null || entry.Event.LocationId == request.LocationId.Value

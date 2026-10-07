@@ -73,7 +73,7 @@ public sealed class AssignmentController(
     }
 
     [HttpPost("series/{id:int}/publish")]
-    [Authorize(Policy = SchedulingPolicies.AssignmentsEdit)]
+    [Authorize(Policy = SchedulingPolicies.SchedulePublish)]
     public async Task<ActionResult<AssignmentSeriesResponse>> PublishAssignmentSeries(
         int id,
         CancellationToken cancellationToken
@@ -98,7 +98,7 @@ public sealed class AssignmentController(
         CancellationToken cancellationToken
     )
     {
-        var currentUserId = GetCurrentUserId();
+        var currentUserId = User.TryGetCurrentUserId();
         if (!currentUserId.HasValue)
             return Forbid();
 
@@ -178,7 +178,7 @@ public sealed class AssignmentController(
     }
 
     [HttpPost("entries/{id:int}/publish")]
-    [Authorize(Policy = SchedulingPolicies.AssignmentsEdit)]
+    [Authorize(Policy = SchedulingPolicies.SchedulePublish)]
     public async Task<ActionResult<AssignmentEntryResponse>> PublishAssignmentEntry(
         int id,
         CancellationToken cancellationToken
@@ -203,7 +203,7 @@ public sealed class AssignmentController(
         CancellationToken cancellationToken
     )
     {
-        var currentUserId = GetCurrentUserId();
+        var currentUserId = User.TryGetCurrentUserId();
         if (!currentUserId.HasValue)
             return Forbid();
 
@@ -214,11 +214,5 @@ public sealed class AssignmentController(
             cancellationToken
         );
         return result is null ? NotFound() : Ok(result);
-    }
-
-    private Guid? GetCurrentUserId()
-    {
-        var userIdValue = User.FindFirst(UnifiedClaimTypes.UserId)?.Value;
-        return Guid.TryParse(userIdValue, out var userId) ? userId : null;
     }
 }

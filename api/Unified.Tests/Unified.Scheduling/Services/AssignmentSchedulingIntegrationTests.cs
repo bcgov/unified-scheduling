@@ -822,7 +822,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PublishAssignmentEntryAsync_WhenActivationCreatesConflict_RollsBackToDraft()
+    public async Task PublishAssignmentEntriesAsync_WhenActivationCreatesConflict_RollsBackToDraft()
     {
         var shift = await _shiftService.CreateShiftEntryAsync(
             CreateShiftEntryRequest(At(9), At(12)),
@@ -846,7 +846,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         );
 
         var exception = await Assert.ThrowsAsync<CalendarConflictException>(() =>
-            _assignmentService.PublishAssignmentEntryAsync(secondAssignment.Id, TestContext.Current.CancellationToken)
+            _assignmentService.PublishEntriesAsync([secondAssignment.Id], TestContext.Current.CancellationToken)
         );
 
         Assert.Equal(UserA, Assert.Single(exception.Conflicts).ResourceId);
@@ -912,12 +912,12 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PublishShiftEntryAsync_WhenActivationCreatesConflict_RollsBackToDraft()
+    public async Task PublishShiftEntriesAsync_WhenActivationCreatesConflict_RollsBackToDraft()
     {
         var (shift, firstAssignment, secondAssignment) = await CreateDraftConflictAsync();
 
         var exception = await Assert.ThrowsAsync<CalendarConflictException>(() =>
-            _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken)
+            _shiftService.PublishEntriesAsync([shift.Id], TestContext.Current.CancellationToken)
         );
 
         Assert.Equal(UserA, Assert.Single(exception.Conflicts).ResourceId);
@@ -963,6 +963,343 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .Select(entry => entry.Event!.StatusTypeCode)
             .SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(CalendarEventStatusTypeCodes.Active, assignmentStatus);
+    }
+
+    [Fact]
+    public async Task SchedulePublishPreviewAsync_WithTwoDraftShiftsOnSameLocalDate_ReturnsShiftBlocker()
+    {
+        await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(13), At(16)),
+            TestContext.Current.CancellationToken
+        );
+
+        var preview = await CreateSchedulePublishService()
+            .PreviewAsync(CreateSchedulePublishRequest(), TestContext.Current.CancellationToken);
+
+        Assert.False(preview.CanPublish);
+        var blocker = Assert.Single(preview.Blockers.ShiftConflicts);
+        Assert.Contains("already has a shift", blocker.Message);
+    }
+
+    [Fact]
+    public async Task SchedulePublishPreviewAsync_WithOverlappingDraftShiftsOnDifferentLocalDates_ReturnsShiftBlocker()
+    {
+        await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(AtDay(2, 6), AtDay(2, 10)) with
+            {
+                TimeZoneId = "America/Vancouver",
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(AtDay(2, 8), AtDay(2, 11)) with
+            {
+                TimeZoneId = "America/Vancouver",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var preview = await CreateSchedulePublishService()
+            .PreviewAsync(
+                new SchedulePublishRequest(5, new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 2)),
+                TestContext.Current.CancellationToken
+            );
+
+        Assert.False(preview.CanPublish);
+        var blocker = Assert.Single(preview.Blockers.ShiftConflicts);
+        Assert.Contains("overlaps this shift", blocker.Message);
+    }
+
+    [Fact]
+    public async Task SchedulePublishPreviewAsync_WithDraftShiftConflictingWithPublishedShift_ReturnsShiftBlocker()
+    {
+        var published = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(13), At(16)),
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.PublishShiftEntryAsync(published.Id, TestContext.Current.CancellationToken);
+
+        var preview = await CreateSchedulePublishService()
+            .PreviewAsync(CreateSchedulePublishRequest(), TestContext.Current.CancellationToken);
+
+        Assert.False(preview.CanPublish);
+        Assert.Single(preview.Blockers.ShiftConflicts);
+    }
+
+    [Fact]
+    public async Task SchedulePublishPreviewAsync_WithLinkedDraftAssignmentConflict_ReturnsAssignmentConflict()
+    {
+        var publishedShift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(8), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var publishedAssignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = publishedShift.Id,
+                AssignmentEntryId = publishedAssignment.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _shiftService.PublishShiftEntryAsync(publishedShift.Id, TestContext.Current.CancellationToken);
+
+        var draftShift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(13)),
+            TestContext.Current.CancellationToken
+        );
+        var draftAssignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(11), At(13)) with
+            {
+                AssignmentDefinitionId = 101,
+            },
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = draftShift.Id,
+                AssignmentEntryId = draftAssignment.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var preview = await CreateSchedulePublishService()
+            .PreviewAsync(CreateSchedulePublishRequest(), TestContext.Current.CancellationToken);
+
+        var conflict = Assert.Single(preview.Blockers.Conflicts);
+        string[] conflictEventIds = [conflict.FirstEventId, conflict.SecondEventId];
+        Assert.Contains(draftAssignment.EventId.ToString(), conflictEventIds);
+        Assert.DoesNotContain(draftShift.EventId.ToString(), conflictEventIds);
+        Assert.False(preview.CanPublish);
+    }
+
+    [Fact]
+    public async Task SchedulePublishPreviewAsync_WithLinkedUsers_DoesNotReturnUnassignedAssignmentWarning()
+    {
+        var (_, assignment, _) = await CreateLinkedEntriesAsync();
+
+        var preview = await CreateSchedulePublishService()
+            .PreviewAsync(CreateSchedulePublishRequest(), TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain(preview.Warnings.UnassignedAssignments, warning => warning.EventId == assignment.EventId);
+    }
+
+    [Fact]
+    public async Task SchedulePublishAsync_WhenShiftBlockerAppearsAfterPreview_RechecksAndLeavesDraftsUnchanged()
+    {
+        var first = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var service = CreateSchedulePublishService();
+        var preview = await service.PreviewAsync(CreateSchedulePublishRequest(), TestContext.Current.CancellationToken);
+        Assert.True(preview.CanPublish);
+        var second = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(13), At(16)),
+            TestContext.Current.CancellationToken
+        );
+
+        await Assert.ThrowsAsync<SchedulePublishBlockedException>(() =>
+            service.PublishAsync(CreateSchedulePublishRequest(), UserA, TestContext.Current.CancellationToken)
+        );
+
+        _db.ChangeTracker.Clear();
+        var statuses = await _db
+            .Events.Where(eventEntity => eventEntity.Id == first.EventId || eventEntity.Id == second.EventId)
+            .Select(eventEntity => eventEntity.StatusTypeCode)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.All(statuses, status => Assert.Equal(CalendarEventStatusTypeCodes.Draft, status));
+    }
+
+    [Fact]
+    public async Task SchedulePublishPreviewAsync_OnDstFallbackDay_IgnoresRequestedTimeZoneAndMatchesLocationBoundaries()
+    {
+        var rangeStartUtc = new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero);
+        var rangeEndUtc = new DateTimeOffset(2026, 11, 2, 8, 0, 0, TimeSpan.Zero);
+        var shifts = new[]
+        {
+            (Start: rangeStartUtc.AddMinutes(-30), End: rangeStartUtc.AddMinutes(30), UserId: UserA),
+            (Start: rangeStartUtc.AddHours(-1), End: rangeStartUtc, UserId: UserB),
+            (Start: rangeEndUtc.AddMinutes(-30), End: rangeEndUtc.AddMinutes(30), UserId: UserC),
+            (Start: rangeEndUtc, End: rangeEndUtc.AddHours(1), UserId: UserD),
+        };
+        var shiftEntryIds = new List<int>();
+        foreach (var shift in shifts)
+        {
+            var created = await _shiftService.CreateShiftEntryAsync(
+                CreateShiftEntryRequest(shift.Start, shift.End) with
+                {
+                    TimeZoneId = "America/Vancouver",
+                    UserIds = [shift.UserId],
+                },
+                TestContext.Current.CancellationToken
+            );
+            shiftEntryIds.Add(created.Id);
+        }
+
+        var calendar = await _calendarService.GetDataAsync(
+            new SchedulingCalendarRequest
+            {
+                StartDate = new DateOnly(2026, 11, 1),
+                EndDate = new DateOnly(2026, 11, 1),
+                LocationId = 5,
+                TimeZoneId = "America/Toronto",
+            },
+            includeShifts: true,
+            includeAssignments: false,
+            TestContext.Current.CancellationToken
+        );
+        var preview = await CreateSchedulePublishService()
+            .PreviewAsync(
+                new SchedulePublishRequest(5, new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 1)),
+                TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(2, calendar.Events.Count);
+        Assert.Equal([shiftEntryIds[0], shiftEntryIds[2]], calendar.Events.Select(eventItem => eventItem.ShiftEntryId));
+        Assert.Equal(calendar.Events.Count, preview.Candidates.ShiftEntryCount);
+        Assert.Equal("America/Vancouver", preview.Scope.TimeZoneId);
+        Assert.Equal(rangeStartUtc, preview.Scope.RangeStartUtc);
+        Assert.Equal(rangeEndUtc, preview.Scope.RangeEndExclusiveUtc);
+    }
+
+    [Fact]
+    public async Task PublishAssignmentEntriesAsync_WithoutActiveTransaction_CommitsSerializableTransaction()
+    {
+        var assignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(),
+            TestContext.Current.CancellationToken
+        );
+        _transactionIsolationRecorder.StartedIsolationLevels.Clear();
+
+        var result = await _assignmentService.PublishEntriesAsync(
+            [assignment.Id],
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(assignment.Id, Assert.Single(result).Id);
+        Assert.Equal([IsolationLevel.Serializable], _transactionIsolationRecorder.StartedIsolationLevels);
+        Assert.Null(_db.Database.CurrentTransaction);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(
+            CalendarEventStatusTypeCodes.Active,
+            await _db
+                .AssignmentEntries.Where(entry => entry.Id == assignment.Id)
+                .Select(entry => entry.Event!.StatusTypeCode)
+                .SingleAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task PublishShiftEntriesAsync_WithoutActiveTransaction_CommitsSerializableTransaction()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        _transactionIsolationRecorder.StartedIsolationLevels.Clear();
+
+        var result = await _shiftService.PublishEntriesAsync([shift.Id], TestContext.Current.CancellationToken);
+
+        Assert.Equal(shift.Id, Assert.Single(result.ShiftEntries).Id);
+        Assert.Equal([IsolationLevel.Serializable], _transactionIsolationRecorder.StartedIsolationLevels);
+        Assert.Null(_db.Database.CurrentTransaction);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(
+            CalendarEventStatusTypeCodes.Active,
+            await _db
+                .ShiftEntries.Where(entry => entry.Id == shift.Id)
+                .Select(entry => entry.Event!.StatusTypeCode)
+                .SingleAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task PublishEntriesAsync_WithAmbientTransaction_DoesNotCreateOrCommitTransaction()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var assignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(13), At(14)),
+            TestContext.Current.CancellationToken
+        );
+        _transactionIsolationRecorder.StartedIsolationLevels.Clear();
+
+        await using (
+            var transaction = await _db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                TestContext.Current.CancellationToken
+            )
+        )
+        {
+            await _shiftService.PublishEntriesAsync([shift.Id], TestContext.Current.CancellationToken);
+            await _assignmentService.PublishEntriesAsync([assignment.Id], TestContext.Current.CancellationToken);
+
+            Assert.Same(transaction, _db.Database.CurrentTransaction);
+            Assert.Equal([IsolationLevel.Serializable], _transactionIsolationRecorder.StartedIsolationLevels);
+        }
+
+        _db.ChangeTracker.Clear();
+        var statuses = await _db
+            .Events.Where(eventEntity => eventEntity.Id == shift.EventId || eventEntity.Id == assignment.EventId)
+            .Select(eventEntity => eventEntity.StatusTypeCode)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, statuses.Count);
+        Assert.All(statuses, status => Assert.Equal(CalendarEventStatusTypeCodes.Draft, status));
+    }
+
+    [Fact]
+    public async Task PublishEntriesAsync_WithLinkedDraftAssignment_MatchesSingleEntryPublicationBehavior()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(12)),
+            TestContext.Current.CancellationToken
+        );
+        var assignment = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(At(10), At(11)),
+            TestContext.Current.CancellationToken
+        );
+        await _linkService.LinkShiftEntryAsync(
+            new ShiftAssignmentEntryRequest
+            {
+                ShiftEntryId = shift.Id,
+                AssignmentEntryId = assignment.Id,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            TestContext.Current.CancellationToken
+        );
+        var result = await _shiftService.PublishEntriesAsync([shift.Id], TestContext.Current.CancellationToken);
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(shift.Id, Assert.Single(result.ShiftEntries).Id);
+        Assert.Equal([assignment.EventId], result.PublishedLinkedAssignmentEventIds);
+        _db.ChangeTracker.Clear();
+        var statuses = await _db
+            .Events.Where(eventEntity => eventEntity.Id == shift.EventId || eventEntity.Id == assignment.EventId)
+            .Select(eventEntity => eventEntity.StatusTypeCode)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.All(statuses, status => Assert.Equal(CalendarEventStatusTypeCodes.Active, status));
     }
 
     [Fact]
@@ -1889,6 +2226,23 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             includeAssignments,
             TestContext.Current.CancellationToken
         );
+
+    private SchedulePublishService CreateSchedulePublishService() =>
+        new(
+            _db,
+            new CalendarTimeZoneResolver(
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
+                new TimeZoneService()
+            ),
+            new TimeZoneService(),
+            _shiftService,
+            _assignmentService,
+            _conflictService,
+            NullLogger<SchedulePublishService>.Instance
+        );
+
+    private static SchedulePublishRequest CreateSchedulePublishRequest() =>
+        new(5, new DateOnly(2026, 6, 1), new DateOnly(2026, 6, 1));
 
     private async Task SeedBaseDataAsync()
     {

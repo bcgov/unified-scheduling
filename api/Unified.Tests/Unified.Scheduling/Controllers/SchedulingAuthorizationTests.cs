@@ -79,6 +79,44 @@ public sealed class SchedulingAuthorizationTests
         Assert.Equal(SchedulingPolicies.AssignmentsView, authorize.Policy);
     }
 
+    [Theory]
+    [InlineData(typeof(ShiftController), nameof(ShiftController.PublishShiftEntry), SchedulingPolicies.SchedulePublish)]
+    [InlineData(
+        typeof(ShiftController),
+        nameof(ShiftController.PublishShiftSeries),
+        SchedulingPolicies.SchedulePublish
+    )]
+    [InlineData(
+        typeof(AssignmentController),
+        nameof(AssignmentController.PublishAssignmentEntry),
+        SchedulingPolicies.SchedulePublish
+    )]
+    [InlineData(
+        typeof(AssignmentController),
+        nameof(AssignmentController.PublishAssignmentSeries),
+        SchedulingPolicies.SchedulePublish
+    )]
+    [InlineData(typeof(ShiftController), nameof(ShiftController.UpdateShiftEntry), SchedulingPolicies.ShiftsEdit)]
+    [InlineData(typeof(ShiftController), nameof(ShiftController.UpdateShiftSeries), SchedulingPolicies.ShiftsEdit)]
+    [InlineData(
+        typeof(AssignmentController),
+        nameof(AssignmentController.UpdateAssignmentEntry),
+        SchedulingPolicies.AssignmentsEdit
+    )]
+    [InlineData(
+        typeof(AssignmentController),
+        nameof(AssignmentController.UpdateAssignmentSeries),
+        SchedulingPolicies.AssignmentsEdit
+    )]
+    public void SchedulingMutation_RequiresExpectedPolicy(Type controllerType, string methodName, string expectedPolicy)
+    {
+        var method = controllerType.GetMethod(methodName);
+
+        Assert.NotNull(method);
+        var authorize = Assert.Single(method.GetCustomAttributes<AuthorizeAttribute>());
+        Assert.Equal(expectedPolicy, authorize.Policy);
+    }
+
     private static SchedulingCalendarController CreateCalendarController(
         RecordingSchedulingCalendarService service,
         bool shiftsView,

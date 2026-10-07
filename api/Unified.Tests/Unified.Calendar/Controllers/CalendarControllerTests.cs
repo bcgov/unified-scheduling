@@ -156,6 +156,15 @@ public class CalendarControllerTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
 
+        Task<IReadOnlyCollection<CalendarConflict>> ICalendarConflictService.GetConflictsForCandidatesAsync(
+            IReadOnlyCollection<CalendarConflictParticipant> candidates,
+            CancellationToken cancellationToken = default
+        )
+        {
+            LastCandidates = candidates;
+            return Task.FromResult<IReadOnlyCollection<CalendarConflict>>([]);
+        }
+
         Task ICalendarConflictService.EnsureNoUnresolvedConflictsAsync(
             IReadOnlyCollection<CalendarConflictParticipant> candidates,
             CancellationToken cancellationToken = default
