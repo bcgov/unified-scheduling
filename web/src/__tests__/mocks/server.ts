@@ -16,7 +16,6 @@ import { getStatGroupsMock } from '@/api-access/generated/stat-groups/stat-group
 import { getStatMetricsMock } from '@/api-access/generated/stat-metrics/stat-metrics.msw';
 import { getStatRecordsMock } from '@/api-access/generated/stat-records/stat-records.msw';
 import { getStatSignoffsMock } from '@/api-access/generated/stat-signoffs/stat-signoffs.msw';
-import { getStatsMock } from '@/api-access/generated/stats/stats.msw';
 import { getSubCategoriesMock } from '@/api-access/generated/sub-categories/sub-categories.msw';
 import { getSubCategoryMetricsMock } from '@/api-access/generated/sub-category-metrics/sub-category-metrics.msw';
 
@@ -36,7 +35,6 @@ export const server = setupServer(
   ...getStatMetricsMock(),
   ...getStatRecordsMock(),
   ...getStatSignoffsMock(),
-  ...getStatsMock(),
   ...getSubCategoriesMock(),
   ...getSubCategoryMetricsMock(),
   ...getUsersMock(),

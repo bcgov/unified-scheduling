@@ -13,6 +13,7 @@ import {
   calendarScheduleStaffAction,
   calendarSchedulingEventDetailAction,
   calendarSchedulingHeaderShowConflictAction,
+  calendarSchedulingPublishAction,
   calendarSchedulingResolveConflictAction,
   calendarSchedulingShowConflictAction,
 } from '@/modules/scheduling/calendarSchedulingActions';
@@ -31,7 +32,9 @@ import {
   calendarSchedulingResourceActionAssignmentEntryId,
   calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionResource,
+  calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
+  closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   getCalendarSchedulingHeaderConflictKey,
   showCalendarSchedulingEventDetail,
@@ -45,7 +48,49 @@ describe('calendarSchedulingActions', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     closeCalendarSchedulingAssignmentModal();
+    closeCalendarSchedulingPublishModal();
     closeCalendarSchedulingResourceActionModal();
+  });
+
+  it('shows publish only for an authorized location scope', () => {
+    const context = {
+      startDate: '2026-08-24',
+      endDate: '2026-08-30',
+      locationId: 7,
+      filters: {},
+    };
+
+    expect(calendarSchedulingPublishAction.isAvailable?.(context, { featureFlags: {}, permissions: [] })).toBe(false);
+    expect(
+      calendarSchedulingPublishAction.isAvailable?.(context, {
+        featureFlags: {},
+        permissions: [Permissions.SchedulePublish],
+      }),
+    ).toBe(true);
+    expect(
+      calendarSchedulingPublishAction.isAvailable?.(
+        { ...context, locationId: undefined },
+        { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+      ),
+    ).toBe(false);
+  });
+
+  it('opens publish for the displayed location and date range', async () => {
+    await calendarSchedulingPublishAction.run(
+      {
+        startDate: '2026-08-24',
+        endDate: '2026-08-30',
+        locationId: 7,
+        filters: {},
+      },
+      { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+    );
+
+    expect(calendarSchedulingPublishRequest.value).toEqual({
+      locationId: 7,
+      startDate: '2026-08-24',
+      endDate: '2026-08-30',
+    });
   });
 
   it('opens the add assignment modal on the first date in the displayed range', async () => {

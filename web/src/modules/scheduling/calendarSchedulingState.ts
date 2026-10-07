@@ -30,6 +30,11 @@ export const calendarSchedulingExistingShiftChoice = ref<{
   assignmentEntryId?: number;
   assignmentEvents: CalendarEventBase[];
 }>();
+export const calendarSchedulingPublishRequest = ref<{
+  locationId: number;
+  startDate: string;
+  endDate: string;
+}>();
 
 export function showCalendarSchedulingAssignmentModal(
   date?: string,
@@ -147,4 +152,12 @@ export function showCalendarSchedulingEventDetail(
 export function closeCalendarSchedulingEventDetail() {
   calendarSchedulingDetailEvent.value = undefined;
   calendarSchedulingDetailInitialOpenScope.value = undefined;
+}
+
+export function showCalendarSchedulingPublishModal(locationId: number, startDate: string, endDate: string) {
+  calendarSchedulingPublishRequest.value = { locationId, startDate, endDate };
+}
+
+export function closeCalendarSchedulingPublishModal() {
+  calendarSchedulingPublishRequest.value = undefined;
 }

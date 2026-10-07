@@ -78,6 +78,7 @@ export interface BuildCreateShiftPayloadOptions {
   timeZoneId: string;
   locationId: number | null;
   fallbackTitle: string;
+  allowPublish?: boolean;
   includeAssignmentEntryLinks?: boolean;
   includeAssignmentSeriesLinks?: boolean;
 }
@@ -88,6 +89,7 @@ export interface BuildUpdateShiftPayloadOptions {
   timeZoneId: string;
   locationId: number | null;
   fallbackTitle: string;
+  allowPublish?: boolean;
   shiftSeriesId: number | null;
   existingRecurrenceRule?: string | null;
   includeAssignmentEntryLinks?: boolean;
@@ -484,9 +486,11 @@ function buildShiftPayload(
   }
 
   const lifecycleStatus = normalizeSchedulingLifecycleStatus(options.formData.statusTypeCode);
-  const publish = options.isCreate
-    ? options.formData.publish === 'yes'
-    : lifecycleStatus === 'draft' && options.formData.publish === 'yes';
+  const publish =
+    options.allowPublish === true &&
+    (options.isCreate
+      ? options.formData.publish === 'yes'
+      : lifecycleStatus === 'draft' && options.formData.publish === 'yes');
   const cancel = !options.isCreate && lifecycleStatus === 'published' && options.formData.cancel === 'yes';
   const selectedUserIds = options.formData.userIds?.filter((value): value is string => typeof value === 'string') ?? [];
 
