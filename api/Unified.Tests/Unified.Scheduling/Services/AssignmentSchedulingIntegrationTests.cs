@@ -1128,8 +1128,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SchedulePublishPreviewAsync_OnDstFallbackDay_IgnoresRequestedTimeZoneAndMatchesLocationBoundaries()
     {
-        var rangeStartUtc = new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero);
-        var rangeEndUtc = new DateTimeOffset(2026, 11, 2, 8, 0, 0, TimeSpan.Zero);
+        // Use a historical transition because B.C. stopped observing the autumn fallback in 2026.
+        var rangeStartUtc = new DateTimeOffset(2025, 11, 2, 7, 0, 0, TimeSpan.Zero);
+        var rangeEndUtc = new DateTimeOffset(2025, 11, 3, 8, 0, 0, TimeSpan.Zero);
         var shifts = new[]
         {
             (Start: rangeStartUtc.AddMinutes(-30), End: rangeStartUtc.AddMinutes(30), UserId: UserA),
@@ -1154,8 +1155,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var calendar = await _calendarService.GetDataAsync(
             new SchedulingCalendarRequest
             {
-                StartDate = new DateOnly(2026, 11, 1),
-                EndDate = new DateOnly(2026, 11, 1),
+                StartDate = new DateOnly(2025, 11, 2),
+                EndDate = new DateOnly(2025, 11, 2),
                 LocationId = 5,
                 TimeZoneId = "America/Toronto",
             },
@@ -1165,7 +1166,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         );
         var preview = await CreateSchedulePublishService()
             .PreviewAsync(
-                new SchedulePublishRequest(5, new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 1)),
+                new SchedulePublishRequest(5, new DateOnly(2025, 11, 2), new DateOnly(2025, 11, 2)),
                 TestContext.Current.CancellationToken
             );
 
