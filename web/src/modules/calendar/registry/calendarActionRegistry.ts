@@ -55,8 +55,18 @@ export class CalendarActionRegistry {
     this.toolbarActionsByView.set(viewId, [...existingActions, action]);
   }
 
-  getToolbarActionsForView(viewId: string, _context?: CalendarQueryContext): CalendarToolbarAction[] {
-    return this.toolbarActionsByView.get(viewId) ?? [];
+  getToolbarActionsForView(
+    viewId: string,
+    queryContext?: CalendarQueryContext,
+    runtimeContext?: CalendarRuntimeContext,
+  ): CalendarToolbarAction[] {
+    const actions = this.toolbarActionsByView.get(viewId) ?? [];
+
+    if (!queryContext || !runtimeContext) {
+      return actions;
+    }
+
+    return actions.filter((action) => action.isAvailable?.(queryContext, runtimeContext) ?? true);
   }
 
   registerViewDetailAction(viewId: string, action: CalendarViewDetailAction) {

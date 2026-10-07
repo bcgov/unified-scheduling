@@ -6,7 +6,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import type { SelectOption, SelectValue } from '@/types/select';
 import CalendarViewTabs from './CalendarViewTabs.vue';
-import type { CalendarToolbarAction } from '../registry/calendarActionRegistryTypes';
+import type { CalendarToolbarButton } from '../registry/calendarActionRegistryTypes';
 import type { CalendarViewDefinition } from '../registry/calendarRegistryTypes';
 import type { CalendarPeriod } from '../calendarStore';
 import { buildCalendarPeriodSelectOptions, isCalendarPeriod } from '../calendarPeriodOptions';
@@ -14,10 +14,10 @@ import { buildCalendarPeriodSelectOptions, isCalendarPeriod } from '../calendarP
 const props = defineProps<{
   views: CalendarViewDefinition[];
   activeViewId: string;
-  createActions: CalendarToolbarAction[];
+  createActions: CalendarToolbarButton[];
   rangeLabel: string;
   anchorDate: string;
-  toolbarActions: CalendarToolbarAction[];
+  toolbarActions: CalendarToolbarButton[];
   activePeriod: CalendarPeriod;
   periods: readonly CalendarPeriod[];
   isLoading?: boolean;
@@ -63,7 +63,7 @@ function handleDateSelection(value: unknown) {
 
 <template>
   <div class="calendar-toolbar-shell">
-    <div v-if="views.length || createActions.length" class="calendar-toolbar-shell__topbar">
+    <div v-if="views.length || createActions.length || toolbarActions.length" class="calendar-toolbar-shell__topbar">
       <CalendarViewTabs
         v-if="views.length"
         class="calendar-toolbar-shell__tabs"
@@ -72,7 +72,7 @@ function handleDateSelection(value: unknown) {
         @update:active-view-id="emit('update:activeViewId', $event)"
       />
 
-      <div v-if="createActions.length" class="calendar-toolbar-shell__actions">
+      <div v-if="createActions.length || toolbarActions.length" class="calendar-toolbar-shell__actions">
         <UaBtn
           v-for="action in createActions"
           :key="action.id"
@@ -82,11 +82,6 @@ function handleDateSelection(value: unknown) {
         >
           {{ action.label }}
         </UaBtn>
-      </div>
-    </div>
-
-    <div v-if="toolbarActions.length" class="calendar-toolbar-shell__secondary-actions">
-      <div class="calendar-toolbar-shell__actions">
         <UaBtn
           v-for="action in toolbarActions"
           :key="action.id"
@@ -182,13 +177,6 @@ function handleDateSelection(value: unknown) {
 .calendar-toolbar-shell__tabs {
   flex: 1 1 auto;
   margin-bottom: 0;
-}
-
-.calendar-toolbar-shell__secondary-actions {
-  background: var(--ua-calendar-panel-bg);
-  border-inline: 1px solid var(--ua-border-color);
-  border-bottom: 1px solid var(--ua-border-color);
-  padding: 0 var(--ua-spacing-xl) var(--ua-spacing-md);
 }
 
 .calendar-toolbar-shell__actions {
