@@ -181,12 +181,21 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         _db.ChangeTracker.Clear();
         Assert.Equal(
             CalendarEventStatusTypeCodes.Active,
-            (await _db.Events.FindAsync(new object?[] { overlapping.EventId }, TestContext.Current.CancellationToken))!.StatusTypeCode
+            (
+                await _db.Events.FindAsync(new object?[] { overlapping.EventId }, TestContext.Current.CancellationToken)
+            )!.StatusTypeCode
         );
-        Assert.Equal(CalendarEventStatusTypeCodes.Draft, (await _db.Events.FindAsync(new object?[] { outside.EventId }, TestContext.Current.CancellationToken))!.StatusTypeCode);
         Assert.Equal(
             CalendarEventStatusTypeCodes.Draft,
-            (await _db.EventSeries.FindAsync(new object?[] { eventSeries.Id }, TestContext.Current.CancellationToken))!.StatusTypeCode
+            (
+                await _db.Events.FindAsync(new object?[] { outside.EventId }, TestContext.Current.CancellationToken)
+            )!.StatusTypeCode
+        );
+        Assert.Equal(
+            CalendarEventStatusTypeCodes.Draft,
+            (
+                await _db.EventSeries.FindAsync(new object?[] { eventSeries.Id }, TestContext.Current.CancellationToken)
+            )!.StatusTypeCode
         );
     }
 
