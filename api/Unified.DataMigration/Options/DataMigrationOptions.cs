@@ -1,3 +1,4 @@
+using Cronos;
 using Microsoft.Extensions.Options;
 
 namespace Unified.DataMigration.Options;
@@ -47,9 +48,22 @@ public sealed class DataMigrationOptionsValidator : IValidateOptions<DataMigrati
             failures.Add($"DataMigration:Sources:{source}:ConnectionString is required when enabled.");
         }
 
-        if (string.IsNullOrWhiteSpace(options.CronSchedule))
+        if (
+            !string.IsNullOrWhiteSpace(options.CronSchedule)
+            && !options.CronSchedule.Equals("disable", StringComparison.OrdinalIgnoreCase)
+            && !options.CronSchedule.Equals("disabled", StringComparison.OrdinalIgnoreCase)
+        )
         {
-            failures.Add($"DataMigration:Sources:{source}:CronSchedule is required when enabled.");
+            try
+            {
+                CronExpression.Parse(options.CronSchedule);
+            }
+            catch (CronFormatException)
+            {
+                failures.Add(
+                    $"DataMigration:Sources:{source}:CronSchedule must be a valid five-field cron expression."
+                );
+            }
         }
 
         if (options.BatchSize <= 0)
