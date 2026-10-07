@@ -48,10 +48,21 @@ public static class SchedulingModule
             throw new InvalidOperationException("Scheduling requires the Stats module to be enabled.");
 
         services.AddSingleton(TimeProvider.System);
-        services.AddScoped<IShiftService, ShiftService>();
+        services.AddScoped<ShiftService>();
+        services.AddScoped<IShiftService>(serviceProvider => serviceProvider.GetRequiredService<ShiftService>());
+        services.AddScoped<IShiftPublicationService>(serviceProvider =>
+            serviceProvider.GetRequiredService<ShiftService>()
+        );
         services.AddScoped<ISchedulingCalendarService, SchedulingCalendarService>();
         services.AddScoped<ICalendarConflictParticipantProvider, SchedulingConflictParticipantProvider>();
-        services.AddScoped<IAssignmentService, AssignmentService>();
+        services.AddScoped<AssignmentService>();
+        services.AddScoped<IAssignmentService>(serviceProvider =>
+            serviceProvider.GetRequiredService<AssignmentService>()
+        );
+        services.AddScoped<IAssignmentPublicationService>(serviceProvider =>
+            serviceProvider.GetRequiredService<AssignmentService>()
+        );
+        services.AddScoped<ISchedulePublishService, SchedulePublishService>();
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
         services.AddScoped<IProposedShiftAssignmentOptionsService, ProposedShiftAssignmentOptionsService>();
@@ -70,6 +81,7 @@ public static class SchedulingModule
         services.AddScoped<ShiftAssignmentSeriesUpdateRequestValidator>();
         services.AddScoped<ProposedShiftAssignmentOptionsRequestValidator>();
         services.AddScoped<SchedulingCalendarRequestValidator>();
+        services.AddScoped<SchedulePublishRequestValidator>();
         services.AddSeeder<Unified.Db.UnifiedDbContext, ShiftEventTypeSeeder>();
         services.AddSingleton(SchedulingPermissionSeedData.Configuration);
 
@@ -80,6 +92,7 @@ public static class SchedulingModule
             .AddPermissionPolicy(Permissions.ShiftsEdit)
             .AddPermissionPolicy(Permissions.ShiftsDelete)
             .AddPermissionPolicy(Permissions.ShiftsExpire)
+            .AddPermissionPolicy(Permissions.SchedulePublish)
             .AddPermissionPolicy(Permissions.AssignmentsView)
             .AddPermissionPolicy(Permissions.AssignmentsCreate)
             .AddPermissionPolicy(Permissions.AssignmentsAssign)

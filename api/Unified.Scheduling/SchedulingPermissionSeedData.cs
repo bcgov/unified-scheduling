@@ -50,6 +50,12 @@ public static class SchedulingPermissionSeedData
                 new()
                 {
                     Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.SchedulePublish),
+                    Description = "Publish schedules",
+                },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
                     Id = nameof(Permissions.AssignmentsView),
                     Description = "View assignments",
                 },

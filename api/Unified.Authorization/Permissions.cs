@@ -44,6 +44,7 @@ public enum Permissions
 
     // --- Schedule ---
     ScheduleViewDistribute,
+    SchedulePublish,
 
     // --- Assignments ---
     AssignmentsView,
