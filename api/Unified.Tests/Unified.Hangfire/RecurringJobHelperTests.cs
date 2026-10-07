@@ -1,7 +1,14 @@
 using Hangfire;
 using Hangfire.InMemory;
 using Hangfire.Server;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Unified.Common.Jobs;
+using Unified.DataMigration.FeatureFlags;
+using Unified.DataMigration.Jobs;
+using Unified.DataMigration.Options;
+using Unified.DataMigration.Services;
+using Unified.Db;
 using Unified.Hangfire;
 
 namespace Unified.Tests.Hangfire;
@@ -77,5 +84,34 @@ public class RecurringJobHelperTests : IDisposable
         using var connection = JobStorage.Current.GetConnection();
         var recurringJobIds = connection.GetAllItemsFromSet("recurring-jobs");
         Assert.DoesNotContain("disabled-job", recurringJobIds);
+    }
+
+    [Fact]
+    public void AddOrUpdate_SsJobWithoutApprovedMappings_RemovesOnlyStaleSsSchedule()
+    {
+        RecurringJobHelper.AddOrUpdate(new FakeRecurringJob("data-migration:ss", "0 * * * *"));
+        RecurringJobHelper.AddOrUpdate(new FakeRecurringJob("data-migration:cass", "0 * * * *"));
+        using var db = new UnifiedDbContext(new DbContextOptions<UnifiedDbContext>());
+        var job = new SsDataMigrationRecurringJob(
+            Options.Create(new DataMigrationFeatureFlags { Enabled = true }),
+            Options.Create(
+                new DataMigrationOptions
+                {
+                    Sources = new DataMigrationSourcesOptions
+                    {
+                        SS = new DataMigrationSourceOptions { Enabled = true, CronSchedule = "0 * * * *" },
+                    },
+                }
+            ),
+            new DataMigrationControlService(db),
+            new DataMigrationOrchestrator(db)
+        );
+
+        RecurringJobHelper.AddOrUpdate(job);
+
+        using var connection = JobStorage.Current.GetConnection();
+        var recurringJobIds = connection.GetAllItemsFromSet("recurring-jobs");
+        Assert.DoesNotContain("data-migration:ss", recurringJobIds);
+        Assert.Contains("data-migration:cass", recurringJobIds);
     }
 }
