@@ -32,3 +32,7 @@ export function canCreateShifts(context: CalendarRuntimeContext) {
 export function canEditShifts(context: CalendarRuntimeContext) {
   return hasCalendarPermission(context, Permissions.ShiftsEdit);
 }
+
+export function canPublishSchedule(context: CalendarRuntimeContext) {
+  return hasCalendarPermission(context, Permissions.SchedulePublish);
+}

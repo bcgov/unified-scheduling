@@ -4,8 +4,9 @@ import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
+import { Permissions } from '@/api-access/generated/models';
 
-const hasPermission = vi.hoisted(() => vi.fn(() => true));
+const hasPermission = vi.hoisted(() => vi.fn<(permission: Permissions) => boolean>(() => true));
 vi.mock('@/composables/useAccessControl', () => ({ useAccessControl: () => ({ hasPermission }) }));
 
 function createShiftEvent(statusTypeCode: string, belongsToSeries = false): CalendarEventBase {
@@ -165,6 +166,20 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     expect(wrapper.text()).not.toContain('Edit');
     expect(wrapper.text()).not.toContain('Delete');
     expect(wrapper.text()).not.toContain('Save');
+
+    wrapper.unmount();
+  });
+
+  it('allows draft editing without exposing publish when SchedulePublish is missing', async () => {
+    hasPermission.mockImplementation((permission) => permission === Permissions.ShiftsEdit);
+    const wrapper = await mountShiftDetailModal('Draft');
+
+    const editTab = Array.from(document.querySelectorAll('button')).find((button) => button.textContent === 'Edit');
+    editTab?.dispatchEvent(new Event('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('Save');
+    expect(document.querySelector('[aria-label="Publish"]')).toBeNull();
 
     wrapper.unmount();
   });

@@ -47,6 +47,7 @@ const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 const accessControl = useAccessControl();
 const canCreateShift = computed(() => accessControl.hasPermission(Permissions.ShiftsCreateAndAssign));
+const canPublishShift = computed(() => accessControl.hasPermission(Permissions.SchedulePublish));
 
 const isSaving = ref(false);
 const createdShiftId = ref<number | null>(null);
@@ -283,6 +284,7 @@ async function handleSave() {
     timeZoneId: timeZoneId.value,
     locationId: validated.locationId ?? null,
     fallbackTitle: props.resource?.title || 'New',
+    allowPublish: canPublishShift.value,
   });
   if (!payload) {
     apiError.value = 'Could not resolve the selected date and time.';
@@ -398,6 +400,7 @@ function applyServerValidationErrors(rawError: unknown) {
           id-prefix="new-shift"
           :form-errors="formErrors"
           :disabled="isSaving || hasCreatedUnpublishedShift || !canCreateShift"
+          :can-publish="canPublishShift"
           :location-options="locationOptions"
           :employee-options="employeeOptions"
           :is-loading-users="isLoadingUsers"

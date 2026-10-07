@@ -10,7 +10,7 @@ import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { useAuthStore } from '@/stores/auth';
 import { Permissions } from '@/api-access/generated/models';
 
-function createModalTestApp() {
+function createModalTestApp(permissions = Object.values(Permissions)) {
   const pinia = createPinia();
   useAuthStore(pinia).setUserInfo({
     isAuthenticated: true,
@@ -18,7 +18,7 @@ function createModalTestApp() {
     name: 'Unit Test User',
     authenticationType: 'test',
     claims: [],
-    permissions: Object.values(Permissions),
+    permissions,
     userId: null,
     homeLocationId: null,
   });
@@ -127,6 +127,27 @@ describe('CalendarSchedulingAddResourceModal', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+  });
+
+  it('allows draft creation without exposing publish when SchedulePublish is missing', async () => {
+    vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => buildShiftApiMock({}));
+    vi.doMock('@/api-access/generated/users/users', buildUsersModuleMock);
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = createModalTestApp([Permissions.ShiftsCreateAndAssign]);
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: { initialDate: '2026-08-24', timeZone: 'America/Vancouver' },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('Save');
+    expect(document.querySelector('[aria-label="Publish"]')).toBeNull();
+
+    wrapper.unmount();
   });
 
   it('does not load shift lists when opening the modal', async () => {

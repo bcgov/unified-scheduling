@@ -32,7 +32,15 @@ export interface CalendarToolbarAction {
   label: string;
   disabled?: boolean;
   variant?: 'text' | 'outlined' | 'flat';
-  onClick?: () => void | Promise<void>;
+  isAvailable?: (queryContext: CalendarQueryContext, runtimeContext: CalendarRuntimeContext) => boolean;
+  run: (queryContext: CalendarQueryContext, runtimeContext: CalendarRuntimeContext) => void | Promise<void>;
+}
+
+export interface CalendarToolbarButton {
+  id: string;
+  label: string;
+  disabled?: boolean;
+  variant?: 'text' | 'outlined' | 'flat';
 }
 
 export interface CalendarViewDetailActionContext {

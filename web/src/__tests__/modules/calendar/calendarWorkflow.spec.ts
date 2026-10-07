@@ -121,7 +121,8 @@ describe('calendar workflow', () => {
 
     calendarStore.setPeriod('week');
     calendarStore.setAnchorDate('2025-04-07');
-    locationsStore.entities = [{ id: 12, name: 'Main Hall' }];
+    calendarStore.setFilter('timeZoneId', 'America/Vancouver');
+    locationsStore.entities = [{ id: 12, name: 'Main Hall', timezone: 'America/Toronto' }];
     locationsStore.setSelectedLocationId(12);
 
     const wrapper = mount(Calendar, {
@@ -142,7 +143,12 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
+        {
+          startDate: '2025-04-07',
+          endDate: '2025-04-14',
+          locationId: 12,
+          filters: { timeZoneId: 'America/Toronto' },
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -156,7 +162,12 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: 12, filters: {} },
+        {
+          startDate: previousRange.startDate,
+          endDate: previousRange.endDate,
+          locationId: 12,
+          filters: { timeZoneId: 'America/Toronto' },
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -168,7 +179,12 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
+        {
+          startDate: '2025-04-07',
+          endDate: '2025-04-14',
+          locationId: 12,
+          filters: { timeZoneId: 'America/Toronto' },
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -181,7 +197,12 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: 12, filters: {} },
+        {
+          startDate: todayRange.startDate,
+          endDate: todayRange.endDate,
+          locationId: 12,
+          filters: { timeZoneId: 'America/Toronto' },
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -203,7 +224,12 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-14', endDate: '2025-04-21', locationId: 12, filters: {} },
+        {
+          startDate: '2025-04-14',
+          endDate: '2025-04-21',
+          locationId: 12,
+          filters: { timeZoneId: 'America/Toronto' },
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -216,7 +242,12 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-16', endDate: '2025-04-17', locationId: 12, filters: {} },
+        {
+          startDate: '2025-04-16',
+          endDate: '2025-04-17',
+          locationId: 12,
+          filters: { timeZoneId: 'America/Toronto' },
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -228,7 +259,12 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-14', endDate: '2025-04-19', locationId: 12, filters: {} },
+        {
+          startDate: '2025-04-14',
+          endDate: '2025-04-19',
+          locationId: 12,
+          filters: { timeZoneId: 'America/Toronto' },
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 

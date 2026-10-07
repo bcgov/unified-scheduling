@@ -6,10 +6,12 @@ import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentMod
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
 import CalendarSchedulingAssignmentDefinitionCreateModal from './CalendarSchedulingAssignmentDefinitionCreateModal.vue';
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
+import CalendarSchedulingPublishModal from './CalendarSchedulingPublishModal.vue';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { resolveCalendarEventId } from '@/modules/calendar/calendarSelectors';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
 import CalendarMatrixEventBlock from '@/modules/calendar/components/matrix/CalendarMatrixEventBlock.vue';
@@ -53,9 +55,11 @@ import {
   calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
+  calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
+  closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   getCalendarSchedulingHeaderConflictKey,
   isCalendarSchedulingAssignmentModalOpen,
@@ -77,6 +81,7 @@ const emit = defineEmits<{
 }>();
 
 const calendarStore = useCalendarStore();
+const calendarAlertStore = useCalendarAlertStore();
 const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
 const canCreateShift = computed(() => Boolean(props.runtimeContext && canCreateShifts(props.runtimeContext)));
@@ -97,6 +102,17 @@ function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
 
 function handleAssignmentDefinitionSaved() {
   assignmentDefinitionId.value = undefined;
+  calendarStore.refresh();
+}
+
+function handleSchedulePublished(count: number) {
+  closeCalendarSchedulingPublishModal();
+  calendarAlertStore.setAlert({
+    id: 'calendar-scheduling.publish.success',
+    severity: 'info',
+    message: `${count} schedule item${count === 1 ? '' : 's'} published.`,
+    source: 'calendar-scheduling',
+  });
   calendarStore.refresh();
 }
 
@@ -357,6 +373,13 @@ function isAssignmentEvent(event: CalendarEventBase) {
     mode="view"
     @close="assignmentDefinitionId = undefined"
     @saved="handleAssignmentDefinitionSaved"
+  />
+
+  <CalendarSchedulingPublishModal
+    v-if="calendarSchedulingPublishRequest"
+    :request="calendarSchedulingPublishRequest"
+    @close="closeCalendarSchedulingPublishModal"
+    @published="handleSchedulePublished"
   />
 
   <CalendarSchedulingAssignmentModal
