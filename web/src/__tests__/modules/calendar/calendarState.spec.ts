@@ -57,7 +57,7 @@ describe('calendar registries and store', () => {
 
     expect(registry.getAvailableViews(runtimeContext).map((view) => view.id)).toEqual(['fast', 'slow']);
 
-    const toolbarAction: CalendarToolbarAction = { id: 'refresh', label: 'Refresh' };
+    const toolbarAction: CalendarToolbarAction = { id: 'refresh', label: 'Refresh', run: () => undefined };
     actionRegistry.registerToolbarAction('fast', toolbarAction);
     expect(actionRegistry.getToolbarActionsForView('fast')).toEqual([toolbarAction]);
     expect(actionRegistry.getToolbarActionsForView('missing')).toEqual([]);
@@ -137,7 +137,7 @@ describe('calendar registries and store', () => {
       "Calendar detail action 'open' is already registered for view 'default'.",
     );
 
-    const toolbarAction: CalendarToolbarAction = { id: 'refresh', label: 'Refresh' };
+    const toolbarAction: CalendarToolbarAction = { id: 'refresh', label: 'Refresh', run: () => undefined };
     actionRegistry.registerToolbarAction('default', toolbarAction);
     expect(() => actionRegistry.registerToolbarAction('default', toolbarAction)).toThrow(
       "Calendar toolbar action 'refresh' is already registered for view 'default'.",

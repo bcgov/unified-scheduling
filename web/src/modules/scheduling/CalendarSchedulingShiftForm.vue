@@ -18,6 +18,7 @@ const props = withDefaults(
     modelValue: ShiftResourceFormData;
     formErrors?: Record<string, string>;
     disabled?: boolean;
+    canPublish?: boolean;
     showRecurrence?: boolean;
     disableRepeatMode?: boolean;
     locationOptions: SelectOption[];
@@ -33,6 +34,7 @@ const props = withDefaults(
   {
     formErrors: () => ({}),
     disabled: false,
+    canPublish: false,
     showRecurrence: true,
     disableRepeatMode: false,
     locationOptions: () => [],
@@ -58,6 +60,17 @@ const formData = computed({
 });
 
 const isDraftStatus = computed(() => normalizeSchedulingLifecycleStatus(formData.value.statusTypeCode) === 'draft');
+
+watch(
+  () => props.canPublish,
+  (canPublish) => {
+    if (!canPublish && formData.value.publish === 'yes') {
+      formData.value = { ...formData.value, publish: 'no' };
+    }
+  },
+  { immediate: true },
+);
+
 const showAssignmentEntryLinks = computed(() => !props.showSeriesAssignment);
 const selectedAssignmentEntryIds = computed(
   () =>
@@ -566,8 +579,8 @@ function handleRecurrenceChange(value: string | null) {
       @update:model-value="(value: string) => updateField('trainingLabel', value)"
     />
 
-    <label v-if="isDraftStatus" class="shift-form__label" :for="`${idPrefix}-publish`">Publish</label>
-    <div v-if="isDraftStatus" class="shift-form__status-field">
+    <label v-if="isDraftStatus && canPublish" class="shift-form__label" :for="`${idPrefix}-publish`">Publish</label>
+    <div v-if="isDraftStatus && canPublish" class="shift-form__status-field">
       <UaSelect
         :id="`${idPrefix}-publish`"
         :model-value="formData.publish"

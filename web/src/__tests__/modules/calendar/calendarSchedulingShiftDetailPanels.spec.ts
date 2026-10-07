@@ -133,6 +133,28 @@ describe('CalendarSchedulingShiftEditPanel', () => {
 });
 
 describe('CalendarSchedulingShiftForm', () => {
+  it('hides publish and clears stale publish state without permission', async () => {
+    const wrapper = mount(CalendarSchedulingShiftForm, {
+      props: {
+        modelValue: {
+          locationId: 1,
+          date: '2026-07-03',
+          repeatMode: 'never',
+          publish: 'yes',
+          cancel: 'no',
+          statusTypeCode: 'Draft',
+        },
+        locationOptions: [{ code: 1, description: 'HQ' }],
+        employeeOptions: [],
+        canPublish: false,
+      },
+    });
+
+    expect(wrapper.find('[aria-label="Publish"]').exists()).toBe(false);
+    const emitted = wrapper.emitted('update:modelValue')?.[0]?.[0] as ShiftResourceFormData;
+    expect(emitted.publish).toBe('no');
+  });
+
   it('clears employees and linked assignments when location changes', async () => {
     const formData: ShiftResourceFormData = {
       locationId: 1,

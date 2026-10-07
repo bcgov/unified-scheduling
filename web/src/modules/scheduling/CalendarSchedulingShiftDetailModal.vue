@@ -50,6 +50,7 @@ const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 const accessControl = useAccessControl();
 const hasShiftEditPermission = computed(() => accessControl.hasPermission(Permissions.ShiftsEdit));
+const canPublishShift = computed(() => accessControl.hasPermission(Permissions.SchedulePublish));
 const hasShiftDeletePermission = computed(() => accessControl.hasPermission(Permissions.ShiftsDelete));
 const hasShiftExpirePermission = computed(() => accessControl.hasPermission(Permissions.ShiftsExpire));
 
@@ -595,6 +596,7 @@ function buildRequestPayload(validated: ShiftResourceFormData) {
     timeZoneId: activeTimeZoneId.value,
     locationId: validated.locationId ?? null,
     fallbackTitle: buildShiftTitle(props.event.title),
+    allowPublish: canPublishShift.value,
     shiftSeriesId: resolveShiftSeriesId(),
     existingRecurrenceRule: selectedSeries.value?.recurrenceRule ?? null,
     includeAssignmentEntryLinks: !haveSameAssignmentLinks(
@@ -737,6 +739,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
           id-prefix="edit-shift"
           :form-errors="formErrors"
           :disabled="isSaving"
+          :can-publish="canPublishShift"
           :show-recurrence="isSeriesScope"
           :disable-repeat-mode="isSeriesScope"
           :location-options="locationOptions"

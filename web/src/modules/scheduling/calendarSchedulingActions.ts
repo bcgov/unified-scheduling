@@ -10,6 +10,7 @@ import type {
   CalendarMatrixEventBlockAction,
   CalendarMatrixResourceAction,
   CalendarMatrixSidePanelAction,
+  CalendarToolbarAction,
   CalendarViewDetailAction,
 } from '@/modules/calendar/registry/calendarActionRegistryTypes';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
@@ -18,6 +19,7 @@ import {
   showCalendarSchedulingAssignmentModal,
   showCalendarSchedulingExistingShiftChoice,
   showCalendarSchedulingEventDetail,
+  showCalendarSchedulingPublishModal,
   showCalendarSchedulingResourceActionModal,
   toggleCalendarSchedulingConflict,
   toggleCalendarSchedulingHeaderConflict,
@@ -35,6 +37,7 @@ import {
   canCreateAssignments,
   canCreateShifts,
   canEditAssignments,
+  canPublishSchedule,
   canViewAssignments,
   canViewShifts,
 } from './calendarSchedulingPermissions';
@@ -48,6 +51,18 @@ export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
   run: (context, runtimeContext) => {
     if (!canCreateShifts(runtimeContext)) return;
     showCalendarSchedulingResourceActionModal(undefined, context.startDate);
+  },
+};
+
+export const calendarSchedulingPublishAction: CalendarToolbarAction = {
+  id: calendarSchedulingActionIds.publishSchedule,
+  label: 'Publish Schedule',
+  variant: 'outlined',
+  isAvailable: (context, runtimeContext) => Boolean(context.locationId) && canPublishSchedule(runtimeContext),
+  run: (context, runtimeContext) => {
+    if (context.locationId && canPublishSchedule(runtimeContext)) {
+      showCalendarSchedulingPublishModal(context.locationId, context.startDate, context.endDate);
+    }
   },
 };
 
