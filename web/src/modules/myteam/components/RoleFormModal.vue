@@ -3,6 +3,7 @@ import type { PermissionDto, RoleDto, RoleRequestDto, UpdateRoleRequestDto } fro
 import { getApiPermissions } from '@/api-access/generated/permissions/permissions';
 import { postApiRoles, putApiRolesId } from '@/api-access/generated/roles/roles';
 import { PostApiRolesBody } from '@/api-access/generated/roles/roles.zod';
+import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
@@ -26,6 +27,8 @@ const emit = defineEmits<{
   (e: 'updated', role: RoleDto | null): void;
 }>();
 
+const accessControl = useAccessControl();
+
 // Fetch permissions from API
 const { data: allPermissions, error: permissionsError, isFetching: isFetchingPermissions } = getApiPermissions();
 
@@ -37,7 +40,11 @@ const selectedPermissions = ref<Map<string, boolean>>(new Map());
 
 const defaultPermissionGroup = 'Other';
 
-const permissionsList = computed(() => (Array.isArray(allPermissions.value) ? allPermissions.value : []));
+const permissionsList = computed(() => {
+  const permissions = Array.isArray(allPermissions.value) ? allPermissions.value : [];
+  if (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) return permissions;
+  return permissions.filter((p) => !p.id.startsWith('TimeOff') && !p.id.startsWith('UsersTimeOff'));
+});
 
 const getPermissionGroup = (permission: PermissionDto): string => {
   const group = permission.group?.trim();

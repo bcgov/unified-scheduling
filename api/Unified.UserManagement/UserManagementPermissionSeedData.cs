@@ -57,6 +57,31 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
             Group = PermissionGroupUsers,
             Id = nameof(Permissions.UsersViewOtherProfiles),
             Description = "View other user profiles",
+        }
+        ,
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersTimeOffView),
+            Description = "View time off for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersTimeOffCreate),
+            Description = "Create time off for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersTimeOffEdit),
+            Description = "Edit time off for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersTimeOffDelete),
+            Description = "Delete time off for users",
         },
         // Roles
         new()

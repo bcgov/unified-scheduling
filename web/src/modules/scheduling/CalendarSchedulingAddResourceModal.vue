@@ -28,8 +28,13 @@ import {
 import { useSchedulingEmployeeOptions } from './useSchedulingEmployeeOptions';
 import { useSchedulingAssignmentOptions } from './useSchedulingAssignmentOptions';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
+import { defaultEndTime, defaultStartTime } from './schedulingDateTime';
+import { createTimeOffEntry, createTimeOffSeries } from '@/modules/timeoff/api/timeOffApi';
+import { buildTimeOffRequest } from '@/modules/timeoff/timeOffRequest';
 import type { SelectOption } from '@/types/select';
 import { useAccessControl } from '@/composables/useAccessControl';
+import TimeOffForm, { type TimeOffFormData } from '@/modules/timeoff/components/TimeOffForm.vue';
+import CalendarSchedulingResourceTabs from './CalendarSchedulingResourceTabs.vue';
 
 const props = defineProps<{
   initialDate?: string;
@@ -47,8 +52,21 @@ const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 const accessControl = useAccessControl();
 const canCreateShift = computed(() => accessControl.hasPermission(Permissions.ShiftsCreateAndAssign));
+const canCreateTimeOff = computed(
+  () =>
+    (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.TimeOffCreateAndAssign),
+);
 
 const isSaving = ref(false);
+const activeTab = ref<'schedule' | 'timeOff'>('schedule');
+const timeOffFormData = ref<TimeOffFormData>({
+  userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
+  date: props.initialDate ?? '',
+  startTime: defaultStartTime,
+  endTime: defaultEndTime,
+  notes: '',
+});
 const createdShiftId = ref<number | null>(null);
 const hasCreatedUnpublishedShift = computed(() => createdShiftId.value !== null);
 const apiError = ref('');
@@ -108,13 +126,20 @@ const mergedAssignmentEntryOptions = computed(() =>
     assignmentEntryLabelsById.value,
   ),
 );
-const modalTitle = computed(() => 'New Shift');
+const modalTitle = computed(() => formData.value.title ?? '');
 const locationOptions = computed(() => locationsStore.selectOptions);
 
 watch(
   () => [props.resource, props.initialDate, props.initialAssignmentEntryId, props.initialAssignmentEvents] as const,
   ([resource, initialDate]) => {
     formData.value = createInitialFormData(resource, initialDate);
+    timeOffFormData.value = {
+      userIds: resource?.type === 'user' ? [resource.id] : [],
+      date: initialDate ?? '',
+      startTime: '',
+      endTime: '',
+      notes: '',
+    };
     createdShiftId.value = null;
     apiError.value = '';
     recurrenceError.value = '';
@@ -334,6 +359,44 @@ async function handleSave() {
   }
 }
 
+async function handleSaveTimeOff() {
+  apiError.value = '';
+  if (!canCreateTimeOff.value) {
+    apiError.value = 'You do not have permission to create time off.';
+    return;
+  }
+
+  const built = buildTimeOffRequest(timeOffFormData.value, {
+    locationId: activeLocationId.value,
+    timeZoneId: timeZoneId.value,
+  });
+  if (built.error !== undefined) {
+    apiError.value = built.error;
+    return;
+  }
+
+  isSaving.value = true;
+
+  try {
+    const result =
+      built.kind === 'series' ? await createTimeOffSeries(built.request) : await createTimeOffEntry(built.request);
+
+    if (result.error.value) {
+      apiError.value =
+        result.error.value.message ||
+        (built.kind === 'series' ? 'Failed to create recurring time off.' : 'Failed to create time off.');
+      return;
+    }
+
+    calendarStore.refresh();
+    emit('close');
+  } catch (error: unknown) {
+    apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+  } finally {
+    isSaving.value = false;
+  }
+}
+
 function handlePublicationFailure() {
   calendarStore.refresh();
   apiError.value =
@@ -384,44 +447,67 @@ function applyServerValidationErrors(rawError: unknown) {
 }
 </script>
 <template>
-  <UaModal :title="modalTitle" width="760" :loading="isSaving" @close="handleClose">
+  <UaModal :title="modalTitle" width="900" :loading="isSaving" @close="handleClose">
     <template #alerts>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>
     </template>
 
-    <div class="resource-shift-modal">
-      <section class="resource-shift-modal__panel">
-        <CalendarSchedulingShiftForm
-          v-model="formData"
-          id-prefix="new-shift"
-          :form-errors="formErrors"
-          :disabled="isSaving || hasCreatedUnpublishedShift || !canCreateShift"
-          :location-options="locationOptions"
-          :employee-options="employeeOptions"
-          :is-loading-users="isLoadingUsers"
-          :assignment-entry-options="mergedAssignmentEntryOptions"
-          :assignment-series-options="assignmentSeriesOptions"
-          :assignment-warning="assignmentWarning"
-          :is-loading-assignments="isLoadingAssignments"
-          :show-series-assignment="isSeriesScope"
-          @recurrence-change="handleRecurrenceChange"
-          @recurrence-invalid="handleRecurrenceInvalid"
-        />
-      </section>
-    </div>
+    <CalendarSchedulingResourceTabs :show-time-off="canCreateTimeOff" @update:active-tab="activeTab = $event">
+      <template #schedule>
+        <section class="resource-shift-modal__panel">
+          <CalendarSchedulingShiftForm
+            v-model="formData"
+            id-prefix="new-shift"
+            :form-errors="formErrors"
+            :disabled="isSaving || hasCreatedUnpublishedShift || !canCreateShift"
+            :location-options="locationOptions"
+            :employee-options="employeeOptions"
+            :is-loading-users="isLoadingUsers"
+            :assignment-entry-options="mergedAssignmentEntryOptions"
+            :assignment-series-options="assignmentSeriesOptions"
+            :assignment-warning="assignmentWarning"
+            :is-loading-assignments="isLoadingAssignments"
+            :show-series-assignment="isSeriesScope"
+            @recurrence-change="handleRecurrenceChange"
+            @recurrence-invalid="handleRecurrenceInvalid"
+          />
+        </section>
+      </template>
+
+      <template #timeOff>
+        <section class="resource-shift-modal__panel">
+          <TimeOffForm
+            v-model="timeOffFormData"
+            :disabled="isSaving || !canCreateTimeOff"
+            :employee-options="employeeOptions"
+            :loading-employees="isLoadingUsers"
+            show-employees
+          />
+        </section>
+      </template>
+    </CalendarSchedulingResourceTabs>
 
     <template #actions>
       <UaBtn variant="outlined" :disabled="isSaving" @click="handleClose">
         {{ hasCreatedUnpublishedShift ? 'Close' : 'Cancel' }}
       </UaBtn>
       <UaBtn
-        v-if="!hasCreatedUnpublishedShift && canCreateShift"
+        v-if="activeTab === 'schedule' && !hasCreatedUnpublishedShift && canCreateShift"
         color="primary"
         variant="flat"
         :loading="isSaving"
         @click="handleSave"
+      >
+        Save
+      </UaBtn>
+      <UaBtn
+        v-if="activeTab === 'timeOff' && canCreateTimeOff"
+        color="primary"
+        variant="flat"
+        :loading="isSaving"
+        @click="handleSaveTimeOff"
       >
         Save
       </UaBtn>
