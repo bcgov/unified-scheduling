@@ -19,10 +19,12 @@ import {
   showCalendarSchedulingExistingShiftChoice,
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
+  showCalendarSchedulingTimeOffDetail,
   toggleCalendarSchedulingConflict,
   toggleCalendarSchedulingHeaderConflict,
 } from './calendarSchedulingState';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
+import { isTimeOffEvent } from './calendarSchedulingData';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { isSchedulingCancelled } from './schedulingLifecycle';
 import {
@@ -37,6 +39,7 @@ import {
   canEditAssignments,
   canViewAssignments,
   canViewShifts,
+  canViewTimeOff,
 } from './calendarSchedulingPermissions';
 
 export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
@@ -205,13 +208,22 @@ export const calendarSchedulingEventDetailAction: CalendarViewDetailAction = {
   id: 'calendar-scheduling.event-detail.modal',
   moduleId: CalendarModuleId.SchedulingUi,
   isAvailable: (context) =>
-    (context.event.sourceModule === CalendarModuleId.SchedulingUi ||
-      context.event.sourceModule === CalendarModuleId.Scheduling ||
-      isAssignmentEvent(context.event)) &&
-    (isAssignmentEvent(context.event)
-      ? canViewAssignments(context.runtimeContext)
-      : canViewShifts(context.runtimeContext)),
+    isTimeOffEvent(context.event)
+      ? canViewTimeOff(context.runtimeContext)
+      : (context.event.sourceModule === CalendarModuleId.SchedulingUi ||
+          context.event.sourceModule === CalendarModuleId.Scheduling ||
+          isAssignmentEvent(context.event)) &&
+        (isAssignmentEvent(context.event)
+          ? canViewAssignments(context.runtimeContext)
+          : canViewShifts(context.runtimeContext)),
   run: (context) => {
+    if (isTimeOffEvent(context.event)) {
+      if (canViewTimeOff(context.runtimeContext)) {
+        showCalendarSchedulingTimeOffDetail(context.event);
+      }
+      return;
+    }
+
     if (
       (isAssignmentEvent(context.event) && !canViewAssignments(context.runtimeContext)) ||
       (!isAssignmentEvent(context.event) && !canViewShifts(context.runtimeContext))
@@ -259,6 +271,22 @@ export const calendarSchedulingHeaderDetailAction: CalendarMatrixCellHeaderActio
   execute: (context, runtimeContext) => {
     if (canViewShifts(runtimeContext) && isCalendarEventBase(context.header.payload)) {
       showCalendarSchedulingEventDetail(context.header.payload);
+    }
+  },
+};
+
+export const calendarSchedulingHeaderTimeOffDetailAction: CalendarMatrixCellHeaderAction = {
+  id: calendarSchedulingActionIds.viewTimeOffDetails,
+  moduleId: CalendarModuleId.SchedulingUi,
+  label: 'View time off details',
+  order: 10,
+  isAvailable: (context, runtimeContext) =>
+    context.actionId === calendarSchedulingActionIds.viewTimeOffDetails &&
+    isCalendarEventBase(context.header.payload) &&
+    canViewTimeOff(runtimeContext),
+  execute: (context, runtimeContext) => {
+    if (canViewTimeOff(runtimeContext) && isCalendarEventBase(context.header.payload)) {
+      showCalendarSchedulingTimeOffDetail(context.header.payload);
     }
   },
 };

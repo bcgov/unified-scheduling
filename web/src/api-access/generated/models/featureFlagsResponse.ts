@@ -8,6 +8,7 @@ import type { CalendarFeatureFlags } from './calendarFeatureFlags.ts';
 import type { ReportingFeatureFlags } from './reportingFeatureFlags.ts';
 import type { SchedulingFeatureFlags } from './schedulingFeatureFlags.ts';
 import type { StatsFeatureFlags } from './statsFeatureFlags.ts';
+import type { TimeOffFeatureFlags } from './timeOffFeatureFlags.ts';
 import type { TrainingFeatureFlags } from './trainingFeatureFlags.ts';
 import type { UserManagementFeatureFlags } from './userManagementFeatureFlags.ts';
 
@@ -18,4 +19,5 @@ export interface FeatureFlagsResponse {
   Stats?: StatsFeatureFlags;
   Training?: TrainingFeatureFlags;
   Reporting?: ReportingFeatureFlags;
+  TimeOff?: TimeOffFeatureFlags;
 }

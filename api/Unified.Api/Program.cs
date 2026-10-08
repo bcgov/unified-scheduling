@@ -28,6 +28,8 @@ using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
 using Unified.Stats;
 using Unified.Stats.Controllers;
+using Unified.TimeOff;
+using Unified.TimeOff.Controllers;
 using Unified.Training;
 using Unified.Training.Controllers;
 using Unified.UserManagement;
@@ -108,11 +110,19 @@ var hangfireOptions =
         )
         .AddJCInterfaceModule(builder.Configuration)
         .AddInterceptors();
+    builder.Services.AddTimeOffModule(builder.Configuration);
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddChesTestController(builder.Environment, builder.Configuration);
     mvcBuilder.AddConditionalApplicationPart<CalendarController>(CalendarModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<ShiftController>(SchedulingModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<SchedulingCalendarController>(
+        SchedulingModule.IsModuleEnabled(builder.Configuration)
+    );
+    mvcBuilder.AddConditionalApplicationPart<LeaveTypeController>(TimeOffModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<SchedulingTimeOffController>(
+        TimeOffModule.IsModuleEnabled(builder.Configuration)
+    );
     mvcBuilder.AddConditionalApplicationPart<StatGroupsController>(StatsModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<UserTrainingController>(
         TrainingModule.IsModuleEnabled(builder.Configuration)

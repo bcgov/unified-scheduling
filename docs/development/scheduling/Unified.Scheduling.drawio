@@ -1,0 +1,457 @@
+<mxfile host="Electron" pages="2">
+  <diagram name="Current" id="NcKZEQ1f5c3C-7qKpmnH">
+    <mxGraphModel dx="1094" dy="828" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <UserObject label="Unified.Common" treeRoot="1" id="EE01gnHxXxuzsQwtulxK-1">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};" vertex="1">
+            <mxGeometry height="60" width="120" x="100" y="80" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Unified.Scheduling" treeRoot="1" id="EE01gnHxXxuzsQwtulxK-2">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};" vertex="1">
+            <mxGeometry height="60" width="120" x="320" y="160" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Unified.Calendar" treeRoot="1" id="EE01gnHxXxuzsQwtulxK-3">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};" vertex="1">
+            <mxGeometry height="60" width="120" x="520" y="80" as="geometry" />
+          </mxCell>
+        </UserObject>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="1mJkTos19XaqJOF7sVDe" name="Potential">
+    <mxGraphModel dx="3837" dy="974" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-56" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-7" style="edgeStyle=elbowEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=none;endArrow=none;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endFill=0;" target="fiz7i5BmqCGALYSDTeVz-33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="CalendarEntry" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-7">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1445" y="280" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="TimeOffEntry" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-11">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1125" y="380" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="AssignmentEntry" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-12">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1125" y="280" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="ShiftEntry" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-13">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1125" y="180" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-14" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-7" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-11" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points" />
+            <mxPoint x="-1635" y="180" as="sourcePoint" />
+            <mxPoint x="-1575" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-15" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-7" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-12" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-1485" y="120" as="sourcePoint" />
+            <mxPoint x="-1485" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-16" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-7" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-13" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-1405" y="150" as="sourcePoint" />
+            <mxPoint x="-1365" y="100" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <UserObject label="CalendarEntryUsers" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-17">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1445" y="150" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-31" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="1...n" vertex="1">
+          <mxGeometry height="30" width="60" x="-1395" y="190" as="geometry" />
+        </mxCell>
+        <UserObject label="CalendarSeries" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-33">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1435" y="580" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="TimeOffSeries" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-34">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1125" y="660" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="AssignmentSeries" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-35">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1125" y="575" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="ShiftEntries" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-36">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1125" y="500" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-37" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-33" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-34" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points" />
+            <mxPoint x="-1655" y="700" as="sourcePoint" />
+            <mxPoint x="-1595" y="820" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-38" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-33" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-35" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-1505" y="640" as="sourcePoint" />
+            <mxPoint x="-1505" y="700" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-39" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-33" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-36" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-1425" y="670" as="sourcePoint" />
+            <mxPoint x="-1385" y="620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <UserObject label="CalendarSeriesUsers" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-40">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="120" x="-1435" y="690" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-48" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=none;endArrow=none;innerLoopWaypoints=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-49" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-7" style="endArrow=none;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;endFill=0;" target="fiz7i5BmqCGALYSDTeVz-17" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-1425" y="250" as="sourcePoint" />
+            <mxPoint x="-1375" y="200" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-50" edge="1" parent="1" style="endArrow=none;html=1;rounded=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endFill=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-1375.5" y="620" as="sourcePoint" />
+            <mxPoint x="-1375.5" y="690" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-53" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="1...n" vertex="1">
+          <mxGeometry height="30" width="60" x="-1385" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-59" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-57" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-1495" y="460" />
+              <mxPoint x="-1495" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-57" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="CalenderEvent" vertex="1">
+          <mxGeometry height="60" width="120" x="-1750" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-61" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-57" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="-1525" y="460" />
+              <mxPoint x="-1495" y="460" />
+              <mxPoint x="-1495" y="600" />
+            </Array>
+            <mxPoint x="-1485" y="650" as="sourcePoint" />
+            <mxPoint x="-1435" y="600" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-62" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="0...n" vertex="1">
+          <mxGeometry height="30" width="60" x="-1385" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-63" parent="1" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;Model Schema Changes&lt;/h1&gt;" vertex="1">
+          <mxGeometry height="50" width="305" x="-1415" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-64" parent="1" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;Service Changes&amp;nbsp;&lt;/h1&gt;" vertex="1">
+          <mxGeometry height="50" width="260" x="250" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-67" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;" value="ICalenderEventStrategy" vertex="1">
+          <mxGeometry height="160" width="230" x="345" y="175" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-168" edge="1" parent="fiz7i5BmqCGALYSDTeVz-67" source="fiz7i5BmqCGALYSDTeVz-95" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="415" y="-25" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-95" parent="fiz7i5BmqCGALYSDTeVz-67" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;div&gt;+BuildEntryAsync()&lt;/div&gt;&lt;div&gt;+ValidateEntryAsync()&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;+ApplyEntryChangesAsync() [Mapper+Ex]&lt;/span&gt;&lt;/div&gt;&lt;div&gt;+LoadEntryAsync()&lt;/div&gt;&lt;div&gt;+RemoveEntryAsync()&lt;/div&gt;&lt;div&gt;+AfterEntrySavedAsync()&lt;/div&gt;&lt;div&gt;+MapEntryResponseAsync()&lt;/div&gt;" vertex="1">
+          <mxGeometry height="130" width="230" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-71" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;" value="ICalenderSeriesService&amp;lt;T&amp;gt;" vertex="1">
+          <mxGeometry height="120" width="210" x="-100" y="575" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-73" parent="fiz7i5BmqCGALYSDTeVz-71" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;rounded=0;" value="+CreateSeries&lt;div&gt;+UpdateSeries&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;+DeleteSeries&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="90" width="210" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-78" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;" value="ICalenderEntryService&amp;lt;T&amp;gt;" vertex="1">
+          <mxGeometry height="120" width="210" x="-110" y="395" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-79" parent="fiz7i5BmqCGALYSDTeVz-78" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;rounded=0;" value="+CreateEntry&lt;div&gt;+UpdateEntry&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;+DeleteEntry&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="90" width="210" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-96" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;" value="ICalenderSeriesStrategy" vertex="1">
+          <mxGeometry height="160" width="230" x="345" y="765" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-97" parent="fiz7i5BmqCGALYSDTeVz-96" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;" value="&lt;div&gt;+BuildSeriesAsync()&lt;/div&gt;&lt;div&gt;+ValidateSeriesAsync()&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;+ApplySeriesChangesAsync()&lt;/span&gt;&lt;/div&gt;&lt;div&gt;+LoadSeriesAsync()&lt;/div&gt;&lt;div&gt;+MaterializeAsync()&lt;/div&gt;&lt;div&gt;+RemoveSeriesAsync()&lt;/div&gt;&lt;div&gt;+AfterSeriesSavedAsync()&lt;/div&gt;&lt;div&gt;+MapSeriesResponseAsync()&lt;/div&gt;" vertex="1">
+          <mxGeometry height="130" width="230" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-98" parent="1" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;Mapper Changes&lt;/h1&gt;" vertex="1">
+          <mxGeometry height="50" width="305" x="-660" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-105" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;" value="CalenderEntryService&amp;lt;T&amp;gt;" vertex="1">
+          <mxGeometry height="120" width="200" x="185" y="395" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-106" parent="fiz7i5BmqCGALYSDTeVz-105" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;rounded=0;" value="+CreateEntry&lt;div&gt;+UpdateEntry&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;+DeleteEntry&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="90" width="200" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-107" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-79" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-106">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-108" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;" value="CalenderSeriesService&amp;lt;T&amp;gt;" vertex="1">
+          <mxGeometry height="120" width="190" x="195" y="575" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-109" parent="fiz7i5BmqCGALYSDTeVz-108" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;rounded=0;" value="+CreateSeries&lt;div&gt;+UpdateSeries&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;+DeleteSeries&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="90" width="190" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-110" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-73" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="fiz7i5BmqCGALYSDTeVz-109">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-148" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-112" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;endArrow=none;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-112" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="TimeOffService: ITimeOffService" vertex="1">
+          <mxGeometry height="75" width="200" x="715" y="375" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-149" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;endArrow=none;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="685" y="560" />
+              <mxPoint x="685" y="560" />
+            </Array>
+            <mxPoint x="645" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-114" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="ShiftService: IShiftService" vertex="1">
+          <mxGeometry height="75" width="200" x="715" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-118" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="AssignmentService: IAssignmentService" vertex="1">
+          <mxGeometry height="75" width="200" x="705" y="840" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-143" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-121" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-114">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1065" y="567.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-144" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-121" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-118">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1065" y="877.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-121" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;" value="CalendarLifecycleService" vertex="1">
+          <mxGeometry height="60" width="190" x="985" y="677.5" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-129" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-127" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;endArrow=none;endFill=0;startArrow=classic;startFill=1;" target="fiz7i5BmqCGALYSDTeVz-114">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-153" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-127" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;endArrow=none;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="560" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-127" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;rounded=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="ShiftAssignmentService: IShiftAssignmentService" vertex="1">
+          <mxGeometry height="75" width="200" x="715" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-128" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-127" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.547;entryY=0.08;entryDx=0;entryDy=0;entryPerimeter=0;endArrow=none;endFill=0;startArrow=classic;startFill=1;" target="fiz7i5BmqCGALYSDTeVz-118">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-133" parent="1" style="text;whiteSpace=wrap;html=1;align=center;rounded=0;" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(236, 236, 236); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline !important;&quot;&gt;Common guards&amp;nbsp;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(236, 236, 236); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline !important;&quot;&gt;+&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0); font-family: Helvetica; font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(236, 236, 236); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline !important;&quot;&gt;validations invocation&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;&quot;&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="135" x="195" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-137" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-106" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;endArrow=none;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="645" y="565" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-138" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-109" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;endArrow=none;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="645" y="635" />
+            </Array>
+            <mxPoint x="645" y="565" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-156" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-105" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="305" y="355" />
+              <mxPoint x="440.20000000000005" y="355" />
+            </Array>
+            <mxPoint x="440.22" y="333.71" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-157" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-108" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.545;entryY=-0.017;entryDx=0;entryDy=0;entryPerimeter=0;" target="fiz7i5BmqCGALYSDTeVz-96">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-164" connectable="0" parent="1" style="group;rounded=0;" value="" vertex="1">
+          <mxGeometry height="130" width="370" x="570" y="20" as="geometry" />
+        </mxCell>
+        <UserObject label="" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-163">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-164" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="130" width="370" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="CalendarMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-158">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-164" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="20" y="70" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="CalendarValidator" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-159">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-164" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="200" y="70" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="MaterializationHandlers" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-161">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-164" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="200" y="15" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Guards" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-162">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-164" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="20" y="15" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-169" connectable="0" parent="1" style="group;rounded=0;" value="" vertex="1">
+          <mxGeometry height="130" width="370" x="550" y="960" as="geometry" />
+        </mxCell>
+        <UserObject label="" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-170">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-169" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="130" width="370" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="CalendarMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-171">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-169" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="20" y="70" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="CalendarValidator" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-172">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-169" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="200" y="70" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="MaterializationHandlers" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-173">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-169" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="200" y="15" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Guards" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-174">
+          <mxCell parent="fiz7i5BmqCGALYSDTeVz-169" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="20" y="15" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-175" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-96" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.641;entryDx=0;entryDy=0;entryPerimeter=0;" target="fiz7i5BmqCGALYSDTeVz-170">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="CalendarEntryMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-179">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="135" x="-805" y="280" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="TimeOffEntryMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-180">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="-470" y="380" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="AssignmentEntryMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-181">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="-470" y="280" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="ShiftEntryMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-182">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="-470" y="180" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-183" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-179" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endFill=0;startArrow=classic;startFill=1;" target="fiz7i5BmqCGALYSDTeVz-180" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points" />
+            <mxPoint x="-980" y="180" as="sourcePoint" />
+            <mxPoint x="-920" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-184" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-179" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endFill=0;startArrow=classic;startFill=1;" target="fiz7i5BmqCGALYSDTeVz-181" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-830" y="120" as="sourcePoint" />
+            <mxPoint x="-830" y="180" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-185" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-179" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endFill=0;startArrow=classic;startFill=1;" target="fiz7i5BmqCGALYSDTeVz-182" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-750" y="150" as="sourcePoint" />
+            <mxPoint x="-710" y="100" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <UserObject label="CalendarSeriesMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-188">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="135" x="-795" y="580" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="TimeOffSeriesMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-189">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="-470" y="660" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="AssignmentSeriesMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-190">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="-470" y="575" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="ShiftEntriesMapper" treeRoot="1" id="fiz7i5BmqCGALYSDTeVz-191">
+          <mxCell parent="1" style="whiteSpace=wrap;html=1;align=center;treeFolding=1;treeMoving=1;newEdgeStyle={&quot;edgeStyle&quot;:&quot;elbowEdgeStyle&quot;,&quot;startArrow&quot;:&quot;none&quot;,&quot;endArrow&quot;:&quot;none&quot;};rounded=0;" vertex="1">
+            <mxGeometry height="40" width="150" x="-470" y="500" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-192" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-188" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endFill=0;startArrow=classic;startFill=1;" target="fiz7i5BmqCGALYSDTeVz-189" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points" />
+            <mxPoint x="-1000" y="700" as="sourcePoint" />
+            <mxPoint x="-940" y="820" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-193" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-188" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endFill=0;startArrow=classic;startFill=1;" target="fiz7i5BmqCGALYSDTeVz-190" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-850" y="640" as="sourcePoint" />
+            <mxPoint x="-850" y="700" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-194" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-188" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endFill=0;startArrow=classic;startFill=1;" target="fiz7i5BmqCGALYSDTeVz-191" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-770" y="670" as="sourcePoint" />
+            <mxPoint x="-730" y="620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-196" edge="1" parent="1" source="fiz7i5BmqCGALYSDTeVz-181" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=none;endArrow=none;innerLoopWaypoints=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=1;entryDx=0;entryDy=0;" target="fiz7i5BmqCGALYSDTeVz-181">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-203" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="BaseModelSchema" vertex="1">
+          <mxGeometry height="30" width="60" x="-1395" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-204" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Calendar EventType Impl." vertex="1">
+          <mxGeometry height="30" width="105" x="-1117.5" y="760" as="geometry" />
+        </mxCell>
+        <mxCell id="fiz7i5BmqCGALYSDTeVz-208" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Txn Ownership" vertex="1">
+          <mxGeometry height="30" width="95" x="757.5" y="923" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

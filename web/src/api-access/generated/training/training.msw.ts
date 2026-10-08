@@ -15,20 +15,11 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -40,34 +31,19 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -79,34 +55,19 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -118,17 +79,11 @@ export const getGetApiLookupTrainingsResponseMock = (): TrainingLookupResponse[]
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
     })),
   ]);
 
@@ -138,20 +93,11 @@ export const getPostApiLookupTrainingsResponseMock = (
   faker.helpers.arrayElement([
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -163,35 +109,20 @@ export const getPostApiLookupTrainingsResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -203,35 +134,20 @@ export const getPostApiLookupTrainingsResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -243,17 +159,11 @@ export const getPostApiLookupTrainingsResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
   ]);
@@ -264,20 +174,11 @@ export const getGetApiLookupTrainingsIdResponseMock = (
   faker.helpers.arrayElement([
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -289,35 +190,20 @@ export const getGetApiLookupTrainingsIdResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -329,35 +215,20 @@ export const getGetApiLookupTrainingsIdResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -369,17 +240,11 @@ export const getGetApiLookupTrainingsIdResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
   ]);
@@ -390,20 +255,11 @@ export const getPutApiLookupTrainingsIdResponseMock = (
   faker.helpers.arrayElement([
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -415,35 +271,20 @@ export const getPutApiLookupTrainingsIdResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -455,35 +296,20 @@ export const getPutApiLookupTrainingsIdResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -495,17 +321,11 @@ export const getPutApiLookupTrainingsIdResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
   ]);
@@ -516,20 +336,11 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
   faker.helpers.arrayElement([
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -541,35 +352,20 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -581,35 +377,20 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
       mandatory: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      validityDays: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
-      advanceNoticeDays: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
+      validityDays: faker.helpers.arrayElement([faker.number.int(), null]),
+      advanceNoticeDays: faker.helpers.arrayElement([faker.number.int(), null]),
       rotating: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      trainingCategoryId: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.number.int(), null]),
-        undefined,
-      ]),
-      trainingCategoryName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      trainingCategoryId: faker.helpers.arrayElement([faker.number.int(), null]),
+      trainingCategoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       order: faker.helpers.arrayElement([faker.number.int(), undefined]),
       mandatoryTrainingProfiles: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
@@ -621,17 +402,11 @@ export const getPatchApiLookupTrainingsIdOrderResponseMock = (
       ]),
       id: faker.number.int(),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       code: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       effectiveDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDate: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
   ]);

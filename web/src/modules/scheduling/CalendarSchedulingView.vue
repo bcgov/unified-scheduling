@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { mdiRepeat } from '@mdi/js';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
+import CalendarSchedulingTimeOffDetailModal from './CalendarSchedulingTimeOffDetailModal.vue';
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
@@ -53,10 +55,12 @@ import {
   calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
+  calendarSchedulingTimeOffDetailEvent,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingResourceActionModal,
+  closeCalendarSchedulingTimeOffDetail,
   getCalendarSchedulingHeaderConflictKey,
   isCalendarSchedulingAssignmentModalOpen,
   isCalendarSchedulingResourceActionModalOpen,
@@ -65,6 +69,7 @@ import {
   showCalendarSchedulingResourceActionModal,
 } from './calendarSchedulingState';
 import { canCreateShifts, canEditShifts } from './calendarSchedulingPermissions';
+import { isCalendarSchedulingEvent, isTimeOffEvent } from './calendarSchedulingData';
 
 const props = defineProps<{
   model: CalendarMatrixViewModel;
@@ -98,6 +103,13 @@ function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
 function handleAssignmentDefinitionSaved() {
   assignmentDefinitionId.value = undefined;
   calendarStore.refresh();
+}
+
+function isRecurringTimeOff(event: CalendarEventBase) {
+  return (
+    isTimeOffEvent(event) &&
+    (event.eventSeriesId != null || (isCalendarSchedulingEvent(event) && event.metadata.timeOffSeriesId != null))
+  );
 }
 
 function editExistingShift() {
@@ -330,6 +342,16 @@ function isAssignmentEvent(event: CalendarEventBase) {
           @drag-start="onDragStart"
           @event-click="onEventClick"
         >
+          <template #header>
+            <span
+              v-if="isRecurringTimeOff(event)"
+              class="calendar-scheduling-event-block__recurrence"
+              title="Recurring time off"
+            >
+              <v-icon :icon="mdiRepeat" size="small" aria-label="Recurring" />
+            </span>
+            {{ event.title }}
+          </template>
           <CalendarSchedulingAssignmentEventContent v-if="showAssignmentContent" :event="event" />
         </CalendarMatrixEventBlock>
 
@@ -349,6 +371,13 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :event="calendarSchedulingDetailEvent"
     :initial-open-scope="calendarSchedulingDetailInitialOpenScope"
     @close="closeCalendarSchedulingEventDetail"
+  />
+
+  <CalendarSchedulingTimeOffDetailModal
+    v-if="calendarSchedulingTimeOffDetailEvent"
+    :event="calendarSchedulingTimeOffDetailEvent"
+    :runtime-context="runtimeContext"
+    @close="closeCalendarSchedulingTimeOffDetail"
   />
 
   <CalendarSchedulingAssignmentDefinitionCreateModal

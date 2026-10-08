@@ -141,6 +141,63 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it('shows each time-off event only in its matching user and date cell', () => {
+    const timeOffEvent: CalendarSchedulingEvent = {
+      id: 'scheduling.timeoff-entry.1',
+      type: 'scheduling.timeoff',
+      sourceModule: 'timeoff',
+      title: 'Special',
+      start: '2025-01-14T16:00:00Z',
+      end: '2025-01-14T17:00:00Z',
+      timeZoneId: 'America/Vancouver',
+      metadata: { timeOffEntryId: '1', userIds: ['user-1'] },
+    };
+
+    const viewModel = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            events: [timeOffEvent],
+            resources: [
+              {
+                id: 'user-1',
+                type: 'user',
+                sourceModule: 'scheduling',
+                label: 'User 1',
+                title: 'User 1',
+              },
+              {
+                id: 'user-2',
+                type: 'user',
+                sourceModule: 'scheduling',
+                label: 'User 2',
+                title: 'User 2',
+              },
+            ] as CalendarSchedulingUserResource[],
+          },
+        },
+      },
+      {
+        startDate: '2025-01-13',
+        endDate: '2025-01-20',
+        filters: { timeZone: 'America/Vancouver' },
+      },
+      'week',
+    );
+
+    expect(
+      viewModel.cells.find((cell) => cell.resourceId === 'user-1' && cell.date === '2025-01-14')?.headers,
+    ).toHaveLength(1);
+    expect(
+      viewModel.cells
+        .filter((cell) => cell.resourceId === 'user-1' && cell.date !== '2025-01-14')
+        .flatMap((cell) => cell.headers),
+    ).toHaveLength(0);
+    expect(viewModel.cells.flatMap((cell) => (cell.resourceId === 'user-2' ? cell.headers : []))).toHaveLength(0);
+  });
+
   it('shows user-specific conflicts in assignment resource rows', () => {
     const assignmentEvent: CalendarSchedulingEvent = {
       id: 'scheduling.assignment-entry.90',

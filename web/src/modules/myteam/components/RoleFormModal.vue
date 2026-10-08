@@ -3,6 +3,7 @@ import type { PermissionDto, RoleDto, RoleRequestDto, UpdateRoleRequestDto } fro
 import { getApiPermissions } from '@/api-access/generated/permissions/permissions';
 import { postApiRoles, putApiRolesId } from '@/api-access/generated/roles/roles';
 import { PostApiRolesBody } from '@/api-access/generated/roles/roles.zod';
+import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
@@ -26,6 +27,8 @@ const emit = defineEmits<{
   (e: 'updated', role: RoleDto | null): void;
 }>();
 
+const accessControl = useAccessControl();
+
 // Fetch permissions from API
 const { data: allPermissions, error: permissionsError, isFetching: isFetchingPermissions } = getApiPermissions();
 
@@ -39,6 +42,12 @@ const defaultPermissionGroup = 'Other';
 
 const permissionsList = computed(() => (Array.isArray(allPermissions.value) ? allPermissions.value : []));
 
+const visiblePermissionsList = computed(() => {
+  const permissions = permissionsList.value;
+  if (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) return permissions;
+  return permissions.filter((p) => !p.id.startsWith('TimeOff') && !p.id.startsWith('UsersTimeOff'));
+});
+
 const getPermissionGroup = (permission: PermissionDto): string => {
   const group = permission.group?.trim();
   return group ? group : defaultPermissionGroup;
@@ -46,7 +55,7 @@ const getPermissionGroup = (permission: PermissionDto): string => {
 
 const groupedPermissions = computed(() => {
   const grouped = new Map<string, PermissionDto[]>();
-  const visiblePermissions = permissionsList.value;
+  const visiblePermissions = visiblePermissionsList.value;
 
   for (const permission of visiblePermissions) {
     const groupName = getPermissionGroup(permission);
@@ -68,10 +77,10 @@ const permissionsByGroupLabel = computed(
   () => new Map(groupedPermissions.value.map((group) => [group.groupLabel, group.permissions])),
 );
 
-const totalPermissionCount = computed(() => permissionsList.value.length);
+const totalPermissionCount = computed(() => visiblePermissionsList.value.length);
 
 const selectedPermissionCount = computed(
-  () => permissionsList.value.filter((permission) => selectedPermissions.value.get(permission.id)).length,
+  () => visiblePermissionsList.value.filter((permission) => selectedPermissions.value.get(permission.id)).length,
 );
 
 const permissionTableGroupBy = ref([{ key: 'groupLabel', order: 'asc' as const }]);
