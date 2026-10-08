@@ -101,11 +101,7 @@ public sealed class SchedulingTimeOffService(
     )
     {
         var userIds = request.UserIds.Distinct().ToList();
-        logger.LogInformation(
-            "Creating time off entry for users {UserIds} starting at {StartAtUtc}.",
-            string.Join(",", userIds),
-            request.StartAtUtc
-        );
+        
 
         var eventEntity = SchedulingTimeOffEventMapper.ToEvent(request, eventSeriesId: null);
         CalendarEventExceptionHelper.UpdateExceptionFlag(eventEntity);
@@ -147,11 +143,6 @@ public sealed class SchedulingTimeOffService(
     )
     {
         var userIds = request.UserIds.Distinct().ToList();
-        logger.LogInformation(
-            "Creating time off series for users {UserIds} starting at {StartAtUtc}.",
-            string.Join(",", userIds),
-            request.StartAtUtc
-        );
 
         await using var transaction = await db.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,

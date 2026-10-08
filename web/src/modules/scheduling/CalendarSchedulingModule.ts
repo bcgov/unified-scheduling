@@ -8,6 +8,7 @@ import {
   calendarDropUserOnAssignmentResourceAction,
   calendarScheduleStaffAction,
   calendarSchedulingCreateShiftAction,
+  calendarSchedulingCreateTimeOffAction,
   calendarSchedulingEventDetailAction,
   calendarSchedulingHeaderDetailAction,
   calendarSchedulingHeaderResolveConflictAction,
@@ -34,6 +35,7 @@ export function registerCalendarSchedulingModule() {
   calendarRegistry.registerView(calendarAssignmentViewContribution);
 
   calendarActionRegistry.registerCreateAction(calendarSchedulingCreateShiftAction);
+  calendarActionRegistry.registerCreateAction(calendarSchedulingCreateTimeOffAction);
   calendarActionRegistry.registerDropAction(calendarDropAction);
   calendarActionRegistry.registerDropAction(calendarDropUserOnAssignmentResourceAction);
   calendarActionRegistry.registerMatrixSidePanelAction(calendarAddAssignmentAction);

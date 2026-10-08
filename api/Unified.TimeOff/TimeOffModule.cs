@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Calendar;
 using Unified.Calendar.Services;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
@@ -37,6 +38,9 @@ public static class TimeOffModule
 
         if (!IsModuleEnabled(config))
             return services;
+
+        if (!CalendarModule.IsModuleEnabled(config))
+            throw new InvalidOperationException("TimeOff requires the Calendar module to be enabled.");
 
         services.AddScoped<ISchedulingTimeOffService, SchedulingTimeOffService>();
         services.AddScoped<TimeOffSeriesMaterializationHandler>();

@@ -36,6 +36,8 @@ import {
   canAssignAssignments,
   canCreateAssignments,
   canCreateShifts,
+  canCreateTimeOff,
+  canCreateTimeOff,
   canEditAssignments,
   canViewAssignments,
   canViewShifts,
@@ -50,6 +52,30 @@ export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
     context.activeViewId === calendarShiftViewContribution.id && canCreateShifts(runtimeContext),
   run: (context, runtimeContext) => {
     if (!canCreateShifts(runtimeContext)) return;
+    showCalendarSchedulingResourceActionModal(undefined, context.startDate);
+  },
+};
+
+export const calendarSchedulingCreateTimeOffAction: CalendarCreateAction = {
+  id: calendarSchedulingActionIds.createTimeOff,
+  moduleId: CalendarModuleId.SchedulingUi,
+  label: '+ Create Time Off',
+  isAvailable: (context, runtimeContext) =>
+    context.activeViewId === calendarShiftViewContribution.id && canCreateTimeOff(runtimeContext),
+  run: (context, runtimeContext) => {
+    if (!canCreateTimeOff(runtimeContext)) return;
+    showCalendarSchedulingResourceActionModal(undefined, context.startDate);
+  },
+};
+
+export const calendarSchedulingCreateTimeOffAction: CalendarCreateAction = {
+  id: calendarSchedulingActionIds.createTimeOff,
+  moduleId: CalendarModuleId.SchedulingUi,
+  label: '+ Create Time Off',
+  isAvailable: (context, runtimeContext) =>
+    context.activeViewId === calendarShiftViewContribution.id && canCreateTimeOff(runtimeContext),
+  run: (context, runtimeContext) => {
+    if (!canCreateTimeOff(runtimeContext)) return;
     showCalendarSchedulingResourceActionModal(undefined, context.startDate);
   },
 };

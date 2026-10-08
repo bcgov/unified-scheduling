@@ -78,7 +78,9 @@ internal static class SchedulingTimeOffResponseMapper
         var eventEntity = timeOffEntry.Event!;
         return new TimeOffCalendarEvent
         {
-            Id = $"scheduling.timeoff-entry.{timeOffEntry.Id}",
+            Id = timeOffEntry.Id > 0
+                 ? $"scheduling.timeoff-entry.{timeOffEntry.Id}"
+                 : $"scheduling.timeoff-series.{timeOffEntry.TimeOffSeriesId}.event.{timeOffEntry.EventId}",
             Type = "scheduling.timeoff",
             SourceModule = TimeOffConstants.SourceModule,
             Title = eventEntity.Title,

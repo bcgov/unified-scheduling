@@ -140,6 +140,29 @@ public sealed class TimeOffCalendarDataProviderTests : IAsyncLifetime
         Assert.Equal(entry.Id, item.TimeOffEntryId);
     }
 
+    [Fact]
+    public async Task GetEventsAsync_WhenMaterializedOccurrenceMovesOutsideLocationFilter_DoesNotRecreateIt()
+    {
+        var series = await AddSeriesAsync(users: [TimeOffTestDatabase.UserA]);
+        var entry = await AddEntryAsync(
+            RangeStart.AddDays(2),
+            locationId: 9,
+            users: [TimeOffTestDatabase.UserB],
+            series: series
+        );
+
+        var result = await GetAsync(locationId: 5);
+
+        Assert.Empty(result);
+        Assert.True(
+            await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(
+                _database.Db.TimeOffEntries,
+                item => item.EventId == entry.EventId,
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
     private async Task<IReadOnlyCollection<TimeOffCalendarEvent>> GetAsync(
         int? locationId = null,
         Guid[]? userIds = null

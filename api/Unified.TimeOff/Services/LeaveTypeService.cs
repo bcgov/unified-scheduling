@@ -51,7 +51,6 @@ public sealed class LeaveTypeService(ILogger<LeaveTypeService> logger, UnifiedDb
         db.LeaveTypes.Add(leaveType);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Created leave type {LeaveTypeId} with code {LeaveTypeCode}.", leaveType.Id, code);
         return LeaveTypeMapper.ToResponse(leaveType);
     }
 

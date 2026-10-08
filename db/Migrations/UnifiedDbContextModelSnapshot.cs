@@ -105,6 +105,8 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -1856,6 +1858,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -1867,6 +1870,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
+                        .HasDefaultValueSql("now()")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("EventId")
@@ -1888,7 +1892,8 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EventId");
+                    b.HasIndex("EventId")
+                        .IsUnique();
 
                     b.HasIndex("LeaveTypeId");
 
@@ -1906,6 +1911,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -1917,6 +1923,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
+                        .HasDefaultValueSql("now()")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("TimeOffEntryId")
@@ -1941,6 +1948,9 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("TimeOffEntryId", "UserId")
+                        .IsUnique();
+
                     b.ToTable("TimeOffEntryUsers");
                 });
 
@@ -1951,6 +1961,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -1962,6 +1973,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
+                        .HasDefaultValueSql("now()")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("EventSeriesId")
@@ -1980,11 +1992,14 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("EventSeriesId");
+                    b.HasIndex("EventSeriesId")
+                        .IsUnique();
 
                     b.HasIndex("LeaveTypeId");
 
                     b.HasIndex("UpdatedById");
+
+                    b.HasIndex("LeaveTypeId");
 
                     b.ToTable("TimeOffSeries");
                 });
@@ -1996,6 +2011,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -2007,6 +2023,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
+                        .HasDefaultValueSql("now()")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("TimeOffSeriesId")
@@ -2030,6 +2047,9 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("TimeOffSeriesId", "UserId")
+                        .IsUnique();
 
                     b.ToTable("TimeOffSeriesUsers");
                 });
