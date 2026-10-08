@@ -1,8 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
 import type { SelectOption } from '@/types/select';
-import type { ShiftResourceFormData } from './calendarSchedulingShiftForm';
-import { formatUserName } from '@/utils/user';
+import { formatUserOptionLabel, type ShiftResourceFormData } from './calendarSchedulingShiftForm';
 import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import { useUsersStore } from '@/stores/Users';
 import { createLatestRequestGuard } from './latestRequestGuard';
@@ -20,7 +19,7 @@ export function useSchedulingEmployeeOptions(
   const employeeOptions = computed<SelectOption[]>(() => {
     const selectOptions = availableUsers.value.map((user) => ({
       code: user.id,
-      description: formatUserName(user),
+      description: formatUserOptionLabel(user),
     }));
 
     const resource = options.resource?.value;

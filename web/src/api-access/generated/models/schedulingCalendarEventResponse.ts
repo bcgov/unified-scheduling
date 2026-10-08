@@ -17,6 +17,14 @@ export interface SchedulingCalendarEventResponse {
   assignmentSeriesId?: number | null;
   /** @nullable */
   assignmentDefinitionId?: number | null;
+  /** @nullable */
+  timeOffEntryId?: number | null;
+  /** @nullable */
+  timeOffSeriesId?: number | null;
+  /** @nullable */
+  leaveTypeId?: number | null;
+  /** @nullable */
+  leaveTypeName?: string | null;
   eventId?: number;
   userIds?: string[];
   type: string;

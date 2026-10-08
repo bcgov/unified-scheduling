@@ -32,3 +32,21 @@ export function canCreateShifts(context: CalendarRuntimeContext) {
 export function canEditShifts(context: CalendarRuntimeContext) {
   return hasCalendarPermission(context, Permissions.ShiftsEdit);
 }
+
+const isTimeOffEnabled = (context: CalendarRuntimeContext) => context.featureFlags?.TimeOff?.enabled ?? true;
+
+export function canViewTimeOff(context: CalendarRuntimeContext) {
+  return isTimeOffEnabled(context) && hasCalendarPermission(context, Permissions.TimeOffView);
+}
+
+export function canCreateTimeOff(context: CalendarRuntimeContext) {
+  return isTimeOffEnabled(context) && hasCalendarPermission(context, Permissions.TimeOffCreateAndAssign);
+}
+
+export function canEditTimeOff(context: CalendarRuntimeContext) {
+  return isTimeOffEnabled(context) && hasCalendarPermission(context, Permissions.TimeOffEdit);
+}
+
+export function canDeleteTimeOff(context: CalendarRuntimeContext) {
+  return isTimeOffEnabled(context) && hasCalendarPermission(context, Permissions.TimeOffDelete);
+}

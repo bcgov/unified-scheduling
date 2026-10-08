@@ -6,6 +6,8 @@ using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
+using Unified.TimeOff;
+using Unified.TimeOff.Services;
 
 namespace Unified.Scheduling.Services;
 
@@ -13,13 +15,15 @@ public sealed class SchedulingCalendarService(
     ILogger<SchedulingCalendarService> logger,
     UnifiedDbContext db,
     ICalendarTimeZoneResolver timeZoneResolver,
-    ITimeZoneService timeZoneService
+    ITimeZoneService timeZoneService,
+    ITimeOffCalendarDataProvider? timeOffCalendarDataProvider = null
 ) : ISchedulingCalendarService
 {
     public async Task<SchedulingCalendarDataResponse> GetDataAsync(
         SchedulingCalendarRequest request,
         bool includeShifts,
         bool includeAssignments,
+        bool includeTimeOff,
         CancellationToken cancellationToken = default
     )
     {
@@ -97,6 +101,24 @@ public sealed class SchedulingCalendarService(
             events.AddRange(
                 (await query.ToListAsync(cancellationToken)).Select(AssignmentResponseMapper.ToCalendarEventResponse)
             );
+        }
+
+        if (includeTimeOff)
+        {
+            if (timeOffCalendarDataProvider is not null)
+            {
+                var timeOffEvents = await timeOffCalendarDataProvider.GetEventsAsync(
+                    new CalendarEventQueryContext
+                    {
+                        StartAtUtc = range.StartAtUtc,
+                        EndAtUtc = range.EndAtUtc,
+                        LocationId = request.LocationId,
+                        UserIds = request.UserIds ?? [],
+                    },
+                    cancellationToken
+                );
+                events.AddRange(timeOffEvents.Select(SchedulingCalendarEventMapper.ToResponse));
+            }
         }
 
         var response = new SchedulingCalendarDataResponse

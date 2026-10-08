@@ -51,6 +51,12 @@ export const GetApiConfigResponse = zod.object({
           enabled: zod.boolean(),
         })
         .optional(),
+      TimeOff: zod
+        .object({
+          source: zod.string().nullish(),
+          enabled: zod.boolean(),
+        })
+        .optional(),
     })
     .optional(),
   supportEmail: zod.string().nullish(),
