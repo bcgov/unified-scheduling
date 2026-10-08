@@ -31,6 +31,7 @@ const props = defineProps<
     modelValue: TimeOffFormData;
     disabled?: boolean;
     showEmployees?: boolean;
+    showRepeat?: boolean;
   } & EmployeeProps
 >();
 
@@ -40,6 +41,7 @@ const emit = defineEmits<{
 
 const { leaveTypeOptions, isLoadingLeaveTypes, leaveTypesError } = useLeaveTypeOptions();
 const formErrors = ref<Record<string, string>>({});
+const showRepeat = props.showRepeat ?? true;
 
 const updateField = (field: keyof TimeOffFormData, value: string | string[] | number | null | undefined) => {
   emit('update:modelValue', { ...props.modelValue, [field]: value });
@@ -118,28 +120,30 @@ const updateEmployees = (value: SelectValue | undefined) => {
       @update:model-value="(value: string) => updateField('date', value)"
     />
 
-    <label class="user-timeoff__label" for="user-timeoff-repeat">Repeat</label>
-    <UaSelect
-      id="user-timeoff-repeat"
-      :model-value="modelValue.repeatMode ?? 'never'"
-      aria-label="Repeat"
-      :items="repeatOptions"
-      :disabled="disabled"
-      @update:model-value="updateRepeatMode"
-    />
+    <template v-if="showRepeat">
+      <label class="user-timeoff__label" for="user-timeoff-repeat">Repeat</label>
+      <UaSelect
+        id="user-timeoff-repeat"
+        :model-value="modelValue.repeatMode ?? 'never'"
+        aria-label="Repeat"
+        :items="repeatOptions"
+        :disabled="disabled"
+        @update:model-value="updateRepeatMode"
+      />
 
-    <RRuleEditor
-      v-if="(modelValue.repeatMode ?? 'never') === 'custom'"
-      id-prefix="user-timeoff-recurrence"
-      :model-value="modelValue.recurrenceRule ?? null"
-      :start-date="modelValue.date ?? null"
-      :disabled="disabled"
-      use-parent-grid
-      @update:model-value="updateRecurrenceRule"
-    />
-    <template v-else>
-      <span aria-hidden="true"></span>
-      <p class="user-timeoff__helper-text">This leave will not repeat.</p>
+      <RRuleEditor
+        v-if="(modelValue.repeatMode ?? 'never') === 'custom'"
+        id-prefix="user-timeoff-recurrence"
+        :model-value="modelValue.recurrenceRule ?? null"
+        :start-date="modelValue.date ?? null"
+        :disabled="disabled"
+        use-parent-grid
+        @update:model-value="updateRecurrenceRule"
+      />
+      <template v-else>
+        <span aria-hidden="true"></span>
+        <p class="user-timeoff__helper-text">This leave will not repeat.</p>
+      </template>
     </template>
 
     <span id="user-timeoff-time-label" class="user-timeoff__label">Time</span>
