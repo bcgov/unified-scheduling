@@ -425,6 +425,7 @@ function formatDateRange() {
       :disabled="isSaving"
       :employee-options="employeeOptions"
       :loading-employees="isLoadingUsers"
+      :show-repeat="selectedOpenScope === 'series'"
     />
 
     <section
