@@ -87,7 +87,10 @@ public sealed class TimeOffCalendarDataProvider(UnifiedDbContext db) : ITimeOffC
             })
             .ToListAsync(cancellationToken);
 
-        var knownEventIds = entries.Select(entry => entry.EventId).ToHashSet();
+        var knownEventIds = await db
+            .TimeOffEntries.AsNoTracking()
+            .Select(entry => entry.EventId)
+            .ToHashSetAsync(cancellationToken);
         foreach (var seriesData in seriesEntries)
         {
             var assignedUserIds = seriesData.Series.Users.Select(user => user.UserId).Distinct().ToList();

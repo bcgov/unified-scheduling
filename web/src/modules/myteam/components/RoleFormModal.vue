@@ -40,8 +40,10 @@ const selectedPermissions = ref<Map<string, boolean>>(new Map());
 
 const defaultPermissionGroup = 'Other';
 
-const permissionsList = computed(() => {
-  const permissions = Array.isArray(allPermissions.value) ? allPermissions.value : [];
+const permissionsList = computed(() => (Array.isArray(allPermissions.value) ? allPermissions.value : []));
+
+const visiblePermissionsList = computed(() => {
+  const permissions = permissionsList.value;
   if (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) return permissions;
   return permissions.filter((p) => !p.id.startsWith('TimeOff') && !p.id.startsWith('UsersTimeOff'));
 });
@@ -53,7 +55,7 @@ const getPermissionGroup = (permission: PermissionDto): string => {
 
 const groupedPermissions = computed(() => {
   const grouped = new Map<string, PermissionDto[]>();
-  const visiblePermissions = permissionsList.value;
+  const visiblePermissions = visiblePermissionsList.value;
 
   for (const permission of visiblePermissions) {
     const groupName = getPermissionGroup(permission);
@@ -75,10 +77,10 @@ const permissionsByGroupLabel = computed(
   () => new Map(groupedPermissions.value.map((group) => [group.groupLabel, group.permissions])),
 );
 
-const totalPermissionCount = computed(() => permissionsList.value.length);
+const totalPermissionCount = computed(() => visiblePermissionsList.value.length);
 
 const selectedPermissionCount = computed(
-  () => permissionsList.value.filter((permission) => selectedPermissions.value.get(permission.id)).length,
+  () => visiblePermissionsList.value.filter((permission) => selectedPermissions.value.get(permission.id)).length,
 );
 
 const permissionTableGroupBy = ref([{ key: 'groupLabel', order: 'asc' as const }]);

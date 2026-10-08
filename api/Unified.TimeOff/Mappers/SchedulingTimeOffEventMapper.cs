@@ -29,8 +29,8 @@ internal static class SchedulingTimeOffEventMapper
         eventEntity.Color = request.Color?.Trim();
         eventEntity.StartAtUtc = request.StartAtUtc;
         eventEntity.EndAtUtc = request.EndAtUtc;
-        eventEntity.SeriesStartAtUtc = request.SeriesStartAtUtc;
-        eventEntity.SeriesEndAtUtc = request.SeriesEndAtUtc;
+        eventEntity.SeriesStartAtUtc = request.SeriesStartAtUtc ?? eventEntity.SeriesStartAtUtc;
+        eventEntity.SeriesEndAtUtc = request.SeriesEndAtUtc ?? eventEntity.SeriesEndAtUtc;
         eventEntity.TimeZoneId = request.TimeZoneId?.Trim();
         eventEntity.AllDay = request.AllDay;
         eventEntity.SourceModule = TimeOffConstants.SourceModule;

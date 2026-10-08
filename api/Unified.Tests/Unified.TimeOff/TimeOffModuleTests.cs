@@ -29,12 +29,27 @@ public sealed class TimeOffModuleTests
     {
         var services = new ServiceCollection();
 
-        services.AddTimeOffModule(CreateConfiguration("False"));
+        services.AddTimeOffModule(CreateConfiguration("False", "False"));
 
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(ISchedulingTimeOffService));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(ILeaveTypeService));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(ITimeOffCalendarDataProvider));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(TimeOffSeriesMaterializationHandler));
+    }
+
+    [Theory]
+    [InlineData("False")]
+    [InlineData(null)]
+    public void AddTimeOffModule_WhenEnabledWithoutCalendar_Throws(string? calendarEnabled)
+    {
+        var services = new ServiceCollection();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            services.AddTimeOffModule(CreateConfiguration("True", calendarEnabled))
+        );
+
+        Assert.Equal("TimeOff requires the Calendar module to be enabled.", exception.Message);
+        Assert.DoesNotContain(services, d => d.ServiceType == typeof(ISchedulingTimeOffService));
     }
 
     [Fact]
@@ -47,6 +62,21 @@ public sealed class TimeOffModuleTests
         AssertScoped<ISchedulingTimeOffService, SchedulingTimeOffService>(services);
         AssertScoped<ILeaveTypeService, LeaveTypeService>(services);
         AssertScoped<ITimeOffCalendarDataProvider, TimeOffCalendarDataProvider>(services);
+    }
+
+    [Fact]
+    public void AddTimeOffModule_WhenEnabledWithoutCalendarRegistrations_DoesNotRegisterUnavailableDependencies()
+    {
+        var services = new ServiceCollection();
+
+        services.AddTimeOffModule(CreateConfiguration("True"));
+
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(CalendarLifecycleService));
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IRecurrenceRuleValidator));
+        Assert.DoesNotContain(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IEventSeriesMaterializationService)
+        );
     }
 
     [Fact]
@@ -76,12 +106,14 @@ public sealed class TimeOffModuleTests
                 && d.ImplementationType == typeof(TImplementation)
         );
 
-    private static IConfiguration CreateConfiguration(string? enabled) =>
+    private static IConfiguration CreateConfiguration(string? enabled, string? calendarEnabled = "True") =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(
-                enabled is null
-                    ? new Dictionary<string, string?>()
-                    : new Dictionary<string, string?> { ["FeatureFlags:TimeOff:Enabled"] = enabled }
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:TimeOff:Enabled"] = enabled,
+                    ["FeatureFlags:Calendar:Enabled"] = calendarEnabled,
+                }
             )
             .Build();
 }
