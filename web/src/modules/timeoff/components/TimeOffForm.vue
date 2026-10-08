@@ -7,7 +7,7 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { repeatOptions, type RepeatMode } from '@/modules/scheduling/calendarSchedulingShiftForm';
 import { defaultEndTime, defaultStartTime, timeOptions } from '@/modules/scheduling/schedulingDateTime';
 import type { SelectOption, SelectValue } from '@/types/select';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useLeaveTypeOptions } from '../composables/useLeaveTypeOptions';
 
 export type TimeOffFormData = {
@@ -41,7 +41,7 @@ const emit = defineEmits<{
 
 const { leaveTypeOptions, isLoadingLeaveTypes, leaveTypesError } = useLeaveTypeOptions();
 const formErrors = ref<Record<string, string>>({});
-const showRepeat = props.showRepeat ?? true;
+const showRepeat = computed(() => props.showRepeat ?? true);
 
 const updateField = (field: keyof TimeOffFormData, value: string | string[] | number | null | undefined) => {
   emit('update:modelValue', { ...props.modelValue, [field]: value });
