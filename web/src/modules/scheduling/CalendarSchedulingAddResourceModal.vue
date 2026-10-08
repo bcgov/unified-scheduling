@@ -484,6 +484,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :employee-options="employeeOptions"
             :loading-employees="isLoadingUsers"
             show-employees
+            show-repeat
           />
         </section>
       </template>

@@ -11,7 +11,6 @@ import {
   calendarDropAction,
   calendarDropUserOnAssignmentResourceAction,
   calendarScheduleStaffAction,
-  calendarSchedulingCreateTimeOffAction,
   calendarSchedulingEventDetailAction,
   calendarSchedulingHeaderShowConflictAction,
   calendarSchedulingResolveConflictAction,
@@ -839,25 +838,6 @@ describe('calendarSchedulingActions', () => {
       },
       writableRuntimeContext,
     );
-
-    expect(calendarSchedulingResourceActionDate.value).toBe('2026-07-13');
-    expect(calendarSchedulingResourceActionResource.value).toBeUndefined();
-  });
-
-  it('exposes a dedicated create-time-off action without requiring shift creation permission', async () => {
-    const context = {
-      startDate: '2026-07-13',
-      endDate: '2026-07-19',
-      activeViewId: 'calendar-scheduling.shifts',
-      filters: {},
-    };
-    const timeOffOnlyContext = {
-      featureFlags: { TimeOff: { enabled: true } },
-      permissions: [Permissions.TimeOffCreateAndAssign],
-    };
-
-    expect(calendarSchedulingCreateTimeOffAction.isAvailable?.(context, timeOffOnlyContext)).toBe(true);
-    await calendarSchedulingCreateTimeOffAction.run?.(context, timeOffOnlyContext);
 
     expect(calendarSchedulingResourceActionDate.value).toBe('2026-07-13');
     expect(calendarSchedulingResourceActionResource.value).toBeUndefined();

@@ -169,7 +169,11 @@ const handleSave = async () => {
     @close="emit('close')"
   >
     <UaAlert v-if="apiError" type="error" @close="apiError = ''">{{ apiError }}</UaAlert>
-    <TimeOffFormComponent v-model="formData" :disabled="isSaving || isLoadingSeries" />
+    <TimeOffFormComponent
+      v-model="formData"
+      :disabled="isSaving || isLoadingSeries"
+      :show-repeat="!isEdit || isSeriesEdit"
+    />
 
     <template #actions>
       <UaBtn variant="outlined" :disabled="isSaving" @click="emit('close')">Cancel</UaBtn>
