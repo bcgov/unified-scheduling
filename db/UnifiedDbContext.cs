@@ -68,6 +68,11 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<SubCategoryMetric> SubCategoryMetrics { get; set; }
     public DbSet<StatRecord> StatRecords { get; set; }
     public DbSet<StatSignoff> StatSignoffs { get; set; }
+    public DbSet<BiOracleLocationMapping> BiOracleLocationMappings { get; set; }
+    public DbSet<BiOracleStatMappingSet> BiOracleStatMappingSets { get; set; }
+    public DbSet<BiOracleStatMapping> BiOracleStatMappings { get; set; }
+    public DbSet<BiOracleEtlRun> BiOracleEtlRuns { get; set; }
+    public DbSet<BiOracleStatStage> BiOracleStatStages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

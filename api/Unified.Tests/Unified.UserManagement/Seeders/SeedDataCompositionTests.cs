@@ -6,6 +6,7 @@ using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Reporting;
 using Unified.Stats;
+using Unified.Stats.Seeders;
 using Unified.Training;
 using Unified.UserManagement;
 using Unified.UserManagement.Seeders;
@@ -14,6 +15,23 @@ namespace Unified.Tests.UserManagement.Seeders;
 
 public sealed class SeedDataCompositionTests
 {
+    [Fact]
+    public void AddConfiguredSeedData_BiOracleMappingsDataSet_RegistersCompleteMappings()
+    {
+        var services = new ServiceCollection();
+        services.AddConfiguredSeedData(
+            BuildConfiguration(StatsSeedDataSets.BiOracleMappingsDataSet),
+            AllDataSets
+        );
+
+        using var provider = services.BuildServiceProvider();
+        var statMappings = Assert.Single(provider.GetServices<BiOracleStatMappingSeedConfiguration>());
+        var locationMappings = Assert.Single(provider.GetServices<BiOracleLocationMappingSeedConfiguration>());
+
+        Assert.Equal(516, Assert.Single(statMappings.Definitions).Mappings.Count);
+        Assert.Equal(118, locationMappings.Definitions.Count);
+    }
+
     [Fact]
     public void AddConfiguredSeedData_SheriffRegionLocationDataSet_RegistersRegionsAndLocations()
     {
