@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Unified.Calendar;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
@@ -38,7 +39,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
             _dbContext,
             new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
             CreateCalendarTimeZoneResolver(),
-            timeZoneService
+            timeZoneService,
+            new CalendarConflictService([], _dbContext)
         );
     }
 

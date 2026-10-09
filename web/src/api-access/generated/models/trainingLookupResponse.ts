@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { TrainingProfileTypeSummary } from './trainingProfileTypeSummary.ts';
 
 export interface TrainingLookupResponse {
   mandatory?: boolean;
@@ -17,6 +18,7 @@ export interface TrainingLookupResponse {
   /** @nullable */
   trainingCategoryName?: string | null;
   order?: number;
+  mandatoryTrainingProfiles?: TrainingProfileTypeSummary[];
   id: number;
   createdOn?: string;
   /** @nullable */

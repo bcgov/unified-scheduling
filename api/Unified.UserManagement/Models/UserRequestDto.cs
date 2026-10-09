@@ -14,4 +14,5 @@ public sealed record UserRequestDto
     public required string Rank { get; init; }
     public string? BadgeNumber { get; init; }
     public required string EmployeeNumber { get; init; }
+    public int? TrainingProfileId { get; init; }
 }

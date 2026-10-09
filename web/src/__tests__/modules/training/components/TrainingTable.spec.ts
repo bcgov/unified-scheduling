@@ -189,4 +189,121 @@ describe('TrainingTable', () => {
 
     expect(wrapper.text()).toContain('—');
   });
+
+  it('formats mandatory scope for non-mandatory, scoped mandatory, and all-users mandatory', async () => {
+    const app = await createTestApp();
+
+    const wrapper = mount(TrainingTable, {
+      props: {
+        items: [
+          {
+            id: 11,
+            code: 'NONMAND',
+            description: 'Not mandatory',
+            effectiveDate: '2026-01-01T00:00:00Z',
+            expiryDate: null,
+            mandatory: false,
+            mandatoryTrainingProfiles: [{ id: 1, code: 'A', name: 'Profile A' }],
+            validityDays: null,
+            advanceNoticeDays: null,
+            rotating: false,
+            trainingCategoryId: null,
+            trainingCategoryName: null,
+            order: 0,
+            createdOn: '2026-01-01T00:00:00Z',
+            updatedOn: null,
+          },
+          {
+            id: 12,
+            code: 'SCOPED',
+            description: 'Scoped mandatory',
+            effectiveDate: '2026-01-01T00:00:00Z',
+            expiryDate: null,
+            mandatory: true,
+            mandatoryTrainingProfiles: [
+              { id: 2, code: 'CIV', name: 'Civil Team' },
+              { id: 3, code: 'OPS', name: '  ' },
+            ],
+            validityDays: null,
+            advanceNoticeDays: null,
+            rotating: false,
+            trainingCategoryId: null,
+            trainingCategoryName: null,
+            order: 1,
+            createdOn: '2026-01-01T00:00:00Z',
+            updatedOn: null,
+          },
+          {
+            id: 13,
+            code: 'GLOBAL',
+            description: 'Global mandatory',
+            effectiveDate: '2026-01-01T00:00:00Z',
+            expiryDate: null,
+            mandatory: true,
+            mandatoryTrainingProfiles: [],
+            validityDays: null,
+            advanceNoticeDays: null,
+            rotating: false,
+            trainingCategoryId: null,
+            trainingCategoryName: null,
+            order: 2,
+            createdOn: '2026-01-01T00:00:00Z',
+            updatedOn: null,
+          },
+        ],
+        loading: false,
+        canEdit: false,
+      },
+      global: { plugins: app.mountPlugins },
+    });
+
+    await flushPromises();
+
+    const text = wrapper.text();
+    expect(text).toContain('—');
+    expect(text).toContain('Civil Team, OPS');
+    expect(text).toContain('All users');
+  });
+
+  it('sets mandatory scope title to full value for long scoped lists', async () => {
+    const app = await createTestApp();
+
+    const wrapper = mount(TrainingTable, {
+      props: {
+        items: [
+          {
+            id: 21,
+            code: 'LONGSCOPE',
+            description: 'Long scope',
+            effectiveDate: '2026-01-01T00:00:00Z',
+            expiryDate: null,
+            mandatory: true,
+            mandatoryTrainingProfiles: [
+              { id: 1, code: 'A1', name: 'Profile One' },
+              { id: 2, code: 'A2', name: 'Profile Two' },
+              { id: 3, code: 'A3', name: 'Profile Three' },
+              { id: 4, code: 'A4', name: 'Profile Four' },
+            ],
+            validityDays: null,
+            advanceNoticeDays: null,
+            rotating: false,
+            trainingCategoryId: null,
+            trainingCategoryName: null,
+            order: 0,
+            createdOn: '2026-01-01T00:00:00Z',
+            updatedOn: null,
+          },
+        ],
+        loading: false,
+        canEdit: false,
+      },
+      global: { plugins: app.mountPlugins },
+    });
+
+    await flushPromises();
+
+    const scopeCell = wrapper.find('.mandatory-scope-cell');
+    expect(scopeCell.exists()).toBe(true);
+    expect(scopeCell.attributes('title')).toBe('Profile One, Profile Two, Profile Three, Profile Four');
+  });
 });

@@ -77,13 +77,25 @@ const availableAssignmentEntryOptions = computed(() =>
 const availableAssignmentSeriesOptions = computed(() =>
   props.assignmentSeriesOptions.filter((option) => !selectedAssignmentSeriesIds.value.has(Number(option.code))),
 );
-const currentShiftUserOptions = computed(() => {
+const currentShiftUserOptions = computed<SelectOption[]>((previousOptions) => {
   const selectedUserIds = new Set(
     (formData.value.userIds ?? []).filter((userId): userId is string => typeof userId === 'string'),
   );
+  const nextOptions = props.employeeOptions.filter(
+    (option) => typeof option.code === 'string' && selectedUserIds.has(option.code),
+  );
 
-  return props.employeeOptions.filter((option) => typeof option.code === 'string' && selectedUserIds.has(option.code));
+  return previousOptions && haveSameOptions(previousOptions, nextOptions) ? previousOptions : nextOptions;
 });
+
+function haveSameOptions(left: SelectOption[], right: SelectOption[]) {
+  return (
+    left.length === right.length &&
+    left.every(
+      (option, index) => option.code === right[index]?.code && option.description === right[index]?.description,
+    )
+  );
+}
 const locationOptionsWithSelected = computed(() => {
   const locationId = parsePositiveInteger(formData.value.locationId);
   if (!locationId || props.locationOptions.some((option) => Number(option.code) === locationId)) {

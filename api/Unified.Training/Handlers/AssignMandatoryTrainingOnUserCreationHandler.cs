@@ -4,6 +4,7 @@ using Unified.Common.Events;
 using Unified.Db;
 using Unified.Db.Models.Training;
 using Unified.Training.Helpers;
+using Unified.Training.Services;
 
 namespace Unified.Training.Handlers;
 
@@ -17,6 +18,12 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
     {
         var userId = signal.UserId;
         var now = signal.OccurredAtUtc.ToUniversalTime();
+        var userTrainingProfileId = await DB
+            .Users.AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => user.TrainingProfileId)
+            .SingleOrDefaultAsync(cancellationToken);
+
         var mandatoryTrainings = await DB
             .Trainings.AsNoTracking()
             .Where(training =>
@@ -24,6 +31,7 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
                 && training.EffectiveDate <= now
                 && (training.ExpiryDate == null || training.ExpiryDate > now)
             )
+            .WhereApplicableToTrainingProfile(userTrainingProfileId)
             .Select(training => new { training.Id, training.ValidityDays })
             .ToListAsync(cancellationToken);
 

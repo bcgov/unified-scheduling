@@ -32,12 +32,12 @@ export type UserTrainingReportQuery = {
   pageSize?: number;
   sortBy?: string;
   sortDir?: 'asc' | 'desc';
-  userId?: string;
-  regionId?: number;
-  locationId?: number;
-  trainingId?: number;
-  trainingCode?: string;
-  status?: 'active' | 'expired' | 'notTaken';
+  userId?: string | string[];
+  regionId?: number | number[];
+  locationId?: number | number[];
+  trainingId?: number | number[];
+  trainingCode?: string | string[];
+  status?: 'active' | 'expired' | 'notTaken' | Array<'active' | 'expired' | 'notTaken'>;
   startDate?: string;
   endDate?: string;
 };

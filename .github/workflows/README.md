@@ -47,8 +47,8 @@ The project uses 3 automated checks that run on every pull request:
 - Manual via `workflow_dispatch`
 
 **Path Detection**:
-- Checks if files changed in: `api/**`, `db/**`, workflow files
-- If no changes detected: passes immediately with skip message
+- Checks if files changed in: `api/**`, `db/**`, `jc-interface-client/**`, workflow files
+- Pull requests with no changes detected: pass immediately with skip message
 - If changes detected: runs full lint, build and test
 
 ### 2. build-and-test-web.yml

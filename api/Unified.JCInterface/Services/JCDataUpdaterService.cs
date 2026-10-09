@@ -30,8 +30,10 @@ namespace Unified.JCInterface.Services
         /// (regions, then locations, then court rooms) in order, since locations
         /// depend on regions and court rooms depend on locations.
         /// </summary>
-        public async Task SyncAllAsync()
+        public async Task SyncAllAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (jcInterfaceOptions.SkipSync)
             {
                 logger.LogInformation("Skipping JC-Interface sync because SkipSync is enabled");
@@ -41,20 +43,20 @@ namespace Unified.JCInterface.Services
             logger.LogInformation("Starting JC-Interface synchronization");
 
             logger.LogInformation("Syncing regions");
-            await SyncRegionsAsync();
+            await SyncRegionsAsync(cancellationToken);
 
             logger.LogInformation("Syncing locations");
-            await SyncLocationsAsync();
+            await SyncLocationsAsync(cancellationToken);
 
             logger.LogInformation("Syncing court rooms");
-            await SyncCourtRoomsAsync();
+            await SyncCourtRoomsAsync(cancellationToken);
 
             logger.LogInformation("Finished JC-Interface synchronization");
         }
 
-        public async Task SyncRegionsAsync()
+        public async Task SyncRegionsAsync(CancellationToken cancellationToken = default)
         {
-            var regions = await locationClient.RegionsAsync();
+            var regions = await locationClient.RegionsAsync(cancellationToken);
 
             var regionsDb = regions.SelectToList(r => new Region
             {
@@ -80,7 +82,7 @@ namespace Unified.JCInterface.Services
                             UpdatedOn = DateTimeOffset.UtcNow,
                         }
                 )
-                .RunAsync();
+                .RunAsync(cancellationToken);
 
             //Any regions that aren't on this list expire/disable for now. This is for regions that may have been deleted.
             if (jcInterfaceOptions.ExpireRegions)
@@ -95,13 +97,13 @@ namespace Unified.JCInterface.Services
                     disableRegion.UpdatedOn = DateTimeOffset.UtcNow;
                     disableRegion.UpdatedById = User.SystemUser;
                 }
-                await dbContext.SaveChangesAsync();
+                await dbContext.SaveChangesAsync(cancellationToken);
             }
         }
 
-        public async Task SyncLocationsAsync()
+        public async Task SyncLocationsAsync(CancellationToken cancellationToken = default)
         {
-            var locationsDb = await GenerateLocationsAndLinkToRegions();
+            var locationsDb = await GenerateLocationsAndLinkToRegions(cancellationToken);
 
             logger.LogInformation("Synchronizing {LocationCount} locations from JC-Interface", locationsDb.Count);
 
@@ -125,7 +127,7 @@ namespace Unified.JCInterface.Services
                             Timezone = lnew.Timezone,
                         }
                 )
-                .RunAsync();
+                .RunAsync(cancellationToken);
 
             //Set to false for now, because some Locations are brought in via Migration and not the JC-Interface.
             //Any Locations that aren't on this list expire/disable for now.  This is for locations that may have been deleted.
@@ -141,7 +143,7 @@ namespace Unified.JCInterface.Services
                     disableLocation.UpdatedOn = DateTimeOffset.UtcNow;
                     disableLocation.UpdatedById = User.SystemUser;
                 }
-                await dbContext.SaveChangesAsync();
+                await dbContext.SaveChangesAsync(cancellationToken);
             }
 
             if (jcInterfaceOptions.AssociateUsersWithNoLocationToVictoria)
@@ -164,19 +166,19 @@ namespace Unified.JCInterface.Services
                         );
                         user.HomeLocationId = defaultLocation.Id;
                     }
-                    await dbContext.SaveChangesAsync();
+                    await dbContext.SaveChangesAsync(cancellationToken);
                 }
             }
 
             // Associate seeded/migrated non-JC-interface locations to regions using explicit ID mapping.
-            await AssociateNonJcInterfaceLocationsToRegionsAsync();
+            await AssociateNonJcInterfaceLocationsToRegionsAsync(cancellationToken);
         }
 
-        public async Task SyncCourtRoomsAsync()
+        public async Task SyncCourtRoomsAsync(CancellationToken cancellationToken = default)
         {
-            var courtRoomsLookups = await locationClient.LocationsRoomsAsync();
+            var courtRoomsLookups = await locationClient.LocationsRoomsAsync(cancellationToken);
             //To list so we don't need to re-query on each select.
-            var locations = dbContext.Locations.AsNoTracking().ToList();
+            var locations = await dbContext.Locations.AsNoTracking().ToListAsync(cancellationToken);
             var courtRooms = courtRoomsLookups
                 .SelectToList(cr => new CourtRoom
                 {
@@ -219,7 +221,7 @@ namespace Unified.JCInterface.Services
                             UpdatedOn = DateTimeOffset.UtcNow,
                         }
                 )
-                .RunAsync();
+                .RunAsync(cancellationToken);
 
             //Any court rooms that aren't from this list, expire/disable for now. This is for CourtRooms that may have been deleted.
             if (jcInterfaceOptions.ExpireCourtRooms)
@@ -235,17 +237,20 @@ namespace Unified.JCInterface.Services
                     disableCourtRoom.UpdatedOn = DateTimeOffset.UtcNow;
                     disableCourtRoom.UpdatedById = User.SystemUser;
                 }
-                await dbContext.SaveChangesAsync();
+                await dbContext.SaveChangesAsync(cancellationToken);
             }
         }
 
-        private async Task<List<Location>> GenerateLocationsAndLinkToRegions()
+        private async Task<List<Location>> GenerateLocationsAndLinkToRegions(CancellationToken cancellationToken)
         {
             var regionDictionary = new Dictionary<int, ICollection<int>>();
             //RegionsRegionIdLocationsCodesAsync returns a LIST of locationIds.
             //Only query regions that are still active and have a JustinId — querying an
             //expired or JC-Interface-unknown region could 404 and abort the whole sync.
-            var activeRegions = dbContext.Regions.AsNoTracking().Where(r => r.ExpiryDate == null).ToList();
+            var activeRegions = await dbContext
+                .Regions.AsNoTracking()
+                .Where(r => r.ExpiryDate == null)
+                .ToListAsync(cancellationToken);
 
             var skippedRegionCount = activeRegions.Count(r => r.JustinId == null);
             if (skippedRegionCount > 0)
@@ -263,7 +268,8 @@ namespace Unified.JCInterface.Services
                 try
                 {
                     regionDictionary[region.Id] = await locationClient.RegionsRegionIdLocationsCodesAsync(
-                        region.JustinId!.ToString()
+                        region.JustinId!.ToString(),
+                        cancellationToken
                     );
                 }
                 catch (Exception ex)
@@ -287,7 +293,7 @@ namespace Unified.JCInterface.Services
                 locationToRegion[locationId.ToString()] = region.Key;
 
             var locationWithoutRegion = new List<Location>();
-            var locations = await locationClient.LocationsAsync(null, true, false);
+            var locations = await locationClient.LocationsAsync(null, true, false, cancellationToken);
             var locationsDb = locations.SelectToList(loc =>
             {
                 var regionId = locationToRegion.TryGetValue(loc.ShortDesc, out var matchedRegionId)
@@ -340,7 +346,7 @@ namespace Unified.JCInterface.Services
             return locations;
         }
 
-        private async Task AssociateNonJcInterfaceLocationsToRegionsAsync()
+        private async Task AssociateNonJcInterfaceLocationsToRegionsAsync(CancellationToken cancellationToken)
         {
             var locationToRegion = jcInterfaceOptions.NonJcInterfaceLocationRegions;
             if (locationToRegion.Count == 0)
@@ -353,12 +359,14 @@ namespace Unified.JCInterface.Services
                 .Regions.AsNoTracking()
                 .Where(r => regionNames.Contains(r.Name))
                 .Select(r => new { r.Id, r.Name })
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var regionsByName = regions.ToDictionary(r => r.Name, r => r.Id, StringComparer.OrdinalIgnoreCase);
 
             var locationNames = locationToRegion.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var mappedLocations = await dbContext.Locations.Where(l => locationNames.Contains(l.Name)).ToListAsync();
+            var mappedLocations = await dbContext
+                .Locations.Where(l => locationNames.Contains(l.Name))
+                .ToListAsync(cancellationToken);
 
             var updatedCount = 0;
             foreach (var location in mappedLocations)
@@ -385,7 +393,7 @@ namespace Unified.JCInterface.Services
 
             if (updatedCount > 0)
             {
-                await dbContext.SaveChangesAsync();
+                await dbContext.SaveChangesAsync(cancellationToken);
                 logger.LogInformation(
                     "Applied NonJcInterfaceLocationRegions mappings for {UpdatedCount} locations",
                     updatedCount

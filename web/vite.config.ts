@@ -52,6 +52,17 @@ export default defineConfig({
           'X-Forwarded-Proto': 'http',
         },
       },
+      '^/hangfire': {
+        target: 'http://api:5000',
+        changeOrigin: true,
+        secure: false,
+        headers: {
+          Connection: 'keep-alive',
+          'X-Forwarded-Host': 'localhost',
+          'X-Forwarded-Port': '8080',
+          'X-Forwarded-Proto': 'http',
+        },
+      },
     },
   },
 });

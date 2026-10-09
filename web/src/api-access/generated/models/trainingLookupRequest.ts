@@ -16,5 +16,7 @@ export interface TrainingLookupRequest {
   rotating?: boolean;
   /** @nullable */
   trainingCategoryId?: number | null;
+  /** @nullable */
+  mandatoryTrainingProfileIds?: number[] | null;
   code: string;
 }

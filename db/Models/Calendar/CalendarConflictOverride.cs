@@ -8,13 +8,13 @@ public sealed class CalendarConflictOverride : BaseEntity
     [Key]
     public int Id { get; set; }
 
-    public int FirstEventId { get; set; }
+    public string FirstSourceModule { get; set; } = string.Empty;
 
-    public Event FirstEvent { get; set; } = null!;
+    public string FirstEventId { get; set; } = string.Empty;
 
-    public int SecondEventId { get; set; }
+    public string SecondSourceModule { get; set; } = string.Empty;
 
-    public Event SecondEvent { get; set; } = null!;
+    public string SecondEventId { get; set; } = string.Empty;
 
     public Guid ResourceId { get; set; }
 

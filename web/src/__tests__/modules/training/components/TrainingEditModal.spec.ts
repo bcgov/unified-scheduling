@@ -5,12 +5,14 @@ import TrainingEditModal from '@/modules/training/components/TrainingEditModal.v
 import { createTestApp } from '../../../helpers/createTestApp';
 import type { TrainingLookupResponse } from '@/api-access/generated/models';
 
-const { putApiTrainingsIdMock } = vi.hoisted(() => ({
+const { putApiTrainingsIdMock, getApiTrainingProfileTypesMock } = vi.hoisted(() => ({
   putApiTrainingsIdMock: vi.fn(),
+  getApiTrainingProfileTypesMock: vi.fn(),
 }));
 
 vi.mock('@/api-access/generated/training/training', () => ({
   putApiLookupTrainingsId: putApiTrainingsIdMock,
+  getApiTrainingProfileTypes: getApiTrainingProfileTypesMock,
 }));
 
 const training: TrainingLookupResponse = {
@@ -33,6 +35,14 @@ describe('TrainingEditModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     putApiTrainingsIdMock.mockResolvedValue({ data: ref(training), error: ref(null) });
+    getApiTrainingProfileTypesMock.mockReturnValue({
+      data: ref([
+        { id: 1, code: 'GEN', name: 'General Duty' },
+        { id: 2, code: 'SUP', name: 'Supervisor' },
+      ]),
+      error: ref(null),
+      isFetching: ref(false),
+    });
   });
 
   afterEach(() => {
@@ -93,6 +103,7 @@ describe('TrainingEditModal', () => {
       code: 'FIRE',
       description: 'Updated qualification',
       mandatory: true,
+      mandatoryTrainingProfileIds: [],
       validityDays: 365,
       advanceNoticeDays: 30,
       rotating: false,

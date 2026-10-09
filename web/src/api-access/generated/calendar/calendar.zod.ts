@@ -67,4 +67,49 @@ export const PostApiCalendarEventsResponse = zod.object({
       }),
     )
     .optional(),
+  conflicts: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        entry: zod.object({
+          eventId: zod.string(),
+          sourceModule: zod.string(),
+          title: zod.string(),
+          start: zod.iso.datetime({ offset: true }),
+          end: zod.iso.datetime({ offset: true }),
+          sourceEntityId: zod.int().nullable(),
+          timeZoneId: zod.string().nullable(),
+        }),
+        overlaps: zod.object({
+          eventId: zod.string(),
+          sourceModule: zod.string(),
+          title: zod.string(),
+          start: zod.iso.datetime({ offset: true }),
+          end: zod.iso.datetime({ offset: true }),
+          sourceEntityId: zod.int().nullable(),
+          timeZoneId: zod.string().nullable(),
+        }),
+        resourceId: zod.uuid(),
+        overlapStart: zod.iso.datetime({ offset: true }),
+        overlapEnd: zod.iso.datetime({ offset: true }),
+        isOverridden: zod.boolean(),
+        overrideNote: zod.string().nullable(),
+        createdById: zod.uuid().nullable(),
+        createdOn: zod.iso.datetime({ offset: true }).nullable(),
+        updatedById: zod.uuid().nullable(),
+        updatedOn: zod.iso.datetime({ offset: true }).nullable(),
+      }),
+    )
+    .optional(),
 });
+
+export const PostApiCalendarConflictsOverridesBody = zod.strictObject({
+  firstSourceModule: zod.string(),
+  firstEventId: zod.string(),
+  secondSourceModule: zod.string(),
+  secondEventId: zod.string(),
+  resourceId: zod.uuid(),
+  note: zod.string(),
+});
+
+export const PostApiCalendarConflictsOverridesResponse = zod.void();

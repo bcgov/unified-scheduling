@@ -9,6 +9,7 @@ using Unified.Audit.Options;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.UserManagement;
+using Unified.Db.Models.Training;
 using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Unified.Audit;
@@ -251,6 +252,40 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         Assert.Equal(courtRoom.Id.ToString(), courtRoomRecord.EntityPK);
         // Confirms the FK fix-up (LocationId) was captured in the audited NewValues, not just the in-memory entity.
         Assert.Contains($"\"LocationId\":{location.Id}", courtRoomRecord.NewValues);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_When_Entity_Has_Identity_Primary_Key_Should_Write_AuditRecord_With_EntityPK()
+    {
+        var (connection, dbContext) = await CreateSqliteDbContextAsync();
+        await using var _ = connection;
+        await using var __ = dbContext;
+
+        var profile = new TrainingProfileType { Code = "CARBINE", Name = "Carbine" };
+        var training = new global::Unified.Db.Models.Training.Training
+        {
+            Code = "MAND-1",
+            Description = "Mandatory Training",
+            EffectiveDate = DateTimeOffset.UtcNow,
+            Mandatory = true,
+            Order = 1,
+        };
+
+        dbContext.TrainingProfileTypes.Add(profile);
+        dbContext.Trainings.Add(training);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var link = new TrainingProfileRequirement { TrainingId = training.Id, TrainingProfileTypeId = profile.Id };
+        dbContext.TrainingProfileRequirements.Add(link);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var record = Assert.Single(
+            await dbContext
+                .AuditRecords.Where(r => r.EntityType == nameof(TrainingProfileRequirement) && r.Action == "Added")
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(link.Id.ToString(), record.EntityPK);
     }
 
     [Fact]

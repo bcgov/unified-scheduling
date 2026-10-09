@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Authorization.Claims;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -148,6 +150,7 @@ public sealed class AssignmentController(
     [Authorize(Policy = SchedulingPolicies.AssignmentsEdit)]
     [ProducesResponseType(typeof(AssignmentEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(CalendarConflictRejectionResponse), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AssignmentEntryResponse>> UpdateAssignmentEntry(
         int id,
@@ -156,7 +159,21 @@ public sealed class AssignmentController(
     )
     {
         await assignmentEntryUpdateRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
-        var result = await assignmentService.UpdateAssignmentEntryAsync(id, request, cancellationToken);
+        if (
+            !CalendarConflictAcknowledgementAuthorization.TryResolveActor(
+                User,
+                request.ConflictOverrides,
+                out var conflictOverrideActorId
+            )
+        )
+            return Forbid();
+
+        var result = await assignmentService.UpdateAssignmentEntryAsync(
+            id,
+            request,
+            cancellationToken,
+            conflictOverrideActorId
+        );
         return result is null ? NotFound() : Ok(result);
     }
 

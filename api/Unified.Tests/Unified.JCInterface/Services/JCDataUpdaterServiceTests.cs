@@ -85,8 +85,8 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
         var service = CreateService(regionsJson);
 
         // Act
-        await service.SyncRegionsAsync();
-        await service.SyncRegionsAsync();
+        await service.SyncRegionsAsync(TestContext.Current.CancellationToken);
+        await service.SyncRegionsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var regions = await _dbContext.Regions.ToListAsync(TestContext.Current.CancellationToken);
@@ -117,7 +117,7 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
         var service = CreateService(regionsJson, new JCInterfaceOptions { ExpireRegions = true });
 
         // Act
-        await service.SyncRegionsAsync();
+        await service.SyncRegionsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var staleRegion = await _dbContext.Regions.SingleAsync(
@@ -147,8 +147,8 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
         );
 
         // Act
-        await service.SyncLocationsAsync();
-        await service.SyncLocationsAsync();
+        await service.SyncLocationsAsync(TestContext.Current.CancellationToken);
+        await service.SyncLocationsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var location = await _dbContext.Locations.SingleAsync(
@@ -193,7 +193,7 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
         );
 
         // Act
-        await service.SyncLocationsAsync();
+        await service.SyncLocationsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var updatedLocation = await _dbContext.Locations.SingleAsync(
@@ -227,8 +227,8 @@ public class JCDataUpdaterServiceTests : IAsyncLifetime
         var service = CreateService(roomsJson);
 
         // Act
-        await service.SyncCourtRoomsAsync();
-        await service.SyncCourtRoomsAsync();
+        await service.SyncCourtRoomsAsync(TestContext.Current.CancellationToken);
+        await service.SyncCourtRoomsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var location = await _dbContext.Locations.SingleAsync(

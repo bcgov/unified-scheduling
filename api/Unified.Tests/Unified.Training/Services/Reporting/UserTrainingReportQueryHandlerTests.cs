@@ -328,6 +328,59 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ExecuteAsync_Should_Only_Include_Missing_Mandatory_For_Matching_Training_Profile()
+    {
+        var carbineProfile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+        var defensiveTacticsProfile = await SeedTrainingProfileAsync("DT", "Defensive Tactics");
+
+        await SeedTrainingAsync(
+            450,
+            "CARB-MAND",
+            "Carbine Mandatory",
+            mandatory: true,
+            mandatoryTrainingProfileIds: [carbineProfile.Id]
+        );
+
+        await SeedUserAsync("Cara", "Carbine", trainingProfileId: carbineProfile.Id);
+        await SeedUserAsync("Dee", "Defensive", trainingProfileId: defensiveTacticsProfile.Id);
+        await SeedUserAsync("Una", "Unassigned");
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters: new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.True(row.HasMissingMandatoryTrainingAssignment);
+        Assert.Equal("Carbine, Cara", row.UserDisplayName);
+        Assert.Equal("Not Taken", row.Status);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Apply_Global_Mandatory_To_All_Users_Even_When_Profiles_Exist()
+    {
+        await SeedTrainingAsync(460, "GLOBAL", "Global Mandatory", mandatory: true, mandatoryTrainingProfileIds: []);
+
+        var profile = await SeedTrainingProfileAsync("CARBINE", "Carbine Operator");
+        await SeedUserAsync("Pia", "Profiled", trainingProfileId: profile.Id);
+        await SeedUserAsync("Ned", "NoProfile");
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters: new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(2, result.Rows.Count);
+        Assert.All(result.Rows, row => Assert.True(row.HasMissingMandatoryTrainingAssignment));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_Should_Filter_By_Region_Using_User_HomeLocation_Region()
     {
         var training = await SeedTrainingAsync(500, "REGION", "Region Filter Training", mandatory: false);
@@ -400,10 +453,116 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         Assert.Equal("Alpha, Ava", row.UserDisplayName);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Should_Include_Multiple_Selected_Statuses()
+    {
+        var training = await SeedTrainingAsync(520, "STATUS_MULTI", "Status Multi", mandatory: true);
+
+        var activeUser = await SeedUserAsync("Amy", "Active");
+        var expiredUser = await SeedUserAsync("Eli", "Expired");
+        var missingUser = await SeedUserAsync("Nia", "Missing");
+
+        await SeedUserTrainingAsync(
+            activeUser.Id,
+            training.Id,
+            awardedOn: _fixedNow.AddDays(-3),
+            expiryDate: _fixedNow.AddDays(7)
+        );
+        await SeedUserTrainingAsync(
+            expiredUser.Id,
+            training.Id,
+            awardedOn: _fixedNow.AddDays(-10),
+            expiryDate: _fixedNow.AddDays(-1)
+        );
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["active", "notTaken"],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(2, result.TotalRows);
+        Assert.Contains(result.Rows, row => row.UserDisplayName == "Active, Amy" && row.Status == "Active");
+        Assert.Contains(result.Rows, row => row.UserDisplayName == "Missing, Nia" && row.Status == "Not Taken");
+        Assert.DoesNotContain(result.Rows, row => row.UserDisplayName == "Expired, Eli");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Filter_By_Multiple_Users_Regions_Locations_And_TrainingCodes()
+    {
+        var alphaRegion = await SeedRegionAsync("Alpha");
+        var betaRegion = await SeedRegionAsync("Beta");
+
+        var alphaLocation = await SeedLocationAsync("ALPHA", "Alpha Office", "America/Vancouver", alphaRegion.Id);
+        var betaLocation = await SeedLocationAsync("BETA", "Beta Office", "America/Vancouver", betaRegion.Id);
+
+        var alphaUser = await SeedUserAsync("Ava", "Alpha", alphaLocation.Id);
+        var betaUser = await SeedUserAsync("Ben", "Beta", betaLocation.Id);
+        var gammaUser = await SeedUserAsync("Gus", "Gamma", alphaLocation.Id);
+
+        var firstTraining = await SeedTrainingAsync(530, "CODE_A", "Code A", mandatory: false);
+        var secondTraining = await SeedTrainingAsync(531, "CODE_B", "Code B", mandatory: false);
+
+        await SeedUserTrainingAsync(alphaUser.Id, firstTraining.Id, awardedOn: _fixedNow.AddDays(-3));
+        await SeedUserTrainingAsync(betaUser.Id, secondTraining.Id, awardedOn: _fixedNow.AddDays(-2));
+        await SeedUserTrainingAsync(gammaUser.Id, firstTraining.Id, awardedOn: _fixedNow.AddDays(-1));
+
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["status"] = ["active"],
+            ["userId"] = [alphaUser.Id.ToString(), betaUser.Id.ToString()],
+            ["regionId"] = [alphaRegion.Id.ToString(), betaRegion.Id.ToString()],
+            ["locationId"] = [alphaLocation.Id.ToString(), betaLocation.Id.ToString()],
+            ["trainingCode"] = [firstTraining.Code],
+        };
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                filters,
+                sortBy: "userDisplayName",
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("Alpha, Ava", row.UserDisplayName);
+        Assert.Equal("CODE_A", row.TrainingCode);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_Throw_When_UserId_Filter_Exceeds_Max_Values()
+    {
+        var userIds = Enumerable.Range(0, 26).Select(_ => Guid.NewGuid().ToString()).ToArray();
+        var filters = new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["userId"] = userIds,
+        };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _handler.ExecuteAsync(
+                filters,
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Contains("userId", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("25", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<User> SeedUserAsync(
         string firstName,
         string lastName,
         int? homeLocationId = null,
+        int? trainingProfileId = null,
         bool isEnabled = true
     )
     {
@@ -417,6 +576,7 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
             LastName = lastName,
             Gender = Gender.Other,
             HomeLocationId = homeLocationId,
+            TrainingProfileId = trainingProfileId,
         };
 
         _db.Users.Add(user);
@@ -429,7 +589,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         int id,
         string code,
         string description,
-        bool mandatory
+        bool mandatory,
+        IReadOnlyCollection<int>? mandatoryTrainingProfileIds = null
     )
     {
         var category = await _db.TrainingCategories.FirstOrDefaultAsync(
@@ -456,7 +617,30 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         _db.Trainings.Add(training);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
+        if (mandatoryTrainingProfileIds is { Count: > 0 })
+        {
+            _db.TrainingProfileRequirements.AddRange(
+                mandatoryTrainingProfileIds.Select(profileId => new TrainingProfileRequirement
+                {
+                    TrainingId = training.Id,
+                    TrainingProfileTypeId = profileId,
+                })
+            );
+
+            await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
         return training;
+    }
+
+    private async Task<TrainingProfileType> SeedTrainingProfileAsync(string code, string _description)
+    {
+        var profile = new TrainingProfileType { Code = code, Name = code };
+
+        _db.TrainingProfileTypes.Add(profile);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        return profile;
     }
 
     private async Task<Region> SeedRegionAsync(string name)

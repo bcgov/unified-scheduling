@@ -6,13 +6,15 @@ public interface IShiftAssignmentService
 {
     Task<ShiftAssignmentEntryResponse> LinkShiftEntryAsync(
         ShiftAssignmentEntryRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     );
 
     Task<ShiftAssignmentEntryResponse?> UpdateShiftEntryLinkAsync(
         int id,
         ShiftAssignmentEntryUpdateRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     );
 
     Task<bool> DeleteShiftEntryLinkAsync(int id, CancellationToken cancellationToken = default);
@@ -31,13 +33,15 @@ public interface IShiftAssignmentService
 
     Task<ShiftAssignmentSeriesLinkResponse> LinkShiftSeriesAsync(
         ShiftAssignmentSeriesRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     );
 
     Task<ShiftAssignmentSeriesLinkResponse?> UpdateShiftSeriesLinkAsync(
         int id,
         ShiftAssignmentSeriesUpdateRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? conflictOverrideActorId = null
     );
 
     Task<bool> DeleteShiftSeriesLinkAsync(int id, CancellationToken cancellationToken = default);
