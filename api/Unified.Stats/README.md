@@ -35,17 +35,56 @@ StatSignoff (UserId, LocationId, Month, Year)
 
 ## Reference Data vs. Data Entry
 
-| Entity | Type | API |
-|---|---|---|
-| StatGroup | Reference (seeded) | GET only |
-| StatCategory | Reference (seeded) | GET only |
-| SubCategory | Reference (seeded) | GET only |
-| StatMetric | Reference (seeded) | GET only |
-| SubCategoryMetric | Reference (seeded) | GET only |
-| StatRecord | Data entry | Full CRUD + test data generator |
-| StatSignoff | Data entry | Full CRUD |
+| Entity            | Type               | API                             |
+| ----------------- | ------------------ | ------------------------------- |
+| StatGroup         | Reference (seeded) | GET only                        |
+| StatCategory      | Reference (seeded) | GET only                        |
+| SubCategory       | Reference (seeded) | GET only                        |
+| StatMetric        | Reference (seeded) | GET only                        |
+| SubCategoryMetric | Reference (seeded) | GET only                        |
+| StatRecord        | Data entry         | Full CRUD + test data generator |
+| StatSignoff       | Data entry         | Full CRUD                       |
 
 Reference data is managed exclusively through seeders. Adding, renaming, or retiring entries requires a seeder change and deployment — this is intentional so that structural changes go through code review.
+
+## BCSS Oracle ETL model
+
+The `etl` PostgreSQL schema contains the persistent configuration and staging
+model for exporting Unified statistics to Oracle:
+
+- `BiOracleLocationMapping` maps a Unified location's four-character JUSTIN
+  location code to the legacy Oracle `CRT_LOC_ID`.
+- `BiOracleStatMappingSets` stores effective-dated mapping sets indefinitely.
+- `BiOracleStatMappings` explicitly maps `SubCategoryMetric` records to physical
+  Oracle table/column targets and is retained indefinitely.
+- `BiOracleEtlRuns` records one export execution and the mapping set it used.
+- `BiOracleStatStages` stores one canonical aggregated destination cell per run.
+
+Run counts have these meanings:
+
+- `SourceRecordCount`: Unified `StatRecord` rows considered for the run.
+- `StagedCellCount`: final canonical rows written to `BiOracleStatStages`.
+- `LoadedCellCount`: staged destination cells successfully applied to Oracle.
+
+`BiOracleEtlRuns` and their cascading stage rows are retained for three months.
+No existing recurring cleanup mechanism naturally owns this data, so scheduling
+the purge remains an operational follow-up. The cleanup should delete runs with
+`StartedAt` older than the approved three-month cutoff; stage rows cascade. It
+must never delete mapping sets or mappings.
+
+The `BiOracleMappingsDataSet` contains the approved 516-row
+`SubCategoryMetricId` mapping and 118 legacy location mappings from
+`SHF_LOCATIONS.CSBMD_LOC_CD` to `SHF_LOCATIONS.CORIN_CODE`. The initial stat
+mapping effective date is the UTC calendar date when mapping set 1 is first
+seeded. Later seed runs retain the stored date. Deployments that require the BI
+Oracle mappings select this data set through the central `SeedData:DataSets`
+mechanism.
+
+Both location-code values are unique in the seeded mappings. ETL location selection uses
+`PerformedAtLocationId ?? LocationId`, then resolves the selected location's
+`JustinLocationCode` through this table. The mapping deliberately has no EF
+foreign key to `Locations`; its effective and expiry dates come from
+`SHF_LOCATIONS`.
 
 ## Seeders
 
@@ -53,12 +92,15 @@ Seeders live in `Unified.Stats/Seeders/`, extend `SeederBase<UnifiedDbContext>`,
 
 ### Execution Order
 
-| Order | Seeder | Records | Description |
-|-------|--------|---------|-------------|
-| 10 | `StatGroupSeeder` | 2 | Top-level groups |
-| 11 | `StatCategorySeeder` | 25 | Categories per group |
-| 12 | `SubCategorySeeder` | 91 | Sub-categories per category |
-| 13 | `StatMetricSeeder` | 49 | Deduplicated metrics |
+| Order | Seeder                          | Records             | Description                                 |
+| ----- | ------------------------------- | ------------------- | ------------------------------------------- |
+| 10    | `StatGroupSeeder`               | 2                   | Top-level groups                            |
+| 11    | `StatCategorySeeder`            | 25                  | Categories per group                        |
+| 12    | `SubCategorySeeder`             | 91                  | Sub-categories per category                 |
+| 13    | `StatMetricSeeder`              | 49                  | Deduplicated metrics                        |
+| 14    | `SubCategoryMetricSeeder`       | Configured taxonomy | Sub-category/metric leaf mappings           |
+| 15    | `BiOracleLocationMappingSeeder` | 118                 | Legacy JUSTIN-to-Oracle location mappings   |
+| 16    | `BiOracleStatMappingSeeder`     | 516                 | Effective-dated Oracle destination mappings |
 
 Stats seeders run after the core UserManagement seeders (User=0, Region=1, Location=2).
 
@@ -66,59 +108,59 @@ Stats seeders run after the core UserManagement seeders (User=0, Region=1, Locat
 
 **Groups**
 
-| Id | Name |
-|----|------|
-| 1 | Non-Supervision |
-| 2 | Supervision |
+| Id  | Name            |
+| --- | --------------- |
+| 1   | Non-Supervision |
+| 2   | Supervision     |
 
 **Categories (25 total)**
 
-| Ids | Group | Categories |
-|-----|-------|-----------|
-| 1–14 | Non-Supervision | Court Security, Circuit court related travel, Coroner Jury Administration, Criminal/Civil Jury Administration, Documents Civil/Family, Documents Criminal, Transports Air, Transports Ground, Transports Females, Transports Males, Holding area/cellblock, Other, PIO/SIO, Training |
-| 15–25 | Supervision | Court Security, Circuit court related travel, Documents Civil/Family, Documents Criminal, Transports Air, Transports Ground, Holding area/cellblock, Jury Administration, Other, PIO/SIO, Training |
+| Ids   | Group           | Categories                                                                                                                                                                                                                                                                           |
+| ----- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1–14  | Non-Supervision | Court Security, Circuit court related travel, Coroner Jury Administration, Criminal/Civil Jury Administration, Documents Civil/Family, Documents Criminal, Transports Air, Transports Ground, Transports Females, Transports Males, Holding area/cellblock, Other, PIO/SIO, Training |
+| 15–25 | Supervision     | Court Security, Circuit court related travel, Documents Civil/Family, Documents Criminal, Transports Air, Transports Ground, Holding area/cellblock, Jury Administration, Other, PIO/SIO, Training                                                                                   |
 
 **Sub-Categories (91 total)**
 
 Categories with no natural sub-division use a `General` placeholder (ids 18, 19, 20, 50, 89) so that `StatRecord` always points to a `SubCategoryMetric` rather than directly to a category.
 
-| Id range | Category |
-|----------|---------|
-| 1–17 | Court Security (Non-Supervision) — 17 court types |
-| 18 | Circuit court related travel (Non-Supervision) — General |
-| 19 | Coroner Jury Administration — General |
-| 20 | Criminal/Civil Jury Administration — General |
-| 21–24 | Documents Civil/Family (Non-Supervision) |
-| 25–28 | Documents Criminal (Non-Supervision) |
-| 29 | Transports Air (Non-Supervision) |
-| 30 | Transports Ground (Non-Supervision) |
-| 31–33 | Transports Females |
-| 34–36 | Transports Males |
-| 37–43 | Holding area/cellblock (Non-Supervision) |
-| 44–49 | Other (Non-Supervision) |
-| 50 | PIO/SIO (Non-Supervision) — General |
-| 51–52 | Training (Non-Supervision) |
-| 53–69 | Court Security (Supervision) — 17 court types |
-| 70 | Circuit court related travel (Supervision) — Hours |
-| 71–74 | Documents Civil/Family (Supervision) |
-| 75–78 | Documents Criminal (Supervision) |
-| 79 | Transports Air (Supervision) |
-| 80 | Transports Ground (Supervision) |
-| 81 | Holding area/cellblock (Supervision) — Hours |
-| 82 | Jury Administration (Supervision) — Hours |
-| 83–88 | Other (Supervision) |
-| 89 | PIO/SIO (Supervision) — General |
-| 90–91 | Training (Supervision) |
+| Id range | Category                                                 |
+| -------- | -------------------------------------------------------- |
+| 1–17     | Court Security (Non-Supervision) — 17 court types        |
+| 18       | Circuit court related travel (Non-Supervision) — General |
+| 19       | Coroner Jury Administration — General                    |
+| 20       | Criminal/Civil Jury Administration — General             |
+| 21–24    | Documents Civil/Family (Non-Supervision)                 |
+| 25–28    | Documents Criminal (Non-Supervision)                     |
+| 29       | Transports Air (Non-Supervision)                         |
+| 30       | Transports Ground (Non-Supervision)                      |
+| 31–33    | Transports Females                                       |
+| 34–36    | Transports Males                                         |
+| 37–43    | Holding area/cellblock (Non-Supervision)                 |
+| 44–49    | Other (Non-Supervision)                                  |
+| 50       | PIO/SIO (Non-Supervision) — General                      |
+| 51–52    | Training (Non-Supervision)                               |
+| 53–69    | Court Security (Supervision) — 17 court types            |
+| 70       | Circuit court related travel (Supervision) — Hours       |
+| 71–74    | Documents Civil/Family (Supervision)                     |
+| 75–78    | Documents Criminal (Supervision)                         |
+| 79       | Transports Air (Supervision)                             |
+| 80       | Transports Ground (Supervision)                          |
+| 81       | Holding area/cellblock (Supervision) — Hours             |
+| 82       | Jury Administration (Supervision) — Hours                |
+| 83–88    | Other (Supervision)                                      |
+| 89       | PIO/SIO (Supervision) — General                          |
+| 90–91    | Training (Supervision)                                   |
 
 **Metrics (49 total)**
 
-| Id range | Unit | Examples |
-|----------|------|---------|
-| 1–23 | `hours` | Staff Hours, Overtime Hours, Level 1/2/3 Staff Hours, Instructor Hours, etc. |
-| 24–42 | `count` | Number of Trips, Jurors Summonsed, Custodies, Level 1/2/3 Air/Ground, etc. |
-| 43–46 | `km` | Number of km Travelled, Level 1/2/3 Ground km |
-| 47 | `$` | Sum Total ($) Paid to Jurors and Alternates |
-| 48–49 | `count (received/concluded)` | Received, Concluded |
+| Id range | Unit                         | Examples                                                                     |
+| -------- | ---------------------------- | ---------------------------------------------------------------------------- |
+| 1–23     | `hours`                      | Staff Hours, Overtime Hours, Level 1/2/3 Staff Hours, Instructor Hours, etc. |
+| 24–42    | `count`                      | Number of Trips, Jurors Summonsed, Custodies, Level 1/2/3 Air/Ground, etc.   |
+| 43–46    | `km`                         | Number of km Travelled, Level 1/2/3 Ground km                                |
+| 47       | `$`                          | Sum Total ($) Paid to Jurors and Alternates                                  |
+| 48–49    | `count (received/concluded)` | Received, Concluded                                                          |
 
 ### Identity Sequence Conflict Prevention
 
