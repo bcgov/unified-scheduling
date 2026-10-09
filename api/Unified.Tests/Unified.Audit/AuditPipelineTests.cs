@@ -8,8 +8,8 @@ using Unified.Audit;
 using Unified.Audit.Options;
 using Unified.Db;
 using Unified.Db.Models;
-using Unified.Db.Models.UserManagement;
 using Unified.Db.Models.Training;
+using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Unified.Audit;
