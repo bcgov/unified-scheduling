@@ -48,9 +48,10 @@ export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
   moduleId: CalendarModuleId.SchedulingUi,
   label: '+ Create Shift',
   isAvailable: (context, runtimeContext) =>
-    context.activeViewId === calendarShiftViewContribution.id && canCreateShifts(runtimeContext),
+    context.activeViewId === calendarShiftViewContribution.id &&
+    (canCreateShifts(runtimeContext) || canCreateTimeOff(runtimeContext)),
   run: (context, runtimeContext) => {
-    if (!canCreateShifts(runtimeContext)) return;
+    if (!canCreateShifts(runtimeContext) && !canCreateTimeOff(runtimeContext)) return;
     showCalendarSchedulingResourceActionModal(undefined, context.startDate);
   },
 };
