@@ -310,9 +310,7 @@ const deleteOtherEmployeeNames = computed(() => {
     return '';
   }
 
-  const otherUserIds = (entry.series?.userIds ?? entry.userIds ?? []).filter(
-    (userId) => userId !== props.user.id,
-  );
+  const otherUserIds = (entry.series?.userIds ?? entry.userIds ?? []).filter((userId) => userId !== props.user.id);
   return otherUserIds.length > 0 ? employeeNames(otherUserIds) : '';
 });
 </script>
