@@ -49,7 +49,7 @@ describe('calendarSchedulingActions', () => {
     closeCalendarSchedulingResourceActionModal();
   });
 
-  it('makes create shift available only in the schedule view for shift creators', () => {
+  it('makes create shift available only in the schedule view for shift or time off creators', () => {
     const createContext = {
       startDate: '2026-07-14',
       endDate: '2026-07-14',
@@ -65,10 +65,16 @@ describe('calendarSchedulingActions', () => {
       featureFlags: { TimeOff: { enabled: true } },
       permissions: [Permissions.TimeOffCreateAndAssign],
     };
+    const noPermissions = {
+      featureFlags: { TimeOff: { enabled: true } },
+      permissions: [],
+    };
 
     expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, shiftCreator)).toBe(true);
     expect(calendarSchedulingCreateShiftAction.isAvailable?.(createContext, shiftCreator)).toBe(false);
-    expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, timeOffCreator)).toBe(false);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, timeOffCreator)).toBe(true);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(createContext, timeOffCreator)).toBe(false);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, noPermissions)).toBe(false);
   });
 
   it('opens the add assignment modal on the first date in the displayed range', async () => {
