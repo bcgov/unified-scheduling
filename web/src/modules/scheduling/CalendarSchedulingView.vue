@@ -115,7 +115,7 @@ function isRecurringTimeOff(event: CalendarEventBase) {
 }
 
 function editExistingShift() {
-  if (!canEditShift.value) {
+  if (!canEditShift.value && !canAllowEditTimeOff.value) {
     return;
   }
 
@@ -129,7 +129,7 @@ function editExistingShift() {
 }
 
 function createNewShift() {
-  if (!canCreateShift.value) {
+  if (!canCreateShift.value && !canAllowCreateTimeOff.value) {
     return;
   }
 
@@ -413,7 +413,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     <p>This team member already has an active shift on this date. Would you like to edit it or create a new shift?</p>
 
     <template #actions>
-      <UaBtn v-if="canCreateShift || canAllowCreateTimeOff" variant="outlined" @click="createNewShift">
+      <UaBtn v-if="canCreateShift" variant="outlined" @click="createNewShift">
         Create new shift
       </UaBtn>
       <UaBtn v-if="canEditShift" color="primary" variant="flat" @click="editExistingShift">Edit existing shift</UaBtn>
