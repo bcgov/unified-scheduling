@@ -85,7 +85,7 @@ const headers = [
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 120 },
 ];
 
-const leaveTypeNames = computed( 
+const leaveTypeNames = computed(
   () => new Map(leaveTypeOptions.value.map((option) => [Number(option.code), option.description])),
 );
 
@@ -220,16 +220,11 @@ async function loadAll(): Promise<void> {
     userSeries.value = [];
 
     try {
-      const [entriesResult, employeesResult] = await Promise.allSettled([
-        fetchEntries(),
-        usersStore.ensureAllUsers(),
-      ]);
+      const [entriesResult, employeesResult] = await Promise.allSettled([fetchEntries(), usersStore.ensureAllUsers()]);
 
       if (entriesResult.status === 'rejected') {
         seriesError.value =
-          entriesResult.reason instanceof Error
-            ? entriesResult.reason
-            : new Error('Failed to load leave records.');
+          entriesResult.reason instanceof Error ? entriesResult.reason : new Error('Failed to load leave records.');
         return;
       }
       if (error.value) {
@@ -246,8 +241,7 @@ async function loadAll(): Promise<void> {
             : new Error('Failed to load employee names.');
       }
     } catch (loadError: unknown) {
-      seriesError.value =
-        loadError instanceof Error ? loadError : new Error('Failed to load leave records.');
+      seriesError.value = loadError instanceof Error ? loadError : new Error('Failed to load leave records.');
     } finally {
       isFetchingSeries.value = false;
     }
@@ -274,10 +268,7 @@ async function loadSeriesRows() {
       .map((response) => response.data.value)
       .filter((series): series is TimeOffSeriesResponse => series !== null && series !== undefined);
   } catch (error: unknown) {
-    seriesError.value =
-      error instanceof Error
-        ? error
-        : new Error('Failed to load time-off series.');
+    seriesError.value = error instanceof Error ? error : new Error('Failed to load time-off series.');
   } finally {
     isFetchingSeries.value = false;
   }

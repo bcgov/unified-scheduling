@@ -56,8 +56,11 @@ const filterDate = computed(() => {
 
 const filteredLeaveTypeOptions = computed(() => props.leaveTypeOptions ?? leaveTypesForSelectedDate.value);
 const leaveTypeError = computed(() => {
-  
-  if ((props.modelValue.leaveType != null && props.modelValue.leaveType !== '') && !filteredLeaveTypeOptions.value.some((option) => Number(option.code) === Number(props.modelValue.leaveType))) {
+  if (
+    props.modelValue.leaveType != null &&
+    props.modelValue.leaveType !== '' &&
+    !filteredLeaveTypeOptions.value.some((option) => Number(option.code) === Number(props.modelValue.leaveType))
+  ) {
     return 'The selected leave type is not active for this date. Select an active leave type.';
   }
   return '';
