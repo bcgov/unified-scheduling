@@ -31,7 +31,7 @@ public sealed class SchedulingTimeOffMapperTests
         Assert.Equal(CalendarEventStatusTypeCodes.Cancelled, result.StatusTypeCode);
         Assert.Equal(CancelledBy, result.CancelledByUserId);
         Assert.Equal(5, result.LocationId);
-        Assert.Equal([UserA], result.AssignedUserIds);
+        Assert.Equal([UserA], result.UserIds);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class SchedulingTimeOffMapperTests
 
         Assert.Null(result.Title);
         Assert.False(result.AllDay);
-        Assert.Empty(result.AssignedUserIds);
+        Assert.Empty(result.UserIds);
     }
 
     [Fact]

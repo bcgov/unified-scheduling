@@ -28,6 +28,10 @@ export type EmployeeProps = {
   loadingEmployees?: boolean;
 };
 
+export type LeaveTypeProps = {
+  leaveTypeOptions?: SelectOption[];
+};
+
 const props = defineProps<
   {
     modelValue: TimeOffFormData;
@@ -35,7 +39,8 @@ const props = defineProps<
     showEmployees?: boolean;
     showRepeat?: boolean;
     timeZoneId?: string;
-  } & EmployeeProps
+  } & EmployeeProps &
+    LeaveTypeProps
 >();
 
 const emit = defineEmits<{

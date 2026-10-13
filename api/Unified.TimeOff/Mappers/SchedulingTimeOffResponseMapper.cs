@@ -31,7 +31,7 @@ internal static class SchedulingTimeOffResponseMapper
             CancelledByUserId = eventEntity?.CancelledByUserId,
             CancellationReason = eventEntity?.CancellationReason,
             LocationId = eventEntity?.LocationId,
-            AssignedUserIds = timeOffEntry.Users.Select(user => user.UserId).Distinct().ToList(),
+            UserIds = timeOffEntry.Users.Select(user => user.UserId).Distinct().ToList(),
         };
     }
 

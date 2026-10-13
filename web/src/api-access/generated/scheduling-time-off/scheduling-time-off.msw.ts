@@ -17,7 +17,7 @@ export const getGetApiSchedulingTimeoffUsersUserIdEntriesResponseMock = (): Sche
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -44,7 +44,7 @@ export const getGetApiSchedulingTimeoffUsersUserIdEntriesResponseMock = (): Sche
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -71,7 +71,7 @@ export const getGetApiSchedulingTimeoffUsersUserIdEntriesResponseMock = (): Sche
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -471,7 +471,7 @@ export const getGetApiSchedulingTimeoffEntriesIdResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -499,7 +499,7 @@ export const getGetApiSchedulingTimeoffEntriesIdResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -527,7 +527,7 @@ export const getGetApiSchedulingTimeoffEntriesIdResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -561,7 +561,7 @@ export const getPutApiSchedulingTimeoffEntriesIdResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -589,7 +589,7 @@ export const getPutApiSchedulingTimeoffEntriesIdResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -617,7 +617,7 @@ export const getPutApiSchedulingTimeoffEntriesIdResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -651,7 +651,7 @@ export const getPostApiSchedulingTimeoffEntriesResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -679,7 +679,7 @@ export const getPostApiSchedulingTimeoffEntriesResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),
@@ -707,7 +707,7 @@ export const getPostApiSchedulingTimeoffEntriesResponseMock = (
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
       timeOffSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       leaveTypeId: faker.helpers.arrayElement([faker.number.int(), undefined]),
-      assignedUserIds: faker.helpers.arrayElement([
+      userIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.string.uuid()),
         undefined,
       ]),

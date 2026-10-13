@@ -71,7 +71,7 @@ const buildInitialFormData = (series?: TimeOffSeriesResponse): TimeOffFormData =
   const start = startAtUtc ? parseFormDateTime(startAtUtc, zone) : null;
   const end = endAtUtc ? parseFormDateTime(endAtUtc, zone) : null;
   return {
-    userIds: [series?.userIds, isSeriesEdit.value ? entrySeries?.userIds : null, entry.assignedUserIds].find(
+    userIds: [series?.userIds, isSeriesEdit.value ? entrySeries?.userIds : null, entry.userIds].find(
       (ids) => ids && ids.length > 0,
     ) ?? [props.user.id],
     leaveType: series?.leaveTypeId ?? entry.leaveTypeId ?? null,

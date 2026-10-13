@@ -54,7 +54,7 @@ describe('UserTimeOffModal', () => {
     getTimeOffEntryMock.mockResolvedValue({
       data: ref({
         id: 42,
-        assignedUserIds: ['current-user'],
+        userIds: ['current-user'],
         leaveTypeId: 9,
         startAtUtc: '2026-06-10T17:00:00Z',
         endAtUtc: '2026-06-10T18:00:00Z',
@@ -74,7 +74,7 @@ describe('UserTimeOffModal', () => {
         scope: 'event',
         entry: {
           id: 42,
-          assignedUserIds: ['current-user'],
+          userIds: ['current-user'],
           leaveTypeId: 1,
           startAtUtc: '2026-01-01T17:00:00Z',
           endAtUtc: '2026-01-01T18:00:00Z',
