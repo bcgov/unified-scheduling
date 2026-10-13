@@ -97,11 +97,17 @@ describe('UserTimeOffModal', () => {
     expect(wrapper.get('[data-test="form"]').text()).toContain('Latest server note');
     expect(wrapper.get('[data-test="form"]').text()).not.toContain('Stale note');
 
-    await wrapper.findAll('button').find((button) => button.text() === 'Save')!.trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Save')!
+      .trigger('click');
     await flushPromises();
-    expect(updateTimeOffEntryMock).toHaveBeenCalledWith(42, expect.objectContaining({
-      notes: 'Latest server note',
-      leaveType: 9,
-    }));
+    expect(updateTimeOffEntryMock).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({
+        notes: 'Latest server note',
+        leaveType: 9,
+      }),
+    );
   });
 });

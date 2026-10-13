@@ -42,8 +42,8 @@ const updateActiveTab = (value: 'schedule' | 'timeOff') => {
     </v-tabs>
 
     <div class="resource-tabs__panels">
-      <section 
-         v-if="showShifts"
+      <section
+        v-if="showShifts"
         class="resource-tabs__panel"
         :class="{ 'resource-tabs__panel--active': activeTab === 'schedule' }"
         :aria-hidden="activeTab !== 'schedule'"

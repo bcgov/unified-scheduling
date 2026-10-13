@@ -956,4 +956,3 @@ function buildTimeOffCellHeader(
     action: { actionId: calendarSchedulingActionIds.viewTimeOffDetails, type: CalendarMatrixActionType.Button },
   };
 }
-

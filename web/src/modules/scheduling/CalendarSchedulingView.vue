@@ -89,7 +89,6 @@ const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShift
 const canAllowCreateTimeOff = computed(() => Boolean(props.runtimeContext && canCreateTimeOff(props.runtimeContext)));
 const canAllowEditTimeOff = computed(() => Boolean(props.runtimeContext && canEditTimeOff(props.runtimeContext)));
 
-
 function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
   if (item.type !== 'assignment') {
     return;

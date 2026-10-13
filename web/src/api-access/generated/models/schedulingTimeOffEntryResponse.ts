@@ -10,17 +10,6 @@ export interface SchedulingTimeOffEntryResponse {
   /** @nullable */
   timeOffSeriesId?: number | null;
   leaveTypeId?: number;
-  /** @nullable */
-  seriesRecurrenceRule?: string | null;
-  /** @nullable */
-  seriesTitle?: string | null;
-  /** @nullable */
-  seriesStartAtUtc?: string | null;
-  /** @nullable */
-  seriesEndAtUtc?: string | null;
-  /** @nullable */
-  seriesTimeZoneId?: string | null;
-  seriesUserIds?: string[];
   assignedUserIds?: string[];
   eventId?: number;
   /** @nullable */
@@ -35,6 +24,10 @@ export interface SchedulingTimeOffEntryResponse {
   startAtUtc?: string | null;
   /** @nullable */
   endAtUtc?: string | null;
+  /** @nullable */
+  seriesStartAtUtc?: string | null;
+  /** @nullable */
+  seriesEndAtUtc?: string | null;
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;
