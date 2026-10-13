@@ -48,7 +48,12 @@ const emit = defineEmits<{
   (event: 'validation-change', hasError: boolean): void;
 }>();
 
-const { filterLeaveTypeOptionsByDate, leaveTypeOptions, isLoadingLeaveTypes, leaveTypesError } = useLeaveTypeOptions();
+const {
+  filterLeaveTypeOptionsByDate,
+  leaveTypeOptions: allLeaveTypeOptions,
+  isLoadingLeaveTypes,
+  leaveTypesError,
+} = useLeaveTypeOptions();
 const formErrors = ref<Record<string, string>>({});
 const leaveTypesForSelectedDate = computed(() => filterLeaveTypeOptionsByDate(filterDate.value));
 const showRepeat = computed(() => props.showRepeat ?? true);
@@ -72,7 +77,7 @@ const leaveTypeError = computed(() => {
 });
 const leaveTypeRecurrenceError = computed(() => {
   if ((props.modelValue.repeatMode ?? 'never') !== 'custom' || !props.modelValue.recurrenceRule) return '';
-  const selectedLeaveType = leaveTypeOptions.value.find(
+  const selectedLeaveType = allLeaveTypeOptions.value.find(
     (option) => Number(option.code) === Number(props.modelValue.leaveType),
   );
   const expiryDate = selectedLeaveType?.expiryDateUtc ? new Date(selectedLeaveType.expiryDateUtc) : undefined;
