@@ -13,7 +13,7 @@ namespace Unified.Db.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable("UserLeaves");
-            
+
             migrationBuilder.CreateTable(
                 name: "TimeOffSeries",
                 columns: table => new
@@ -396,18 +396,13 @@ namespace Unified.Db.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "TimeOffEntryUsers");
+            migrationBuilder.DropTable(name: "TimeOffEntryUsers");
 
-            migrationBuilder.DropTable(
-                name: "TimeOffSeriesUsers");
+            migrationBuilder.DropTable(name: "TimeOffSeriesUsers");
 
-            migrationBuilder.DropTable(
-                name: "TimeOffEntries");
+            migrationBuilder.DropTable(name: "TimeOffEntries");
 
-            migrationBuilder.DropTable(
-                name: "TimeOffSeries");
-
+            migrationBuilder.DropTable(name: "TimeOffSeries");
         }
     }
 }

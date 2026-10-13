@@ -83,7 +83,6 @@ public sealed class SchedulingTimeOffService(
     )
     {
         var userIds = request.UserIds.Distinct().ToList();
-        
 
         var eventEntity = SchedulingTimeOffEventMapper.ToEvent(request, eventSeriesId: null);
         CalendarEventExceptionHelper.UpdateExceptionFlag(eventEntity);

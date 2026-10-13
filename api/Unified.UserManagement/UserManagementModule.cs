@@ -144,7 +144,6 @@ public static class UserManagementModule
             .AddPermissionPolicy(Permissions.UsersTimeOffEdit)
             .AddPermissionPolicy(Permissions.UsersTimeOffDelete)
             .AddPermissionPolicy(Permissions.UsersTimeOffView);
- 
 
         return services;
     }
