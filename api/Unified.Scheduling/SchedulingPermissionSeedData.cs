@@ -112,7 +112,7 @@ public static class SchedulingPermissionSeedData
                     Group = PermissionGroupScheduling,
                     Id = nameof(Permissions.TimeOffDelete),
                     Description = "Delete time off",
-                }
-            ]
+                },
+            ],
         };
 }

@@ -57,8 +57,7 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
             Group = PermissionGroupUsers,
             Id = nameof(Permissions.UsersViewOtherProfiles),
             Description = "View other user profiles",
-        }
-        ,
+        },
         new()
         {
             Group = PermissionGroupUsers,
