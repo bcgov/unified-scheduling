@@ -1,25 +1,67 @@
-import { computed } from 'vue';
+import { computed, shallowRef } from 'vue';
 import { getApiLeaveLeaveTypes } from '@/api-access/generated/leave-type/leave-type';
-import type { LeaveTypeResponse } from '@/api-access/generated/models';
 import type { SelectOption } from '@/types/select';
 
-const isActive = (leaveType: LeaveTypeResponse, now: Date) =>
-  !leaveType.expiryDateUtc || new Date(leaveType.expiryDateUtc) > now;
+const leaveTypes = shallowRef<Awaited<ReturnType<typeof getApiLeaveLeaveTypes>>['data']['value']>(undefined);
+const leaveTypesLoadError = shallowRef<Error | null>(null);
+let leaveTypesRequest: Promise<void> | null = null;
+
+function loadLeaveTypes() {
+  if ((leaveTypes.value?.length ?? 0) > 0 || leaveTypesRequest) return;
+
+  leaveTypesRequest = (async () => {
+    try {
+      const result = getApiLeaveLeaveTypes({ options: { immediate: false } });
+      await result.execute();
+      if (result.error.value) throw result.error.value;
+      leaveTypes.value = result.data.value ?? [];
+      leaveTypesLoadError.value = null;
+    } catch (error: unknown) {
+      leaveTypesLoadError.value = error instanceof Error ? error : new Error('Unable to load leave types.');
+    } finally {
+      leaveTypesRequest = null;
+    }
+  })();
+}
 
 export function useLeaveTypeOptions() {
-  const { data, error, isFetching } = getApiLeaveLeaveTypes();
+  loadLeaveTypes();
 
-  const leaveTypeOptions = computed<SelectOption[]>(() => {
-    const now = new Date();
-    return (data.value ?? [])
-      .filter((leaveType) => leaveType.id != null && isActive(leaveType, now))
-      .map((leaveType) => ({
-        code: leaveType.id as number,
-        description: leaveType.name?.trim() || leaveType.description?.trim() || `Leave type ${leaveType.id}`,
-      }));
-  });
+  const leaveTypeOptions = computed(() =>
+    (leaveTypes.value ?? []).flatMap((leaveType) =>
+      leaveType.id == null
+        ? []
+        : [
+            {
+              code: leaveType.id,
+              description: leaveType.name?.trim() || leaveType.description?.trim() || `Leave type ${leaveType.id}`,
+              effectiveDateUtc: leaveType.effectiveDateUtc,
+              expiryDateUtc: leaveType.expiryDateUtc,
+            },
+          ],
+    ),
+  );
 
-  const leaveTypesError = computed(() => (error.value ? 'Unable to load leave types.' : ''));
+  const filterLeaveTypeOptionsByDate = (date: Date): SelectOption[] => {
+    const dateOnly = date.toISOString().slice(0, 10);
+    const filteredOptions = leaveTypeOptions.value.filter(({ effectiveDateUtc, expiryDateUtc }) => {
+      const effectiveDate = effectiveDateUtc?.slice(0, 10);
+      const expiryDate = expiryDateUtc?.slice(0, 10);
 
-  return { leaveTypeOptions, isLoadingLeaveTypes: isFetching, leaveTypesError };
+      return (!effectiveDate || effectiveDate <= dateOnly) && (!expiryDate || expiryDate > dateOnly);
+    });
+    return filteredOptions;
+  };
+
+  const activeLeaveTypeOptions = computed(() => filterLeaveTypeOptionsByDate(new Date()));
+
+  const leaveTypesError = computed(() => (leaveTypesLoadError.value ? 'Unable to load leave types.' : ''));
+
+  return {
+    leaveTypeOptions,
+    activeLeaveTypeOptions,
+    filterLeaveTypeOptionsByDate,
+    isLoadingLeaveTypes: computed(() => leaveTypes.value == null && leaveTypesRequest != null),
+    leaveTypesError,
+  };
 }

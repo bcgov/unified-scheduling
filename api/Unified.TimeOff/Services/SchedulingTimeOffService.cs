@@ -44,7 +44,6 @@ public sealed class SchedulingTimeOffService(
             .TimeOffEntries.AsNoTracking()
             .Include(entry => entry.Event)
             .Include(entry => entry.Users)
-            .Include(entry => entry.TimeOffSeries)
             .Where(entry =>
                 entry.Users.Any(user => user.UserId == userId)
                 || (
@@ -54,10 +53,6 @@ public sealed class SchedulingTimeOffService(
                     )
                 )
             )
-            .Include(entry => entry.TimeOffSeries!)
-                .ThenInclude(series => series.EventSeries)
-            .Include(entry => entry.TimeOffSeries!)
-                .ThenInclude(series => series.Users)
             .OrderByDescending(entry => entry.Event!.StartAtUtc)
             .ToListAsync(cancellationToken);
 
@@ -79,20 +74,7 @@ public sealed class SchedulingTimeOffService(
             .OrderByDescending(series => series.EventSeries!.StartAtUtc)
             .ToListAsync(cancellationToken);
 
-        return entities
-            .Select(series =>
-                SchedulingTimeOffResponseMapper.ToSchedulingTimeOffSeriesResponse(
-                    series,
-                    series
-                        .EventSeries!.Events.Where(eventEntity =>
-                            eventEntity.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                        )
-                        .Select(eventEntity => eventEntity.Id)
-                        .ToList(),
-                    series.TimeOffEntries.Select(entry => entry.Id).ToList()
-                )
-            )
-            .ToList();
+        return entities.Select(MapTimeOffSeriesResponse).ToList();
     }
 
     public async Task<SchedulingTimeOffEntryResponse> CreateTimeOffEntryAsync(
@@ -134,7 +116,7 @@ public sealed class SchedulingTimeOffService(
             return null;
         }
 
-        return await MapTimeOffSeriesResponseAsync(entity, cancellationToken);
+        return MapTimeOffSeriesResponse(entity);
     }
 
     public async Task<SchedulingTimeOffSeriesResponse> CreateTimeOffSeriesAsync(
@@ -173,7 +155,7 @@ public sealed class SchedulingTimeOffService(
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Created time off series {TimeOffSeriesId}.", entity.Id);
-        return await MapTimeOffSeriesResponseAsync(entity, cancellationToken);
+        return MapTimeOffSeriesResponse(entity);
     }
 
     public async Task<SchedulingTimeOffSeriesResponse?> UpdateTimeOffSeriesAsync(
@@ -257,7 +239,7 @@ public sealed class SchedulingTimeOffService(
         await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Updated time off series {TimeOffSeriesId}.", id);
-        return await MapTimeOffSeriesResponseAsync(entity, cancellationToken);
+        return MapTimeOffSeriesResponse(entity);
     }
 
     public async Task<bool> DeleteTimeOffSeriesAsync(int id, CancellationToken cancellationToken = default)
@@ -380,10 +362,7 @@ public sealed class SchedulingTimeOffService(
             .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
     }
 
-    private async Task<SchedulingTimeOffSeriesResponse> MapTimeOffSeriesResponseAsync(
-        TimeOffSeries entity,
-        CancellationToken cancellationToken
-    )
+    private static SchedulingTimeOffSeriesResponse MapTimeOffSeriesResponse(TimeOffSeries entity)
     {
         var eventIds = entity
             .EventSeries!.Events.Where(eventEntity =>

@@ -60,6 +60,7 @@ const canCreateTimeOff = computed(
 
 const isSaving = ref(false);
 const activeTab = ref<'schedule' | 'timeOff'>('schedule');
+const timeOffHasValidationError = ref(false);
 const timeOffFormData = ref<TimeOffFormData>({
   userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
   date: props.initialDate ?? '',
@@ -361,6 +362,7 @@ async function handleSave() {
 
 async function handleSaveTimeOff() {
   apiError.value = '';
+  if (timeOffHasValidationError.value) return;
   if (!canCreateTimeOff.value) {
     apiError.value = 'You do not have permission to create time off.';
     return;
@@ -454,7 +456,7 @@ function applyServerValidationErrors(rawError: unknown) {
       </UaAlert>
     </template>
 
-    <CalendarSchedulingResourceTabs :show-time-off="canCreateTimeOff" @update:active-tab="activeTab = $event">
+    <CalendarSchedulingResourceTabs @update:active-tab="activeTab = $event">
       <template #schedule>
         <section class="resource-shift-modal__panel">
           <CalendarSchedulingShiftForm
@@ -483,8 +485,10 @@ function applyServerValidationErrors(rawError: unknown) {
             :disabled="isSaving || !canCreateTimeOff"
             :employee-options="employeeOptions"
             :loading-employees="isLoadingUsers"
+            :time-zone-id="timeZoneId"
             show-employees
             show-repeat
+            @validation-change="timeOffHasValidationError = $event"
           />
         </section>
       </template>
@@ -508,6 +512,7 @@ function applyServerValidationErrors(rawError: unknown) {
         color="primary"
         variant="flat"
         :loading="isSaving"
+        :disabled="timeOffHasValidationError"
         @click="handleSaveTimeOff"
       >
         Save

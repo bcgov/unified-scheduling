@@ -31,14 +31,11 @@ public sealed class SchedulingTimeOffMapperTests
         Assert.Equal(CalendarEventStatusTypeCodes.Cancelled, result.StatusTypeCode);
         Assert.Equal(CancelledBy, result.CancelledByUserId);
         Assert.Equal(5, result.LocationId);
-        Assert.Equal("FREQ=DAILY;COUNT=2", result.SeriesRecurrenceRule);
-        Assert.Equal("Series", result.SeriesTitle);
         Assert.Equal([UserA], result.AssignedUserIds);
-        Assert.Equal([UserB], result.SeriesUserIds);
     }
 
     [Fact]
-    public void ToSchedulingTimeOffEntryResponse_WhenEventAndSeriesMissing_UsesDefaults()
+    public void ToSchedulingTimeOffEntryResponse_WhenEventMissing_UsesDefaults()
     {
         var entry = new TimeOffEntry
         {
@@ -51,8 +48,6 @@ public sealed class SchedulingTimeOffMapperTests
 
         Assert.Null(result.Title);
         Assert.False(result.AllDay);
-        Assert.Null(result.SeriesRecurrenceRule);
-        Assert.Empty(result.SeriesUserIds);
         Assert.Empty(result.AssignedUserIds);
     }
 

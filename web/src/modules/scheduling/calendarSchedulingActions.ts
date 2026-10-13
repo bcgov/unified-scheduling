@@ -36,6 +36,7 @@ import {
   canAssignAssignments,
   canCreateAssignments,
   canCreateShifts,
+  canCreateTimeOff,
   canEditAssignments,
   canViewAssignments,
   canViewShifts,
@@ -86,9 +87,10 @@ export const calendarAddResourceAction: CalendarMatrixResourceAction = {
   label: 'Add resource',
   order: 10,
   isAvailable: (context, runtimeContext) =>
-    context.actionId === calendarSchedulingActionIds.addResource && canCreateShifts(runtimeContext),
+    context.actionId === calendarSchedulingActionIds.addResource &&
+    (canCreateShifts(runtimeContext) || canCreateTimeOff(runtimeContext)),
   execute: (context, runtimeContext) => {
-    if (!canCreateShifts(runtimeContext)) return;
+    if (!canCreateShifts(runtimeContext) && !canCreateTimeOff(runtimeContext)) return;
     showCalendarSchedulingResourceActionModal(context.resource, context.cell?.date);
   },
 };

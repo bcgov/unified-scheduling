@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import type { UserResponse } from '@/api-access/generated/models/userResponse';
 import type {
   SchedulingTimeOffEntryResponse as TimeOffEntryResponse,
   SchedulingTimeOffSeriesResponse as TimeOffSeriesResponse,
 } from '@/api-access/generated/models';
-import type { UserResponse } from '@/api-access/generated/models/userResponse';
 import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
@@ -19,13 +19,16 @@ import {
 } from '@/modules/timeoff/api/timeOffApi';
 import TimeOffDetailsPanel from '@/modules/timeoff/components/TimeOffDetailsPanel.vue';
 import TimeOffForm, { type TimeOffFormData } from '@/modules/timeoff/components/TimeOffForm.vue';
+import { useLeaveTypeOptions } from '@/modules/timeoff/composables/useLeaveTypeOptions';
 import { buildTimeOffRequest } from '@/modules/timeoff/timeOffRequest';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useUsersStore } from '@/stores/Users';
+import type { SelectOption } from '@/types/select';
 import { formatCalendarDateTimeDate, formatCalendarEventTimeRange } from '@/utils/date';
+import { DateTime } from 'luxon';
 import { isCalendarSchedulingEvent } from './calendarSchedulingData';
 import { resolveCalendarEventUserIds } from './calendarSchedulingEventUsers';
 import { formatAssigneeIds } from './calendarSchedulingShiftDetailRows';
@@ -79,9 +82,11 @@ const calendarStore = useCalendarStore();
 const accessControl = useAccessControl();
 const locationsStore = useLocationsStore();
 const usersStore = useUsersStore();
+const { activeLeaveTypeOptions, filterLeaveTypeOptionsByDate } = useLeaveTypeOptions();
 const users = ref<UserResponse[]>([]);
 const isLoadingUsers = ref(false);
 const isSaving = ref(false);
+const hasEditFormValidationError = ref(false);
 const apiError = ref('');
 const activeTab = ref<TimeOffDetailTabId>('details');
 const selectedOpenScope = ref<TimeOffOpenScope | null>(getInitialOpenScope(props.event));
@@ -132,8 +137,29 @@ const modalTitle = computed(() => {
   return `${entityLabel.value} Details`;
 });
 
-const employeeOptions = computed(() =>
+const employeeOptions = computed<SelectOption[]>(() =>
   users.value.map((user) => ({ code: user.id, description: formatUserOptionLabel(user) })),
+);
+
+watch(
+  () => props.event.locationId,
+  async (locationId) => {
+    if (!locationId) {
+      users.value = [];
+      return;
+    }
+
+    isLoadingUsers.value = true;
+    try {
+      users.value = await usersStore.ensureUsersForLocation(locationId);
+    } catch (error: unknown) {
+      users.value = [];
+      apiError.value = error instanceof Error ? error.message : 'Failed to load employees.';
+    } finally {
+      isLoadingUsers.value = false;
+    }
+  },
+  { immediate: true },
 );
 
 const detailRows = computed<ShiftDetailRow[]>(() => [
@@ -168,27 +194,13 @@ const detailRows = computed<ShiftDetailRow[]>(() => [
 ]);
 
 const editFormData = ref<TimeOffFormData>(buildEditFormData());
-
-watch(
-  () => props.event.locationId,
-  async (locationId) => {
-    if (!locationId) {
-      users.value = [];
-      return;
-    }
-
-    isLoadingUsers.value = true;
-    try {
-      users.value = await usersStore.ensureUsersForLocation(locationId);
-    } catch (error: unknown) {
-      users.value = [];
-      apiError.value = error instanceof Error ? error.message : 'Failed to load employees.';
-    } finally {
-      isLoadingUsers.value = false;
-    }
-  },
-  { immediate: true },
-);
+const editLeaveTypeOptions = computed(() => {
+  const date = editFormData.value.date;
+  if (!date) return activeLeaveTypeOptions.value;
+  const dateTime = DateTime.fromISO(date, { zone: timeZoneId.value });
+  if (!dateTime.isValid) return activeLeaveTypeOptions.value;
+  return filterLeaveTypeOptionsByDate(dateTime.endOf('day').toJSDate());
+});
 
 function buildEditFormData(): TimeOffFormData {
   if (selectedOpenScope.value === 'series' && selectedSeries.value) {
@@ -425,7 +437,10 @@ function formatDateRange() {
       :disabled="isSaving"
       :employee-options="employeeOptions"
       :loading-employees="isLoadingUsers"
+      :leave-type-options="editLeaveTypeOptions"
+      :time-zone-id="timeZoneId"
       :show-repeat="selectedOpenScope === 'series'"
+      @validation-change="hasEditFormValidationError = $event"
     />
 
     <section
@@ -450,7 +465,15 @@ function formatDateRange() {
       </template>
       <template v-else>
         <UaBtn variant="outlined" :disabled="isSaving" @click="selectTab('details')">Cancel</UaBtn>
-        <UaBtn color="primary" variant="flat" :loading="isSaving" @click="handleSave">Save</UaBtn>
+        <UaBtn
+          color="primary"
+          variant="flat"
+          :loading="isSaving"
+          :disabled="hasEditFormValidationError"
+          @click="handleSave"
+        >
+          Save
+        </UaBtn>
       </template>
     </template>
   </UaModal>
