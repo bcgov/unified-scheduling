@@ -2,7 +2,7 @@ import { computed, shallowRef } from 'vue';
 import { getApiLeaveLeaveTypes } from '@/api-access/generated/leave-type/leave-type';
 import type { SelectOption } from '@/types/select';
 
-const leaveTypes = shallowRef<Awaited<ReturnType<typeof getApiLeaveLeaveTypes>>['data']['value']>(undefined);
+const leaveTypes = shallowRef<Awaited<ReturnType<typeof getApiLeaveLeaveTypes>>['data']['value']>(null);
 const leaveTypesLoadError = shallowRef<Error | null>(null);
 let leaveTypesRequest: Promise<void> | null = null;
 

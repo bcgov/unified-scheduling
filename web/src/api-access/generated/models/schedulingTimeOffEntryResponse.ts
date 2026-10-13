@@ -10,7 +10,7 @@ export interface SchedulingTimeOffEntryResponse {
   /** @nullable */
   timeOffSeriesId?: number | null;
   leaveTypeId?: number;
-  assignedUserIds?: string[];
+  userIds?: string[];
   eventId?: number;
   /** @nullable */
   title?: string | null;

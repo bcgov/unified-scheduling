@@ -8,5 +8,5 @@ public sealed record SchedulingTimeOffEntryResponse : BaseSchedulingEventRespons
 
     public int LeaveTypeId { get; init; }
 
-    public IReadOnlyCollection<Guid> AssignedUserIds { get; init; } = [];
+    public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
 }

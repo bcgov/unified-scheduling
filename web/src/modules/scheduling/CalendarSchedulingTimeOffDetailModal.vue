@@ -174,7 +174,7 @@ const detailRows = computed<ShiftDetailRow[]>(() => [
     value: formatAssigneeIds(
       selectedOpenScope.value === 'series'
         ? (selectedSeries.value?.userIds ?? [])
-        : (selectedEntry.value?.assignedUserIds ?? resolveCalendarEventUserIds(props.event)),
+        : (selectedEntry.value?.userIds ?? resolveCalendarEventUserIds(props.event)),
       employeeOptions.value,
     ),
   },
@@ -222,7 +222,7 @@ function buildEditFormData(): TimeOffFormData {
     const start = parseFormDateTime(selectedEntry.value.startAtUtc ?? '', timeZoneId.value);
     const end = parseFormDateTime(selectedEntry.value.endAtUtc ?? '', timeZoneId.value);
     return {
-      userIds: selectedEntry.value.assignedUserIds,
+      userIds: selectedEntry.value.userIds,
       leaveType: selectedEntry.value.leaveTypeId,
       date: start?.date ?? '',
       startTime: start?.time ?? defaultStartTime,

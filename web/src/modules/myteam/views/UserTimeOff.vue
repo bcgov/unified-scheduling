@@ -40,11 +40,8 @@ const isFetchingSeries = ref(false);
 const { leaveTypeOptions } = useLeaveTypeOptions();
 
 const openScope = ref<'event' | 'series'>('event');
-const scopeChoice = ref<{ entry: TimeOffEntryResponse; action: 'edit' | 'delete' } | null>(null);
 const showLeaveModal = ref(false);
-const selectedEntry = ref<TimeOffEntryResponse | null>(null);
 const showDeleteModal = ref(false);
-const selectedDeleteEntry = ref<TimeOffEntryResponse | null>(null);
 let loadAllPromise: Promise<void> | null = null;
 
 if (canViewLeave.value) {
@@ -67,8 +64,12 @@ const chooseScope = (scope: 'event' | 'series') => {
 
 type TimeOffEntryRow = TimeOffEntryResponse & { series?: TimeOffSeriesResponse };
 
+const scopeChoice = ref<{ entry: TimeOffEntryRow; action: 'edit' | 'delete' } | null>(null);
+const selectedEntry = ref<TimeOffEntryRow | null>(null);
+const selectedDeleteEntry = ref<TimeOffEntryRow | null>(null);
+
 const seriesHasOtherUsers = (entry: TimeOffEntryRow) =>
-  (entry.series?.seriesUserIds ?? entry.assignedUserIds ?? []).some((userId) => userId !== props.user.id);
+  (entry.series?.userIds ?? entry.userIds ?? []).some((userId) => userId !== props.user.id);
 
 const asTimeOffEntryRow = (entry: TimeOffEntryResponse): TimeOffEntryRow => ({
   ...entry,
@@ -309,7 +310,7 @@ const deleteOtherEmployeeNames = computed(() => {
     return '';
   }
 
-  const otherUserIds = (entry.series?.seriesUserIds ?? entry.assignedUserIds ?? []).filter(
+  const otherUserIds = (entry.series?.userIds ?? entry.userIds ?? []).filter(
     (userId) => userId !== props.user.id,
   );
   return otherUserIds.length > 0 ? employeeNames(otherUserIds) : '';
@@ -471,7 +472,7 @@ const deleteOtherEmployeeNames = computed(() => {
           <strong>
             {{
               employeeNames(
-                (scopeChoice.entry.series?.seriesUserIds ?? scopeChoice.entry.assignedUserIds)?.filter(
+                (scopeChoice.entry.series?.userIds ?? scopeChoice.entry.userIds)?.filter(
                   (userId) => userId !== user.id,
                 ),
               )
@@ -486,7 +487,7 @@ const deleteOtherEmployeeNames = computed(() => {
           <strong>
             {{
               employeeNames(
-                (scopeChoice.entry.series?.seriesUserIds ?? scopeChoice.entry.assignedUserIds)?.filter(
+                (scopeChoice.entry.series?.userIds ?? scopeChoice.entry.userIds)?.filter(
                   (userId) => userId !== user.id,
                 ),
               )
