@@ -413,9 +413,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     <p>This team member already has an active shift on this date. Would you like to edit it or create a new shift?</p>
 
     <template #actions>
-      <UaBtn v-if="canCreateShift" variant="outlined" @click="createNewShift">
-        Create new shift
-      </UaBtn>
+      <UaBtn v-if="canCreateShift" variant="outlined" @click="createNewShift"> Create new shift </UaBtn>
       <UaBtn v-if="canEditShift" color="primary" variant="flat" @click="editExistingShift">Edit existing shift</UaBtn>
     </template>
   </UaModal>
