@@ -10,7 +10,6 @@ internal static class SchedulingTimeOffResponseMapper
     public static SchedulingTimeOffEntryResponse ToSchedulingTimeOffEntryResponse(TimeOffEntry timeOffEntry)
     {
         var eventEntity = timeOffEntry.Event;
-        var eventSeries = timeOffEntry.TimeOffSeries?.EventSeries;
         return new SchedulingTimeOffEntryResponse
         {
             Id = timeOffEntry.Id,
@@ -32,12 +31,6 @@ internal static class SchedulingTimeOffResponseMapper
             CancelledByUserId = eventEntity?.CancelledByUserId,
             CancellationReason = eventEntity?.CancellationReason,
             LocationId = eventEntity?.LocationId,
-            SeriesRecurrenceRule = eventSeries?.RecurrenceRule,
-            SeriesTitle = eventSeries?.Title,
-            SeriesStartAtUtc = eventSeries?.StartAtUtc,
-            SeriesEndAtUtc = eventSeries?.EndAtUtc,
-            SeriesTimeZoneId = eventSeries?.TimeZoneId,
-            SeriesUserIds = timeOffEntry.TimeOffSeries?.Users.Select(user => user.UserId).Distinct().ToList() ?? [],
             AssignedUserIds = timeOffEntry.Users.Select(user => user.UserId).Distinct().ToList(),
         };
     }

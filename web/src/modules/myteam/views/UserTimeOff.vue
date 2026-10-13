@@ -35,6 +35,7 @@ const usersStore = useUsersStore();
 const { data: entries, error, isFetching, execute: fetchEntries } = useUserTimeOffEntries(props.user.id);
 const userSeries = ref<TimeOffSeriesResponse[]>([]);
 const seriesError = ref<Error | null>(null);
+const employeesError = ref<Error | null>(null);
 const isFetchingSeries = ref(false);
 const { leaveTypeOptions } = useLeaveTypeOptions();
 
@@ -44,6 +45,7 @@ const showLeaveModal = ref(false);
 const selectedEntry = ref<TimeOffEntryResponse | null>(null);
 const showDeleteModal = ref(false);
 const selectedDeleteEntry = ref<TimeOffEntryResponse | null>(null);
+let loadAllPromise: Promise<void> | null = null;
 
 if (canViewLeave.value) {
   void loadAll();
@@ -63,8 +65,15 @@ const chooseScope = (scope: 'event' | 'series') => {
   }
 };
 
-const seriesHasOtherUsers = (entry: TimeOffEntryResponse) =>
-  (entry.seriesUserIds ?? entry.assignedUserIds ?? []).some((userId) => userId !== props.user.id);
+type TimeOffEntryRow = TimeOffEntryResponse & { series?: TimeOffSeriesResponse };
+
+const seriesHasOtherUsers = (entry: TimeOffEntryRow) =>
+  (entry.series?.seriesUserIds ?? entry.assignedUserIds ?? []).some((userId) => userId !== props.user.id);
+
+const asTimeOffEntryRow = (entry: TimeOffEntryResponse): TimeOffEntryRow => ({
+  ...entry,
+  series: userSeries.value.find((series) => series.id === entry.timeOffSeriesId),
+});
 
 const headers = [
   { title: '', key: 'data-table-expand', sortable: false, width: 56 },
@@ -72,12 +81,11 @@ const headers = [
   { title: 'Date', key: 'date', sortable: true },
   { title: 'Time', key: 'time', sortable: false },
   { title: 'Repeat', key: 'recurrence', sortable: false },
-  { title: 'Status', key: 'statusTypeCode', sortable: true },
   { title: 'Notes', key: 'notes', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const, width: 120 },
 ];
 
-const leaveTypeNames = computed(
+const leaveTypeNames = computed( 
   () => new Map(leaveTypeOptions.value.map((option) => [Number(option.code), option.description])),
 );
 
@@ -91,15 +99,17 @@ const toLocal = (value: string | null | undefined, zone: string | null | undefin
 
 const rows = computed(() =>
   (entries.value ?? []).map((entry) => {
+    const series = userSeries.value.find((candidate) => candidate.id === entry.timeOffSeriesId);
     const start = toLocal(entry.startAtUtc, entry.timeZoneId);
     const end = toLocal(entry.endAtUtc, entry.timeZoneId);
     return {
       ...entry,
+      series,
       rowId: `entry-${entry.id}`,
       rowType: 'entry' as const,
       leaveTypeName: leaveTypeNames.value.get(entry.leaveTypeId ?? -1) ?? `Leave type ${entry.leaveTypeId}`,
       date: start?.toFormat('yyyy-MM-dd') ?? '-',
-      recurrence: entry.seriesRecurrenceRule ?? '',
+      recurrence: series?.recurrenceRule ?? '',
       time: start && end ? `${start.toFormat('h:mm a')} - ${end.toFormat('h:mm a')}` : '-',
     };
   }),
@@ -122,11 +132,14 @@ const tableRows = computed(() => [
       notes: series.notes,
       recurrence: series.recurrenceRule ?? '',
       assignedUserIds: series.userIds,
-      seriesStartAtUtc: series.startAtUtc,
-      seriesEndAtUtc: series.endAtUtc,
-      seriesTimeZoneId: series.timeZoneId,
-      seriesRecurrenceRule: series.recurrenceRule,
-      seriesUserIds: series.userIds,
+      series: {
+        ...series,
+        seriesStartAtUtc: series.startAtUtc,
+        seriesEndAtUtc: series.endAtUtc,
+        seriesTimeZoneId: series.timeZoneId,
+        seriesRecurrenceRule: series.recurrenceRule,
+        seriesUserIds: series.userIds,
+      },
     };
   }),
 ]);
@@ -144,20 +157,6 @@ const describeRecurrence = (rule: string | null | undefined) => {
     return text.charAt(0).toUpperCase() + text.slice(1);
   } catch {
     return rule;
-  }
-};
-
-const statusColor = (code: string | null | undefined) => {
-  switch (code?.toLowerCase()) {
-    case 'draft':
-      return 'warning';
-    case 'cancelled':
-      return 'error';
-    case 'approved':
-    case 'confirmed':
-      return 'success';
-    default:
-      return undefined;
   }
 };
 
@@ -182,19 +181,20 @@ const handleOpenAddModal = () => {
 };
 
 const handleOpenEditModal = (entry: TimeOffEntryResponse & { rowType?: string }) => {
-  if (entry.rowType === 'series' && seriesHasOtherUsers(entry)) {
-    scopeChoice.value = { entry, action: 'edit' };
+  const entryRow = asTimeOffEntryRow(entry);
+  if (entry.rowType === 'series' && seriesHasOtherUsers(entryRow)) {
+    scopeChoice.value = { entry: entryRow, action: 'edit' };
     return;
   }
   if (entry.timeOffSeriesId != null && entry.rowType !== 'series') {
-    chooseScopeForUser(entry, 'edit');
+    chooseScopeForUser(entryRow, 'edit');
   } else {
-    setOpenEntry(entry, entry.rowType === 'series' ? 'series' : 'event');
+    setOpenEntry(entryRow, entry.rowType === 'series' ? 'series' : 'event');
     showLeaveModal.value = true;
   }
 };
 
-const chooseScopeForUser = (entry: TimeOffEntryResponse, action: 'edit' | 'delete') => {
+const chooseScopeForUser = (entry: TimeOffEntryRow, action: 'edit' | 'delete') => {
   scopeChoice.value = { entry, action };
 };
 
@@ -208,19 +208,53 @@ const handleSaved = async () => {
   await loadAll();
 };
 
-// Series ids come from the entries, so entries must finish loading first.
-async function loadAll() {
-  const userLoadResult = await Promise.allSettled([fetchEntries(), usersStore.ensureAllUsers()]);
-  const employeeLoadError =
-    userLoadResult[1].status === 'rejected'
-      ? userLoadResult[1].reason instanceof Error
-        ? userLoadResult[1].reason
-        : new Error('Failed to load employee names.')
-      : null;
-  await loadSeriesRows();
-  if (employeeLoadError) {
-    seriesError.value = employeeLoadError;
+async function loadAll(): Promise<void> {
+  if (loadAllPromise) {
+    return loadAllPromise;
   }
+
+  loadAllPromise = (async () => {
+    isFetchingSeries.value = true;
+    seriesError.value = null;
+    employeesError.value = null;
+    userSeries.value = [];
+
+    try {
+      const [entriesResult, employeesResult] = await Promise.allSettled([
+        fetchEntries(),
+        usersStore.ensureAllUsers(),
+      ]);
+
+      if (entriesResult.status === 'rejected') {
+        seriesError.value =
+          entriesResult.reason instanceof Error
+            ? entriesResult.reason
+            : new Error('Failed to load leave records.');
+        return;
+      }
+      if (error.value) {
+        seriesError.value = new Error(error.value.message || 'Failed to load leave records.');
+        return;
+      }
+
+      await loadSeriesRows();
+
+      if (employeesResult.status === 'rejected') {
+        employeesError.value =
+          employeesResult.reason instanceof Error
+            ? employeesResult.reason
+            : new Error('Failed to load employee names.');
+      }
+    } catch (loadError: unknown) {
+      seriesError.value =
+        loadError instanceof Error ? loadError : new Error('Failed to load leave records.');
+    } finally {
+      isFetchingSeries.value = false;
+    }
+  })().finally(() => {
+    loadAllPromise = null;
+  });
+  return loadAllPromise;
 }
 
 async function loadSeriesRows() {
@@ -231,31 +265,37 @@ async function loadSeriesRows() {
       (entries.value ?? []).map((entry) => entry.timeOffSeriesId).filter((id): id is number => id != null),
     );
     const responses = await Promise.all([...ids].map((id) => getTimeOffSeries(id)));
-    const firstError = responses.find((response) => response.error.value)?.error.value;
-    if (firstError) {
-      seriesError.value = new Error(firstError.message || 'Failed to load time-off series.');
+    const fetchError = responses.find((response) => response.error.value)?.error.value;
+    if (fetchError) {
+      seriesError.value = new Error(fetchError.message || 'Failed to load time-off series.');
       return;
     }
     userSeries.value = responses
       .map((response) => response.data.value)
       .filter((series): series is TimeOffSeriesResponse => series !== null && series !== undefined);
+  } catch (error: unknown) {
+    seriesError.value =
+      error instanceof Error
+        ? error
+        : new Error('Failed to load time-off series.');
   } finally {
     isFetchingSeries.value = false;
   }
 }
 
 const handleOpenDeleteModal = (entry: TimeOffEntryResponse & { rowType?: string }) => {
-  if (entry.rowType === 'series' && seriesHasOtherUsers(entry)) {
-    setOpenEntry(entry, 'series');
-    selectedDeleteEntry.value = entry;
+  const entryRow = asTimeOffEntryRow(entry);
+  if (entry.rowType === 'series' && seriesHasOtherUsers(entryRow)) {
+    setOpenEntry(entryRow, 'series');
+    selectedDeleteEntry.value = entryRow;
     showDeleteModal.value = true;
     return;
   }
   if (entry.timeOffSeriesId != null && entry.rowType !== 'series') {
-    chooseScopeForUser(entry, 'delete');
+    chooseScopeForUser(entryRow, 'delete');
   } else {
-    setOpenEntry(entry, entry.rowType === 'series' ? 'series' : 'event');
-    selectedDeleteEntry.value = entry;
+    setOpenEntry(entryRow, entry.rowType === 'series' ? 'series' : 'event');
+    selectedDeleteEntry.value = entryRow;
     showDeleteModal.value = true;
   }
 };
@@ -278,7 +318,7 @@ const deleteOtherEmployeeNames = computed(() => {
     return '';
   }
 
-  const otherUserIds = (entry.seriesUserIds ?? entry.assignedUserIds ?? []).filter(
+  const otherUserIds = (entry.series?.seriesUserIds ?? entry.assignedUserIds ?? []).filter(
     (userId) => userId !== props.user.id,
   );
   return otherUserIds.length > 0 ? employeeNames(otherUserIds) : '';
@@ -297,6 +337,10 @@ const deleteOtherEmployeeNames = computed(() => {
 
     <UaAlert v-if="error || seriesError" type="error" :closable="false">
       Failed to load leave records: {{ error?.message || seriesError?.message }}
+    </UaAlert>
+
+    <UaAlert v-if="employeesError" type="warning" :closable="false">
+      Failed to load employee names: {{ employeesError.message }}
     </UaAlert>
 
     <div v-if="isFetching || isFetchingSeries" class="user-timeoff-view__loading">Loading leave records...</div>
@@ -331,13 +375,6 @@ const deleteOtherEmployeeNames = computed(() => {
           {{ item.leaveTypeName }}
           <v-icon v-if="item.rowType === 'series'" :icon="mdiRepeat" size="small" title="Repeating series" />
         </span>
-      </template>
-
-      <template #[`item.statusTypeCode`]="{ item }">
-        <v-chip v-if="item.statusTypeCode" size="small" label :color="statusColor(item.statusTypeCode)">
-          {{ item.statusTypeCode }}
-        </v-chip>
-        <span v-else>-</span>
       </template>
 
       <template #[`item.notes`]="{ item }">
@@ -420,7 +457,7 @@ const deleteOtherEmployeeNames = computed(() => {
     </UaDataTable>
 
     <UaPlaceholderPage
-      v-else-if="!error"
+      v-else-if="!error && !seriesError"
       title="No leave records"
       description="No leave records have been recorded for this user yet."
     />
@@ -443,7 +480,7 @@ const deleteOtherEmployeeNames = computed(() => {
           <strong>
             {{
               employeeNames(
-                (scopeChoice.entry.seriesUserIds ?? scopeChoice.entry.assignedUserIds)?.filter(
+                (scopeChoice.entry.series?.seriesUserIds ?? scopeChoice.entry.assignedUserIds)?.filter(
                   (userId) => userId !== user.id,
                 ),
               )
@@ -458,7 +495,7 @@ const deleteOtherEmployeeNames = computed(() => {
           <strong>
             {{
               employeeNames(
-                (scopeChoice.entry.seriesUserIds ?? scopeChoice.entry.assignedUserIds)?.filter(
+                (scopeChoice.entry.series?.seriesUserIds ?? scopeChoice.entry.assignedUserIds)?.filter(
                   (userId) => userId !== user.id,
                 ),
               )

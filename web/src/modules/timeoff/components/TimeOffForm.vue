@@ -7,7 +7,9 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { repeatOptions, type RepeatMode } from '@/modules/scheduling/calendarSchedulingShiftForm';
 import { defaultEndTime, defaultStartTime, timeOptions } from '@/modules/scheduling/schedulingDateTime';
 import type { SelectOption, SelectValue } from '@/types/select';
-import { computed, ref } from 'vue';
+import { DateTime } from 'luxon';
+import { rrulestr } from 'rrule';
+import { computed, ref, watch } from 'vue';
 import { useLeaveTypeOptions } from '../composables/useLeaveTypeOptions';
 
 export type TimeOffFormData = {
@@ -32,16 +34,65 @@ const props = defineProps<
     disabled?: boolean;
     showEmployees?: boolean;
     showRepeat?: boolean;
+    timeZoneId?: string;
   } & EmployeeProps
 >();
 
 const emit = defineEmits<{
   (event: 'update:modelValue', value: TimeOffFormData): void;
+  (event: 'validation-change', hasError: boolean): void;
 }>();
 
-const { leaveTypeOptions, isLoadingLeaveTypes, leaveTypesError } = useLeaveTypeOptions();
+const { filterLeaveTypeOptionsByDate, leaveTypeOptions, isLoadingLeaveTypes, leaveTypesError } = useLeaveTypeOptions();
 const formErrors = ref<Record<string, string>>({});
+const leaveTypesForSelectedDate = computed(() => filterLeaveTypeOptionsByDate(filterDate.value));
 const showRepeat = computed(() => props.showRepeat ?? true);
+const filterDate = computed(() => {
+  const date = props.modelValue.date;
+  if (!date) return new Date();
+  const parsedDate = DateTime.fromISO(date, { zone: props.timeZoneId ?? 'America/Vancouver' });
+  return parsedDate.isValid ? parsedDate.endOf('day').toJSDate() : new Date();
+});
+
+const filteredLeaveTypeOptions = computed(() => props.leaveTypeOptions ?? leaveTypesForSelectedDate.value);
+const leaveTypeError = computed(() => {
+  
+  if ((props.modelValue.leaveType != null && props.modelValue.leaveType !== '') && !filteredLeaveTypeOptions.value.some((option) => Number(option.code) === Number(props.modelValue.leaveType))) {
+    return 'The selected leave type is not active for this date. Select an active leave type.';
+  }
+  return '';
+});
+const leaveTypeRecurrenceError = computed(() => {
+  if ((props.modelValue.repeatMode ?? 'never') !== 'custom' || !props.modelValue.recurrenceRule) return '';
+  const selectedLeaveType = leaveTypeOptions.value.find(
+    (option) => Number(option.code) === Number(props.modelValue.leaveType),
+  );
+  const expiryDate = selectedLeaveType?.expiryDateUtc ? new Date(selectedLeaveType.expiryDateUtc) : undefined;
+  const startDate = props.modelValue.date;
+  if (!expiryDate || !startDate) return '';
+  const zone = props.timeZoneId ?? 'America/Vancouver';
+  const recurrenceEnd = getRecurrenceEndDate(props.modelValue.recurrenceRule, startDate, zone);
+  const expiryDateLocal = DateTime.fromJSDate(expiryDate, { zone }).startOf('day');
+  if (!recurrenceEnd || !expiryDateLocal.isValid || recurrenceEnd < expiryDateLocal) return '';
+  return `This leave type expires ${expiryDateLocal.toFormat('LLLL d, yyyy')} before the recurrence ends.`;
+});
+const hasValidationError = computed(() => Boolean(leaveTypeError.value || leaveTypeRecurrenceError.value));
+
+function getRecurrenceEndDate(recurrenceRule: string | null | undefined, startDate: string, zone: string) {
+  const recurrenceStart = DateTime.fromISO(startDate, { zone }).startOf('day');
+  if (!recurrenceStart.isValid) return undefined;
+
+  try {
+    const ruleSet = rrulestr(recurrenceRule ?? '', { dtstart: recurrenceStart.toJSDate(), forceset: true });
+    const lastOccurrence = ruleSet.all().at(-1);
+    if (!lastOccurrence) return undefined;
+    return DateTime.fromJSDate(lastOccurrence, { zone }).startOf('day');
+  } catch {
+    return undefined;
+  }
+}
+
+watch(hasValidationError, (hasError) => emit('validation-change', hasError), { immediate: true });
 
 const updateField = (field: keyof TimeOffFormData, value: string | string[] | number | null | undefined) => {
   emit('update:modelValue', { ...props.modelValue, [field]: value });
@@ -59,6 +110,16 @@ const updateRepeatMode = (value: SelectValue | undefined) => {
     ...(repeatMode === 'never' ? { recurrenceRule: null } : {}),
   });
 };
+
+watch([() => props.modelValue.date, () => props.modelValue.leaveType, leaveTypesForSelectedDate], () => {
+  const currentLeaveType = props.modelValue.leaveType;
+  const selectedOptionIsActive =
+    currentLeaveType != null &&
+    filteredLeaveTypeOptions.value.some((option) => Number(option.code) === Number(currentLeaveType));
+  if (currentLeaveType != null && !selectedOptionIsActive) {
+    updateField('leaveType', null);
+  }
+});
 
 const updateRecurrenceRule = (value: string | null) => {
   emit('update:modelValue', { ...props.modelValue, recurrenceRule: value });
@@ -95,7 +156,7 @@ const updateEmployees = (value: SelectValue | undefined) => {
       <UaSelect
         id="user-timeoff-type"
         :model-value="modelValue.leaveType"
-        :items="leaveTypeOptions"
+        :items="filteredLeaveTypeOptions"
         :loading="isLoadingLeaveTypes"
         :error="Boolean(leaveTypesError)"
         :disabled="disabled || isLoadingLeaveTypes"
@@ -107,6 +168,10 @@ const updateEmployees = (value: SelectValue | undefined) => {
         "
       />
       <p v-if="leaveTypesError" class="user-timeoff__field-error">{{ leaveTypesError }}</p>
+      <p v-if="leaveTypeError" class="user-timeoff__field-error" role="alert">{{ leaveTypeError }}</p>
+      <p v-if="leaveTypeRecurrenceError" class="user-timeoff__field-error" role="alert">
+        {{ leaveTypeRecurrenceError }}
+      </p>
     </div>
 
     <label class="user-timeoff__label" for="user-timeoff-date">Date</label>

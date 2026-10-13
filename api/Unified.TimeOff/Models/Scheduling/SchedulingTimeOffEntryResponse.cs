@@ -8,17 +8,5 @@ public sealed record SchedulingTimeOffEntryResponse : BaseSchedulingEventRespons
 
     public int LeaveTypeId { get; init; }
 
-    public string? SeriesRecurrenceRule { get; init; }
-
-    public string? SeriesTitle { get; init; }
-
-    public DateTimeOffset? SeriesStartAtUtc { get; init; }
-
-    public DateTimeOffset? SeriesEndAtUtc { get; init; }
-
-    public string? SeriesTimeZoneId { get; init; }
-
-    public IReadOnlyCollection<Guid> SeriesUserIds { get; init; } = [];
-
     public IReadOnlyCollection<Guid> AssignedUserIds { get; init; } = [];
 }

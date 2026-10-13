@@ -21,10 +21,15 @@ const emit = defineEmits<{
 
 const isDeleting = ref(false);
 const apiError = ref('');
+const targetId = () => (props.scope === 'series' ? props.entry.timeOffSeriesId : props.entry.id);
 
 const handleDelete = async () => {
-  const id = props.scope === 'series' ? props.entry.timeOffSeriesId : props.entry.id;
+  const id = targetId();
   if (id == null) {
+    apiError.value =
+      props.scope === 'series'
+        ? 'Cannot delete this time-off series because its ID is missing.'
+        : 'Cannot delete this time off because its ID is missing.';
     return;
   }
 
@@ -80,7 +85,9 @@ const handleDelete = async () => {
 
     <template #actions>
       <UaBtn variant="outlined" :disabled="isDeleting" @click="emit('close')">Cancel</UaBtn>
-      <UaBtn color="error" :loading="isDeleting" @click="handleDelete">Delete</UaBtn>
+      <UaBtn color="error" :disabled="isDeleting || targetId() == null" :loading="isDeleting" @click="handleDelete">
+        Delete
+      </UaBtn>
     </template>
   </UaModal>
 </template>

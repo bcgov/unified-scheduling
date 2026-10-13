@@ -124,13 +124,10 @@ const formData = ref<RoleFormData>(props.role ? populateFromRole(props.role) : c
 
 // Initialize selected permissions when permissions or role data changes
 const initializeSelectedPermissions = () => {
-  selectedPermissions.value.clear();
-
   if (permissionsError.value) return;
 
   permissionsList.value.forEach((perm) => {
-    const isSelected = formData.value.permissionIds?.includes(perm.id) || false;
-    selectedPermissions.value.set(perm.id, isSelected);
+    selectedPermissions.value.set(perm.id, formData.value.permissionIds?.includes(perm.id) ?? false);
   });
 };
 
@@ -234,7 +231,6 @@ const isGroupPartiallySelected = (groupLabel: string): boolean => {
 };
 
 const handleSave = async () => {
-  // Collect selected permission IDs
   const selectedPermissionIds = Array.from(selectedPermissions.value.entries())
     .filter(([, checked]) => checked)
     .map(([id]) => id);

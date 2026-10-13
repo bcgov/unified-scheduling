@@ -1,7 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { Permissions } from '@/api-access/generated/models';
+import { useAccessControl } from '@/composables/useAccessControl';
 
-const props = withDefaults(defineProps<{ showTimeOff?: boolean }>(), { showTimeOff: true });
+const accessControl = useAccessControl();
+
+const showShifts = computed(
+  () =>
+    (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.ShiftsCreateAndAssign),
+);
+
+const showTimeOff = computed(
+  () =>
+    (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.TimeOffCreateAndAssign),
+);
 
 const emit = defineEmits<{
   (event: 'update:activeTab', value: 'schedule' | 'timeOff'): void;
@@ -23,12 +37,13 @@ const updateActiveTab = (value: 'schedule' | 'timeOff') => {
       density="comfortable"
       @update:model-value="updateActiveTab"
     >
-      <v-tab value="schedule">Schedule</v-tab>
-      <v-tab v-if="props.showTimeOff" value="timeOff">Time Off</v-tab>
+      <v-tab v-if="showShifts" value="schedule">Schedule</v-tab>
+      <v-tab v-if="showTimeOff" value="timeOff">Time Off</v-tab>
     </v-tabs>
 
     <div class="resource-tabs__panels">
-      <section
+      <section 
+         v-if="showShifts"
         class="resource-tabs__panel"
         :class="{ 'resource-tabs__panel--active': activeTab === 'schedule' }"
         :aria-hidden="activeTab !== 'schedule'"
@@ -36,7 +51,7 @@ const updateActiveTab = (value: 'schedule' | 'timeOff') => {
         <slot name="schedule" />
       </section>
       <section
-        v-if="props.showTimeOff"
+        v-if="showTimeOff"
         class="resource-tabs__panel resource-tabs__panel--time-off"
         :class="{ 'resource-tabs__panel--active': activeTab === 'timeOff' }"
         :aria-hidden="activeTab !== 'timeOff'"

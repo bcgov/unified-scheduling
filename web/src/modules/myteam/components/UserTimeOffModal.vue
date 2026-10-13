@@ -13,6 +13,7 @@ import { defaultEndTime, defaultStartTime, parseFormDateTime } from '@/modules/s
 import {
   createTimeOffEntry,
   createTimeOffSeries,
+  getTimeOffEntry,
   getTimeOffSeries,
   updateTimeOffEntry,
   updateTimeOffSeries,
@@ -37,11 +38,18 @@ const isSaving = ref(false);
 const apiError = ref('');
 const isSeriesEdit = computed(() => props.entry != null && props.scope === 'series');
 const loadedSeries = ref<TimeOffSeriesResponse | null>(null);
+const loadedEntry = ref<TimeOffEntryResponse | null>(null);
 const isEdit = computed(() => props.entry != null);
+const isLoadingEntry = ref(false);
 const isLoadingSeries = ref(false);
+const hasFormValidationError = ref(false);
 
 const buildInitialFormData = (series?: TimeOffSeriesResponse): TimeOffFormData => {
-  const entry = props.entry;
+  const entry = loadedEntry.value ?? props.entry;
+  const entrySeries =
+    entry && 'series' in entry
+      ? (entry as TimeOffEntryResponse & { series?: TimeOffSeriesResponse }).series
+      : undefined;
   if (!entry) {
     return {
       userIds: [props.user.id],
@@ -56,14 +64,14 @@ const buildInitialFormData = (series?: TimeOffSeriesResponse): TimeOffFormData =
   }
 
   const zone = resolveSchedulingTimeZoneId(
-    series?.timeZoneId ?? (isSeriesEdit.value ? entry.seriesTimeZoneId : null) ?? entry.timeZoneId,
+    series?.timeZoneId ?? (isSeriesEdit.value ? entrySeries?.timeZoneId : null) ?? entry.timeZoneId,
   );
-  const startAtUtc = series?.startAtUtc ?? (isSeriesEdit.value ? entry.seriesStartAtUtc : null) ?? entry.startAtUtc;
-  const endAtUtc = series?.endAtUtc ?? (isSeriesEdit.value ? entry.seriesEndAtUtc : null) ?? entry.endAtUtc;
+  const startAtUtc = series?.startAtUtc ?? (isSeriesEdit.value ? entrySeries?.startAtUtc : null) ?? entry.startAtUtc;
+  const endAtUtc = series?.endAtUtc ?? (isSeriesEdit.value ? entrySeries?.endAtUtc : null) ?? entry.endAtUtc;
   const start = startAtUtc ? parseFormDateTime(startAtUtc, zone) : null;
   const end = endAtUtc ? parseFormDateTime(endAtUtc, zone) : null;
   return {
-    userIds: [series?.userIds, isSeriesEdit.value ? entry.seriesUserIds : null, entry.assignedUserIds].find(
+    userIds: [series?.userIds, isSeriesEdit.value ? entrySeries?.userIds : null, entry.assignedUserIds].find(
       (ids) => ids && ids.length > 0,
     ) ?? [props.user.id],
     leaveType: series?.leaveTypeId ?? entry.leaveTypeId ?? null,
@@ -71,44 +79,65 @@ const buildInitialFormData = (series?: TimeOffSeriesResponse): TimeOffFormData =
     startTime: start?.time ?? defaultStartTime,
     endTime: end?.time ?? defaultEndTime,
     repeatMode: isSeriesEdit.value
-      ? (series?.recurrenceRule ?? entry.seriesRecurrenceRule)
+      ? (series?.recurrenceRule ?? entrySeries?.recurrenceRule)
         ? 'custom'
         : 'never'
       : 'never',
-    recurrenceRule: isSeriesEdit.value ? (series?.recurrenceRule ?? entry.seriesRecurrenceRule ?? null) : null,
+    recurrenceRule: isSeriesEdit.value ? (series?.recurrenceRule ?? entrySeries?.recurrenceRule ?? null) : null,
     notes: series?.notes ?? entry.notes ?? '',
   };
 };
 
 const formData = ref<TimeOffFormData>(buildInitialFormData());
 onMounted(async () => {
-  if (!isSeriesEdit.value || props.entry?.timeOffSeriesId == null) {
+  if (isSeriesEdit.value && props.entry?.timeOffSeriesId != null) {
+    isLoadingSeries.value = true;
+    try {
+      const result = await getTimeOffSeries(props.entry.timeOffSeriesId);
+      if (result.error.value) {
+        apiError.value = result.error.value.message || 'Failed to load recurring time off.';
+        return;
+      }
+      if (result.data.value) {
+        loadedSeries.value = result.data.value;
+        formData.value = buildInitialFormData(result.data.value);
+      } else {
+        apiError.value = 'Time-off series was not found.';
+      }
+    } catch (error) {
+      apiError.value = error instanceof Error ? error.message : 'Failed to load recurring time off.';
+    } finally {
+      isLoadingSeries.value = false;
+    }
     return;
   }
 
-  isLoadingSeries.value = true;
+  if (!isEdit.value || props.entry?.id == null) return;
+
+  isLoadingEntry.value = true;
   try {
-    const result = await getTimeOffSeries(props.entry.timeOffSeriesId);
+    const result = await getTimeOffEntry(props.entry.id);
     if (result.error.value) {
-      apiError.value = result.error.value.message || 'Failed to load recurring time off.';
+      apiError.value = result.error.value.message || 'Failed to load time off.';
       return;
     }
     if (result.data.value) {
-      loadedSeries.value = result.data.value;
-      formData.value = buildInitialFormData(result.data.value);
+      loadedEntry.value = result.data.value;
+      formData.value = buildInitialFormData();
     } else {
-      apiError.value = 'Time-off series was not found.';
+      apiError.value = 'Time off was not found.';
     }
   } catch (error) {
-    apiError.value = error instanceof Error ? error.message : 'Failed to load recurring time off.';
+    apiError.value = error instanceof Error ? error.message : 'Failed to load time off.';
   } finally {
-    isLoadingSeries.value = false;
+    isLoadingEntry.value = false;
   }
 });
 
 const locationId = computed<number | null>(() => {
-  if (props.entry?.locationId != null) {
-    return props.entry.locationId;
+  const entry = loadedEntry.value ?? props.entry;
+  if (entry?.locationId != null) {
+    return entry.locationId;
   }
   const selected = Number(locationsStore.selectedLocationId);
   if (locationsStore.selectedLocationId !== '' && Number.isFinite(selected)) {
@@ -119,13 +148,13 @@ const locationId = computed<number | null>(() => {
 
 const timeZoneId = computed(() =>
   resolveSchedulingTimeZoneId(
-    loadedSeries.value?.timeZoneId ?? props.entry?.timeZoneId,
+    loadedSeries.value?.timeZoneId ?? loadedEntry.value?.timeZoneId ?? props.entry?.timeZoneId,
     locationId.value ? locationsStore.entitiesMap[locationId.value]?.timezone : undefined,
   ),
 );
 
 const handleSave = async () => {
-  if (isLoadingSeries.value || (isSeriesEdit.value && !loadedSeries.value)) return;
+  if (isLoadingEntry.value || isLoadingSeries.value || (isSeriesEdit.value && !loadedSeries.value)) return;
   apiError.value = '';
   const built = buildTimeOffRequest(formData.value, { locationId: locationId.value, timeZoneId: timeZoneId.value });
   if (built.error !== undefined) {
@@ -171,13 +200,26 @@ const handleSave = async () => {
     <UaAlert v-if="apiError" type="error" @close="apiError = ''">{{ apiError }}</UaAlert>
     <TimeOffFormComponent
       v-model="formData"
-      :disabled="isSaving || isLoadingSeries"
+      :disabled="isSaving || isLoadingEntry || isLoadingSeries"
       :show-repeat="!isEdit || isSeriesEdit"
+      :time-zone-id="timeZoneId"
+      @validation-change="hasFormValidationError = $event"
     />
 
     <template #actions>
-      <UaBtn variant="outlined" :disabled="isSaving" @click="emit('close')">Cancel</UaBtn>
-      <UaBtn :loading="isSaving" :disabled="isLoadingSeries || (isSeriesEdit && !loadedSeries)" @click="handleSave"
+      <UaBtn variant="outlined" :disabled="isSaving || isLoadingEntry || isLoadingSeries" @click="emit('close')"
+        >Cancel</UaBtn
+      >
+      <UaBtn
+        :loading="isSaving"
+        :disabled="
+          hasFormValidationError ||
+          isLoadingEntry ||
+          isLoadingSeries ||
+          (isEdit && !isSeriesEdit && !loadedEntry) ||
+          (isSeriesEdit && !loadedSeries)
+        "
+        @click="handleSave"
         >Save</UaBtn
       >
     </template>

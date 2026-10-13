@@ -68,7 +68,7 @@ import {
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
 } from './calendarSchedulingState';
-import { canCreateShifts, canEditShifts } from './calendarSchedulingPermissions';
+import { canCreateShifts, canEditShifts, canCreateTimeOff, canEditTimeOff } from './calendarSchedulingPermissions';
 import { isCalendarSchedulingEvent, isTimeOffEvent } from './calendarSchedulingData';
 
 const props = defineProps<{
@@ -86,6 +86,9 @@ const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
 const canCreateShift = computed(() => Boolean(props.runtimeContext && canCreateShifts(props.runtimeContext)));
 const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShifts(props.runtimeContext)));
+const canAllowCreateTimeOff = computed(() => Boolean(props.runtimeContext && canCreateTimeOff(props.runtimeContext)));
+const canAllowEditTimeOff = computed(() => Boolean(props.runtimeContext && canEditTimeOff(props.runtimeContext)));
+
 
 function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
   if (item.type !== 'assignment') {
@@ -411,7 +414,9 @@ function isAssignmentEvent(event: CalendarEventBase) {
     <p>This team member already has an active shift on this date. Would you like to edit it or create a new shift?</p>
 
     <template #actions>
-      <UaBtn v-if="canCreateShift" variant="outlined" @click="createNewShift">Create new shift</UaBtn>
+      <UaBtn v-if="canCreateShift || canAllowCreateTimeOff" variant="outlined" @click="createNewShift">
+        Create new shift
+      </UaBtn>
       <UaBtn v-if="canEditShift" color="primary" variant="flat" @click="editExistingShift">Edit existing shift</UaBtn>
     </template>
   </UaModal>
