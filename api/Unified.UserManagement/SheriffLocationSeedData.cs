@@ -12,7 +12,7 @@ public sealed class SheriffLocationSeedData : ISeedData<LocationSeedDefinition>
     public IReadOnlyList<LocationSeedDefinition> Definitions { get; } =
     [
         Location(1, "SS1", "Office of Professional Standards"),
-        Location(2, "SS2", "Sheriff Provincial Operation Centre"),
+        Location(2, "SS2", "Sheriff Provincial Operation Centre", justinLocationCode: "2039"),
         Location(3, "SS3", "Central Float Pool"),
         Location(4, "SS4", "Integrated Threat Assessment Unit", regionId: 100),
         Location(5, "SS5", "Office of the Chief Sheriff", regionId: 101),

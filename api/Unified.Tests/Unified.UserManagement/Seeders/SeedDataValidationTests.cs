@@ -80,6 +80,11 @@ public sealed class SeedDataValidationTests
             SheriffLocationSeedData.Instance.Definitions.Count,
             await dbContext.Locations.CountAsync(TestContext.Current.CancellationToken)
         );
+        var provincialOperationsCentre = await dbContext.Locations.SingleAsync(
+            location => location.AgencyId == "SS2",
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal("2039", provincialOperationsCentre.JustinLocationCode);
     }
 
     [Fact]

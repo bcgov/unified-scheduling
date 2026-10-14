@@ -27,7 +27,7 @@ The baseline mock therefore adds none of these objects or behaviours. A mock-onl
 ## ETL decisions still required
 
 - The workbook's `Sum (Regular + Overtime Hours)` and `Auto Sum` fields are ordinary columns with their documented data types. No trigger, virtual column, or generated expression calculates them. The legacy Access extract calculates regular-plus-overtime totals before export, while category-specific Oracle `Auto Sum` behaviour remains unconfirmed.
-- The known location mapping is `BCSS Location_ID` / `CSBMD_LOC_CD` to `CRT_LOC_ID` / `CORIN_CODE`. Decide whether Unified `LocationId` or `PerformedAtLocationId` determines the reporting location before implementing the transformation. This does not change the destination DDL.
+- Legacy Access joined records to CRS_LOCATION using Location_ID and exported CRS_LOCATION.CRT_LOC_ID. For Unified, the location’s JUSTIN code corresponds to SHF_LOCATIONS.CSBMD_LOC_CD; its mapped CORIN_CODE supplies the Oracle CRT_LOC_ID.
 - `SHF_LOCATIONS` is not created. It is not required for the initial two-table destination contract and may be considered later as a reference or crosswalk table.
 
 Oracle initialization scripts execute only on first database initialization. An existing `oracle-data` volume does not receive these files automatically; use an approved migration path instead of removing a volume that must be preserved.
