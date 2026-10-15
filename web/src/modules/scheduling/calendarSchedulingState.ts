@@ -35,6 +35,11 @@ export const calendarSchedulingPublishRequest = ref<{
   startDate: string;
   endDate: string;
 }>();
+export const calendarSchedulingDistributionRequest = ref<{
+  locationId: number;
+  startDate: string;
+  endDate: string;
+}>();
 
 export function showCalendarSchedulingAssignmentModal(
   date?: string,
@@ -160,4 +165,12 @@ export function showCalendarSchedulingPublishModal(locationId: number, startDate
 
 export function closeCalendarSchedulingPublishModal() {
   calendarSchedulingPublishRequest.value = undefined;
+}
+
+export function showCalendarSchedulingDistributionModal(locationId: number, startDate: string, endDate: string) {
+  calendarSchedulingDistributionRequest.value = { locationId, startDate, endDate };
+}
+
+export function closeCalendarSchedulingDistributionModal() {
+  calendarSchedulingDistributionRequest.value = undefined;
 }

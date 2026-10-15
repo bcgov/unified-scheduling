@@ -48,6 +48,7 @@ const locationsStore = useLocationsStore();
 const accessControl = useAccessControl();
 const canCreateShift = computed(() => accessControl.hasPermission(Permissions.ShiftsCreateAndAssign));
 const canPublishShift = computed(() => accessControl.hasPermission(Permissions.SchedulePublish));
+const canViewAssignments = computed(() => accessControl.hasPermission(Permissions.AssignmentsView));
 
 const isSaving = ref(false);
 const createdShiftId = ref<number | null>(null);
@@ -86,6 +87,7 @@ const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLo
     activeLocationId,
     activeTimeZoneId: timeZoneId,
     isSeriesScope,
+    enabled: canViewAssignments,
     onError: (message) => {
       apiError.value = message;
     },
@@ -409,6 +411,7 @@ function applyServerValidationErrors(rawError: unknown) {
           :assignment-warning="assignmentWarning"
           :is-loading-assignments="isLoadingAssignments"
           :show-series-assignment="isSeriesScope"
+          :show-assignment-links="canViewAssignments"
           @recurrence-change="handleRecurrenceChange"
           @recurrence-invalid="handleRecurrenceInvalid"
         />

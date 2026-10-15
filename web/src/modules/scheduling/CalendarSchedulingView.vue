@@ -6,11 +6,13 @@ import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentMod
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
 import CalendarSchedulingAssignmentDefinitionCreateModal from './CalendarSchedulingAssignmentDefinitionCreateModal.vue';
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
+import CalendarSchedulingDistributionModal from './CalendarSchedulingDistributionModal.vue';
 import CalendarSchedulingPublishModal from './CalendarSchedulingPublishModal.vue';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
 import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { resolveCalendarEventId } from '@/modules/calendar/calendarSelectors';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
@@ -48,6 +50,7 @@ import {
   calendarSchedulingAssignmentModalShiftEntryIds,
   calendarSchedulingConflictEventId,
   calendarSchedulingConflictHeaderId,
+  calendarSchedulingDistributionRequest,
   calendarSchedulingDetailEvent,
   calendarSchedulingDetailInitialOpenScope,
   calendarSchedulingExistingShiftChoice,
@@ -59,6 +62,7 @@ import {
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
+  closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   getCalendarSchedulingHeaderConflictKey,
@@ -72,12 +76,15 @@ import { canCreateShifts, canEditShifts } from './calendarSchedulingPermissions'
 
 const props = defineProps<{
   model: CalendarMatrixViewModel;
+  period?: CalendarPeriod;
   runtimeContext?: CalendarRuntimeContext;
   showAssignmentContent?: boolean;
+  renderToken?: string;
 }>();
 
 const emit = defineEmits<{
   (event: 'eventClick', payload: CalendarEventBase): void;
+  (event: 'renderComplete', renderToken?: string): void;
 }>();
 
 const calendarStore = useCalendarStore();
@@ -300,8 +307,10 @@ function isAssignmentEvent(event: CalendarEventBase) {
   <CalendarMatrixView
     class="calendar-scheduling-matrix"
     :model="model"
+    :render-token="renderToken"
     :runtime-context="runtimeContext"
     @event-click="emit('eventClick', $event)"
+    @render-complete="emit('renderComplete', $event)"
     @side-panel-item-click="handleSidePanelItemClick"
   >
     <template #cell-header="{ cell, header, onHeaderAction, onHeaderClick }">
@@ -380,6 +389,17 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :request="calendarSchedulingPublishRequest"
     @close="closeCalendarSchedulingPublishModal"
     @published="handleSchedulePublished"
+  />
+
+  <CalendarSchedulingDistributionModal
+    v-if="calendarSchedulingDistributionRequest"
+    :location-id="calendarSchedulingDistributionRequest.locationId"
+    :start-date="calendarSchedulingDistributionRequest.startDate"
+    :end-date="calendarSchedulingDistributionRequest.endDate"
+    :period="props.period ?? 'week'"
+    :view="showAssignmentContent ? 'assignments' : 'schedule'"
+    :model="model"
+    @close="closeCalendarSchedulingDistributionModal"
   />
 
   <CalendarSchedulingAssignmentModal

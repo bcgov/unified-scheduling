@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { Permissions } from '@/api-access/generated/models';
 
 describe('calendarSchedulingEventsContribution', () => {
   beforeEach(() => {
@@ -214,6 +215,71 @@ describe('calendarSchedulingEventsContribution', () => {
               locationId: 1,
               resourceIds: [userId],
             },
+            {
+              id: 'scheduling.shift-entry.207',
+              shiftEntryId: 207,
+              shiftSeriesId: null,
+              assignmentEntryId: null,
+              assignmentSeriesId: null,
+              eventId: 207,
+              userIds: [userId],
+              type: 'scheduling.shift',
+              sourceModule: 'scheduling',
+              title: 'Published standalone shift',
+              start: '2026-08-26T16:00:00+00:00',
+              end: '2026-08-27T00:00:00+00:00',
+              eventTypeCode: 'shift',
+              statusTypeCode: 'Active',
+              locationId: 1,
+              resourceIds: [userId],
+            },
+            {
+              id: 'scheduling.shift-entry.208',
+              shiftEntryId: 208,
+              eventId: 208,
+              userIds: [userId],
+              type: 'scheduling.shift',
+              sourceModule: 'scheduling',
+              title: 'Cancelled shift',
+              start: '2026-08-27T16:00:00+00:00',
+              end: '2026-08-28T00:00:00+00:00',
+              eventTypeCode: 'shift',
+              statusTypeCode: 'Cancelled',
+              locationId: 1,
+              resourceIds: [userId],
+            },
+            {
+              id: 'scheduling.assignment-entry.209',
+              assignmentEntryId: 209,
+              assignmentDefinitionId: 8,
+              eventId: 209,
+              type: 'scheduling.assignment',
+              sourceModule: 'scheduling',
+              title: 'Unknown assignment',
+              start: '2026-08-28T16:00:00+00:00',
+              end: '2026-08-29T00:00:00+00:00',
+              eventTypeCode: 'assignment',
+              statusTypeCode: 'Unexpected',
+              locationId: 1,
+              resourceIds: [userId],
+            },
+            {
+              id: 'scheduling.assignment-entry.210',
+              assignmentEntryId: 210,
+              assignmentDefinitionId: 9,
+              eventId: 210,
+              type: 'scheduling.assignment',
+              sourceModule: 'scheduling',
+              title: 'Published assignment linked to draft shift',
+              start: '2026-08-25T17:00:00+00:00',
+              end: '2026-08-25T18:00:00+00:00',
+              eventTypeCode: 'assignment',
+              statusTypeCode: 'Published',
+              locationId: 1,
+              resourceIds: [userId],
+              linkedShiftEntryIds: [206],
+              assignedUserIds: [userId],
+            },
           ],
         },
       },
@@ -271,6 +337,21 @@ describe('calendarSchedulingEventsContribution', () => {
       },
     });
 
+    const printResult = await calendarSchedulingEventsContribution.load(
+      {
+        startDate: '2026-08-24',
+        endDate: '2026-08-31',
+        locationId: 1,
+        filters: { timeZoneId: 'America/Vancouver' },
+      },
+      undefined,
+      { featureFlags: {}, permissions: [], presentationMode: 'print' },
+    );
+    expect(printResult.events.map((event) => event.id)).toEqual([
+      'scheduling.shift-entry.207',
+      'scheduling.assignment-entry.210',
+    ]);
+
     const { buildCalendarSchedulingViewModel } = await import('@/modules/scheduling/calendarSchedulingMappers');
     const viewModel = buildCalendarSchedulingViewModel(
       {
@@ -287,12 +368,12 @@ describe('calendarSchedulingEventsContribution', () => {
       'week',
     );
 
-    expect(viewModel.primaryColumn.resources.map((resource) => resource.id)).toEqual([userId]);
+    expect(viewModel.primaryColumn.resources.map((resource) => resource.id)).toEqual([userId, 'scheduling.unassigned']);
     expect(
       viewModel.cells
         .find((cell) => cell.resourceId === userId && cell.date === '2026-08-25')
         ?.groups[0]?.events.map((item) => item.event.id),
-    ).toEqual(['scheduling.assignment-entry.201']);
+    ).toEqual(['scheduling.assignment-entry.201', 'scheduling.assignment-entry.210']);
   });
 
   it('narrows resource rows to explicit user filters when present', async () => {
@@ -436,18 +517,26 @@ describe('calendarSchedulingEventsContribution', () => {
     const { calendarSchedulingEventsContribution } =
       await import('@/modules/scheduling/contributions/calendarSchedulingEventsContribution');
 
-    await calendarSchedulingEventsContribution.load({
-      startDate: '2025-04-07',
-      endDate: '2025-04-14',
-      locationId: 12,
-      filters: {},
-    });
-    await calendarSchedulingEventsContribution.load({
-      startDate: '2025-04-14',
-      endDate: '2025-04-21',
-      locationId: 12,
-      filters: {},
-    });
+    await calendarSchedulingEventsContribution.load(
+      {
+        startDate: '2025-04-07',
+        endDate: '2025-04-14',
+        locationId: 12,
+        filters: {},
+      },
+      undefined,
+      { featureFlags: {}, permissions: [Permissions.ActingPositionsView] },
+    );
+    await calendarSchedulingEventsContribution.load(
+      {
+        startDate: '2025-04-14',
+        endDate: '2025-04-21',
+        locationId: 12,
+        filters: {},
+      },
+      undefined,
+      { featureFlags: {}, permissions: [Permissions.ActingPositionsView] },
+    );
 
     expect(postApiSchedulingCalendarEvents).toHaveBeenCalledTimes(2);
     expect(getApiUsers).toHaveBeenCalledTimes(2);
@@ -673,12 +762,16 @@ describe('calendarSchedulingEventsContribution', () => {
     const { calendarSchedulingEventsContribution } =
       await import('@/modules/scheduling/contributions/calendarSchedulingEventsContribution');
 
-    const result = await calendarSchedulingEventsContribution.load({
-      startDate: '2026-07-01',
-      endDate: '2026-07-08',
-      locationId: 12,
-      filters: {},
-    });
+    const result = await calendarSchedulingEventsContribution.load(
+      {
+        startDate: '2026-07-01',
+        endDate: '2026-07-08',
+        locationId: 12,
+        filters: {},
+      },
+      undefined,
+      { featureFlags: {}, permissions: [Permissions.ActingPositionsView] },
+    );
 
     expect(getApiUsersUserIdActingPositions).toHaveBeenCalledWith('user-1', expect.any(Object));
     expect(result.resources).toEqual([
