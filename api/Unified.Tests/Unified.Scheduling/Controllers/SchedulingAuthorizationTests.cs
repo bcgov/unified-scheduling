@@ -3,6 +3,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Scheduling;
@@ -115,6 +117,82 @@ public sealed class SchedulingAuthorizationTests
         Assert.NotNull(method);
         var authorize = Assert.Single(method.GetCustomAttributes<AuthorizeAttribute>());
         Assert.Equal(expectedPolicy, authorize.Policy);
+    }
+
+    [Theory]
+    [InlineData(nameof(SchedulePublishController.Preview))]
+    [InlineData(nameof(SchedulePublishController.Publish))]
+    public void SchedulePublish_RequiresActionAndScheduleViewPolicy(string methodName)
+    {
+        var method = typeof(SchedulePublishController).GetMethod(methodName);
+
+        Assert.NotNull(method);
+        var authorize = Assert.Single(method.GetCustomAttributes<AuthorizeAttribute>());
+        Assert.Equal(SchedulingPolicies.SchedulePublishWithView, authorize.Policy);
+    }
+
+    [Fact]
+    public void ScheduleDistribution_RequiresDistributionAndScheduleViewPolicy()
+    {
+        var method = typeof(ScheduleDistributionController).GetMethod(nameof(ScheduleDistributionController.Distribute));
+
+        Assert.NotNull(method);
+        var authorize = Assert.Single(method.GetCustomAttributes<AuthorizeAttribute>());
+        Assert.Equal(SchedulingPolicies.ScheduleDistributeWithView, authorize.Policy);
+    }
+
+    [Theory]
+    [InlineData(SchedulingPolicies.SchedulePublishWithView, "SchedulePublish", true, false, true)]
+    [InlineData(SchedulingPolicies.SchedulePublishWithView, "SchedulePublish", false, true, true)]
+    [InlineData(SchedulingPolicies.SchedulePublishWithView, null, true, false, false)]
+    [InlineData(SchedulingPolicies.SchedulePublishWithView, "SchedulePublish", false, false, false)]
+    [InlineData(SchedulingPolicies.ScheduleDistributeWithView, "ScheduleViewDistribute", true, false, true)]
+    [InlineData(SchedulingPolicies.ScheduleDistributeWithView, "ScheduleViewDistribute", false, true, true)]
+    [InlineData(SchedulingPolicies.ScheduleDistributeWithView, null, true, false, false)]
+    [InlineData(SchedulingPolicies.ScheduleDistributeWithView, "ScheduleViewDistribute", false, false, false)]
+    public async Task ScheduleActionPolicy_RequiresActionPermissionAndEitherViewPermission(
+        string policy,
+        string? actionPermission,
+        bool shiftsView,
+        bool assignmentsView,
+        bool expectedAuthorized
+    )
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:Calendar:Enabled"] = "true",
+                    ["FeatureFlags:Scheduling:Enabled"] = "true",
+                    ["FeatureFlags:Stats:Enabled"] = "true",
+                }
+            )
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAuthorizationModule();
+        services.AddSchedulingModule(configuration);
+        await using var serviceProvider = services.BuildServiceProvider();
+        var authorizationService = serviceProvider.GetRequiredService<IAuthorizationService>();
+        var claims = new List<Claim>();
+        if (actionPermission is not null)
+            claims.Add(new Claim(UnifiedClaimTypes.Permission, actionPermission));
+        if (shiftsView)
+            claims.Add(new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.ShiftsView)));
+        if (assignmentsView)
+            claims.Add(new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.AssignmentsView)));
+        var user = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"));
+
+        if (actionPermission is null)
+        {
+            await Assert.ThrowsAsync<global::Unified.Infrastructure.ErrorHandling.ForbiddenException>(() =>
+                authorizationService.AuthorizeAsync(user, resource: null, policy)
+            );
+            return;
+        }
+
+        var result = await authorizationService.AuthorizeAsync(user, resource: null, policy);
+        Assert.Equal(expectedAuthorized, result.Succeeded);
     }
 
     private static SchedulingCalendarController CreateCalendarController(

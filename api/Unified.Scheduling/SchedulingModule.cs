@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Authorization.Claims;
+using Unified.Authorization.Requirements;
 using Unified.Calendar;
 using Unified.Calendar.Conflicts;
 using Unified.Common.Calendar.Conflicts;
@@ -63,6 +65,7 @@ public static class SchedulingModule
             serviceProvider.GetRequiredService<AssignmentService>()
         );
         services.AddScoped<ISchedulePublishService, SchedulePublishService>();
+        services.AddScoped<IScheduleDistributionService, ScheduleDistributionService>();
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
         services.AddScoped<IProposedShiftAssignmentOptionsService, ProposedShiftAssignmentOptionsService>();
@@ -82,16 +85,46 @@ public static class SchedulingModule
         services.AddScoped<ProposedShiftAssignmentOptionsRequestValidator>();
         services.AddScoped<SchedulingCalendarRequestValidator>();
         services.AddScoped<SchedulePublishRequestValidator>();
+        services.AddScoped<ScheduleDistributionRequestValidator>();
         services.AddSeeder<Unified.Db.UnifiedDbContext, ShiftEventTypeSeeder>();
         services.AddSingleton(SchedulingPermissionSeedData.Configuration);
 
         services
             .AddAuthorizationBuilder()
+            .AddPolicy(
+                SchedulingPolicies.SchedulePublishWithView,
+                policy =>
+                    policy
+                        .RequireAuthenticatedUser()
+                        .AddRequirements(new PermissionRequirement(nameof(Permissions.SchedulePublish)))
+                        .RequireAssertion(context =>
+                            context.User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.ShiftsView))
+                            || context.User.HasClaim(
+                                UnifiedClaimTypes.Permission,
+                                nameof(Permissions.AssignmentsView)
+                            )
+                        )
+            )
+            .AddPolicy(
+                SchedulingPolicies.ScheduleDistributeWithView,
+                policy =>
+                    policy
+                        .RequireAuthenticatedUser()
+                        .AddRequirements(new PermissionRequirement(nameof(Permissions.ScheduleViewDistribute)))
+                        .RequireAssertion(context =>
+                            context.User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.ShiftsView))
+                            || context.User.HasClaim(
+                                UnifiedClaimTypes.Permission,
+                                nameof(Permissions.AssignmentsView)
+                            )
+                        )
+            )
             .AddPermissionPolicy(Permissions.ShiftsView)
             .AddPermissionPolicy(Permissions.ShiftsCreateAndAssign)
             .AddPermissionPolicy(Permissions.ShiftsEdit)
             .AddPermissionPolicy(Permissions.ShiftsDelete)
             .AddPermissionPolicy(Permissions.ShiftsExpire)
+            .AddPermissionPolicy(Permissions.ScheduleViewDistribute)
             .AddPermissionPolicy(Permissions.SchedulePublish)
             .AddPermissionPolicy(Permissions.AssignmentsView)
             .AddPermissionPolicy(Permissions.AssignmentsCreate)
