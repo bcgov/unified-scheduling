@@ -52,5 +52,13 @@ export function canDeleteLeave(context: CalendarRuntimeContext) {
 }
 
 export function canPublishSchedule(context: CalendarRuntimeContext) {
-  return hasCalendarPermission(context, Permissions.SchedulePublish);
+  return (
+    (canViewShifts(context) || canViewAssignments(context)) &&
+    hasCalendarPermission(context, Permissions.SchedulePublish)
+  );
+}
+
+export function canDistributeSchedule(context: CalendarRuntimeContext, view: 'schedule' | 'assignments') {
+  const canViewRequestedSchedule = view === 'assignments' ? canViewAssignments(context) : canViewShifts(context);
+  return canViewRequestedSchedule && hasCalendarPermission(context, Permissions.ScheduleViewDistribute);
 }

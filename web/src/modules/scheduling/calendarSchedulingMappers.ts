@@ -67,10 +67,17 @@ interface AssignmentMatrixResource extends CalendarMatrixResource {
   subCategoryName?: string;
 }
 
+export interface CalendarSchedulingMatrixPayload {
+  events: CalendarSchedulingEvent[];
+  conflicts: CalendarConflict[];
+  conflictsAvailable: boolean;
+}
+
 export function buildCalendarSchedulingViewModel(
   response: CalendarDataResponse,
   context: CalendarQueryContext,
   period: CalendarPeriod,
+  canViewAssignmentConflicts = true,
 ): CalendarMatrixViewModel {
   const timeZone = resolveMatrixTimeZone(context);
   if (period === 'month') {
@@ -152,7 +159,9 @@ export function buildCalendarSchedulingViewModel(
     days,
     timeZone,
     payload: {
-      assignmentEvents: selectSchedulingAssignmentEvents(response),
+      events: schedulingEvents,
+      conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
+      conflictsAvailable: canViewAssignmentConflicts && hasCalendarConflictData(response),
     },
     primaryColumn: {
       label: 'TEAM',
@@ -220,8 +229,9 @@ export function buildCalendarAssignmentViewModel(
 
   const days = buildDays(context.startDate, period, timeZone);
   const resources = buildAssignmentResourceRows(response);
-  const assignmentEvents = selectSchedulingAssignmentEvents(response);
-  const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
+  const schedulingEvents = selectSchedulingShiftEvents(response);
+  const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const conflicts = selectCalendarConflicts(response);
   const cells: CalendarMatrixCell[] = [];
 
@@ -260,7 +270,9 @@ export function buildCalendarAssignmentViewModel(
     days,
     timeZone,
     payload: {
-      assignmentEvents,
+      events: schedulingEvents,
+      conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
+      conflictsAvailable: hasCalendarConflictData(response),
     },
     primaryColumn: {
       label: 'ASSIGNMENTS',
@@ -274,6 +286,18 @@ export function buildCalendarAssignmentViewModel(
       items: buildUserSidePanelItems(response),
     },
   };
+}
+
+function hasCalendarConflictData(response: CalendarDataResponse) {
+  const data = response.contributions['calendar.events']?.data;
+  return typeof data === 'object' && data !== null && 'conflicts' in data && Array.isArray(data.conflicts);
+}
+
+function selectSchedulingConflicts(events: CalendarSchedulingEvent[], conflicts: CalendarConflict[]) {
+  const relevantConflicts = events.flatMap((event) =>
+    getCalendarConflictsForEvent(resolveCalendarEventId(event), conflicts),
+  );
+  return [...new Map(relevantConflicts.map((conflict) => [conflict.id, conflict])).values()];
 }
 
 function buildUserResourceRows(response: CalendarDataResponse): CalendarMatrixResource[] {
