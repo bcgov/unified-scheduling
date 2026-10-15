@@ -9,12 +9,16 @@ namespace Unified.Scheduling;
 /// </summary>
 public static class SchedulingPolicies
 {
+    public const string SchedulePublishWithView = "Scheduling:SchedulePublishWithView";
+    public const string ScheduleDistributeWithView = "Scheduling:ScheduleDistributeWithView";
     public const string ShiftsView = AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsView);
     public const string ShiftsCreateAndAssign =
         AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsCreateAndAssign);
     public const string ShiftsEdit = AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsEdit);
     public const string ShiftsDelete = AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsDelete);
     public const string ShiftsExpire = AuthorizationModule.PolicyPrefix + nameof(Permissions.ShiftsExpire);
+    public const string ScheduleViewDistribute =
+        AuthorizationModule.PolicyPrefix + nameof(Permissions.ScheduleViewDistribute);
     public const string SchedulePublish = AuthorizationModule.PolicyPrefix + nameof(Permissions.SchedulePublish);
     public const string AssignmentsView = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsView);
     public const string AssignmentsCreate = AuthorizationModule.PolicyPrefix + nameof(Permissions.AssignmentsCreate);

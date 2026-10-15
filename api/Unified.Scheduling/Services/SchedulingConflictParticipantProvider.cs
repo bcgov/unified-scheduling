@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Unified.Authorization;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -33,6 +34,11 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         CancellationToken cancellationToken = default
     )
     {
+        var canViewAssignments = query.ViewerPermissions?.Contains(nameof(Permissions.AssignmentsView)) == true;
+        var canViewShifts = query.ViewerPermissions?.Contains(nameof(Permissions.ShiftsView)) == true;
+        if (query.ViewerPermissions is not null && !canViewAssignments && !canViewShifts)
+            return [];
+
         var participants = ActiveParticipantQuery(db)
             .Where(participant =>
                 participant.ShiftAssignmentEntry!.AssignmentEntry!.Event!.StartAtUtc < query.EndAtUtc
@@ -55,7 +61,9 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
             participants = participants.Where(participant => resourceIds.Contains(participant.UserId));
         }
 
-        return await ProjectParticipantsAsync(participants, cancellationToken);
+        return canViewShifts && !canViewAssignments
+            ? await ProjectShiftParticipantsAsync(participants, cancellationToken)
+            : await ProjectParticipantsAsync(participants, cancellationToken);
     }
 
     public static Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForAssignmentSeriesAsync(
@@ -196,6 +204,28 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.Title,
                     participant.ShiftAssignmentEntry.AssignmentEntryId,
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.TimeZoneId
+                ))
+                .ToListAsync(cancellationToken)
+        )
+            .DistinctBy(participant => (participant.EventId, participant.ResourceId))
+            .ToList();
+
+    private static async Task<IReadOnlyCollection<CalendarConflictParticipant>> ProjectShiftParticipantsAsync(
+        IQueryable<Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser> query,
+        CancellationToken cancellationToken
+    ) =>
+        (
+            await query
+                .Where(participant => participant.ShiftAssignmentEntry!.ShiftEntry!.Event!.EndAtUtc.HasValue)
+                .Select(participant => new CalendarConflictParticipant(
+                    participant.ShiftAssignmentEntry!.ShiftEntry!.EventId.ToString(),
+                    participant.ShiftAssignmentEntry.ShiftEntry.Event!.SourceModule,
+                    participant.UserId,
+                    participant.ShiftAssignmentEntry.ShiftEntry.Event.StartAtUtc,
+                    participant.ShiftAssignmentEntry.ShiftEntry.Event.EndAtUtc!.Value,
+                    participant.ShiftAssignmentEntry.ShiftEntry.Event.Title,
+                    participant.ShiftAssignmentEntry.ShiftEntryId,
+                    participant.ShiftAssignmentEntry.ShiftEntry.Event.TimeZoneId
                 ))
                 .ToListAsync(cancellationToken)
         )
