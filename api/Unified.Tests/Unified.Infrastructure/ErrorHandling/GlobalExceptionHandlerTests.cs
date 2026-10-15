@@ -134,6 +134,29 @@ public class GlobalExceptionHandlerTests
         Assert.Equal(StatusCodes.Status499ClientClosedRequest, context.Response.StatusCode);
     }
 
+    [Theory]
+    [InlineData(typeof(InvalidOperationException), StatusCodes.Status400BadRequest, "Invalid request.")]
+    [InlineData(typeof(KeyNotFoundException), StatusCodes.Status404NotFound, "Resource not found.")]
+    public async Task TryHandleAsync_DistributionRequestException_ReturnsExpectedStatus(
+        Type exceptionType,
+        int expectedStatus,
+        string expectedTitle
+    )
+    {
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = (Exception)Activator.CreateInstance(exceptionType, "Distribution request failed.")!;
+
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        Assert.True(handled);
+        Assert.Equal(expectedStatus, context.Response.StatusCode);
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal(expectedStatus, body.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal(expectedTitle, body.RootElement.GetProperty("title").GetString());
+        Assert.Equal("Distribution request failed.", body.RootElement.GetProperty("detail").GetString());
+    }
+
     [Fact]
     public async Task TryHandleAsync_EmailValidationException_Returns400ProblemDetails()
     {
