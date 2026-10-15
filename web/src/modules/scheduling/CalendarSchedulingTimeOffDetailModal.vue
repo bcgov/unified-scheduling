@@ -395,11 +395,11 @@ function formatDateRange() {
     </template>
 
     <div v-if="shouldShowOpenScopeChoice" class="timeoff-modal__scope-choice">
-      <p class="timeoff-modal__scope-choice-text">
-        This is one occurrence in a series. What do you want to open?
-      </p>
+      <p class="timeoff-modal__scope-choice-text">This is one occurrence in a series. What do you want to open?</p>
       <div class="timeoff-modal__scope-choice-actions">
-        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectOpenScope('event')">Only this occurrence</UaBtn>
+        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectOpenScope('event')"
+          >Only this occurrence</UaBtn
+        >
         <UaBtn color="primary" variant="flat" :loading="isLoadingSeries" @click="selectOpenScope('series')">
           The entire series
         </UaBtn>
