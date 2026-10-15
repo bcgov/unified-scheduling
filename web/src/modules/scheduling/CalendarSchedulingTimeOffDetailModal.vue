@@ -388,7 +388,25 @@ function formatDateRange() {
 
 <template>
   <UaModal :title="modalTitle" width="840" @close="emit('close')">
-    <template v-if="visibleTabs.length > 1" #secondary-header>
+    <template #alerts>
+      <UaAlert v-if="apiError" type="error" @close="apiError = ''">
+        {{ apiError }}
+      </UaAlert>
+    </template>
+
+    <div v-if="shouldShowOpenScopeChoice" class="timeoff-modal__scope-choice">
+      <p class="timeoff-modal__scope-choice-text">
+        This is one occurrence in a series. What do you want to open?
+      </p>
+      <div class="timeoff-modal__scope-choice-actions">
+        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectOpenScope('event')">Only this occurrence</UaBtn>
+        <UaBtn color="primary" variant="flat" :loading="isLoadingSeries" @click="selectOpenScope('series')">
+          The entire series
+        </UaBtn>
+      </div>
+    </div>
+
+    <div v-else class="timeoff-modal">
       <div class="timeoff-modal__tabs" role="tablist" aria-label="Time off detail tabs">
         <button
           v-for="tab in visibleTabs"
@@ -404,61 +422,39 @@ function formatDateRange() {
           {{ tab.label }}
         </button>
       </div>
-    </template>
 
-    <div v-if="shouldShowOpenScopeChoice" class="timeoff-modal__scope-choice">
-      <p class="timeoff-modal__scope-choice-text">
-        This is one occurrence in a time-off series. What do you want to open?
-      </p>
-      <div class="timeoff-modal__scope-choice-actions">
-        <UaBtn variant="outlined" :disabled="isLoadingSeries" @click="selectOpenScope('event')">
-          Only this occurrence
-        </UaBtn>
-        <UaBtn color="primary" variant="flat" :loading="isLoadingSeries" @click="selectOpenScope('series')">
-          The entire series
-        </UaBtn>
-      </div>
+      <TimeOffDetailsPanel
+        v-if="activeTab === 'details'"
+        :detail-rows="detailRows"
+        :is-loading="isLoadingUsers || isLoadingSeries"
+      />
+
+      <TimeOffForm
+        v-else-if="activeTab === 'edit'"
+        v-model="editFormData"
+        show-employees
+        :disabled="isSaving"
+        :employee-options="employeeOptions"
+        :loading-employees="isLoadingUsers"
+        :leave-type-options="editLeaveTypeOptions"
+        :time-zone-id="timeZoneId"
+        :show-repeat="selectedOpenScope === 'series'"
+        @validation-change="hasEditFormValidationError = $event"
+      />
+
+      <section v-else class="timeoff-modal__delete-panel" aria-label="Time Off Delete Panel">
+        <h3 class="timeoff-modal__delete-heading">Delete {{ entityLabel.toLowerCase() }}</h3>
+        <p>
+          {{
+            selectedOpenScope === 'series'
+              ? 'Deleting the series permanently removes all draft occurrences and cannot be undone.'
+              : 'Deleting this occurrence is permanent and cannot be undone.'
+          }}
+        </p>
+      </section>
     </div>
 
-    <template v-if="apiError" #alerts>
-      <UaAlert type="error" @close="apiError = ''">{{ apiError }}</UaAlert>
-    </template>
-
-    <TimeOffDetailsPanel
-      v-if="activeTab === 'details' && !shouldShowOpenScopeChoice"
-      :detail-rows="detailRows"
-      :is-loading="isLoadingUsers || isLoadingSeries"
-    />
-
-    <TimeOffForm
-      v-else-if="activeTab === 'edit' && !shouldShowOpenScopeChoice"
-      v-model="editFormData"
-      show-employees
-      :disabled="isSaving"
-      :employee-options="employeeOptions"
-      :loading-employees="isLoadingUsers"
-      :leave-type-options="editLeaveTypeOptions"
-      :time-zone-id="timeZoneId"
-      :show-repeat="selectedOpenScope === 'series'"
-      @validation-change="hasEditFormValidationError = $event"
-    />
-
-    <section
-      v-else-if="activeTab === 'delete' && !shouldShowOpenScopeChoice"
-      class="timeoff-modal__delete-panel"
-      aria-label="Time Off Delete Panel"
-    >
-      <h3 class="timeoff-modal__delete-heading">Delete {{ entityLabel.toLowerCase() }}</h3>
-      <p>
-        {{
-          selectedOpenScope === 'series'
-            ? 'Deleting the series permanently removes all draft occurrences and cannot be undone.'
-            : 'Deleting this occurrence is permanent and cannot be undone.'
-        }}
-      </p>
-    </section>
-
-    <template v-if="activeTab !== 'details' && !shouldShowOpenScopeChoice" #actions>
+    <template v-if="!shouldShowOpenScopeChoice && activeTab !== 'details'" #actions>
       <template v-if="activeTab === 'delete'">
         <UaBtn variant="outlined" :disabled="isSaving" @click="emit('close')">Close</UaBtn>
         <UaBtn color="error" variant="flat" :loading="isSaving" @click="handleDelete">Delete</UaBtn>
