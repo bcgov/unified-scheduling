@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.DataMigration;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
@@ -48,6 +49,14 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<TrainingProfileType> TrainingProfileTypes { get; set; }
     public DbSet<TrainingProfileRequirement> TrainingProfileRequirements { get; set; }
     public DbSet<UserTraining> UserTrainings { get; set; }
+
+    // Data migration
+    public DbSet<DataMigrationRun> DataMigrationRuns { get; set; }
+    public DbSet<DataMigrationRecord> DataMigrationRecords { get; set; }
+    public DbSet<DataMigrationFailure> DataMigrationFailures { get; set; }
+    public DbSet<DataMigrationMutation> DataMigrationMutations { get; set; }
+    public DbSet<DataMigrationControl> DataMigrationControls { get; set; }
+    public DbSet<DataMigrationWatermark> DataMigrationWatermarks { get; set; }
 
     // Scheduling
     public DbSet<ShiftSeries> ShiftSeries { get; set; }

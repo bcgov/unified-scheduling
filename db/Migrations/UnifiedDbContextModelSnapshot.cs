@@ -465,6 +465,285 @@ namespace Unified.Db.Migrations
                     b.ToTable("CourtRooms");
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationControl", b =>
+                {
+                    b.Property<string>("Source")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("AbortRequestedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ChangedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("ChangedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Source");
+
+                    b.ToTable("DataMigrationControls", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationFailure", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("EntityType")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ErrorMessage")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("ErrorType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("LegacyId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("OccurredOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Watermark")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "OccurredOn")
+                        .IsDescending(false, true);
+
+                    b.ToTable("DataMigrationFailures", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationMutation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AfterHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("BeforeImage")
+                        .HasColumnType("text");
+
+                    b.Property<long>("DataMigrationRecordId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Version")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DataMigrationRecordId");
+
+                    b.HasIndex("RunId", "Sequence")
+                        .IsDescending(false, true);
+
+                    b.ToTable("DataMigrationMutations", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("LastAppliedRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LegacyId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("SourceUpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TargetKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastAppliedRunId");
+
+                    b.HasIndex("Source", "EntityType", "LegacyId")
+                        .IsUnique();
+
+                    b.ToTable("DataMigrationRecords", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("DryRun")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("InsertedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RejectedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("RollbackOfRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ScannedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SkippedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("StartedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("UnchangedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UpdatedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("WatermarkCompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("WatermarkStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RollbackOfRunId");
+
+                    b.HasIndex("Source", "Status")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Running'");
+
+                    b.ToTable("DataMigrationRuns", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationWatermark", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid?>("LastCompletedRunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LegacyId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("SourceChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastCompletedRunId");
+
+                    b.HasIndex("Source", "EntityType")
+                        .IsUnique();
+
+                    b.ToTable("DataMigrationWatermarks", (string)null);
+                });
+
             modelBuilder.Entity("Unified.Db.Models.Location", b =>
                 {
                     b.Property<int>("Id")
@@ -1976,7 +2255,7 @@ namespace Unified.Db.Migrations
                     b.ToTable("TrainingCategories");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileRequirement", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2054,7 +2333,8 @@ namespace Unified.Db.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTimeOffset>("EffectiveDate")
                         .HasColumnType("timestamp with time zone");
@@ -2795,6 +3075,64 @@ namespace Unified.Db.Migrations
                     b.Navigation("Location");
 
                     b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationFailure", b =>
+                {
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", "Run")
+                        .WithMany("Failures")
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Run");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationMutation", b =>
+                {
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRecord", "DataMigrationRecord")
+                        .WithMany("Mutations")
+                        .HasForeignKey("DataMigrationRecordId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", "Run")
+                        .WithMany("Mutations")
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DataMigrationRecord");
+
+                    b.Navigation("Run");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationRecord", b =>
+                {
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", "LastAppliedRun")
+                        .WithMany()
+                        .HasForeignKey("LastAppliedRunId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("LastAppliedRun");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationRun", b =>
+                {
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", null)
+                        .WithMany()
+                        .HasForeignKey("RollbackOfRunId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationWatermark", b =>
+                {
+                    b.HasOne("Unified.Db.Models.DataMigration.DataMigrationRun", "LastCompletedRun")
+                        .WithMany()
+                        .HasForeignKey("LastCompletedRunId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("LastCompletedRun");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Location", b =>
@@ -3558,7 +3896,7 @@ namespace Unified.Db.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfile", b =>
+            modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileRequirement", b =>
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
@@ -3566,13 +3904,13 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.Training.Training", "Training")
-                        .WithMany("TrainingProfiles")
+                        .WithMany("TrainingProfileRequirements")
                         .HasForeignKey("TrainingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Unified.Db.Models.Training.TrainingProfileType", "TrainingProfileType")
-                        .WithMany("TrainingProfiles")
+                        .WithMany("TrainingProfileRequirements")
                         .HasForeignKey("TrainingProfileTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -3883,6 +4221,18 @@ namespace Unified.Db.Migrations
                     b.Navigation("Events");
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationRecord", b =>
+                {
+                    b.Navigation("Mutations");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.DataMigration.DataMigrationRun", b =>
+                {
+                    b.Navigation("Failures");
+
+                    b.Navigation("Mutations");
+                });
+
             modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentDefinition", b =>
                 {
                     b.Navigation("AssignmentEntries");
@@ -3932,7 +4282,7 @@ namespace Unified.Db.Migrations
 
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
                 {
-                    b.Navigation("TrainingProfiles");
+                    b.Navigation("TrainingProfileRequirements");
 
                     b.Navigation("UserTrainings");
                 });
@@ -3944,7 +4294,7 @@ namespace Unified.Db.Migrations
 
             modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileType", b =>
                 {
-                    b.Navigation("TrainingProfiles");
+                    b.Navigation("TrainingProfileRequirements");
 
                     b.Navigation("Users");
                 });
