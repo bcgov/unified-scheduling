@@ -42,3 +42,13 @@ runs:
       run: npm run test
       shell: bash
       working-directory: ${{ inputs.working_directory }}
+
+    - name: Install Playwright Chromium
+      run: npx playwright install --with-deps chromium
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+
+    - name: Test PDF rendering
+      run: npm run test:e2e -- --project=chromium
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}

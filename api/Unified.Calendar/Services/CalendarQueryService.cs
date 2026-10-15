@@ -1,6 +1,8 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Unified.Authorization.Claims;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
@@ -17,7 +19,8 @@ public sealed class CalendarQueryService(
     StatutoryHolidayCalendarDataProvider statutoryHolidayProvider,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
-    ICalendarConflictService calendarConflictService
+    ICalendarConflictService calendarConflictService,
+    IHttpContextAccessor? httpContextAccessor = null
 ) : ICalendarQueryService
 {
     public async Task<CalendarDataResponse> GetCalendarDataAsync(
@@ -71,8 +74,18 @@ public sealed class CalendarQueryService(
             .ThenBy(calendarEvent => calendarEvent.Title, StringComparer.Ordinal)
             .ThenBy(calendarEvent => calendarEvent.Id, StringComparer.Ordinal)
             .ToList();
+        var viewerPermissions = httpContextAccessor?.HttpContext is { } httpContext
+            ? httpContext
+                .User.FindAll(UnifiedClaimTypes.Permission)
+                .Select(claim => claim.Value)
+                .ToHashSet(StringComparer.Ordinal)
+            : null;
         var conflicts = await calendarConflictService.GetConflictsAsync(
-            new CalendarConflictQuery(utcRange.StartAtUtc, utcRange.EndAtUtc),
+            new CalendarConflictQuery(
+                utcRange.StartAtUtc,
+                utcRange.EndAtUtc,
+                ViewerPermissions: viewerPermissions
+            ),
             cancellationToken
         );
         var response = new CalendarDataResponse
