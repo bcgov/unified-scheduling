@@ -129,6 +129,7 @@ coverage/
 *.db
 *.sqlite
 *.sqlite3
+docker/postgres-backups/
 
 # Temporary files
 tmp/
