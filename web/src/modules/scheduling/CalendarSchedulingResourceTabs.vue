@@ -7,7 +7,7 @@ const accessControl = useAccessControl();
 
 const showShifts = computed(
   () =>
-    (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) &&
+    (accessControl.featureFlags.value?.Scheduling?.enabled ?? false) &&
     accessControl.hasPermission(Permissions.ShiftsCreateAndAssign),
 );
 
