@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
 import Appbar from '@/shared/components/Appbar.vue';
+import UaBackgroundOverlay from '@/shared/components/UaBackgroundOverlay.vue';
+import { useBranding } from '@/composables/useBranding';
 
 const route = useRoute();
+const branding = useBranding();
 </script>
 
 <template>
   <v-app>
     <Appbar v-if="!route.meta.fullScreen" />
-    <!-- Main Content -->
-    <main class="main-content" :class="{ 'main-content--full-screen': route.meta.fullScreen }">
-      <RouterView />
-    </main>
+    <UaBackgroundOverlay :image="branding.backgroundImageUrl.value">
+      <!-- Main Content -->
+      <main class="main-content" :class="{ 'main-content--full-screen': route.meta.fullScreen }">
+        <RouterView />
+      </main>
+    </UaBackgroundOverlay>
   </v-app>
 </template>
 
@@ -21,7 +26,7 @@ const route = useRoute();
   margin-top: var(--ua-appbar-height);
   overflow-y: auto;
   padding: 0 var(--ua-page-padding-x);
-  background-color: rgb(var(--v-theme-background));
+  background-color: transparent;
   padding-top: var(--ua-spacing-md);
 }
 

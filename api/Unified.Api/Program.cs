@@ -55,6 +55,8 @@ var hangfireOptions =
         .AddOptions<ApplicationOptions>()
         .Bind(builder.Configuration.GetSection(ApplicationOptions.SectionName));
 
+    builder.Services.AddOptions<BrandingOptions>().Bind(builder.Configuration.GetSection(BrandingOptions.SectionName));
+
     builder.Services.ConfigureHttpJsonOptions(options =>
     {
         options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;

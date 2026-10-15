@@ -12,7 +12,8 @@ namespace Unified.Api.Controllers;
 public class ConfigController(
     ILogger<ConfigController> logger,
     IEnumerable<IFeatureFlags> featureFlags,
-    IOptions<ApplicationOptions> applicationOptions
+    IOptions<ApplicationOptions> applicationOptions,
+    IOptions<BrandingOptions> brandingOptions
 ) : ControllerBase
 {
     /// <summary>
@@ -33,6 +34,7 @@ public class ConfigController(
             FeatureFlags = featureFlagsResponse,
             SupportEmail = applicationOptions.Value.SupportEmail,
             ApplicationName = applicationOptions.Value.Name,
+            SelectedBrand = brandingOptions.Value.SelectedBrand,
         };
 
         logger.LogDebug(
