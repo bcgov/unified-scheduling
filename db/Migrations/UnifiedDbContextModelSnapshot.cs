@@ -105,8 +105,6 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -1870,8 +1868,9 @@ namespace Unified.Db.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
-                        .HasDefaultValueSql("now()")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("EventId")
                         .HasColumnType("integer");
@@ -1901,7 +1900,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("TimeOffEntries");
+                    b.ToTable("TimeOffEntries", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffEntryUser", b =>
@@ -1923,8 +1922,9 @@ namespace Unified.Db.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
-                        .HasDefaultValueSql("now()")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("TimeOffEntryId")
                         .HasColumnType("integer");
@@ -1951,7 +1951,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("TimeOffEntryId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("TimeOffEntryUsers");
+                    b.ToTable("TimeOffEntryUsers", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffSeries", b =>
@@ -1973,8 +1973,9 @@ namespace Unified.Db.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
-                        .HasDefaultValueSql("now()")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("EventSeriesId")
                         .HasColumnType("integer");
@@ -1999,9 +2000,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.HasIndex("LeaveTypeId");
-
-                    b.ToTable("TimeOffSeries");
+                    b.ToTable("TimeOffSeries", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffSeriesUser", b =>
@@ -2023,8 +2022,9 @@ namespace Unified.Db.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedOn")
-                        .HasDefaultValueSql("now()")
-                        .HasColumnType("timestamp with time zone");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("TimeOffSeriesId")
                         .HasColumnType("integer");
@@ -2051,7 +2051,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("TimeOffSeriesId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("TimeOffSeriesUsers");
+                    b.ToTable("TimeOffSeriesUsers", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
@@ -2796,7 +2796,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserLeaves");
+                    b.ToTable("UserLeave");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserRole", b =>
@@ -3727,27 +3727,30 @@ namespace Unified.Db.Migrations
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
-                        .HasForeignKey("CreatedById");
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.Calendar.Event", "Event")
                         .WithMany()
                         .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Unified.Db.Models.Lookup.LeaveType", "LeaveType")
                         .WithMany()
                         .HasForeignKey("LeaveTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Unified.Db.Models.TimeOff.TimeOffSeries", "TimeOffSeries")
                         .WithMany("TimeOffEntries")
-                        .HasForeignKey("TimeOffSeriesId");
+                        .HasForeignKey("TimeOffSeriesId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
                         .WithMany()
-                        .HasForeignKey("UpdatedById");
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("CreatedBy");
 
@@ -3764,7 +3767,8 @@ namespace Unified.Db.Migrations
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
-                        .HasForeignKey("CreatedById");
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.TimeOff.TimeOffEntry", "TimeOffEntry")
                         .WithMany("Users")
@@ -3774,12 +3778,13 @@ namespace Unified.Db.Migrations
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
                         .WithMany()
-                        .HasForeignKey("UpdatedById");
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("CreatedBy");
@@ -3795,23 +3800,25 @@ namespace Unified.Db.Migrations
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
-                        .HasForeignKey("CreatedById");
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.Calendar.EventSeries", "EventSeries")
                         .WithMany()
                         .HasForeignKey("EventSeriesId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Unified.Db.Models.Lookup.LeaveType", "LeaveType")
                         .WithMany()
                         .HasForeignKey("LeaveTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
                         .WithMany()
-                        .HasForeignKey("UpdatedById");
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("CreatedBy");
 
@@ -3826,7 +3833,8 @@ namespace Unified.Db.Migrations
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
                         .WithMany()
-                        .HasForeignKey("CreatedById");
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.TimeOff.TimeOffSeries", "TimeOffSeries")
                         .WithMany("Users")
@@ -3836,12 +3844,13 @@ namespace Unified.Db.Migrations
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
                         .WithMany()
-                        .HasForeignKey("UpdatedById");
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("CreatedBy");

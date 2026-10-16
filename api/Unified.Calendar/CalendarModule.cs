@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.FeatureFlags;
 using Unified.Calendar.Holidays;
+using Unified.Calendar.Mappings;
 using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
@@ -59,7 +61,9 @@ public static class CalendarModule
 
         services.AddSingleton<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>();
         services.AddSingleton<StatutoryHolidayCalendarDataProvider>();
-        services.AddScoped<ICalendarEventService, CalendarEventService>();
+        services.AddScoped<ICalendarQueryService, CalendarQueryService>();
+        services.TryAddSingleton<CalendarEventMapper>();
+        services.TryAddScoped(typeof(CalendarEventServiceProvider<,,,>));
         if (!services.Any(d => d.ServiceType == typeof(ITimeZoneService)))
         {
             services.AddSingleton<ITimeZoneService, TimeZoneService>();

@@ -17,7 +17,7 @@ namespace Unified.Calendar.Controllers;
 [Route("/api/calendar")]
 public sealed class CalendarController(
     ILogger<CalendarController> logger,
-    ICalendarEventService calendarEventService,
+    ICalendarQueryService calendarQueryService,
     ICalendarConflictService calendarConflictService,
     CalendarDataRequestValidator calendarDataRequestValidator,
     CalendarConflictAcknowledgementValidator calendarConflictAcknowledgementValidator
@@ -39,7 +39,7 @@ public sealed class CalendarController(
 
         await calendarDataRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var response = await calendarEventService.GetCalendarDataAsync(request, cancellationToken);
+        var response = await calendarQueryService.GetCalendarDataAsync(request, cancellationToken);
 
         logger.LogInformation(
             "Calendar events response completed for range {StartDate} to {EndDate} with {EventCount} events.",

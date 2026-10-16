@@ -128,7 +128,7 @@ public class CalendarControllerTests
         Assert.Equal(request, conflictService.LastOverrideRequest);
     }
 
-    private sealed class FakeCalendarEventService : ICalendarEventService
+    private sealed class FakeCalendarEventService : ICalendarQueryService
     {
         public CalendarDataResponse Result { get; init; } = new();
 
