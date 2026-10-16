@@ -25,7 +25,7 @@ public sealed class ShiftService(
     ITimeZoneService timeZoneService,
     TimeProvider timeProvider,
     ICalendarConflictService calendarConflictService
-) : IShiftService
+) : IShiftService, IShiftPublicationService
 {
     private static readonly RecurrenceValidationOptions ShiftRecurrenceValidationOptions = new()
     {
@@ -311,11 +311,29 @@ public sealed class ShiftService(
     {
         logger.LogInformation("Publishing shift series {ShiftSeriesId}.", id);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
 
+        var entity = await PublishSeriesAsync(id, cancellationToken);
+        if (entity is null)
+        {
+            logger.LogInformation("Shift series {ShiftSeriesId} was not found for publish.", id);
+            return null;
+        }
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+
+        logger.LogInformation("Published shift series {ShiftSeriesId}.", id);
+
+        return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
+    }
+
+    private async Task<ShiftSeries?> PublishSeriesAsync(
+        int shiftSeriesId,
+        CancellationToken cancellationToken = default
+    )
+    {
         var entity = await db
             .ShiftSeries.Include(shiftSeries => shiftSeries.EventSeries!)
                 .ThenInclude(eventSeries => eventSeries.Events)
@@ -324,12 +342,9 @@ public sealed class ShiftService(
                 .ThenInclude(shiftEntry => shiftEntry.Event)
             .Include(shiftSeries => shiftSeries.ShiftEntries)
                 .ThenInclude(shiftEntry => shiftEntry.Users)
-            .SingleOrDefaultAsync(shiftSeries => shiftSeries.Id == id, cancellationToken);
+            .SingleOrDefaultAsync(shiftSeries => shiftSeries.Id == shiftSeriesId, cancellationToken);
         if (entity is null)
-        {
-            logger.LogInformation("Shift series {ShiftSeriesId} was not found for publish.", id);
             return null;
-        }
 
         ShiftGuards.EnsureShiftEventSeriesType(entity.EventSeries!);
         var eventSeries = entity.EventSeries!;
@@ -343,7 +358,7 @@ public sealed class ShiftService(
         );
         calendarLifecycleService.PublishSeries(eventSeries, eventSeries.Events.ToList());
         var shiftEntryIds = await db
-            .ShiftEntries.Where(shiftEntry => shiftEntry.ShiftSeriesId == id)
+            .ShiftEntries.Where(shiftEntry => shiftEntry.ShiftSeriesId == shiftSeriesId)
             .Select(shiftEntry => shiftEntry.Id)
             .ToListAsync(cancellationToken);
         await PublishLinkedDraftAssignmentsAsync(shiftEntryIds, cancellationToken);
@@ -355,11 +370,7 @@ public sealed class ShiftService(
             cancellationToken
         );
         await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
-        logger.LogInformation("Published shift series {ShiftSeriesId}.", id);
-
-        return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
+        return entity;
     }
 
     public async Task<ShiftSeriesResponse?> ExpireShiftSeriesAsync(
@@ -738,45 +749,106 @@ public sealed class ShiftService(
     {
         logger.LogInformation("Publishing shift entry {ShiftEntryId}.", id);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
-
-        var entity = await db
-            .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
-            .Include(shiftEntry => shiftEntry.Users)
-            .SingleOrDefaultAsync(shiftEntry => shiftEntry.Id == id, cancellationToken);
+        var result = await PublishEntriesAsync([id], cancellationToken);
+        var entity = result.ShiftEntries.SingleOrDefault();
         if (entity is null)
         {
             logger.LogInformation("Shift entry {ShiftEntryId} was not found for publish.", id);
             return null;
         }
-
-        ShiftGuards.EnsureShiftEventType(entity.Event!);
-        await EnsureShiftsDoNotConflictAsync(
-            CreateShiftConflictCandidates(entity.Event!, entity.Users.Select(user => user.UserId)),
-            [entity.Id],
-            cancellationToken
-        );
-        calendarLifecycleService.Publish(entity.Event!);
-        await PublishLinkedDraftAssignmentsAsync([entity.Id], cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
-
-        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
-            db,
-            [entity.Id],
-            cancellationToken
-        );
-        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
         logger.LogInformation("Published shift entry {ShiftEntryId}.", id);
 
         return ShiftResponseMapper.ToShiftEntryResponse(entity);
     }
 
-    private async Task PublishLinkedDraftAssignmentsAsync(
+    public async Task<ShiftPublicationResult> PublishEntriesAsync(
+        IReadOnlyCollection<int> shiftEntryIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (shiftEntryIds.Count == 0)
+            return new ShiftPublicationResult([], []);
+
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
+
+        var entries = await LoadPublicationEntriesAsync(shiftEntryIds, cancellationToken);
+        var blockers = await GetEntryPublicationBlockersAsync(entries, cancellationToken);
+        if (blockers.Count > 0)
+            throw new ConflictValidationException(
+                new Dictionary<string, string[]> { ["UserIds"] = blockers.Select(blocker => blocker.Message).ToArray() }
+            );
+
+        foreach (var entry in entries)
+            calendarLifecycleService.Publish(entry.Event!);
+
+        var linkedAssignmentEventIds = await PublishLinkedDraftAssignmentsAsync(
+            entries.Select(entry => entry.Id).ToList(),
+            cancellationToken
+        );
+        await db.SaveChangesAsync(cancellationToken);
+
+        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
+            db,
+            entries.Select(entry => entry.Id).ToList(),
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+
+        return new ShiftPublicationResult(entries, linkedAssignmentEventIds);
+    }
+
+    public async Task<IReadOnlyCollection<ShiftPublicationBlocker>> GetEntryPublicationBlockersAsync(
+        IReadOnlyCollection<int> shiftEntryIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var entries = await LoadPublicationEntriesAsync(shiftEntryIds, cancellationToken);
+        return await GetEntryPublicationBlockersAsync(entries, cancellationToken);
+    }
+
+    private async Task<List<ShiftEntry>> LoadPublicationEntriesAsync(
+        IReadOnlyCollection<int> shiftEntryIds,
+        CancellationToken cancellationToken
+    ) =>
+        await db
+            .ShiftEntries.Include(shiftEntry => shiftEntry.Event)
+            .Include(shiftEntry => shiftEntry.Users)
+            .Where(shiftEntry => shiftEntryIds.Contains(shiftEntry.Id))
+            .ToListAsync(cancellationToken);
+
+    private async Task<IReadOnlyCollection<ShiftPublicationBlocker>> GetEntryPublicationBlockersAsync(
+        IReadOnlyCollection<ShiftEntry> entries,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var entry in entries)
+            ShiftGuards.EnsureShiftEventType(entry.Event!);
+
+        try
+        {
+            await EnsureShiftsDoNotConflictAsync(
+                CreateShiftConflictCandidates(entries),
+                entries.Select(entry => entry.Id).ToList(),
+                cancellationToken
+            );
+            return [];
+        }
+        catch (ConflictValidationException exception)
+        {
+            return exception
+                .Errors.Values.SelectMany(messages => messages)
+                .Distinct()
+                .Select(message => new ShiftPublicationBlocker(message))
+                .ToList();
+        }
+    }
+
+    private async Task<IReadOnlyCollection<int>> PublishLinkedDraftAssignmentsAsync(
         IReadOnlyCollection<int> shiftEntryIds,
         CancellationToken cancellationToken
     )
@@ -790,6 +862,8 @@ public sealed class ShiftService(
 
         foreach (var assignmentEvent in assignmentEvents)
             calendarLifecycleService.Publish(assignmentEvent);
+
+        return assignmentEvents.Select(eventEntity => eventEntity.Id).ToList();
     }
 
     public async Task<ShiftEntryResponse?> ExpireShiftEntryAsync(
