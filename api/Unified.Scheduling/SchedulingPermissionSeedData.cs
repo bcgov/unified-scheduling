@@ -92,26 +92,26 @@ public static class SchedulingPermissionSeedData
                 new()
                 {
                     Group = PermissionGroupScheduling,
-                    Id = nameof(Permissions.TimeOffView),
-                    Description = "View time off",
+                    Id = nameof(Permissions.LeaveView),
+                    Description = "View leave",
                 },
                 new()
                 {
                     Group = PermissionGroupScheduling,
-                    Id = nameof(Permissions.TimeOffCreateAndAssign),
-                    Description = "Create and assign time off",
+                    Id = nameof(Permissions.LeaveCreateAndAssign),
+                    Description = "Create and assign leave",
                 },
                 new()
                 {
                     Group = PermissionGroupScheduling,
-                    Id = nameof(Permissions.TimeOffEdit),
-                    Description = "Edit time off",
+                    Id = nameof(Permissions.LeaveEdit),
+                    Description = "Edit leave",
                 },
                 new()
                 {
                     Group = PermissionGroupScheduling,
-                    Id = nameof(Permissions.TimeOffDelete),
-                    Description = "Delete time off",
+                    Id = nameof(Permissions.LeaveDelete),
+                    Description = "Delete leave",
                 },
             ],
         };

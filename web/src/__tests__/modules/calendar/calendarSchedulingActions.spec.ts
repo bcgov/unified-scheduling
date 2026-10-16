@@ -49,7 +49,7 @@ describe('calendarSchedulingActions', () => {
     closeCalendarSchedulingResourceActionModal();
   });
 
-  it('makes create shift available only in the schedule view for shift or time off creators', () => {
+  it('makes create shift available only in the schedule view for shift or leave creators', () => {
     const createContext = {
       startDate: '2026-07-14',
       endDate: '2026-07-14',
@@ -61,19 +61,19 @@ describe('calendarSchedulingActions', () => {
       featureFlags: {},
       permissions: [Permissions.ShiftsCreateAndAssign],
     };
-    const timeOffCreator = {
-      featureFlags: { TimeOff: { enabled: true } },
-      permissions: [Permissions.TimeOffCreateAndAssign],
+    const leaveCreator = {
+      featureFlags: { Leave: { enabled: true } },
+      permissions: [Permissions.LeaveCreateAndAssign],
     };
     const noPermissions = {
-      featureFlags: { TimeOff: { enabled: true } },
+      featureFlags: { Leave: { enabled: true } },
       permissions: [],
     };
 
     expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, shiftCreator)).toBe(true);
     expect(calendarSchedulingCreateShiftAction.isAvailable?.(createContext, shiftCreator)).toBe(false);
-    expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, timeOffCreator)).toBe(true);
-    expect(calendarSchedulingCreateShiftAction.isAvailable?.(createContext, timeOffCreator)).toBe(false);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, leaveCreator)).toBe(true);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(createContext, leaveCreator)).toBe(false);
     expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, noPermissions)).toBe(false);
   });
 
@@ -778,7 +778,7 @@ describe('calendarSchedulingActions', () => {
     });
   });
 
-  it('makes the add-resource action available when the user can create time off without shifts', () => {
+  it('makes the add-resource action available when the user can create leave without shifts', () => {
     const context = {
       resource: { id: 'user-1', type: 'user', title: 'Alex Alpha' },
       cell: { resourceId: 'user-1', date: '2026-07-14', groups: [] },
@@ -790,19 +790,19 @@ describe('calendarSchedulingActions', () => {
         cells: [],
       },
     };
-    const timeOffOnlyContext = {
-      featureFlags: { TimeOff: { enabled: true } },
-      permissions: [Permissions.TimeOffCreateAndAssign],
+    const leaveOnlyContext = {
+      featureFlags: { Leave: { enabled: true } },
+      permissions: [Permissions.LeaveCreateAndAssign],
     };
 
-    expect(calendarAddResourceAction.isAvailable?.(context, timeOffOnlyContext)).toBe(true);
+    expect(calendarAddResourceAction.isAvailable?.(context, leaveOnlyContext)).toBe(true);
     expect(calendarAddResourceAction.isAvailable?.(context, { featureFlags: {}, permissions: [] })).toBe(false);
   });
 
-  it('opens the add-resource modal when the user can create time off without shifts', async () => {
-    const timeOffOnlyContext = {
-      featureFlags: { TimeOff: { enabled: true } },
-      permissions: [Permissions.TimeOffCreateAndAssign],
+  it('opens the add-resource modal when the user can create leave without shifts', async () => {
+    const leaveOnlyContext = {
+      featureFlags: { Leave: { enabled: true } },
+      permissions: [Permissions.LeaveCreateAndAssign],
     };
 
     await calendarAddResourceAction.execute(
@@ -817,7 +817,7 @@ describe('calendarSchedulingActions', () => {
           cells: [],
         },
       },
-      timeOffOnlyContext,
+      leaveOnlyContext,
     );
 
     expect(calendarSchedulingResourceActionDate.value).toBe('2026-07-14');

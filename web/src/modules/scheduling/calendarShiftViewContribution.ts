@@ -1,7 +1,7 @@
 import { defineAsyncComponent } from 'vue';
 import type { CalendarViewDefinition } from '@/modules/calendar/registry/calendarRegistryTypes';
 import { buildCalendarSchedulingViewModel } from './calendarSchedulingMappers.ts';
-import { canViewShifts, canViewTimeOff } from './calendarSchedulingPermissions';
+import { canViewShifts, canViewLeave } from './calendarSchedulingPermissions';
 
 export const calendarShiftViewContribution: CalendarViewDefinition = {
   id: 'calendar.matrix-schedule',
@@ -12,7 +12,7 @@ export const calendarShiftViewContribution: CalendarViewDefinition = {
   // component into the eager bundle.
   component: defineAsyncComponent(() => import('./CalendarSchedulingView.vue')),
   loadingVariant: 'matrix',
-  isAvailable: (context) => canViewShifts(context) || canViewTimeOff(context),
+  isAvailable: (context) => canViewShifts(context) || canViewLeave(context),
   buildModel: (data, queryContext, _runtimeContext, period) =>
     buildCalendarSchedulingViewModel(data, queryContext, period),
 };

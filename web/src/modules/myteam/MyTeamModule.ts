@@ -70,11 +70,11 @@ const myTeamRoutes: RouteRecordRaw[] = [
             },
           },
           {
-            path: 'time-off',
-            name: 'UserTimeOff',
-            component: () => import('./views/UserTimeOff.vue'),
+            path: 'leave',
+            name: 'UserLeave',
+            component: () => import('./views/UserLeave.vue'),
             meta: {
-              title: 'Leave/Time off',
+              title: 'Leave',
             },
           },
         ],

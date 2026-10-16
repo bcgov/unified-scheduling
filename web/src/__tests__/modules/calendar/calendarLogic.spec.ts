@@ -141,16 +141,16 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
-  it('shows each time-off event only in its matching user and date cell', () => {
-    const timeOffEvent: CalendarSchedulingEvent = {
-      id: 'scheduling.timeoff-entry.1',
-      type: 'scheduling.timeoff',
-      sourceModule: 'timeoff',
+  it('shows each leave event only in its matching user and date cell', () => {
+    const leaveEvent: CalendarSchedulingEvent = {
+      id: 'scheduling.leave-entry.1',
+      type: 'scheduling.leave',
+      sourceModule: 'leave',
       title: 'Special',
       start: '2025-01-14T16:00:00Z',
       end: '2025-01-14T17:00:00Z',
       timeZoneId: 'America/Vancouver',
-      metadata: { timeOffEntryId: '1', userIds: ['user-1'] },
+      metadata: { leaveEntryId: '1', userIds: ['user-1'] },
     };
 
     const viewModel = buildCalendarSchedulingViewModel(
@@ -159,7 +159,7 @@ describe('scheduling calendar view model', () => {
           'scheduling.events': {
             moduleId: 'scheduling',
             contributionId: 'scheduling.events',
-            events: [timeOffEvent],
+            events: [leaveEvent],
             resources: [
               {
                 id: 'user-1',

@@ -16,7 +16,7 @@ export * from './region/region.ts';
 export * from './reporting/reporting.ts';
 export * from './roles/roles.ts';
 export * from './scheduling-calendar/scheduling-calendar.ts';
-export * from './scheduling-time-off/scheduling-time-off.ts';
+export * from './scheduling-leave/scheduling-leave.ts';
 export * from './shift/shift.ts';
 export * from './shift-assignment/shift-assignment.ts';
 export * from './stat-categories/stat-categories.ts';

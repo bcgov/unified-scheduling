@@ -11,19 +11,19 @@ const showShifts = computed(
     accessControl.hasPermission(Permissions.ShiftsCreateAndAssign),
 );
 
-const showTimeOff = computed(
+const showLeave = computed(
   () =>
-    (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) &&
-    accessControl.hasPermission(Permissions.TimeOffCreateAndAssign),
+    (accessControl.featureFlags.value?.Leave?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.LeaveCreateAndAssign),
 );
 
 const emit = defineEmits<{
-  (event: 'update:activeTab', value: 'schedule' | 'timeOff'): void;
+  (event: 'update:activeTab', value: 'schedule' | 'leave'): void;
 }>();
 
-const activeTab = ref<'schedule' | 'timeOff'>('schedule');
+const activeTab = ref<'schedule' | 'leave'>('schedule');
 
-const updateActiveTab = (value: 'schedule' | 'timeOff') => {
+const updateActiveTab = (value: 'schedule' | 'leave') => {
   activeTab.value = value;
   emit('update:activeTab', value);
 };
@@ -38,7 +38,7 @@ const updateActiveTab = (value: 'schedule' | 'timeOff') => {
       @update:model-value="updateActiveTab"
     >
       <v-tab v-if="showShifts" value="schedule">Schedule</v-tab>
-      <v-tab v-if="showTimeOff" value="timeOff">Time Off</v-tab>
+      <v-tab v-if="showLeave" value="leave">Leave</v-tab>
     </v-tabs>
 
     <div class="resource-tabs__panels">
@@ -51,12 +51,12 @@ const updateActiveTab = (value: 'schedule' | 'timeOff') => {
         <slot name="schedule" />
       </section>
       <section
-        v-if="showTimeOff"
-        class="resource-tabs__panel resource-tabs__panel--time-off"
-        :class="{ 'resource-tabs__panel--active': activeTab === 'timeOff' }"
-        :aria-hidden="activeTab !== 'timeOff'"
+        v-if="showLeave"
+        class="resource-tabs__panel resource-tabs__panel--leave"
+        :class="{ 'resource-tabs__panel--active': activeTab === 'leave' }"
+        :aria-hidden="activeTab !== 'leave'"
       >
-        <slot name="timeOff" />
+        <slot name="leave" />
       </section>
     </div>
   </div>
@@ -88,7 +88,7 @@ const updateActiveTab = (value: 'schedule' | 'timeOff') => {
   pointer-events: auto;
 }
 
-.resource-tabs__panel--time-off {
+.resource-tabs__panel--leave {
   align-self: start;
 }
 </style>

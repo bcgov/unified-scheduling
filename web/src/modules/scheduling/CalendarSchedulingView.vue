@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { mdiRepeat } from '@mdi/js';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
-import CalendarSchedulingTimeOffDetailModal from './CalendarSchedulingTimeOffDetailModal.vue';
+import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
@@ -55,12 +55,12 @@ import {
   calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
-  calendarSchedulingTimeOffDetailEvent,
+  calendarSchedulingLeaveDetailEvent,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingResourceActionModal,
-  closeCalendarSchedulingTimeOffDetail,
+  closeCalendarSchedulingLeaveDetail,
   getCalendarSchedulingHeaderConflictKey,
   isCalendarSchedulingAssignmentModalOpen,
   isCalendarSchedulingResourceActionModalOpen,
@@ -68,8 +68,8 @@ import {
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
 } from './calendarSchedulingState';
-import { canCreateShifts, canEditShifts, canCreateTimeOff, canEditTimeOff } from './calendarSchedulingPermissions';
-import { isCalendarSchedulingEvent, isTimeOffEvent } from './calendarSchedulingData';
+import { canCreateShifts, canEditShifts, canCreateLeave, canEditLeave } from './calendarSchedulingPermissions';
+import { isCalendarSchedulingEvent, isLeaveEvent } from './calendarSchedulingData';
 
 const props = defineProps<{
   model: CalendarMatrixViewModel;
@@ -86,8 +86,8 @@ const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
 const canCreateShift = computed(() => Boolean(props.runtimeContext && canCreateShifts(props.runtimeContext)));
 const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShifts(props.runtimeContext)));
-const canAllowCreateTimeOff = computed(() => Boolean(props.runtimeContext && canCreateTimeOff(props.runtimeContext)));
-const canAllowEditTimeOff = computed(() => Boolean(props.runtimeContext && canEditTimeOff(props.runtimeContext)));
+const canAllowCreateLeave = computed(() => Boolean(props.runtimeContext && canCreateLeave(props.runtimeContext)));
+const canAllowEditLeave = computed(() => Boolean(props.runtimeContext && canEditLeave(props.runtimeContext)));
 
 function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
   if (item.type !== 'assignment') {
@@ -107,15 +107,15 @@ function handleAssignmentDefinitionSaved() {
   calendarStore.refresh();
 }
 
-function isRecurringTimeOff(event: CalendarEventBase) {
+function isRecurringLeave(event: CalendarEventBase) {
   return (
-    isTimeOffEvent(event) &&
-    (event.eventSeriesId != null || (isCalendarSchedulingEvent(event) && event.metadata.timeOffSeriesId != null))
+    isLeaveEvent(event) &&
+    (event.eventSeriesId != null || (isCalendarSchedulingEvent(event) && event.metadata.leaveSeriesId != null))
   );
 }
 
 function editExistingShift() {
-  if (!canEditShift.value && !canAllowEditTimeOff.value) {
+  if (!canEditShift.value && !canAllowEditLeave.value) {
     return;
   }
 
@@ -129,7 +129,7 @@ function editExistingShift() {
 }
 
 function createNewShift() {
-  if (!canCreateShift.value && !canAllowCreateTimeOff.value) {
+  if (!canCreateShift.value && !canAllowCreateLeave.value) {
     return;
   }
 
@@ -346,9 +346,9 @@ function isAssignmentEvent(event: CalendarEventBase) {
         >
           <template #header>
             <span
-              v-if="isRecurringTimeOff(event)"
+              v-if="isRecurringLeave(event)"
               class="calendar-scheduling-event-block__recurrence"
-              title="Recurring time off"
+              title="Recurring leave"
             >
               <v-icon :icon="mdiRepeat" size="small" aria-label="Recurring" />
             </span>
@@ -375,11 +375,11 @@ function isAssignmentEvent(event: CalendarEventBase) {
     @close="closeCalendarSchedulingEventDetail"
   />
 
-  <CalendarSchedulingTimeOffDetailModal
-    v-if="calendarSchedulingTimeOffDetailEvent"
-    :event="calendarSchedulingTimeOffDetailEvent"
+  <CalendarSchedulingLeaveDetailModal
+    v-if="calendarSchedulingLeaveDetailEvent"
+    :event="calendarSchedulingLeaveDetailEvent"
     :runtime-context="runtimeContext"
-    @close="closeCalendarSchedulingTimeOffDetail"
+    @close="closeCalendarSchedulingLeaveDetail"
   />
 
   <CalendarSchedulingAssignmentDefinitionCreateModal
