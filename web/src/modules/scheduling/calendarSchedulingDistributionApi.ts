@@ -10,6 +10,7 @@ export interface ScheduleDistributionRequest {
     startDate: string;
     endDate: string;
     period: ScheduleDistributionPeriod;
+    includeAssignmentTimes?: boolean;
   };
   recipientUserIds: string[];
 }

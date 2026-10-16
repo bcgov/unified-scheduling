@@ -39,6 +39,7 @@ const selectedRecipientIds = ref<string[]>([]);
 const recipientSearch = ref('');
 const isLoadingUsers = ref(false);
 const isSending = ref(false);
+const includeAssignmentTimes = ref(true);
 const errorMessage = ref('');
 const successMessage = ref('');
 
@@ -168,6 +169,7 @@ function printSchedule() {
       startDate: props.startDate,
       endDate: props.endDate,
       period: props.period,
+      ...(props.view === 'schedule' && !includeAssignmentTimes.value ? { includeAssignmentTimes: 'false' } : {}),
     },
   });
   const printWindow = window.open(printRoute.href, '_blank');
@@ -202,6 +204,7 @@ async function sendSchedule() {
         startDate: props.startDate,
         endDate: props.endDate,
         period: props.period as ScheduleDistributionPeriod,
+        ...(props.view === 'schedule' && !includeAssignmentTimes.value ? { includeAssignmentTimes: false } : {}),
       },
       recipientUserIds: [...selectedRecipientIds.value],
     });
@@ -261,6 +264,16 @@ function formatCount(count: number, noun: string) {
           closable-chips
           clearable
           @update:search="recipientSearch = $event"
+        />
+
+        <v-switch
+          v-if="view === 'schedule'"
+          v-model="includeAssignmentTimes"
+          label="Include Assignment Times"
+          color="primary"
+          hide-details
+          inset
+          :disabled="isSending"
         />
 
         <UaAlert v-if="missingEmailRecipients.length" type="warning" :closable="false">

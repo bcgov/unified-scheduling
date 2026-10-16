@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { mdiRepeat } from '@mdi/js';
+import { useRoute } from 'vue-router';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
 import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
@@ -28,6 +29,7 @@ import type {
 } from '@/modules/calendar/calendarTypes';
 import { postApiCalendarConflictsOverrides } from '@/api-access/generated/calendar/calendar';
 import { Permissions } from '@/api-access/generated/models';
+import { CalendarActionId } from '@/modules/calendar/calendarIdentifiers';
 import {
   CalendarMatrixActionType,
   type CalendarMatrixConflictItem,
@@ -94,12 +96,19 @@ const emit = defineEmits<{
 
 const calendarStore = useCalendarStore();
 const calendarAlertStore = useCalendarAlertStore();
+const route = useRoute();
 const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
 const canCreateShift = computed(() => Boolean(props.runtimeContext && canCreateShifts(props.runtimeContext)));
 const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShifts(props.runtimeContext)));
 const canAllowCreateLeave = computed(() => Boolean(props.runtimeContext && canCreateLeave(props.runtimeContext)));
 const canAllowEditLeave = computed(() => Boolean(props.runtimeContext && canEditLeave(props.runtimeContext)));
+const includeAssignmentTimes = computed(
+  () =>
+    props.runtimeContext?.presentationMode !== 'print' ||
+    props.showAssignmentContent === true ||
+    route.query.includeAssignmentTimes !== 'false',
+);
 
 function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
   if (item.type !== 'assignment') {
@@ -331,6 +340,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
       <div
         class="calendar-scheduling-header"
         :class="{
+          'is-holiday': header.actionId === CalendarActionId.EventDetail,
           'has-conflict-overlay':
             calendarSchedulingConflictHeaderId != null &&
             calendarSchedulingConflictHeaderId === getCalendarSchedulingHeaderConflictKey(cell, header.id),
@@ -364,6 +374,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
           :display="display"
           :variant="group.variant"
           :show-color-bar="group.showColorBar"
+          :show-time="includeAssignmentTimes || !isAssignmentEvent(event)"
           :time-zone="model.timeZone"
           @event-action="handleEventAction($event, cell, onEventAction)"
           @drag-start="onDragStart"
@@ -501,6 +512,12 @@ function isAssignmentEvent(event: CalendarEventBase) {
 
 .calendar-scheduling-header {
   position: relative;
+}
+
+.calendar-scheduling-header.is-holiday :deep(.calendar-matrix-cell-header) {
+  background: rgb(var(--v-theme-surface));
+  border-color: var(--calendar-event-holiday-color);
+  color: var(--ua-text-primary);
 }
 
 .calendar-scheduling-header.has-conflict-overlay {

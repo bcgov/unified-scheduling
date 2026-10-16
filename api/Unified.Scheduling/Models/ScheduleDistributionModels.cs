@@ -20,6 +20,8 @@ public sealed record ScheduleDistributionContext
     public DateOnly EndDate { get; init; }
 
     public string Period { get; init; } = string.Empty;
+
+    public bool IncludeAssignmentTimes { get; init; } = true;
 }
 
 public sealed record ScheduleDistributionResult(int RecipientCount);
