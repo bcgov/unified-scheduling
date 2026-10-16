@@ -5,6 +5,7 @@ export const calendarSchedulingActionIds = {
   addResource: 'calendar-scheduling.add-resource',
   scheduleStaff: 'calendar-scheduling.schedule-staff',
   viewHeaderDetails: 'calendar-scheduling.header-details',
+  viewTimeOffDetails: 'calendar-scheduling.timeoff-details',
   showConflict: 'calendar-scheduling.show-conflict',
   resolveConflict: 'calendar-scheduling.resolve-conflict',
 } as const;

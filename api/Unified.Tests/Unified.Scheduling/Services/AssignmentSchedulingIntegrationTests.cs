@@ -2225,6 +2225,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             },
             includeShifts,
             includeAssignments,
+            includeTimeOff: false,
             TestContext.Current.CancellationToken
         );
 

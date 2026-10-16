@@ -20,6 +20,10 @@ public enum Permissions
     UsersView,
     UsersExpire,
     UsersViewOtherProfiles,
+    UsersTimeOffCreate,
+    UsersTimeOffEdit,
+    UsersTimeOffDelete,
+    UsersTimeOffView,
 
     // --- Roles ---
     RolesView,
@@ -111,4 +115,10 @@ public enum Permissions
 
     // --- Audit ---
     AuditRead,
+
+    // --- Time Off ---
+    TimeOffCreateAndAssign,
+    TimeOffEdit,
+    TimeOffDelete,
+    TimeOffView,
 }

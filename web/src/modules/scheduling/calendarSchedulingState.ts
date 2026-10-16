@@ -23,6 +23,7 @@ export const calendarSchedulingConflictEventId = ref<string>();
 export const calendarSchedulingConflictHeaderId = ref<string>();
 export const calendarSchedulingDetailEvent = ref<CalendarEventBase>();
 export const calendarSchedulingDetailInitialOpenScope = ref<'event' | 'series'>();
+export const calendarSchedulingTimeOffDetailEvent = ref<CalendarEventBase>();
 export const calendarSchedulingExistingShiftChoice = ref<{
   shiftEvent: CalendarEventBase;
   resource: CalendarMatrixResource;
@@ -147,4 +148,12 @@ export function showCalendarSchedulingEventDetail(
 export function closeCalendarSchedulingEventDetail() {
   calendarSchedulingDetailEvent.value = undefined;
   calendarSchedulingDetailInitialOpenScope.value = undefined;
+}
+
+export function showCalendarSchedulingTimeOffDetail(event: CalendarEventBase) {
+  calendarSchedulingTimeOffDetailEvent.value = event;
+}
+
+export function closeCalendarSchedulingTimeOffDetail() {
+  calendarSchedulingTimeOffDetailEvent.value = undefined;
 }
