@@ -29,6 +29,12 @@ const capacityDisplay = computed(
 const capacitySlots = computed(() =>
   Array.from({ length: capacityDisplay.value.capacity }, (_value, index) => index + 1),
 );
+const isClosed = computed(() => capacityDisplay.value.capacity === 0);
+const capacityAriaLabel = computed(() =>
+  isClosed.value
+    ? `Assignment Closed With ${capacityDisplay.value.assignedCount} Assigned Resources`
+    : `${capacityDisplay.value.assignedCount} Of ${capacityDisplay.value.capacity} Assignment Slots Filled`,
+);
 const capacitySlotStates = computed<CalendarAssignmentCapacitySlotState[]>(() => {
   if (isCalendarSchedulingEvent(props.event) && props.event.metadata.capacitySlotStates?.length) {
     return props.event.metadata.capacitySlotStates;
@@ -95,8 +101,9 @@ function formatShiftTimeRange(shift: CalendarAssignmentPartialCoverageShift) {
   <div class="calendar-assignment-block">
     <div
       class="calendar-scheduling-capacity"
-      :aria-label="`${capacityDisplay.assignedCount} Of ${capacityDisplay.capacity} Assignment Slots Filled`"
+      :aria-label="capacityAriaLabel"
     >
+      <span v-if="isClosed" class="calendar-scheduling-capacity__closed">Closed</span>
       <span
         v-for="slot in capacitySlots"
         :key="slot"
@@ -171,6 +178,12 @@ function formatShiftTimeRange(shift: CalendarAssignmentPartialCoverageShift) {
 
 .calendar-scheduling-capacity__slot.is-partial {
   background: var(--ua-scheduling-capacity-slot-partial-bg);
+}
+
+.calendar-scheduling-capacity__closed {
+  font-size: var(--ua-font-size-xs);
+  font-weight: var(--ua-font-weight-bold);
+  line-height: 1;
 }
 
 .calendar-scheduling-capacity__overflow {
