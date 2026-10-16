@@ -11,7 +11,7 @@ namespace Unified.Calendar.Mappings;
 /// <see cref="CalendarEventSeriesService{TRequest,TEntity}"/> across any domain built on the shared
 /// calendar pipeline. Unlike the per-feature mappers it sits alongside (e.g.
 /// <c>Unified.Scheduling.Mappings.AssignmentEventMapper</c>/<c>ShiftEventMapper</c> and
-/// <c>Unified.TimeOff.Mappings.SchedulingTimeOffEventMapper</c>, none of which share a base config),
+/// <c>Unified.Leave.Mappers.SchedulingLeaveEventMapper</c>, none of which share a base config),
 /// this class owns the translation itself rather than exposing an extensible
 /// <see cref="TypeAdapterConfig"/>, because it is the one piece those domains have in common; each
 /// factory layers its own domain-specific fields on afterwards in <c>CreateEntry</c>/<c>CreateSeries</c>.

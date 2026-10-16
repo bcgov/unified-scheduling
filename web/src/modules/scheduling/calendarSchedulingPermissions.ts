@@ -33,20 +33,20 @@ export function canEditShifts(context: CalendarRuntimeContext) {
   return hasCalendarPermission(context, Permissions.ShiftsEdit);
 }
 
-const isTimeOffEnabled = (context: CalendarRuntimeContext) => context.featureFlags?.TimeOff?.enabled ?? true;
+const isLeaveEnabled = (context: CalendarRuntimeContext) => context.featureFlags?.Leave?.enabled ?? true;
 
-export function canViewTimeOff(context: CalendarRuntimeContext) {
-  return isTimeOffEnabled(context) && hasCalendarPermission(context, Permissions.TimeOffView);
+export function canViewLeave(context: CalendarRuntimeContext) {
+  return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveView);
 }
 
-export function canCreateTimeOff(context: CalendarRuntimeContext) {
-  return isTimeOffEnabled(context) && hasCalendarPermission(context, Permissions.TimeOffCreateAndAssign);
+export function canCreateLeave(context: CalendarRuntimeContext) {
+  return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveCreateAndAssign);
 }
 
-export function canEditTimeOff(context: CalendarRuntimeContext) {
-  return isTimeOffEnabled(context) && hasCalendarPermission(context, Permissions.TimeOffEdit);
+export function canEditLeave(context: CalendarRuntimeContext) {
+  return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveEdit);
 }
 
-export function canDeleteTimeOff(context: CalendarRuntimeContext) {
-  return isTimeOffEnabled(context) && hasCalendarPermission(context, Permissions.TimeOffDelete);
+export function canDeleteLeave(context: CalendarRuntimeContext) {
+  return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveDelete);
 }

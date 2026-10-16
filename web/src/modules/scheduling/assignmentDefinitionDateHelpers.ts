@@ -1,24 +1,15 @@
 import type { AssignmentDefinitionResponse } from '@/api-access/generated/models/assignmentDefinitionResponse';
 import { addDays } from '@/utils/date';
+import { fromUtcBusinessDate, toUtcBusinessDate } from '@/utils/utcBusinessDate';
 import { DateTime } from 'luxon';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 
 export function toUtcBusinessDateInput(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-
-  const parsed = DateTime.fromISO(value, { setZone: true });
-  return parsed.isValid ? (parsed.toUTC().toISODate() ?? '') : '';
+  return toUtcBusinessDate(value) ?? '';
 }
 
 export function fromUtcBusinessDateInput(dateInput?: string | null) {
-  if (!dateInput) {
-    return null;
-  }
-
-  const parsed = DateTime.fromISO(dateInput, { zone: 'utc' }).startOf('day');
-  return parsed.isValid ? parsed.toISO({ suppressMilliseconds: true }) : null;
+  return fromUtcBusinessDate(dateInput);
 }
 
 export function isAssignmentDefinitionSelectableForAssignmentDate(
@@ -59,9 +50,5 @@ export function assignmentDefinitionOverlapsCalendarDateRange(
 }
 
 function parseDefinitionDate(value?: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  return toUtcBusinessDateInput(value) || null;
+  return toUtcBusinessDate(value);
 }

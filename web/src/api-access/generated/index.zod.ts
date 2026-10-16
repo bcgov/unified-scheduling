@@ -16,7 +16,7 @@ export * from './region/region.zod.ts';
 export * from './reporting/reporting.zod.ts';
 export * from './roles/roles.zod.ts';
 export * from './scheduling-calendar/scheduling-calendar.zod.ts';
-export * from './scheduling-time-off/scheduling-time-off.zod.ts';
+export * from './scheduling-leave/scheduling-leave.zod.ts';
 export * from './shift/shift.zod.ts';
 export * from './shift-assignment/shift-assignment.zod.ts';
 export * from './stat-categories/stat-categories.zod.ts';

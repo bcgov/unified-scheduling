@@ -44,8 +44,8 @@ const permissionsList = computed(() => (Array.isArray(allPermissions.value) ? al
 
 const visiblePermissionsList = computed(() => {
   const permissions = permissionsList.value;
-  if (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) return permissions;
-  return permissions.filter((p) => !p.id.startsWith('TimeOff') && !p.id.startsWith('UsersTimeOff'));
+  if (accessControl.featureFlags.value?.Leave?.enabled ?? false) return permissions;
+  return permissions.filter((p) => !p.id.startsWith('Leave') && !p.id.startsWith('UsersLeave'));
 });
 
 const getPermissionGroup = (permission: PermissionDto): string => {

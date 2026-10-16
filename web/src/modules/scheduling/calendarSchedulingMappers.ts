@@ -36,8 +36,8 @@ import {
   type CalendarMatrixViewModel,
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import {
-  isTimeOffEvent,
-  timeOffEventColor,
+  isLeaveEvent,
+  leaveEventColor,
   isCalendarSchedulingEvent,
   type CalendarAssignmentCapacitySlotState,
   type CalendarAssignmentPartialCoverageShift,
@@ -91,7 +91,7 @@ export function buildCalendarSchedulingViewModel(
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
   const conflicts = selectCalendarConflicts(response);
-  const timeOffEvents = schedulingEvents.filter(isTimeOffEvent);
+  const leaveEvents = schedulingEvents.filter(isLeaveEvent);
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
@@ -115,9 +115,9 @@ export function buildCalendarSchedulingViewModel(
               isEventOnMatrixDate(event, day.date, timeZone) &&
               assignmentEventBelongsToUserScheduleCell(event, user.id, userShiftEvents),
           );
-      const userTimeOffEvents = isUnassignedRow
+      const userLeaveEvents = isUnassignedRow
         ? []
-        : timeOffEvents.filter(
+        : leaveEvents.filter(
             (event) =>
               isCalendarSchedulingEvent(event) &&
               event.metadata.userIds?.includes(user.id) &&
@@ -134,7 +134,7 @@ export function buildCalendarSchedulingViewModel(
               getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
             ),
           ),
-          ...userTimeOffEvents.map((event) => buildTimeOffCellHeader(event, timeZone)),
+          ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
         ],
         groups: [
           {
@@ -936,23 +936,23 @@ function resolveCalendarSchedulingColor(color?: string | null) {
   return calendarMatrixColorMap[normalized as keyof typeof calendarMatrixColorMap] ?? normalized;
 }
 
-function buildTimeOffCellHeader(
+function buildLeaveCellHeader(
   event: CalendarEventBase,
   timeZone = defaultSchedulingTimeZoneId,
 ): CalendarMatrixCellHeader {
   const leaveTypeName = isCalendarSchedulingEvent(event) ? event.metadata.leaveTypeName : undefined;
-  const label = leaveTypeName || event.title || 'Time Off';
+  const label = leaveTypeName || event.title || 'Leave';
 
   return {
     id: event.id,
     text: event.allDay
       ? label
       : `${label} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
-    title: `Time Off: ${label}`,
+    title: `Leave: ${label}`,
     status: event.statusTypeCode,
-    color: resolveCalendarSchedulingColor(event.color ?? timeOffEventColor),
+    color: resolveCalendarSchedulingColor(event.color ?? leaveEventColor),
     payload: event,
-    actionId: calendarSchedulingActionIds.viewTimeOffDetails,
-    action: { actionId: calendarSchedulingActionIds.viewTimeOffDetails, type: CalendarMatrixActionType.Button },
+    actionId: calendarSchedulingActionIds.viewLeaveDetails,
+    action: { actionId: calendarSchedulingActionIds.viewLeaveDetails, type: CalendarMatrixActionType.Button },
   };
 }

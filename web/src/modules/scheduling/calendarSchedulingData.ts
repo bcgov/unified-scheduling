@@ -42,18 +42,18 @@ export interface CalendarEventMetadata {
   categoryName?: string;
   subCategoryId?: number;
   subCategoryName?: string;
-  timeOffEntryId?: string;
-  timeOffSeriesId?: string;
+  leaveEntryId?: string;
+  leaveSeriesId?: string;
   leaveTypeId?: number;
   leaveTypeName?: string;
 }
 
-export const timeOffEventType = 'scheduling.timeoff';
-export const timeOffEventTypeCode = 'timeoff';
-export const timeOffEventColor = 'purple';
+export const leaveEventType = 'scheduling.leave';
+export const leaveEventTypeCode = 'leave';
+export const leaveEventColor = 'purple';
 
-export function isTimeOffEvent(event: { type?: string | null; eventTypeCode?: string | null }) {
-  return event.type === timeOffEventType || event.eventTypeCode === timeOffEventTypeCode;
+export function isLeaveEvent(event: { type?: string | null; eventTypeCode?: string | null }) {
+  return event.type === leaveEventType || event.eventTypeCode === leaveEventTypeCode;
 }
 
 export type CalendarAssignmentCapacitySlotState = 'empty' | 'filled' | 'partial';

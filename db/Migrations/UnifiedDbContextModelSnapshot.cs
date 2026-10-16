@@ -105,8 +105,6 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -465,6 +463,214 @@ namespace Unified.Db.Migrations
                         .IsUnique();
 
                     b.ToTable("CourtRooms");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("LeaveSeriesId")
+                        .HasColumnType("integer")
+                        .HasColumnName("LeaveSeriesId");
+
+                    b.Property<int>("LeaveTypeId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("LeaveSeriesId");
+
+                    b.HasIndex("LeaveTypeId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("LeaveEntries", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntryUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("LeaveEntryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("LeaveEntryId");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("LeaveEntryId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("LeaveEntryId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LeaveEntryUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveSeries", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("EventSeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LeaveTypeId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("EventSeriesId")
+                        .IsUnique();
+
+                    b.HasIndex("LeaveTypeId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("LeaveSeries", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveSeriesUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("LeaveSeriesId")
+                        .HasColumnType("integer")
+                        .HasColumnName("LeaveSeriesId");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("LeaveSeriesId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("LeaveSeriesId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LeaveSeriesUsers", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Location", b =>
@@ -1851,209 +2057,6 @@ namespace Unified.Db.Migrations
                     b.ToTable("SubCategoryMetrics");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
-
-                    b.Property<uint>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .HasDefaultValueSql("now()")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("EventId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LeaveTypeId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("TimeOffSeriesId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("EventId")
-                        .IsUnique();
-
-                    b.HasIndex("LeaveTypeId");
-
-                    b.HasIndex("TimeOffSeriesId");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.ToTable("TimeOffEntries");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffEntryUser", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
-
-                    b.Property<uint>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .HasDefaultValueSql("now()")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("TimeOffEntryId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("TimeOffEntryId");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("TimeOffEntryId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("TimeOffEntryUsers");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffSeries", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
-
-                    b.Property<uint>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .HasDefaultValueSql("now()")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("EventSeriesId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LeaveTypeId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("EventSeriesId")
-                        .IsUnique();
-
-                    b.HasIndex("LeaveTypeId");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.HasIndex("LeaveTypeId");
-
-                    b.ToTable("TimeOffSeries");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffSeriesUser", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
-
-                    b.Property<uint>("ConcurrencyToken")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.Property<Guid?>("CreatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedOn")
-                        .HasDefaultValueSql("now()")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("TimeOffSeriesId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("UpdatedOn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("TimeOffSeriesId");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("TimeOffSeriesId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("TimeOffSeriesUsers");
-                });
-
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
                 {
                     b.Property<int>("Id")
@@ -2796,7 +2799,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserLeaves");
+                    b.ToTable("UserLeave");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserRole", b =>
@@ -3001,6 +3004,145 @@ namespace Unified.Db.Migrations
                     b.Navigation("Location");
 
                     b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntry", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Calendar.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Leave.LeaveSeries", "LeaveSeries")
+                        .WithMany("LeaveEntries")
+                        .HasForeignKey("LeaveSeriesId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Lookup.LeaveType", "LeaveType")
+                        .WithMany()
+                        .HasForeignKey("LeaveTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("LeaveSeries");
+
+                    b.Navigation("LeaveType");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntryUser", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Leave.LeaveEntry", "LeaveEntry")
+                        .WithMany("Users")
+                        .HasForeignKey("LeaveEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("LeaveEntry");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveSeries", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Calendar.EventSeries", "EventSeries")
+                        .WithMany()
+                        .HasForeignKey("EventSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Lookup.LeaveType", "LeaveType")
+                        .WithMany()
+                        .HasForeignKey("LeaveTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("EventSeries");
+
+                    b.Navigation("LeaveType");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveSeriesUser", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Leave.LeaveSeries", "LeaveSeries")
+                        .WithMany("Users")
+                        .HasForeignKey("LeaveSeriesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("LeaveSeries");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Location", b =>
@@ -3723,136 +3865,6 @@ namespace Unified.Db.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffEntry", b =>
-                {
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById");
-
-                    b.HasOne("Unified.Db.Models.Calendar.Event", "Event")
-                        .WithMany()
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.Lookup.LeaveType", "LeaveType")
-                        .WithMany()
-                        .HasForeignKey("LeaveTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.TimeOff.TimeOffSeries", "TimeOffSeries")
-                        .WithMany("TimeOffEntries")
-                        .HasForeignKey("TimeOffSeriesId");
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedById");
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("Event");
-
-                    b.Navigation("LeaveType");
-
-                    b.Navigation("TimeOffSeries");
-
-                    b.Navigation("UpdatedBy");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffEntryUser", b =>
-                {
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById");
-
-                    b.HasOne("Unified.Db.Models.TimeOff.TimeOffEntry", "TimeOffEntry")
-                        .WithMany("Users")
-                        .HasForeignKey("TimeOffEntryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedById");
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("TimeOffEntry");
-
-                    b.Navigation("UpdatedBy");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffSeries", b =>
-                {
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById");
-
-                    b.HasOne("Unified.Db.Models.Calendar.EventSeries", "EventSeries")
-                        .WithMany()
-                        .HasForeignKey("EventSeriesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.Lookup.LeaveType", "LeaveType")
-                        .WithMany()
-                        .HasForeignKey("LeaveTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedById");
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("EventSeries");
-
-                    b.Navigation("LeaveType");
-
-                    b.Navigation("UpdatedBy");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffSeriesUser", b =>
-                {
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById");
-
-                    b.HasOne("Unified.Db.Models.TimeOff.TimeOffSeries", "TimeOffSeries")
-                        .WithMany("Users")
-                        .HasForeignKey("TimeOffSeriesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedById");
-
-                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("TimeOffSeries");
-
-                    b.Navigation("UpdatedBy");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
                 {
                     b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
@@ -4219,6 +4231,18 @@ namespace Unified.Db.Migrations
                     b.Navigation("Events");
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntry", b =>
+                {
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Leave.LeaveSeries", b =>
+                {
+                    b.Navigation("LeaveEntries");
+
+                    b.Navigation("Users");
+                });
+
             modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentDefinition", b =>
                 {
                     b.Navigation("AssignmentEntries");
@@ -4262,18 +4286,6 @@ namespace Unified.Db.Migrations
                     b.Navigation("ShiftAssignmentSeriesLinks");
 
                     b.Navigation("ShiftEntries");
-
-                    b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffEntry", b =>
-                {
-                    b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("Unified.Db.Models.TimeOff.TimeOffSeries", b =>
-                {
-                    b.Navigation("TimeOffEntries");
 
                     b.Navigation("Users");
                 });

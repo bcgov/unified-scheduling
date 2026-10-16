@@ -5,7 +5,7 @@ namespace Unified.Calendar.Services;
 /// <summary>
 /// Reusable invariant checks shared by every domain that builds on the generic calendar entry/series
 /// pipeline (<see cref="CalendarEventEntryService{TRequest,TEntity}"/> /
-/// <see cref="CalendarEventSeriesService{TRequest,TEntity}"/>). Domain modules (e.g. TimeOff) supply
+/// <see cref="CalendarEventSeriesService{TRequest,TEntity}"/>). Domain modules (e.g. Leave) supply
 /// their own expected event type code / source module values rather than hard-coding them here.
 /// </summary>
 public static class CalendarEventGuards

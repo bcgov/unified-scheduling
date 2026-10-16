@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.Leave;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
-using Unified.Db.Models.TimeOff;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 
@@ -61,10 +61,10 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<ShiftAssignmentSeriesLinkUser> ShiftAssignmentSeriesLinkUsers { get; set; }
     public DbSet<ShiftAssignmentEntry> ShiftAssignmentEntries { get; set; }
     public DbSet<ShiftAssignmentEntryUser> ShiftAssignmentEntryUsers { get; set; }
-    public DbSet<TimeOffSeries> TimeOffSeries { get; set; }
-    public DbSet<TimeOffSeriesUser> TimeOffSeriesUsers { get; set; }
-    public DbSet<TimeOffEntry> TimeOffEntries { get; set; }
-    public DbSet<TimeOffEntryUser> TimeOffEntryUsers { get; set; }
+    public DbSet<LeaveSeries> LeaveSeries { get; set; }
+    public DbSet<LeaveSeriesUser> LeaveSeriesUsers { get; set; }
+    public DbSet<LeaveEntry> LeaveEntries { get; set; }
+    public DbSet<LeaveEntryUser> LeaveEntryUsers { get; set; }
 
     // Stats
     public DbSet<StatGroup> StatGroups { get; set; }
