@@ -23,42 +23,63 @@ public class PositionTypeSeeder(ILogger<PositionTypeSeeder> logger) : SeederBase
         {
             Code = "Chief Sheriff",
             Description = "Chief Sheriff",
+            DisplayOrder = 1,
+            EffectiveDate = SeedEffectiveDate,
+        },
+        new()
+        {
+            Code = "Deputy Chief Sheriff",
+            Description = "Deputy Chief Sheriff",
+            DisplayOrder = 2,
             EffectiveDate = SeedEffectiveDate,
         },
         new()
         {
             Code = "Superintendent",
             Description = "Superintendent",
+            DisplayOrder = 3,
+            EffectiveDate = SeedEffectiveDate,
+        },
+        new()
+        {
+            Code = "Senior Inspector",
+            Description = "Senior Inspector",
+            DisplayOrder = 4,
             EffectiveDate = SeedEffectiveDate,
         },
         new()
         {
             Code = "Staff Inspector",
             Description = "Staff Inspector",
+            DisplayOrder = 5,
             EffectiveDate = SeedEffectiveDate,
         },
         new()
         {
             Code = "Inspector",
             Description = "Inspector",
+            DisplayOrder = 6,
             EffectiveDate = SeedEffectiveDate,
         },
         new()
         {
             Code = "Staff Sergeant",
             Description = "Staff Sergeant",
+            DisplayOrder = 7,
             EffectiveDate = SeedEffectiveDate,
         },
         new()
         {
             Code = "Sergeant",
             Description = "Sergeant",
+            DisplayOrder = 8,
             EffectiveDate = SeedEffectiveDate,
         },
         new()
         {
             Code = "Deputy Sheriff",
             Description = "Deputy Sheriff",
+            DisplayOrder = 9,
             EffectiveDate = SeedEffectiveDate,
         },
     ];
@@ -89,6 +110,7 @@ public class PositionTypeSeeder(ILogger<PositionTypeSeeder> logger) : SeederBase
 
             Logger.LogInformation("Updating fields for position type with code {Code}...", seedPositionType.Code);
             existingPositionType.Description = seedPositionType.Description;
+            existingPositionType.DisplayOrder = seedPositionType.DisplayOrder;
             existingPositionType.EffectiveDate = seedPositionType.EffectiveDate;
             existingPositionType.ExpiryDate = seedPositionType.ExpiryDate;
 
