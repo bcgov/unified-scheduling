@@ -130,6 +130,28 @@ describe('calendarSchedulingShiftForm', () => {
     expect(payload?.body).not.toHaveProperty('cancellationReason');
   });
 
+  it('requires explicit publish permission before requesting immediate publication', () => {
+    const formData = { ...baseFormData, publish: 'yes' as const };
+
+    const unauthorized = buildCreateShiftPayload({
+      formData,
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+      allowPublish: false,
+    });
+    const authorized = buildCreateShiftPayload({
+      formData,
+      timeZoneId: 'America/Vancouver',
+      locationId: 1,
+      fallbackTitle: 'System System',
+      allowPublish: true,
+    });
+
+    expect(unauthorized?.publish).toBe(false);
+    expect(authorized?.publish).toBe(true);
+  });
+
   it('does not build create payloads without a location', () => {
     const result = buildCreateShiftPayloadWithErrors({
       formData: baseFormData,

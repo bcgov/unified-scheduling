@@ -13,7 +13,7 @@ import { calendarDataService } from './calendarDataService';
 import { DEFAULT_CALENDAR_PERIODS } from './calendarPeriodOptions';
 import { calendarActionRegistry } from './registry/calendarActionRegistry';
 import { calendarRegistry } from './registry/calendarRegistry';
-import type { CalendarToolbarAction } from './registry/calendarActionRegistryTypes';
+import type { CalendarToolbarButton } from './registry/calendarActionRegistryTypes';
 import { type CalendarPeriod, useCalendarStore } from './calendarStore';
 import type {
   CalendarDataResponse,
@@ -41,6 +41,11 @@ const activeLocationId = computed<number | undefined>(() => {
 
   const parsedLocationId = Number(candidate);
   return Number.isFinite(parsedLocationId) ? parsedLocationId : undefined;
+});
+
+const activeLocationTimeZone = computed(() => {
+  const locationId = activeLocationId.value;
+  return locationId == null ? undefined : locationsStore.entitiesMap[locationId]?.timezone;
 });
 
 const runtimeContext = computed<CalendarRuntimeContext>(() => ({
@@ -91,11 +96,16 @@ watch(
 );
 
 const queryContext = computed<CalendarQueryContext>(() => {
+  const effectiveFilters = { ...filters.value };
+  if (activeLocationTimeZone.value) {
+    effectiveFilters.timeZoneId = activeLocationTimeZone.value;
+  }
+
   return {
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
     locationId: activeLocationId.value,
-    filters: { ...filters.value },
+    filters: effectiveFilters,
   };
 });
 
@@ -125,13 +135,19 @@ const selectedDetailEvent = computed(() => {
   return calendarEvents.value.find((event) => event.id === selectedEventId.value);
 });
 
-const toolbarActions = computed<CalendarToolbarAction[]>(() => {
-  return activeView.value
-    ? calendarActionRegistry.getToolbarActionsForView(activeView.value.id, queryContext.value)
-    : [];
+const registeredToolbarActions = computed(() => {
+  if (!activeView.value) {
+    return [];
+  }
+
+  return calendarActionRegistry.getToolbarActionsForView(activeView.value.id, queryContext.value, runtimeContext.value);
 });
 
-const createActions = computed<CalendarToolbarAction[]>(() => {
+const toolbarActions = computed<CalendarToolbarButton[]>(() =>
+  registeredToolbarActions.value.map(({ id, label, disabled, variant }) => ({ id, label, disabled, variant })),
+);
+
+const createActions = computed<CalendarToolbarButton[]>(() => {
   const actions = calendarActionRegistry.getCreateActions(createActionContext(), runtimeContext.value);
 
   return actions.map((action) => ({
@@ -139,7 +155,6 @@ const createActions = computed<CalendarToolbarAction[]>(() => {
     label: action.label,
     disabled: action.disabled,
     variant: 'outlined' as const,
-    onClick: action.run ? () => action.run?.(createActionContext(), runtimeContext.value) : undefined,
   }));
 });
 
@@ -153,7 +168,7 @@ const reloadKey = computed(() =>
     endDate: dateRange.value.endDate,
     period: period.value,
     locationId: activeLocationId.value ?? null,
-    filters: filters.value,
+    filters: queryContext.value.filters,
     refreshNonce: refreshNonce.value,
     runtimeContextKey: runtimeContextKey.value,
   }),
@@ -238,23 +253,25 @@ const handleDateSelection = (selectedDate: string) => calendarStore.setAnchorDat
 const handlePeriodChange = (nextPeriod: CalendarPeriod) => calendarStore.setPeriod(nextPeriod);
 
 const handleToolbarAction = async (actionId: string) => {
-  const action = toolbarActions.value.find((candidate) => candidate.id === actionId);
+  const action = registeredToolbarActions.value.find((candidate) => candidate.id === actionId);
 
-  if (!action?.onClick || action.disabled) {
+  if (!action || action.disabled) {
     return;
   }
 
-  await action.onClick();
+  await action.run(queryContext.value, runtimeContext.value);
 };
 
 const handleCreateAction = async (actionId: string) => {
-  const action = createActions.value.find((candidate) => candidate.id === actionId);
+  const action = calendarActionRegistry
+    .getCreateActions(createActionContext(), runtimeContext.value)
+    .find((candidate) => candidate.id === actionId);
 
-  if (!action?.onClick || action.disabled) {
+  if (!action?.run || action.disabled) {
     return;
   }
 
-  await action.onClick();
+  await action.run(createActionContext(), runtimeContext.value);
 };
 
 const handleActiveViewChange = (viewId: string) => {
