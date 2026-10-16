@@ -10,6 +10,11 @@ public interface ICalendarConflictService
         CancellationToken cancellationToken = default
     );
 
+    Task<IReadOnlyCollection<CalendarConflict>> GetConflictsForCandidatesAsync(
+        IReadOnlyCollection<CalendarConflictParticipant> candidates,
+        CancellationToken cancellationToken = default
+    );
+
     Task EnsureNoUnresolvedConflictsAsync(
         IReadOnlyCollection<CalendarConflictParticipant> candidates,
         CancellationToken cancellationToken = default

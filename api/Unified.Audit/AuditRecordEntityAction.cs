@@ -2,9 +2,11 @@ using System.Text.Json;
 using Audit.Core;
 using Audit.EntityFramework;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Unified.Audit.Options;
 using Unified.Db.Models;
+using Unified.Db.Models.Abstract;
 
 namespace Unified.Audit;
 
@@ -79,6 +81,11 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
                 return null;
             }
 
+            // ColumnValues is snapshotted before the INSERT runs, so columns the store populates
+            // (CreatedOn, backed by a now() default) still hold the CLR default here. Read those
+            // back from the tracked entry, which EF has since materialised with the persisted value.
+            var trackedEntry = isInsert ? entry.GetEntry() : null;
+
             foreach (var (columnName, value) in entry.ColumnValues)
             {
                 if (ShouldExclude(entityType, entry.Table, columnName))
@@ -86,7 +93,13 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
                     continue;
                 }
 
-                values[columnName] = value;
+                values[columnName] = string.Equals(
+                    columnName,
+                    nameof(BaseEntity.CreatedOn),
+                    StringComparison.OrdinalIgnoreCase
+                )
+                    ? ResolveStoreGeneratedValue(trackedEntry, entityType, entry.Table, columnName, value)
+                    : value;
             }
         }
 
@@ -109,6 +122,28 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
             .FirstOrDefault(property =>
                 string.Equals(property.GetColumnName(storeObject), columnName, StringComparison.Ordinal)
             );
+    }
+
+    private static object? ResolveStoreGeneratedValue(
+        EntityEntry? trackedEntry,
+        IEntityType entityType,
+        string tableName,
+        string columnName,
+        object? snapshotValue
+    )
+    {
+        if (trackedEntry is null || trackedEntry.State == EntityState.Detached)
+        {
+            return snapshotValue;
+        }
+
+        var property = entityType.FindProperty(columnName) ?? FindByColumnName(entityType, tableName, columnName);
+        if (property is null || property.ValueGenerated == ValueGenerated.Never)
+        {
+            return snapshotValue;
+        }
+
+        return trackedEntry.CurrentValues[property.Name];
     }
 
     private static string MapAction(string action) =>
