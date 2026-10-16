@@ -19,7 +19,7 @@ export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME-unified-scheduling}"
 usage() {
   cat <<-EOF
 
-  Usage: $0 {start|debug|stop|build|rm|down}
+  Usage: $0 {start|debug|stop|build|upgrade-db-16-18|rm|down}
 
   Options:
 
@@ -53,6 +53,11 @@ usage() {
 
   stop - Stops the services.  This is a non-destructive process.  The containers
          are not deleted so they will be reused the next time you run start.
+
+  upgrade-db-16-18 - Backs up the running PostgreSQL 16 database, replaces its
+                     container with PostgreSQL 18, and restores the backup.
+                     Example:
+                       $0 upgrade-db-16-18
 
   down | rm - Brings down the services and removes the volumes (storage) and containers. Destructive.
 EOF
@@ -235,6 +240,10 @@ case "$COMMAND" in
     ;;
   stop)
     docker-compose stop
+    ;;
+  upgrade-db-16-18)
+    configureEnvironment
+    bash ./upgrade-postgres-16-to-18.sh
     ;;
   rm|down)
     configureEnvironment
