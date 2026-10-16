@@ -11,14 +11,14 @@ using Unified.Db.Models.Calendar;
 
 namespace Unified.Calendar.Services;
 
-public sealed class CalendarEventService(
-    ILogger<CalendarEventService> logger,
+public sealed class CalendarQueryService(
+    ILogger<CalendarQueryService> logger,
     UnifiedDbContext db,
     StatutoryHolidayCalendarDataProvider statutoryHolidayProvider,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
     ICalendarConflictService calendarConflictService
-) : ICalendarEventService
+) : ICalendarQueryService
 {
     public async Task<CalendarDataResponse> GetCalendarDataAsync(
         CalendarDataRequest request,

@@ -38,7 +38,7 @@ public sealed class CalendarModuleTests
         AssertContainsSingletonRegistration<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>(services);
         AssertContainsSingletonSelfRegistration<StatutoryHolidayCalendarDataProvider>(services);
         AssertContainsScopedRegistration<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>(services);
-        AssertContainsScopedRegistration<ICalendarEventService, CalendarEventService>(services);
+        AssertContainsScopedRegistration<ICalendarQueryService, CalendarQueryService>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventTypeSeeder>(services);
         AssertContainsScopedRegistration<SeederBase<UnifiedDbContext>, EventStatusTypeSeeder>(services);
         AssertContainsSingletonInstance<PermissionSeedConfiguration>(
@@ -66,7 +66,7 @@ public sealed class CalendarModuleTests
             .ToArray();
 
         // Assert
-        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ICalendarEventService));
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ICalendarQueryService));
         Assert.Empty(calendarActions);
     }
 
