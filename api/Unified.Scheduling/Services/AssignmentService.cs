@@ -24,7 +24,7 @@ public sealed class AssignmentService(
     ITimeZoneService timeZoneService,
     TimeProvider timeProvider,
     ICalendarConflictService calendarConflictService
-) : IAssignmentService
+) : IAssignmentService, IAssignmentPublicationService
 {
     private static readonly RecurrenceValidationOptions AssignmentRecurrenceValidationOptions = new()
     {
@@ -276,15 +276,29 @@ public sealed class AssignmentService(
     {
         logger.LogInformation("Publishing assignment series {AssignmentSeriesId}.", id);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
 
+        var assignmentSeries = await PublishSeriesAsync(id, cancellationToken);
+        if (assignmentSeries is null)
+            return null;
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+
+        logger.LogInformation("Published assignment series {AssignmentSeriesId}.", id);
+        return await MapToAssignmentSeriesResponseAsync(assignmentSeries, cancellationToken);
+    }
+
+    private async Task<AssignmentSeries?> PublishSeriesAsync(
+        int assignmentSeriesId,
+        CancellationToken cancellationToken = default
+    )
+    {
         var assignmentSeries = await db
             .AssignmentSeries.Include(series => series.EventSeries!)
                 .ThenInclude(series => series.Events)
-            .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
+            .SingleOrDefaultAsync(series => series.Id == assignmentSeriesId, cancellationToken);
         if (assignmentSeries is null)
             return null;
         ValidateAssignmentEventSeriesType(assignmentSeries.EventSeries!);
@@ -300,10 +314,7 @@ public sealed class AssignmentService(
             cancellationToken
         );
         await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
-        logger.LogInformation("Published assignment series {AssignmentSeriesId}.", id);
-        return await MapToAssignmentSeriesResponseAsync(assignmentSeries, cancellationToken);
+        return assignmentSeries;
     }
 
     public async Task<AssignmentSeriesResponse?> ExpireAssignmentSeriesAsync(
@@ -652,29 +663,47 @@ public sealed class AssignmentService(
     {
         logger.LogInformation("Publishing assignment entry {AssignmentEntryId}.", id);
 
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
-
-        var assignmentEntry = await IncludeAssignmentEntryGraph(db.AssignmentEntries)
-            .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken);
+        var assignmentEntry = (await PublishEntriesAsync([id], cancellationToken)).SingleOrDefault();
         if (assignmentEntry is null)
             return null;
-        ValidateAssignmentEventType(assignmentEntry.Event!);
-        calendarLifecycleService.Publish(assignmentEntry.Event!);
-        await db.SaveChangesAsync(cancellationToken);
-
-        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
-            db,
-            [assignmentEntry.Id],
-            cancellationToken
-        );
-        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Published assignment entry {AssignmentEntryId}.", id);
         return AssignmentResponseMapper.ToAssignmentEntryResponse(assignmentEntry);
+    }
+
+    public async Task<IReadOnlyCollection<AssignmentEntry>> PublishEntriesAsync(
+        IReadOnlyCollection<int> assignmentEntryIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (assignmentEntryIds.Count == 0)
+            return [];
+
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
+
+        var assignmentEntries = await IncludeAssignmentEntryGraph(db.AssignmentEntries)
+            .Where(entry => assignmentEntryIds.Contains(entry.Id))
+            .ToListAsync(cancellationToken);
+        foreach (var assignmentEntry in assignmentEntries)
+        {
+            ValidateAssignmentEventType(assignmentEntry.Event!);
+            calendarLifecycleService.Publish(assignmentEntry.Event!);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+            db,
+            assignmentEntries.Select(entry => entry.Id).ToList(),
+            cancellationToken
+        );
+        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+
+        return assignmentEntries;
     }
 
     public async Task<AssignmentEntryResponse?> ExpireAssignmentEntryAsync(

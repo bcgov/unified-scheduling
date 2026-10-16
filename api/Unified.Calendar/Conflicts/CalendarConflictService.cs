@@ -30,19 +30,13 @@ public sealed class CalendarConflictService(
         CancellationToken cancellationToken = default
     ) => await ValidateAndApplyConflictAcknowledgementsAsync(candidates, null, null, cancellationToken);
 
-    public async Task ValidateAndApplyConflictAcknowledgementsAsync(
+    public async Task<IReadOnlyCollection<CalendarConflict>> GetConflictsForCandidatesAsync(
         IReadOnlyCollection<CalendarConflictParticipant> candidates,
-        IReadOnlyCollection<CalendarConflictAcknowledgement>? acknowledgements,
-        Guid? actorId,
         CancellationToken cancellationToken = default
     )
     {
-        var acknowledgementsByKey = NormalizeAcknowledgements(acknowledgements);
-        if (acknowledgementsByKey.Count > 0 && !actorId.HasValue)
-            throw new InvalidOperationException("An authenticated actor is required to override calendar conflicts.");
-
         if (candidates.Count == 0)
-            return;
+            return [];
 
         var candidateIdentities = candidates.Select(CalendarConflictParticipantIdentity.Create).ToHashSet();
         var query = new CalendarConflictQuery(
@@ -67,7 +61,21 @@ public sealed class CalendarConflictService(
             )
             .ToList();
 
-        var conflictsWithOverrides = await ApplyOverridesAsync(conflicts, cancellationToken);
+        return await ApplyOverridesAsync(conflicts, cancellationToken);
+    }
+
+    public async Task ValidateAndApplyConflictAcknowledgementsAsync(
+        IReadOnlyCollection<CalendarConflictParticipant> candidates,
+        IReadOnlyCollection<CalendarConflictAcknowledgement>? acknowledgements,
+        Guid? actorId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var acknowledgementsByKey = NormalizeAcknowledgements(acknowledgements);
+        if (acknowledgementsByKey.Count > 0 && !actorId.HasValue)
+            throw new InvalidOperationException("An authenticated actor is required to override calendar conflicts.");
+
+        var conflictsWithOverrides = await GetConflictsForCandidatesAsync(candidates, cancellationToken);
         var currentConflictsByKey = conflictsWithOverrides.ToDictionary(CalendarConflictKey.Create);
         var unresolved = conflictsWithOverrides
             .Where(conflict =>

@@ -246,6 +246,18 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetConflictsForCandidatesAsync_WithNoCandidates_DoesNotQueryProviders()
+    {
+        var provider = new TrackingProvider();
+        var service = new CalendarConflictService([provider], _db);
+
+        var conflicts = await service.GetConflictsForCandidatesAsync([], TestContext.Current.CancellationToken);
+
+        Assert.Empty(conflicts);
+        Assert.False(provider.WasCalled);
+    }
+
+    [Fact]
     public async Task CreateOverrideAsync_WithExternalParticipant_PersistsSourceQualifiedIdentity()
     {
         var training = new MutableProvider

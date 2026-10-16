@@ -74,7 +74,7 @@ public sealed class ShiftController(
     }
 
     [HttpPost("series/{id:int}/publish")]
-    [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
+    [Authorize(Policy = SchedulingPolicies.SchedulePublish)]
     [ProducesResponseType(typeof(ShiftSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftSeriesResponse>> PublishShiftSeries(int id, CancellationToken cancellationToken)
@@ -178,7 +178,7 @@ public sealed class ShiftController(
     }
 
     [HttpPost("entries/{id:int}/publish")]
-    [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
+    [Authorize(Policy = SchedulingPolicies.SchedulePublish)]
     [ProducesResponseType(typeof(ShiftEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftEntryResponse>> PublishShiftEntry(int id, CancellationToken cancellationToken)

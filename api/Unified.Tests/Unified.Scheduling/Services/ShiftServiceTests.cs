@@ -1772,6 +1772,24 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task PublishEntriesAsync_WithoutActiveTransaction_PublishesEntry()
+    {
+        var entry = await AddShiftEntryAsync();
+
+        var result = await _service.PublishEntriesAsync([entry.Id], TestContext.Current.CancellationToken);
+
+        Assert.Equal(entry.Id, Assert.Single(result.ShiftEntries).Id);
+        _dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            CalendarEventStatusTypeCodes.Active,
+            await _dbContext
+                .Events.Where(eventEntity => eventEntity.Id == entry.EventId)
+                .Select(eventEntity => eventEntity.StatusTypeCode)
+                .SingleAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public async Task ExpireShiftEntryAsync_WhenFound_SetsCancelledFields()
     {
         // Arrange
