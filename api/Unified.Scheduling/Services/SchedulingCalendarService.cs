@@ -34,6 +34,7 @@ public sealed class SchedulingCalendarService(
                 .Select(location => location.Timezone)
                 .SingleOrDefaultAsync(cancellationToken)
             : null;
+        // Use the time zone of the location, not the user's time zone, as a user should view the time an event is occurring at a given location. For example, if I'm viewing an assignment in Calgary, I want to see the time that assignment occurs in Calgary.
         var timeZone = timeZoneResolver.Resolve(
             request.LocationId.HasValue ? null : request.TimeZoneId,
             locationTimeZoneId
