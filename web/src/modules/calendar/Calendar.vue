@@ -710,6 +710,13 @@ function waitForAnimationFrame() {
   cursor: default !important;
 }
 
+.calendar-page--print :deep(.calendar-matrix-event-block__meta),
+.calendar-page--print :deep(.calendar-matrix-cell-header__text) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 @media print {
   @page {
     size: letter landscape;

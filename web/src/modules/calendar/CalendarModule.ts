@@ -2,7 +2,10 @@ import type { RouteRecordRaw } from 'vue-router';
 import type { FeatureFlagsResponse } from '@/api-access/generated/models';
 import { useNavigationStore } from '@/stores/NavigationStore';
 import { calendarCreateAction } from './actions/calendarCreateAction';
-import { calendarEventDetailModalAction } from './actions/calendarEventDetailModalAction';
+import {
+  calendarEventDetailModalAction,
+  calendarEventHeaderDetailAction,
+} from './actions/calendarEventDetailModalAction';
 import { calendarNavLink } from './calendarNavigation';
 import { calendarRoutes } from './calendarRoutes';
 import { calendarEventsContribution } from './contributions/calendarEventsContribution';
@@ -30,6 +33,7 @@ export function registerModule(routes: RouteRecordRaw[], featureFlags: FeatureFl
   calendarRegistry.registerModuleContribution(calendarEventsContribution);
 
   calendarActionRegistry.registerCreateAction(calendarCreateAction);
+  calendarActionRegistry.registerMatrixCellHeaderAction(calendarEventHeaderDetailAction);
   calendarActionRegistry.registerViewDetailAction(calendarDefaultViewContribution.id, calendarEventDetailModalAction);
 
   isRegistered = true;

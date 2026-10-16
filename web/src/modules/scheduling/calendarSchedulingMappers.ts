@@ -9,7 +9,7 @@ import {
   toDateTime,
 } from '@/utils/date';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
-import { CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
+import { CalendarActionId, CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
 import {
   getCalendarConflictsForEvent,
   getCalendarConflictsForEventAndResource,
@@ -95,6 +95,9 @@ export function buildCalendarSchedulingViewModel(
   const schedulingEvents = selectSchedulingShiftEvents(response);
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const holidayEvents = (selectContribution(response, CalendarContributionId.Events)?.events ?? []).filter(
+    (event) => event.type === 'calendar.holiday' || event.eventTypeCode?.toLowerCase() === 'holiday',
+  );
   const conflicts = selectCalendarConflicts(response);
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
@@ -123,13 +126,27 @@ export function buildCalendarSchedulingViewModel(
       cells.push({
         resourceId: user.id,
         date: day.date,
-        headers: userShiftEvents.map((event) =>
-          buildCellHeader(
-            event,
-            timeZone,
-            getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
+        headers: [
+          ...(isUnassignedRow
+            ? []
+            : holidayEvents
+                .filter((event) => isEventOnMatrixDate(event, day.date, timeZone))
+                .map<CalendarMatrixCellHeader>((event) => ({
+                  id: event.id,
+                  text: event.title,
+                  title: event.title,
+                  color: 'var(--calendar-event-holiday-color)',
+                  actionId: CalendarActionId.EventDetail,
+                  payload: event,
+                }))),
+          ...userShiftEvents.map((event) =>
+            buildCellHeader(
+              event,
+              timeZone,
+              getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
+            ),
           ),
-        ),
+        ],
         groups: [
           {
             id: 'assignments',
