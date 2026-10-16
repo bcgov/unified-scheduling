@@ -1162,6 +1162,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             },
             includeShifts: true,
             includeAssignments: false,
+            includeTimeOff: false,
             TestContext.Current.CancellationToken
         );
         var preview = await CreateSchedulePublishService()
