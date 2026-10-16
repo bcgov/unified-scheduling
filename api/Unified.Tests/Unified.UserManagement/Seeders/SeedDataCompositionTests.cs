@@ -19,10 +19,7 @@ public sealed class SeedDataCompositionTests
     public void AddConfiguredSeedData_BiOracleMappingsDataSet_RegistersCompleteMappings()
     {
         var services = new ServiceCollection();
-        services.AddConfiguredSeedData(
-            BuildConfiguration(StatsSeedDataSets.BiOracleMappingsDataSet),
-            AllDataSets
-        );
+        services.AddConfiguredSeedData(BuildConfiguration(StatsSeedDataSets.BiOracleMappingsDataSet), AllDataSets);
 
         using var provider = services.BuildServiceProvider();
         var statMappings = Assert.Single(provider.GetServices<BiOracleStatMappingSeedConfiguration>());
