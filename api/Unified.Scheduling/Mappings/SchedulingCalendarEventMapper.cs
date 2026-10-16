@@ -1,16 +1,16 @@
+using Unified.Leave.Models.Calendar;
 using Unified.Scheduling.Models;
-using Unified.TimeOff.Models.Calendar;
 
 namespace Unified.Scheduling.Mappings;
 
 internal static class SchedulingCalendarEventMapper
 {
-    public static SchedulingCalendarEventResponse ToResponse(TimeOffCalendarEvent eventData) =>
+    public static SchedulingCalendarEventResponse ToResponse(LeaveCalendarEvent eventData) =>
         new()
         {
             Id = eventData.Id,
-            TimeOffEntryId = eventData.TimeOffEntryId,
-            TimeOffSeriesId = eventData.TimeOffSeriesId,
+            LeaveEntryId = eventData.LeaveEntryId,
+            LeaveSeriesId = eventData.LeaveSeriesId,
             LeaveTypeId = eventData.LeaveTypeId,
             LeaveTypeName = eventData.LeaveTypeName,
             EventId = eventData.EventId,

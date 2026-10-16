@@ -22,14 +22,14 @@ using Unified.Infrastructure.Email.Ches;
 using Unified.Infrastructure.OpenApi;
 using Unified.Infrastructure.Options;
 using Unified.JCInterface;
+using Unified.Leave;
+using Unified.Leave.Controllers;
 using Unified.Reporting;
 using Unified.Reporting.Controllers;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
 using Unified.Stats;
 using Unified.Stats.Controllers;
-using Unified.TimeOff;
-using Unified.TimeOff.Controllers;
 using Unified.Training;
 using Unified.Training.Controllers;
 using Unified.UserManagement;
@@ -110,7 +110,7 @@ var hangfireOptions =
         )
         .AddJCInterfaceModule(builder.Configuration)
         .AddInterceptors();
-    builder.Services.AddTimeOffModule(builder.Configuration);
+    builder.Services.AddLeaveModule(builder.Configuration);
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddChesTestController(builder.Environment, builder.Configuration);
@@ -119,9 +119,9 @@ var hangfireOptions =
     mvcBuilder.AddConditionalApplicationPart<SchedulingCalendarController>(
         SchedulingModule.IsModuleEnabled(builder.Configuration)
     );
-    mvcBuilder.AddConditionalApplicationPart<LeaveTypeController>(TimeOffModule.IsModuleEnabled(builder.Configuration));
-    mvcBuilder.AddConditionalApplicationPart<SchedulingTimeOffController>(
-        TimeOffModule.IsModuleEnabled(builder.Configuration)
+    mvcBuilder.AddConditionalApplicationPart<LeaveTypeController>(LeaveModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<SchedulingLeaveController>(
+        LeaveModule.IsModuleEnabled(builder.Configuration)
     );
     mvcBuilder.AddConditionalApplicationPart<StatGroupsController>(StatsModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<UserTrainingController>(

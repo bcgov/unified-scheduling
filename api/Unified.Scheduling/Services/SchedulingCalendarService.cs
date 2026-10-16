@@ -4,10 +4,10 @@ using Unified.Calendar.Services;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
+using Unified.Leave;
+using Unified.Leave.Services;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
-using Unified.TimeOff;
-using Unified.TimeOff.Services;
 
 namespace Unified.Scheduling.Services;
 
@@ -16,14 +16,14 @@ public sealed class SchedulingCalendarService(
     UnifiedDbContext db,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
-    ITimeOffCalendarDataProvider? timeOffCalendarDataProvider = null
+    ILeaveCalendarDataProvider? leaveCalendarDataProvider = null
 ) : ISchedulingCalendarService
 {
     public async Task<SchedulingCalendarDataResponse> GetDataAsync(
         SchedulingCalendarRequest request,
         bool includeShifts,
         bool includeAssignments,
-        bool includeTimeOff,
+        bool includeLeave,
         CancellationToken cancellationToken = default
     )
     {
@@ -103,11 +103,11 @@ public sealed class SchedulingCalendarService(
             );
         }
 
-        if (includeTimeOff)
+        if (includeLeave)
         {
-            if (timeOffCalendarDataProvider is not null)
+            if (leaveCalendarDataProvider is not null)
             {
-                var timeOffEvents = await timeOffCalendarDataProvider.GetEventsAsync(
+                var leaveEvents = await leaveCalendarDataProvider.GetEventsAsync(
                     new CalendarEventQueryContext
                     {
                         StartAtUtc = range.StartAtUtc,
@@ -117,7 +117,7 @@ public sealed class SchedulingCalendarService(
                     },
                     cancellationToken
                 );
-                events.AddRange(timeOffEvents.Select(SchedulingCalendarEventMapper.ToResponse));
+                events.AddRange(leaveEvents.Select(SchedulingCalendarEventMapper.ToResponse));
             }
         }
 

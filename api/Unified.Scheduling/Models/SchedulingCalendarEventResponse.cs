@@ -8,8 +8,8 @@ public sealed record SchedulingCalendarEventResponse
     public int? AssignmentEntryId { get; init; }
     public int? AssignmentSeriesId { get; init; }
     public int? AssignmentDefinitionId { get; init; }
-    public int? TimeOffEntryId { get; init; }
-    public int? TimeOffSeriesId { get; init; }
+    public int? LeaveEntryId { get; init; }
+    public int? LeaveSeriesId { get; init; }
     public int? LeaveTypeId { get; init; }
     public string? LeaveTypeName { get; init; }
     public int EventId { get; init; }

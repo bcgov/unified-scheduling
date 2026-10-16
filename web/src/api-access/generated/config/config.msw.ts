@@ -62,7 +62,7 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
-          TimeOff: faker.helpers.arrayElement([
+          Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
@@ -123,7 +123,7 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
-          TimeOff: faker.helpers.arrayElement([
+          Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
@@ -184,7 +184,7 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
-          TimeOff: faker.helpers.arrayElement([
+          Leave: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),

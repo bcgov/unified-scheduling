@@ -29,11 +29,11 @@ import { useSchedulingEmployeeOptions } from './useSchedulingEmployeeOptions';
 import { useSchedulingAssignmentOptions } from './useSchedulingAssignmentOptions';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { defaultEndTime, defaultStartTime } from './schedulingDateTime';
-import { createTimeOffEntry, createTimeOffSeries } from '@/modules/timeoff/api/timeOffApi';
-import { buildTimeOffRequest } from '@/modules/timeoff/timeOffRequest';
+import { createLeaveEntry, createLeaveSeries } from '@/modules/leave/api/leaveApi';
+import { buildLeaveRequest } from '@/modules/leave/leaveRequest';
 import type { SelectOption } from '@/types/select';
 import { useAccessControl } from '@/composables/useAccessControl';
-import TimeOffForm, { type TimeOffFormData } from '@/modules/timeoff/components/TimeOffForm.vue';
+import LeaveForm, { type LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import CalendarSchedulingResourceTabs from './CalendarSchedulingResourceTabs.vue';
 
 const props = defineProps<{
@@ -52,16 +52,16 @@ const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 const accessControl = useAccessControl();
 const canCreateShift = computed(() => accessControl.hasPermission(Permissions.ShiftsCreateAndAssign));
-const canCreateTimeOff = computed(
+const canCreateLeave = computed(
   () =>
-    (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) &&
-    accessControl.hasPermission(Permissions.TimeOffCreateAndAssign),
+    (accessControl.featureFlags.value?.Leave?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.LeaveCreateAndAssign),
 );
 
 const isSaving = ref(false);
-const activeTab = ref<'schedule' | 'timeOff'>('schedule');
-const timeOffHasValidationError = ref(false);
-const timeOffFormData = ref<TimeOffFormData>({
+const activeTab = ref<'schedule' | 'leave'>('schedule');
+const leaveHasValidationError = ref(false);
+const leaveFormData = ref<LeaveFormData>({
   userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
   date: props.initialDate ?? '',
   startTime: defaultStartTime,
@@ -134,7 +134,7 @@ watch(
   () => [props.resource, props.initialDate, props.initialAssignmentEntryId, props.initialAssignmentEvents] as const,
   ([resource, initialDate]) => {
     formData.value = createInitialFormData(resource, initialDate);
-    timeOffFormData.value = {
+    leaveFormData.value = {
       userIds: resource?.type === 'user' ? [resource.id] : [],
       date: initialDate ?? '',
       startTime: '',
@@ -360,15 +360,15 @@ async function handleSave() {
   }
 }
 
-async function handleSaveTimeOff() {
+async function handleSaveLeave() {
   apiError.value = '';
-  if (timeOffHasValidationError.value) return;
-  if (!canCreateTimeOff.value) {
-    apiError.value = 'You do not have permission to create time off.';
+  if (leaveHasValidationError.value) return;
+  if (!canCreateLeave.value) {
+    apiError.value = 'You do not have permission to create leave.';
     return;
   }
 
-  const built = buildTimeOffRequest(timeOffFormData.value, {
+  const built = buildLeaveRequest(leaveFormData.value, {
     locationId: activeLocationId.value,
     timeZoneId: timeZoneId.value,
   });
@@ -381,12 +381,12 @@ async function handleSaveTimeOff() {
 
   try {
     const result =
-      built.kind === 'series' ? await createTimeOffSeries(built.request) : await createTimeOffEntry(built.request);
+      built.kind === 'series' ? await createLeaveSeries(built.request) : await createLeaveEntry(built.request);
 
     if (result.error.value) {
       apiError.value =
         result.error.value.message ||
-        (built.kind === 'series' ? 'Failed to create recurring time off.' : 'Failed to create time off.');
+        (built.kind === 'series' ? 'Failed to create recurring leave.' : 'Failed to create leave.');
       return;
     }
 
@@ -478,17 +478,17 @@ function applyServerValidationErrors(rawError: unknown) {
         </section>
       </template>
 
-      <template #timeOff>
+      <template #leave>
         <section class="resource-shift-modal__panel">
-          <TimeOffForm
-            v-model="timeOffFormData"
-            :disabled="isSaving || !canCreateTimeOff"
+          <LeaveForm
+            v-model="leaveFormData"
+            :disabled="isSaving || !canCreateLeave"
             :employee-options="employeeOptions"
             :loading-employees="isLoadingUsers"
             :time-zone-id="timeZoneId"
             show-employees
             show-repeat
-            @validation-change="timeOffHasValidationError = $event"
+            @validation-change="leaveHasValidationError = $event"
           />
         </section>
       </template>
@@ -508,12 +508,12 @@ function applyServerValidationErrors(rawError: unknown) {
         Save
       </UaBtn>
       <UaBtn
-        v-if="activeTab === 'timeOff' && canCreateTimeOff"
+        v-if="activeTab === 'leave' && canCreateLeave"
         color="primary"
         variant="flat"
         :loading="isSaving"
-        :disabled="timeOffHasValidationError"
-        @click="handleSaveTimeOff"
+        :disabled="leaveHasValidationError"
+        @click="handleSaveLeave"
       >
         Save
       </UaBtn>

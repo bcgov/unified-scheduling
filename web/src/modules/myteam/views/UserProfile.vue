@@ -54,10 +54,10 @@ const handleEditModalClose = () => {
   showEditUserModal.value = false;
 };
 
-const showTimeOffTab = computed(
+const showLeaveTab = computed(
   () =>
-    (accessControl.featureFlags.value?.TimeOff?.enabled ?? false) &&
-    accessControl.hasPermission(Permissions.UsersTimeOffView),
+    (accessControl.featureFlags.value?.Leave?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.UsersLeaveView),
 );
 
 onMounted(async () => {
@@ -121,8 +121,8 @@ onMounted(async () => {
         >
           Training
         </UaBtn>
-        <UaBtn v-if="showTimeOffTab" variant="outlined" :to="{ name: 'UserTimeOff', params: { userId: props.userId } }">
-          Leave/Time off
+        <UaBtn v-if="showLeaveTab" variant="outlined" :to="{ name: 'UserLeave', params: { userId: props.userId } }">
+          Leave
         </UaBtn>
         <UaBtn
           v-if="accessControl.hasPermission(Permissions.AwayLocationsView)"

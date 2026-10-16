@@ -51,7 +51,7 @@ export const GetApiConfigResponse = zod.object({
           enabled: zod.boolean(),
         })
         .optional(),
-      TimeOff: zod
+      Leave: zod
         .object({
           source: zod.string().nullish(),
           enabled: zod.boolean(),
