@@ -20,7 +20,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
 {
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _dbContext = null!;
-    private CalendarEventService _service = null!;
+    private CalendarQueryService _service = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -34,8 +34,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
         await _dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         await SeedLookupDataAsync();
         var timeZoneService = new TimeZoneService();
-        _service = new CalendarEventService(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarEventService>.Instance,
+        _service = new CalendarQueryService(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarQueryService>.Instance,
             _dbContext,
             new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
             CreateCalendarTimeZoneResolver(),
