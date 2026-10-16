@@ -974,7 +974,7 @@ namespace Unified.Db.Migrations
 
                     b.ToTable("AssignmentEntries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AssignmentEntries_CapacityAtLeastOne", "\"Capacity\" >= 1");
+                            t.HasCheckConstraint("CK_AssignmentEntries_CapacityNonNegative", "\"Capacity\" >= 0");
                         });
                 });
 
@@ -1039,7 +1039,7 @@ namespace Unified.Db.Migrations
 
                     b.ToTable("AssignmentSeries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AssignmentSeries_CapacityAtLeastOne", "\"Capacity\" >= 1");
+                            t.HasCheckConstraint("CK_AssignmentSeries_CapacityNonNegative", "\"Capacity\" >= 0");
                         });
                 });
 
