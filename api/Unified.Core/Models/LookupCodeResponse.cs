@@ -6,6 +6,8 @@ public record class LookupCodeResponse
 
     public string Description { get; init; } = string.Empty;
 
+    public int? DisplayOrder { get; init; }
+
     public DateTimeOffset EffectiveDate { get; init; }
 
     public DateTimeOffset? ExpiryDate { get; init; }

@@ -15,11 +15,13 @@ public sealed class PositionTypeLookupStrategy(UnifiedDbContext db) : ILookupStr
     {
         return await db
             .PositionTypes.AsNoTracking()
-            .OrderBy(x => x.Description)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Description)
             .Select(x => new LookupCodeResponse
             {
                 Code = x.Code,
                 Description = x.Description,
+                DisplayOrder = x.DisplayOrder,
                 EffectiveDate = x.EffectiveDate,
                 ExpiryDate = x.ExpiryDate,
             })
