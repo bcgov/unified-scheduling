@@ -72,7 +72,16 @@ public sealed class CalendarEventService(
             .ThenBy(calendarEvent => calendarEvent.Id, StringComparer.Ordinal)
             .ToList();
         var conflicts = await calendarConflictService.GetConflictsAsync(
-            new CalendarConflictQuery(utcRange.StartAtUtc, utcRange.EndAtUtc),
+            new CalendarConflictQuery(
+                utcRange.StartAtUtc,
+                utcRange.EndAtUtc,
+                TimeZoneIds:
+                [
+                    string.IsNullOrWhiteSpace(locationTimeZoneId)
+                        ? timeZone.Id
+                        : timeZoneResolver.Resolve(null, locationTimeZoneId).Id,
+                ]
+            ),
             cancellationToken
         );
         var response = new CalendarDataResponse

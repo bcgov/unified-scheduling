@@ -195,7 +195,9 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.EndAtUtc!.Value,
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.Title,
                     participant.ShiftAssignmentEntry.AssignmentEntryId,
-                    participant.ShiftAssignmentEntry.AssignmentEntry.Event.TimeZoneId
+                    participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location != null
+                        ? participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location.Timezone
+                        : participant.ShiftAssignmentEntry.AssignmentEntry.Event.TimeZoneId
                 ))
                 .ToListAsync(cancellationToken)
         )
