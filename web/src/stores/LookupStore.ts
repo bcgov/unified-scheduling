@@ -8,6 +8,7 @@ import { mapToSelectOptions } from '@/utils/select';
 
 type LookupCodeTypesMap = Partial<Record<LookupCodeTypes, LookupCodeResponse[]>>;
 type LookupCodeTypesLoadingMap = Partial<Record<LookupCodeTypes, boolean>>;
+type OrderedLookupCodeResponse = LookupCodeResponse & { displayOrder?: number | null };
 /**
  * LookupStore
  *
@@ -106,6 +107,7 @@ export const useLookupStore = defineStore('lookup', () => {
       entries,
       (item) => item.code,
       (item) => item.description,
+      (item) => (item as OrderedLookupCodeResponse).displayOrder,
     );
   };
 

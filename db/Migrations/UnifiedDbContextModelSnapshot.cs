@@ -739,6 +739,9 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("EffectiveDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -760,7 +763,10 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("PositionTypes");
+                    b.ToTable("PositionTypes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PositionTypes_DisplayOrderPositive", "\"DisplayOrder\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Region", b =>

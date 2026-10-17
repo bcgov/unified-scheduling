@@ -3,7 +3,7 @@ using Unified.Db.Models.Abstract;
 
 namespace Unified.Db.Models.Lookup;
 
-public class PositionType : BaseCodeTypeEntity
+public class PositionType : OrderedCodeTypeEntity
 {
     [Key]
     public int Id { get; set; }
