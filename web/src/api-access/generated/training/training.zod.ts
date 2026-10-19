@@ -34,6 +34,7 @@ export const GetApiLookupTrainingsResponseItem = zod.object({
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   code: zod.string().optional(),
   description: zod.string().optional(),
+  displayOrder: zod.int().nullish(),
   effectiveDate: zod.iso.datetime({ offset: true }).optional(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
 });
@@ -72,6 +73,7 @@ export const PostApiLookupTrainingsResponse = zod.object({
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   code: zod.string().optional(),
   description: zod.string().optional(),
+  displayOrder: zod.int().nullish(),
   effectiveDate: zod.iso.datetime({ offset: true }).optional(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
 });
@@ -102,6 +104,7 @@ export const GetApiLookupTrainingsIdResponse = zod.object({
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   code: zod.string().optional(),
   description: zod.string().optional(),
+  displayOrder: zod.int().nullish(),
   effectiveDate: zod.iso.datetime({ offset: true }).optional(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
 });
@@ -143,6 +146,7 @@ export const PutApiLookupTrainingsIdResponse = zod.object({
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   code: zod.string().optional(),
   description: zod.string().optional(),
+  displayOrder: zod.int().nullish(),
   effectiveDate: zod.iso.datetime({ offset: true }).optional(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
 });
@@ -177,6 +181,7 @@ export const PatchApiLookupTrainingsIdOrderResponse = zod.object({
   updatedOn: zod.iso.datetime({ offset: true }).nullish(),
   code: zod.string().optional(),
   description: zod.string().optional(),
+  displayOrder: zod.int().nullish(),
   effectiveDate: zod.iso.datetime({ offset: true }).optional(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
 });

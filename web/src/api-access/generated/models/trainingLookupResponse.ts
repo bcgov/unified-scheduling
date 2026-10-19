@@ -25,6 +25,8 @@ export interface TrainingLookupResponse {
   updatedOn?: string | null;
   code?: string;
   description?: string;
+  /** @nullable */
+  displayOrder?: number | null;
   effectiveDate?: string;
   /** @nullable */
   expiryDate?: string | null;
