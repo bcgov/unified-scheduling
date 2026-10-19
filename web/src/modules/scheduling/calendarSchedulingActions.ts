@@ -1,4 +1,5 @@
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
+import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { addDays, toDateTime } from '@/utils/date';
 import { CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
@@ -45,6 +46,9 @@ import {
   canViewShifts,
   canViewLeave,
 } from './calendarSchedulingPermissions';
+
+const assignmentShiftRequiredAlertId = 'scheduling.assignment.shift-required';
+const assignmentShiftRequiredMessage = 'Create a shift for this user on this date before scheduling an assignment.';
 
 export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
   id: calendarSchedulingActionIds.createShift,
@@ -141,10 +145,20 @@ export const calendarDropAction: CalendarDropAction = {
   execute: async (context, runtimeContext) => {
     const assignmentEntryId = resolveExistingAssignmentEntryId(context);
     const assignedUserId = resolveTargetUserId(context);
+    const shiftEntryIds = resolveShiftEntryIds(context);
     if (
       !canAssignAssignments(runtimeContext) ||
       (assignmentEntryId ? !canEditAssignments(runtimeContext) : !canCreateAssignments(runtimeContext))
     ) {
+      return;
+    }
+    if (!assignmentEntryId && assignedUserId && shiftEntryIds.length === 0) {
+      useCalendarAlertStore().setAlert({
+        id: assignmentShiftRequiredAlertId,
+        message: assignmentShiftRequiredMessage,
+        severity: 'error',
+        source: CalendarModuleId.SchedulingUi,
+      });
       return;
     }
     showCalendarSchedulingAssignmentModal(
@@ -153,12 +167,12 @@ export const calendarDropAction: CalendarDropAction = {
         ? {
             mode: 'edit',
             assignmentEntryId,
-            shiftEntryIds: resolveShiftEntryIds(context),
+            shiftEntryIds,
             assignedUserId,
           }
         : {
             assignmentDefinitionId: resolveAssignmentDefinitionId(context) ?? undefined,
-            shiftEntryIds: resolveShiftEntryIds(context),
+            shiftEntryIds,
             assignedUserId,
           },
     );
