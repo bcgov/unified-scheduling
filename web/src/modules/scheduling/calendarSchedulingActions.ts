@@ -108,7 +108,7 @@ export const calendarAddAssignmentResourceAction: CalendarMatrixResourceAction =
 export const calendarDropAction: CalendarDropAction = {
   id: 'calendar-scheduling.drop-assignment-on-resource',
   moduleId: CalendarModuleId.SchedulingUi,
-  label: 'Drop assignment type',
+  label: 'Drop assignment template',
   order: 10,
   isAvailable: (context, runtimeContext) =>
     context.drag.itemType === 'assignment' &&

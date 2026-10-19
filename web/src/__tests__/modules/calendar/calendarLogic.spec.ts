@@ -141,6 +141,72 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it('orders assignment rows and side-panel templates by work area, subcategory, name, and id', () => {
+    const assignmentResources = [
+      createAssignmentResource('missing', 'No metadata'),
+      createAssignmentResource('work-b', 'Alpha', 'Work B', 'Subcategory A'),
+      createAssignmentResource('sub-b', 'Alpha', 'Work A', 'Subcategory B'),
+      createAssignmentResource('same-b', 'alpha', 'Work A', 'Subcategory A'),
+      createAssignmentResource('same-a', 'Alpha', 'Work A', 'Subcategory A'),
+      createAssignmentResource('named-last', 'Beta', 'Work A', 'Subcategory A'),
+    ];
+    const fallbackEvent: CalendarSchedulingEvent = {
+      id: 'fallback-event',
+      type: 'scheduling.assignment',
+      sourceModule: 'scheduling',
+      title: 'Aaron',
+      start: '2025-01-13T17:00:00Z',
+      metadata: {
+        assignmentDefinitionId: '99',
+        categoryName: 'Work A',
+        subCategoryName: 'Subcategory A',
+      },
+    };
+    const users = [
+      { id: 'user-z', type: 'user', sourceModule: 'scheduling', label: 'Zed', title: 'Zed' },
+      { id: 'user-a', type: 'user', sourceModule: 'scheduling', label: 'Amy', title: 'Amy' },
+    ] as CalendarSchedulingUserResource[];
+    const response: CalendarDataResponse = {
+      contributions: {
+        'scheduling.events': {
+          moduleId: 'scheduling',
+          contributionId: 'scheduling.events',
+          events: [fallbackEvent],
+          resources: users,
+        },
+        'scheduling.assignment-resources': {
+          moduleId: 'scheduling',
+          contributionId: 'scheduling.assignment-resources',
+          events: [],
+          resources: assignmentResources,
+        },
+      },
+    };
+    const context = { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} };
+
+    const assignmentModel = buildCalendarAssignmentViewModel(response, context, 'week');
+    const scheduleModel = buildCalendarSchedulingViewModel(response, context, 'week');
+
+    expect(assignmentModel.primaryColumn.resources.map((resource) => resource.id)).toEqual([
+      'assignment-definition-99',
+      'same-a',
+      'same-b',
+      'named-last',
+      'sub-b',
+      'work-b',
+      'missing',
+    ]);
+    expect(scheduleModel.sidePanel?.items.map((item) => item.id)).toEqual([
+      'same-a',
+      'same-b',
+      'named-last',
+      'sub-b',
+      'work-b',
+      'missing',
+    ]);
+    expect(scheduleModel.primaryColumn.resources.map((resource) => resource.id)).toEqual(['user-z', 'user-a']);
+  });
+
   it('shows user-specific conflicts in assignment resource rows', () => {
     const assignmentEvent: CalendarSchedulingEvent = {
       id: 'scheduling.assignment-entry.90',
@@ -533,6 +599,24 @@ describe('scheduling calendar view model', () => {
     });
   });
 });
+
+function createAssignmentResource(
+  id: string,
+  title: string,
+  categoryName?: string,
+  subCategoryName?: string,
+): CalendarSchedulingAssignmentResource {
+  return {
+    id,
+    type: 'assignment',
+    sourceModule: 'scheduling',
+    label: title,
+    title,
+    assignmentDefinitionId: Number(id.replace(/\D/g, '')) || id.length,
+    categoryName,
+    subCategoryName,
+  };
+}
 
 describe('calendar period options', () => {
   it('excludes month by default and allows views to opt in', () => {

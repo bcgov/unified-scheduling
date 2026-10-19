@@ -114,8 +114,7 @@ function mapAssignmentResources(definitions: AssignmentDefinitionResponse[]): Ca
         subCategoryId: definition.subCategoryId,
         subCategoryName: definition.subCategoryName,
       };
-    })
-    .sort((left, right) => left.title.localeCompare(right.title));
+    });
 }
 
 function createAssignmentResourceId(assignmentDefinitionId: number) {
