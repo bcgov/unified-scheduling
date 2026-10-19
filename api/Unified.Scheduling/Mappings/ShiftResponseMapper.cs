@@ -1,3 +1,4 @@
+using Unified.Calendar.Mappings;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
@@ -6,53 +7,48 @@ namespace Unified.Scheduling.Mappings;
 
 internal static class ShiftResponseMapper
 {
+    private static readonly CalendarEventMapper calendarEventMapper = new CalendarEventMapper();
+
     public static ShiftSeriesResponse ToShiftSeriesResponse(
         ShiftSeries shiftSeries,
         EventSeries? eventSeries,
         IReadOnlyCollection<ShiftSeriesEntryIds> entryIds
-    ) =>
-        new()
+    )
+    {
+        var userIds = shiftSeries.Users.Select(user => user.UserId).Distinct().ToList();
+        var eventIds = entryIds.Select(entry => entry.EventId).ToList();
+        var response = calendarEventMapper.ToSeriesResponse(
+            () => new ShiftSeriesResponse { Title = string.Empty, StartAtUtc = default },
+            eventSeries!,
+            userIds,
+            eventIds
+        );
+        return response with
         {
             Id = shiftSeries.Id,
-            EventSeriesId = shiftSeries.EventSeriesId,
-            Title = eventSeries?.Title,
-            Description = eventSeries?.Description,
-            Notes = eventSeries?.Notes,
-            Color = eventSeries?.Color,
-            RecurrenceRule = eventSeries?.RecurrenceRule,
-            TimeZoneId = eventSeries?.TimeZoneId,
-            StartAtUtc = eventSeries?.StartAtUtc,
-            EndAtUtc = eventSeries?.EndAtUtc,
-            AllDay = eventSeries?.AllDay ?? false,
-            EventTypeCode = eventSeries?.EventTypeCode,
-            StatusTypeCode = eventSeries?.StatusTypeCode,
-            CancelledAt = eventSeries?.CancelledAt,
-            CancelledByUserId = eventSeries?.CancelledByUserId,
-            CancellationReason = eventSeries?.CancellationReason,
-            LocationId = eventSeries?.LocationId,
-            UserIds = shiftSeries.Users.Select(user => user.UserId).Distinct().ToList(),
-            EventIds = entryIds.Select(entry => entry.EventId).ToList(),
             ShiftEntryIds = entryIds.Select(entry => entry.ShiftEntryId).ToList(),
         };
+    }
 
     public static ShiftEntryResponse ToShiftEntryResponse(
         ShiftEntry shiftEntry,
         IReadOnlyCollection<ShiftAssignmentEntryResponse>? assignmentLinks = null
-    ) =>
-        new()
+    )
+    {
+        var userIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList();
+        var response = calendarEventMapper.ToEntryResponse(
+            () => new ShiftEntryResponse { Title = string.Empty, StartAtUtc = default },
+            shiftEntry.Event!,
+            userIds
+        );
+        return response with
         {
             Id = shiftEntry.Id,
             ShiftSeriesId = shiftEntry.ShiftSeriesId,
             EventId = shiftEntry.EventId,
-            Title = shiftEntry.Event?.Title,
-            StartAtUtc = shiftEntry.Event?.StartAtUtc,
-            EndAtUtc = shiftEntry.Event?.EndAtUtc,
-            TimeZoneId = shiftEntry.Event?.TimeZoneId,
-            StatusTypeCode = shiftEntry.Event?.StatusTypeCode,
-            LocationId = shiftEntry.Event?.LocationId,
-            UserIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList(),
             AssignmentLinks = assignmentLinks ?? [],
         };
+    }
 
     public static IReadOnlyCollection<ShiftAssignmentEntryResponse> ToAssignmentLinkResponses(
         IEnumerable<ShiftAssignmentEntry> links
@@ -115,4 +111,4 @@ internal static class ShiftResponseMapper
     }
 }
 
-internal sealed record ShiftSeriesEntryIds(int ShiftSeriesId, int ShiftEntryId, int EventId);
+public sealed record ShiftSeriesEntryIds(int ShiftSeriesId, int ShiftEntryId, int EventId);

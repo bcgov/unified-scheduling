@@ -1,48 +1,13 @@
+using Unified.Calendar.Models;
+using Unified.Common.Calendar.Scheduling.Models;
+
 namespace Unified.Scheduling.Models;
 
-public sealed record AssignmentEntryResponse
+public sealed record AssignmentEntryResponse : CalendarEventEntryResponse
 {
-    public int Id { get; init; }
-
     public int? AssignmentSeriesId { get; init; }
 
-    public int EventId { get; init; }
-
     public int AssignmentDefinitionId { get; init; }
-
-    public string? Title { get; init; }
-
-    public string? Description { get; init; }
-
-    public string? Notes { get; init; }
-
-    public string? Color { get; init; }
-
-    public DateTimeOffset? StartAtUtc { get; init; }
-
-    public DateTimeOffset? EndAtUtc { get; init; }
-
-    public DateTimeOffset? SeriesStartAtUtc { get; init; }
-
-    public DateTimeOffset? SeriesEndAtUtc { get; init; }
-
-    public string? TimeZoneId { get; init; }
-
-    public bool AllDay { get; init; }
-
-    public bool IsException { get; init; }
-
-    public string? EventTypeCode { get; init; }
-
-    public string? StatusTypeCode { get; init; }
-
-    public DateTimeOffset? CancelledAt { get; init; }
-
-    public Guid? CancelledByUserId { get; init; }
-
-    public string? CancellationReason { get; init; }
-
-    public int? LocationId { get; init; }
 
     public int CategoryId { get; init; }
 
@@ -59,6 +24,16 @@ public sealed record AssignmentEntryResponse
     public IReadOnlyCollection<int> LinkedShiftEntryIds { get; init; } = [];
 
     public IReadOnlyCollection<Guid> AssignedUserIds { get; init; } = [];
+
+    public DateTimeOffset? SeriesStartAtUtc { get; init; }
+
+    public DateTimeOffset? SeriesEndAtUtc { get; init; }
+
+    public new DateTimeOffset? StartAtUtc { get; init; }
+
+    public int EventId { get; init; }
+
+    public bool IsException { get; init; }
 
     public IReadOnlyCollection<ShiftAssignmentEntryResponse> AssignmentLinks { get; init; } = [];
 }

@@ -48,6 +48,8 @@ public static class SchedulingModule
             throw new InvalidOperationException("Scheduling requires the Stats module to be enabled.");
 
         services.AddSingleton(TimeProvider.System);
+        services.AddScoped<IShiftEntryService, ShiftEntryService>();
+        services.AddScoped<IShiftSeriesService, ShiftSeriesService>();
         services.AddScoped<ShiftService>();
         services.AddScoped<IShiftService>(serviceProvider => serviceProvider.GetRequiredService<ShiftService>());
         services.AddScoped<IShiftPublicationService>(serviceProvider =>
@@ -55,6 +57,8 @@ public static class SchedulingModule
         );
         services.AddScoped<ISchedulingCalendarService, SchedulingCalendarService>();
         services.AddScoped<ICalendarConflictParticipantProvider, SchedulingConflictParticipantProvider>();
+        services.AddScoped<IAssignmentEntryService, AssignmentEntryService>();
+        services.AddScoped<IAssignmentSeriesService, AssignmentSeriesService>();
         services.AddScoped<AssignmentService>();
         services.AddScoped<IAssignmentService>(serviceProvider =>
             serviceProvider.GetRequiredService<AssignmentService>()
@@ -66,6 +70,8 @@ public static class SchedulingModule
         services.AddScoped<IAssignmentDefinitionService, AssignmentDefinitionService>();
         services.AddScoped<IShiftAssignmentService, ShiftAssignmentService>();
         services.AddScoped<IProposedShiftAssignmentOptionsService, ProposedShiftAssignmentOptionsService>();
+        services.AddScoped<ShiftConflictService>();
+        SchedulingServiceProvider.Register(services);
         services.AddScoped<ShiftSeriesMaterializationHandler>();
         services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();

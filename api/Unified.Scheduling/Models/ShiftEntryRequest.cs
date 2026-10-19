@@ -1,32 +1,12 @@
+using Unified.Common.Calendar.Scheduling.Models;
+
 namespace Unified.Scheduling.Models;
 
-public record ShiftEntryRequest
+public record ShiftEntryRequest : CalendarEventEntryRequest
 {
     public int? ShiftSeriesId { get; init; }
-
-    public required string Title { get; init; }
-
-    public string? Description { get; init; }
-
-    public string? Notes { get; init; }
-
-    public string? Color { get; init; }
-
-    public required DateTimeOffset StartAtUtc { get; init; }
-
-    public DateTimeOffset? EndAtUtc { get; init; }
-
     public DateTimeOffset? SeriesStartAtUtc { get; init; }
 
     public DateTimeOffset? SeriesEndAtUtc { get; init; }
-
-    public string? TimeZoneId { get; init; }
-
-    public bool AllDay { get; init; }
-
-    public int LocationId { get; init; }
-
-    public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
-
     public IReadOnlyCollection<AssignmentEntryLinkRequest>? AssignmentEntryLinks { get; init; }
 }

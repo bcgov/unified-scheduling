@@ -6,9 +6,12 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
+using Unified.Calendar.Factories;
+using Unified.Calendar.Mappings;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
@@ -19,6 +22,7 @@ using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
 using Unified.Scheduling;
+using Unified.Scheduling.Factories;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
@@ -92,25 +96,19 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             timeZoneService,
             _conflictService
         );
-        _assignmentService = new AssignmentService(
-            NullLogger<AssignmentService>.Instance,
+        _assignmentService = CreateAssignment(
             _db,
             materializationService,
-            new AssignmentSeriesMaterializationHandler(_db),
             _linkService,
-            new CalendarLifecycleService(),
             timeZoneService,
             timeProvider,
             _conflictService
         );
-        _shiftService = new ShiftService(
-            NullLogger<ShiftService>.Instance,
+        _shiftService = CreateShift(
             _db,
             materializationService,
             recurrenceExpander,
-            new ShiftSeriesMaterializationHandler(_db),
             _linkService,
-            new CalendarLifecycleService(),
             timeZoneService,
             timeProvider,
             _conflictService
@@ -2487,5 +2485,104 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             StartedIsolationLevels.Add(result.IsolationLevel);
             return ValueTask.FromResult(result);
         }
+    }
+
+    private static CalendarEventEntryService<TRequest, TEntity> Entry<TRequest, TEntity>(
+        ICalendarEventEntryFactory<TRequest, TEntity> factory
+    )
+        where TRequest : CalendarEventEntryRequest
+        where TEntity : class =>
+        new(
+            NullLogger<CalendarEventEntryService<TRequest, TEntity>>.Instance,
+            factory,
+            new CalendarLifecycleService(),
+            new CalendarEventMapper()
+        );
+
+    private static ShiftService CreateShift(
+        UnifiedDbContext db,
+        IEventSeriesMaterializationService materializer,
+        IRecurrenceExpander expander,
+        IShiftAssignmentService links,
+        ITimeZoneService zones,
+        TimeProvider time,
+        ICalendarConflictService conflicts
+    )
+    {
+        var factory = new ShiftEventFactory();
+        var lifecycle = new CalendarLifecycleService();
+        var shiftConflicts = new ShiftConflictService(db, zones);
+        var series = new ShiftSeriesService(
+            NullLogger<ShiftSeriesService>.Instance,
+            db,
+            new CalendarEventSeriesService<ShiftSeriesRequest, ShiftSeries>(
+                factory,
+                new CalendarEventMapper(),
+                lifecycle
+            ),
+            materializer,
+            expander,
+            new ShiftSeriesMaterializationHandler(db),
+            links,
+            lifecycle,
+            zones,
+            time,
+            conflicts,
+            shiftConflicts
+        );
+        var entries = new ShiftEntryService(
+            NullLogger<ShiftEntryService>.Instance,
+            db,
+            Entry<ShiftEntryRequest, ShiftEntry>(factory),
+            series,
+            links,
+            lifecycle,
+            zones,
+            time,
+            conflicts,
+            shiftConflicts
+        );
+        return new ShiftService(entries, series);
+    }
+
+    private static AssignmentService CreateAssignment(
+        UnifiedDbContext db,
+        IEventSeriesMaterializationService materializer,
+        IShiftAssignmentService links,
+        ITimeZoneService zones,
+        TimeProvider time,
+        ICalendarConflictService conflicts
+    )
+    {
+        var factory = new AssignmentEventFactory();
+        var lifecycle = new CalendarLifecycleService();
+        return new AssignmentService(
+            new AssignmentEntryService(
+                NullLogger<AssignmentEntryService>.Instance,
+                db,
+                Entry<AssignmentEntryRequest, AssignmentEntry>(factory),
+                links,
+                lifecycle,
+                zones,
+                time,
+                conflicts
+            ),
+            new AssignmentSeriesService(
+                NullLogger<AssignmentSeriesService>.Instance,
+                db,
+                new CalendarEventSeriesService<AssignmentSeriesRequest, AssignmentSeries>(
+                    factory,
+                    new CalendarEventMapper(),
+                    lifecycle
+                ),
+                materializer,
+                new AssignmentSeriesMaterializationHandler(db),
+                links,
+                lifecycle,
+                zones,
+                time,
+                conflicts
+            )
+        );
     }
 }

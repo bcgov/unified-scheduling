@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Authorization.Claims;
+using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
@@ -586,6 +587,11 @@ public class ShiftControllerTests
 
         public Task<bool> DeleteShiftSeriesAsync(int id, CancellationToken cancellationToken = default) =>
             Task.FromResult(DeleteShiftSeriesResult);
+
+        public Task<ShiftSeries?> GetShiftSeriesEntityForEntryAsync(
+            int id,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<ShiftSeries?>(null);
 
         public Task<IReadOnlyCollection<ShiftEntryResponse>> GetShiftEntriesAsync(
             ShiftEntryQueryParams? queryParams = null,

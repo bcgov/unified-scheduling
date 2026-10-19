@@ -30,6 +30,11 @@ public sealed class SchedulingModuleTests
         AssertContainsScopedSelfRegistration<ShiftService>(services);
         AssertContainsScopedFactoryRegistration<IShiftService>(services);
         AssertContainsScopedFactoryRegistration<IShiftPublicationService>(services);
+        AssertContainsScopedRegistration<IShiftEntryService, ShiftEntryService>(services);
+        AssertContainsScopedRegistration<IShiftSeriesService, ShiftSeriesService>(services);
+        AssertContainsScopedRegistration<IAssignmentEntryService, AssignmentEntryService>(services);
+        AssertContainsScopedRegistration<IAssignmentSeriesService, AssignmentSeriesService>(services);
+        AssertContainsScopedSelfRegistration<SchedulingServiceProvider>(services);
         AssertContainsScopedSelfRegistration<SchedulingCalendarRequestValidator>(services);
         AssertContainsSingletonInstance<PermissionSeedConfiguration>(
             services,
@@ -86,6 +91,19 @@ public sealed class SchedulingModuleTests
                 descriptor.Lifetime == ServiceLifetime.Scoped
                 && descriptor.ServiceType == typeof(TService)
                 && descriptor.ImplementationType == typeof(TService)
+        );
+    }
+
+    private static void AssertContainsScopedRegistration<TService, TImplementation>(IServiceCollection services)
+        where TService : class
+        where TImplementation : class, TService
+    {
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.Lifetime == ServiceLifetime.Scoped
+                && descriptor.ServiceType == typeof(TService)
+                && descriptor.ImplementationType == typeof(TImplementation)
         );
     }
 
