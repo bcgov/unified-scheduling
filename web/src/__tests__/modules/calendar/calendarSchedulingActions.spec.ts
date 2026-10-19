@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { CalendarMatrixDropActionContext } from '@/modules/calendar/registry/calendarActionRegistryTypes';
 import { calendarActionRegistry } from '@/modules/calendar/registry/calendarActionRegistry';
+import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { Permissions } from '@/api-access/generated/models';
 import { calendarSchedulingActionIds } from '@/modules/scheduling/calendarSchedulingActionIds';
@@ -347,6 +348,50 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingAssignmentModalDate.value).toBe('2026-07-12');
     expect(calendarSchedulingAssignmentModalAssignmentDefinitionId.value).toBe(20);
     expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
+  });
+
+  it('shows an error instead of opening the modal when a new assignment is dropped on a user without a shift', async () => {
+    const context: CalendarMatrixDropActionContext = {
+      drag: {
+        source: 'side-panel',
+        itemId: 'assignment-definition-20',
+        itemType: 'assignment',
+        payload: {
+          assignmentDefinitionId: 20,
+        },
+      },
+      drop: {
+        resourceId: 'user-1',
+        resourceType: 'user',
+        date: '2026-07-12',
+      },
+      model: {
+        timeZone: 'America/Vancouver',
+        days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
+        primaryColumn: {
+          label: 'TEAM',
+          resources: [{ id: 'user-1', type: 'user', title: 'Target User' }],
+        },
+        cells: [
+          {
+            resourceId: 'user-1',
+            date: '2026-07-12',
+            headers: [],
+            groups: [],
+          },
+        ],
+      },
+    };
+
+    await calendarDropAction.execute(context, writableRuntimeContext);
+
+    expect(useCalendarAlertStore().alerts).toContainEqual({
+      id: 'scheduling.assignment.shift-required',
+      message: 'Create a shift for this user on this date before scheduling an assignment.',
+      severity: 'error',
+      source: 'calendar-scheduling',
+    });
+    expect(calendarSchedulingAssignmentModalDate.value).toBeUndefined();
   });
 
   it('edits the existing assignment from the canonical scheduling event payload when it is not rendered in a cell', async () => {
