@@ -9,7 +9,8 @@ const hasPermission = vi.hoisted(() => vi.fn(() => true));
 vi.mock('@/composables/useAccessControl', () => ({ useAccessControl: () => ({ hasPermission }) }));
 
 const UaModalStub = defineComponent({
-  template: '<section><slot name="alerts" /><slot /><slot name="actions" /></section>',
+  props: { title: String },
+  template: '<section><h1>{{ title }}</h1><slot name="alerts" /><slot /><slot name="actions" /></section>',
 });
 
 function createFetchResult<T>(value: T, execute = vi.fn().mockResolvedValue(undefined)) {
@@ -30,7 +31,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     Settings.defaultZone = 'system';
   });
 
-  it('renders assignment type details as read-only values in view mode', async () => {
+  it('renders assignment template details with the Work Area label in view mode', async () => {
     Settings.defaultZone = 'America/Vancouver';
     vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
       getApiSchedulingAssignmentDefinitionsId: vi.fn().mockReturnValue({
@@ -89,6 +90,11 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
 
     await flushPromises();
 
+    expect(wrapper.text()).toContain('Assignment Template Details');
+    expect(wrapper.text()).toContain('Work Area');
+    expect(wrapper.text()).not.toContain('Assignment Type');
+    expect(wrapper.text()).not.toContain('Category');
+    expect(wrapper.find('[aria-label="Assignment Template Details Panel"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('Court Coverage');
     expect(wrapper.text()).toContain('Courtroom assignment');
     expect(wrapper.text()).toContain('Vancouver');
@@ -165,6 +171,9 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
 
     await flushPromises();
 
+    expect(wrapper.text()).toContain('Edit Assignment Template');
+    expect(wrapper.text()).toContain('Work Area');
+
     const vm = wrapper.vm as unknown as {
       formData: { effectiveDateUtc?: string | null; expiryDateUtc?: string | null };
       handleSave: () => Promise<void>;
@@ -179,6 +188,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
     expect(putApiSchedulingAssignmentDefinitionsId).toHaveBeenCalledWith(
       7,
       expect.objectContaining({
+        categoryId: 10,
         effectiveDateUtc: '2026-08-01T00:00:00Z',
         expiryDateUtc: '2026-09-01T00:00:00Z',
       }),
@@ -227,6 +237,9 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
 
     await flushPromises();
 
+    expect(wrapper.text()).toContain('Add Assignment Template');
+    expect(wrapper.text()).toContain('Work Area');
+
     const vm = wrapper.vm as unknown as {
       formData: { effectiveDateUtc?: string | null; expiryDateUtc?: string | null };
     };
@@ -263,6 +276,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
           { id: 10, groupId: 3, name: 'Selected court' },
           { id: 11, groupId: 3, name: 'Future category' },
           { id: 12, groupId: 3, name: 'Too future category' },
+          { id: 13, groupId: 3, name: '' },
         ]),
       ),
     }));
@@ -323,6 +337,7 @@ describe('CalendarSchedulingAssignmentDefinitionCreateModal', () => {
       { code: 11, description: 'Future category' },
       { code: 10, description: 'Selected court' },
       { code: 12, description: 'Too future category' },
+      { code: 13, description: 'Work Area' },
     ]);
     expect(vm.assignmentSubCategoryOptions.map((option) => option.code)).toEqual([20]);
 
