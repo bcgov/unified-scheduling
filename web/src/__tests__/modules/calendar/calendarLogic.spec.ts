@@ -204,7 +204,11 @@ describe('scheduling calendar view model', () => {
       'work-b',
       'missing',
     ]);
-    expect(scheduleModel.primaryColumn.resources.map((resource) => resource.id)).toEqual(['user-z', 'user-a']);
+    expect(scheduleModel.primaryColumn.resources.map((resource) => resource.id)).toEqual([
+      'user-z',
+      'user-a',
+      'scheduling.unassigned',
+    ]);
   });
 
   it('shows user-specific conflicts in assignment resource rows', () => {
