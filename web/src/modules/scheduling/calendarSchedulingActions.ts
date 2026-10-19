@@ -152,7 +152,7 @@ export const calendarDropAction: CalendarDropAction = {
     ) {
       return;
     }
-    if (!assignmentEntryId && assignedUserId && shiftEntryIds.length === 0) {
+    if (assignedUserId && shiftEntryIds.length === 0) {
       useCalendarAlertStore().setAlert({
         id: assignmentShiftRequiredAlertId,
         message: assignmentShiftRequiredMessage,
