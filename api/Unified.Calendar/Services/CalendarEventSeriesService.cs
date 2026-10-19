@@ -1,6 +1,5 @@
 using Unified.Calendar.Factories;
 using Unified.Calendar.Mappings;
-using Unified.Calendar.Models;
 using Unified.Common.Calendar.Scheduling.Models;
 using Unified.Db.Models.Calendar;
 
@@ -10,16 +9,27 @@ public class CalendarEventSeriesService<TRequest, TEntity>(
     ICalendarEventSeriesFactory<TRequest, TEntity> factory,
     CalendarEventMapper calendarEventMapper,
     CalendarLifecycleService calendarLifecycleService
-) : ICalendarEventService<TRequest, TEntity>
+) : ICalendarEventSeriesService<TRequest, TEntity>
     where TRequest : CalendarEventSeriesRequest
+    where TEntity : class
 {
-    public TEntity BuildEvent(TRequest request, string sourceModule, string eventTypeCode, int? eventSeriesId = null)
+    public async Task<TEntity> BuildEventAsync(
+        TRequest request,
+        string sourceModule,
+        string eventTypeCode,
+        int? eventSeriesId = null,
+        Func<TRequest, CancellationToken, Task>[]? validators = null,
+        Action<TRequest>? guards = null,
+        Action<EventSeries>? overrides = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        //Map it to an EventSeries entity.
-        var eventEntity = calendarEventMapper.ToEventSeries(request, eventTypeCode);
-
-        //Build the calendar series using the factory and return it.
-        return factory.CreateSeries(request, eventEntity);
+        ArgumentNullException.ThrowIfNull(request);
+        await RunValidationAsync(request, validators, guards, cancellationToken);
+        var eventSeries = calendarEventMapper.ToEventSeries(request, eventTypeCode);
+        overrides?.Invoke(eventSeries);
+        cancellationToken.ThrowIfCancellationRequested();
+        return factory.CreateSeries(request, eventSeries);
     }
 
     /// <summary>
@@ -32,18 +42,40 @@ public class CalendarEventSeriesService<TRequest, TEntity>(
     /// not materialize occurrences or persist changes. The factory may use the context to prepare
     /// the domain update; it must not recalculate recurrence changes from the updated parent.
     /// </summary>
-    public TEntity? UpdateEvent(TRequest request, TEntity existing, string sourceModule, string eventTypeCode)
+    public async Task<TEntity?> UpdateEventAsync<TUpdateRequest>(
+        TUpdateRequest request,
+        TEntity? existing,
+        string sourceModule,
+        string eventTypeCode,
+        Func<TUpdateRequest, CancellationToken, Task>[]? validators = null,
+        Action<TUpdateRequest>? additionalGuards = null,
+        Action<EventSeries>? overrides = null,
+        CancellationToken cancellationToken = default
+    )
+        where TUpdateRequest : TRequest
     {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
         if (existing is null)
-            return default;
+            return null;
 
         var eventSeries = factory.GetEventSeries(existing);
         CalendarEventGuards.EnsureEventSeriesType(eventSeries, eventTypeCode);
         CalendarEventGuards.EnsureSeriesIsDraft(eventSeries);
 
+        await RunValidationAsync(request, validators, additionalGuards, cancellationToken);
+        overrides?.Invoke(eventSeries);
         calendarEventMapper.ApplyToEventSeries(eventSeries, request);
 
         return factory.UpdateSeries(request, existing);
+    }
+
+    public bool HasRecurrenceChanged(TEntity entity, TRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (entity is null)
+            return false;
+        return factory.HasRecurrenceChanged(factory.GetEventSeries(entity), request);
     }
 
     /// <summary>
@@ -51,16 +83,39 @@ public class CalendarEventSeriesService<TRequest, TEntity>(
     /// (draft) lifecycle state. Domain-specific ownership/type checks are the caller's
     /// responsibility; this only enforces the shared lifecycle invariant.
     /// </summary>
-    public bool IsDeletable(TEntity entity)
+    public bool IsDeletable(TEntity? entity, string sourceModule, string eventTypeCode)
     {
         if (entity is null)
             return false;
 
         var eventSeries = factory.GetEventSeries(entity);
+        CalendarEventGuards.EnsureEventSeriesType(eventSeries, eventTypeCode);
         if (!calendarLifecycleService.CanDelete(eventSeries))
             throw new InvalidOperationException(
                 "Calendar series can only be deleted while all entries are in draft status."
             );
         return true;
+    }
+
+    private static async Task RunValidationAsync<TInput>(
+        TInput request,
+        Func<TInput, CancellationToken, Task>[]? validators,
+        Action<TInput>? additionalGuards,
+        CancellationToken cancellationToken
+    )
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (validators is not null)
+        {
+            foreach (var validate in validators)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await validate(request, cancellationToken);
+            }
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        additionalGuards?.Invoke(request);
+        cancellationToken.ThrowIfCancellationRequested();
     }
 }

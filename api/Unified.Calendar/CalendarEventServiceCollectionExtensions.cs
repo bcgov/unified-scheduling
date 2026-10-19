@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Unified.Calendar.Factories;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Scheduling.Models;
+using Unified.Db.Models.Calendar;
 
 namespace Unified.Calendar;
 
@@ -18,11 +19,12 @@ public static class CalendarEventServiceCollectionExtensions
         this IServiceCollection services
     )
         where TRequest : CalendarEventEntryRequest
+        where TEntity : class
         where TFactory : class, ICalendarEventEntryFactory<TRequest, TEntity>
     {
         services.TryAddScoped<TFactory>();
         services.TryAddScoped<ICalendarEventEntryFactory<TRequest, TEntity>>(sp => sp.GetRequiredService<TFactory>());
-        services.TryAddScoped<ICalendarEventService<TRequest, TEntity>>(sp =>
+        services.TryAddScoped<ICalendarEventService<TRequest, TEntity, Event>>(sp =>
             sp.GetRequiredService<CalendarEventEntryService<TRequest, TEntity>>()
         );
         services.TryAddScoped<CalendarEventEntryService<TRequest, TEntity>>();
@@ -33,11 +35,15 @@ public static class CalendarEventServiceCollectionExtensions
         this IServiceCollection services
     )
         where TRequest : CalendarEventSeriesRequest
+        where TEntity : class
         where TFactory : class, ICalendarEventSeriesFactory<TRequest, TEntity>
     {
         services.TryAddScoped<TFactory>();
         services.TryAddScoped<ICalendarEventSeriesFactory<TRequest, TEntity>>(sp => sp.GetRequiredService<TFactory>());
-        services.TryAddScoped<ICalendarEventService<TRequest, TEntity>>(sp =>
+        services.TryAddScoped<ICalendarEventSeriesService<TRequest, TEntity>>(sp =>
+            sp.GetRequiredService<CalendarEventSeriesService<TRequest, TEntity>>()
+        );
+        services.TryAddScoped<ICalendarEventService<TRequest, TEntity, EventSeries>>(sp =>
             sp.GetRequiredService<CalendarEventSeriesService<TRequest, TEntity>>()
         );
         services.TryAddScoped<CalendarEventSeriesService<TRequest, TEntity>>();

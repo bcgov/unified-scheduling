@@ -1,4 +1,5 @@
 using Unified.Common.Calendar.Scheduling.Models;
+using Unified.Db.Models.Calendar;
 
 namespace Unified.Calendar.Services;
 
@@ -12,8 +13,8 @@ namespace Unified.Calendar.Services;
 /// operations; errors constructing registered services propagate during resolution.
 /// </summary>
 public sealed class CalendarEventServiceProvider<TEntryRequest, TEntry, TSeriesRequest, TSeries>(
-    ICalendarEventService<TEntryRequest, TEntry>? entryService = null,
-    ICalendarEventService<TSeriesRequest, TSeries>? seriesService = null
+    ICalendarEventService<TEntryRequest, TEntry, Event>? entryService = null,
+    ICalendarEventSeriesService<TSeriesRequest, TSeries>? seriesService = null
 )
     where TEntryRequest : CalendarEventEntryRequest
     where TSeriesRequest : CalendarEventSeriesRequest
@@ -22,9 +23,9 @@ public sealed class CalendarEventServiceProvider<TEntryRequest, TEntry, TSeriesR
 
     public bool SupportsSeries => seriesService is not null;
 
-    public ICalendarEventService<TEntryRequest, TEntry> EntryService =>
+    public ICalendarEventService<TEntryRequest, TEntry, Event> EntryService =>
         entryService ?? throw new NotSupportedException("Entry operations are not registered for this event type.");
 
-    public ICalendarEventService<TSeriesRequest, TSeries> SeriesService =>
+    public ICalendarEventSeriesService<TSeriesRequest, TSeries> SeriesService =>
         seriesService ?? throw new NotSupportedException("Series operations are not registered for this event type.");
 }

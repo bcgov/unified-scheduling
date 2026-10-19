@@ -2,11 +2,11 @@ namespace Unified.Common.Calendar.Scheduling.Models;
 
 public record CalendarEventBase
 {
-    public required string Title { get; init; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
     public string? Description { get; init; }
     public string? Notes { get; init; }
     public string? Color { get; init; } = string.Empty;
-    public required DateTimeOffset StartAtUtc { get; init; }
+    public DateTimeOffset StartAtUtc { get; init; }
     public DateTimeOffset? EndAtUtc { get; init; }
     public string? TimeZoneId { get; init; }
     public bool AllDay { get; init; }
