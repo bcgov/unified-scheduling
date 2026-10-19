@@ -462,7 +462,7 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
   });
 
-  it('edits an assignment belonging to another user when the drop target has no shift', async () => {
+  it('shows an error when an existing assignment belongs to another user and the drop target has no shift', async () => {
     const context: CalendarMatrixDropActionContext = {
       drag: {
         source: 'side-panel',
@@ -527,9 +527,14 @@ describe('calendarSchedulingActions', () => {
 
     await calendarDropAction.execute(context, writableRuntimeContext);
 
-    expect(calendarSchedulingAssignmentModalMode.value).toBe('edit');
-    expect(calendarSchedulingAssignmentModalEntryId.value).toBe(90);
-    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([]);
+    expect(useCalendarAlertStore().alerts).toContainEqual({
+      id: 'scheduling.assignment.shift-required',
+      message: 'Create a shift for this user on this date before scheduling an assignment.',
+      severity: 'error',
+      source: 'calendar-scheduling',
+    });
+    expect(calendarSchedulingAssignmentModalDate.value).toBeUndefined();
+    expect(calendarSchedulingAssignmentModalEntryId.value).toBeUndefined();
   });
 
   it('uses the global assignment context when the existing assignment is linked to another user and shift', async () => {
@@ -770,48 +775,6 @@ describe('calendarSchedulingActions', () => {
     });
 
     expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
-  });
-
-  it('opens the assignment modal with no shift links when dropping on a user row with no shifts', async () => {
-    const context: CalendarMatrixDropActionContext = {
-      drag: {
-        source: 'side-panel',
-        itemId: 'assignment-definition-20',
-        itemType: 'assignment',
-        payload: {
-          assignmentDefinitionId: 20,
-        },
-      },
-      drop: {
-        resourceId: 'user-test',
-        resourceType: 'user',
-        date: '2026-07-13',
-      },
-      model: {
-        timeZone: 'America/Vancouver',
-        days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
-        primaryColumn: {
-          label: 'TEAM',
-          resources: [{ id: 'user-test', type: 'user', title: 'Test Test' }],
-        },
-        cells: [
-          {
-            resourceId: 'user-test',
-            date: '2026-07-13',
-            headers: [],
-            groups: [],
-          },
-        ],
-      },
-    };
-
-    await calendarDropAction.execute(context, {
-      ...writableRuntimeContext,
-    });
-
-    expect(calendarSchedulingAssignmentModalDate.value).toBe('2026-07-13');
-    expect(calendarSchedulingAssignmentModalAssignmentDefinitionId.value).toBe(20);
-    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([]);
   });
 
   it('opens the assignment view modal for scheduling assignment event details', () => {
