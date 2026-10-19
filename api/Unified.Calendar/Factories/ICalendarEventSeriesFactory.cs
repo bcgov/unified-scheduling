@@ -17,4 +17,10 @@ public interface ICalendarEventSeriesFactory<TRequest, TResult>
     /// The domain caller coordinates regeneration or child propagation, persistence and conflicts.
     /// </summary>
     TResult UpdateSeries(TRequest request, TResult existing);
+    bool HasRecurrenceChanged(EventSeries eventSeries, TRequest request) =>
+        !string.Equals(eventSeries.RecurrenceRule?.Trim(), request.RecurrenceRule?.Trim(), StringComparison.Ordinal)
+        || eventSeries.StartAtUtc != request.StartAtUtc
+        || eventSeries.EndAtUtc != request.EndAtUtc
+        || !string.Equals(eventSeries.TimeZoneId?.Trim(), request.TimeZoneId?.Trim(), StringComparison.Ordinal)
+        || eventSeries.AllDay != request.AllDay;
 }

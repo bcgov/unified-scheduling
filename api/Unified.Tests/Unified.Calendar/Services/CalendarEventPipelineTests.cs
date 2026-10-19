@@ -12,7 +12,107 @@ public sealed class CalendarEventPipelineTests
     private static readonly DateTimeOffset StartAtUtc = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void BuildEvent_WhenEntryRequestIsValid_MapsSharedFieldsAndCallsFactory()
+    public async Task BuildEventAsync_RunsValidatorsThenGuardOnceBeforeBuildingSeries()
+    {
+        var factory = new FakeSeriesFactory();
+        ICalendarEventService<CalendarEventSeriesRequest, SeriesEntity, EventSeries> service = CreateSeriesService(
+            factory
+        );
+        var request = new CalendarEventSeriesRequest { Title = "Series", StartAtUtc = StartAtUtc };
+        var calls = new List<string>();
+        using var cancellation = new CancellationTokenSource();
+        var result = await service.BuildEventAsync(
+            request,
+            "test-module",
+            "test-type",
+            validators:
+            [
+                (input, ct) =>
+                {
+                    Assert.Same(request, input);
+                    Assert.Equal(cancellation.Token, ct);
+                    Assert.Null(factory.CreatedSeries);
+                    calls.Add("validate");
+                    return Task.CompletedTask;
+                },
+            ],
+            guards: input =>
+            {
+                Assert.Same(request, input);
+                Assert.Null(factory.CreatedSeries);
+                calls.Add("guard");
+            },
+            cancellationToken: cancellation.Token
+        );
+        Assert.Equal(new[] { "validate", "guard" }, calls);
+        Assert.Same(factory.Entity, result);
+        Assert.Equal("test-type", factory.CreatedSeries!.EventTypeCode);
+    }
+
+    [Fact]
+    public async Task UpdateEvent_WhenAdditionalGuardFails_StopsBeforeMutationAndRemainingGuards()
+    {
+        var factory = new FakeEntryFactory
+        {
+            Event = new Event
+            {
+                Title = "Original",
+                EventTypeCode = "test-type",
+                SourceModule = "test-module",
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+            },
+        };
+        ICalendarEventService<CalendarEventEntryRequest, EntryEntity, Event> service = CreateEntryService(factory);
+        var request = new CalendarEventEntryRequest { Title = "Updated", StartAtUtc = StartAtUtc };
+        var calls = new List<int>();
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.UpdateEventAsync(
+                request,
+                factory.Entity,
+                "test-module",
+                "test-type",
+                additionalGuards: _ =>
+                {
+                    Assert.Equal("Original", factory.Event.Title);
+                    calls.Add(1);
+                    throw new InvalidOperationException("Domain guard failed.");
+                }
+            )
+        );
+        Assert.Equal(new[] { 1 }, calls);
+        Assert.Equal("Original", factory.Event.Title);
+        Assert.Null(factory.UpdatedRequest);
+    }
+
+    [Fact]
+    public async Task UpdateEvent_WhenDefaultGuardFails_DoesNotRunAdditionalGuards()
+    {
+        var factory = new FakeEntryFactory
+        {
+            Event = new Event
+            {
+                EventTypeCode = "test-type",
+                SourceModule = "test-module",
+                StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+            },
+        };
+        var called = false;
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateEntryService(factory)
+                .UpdateEventAsync(
+                    new CalendarEventEntryRequest(),
+                    factory.Entity,
+                    "test-module",
+                    "test-type",
+                    additionalGuards: _ => called = true
+                )
+        );
+        Assert.False(called);
+        Assert.Null(factory.UpdatedRequest);
+    }
+
+    [Fact]
+    public async Task BuildEvent_WhenEntryRequestIsValid_MapsSharedFieldsAndCallsFactory()
     {
         var request = new CalendarEventEntryRequest
         {
@@ -25,7 +125,7 @@ public sealed class CalendarEventPipelineTests
         var factory = new FakeEntryFactory();
         var service = CreateEntryService(factory);
 
-        var result = service.BuildEvent(request, "test-module", "test-type");
+        var result = await service.BuildEventAsync(request, "test-module", "test-type");
 
         Assert.Same(factory.Entity, result);
         Assert.Same(request, factory.CreatedRequest);
@@ -40,7 +140,7 @@ public sealed class CalendarEventPipelineTests
     }
 
     [Fact]
-    public void UpdateEvent_WhenEntryIsDraft_MapsMutableFieldsAndPreservesIdentityFields()
+    public async Task UpdateEvent_WhenEntryIsDraft_MapsMutableFieldsAndPreservesIdentityFields()
     {
         var existing = new EntryEntity();
         var existingEvent = new Event
@@ -62,7 +162,7 @@ public sealed class CalendarEventPipelineTests
             StartAtUtc = StartAtUtc.AddHours(1),
         };
 
-        var result = service.UpdateEvent(request, existing, "test-module", "test-type");
+        var result = await service.UpdateEventAsync(request, existing, "test-module", "test-type");
 
         Assert.Same(existing, result);
         Assert.Same(existing, factory.UpdatedEntity);
@@ -77,7 +177,7 @@ public sealed class CalendarEventPipelineTests
     }
 
     [Fact]
-    public void UpdateEvent_WhenEntryIsNotDraft_ThrowsAndDoesNotUpdateFactoryEntity()
+    public async Task UpdateEvent_WhenEntryIsNotDraft_ThrowsAndDoesNotUpdateFactoryEntity()
     {
         var factory = new FakeEntryFactory
         {
@@ -90,8 +190,8 @@ public sealed class CalendarEventPipelineTests
         };
         var service = CreateEntryService(factory);
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            service.UpdateEvent(
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.UpdateEventAsync(
                 new CalendarEventEntryRequest { Title = "Updated", StartAtUtc = StartAtUtc },
                 factory.Entity,
                 "test-module",
@@ -104,7 +204,7 @@ public sealed class CalendarEventPipelineTests
     }
 
     [Fact]
-    public void BuildEvent_WhenSeriesRequestIsValid_MapsSeriesAndCallsFactory()
+    public async Task BuildEvent_WhenSeriesRequestIsValid_MapsSeriesAndCallsFactory()
     {
         var request = new CalendarEventSeriesRequest
         {
@@ -116,7 +216,7 @@ public sealed class CalendarEventPipelineTests
         var factory = new FakeSeriesFactory();
         var service = CreateSeriesService(factory);
 
-        var result = service.BuildEvent(request, "ignored-module", "test-type");
+        var result = await service.BuildEventAsync(request, "ignored-module", "test-type");
 
         Assert.Same(factory.Entity, result);
         Assert.Same(request, factory.CreatedRequest);
@@ -128,7 +228,7 @@ public sealed class CalendarEventPipelineTests
     }
 
     [Fact]
-    public void UpdateEvent_WhenSeriesIsDraft_MapsMutableFieldsAndCallsFactory()
+    public async Task UpdateEvent_WhenSeriesIsDraft_MapsMutableFieldsAndCallsFactory()
     {
         var existingSeries = new EventSeries
         {
@@ -153,7 +253,7 @@ public sealed class CalendarEventPipelineTests
             RecurrenceRule = "FREQ=DAILY",
         };
 
-        var result = service.UpdateEvent(request, existing, "ignored-module", "test-type");
+        var result = await service.UpdateEventAsync(request, existing, "ignored-module", "test-type");
 
         Assert.Same(existing, result);
         Assert.Same(request, factory.UpdatedRequest);
@@ -165,7 +265,7 @@ public sealed class CalendarEventPipelineTests
     }
 
     [Fact]
-    public void UpdateEvent_WhenSeriesIsNotDraft_ThrowsAndDoesNotCallFactory()
+    public async Task UpdateEvent_WhenSeriesIsNotDraft_ThrowsAndDoesNotCallFactory()
     {
         var existing = new SeriesEntity();
         var factory = new FakeSeriesFactory
@@ -182,8 +282,8 @@ public sealed class CalendarEventPipelineTests
         };
         var service = CreateSeriesService(factory);
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            service.UpdateEvent(
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.UpdateEventAsync(
                 new CalendarEventSeriesRequest
                 {
                     Title = "Updated",
@@ -201,17 +301,20 @@ public sealed class CalendarEventPipelineTests
     }
 
     [Fact]
-    public void IsDeletable_WhenEntryBelongsToSeries_Throws()
+    public void IsDeletable_WhenDraftEntryBelongsToSeries_ReturnsTrue()
     {
         var factory = new FakeEntryFactory
         {
-            Event = new Event { EventSeriesId = 3, StatusTypeCode = CalendarEventStatusTypeCodes.Draft },
+            Event = new Event
+            {
+                EventSeriesId = 3,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+                SourceModule = "test-module",
+                EventTypeCode = "test-type",
+            },
         };
-        var service = CreateEntryService(factory);
 
-        var exception = Assert.Throws<InvalidOperationException>(() => service.IsDeletable(factory.Entity));
-
-        Assert.Contains("deleted through their series", exception.Message);
+        Assert.True(CreateEntryService(factory).IsDeletable(factory.Entity, "test-module", "test-type"));
     }
 
     private static CalendarEventEntryService<CalendarEventEntryRequest, EntryEntity> CreateEntryService(
