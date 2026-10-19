@@ -258,6 +258,23 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetConflictsForCandidatesAsync_WithParticipantTimeZones_ForwardsDistinctTimeZonesToProviders()
+    {
+        var provider = new TrackingProvider();
+        var service = new CalendarConflictService([provider], _db);
+        var candidates = new[]
+        {
+            CreateParticipant(1, 8, 10) with { TimeZoneId = "America/Toronto" },
+            CreateParticipant(2, 9, 11) with { TimeZoneId = "America/Toronto" },
+        };
+
+        await service.GetConflictsForCandidatesAsync(candidates, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(provider.LastQuery);
+        Assert.Equal(new[] { "America/Toronto" }, provider.LastQuery!.TimeZoneIds);
+    }
+
+    [Fact]
     public async Task CreateOverrideAsync_WithExternalParticipant_PersistsSourceQualifiedIdentity()
     {
         var training = new MutableProvider
@@ -577,6 +594,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
     private sealed class TrackingProvider : ICalendarConflictParticipantProvider
     {
         public bool WasCalled { get; private set; }
+        public CalendarConflictQuery? LastQuery { get; private set; }
 
         Task<CalendarConflictParticipant?> ICalendarConflictParticipantProvider.GetParticipantAsync(
             CalendarConflictEventIdentity _identity,
@@ -594,13 +612,13 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         Task<
             IReadOnlyCollection<CalendarConflictParticipant>
         > ICalendarConflictParticipantProvider.GetParticipantsAsync(
-            CalendarConflictQuery _query,
+            CalendarConflictQuery query,
             CancellationToken _cancellationToken = default
         )
         {
-            _ = _query;
             _cancellationToken.ThrowIfCancellationRequested();
             WasCalled = true;
+            LastQuery = query;
             return Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([]);
         }
     }
