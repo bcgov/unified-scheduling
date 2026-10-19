@@ -441,6 +441,7 @@ function resolveExistingAssignmentEntryId(context: CalendarMatrixDropActionConte
   const matchingEvent = events.find(
     (event) =>
       isAssignmentEvent(event) &&
+      !isSchedulingCancelled(event.statusTypeCode) &&
       (!definitionId || resolveEventAssignmentDefinitionId(event) === definitionId) &&
       assignmentEntryMatchesDate(event, context.drop.date, context.model.timeZone),
   );
