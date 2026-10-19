@@ -99,10 +99,7 @@ function formatShiftTimeRange(shift: CalendarAssignmentPartialCoverageShift) {
 
 <template>
   <div class="calendar-assignment-block">
-    <div
-      class="calendar-scheduling-capacity"
-      :aria-label="capacityAriaLabel"
-    >
+    <div class="calendar-scheduling-capacity" :aria-label="capacityAriaLabel">
       <span v-if="isClosed" class="calendar-scheduling-capacity__closed">Closed</span>
       <span
         v-for="slot in capacitySlots"
