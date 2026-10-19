@@ -82,7 +82,7 @@ const assignmentEntryRequestSchema = PostApiSchedulingAssignmentsEntriesBody.ext
   assignmentDefinitionId: zod.number().min(1),
   categoryId: zod.number().min(1),
   subCategoryId: zod.number().min(1),
-  capacity: zod.number().min(1),
+  capacity: zod.number().min(0),
   shiftEntryIds: zod.array(zod.number()).optional(),
   shiftEntryLinks: zod
     .array(
@@ -100,7 +100,7 @@ const assignmentSeriesRequestSchema = PostApiSchedulingAssignmentsSeriesBody.ext
   assignmentDefinitionId: zod.number().min(1),
   categoryId: zod.number().min(1),
   subCategoryId: zod.number().min(1),
-  capacity: zod.number().min(1),
+  capacity: zod.number().min(0),
   recurrenceRule: zod.string().min(1, validationMessages.required),
   shiftSeriesIds: zod.array(zod.number()).optional(),
   shiftSeriesLinks: zod
@@ -266,7 +266,7 @@ function createAssignmentFormSchema(options: AssignmentFormValidationOptions) {
       notes: PostApiSchedulingAssignmentsEntriesBody.shape.notes,
       categoryId: zod.number().min(1, validationMessages.required),
       subCategoryId: zod.number().min(1, validationMessages.required),
-      capacity: zod.number().min(1),
+      capacity: zod.number().min(0),
       shiftSeriesIds: zod.array(zod.number()).optional(),
       shiftEntryIds: zod.array(zod.number()).optional(),
       shiftSeriesLinks: zod

@@ -1848,6 +1848,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
         id="assignment-modal-capacity"
         label="Capacity"
         type="number"
+        min="0"
         :model-value="String(formData.capacity ?? '')"
         :error-messages="formErrors.capacity"
         :disabled="fieldsDisabled"
