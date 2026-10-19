@@ -84,7 +84,13 @@ public sealed class CalendarQueryService(
             new CalendarConflictQuery(
                 utcRange.StartAtUtc,
                 utcRange.EndAtUtc,
-                ViewerPermissions: viewerPermissions
+                ViewerPermissions: viewerPermissions,
+                TimeZoneIds:
+                [
+                    string.IsNullOrWhiteSpace(locationTimeZoneId)
+                        ? timeZone.Id
+                        : timeZoneResolver.Resolve(null, locationTimeZoneId).Id,
+                ]
             ),
             cancellationToken
         );

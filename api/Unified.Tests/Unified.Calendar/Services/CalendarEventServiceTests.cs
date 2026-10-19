@@ -7,6 +7,7 @@ using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
@@ -271,6 +272,32 @@ public class CalendarEventServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetCalendarDataAsync_WhenLocationAndRequestTimeZonesDiffer_UsesLocationTimeZoneForConflicts()
+    {
+        var conflictProvider = new TrackingConflictParticipantProvider();
+        var timeZoneService = new TimeZoneService();
+        var service = new CalendarEventService(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarEventService>.Instance,
+            _dbContext,
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
+            CreateCalendarTimeZoneResolver(),
+            timeZoneService,
+            new CalendarConflictService([conflictProvider], _dbContext)
+        );
+        var request = CreateRequest(
+            new DateOnly(2026, 7, 1),
+            new DateOnly(2026, 7, 1),
+            locationId: 9,
+            timeZoneId: "America/Vancouver"
+        );
+
+        await service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(conflictProvider.LastQuery);
+        Assert.Equal(new[] { "America/Toronto" }, conflictProvider.LastQuery!.TimeZoneIds);
+    }
+
+    [Fact]
     public async Task GetCalendarDataAsync_WhenConfiguredLocationTimeZoneIsInvalid_Throws()
     {
         var request = CreateRequest(new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1), locationId: 10);
@@ -445,4 +472,31 @@ public class CalendarEventServiceTests : IAsyncLifetime
             Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
             new TimeZoneService()
         );
+
+    private sealed class TrackingConflictParticipantProvider : ICalendarConflictParticipantProvider
+    {
+        public CalendarConflictQuery? LastQuery { get; private set; }
+
+        public Task<CalendarConflictParticipant?> GetParticipantAsync(
+            CalendarConflictEventIdentity identity,
+            Guid resourceId,
+            CancellationToken cancellationToken = default
+        )
+        {
+            _ = identity;
+            _ = resourceId;
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<CalendarConflictParticipant?>(null);
+        }
+
+        public Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
+            CalendarConflictQuery query,
+            CancellationToken cancellationToken = default
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LastQuery = query;
+            return Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([]);
+        }
+    }
 }
