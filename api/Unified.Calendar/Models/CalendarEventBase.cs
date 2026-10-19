@@ -10,6 +10,6 @@ public record CalendarEventBase
     public DateTimeOffset? EndAtUtc { get; init; }
     public string? TimeZoneId { get; init; }
     public bool AllDay { get; init; }
-    public int LocationId { get; init; }
+    public int? LocationId { get; init; }
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
 }
