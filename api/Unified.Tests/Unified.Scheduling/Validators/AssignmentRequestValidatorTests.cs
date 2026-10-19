@@ -28,8 +28,7 @@ public sealed class AssignmentRequestValidatorTests
         var results = await Task.WhenAll(
             new AssignmentSeriesRequestValidator().ValidateAsync(CreateSeriesRequest(0), cancellationToken),
             new AssignmentEntryRequestValidator().ValidateAsync(CreateEntryRequest(0), cancellationToken),
-            new AssignmentEntryUpdateRequestValidator()
-                .ValidateAsync(CreateEntryUpdateRequest(0), cancellationToken)
+            new AssignmentEntryUpdateRequestValidator().ValidateAsync(CreateEntryUpdateRequest(0), cancellationToken)
         );
 
         Assert.All(results, result => Assert.True(result.IsValid));
@@ -43,17 +42,13 @@ public sealed class AssignmentRequestValidatorTests
         var results = await Task.WhenAll(
             new AssignmentSeriesRequestValidator().ValidateAsync(CreateSeriesRequest(-1), cancellationToken),
             new AssignmentEntryRequestValidator().ValidateAsync(CreateEntryRequest(-1), cancellationToken),
-            new AssignmentEntryUpdateRequestValidator()
-                .ValidateAsync(CreateEntryUpdateRequest(-1), cancellationToken)
+            new AssignmentEntryUpdateRequestValidator().ValidateAsync(CreateEntryUpdateRequest(-1), cancellationToken)
         );
 
         Assert.All(
             results,
             result =>
-                Assert.Contains(
-                    result.Errors,
-                    error => error.PropertyName == nameof(AssignmentEntryRequest.Capacity)
-                )
+                Assert.Contains(result.Errors, error => error.PropertyName == nameof(AssignmentEntryRequest.Capacity))
         );
     }
 
