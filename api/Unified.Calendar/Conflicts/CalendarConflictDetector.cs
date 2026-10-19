@@ -34,6 +34,9 @@ public static class CalendarConflictDetector
                     if (IsSameEvent(left, right))
                         continue;
 
+                    if (!HaveCompatibleTimeZones(left, right))
+                        continue;
+
                     var (entry, overlaps) = OrderForDisplay(left, right);
                     conflicts.Add(
                         new CalendarConflict(
@@ -59,7 +62,26 @@ public static class CalendarConflictDetector
     }
 
     private static bool IsSameEvent(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
-        left.Identity == right.Identity;
+        left.Identity == right.Identity
+        || (
+            left.SourceModule == right.SourceModule
+            && string.Equals(
+                left.CanonicalEventId ?? left.EventId,
+                right.CanonicalEventId ?? right.EventId,
+                StringComparison.Ordinal
+            )
+        );
+
+    private static bool HaveCompatibleTimeZones(
+        CalendarConflictParticipant left,
+        CalendarConflictParticipant right
+    ) =>
+        (!left.RequiresMatchingTimeZone && !right.RequiresMatchingTimeZone) || HasSameTimeZone(left, right);
+
+    private static bool HasSameTimeZone(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
+        !string.IsNullOrWhiteSpace(left.TimeZoneId)
+        && !string.IsNullOrWhiteSpace(right.TimeZoneId)
+        && string.Equals(left.TimeZoneId, right.TimeZoneId, StringComparison.OrdinalIgnoreCase);
 
     private static (CalendarConflictParticipant Entry, CalendarConflictParticipant Overlaps) OrderForDisplay(
         CalendarConflictParticipant left,

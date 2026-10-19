@@ -4,26 +4,32 @@ public sealed class TimeZoneService : ITimeZoneService
 {
     private const string DateFormat = "yyyy-MM-dd";
 
+    public static string NormalizeTimeZoneId(string timeZoneId)
+    {
+        var normalized = timeZoneId.Trim();
+        if (TimeZoneInfo.TryConvertWindowsIdToIanaId(normalized, out var ianaTimeZoneId))
+            normalized = ianaTimeZoneId;
+
+        return TimeZoneInfo.FindSystemTimeZoneById(normalized).Id;
+    }
+
+    public static string? NormalizeOptionalTimeZoneId(string? timeZoneId)
+    {
+        if (string.IsNullOrWhiteSpace(timeZoneId))
+            return null;
+
+        return TryNormalizeTimeZoneId(timeZoneId, out var normalizedTimeZoneId) ? normalizedTimeZoneId : null;
+    }
+
     public static bool IsValidTimeZoneId(string? timeZoneId) =>
-        string.IsNullOrWhiteSpace(timeZoneId) || TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId.Trim(), out _);
+        string.IsNullOrWhiteSpace(timeZoneId) || TryNormalizeTimeZoneId(timeZoneId, out _);
 
     public TimeZoneInfo ResolveOrUtc(string? timeZoneId)
     {
-        if (string.IsNullOrWhiteSpace(timeZoneId))
-            return TimeZoneInfo.Utc;
-
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return TimeZoneInfo.Utc;
-        }
-        catch (InvalidTimeZoneException)
-        {
-            return TimeZoneInfo.Utc;
-        }
+        var normalizedTimeZoneId = NormalizeOptionalTimeZoneId(timeZoneId);
+        return normalizedTimeZoneId is null
+            ? TimeZoneInfo.Utc
+            : TimeZoneInfo.FindSystemTimeZoneById(normalizedTimeZoneId);
     }
 
     public TimeZoneInfo ResolveRequired(string timeZoneId)
@@ -31,7 +37,7 @@ public sealed class TimeZoneService : ITimeZoneService
         if (string.IsNullOrWhiteSpace(timeZoneId))
             throw new ArgumentException("A time zone ID is required.", nameof(timeZoneId));
 
-        return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId.Trim());
+        return TimeZoneInfo.FindSystemTimeZoneById(NormalizeTimeZoneId(timeZoneId));
     }
 
     public DateTimeOffset ToTimeZone(DateTimeOffset value, string? timeZoneId) =>
@@ -123,5 +129,24 @@ public sealed class TimeZoneService : ITimeZoneService
         }
 
         return date;
+    }
+
+    private static bool TryNormalizeTimeZoneId(string timeZoneId, out string? normalizedTimeZoneId)
+    {
+        try
+        {
+            normalizedTimeZoneId = NormalizeTimeZoneId(timeZoneId);
+            return true;
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            normalizedTimeZoneId = null;
+            return false;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            normalizedTimeZoneId = null;
+            return false;
+        }
     }
 }

@@ -15,4 +15,6 @@ export interface CalendarConflictEventResponse {
   sourceEntityId: number | null;
   /** @nullable */
   timeZoneId: string | null;
+  /** @nullable */
+  canonicalEventId?: string | null;
 }
