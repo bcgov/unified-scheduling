@@ -31,7 +31,11 @@ import { selectCalendarEvents, selectContribution } from '@/modules/calendar/cal
 import { mapApiCalendarEventToCalendarEventBase } from '@/modules/calendar/contributions/calendarEventMappers';
 import { buildCalendarPeriodSelectOptions, DEFAULT_CALENDAR_PERIODS } from '@/modules/calendar/calendarPeriodOptions';
 import { buildCalendarDefaultViewModel } from '@/modules/calendar/views/calendarViewModels';
-import type { CalendarDataResponse, CalendarQueryContext, CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
+import type {
+  CalendarDataResponse,
+  CalendarQueryContext,
+  CalendarRuntimeContext,
+} from '@/modules/calendar/calendarTypes';
 import { mdiCalendarSync } from '@mdi/js';
 
 describe('shared calendar date helpers', () => {
