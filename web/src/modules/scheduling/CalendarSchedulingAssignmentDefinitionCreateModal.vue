@@ -132,14 +132,14 @@ const isReadOnly = computed(
 const isEditMode = computed(() => modalMode.value === 'edit');
 const modalTitle = computed(() => {
   if (isReadOnly.value) {
-    return 'Assignment Type Details';
+    return 'Assignment Template Details';
   }
 
   if (isEditMode.value) {
-    return 'Edit Type Definition';
+    return 'Edit Assignment Template';
   }
 
-  return 'Add Type Definition';
+  return 'Add Assignment Template';
 });
 const locationOptions = computed(() => locationsStore.selectOptions);
 const assignmentGroupOptions = computed<SelectOption[]>(() =>
@@ -159,7 +159,7 @@ const assignmentCategoryOptions = computed<SelectOption[]>(() =>
     )
     .map((assignmentCategory) => ({
       code: assignmentCategory.id as number,
-      description: assignmentCategory.name || 'Category',
+      description: assignmentCategory.name || 'Work Area',
     }))
     .sort((left, right) => left.description.localeCompare(right.description)),
 );
@@ -182,7 +182,7 @@ const assignmentDefinitionDetailRows = computed<ShiftDetailRow[]>(() => [
     value: formatSelectValue(selectedAssignmentGroupId.value, assignmentGroupOptions.value),
   },
   {
-    label: 'Category',
+    label: 'Work Area',
     value: formatSelectValue(formData.value.categoryId, assignmentCategoryOptions.value),
   },
   {
@@ -558,7 +558,7 @@ function mapAssignmentDefinitionToFormData(
       v-if="isReadOnly"
       :detail-rows="assignmentDefinitionDetailRows"
       :is-loading="isLoading"
-      aria-label="Assignment Type Details Panel"
+      aria-label="Assignment Template Details Panel"
     />
 
     <UaFormGrid v-else>
@@ -605,7 +605,7 @@ function mapAssignmentDefinitionToFormData(
         @update:model-value="updateAssignmentGroup"
       />
 
-      <label class="assignment-definition-modal__label" for="assignment-definition-modal-category">Category</label>
+      <label class="assignment-definition-modal__label" for="assignment-definition-modal-category">Work Area</label>
       <UaSelect
         id="assignment-definition-modal-category"
         :model-value="formData.categoryId"

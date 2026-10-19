@@ -25,7 +25,7 @@ export function useAssignmentDefinitionOptions(options: {
       .filter((assignmentDefinition) => typeof assignmentDefinition.id === 'number')
       .map((assignmentDefinition) => ({
         code: assignmentDefinition.id as number,
-        description: assignmentDefinition.name || 'Assignment Type',
+        description: assignmentDefinition.name || 'Assignment Template',
       })),
   );
 

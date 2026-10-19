@@ -65,6 +65,34 @@ interface AssignmentMatrixResource extends CalendarMatrixResource {
   subCategoryName?: string;
 }
 
+interface AssignmentSortValue {
+  id: string;
+  title: string;
+  categoryName?: string;
+  subCategoryName?: string;
+}
+
+function compareAssignmentSortValues(left: AssignmentSortValue, right: AssignmentSortValue) {
+  return (
+    compareAssignmentLabels(left.categoryName, right.categoryName) ||
+    compareAssignmentLabels(left.subCategoryName, right.subCategoryName) ||
+    compareAssignmentLabels(left.title, right.title) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
+function compareAssignmentLabels(left?: string, right?: string) {
+  const normalizedLeft = left?.trim();
+  const normalizedRight = right?.trim();
+  if (!normalizedLeft || !normalizedRight) {
+    if (normalizedLeft) return -1;
+    if (normalizedRight) return 1;
+    return 0;
+  }
+
+  return normalizedLeft.localeCompare(normalizedRight, undefined, { sensitivity: 'base' });
+}
+
 export function buildCalendarSchedulingViewModel(
   response: CalendarDataResponse,
   context: CalendarQueryContext,
@@ -562,7 +590,7 @@ function buildAssignmentResourceRows(response: CalendarDataResponse): Assignment
     resourceIds.add(id);
   }
 
-  return resources;
+  return resources.sort(compareAssignmentSortValues);
 }
 
 function buildAssignmentResourceRow(resource: {
@@ -600,7 +628,7 @@ function buildAssignmentResourceRow(resource: {
 }
 
 function buildAssignmentSidePanelItems(response: CalendarDataResponse): CalendarMatrixSidePanelItem[] {
-  return selectSchedulingAssignmentResources(response).map((assignment) => ({
+  return [...selectSchedulingAssignmentResources(response)].sort(compareAssignmentSortValues).map((assignment) => ({
     id: assignment.id,
     type: assignment.type,
     title: assignment.title,

@@ -476,8 +476,11 @@ describe('CalendarSchedulingAssignmentModal', () => {
       assignmentDefinitionOptions: Array<{ code: number; description: string }>;
     };
     expect(initialVm.assignmentDefinitionOptions.map((option) => option.code)).toEqual([7]);
+    expect(document.querySelector('label[for="assignment-modal-assignment"]')?.textContent?.trim()).toBe(
+      'Assignment Template',
+    );
 
-    const openAssignmentTypeButton = document.querySelector('button[aria-label="Add Assignment Type"]');
+    const openAssignmentTypeButton = document.querySelector('button[aria-label="Add Assignment Template"]');
     openAssignmentTypeButton?.dispatchEvent(new Event('click', { bubbles: true }));
 
     await flushPromises();
@@ -1741,6 +1744,15 @@ describe('CalendarSchedulingAssignmentModal', () => {
               effectiveDateUtc: '2026-08-01T00:00:00Z',
               expiryDateUtc: null,
             },
+            {
+              id: 9,
+              categoryId: 10,
+              subCategoryId: 20,
+              locationId: 12,
+              defaultCapacity: 1,
+              effectiveDateUtc: '2026-07-01T00:00:00Z',
+              expiryDateUtc: '2026-08-01T00:00:00Z',
+            },
           ],
         }),
       ),
@@ -1783,7 +1795,10 @@ describe('CalendarSchedulingAssignmentModal', () => {
       handleSave: () => Promise<void>;
     };
 
-    expect(vm.assignmentDefinitionOptions.map((option) => option.code)).toEqual([7]);
+    expect(vm.assignmentDefinitionOptions).toEqual([
+      { code: 7, description: 'July coverage' },
+      { code: 9, description: 'Assignment Template' },
+    ]);
 
     vm.updateAssignmentDefinition(7);
     await flushPromises();
