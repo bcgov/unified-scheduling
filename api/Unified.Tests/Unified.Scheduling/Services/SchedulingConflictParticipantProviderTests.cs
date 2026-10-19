@@ -29,6 +29,8 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         var shiftEvent = CreateEvent(10, "Visible shift", SchedulingConstants.ShiftEventTypeCode);
         var assignmentEvent = CreateEvent(20, "Restricted assignment", SchedulingConstants.AssignmentEventTypeCode);
+        shiftEvent.LocationId = 99;
+        assignmentEvent.LocationId = 99;
         var link = new ShiftAssignmentEntry
         {
             Id = 30,
@@ -234,7 +236,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasNoAssignmentLinks_ReturnsDirectUser()
+    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasLinkedAssignment_ReturnsAssignmentParticipant()
     {
         var participants = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             _db,
@@ -243,12 +245,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         );
 
         var participant = Assert.Single(participants);
-        Assert.Equal("10", participant.EventId);
+        Assert.Equal("20", participant.EventId);
         Assert.Equal(UserId, participant.ResourceId);
     }
 
     [Fact]
-    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftIsDraft_ReturnsMutationCandidate()
+    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasNoAssignmentLinks_ReturnsNoCandidates()
     {
         var draftParticipant = CreateShiftParticipant(1300, MultiLocationUserId, null);
         draftParticipant.ShiftEntry!.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Draft;
@@ -261,9 +263,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var participant = Assert.Single(participants);
-        Assert.Equal("1300", participant.EventId);
-        Assert.Equal(MultiLocationUserId, participant.ResourceId);
+        Assert.Empty(participants);
     }
 
     [Fact]

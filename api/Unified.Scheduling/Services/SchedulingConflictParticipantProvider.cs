@@ -128,9 +128,9 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
             return Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([]);
 
         var ids = shiftEntryIds.Distinct().ToList();
-        var participants = ActiveShiftParticipantQuery(db)
-            .Where(participant => ids.Contains(participant.ShiftEntryId));
-        return ProjectShiftParticipantsAsync(participants, cancellationToken);
+        var participants = PublishedAssignmentParticipantQuery(db)
+            .Where(participant => ids.Contains(participant.ShiftAssignmentEntry!.ShiftEntryId));
+        return ProjectParticipantsAsync(participants, cancellationToken);
     }
 
     public static Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForPublicationAsync(
