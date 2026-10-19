@@ -58,6 +58,7 @@ const canViewAssignments = computed(() => accessControl.hasPermission(Permission
 const activeTab = ref<ShiftDetailTabId>('details');
 const selectedOpenScope = ref<ShiftOpenScope | null>(getInitialOpenScope());
 const isSaving = ref(false);
+const refreshCalendarOnClose = ref(false);
 const apiError = ref('');
 const isLoadingSeries = ref(false);
 const formErrors = ref<Record<string, string>>({});
@@ -357,8 +358,7 @@ async function handleSaveEdit() {
         return;
       }
 
-      calendarStore.refresh();
-      emit('close');
+      refreshCalendarAndClose();
       return;
     }
 
@@ -381,8 +381,7 @@ async function handleSaveEdit() {
       return;
     }
 
-    calendarStore.refresh();
-    emit('close');
+    refreshCalendarAndClose();
   } catch (error: unknown) {
     apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
   } finally {
@@ -391,13 +390,31 @@ async function handleSaveEdit() {
 }
 
 async function reloadShiftAfterPublicationFailure(kind: 'entry' | 'series') {
+  refreshCalendarOnClose.value = true;
+
   if (kind === 'series') {
     await loadSelectedSeries();
   } else {
     await loadSelectedEntry();
   }
+}
 
+function handleClose() {
+  if (isSaving.value || isLoadingSeries.value) {
+    return;
+  }
+
+  if (refreshCalendarOnClose.value) {
+    calendarStore.refresh();
+    refreshCalendarOnClose.value = false;
+  }
+  emit('close');
+}
+
+function refreshCalendarAndClose() {
+  refreshCalendarOnClose.value = false;
   calendarStore.refresh();
+  emit('close');
 }
 
 async function handleDeleteShift() {
@@ -429,8 +446,7 @@ async function handleDeleteShift() {
       return;
     }
 
-    calendarStore.refresh();
-    emit('close');
+    refreshCalendarAndClose();
   } catch (error: unknown) {
     apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
   } finally {
@@ -683,7 +699,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
 </script>
 
 <template>
-  <UaModal :title="modalTitle" width="760" @close="emit('close')">
+  <UaModal :title="modalTitle" width="760" :loading="isSaving || isLoadingSeries" @close="handleClose">
     <template #alerts>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
@@ -789,7 +805,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
         <UaBtn color="primary" variant="flat" :loading="isSaving" @click="handleSaveEdit">Save</UaBtn>
       </template>
       <template v-else>
-        <UaBtn variant="outlined" :disabled="isSaving" @click="emit('close')">Close</UaBtn>
+        <UaBtn variant="outlined" :disabled="isSaving" @click="handleClose">Close</UaBtn>
         <UaBtn color="error" variant="flat" :disabled="!canDeleteShift" :loading="isSaving" @click="handleDeleteShift">
           {{ isPublishedShift ? 'Cancel Shift' : 'Delete' }}
         </UaBtn>

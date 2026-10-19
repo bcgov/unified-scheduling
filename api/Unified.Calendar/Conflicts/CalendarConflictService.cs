@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Calendar.Models;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 
@@ -22,7 +23,15 @@ public sealed class CalendarConflictService(
     )
     {
         var participants = await LoadParticipantsAsync(query, cancellationToken);
-        return await ApplyOverridesAsync(CalendarConflictDetector.Detect(participants), cancellationToken);
+        var conflicts = CalendarConflictDetector.Detect(participants);
+        if (query.LocationId.HasValue)
+        {
+            conflicts = conflicts
+                .Where(conflict => conflict.Entry.IsInQueryScope || conflict.Overlaps.IsInQueryScope)
+                .ToList();
+        }
+
+        return await ApplyOverridesAsync(conflicts, cancellationToken);
     }
 
     public async Task EnsureNoUnresolvedConflictsAsync(
@@ -38,19 +47,20 @@ public sealed class CalendarConflictService(
         if (candidates.Count == 0)
             return [];
 
-        var candidateIdentities = candidates.Select(CalendarConflictParticipantIdentity.Create).ToHashSet();
+        var normalizedCandidates = candidates.Select(NormalizeParticipantTimeZone).ToList();
+        var candidateIdentities = normalizedCandidates.Select(CalendarConflictParticipantIdentity.Create).ToHashSet();
         var query = new CalendarConflictQuery(
-            candidates.Min(candidate => candidate.Start),
-            candidates.Max(candidate => candidate.End),
-            candidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
+            normalizedCandidates.Min(candidate => candidate.Start),
+            normalizedCandidates.Max(candidate => candidate.End),
+            normalizedCandidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
             IncludeDraftParticipants: false,
-            TimeZoneIds: ResolveTimeZoneIds(candidates)
+            ResourceTimeZones: ResolveResourceTimeZones(normalizedCandidates)
         );
         var existing = (await LoadParticipantsAsync(query, cancellationToken)).Where(participant =>
             !candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(participant))
         );
         var allParticipants = existing
-            .Concat(candidates)
+            .Concat(normalizedCandidates)
             .GroupBy(CalendarConflictParticipantIdentity.Create)
             .Select(group => group.Last())
             .ToList();
@@ -124,7 +134,7 @@ public sealed class CalendarConflictService(
                 rangeStart,
                 rangeEnd,
                 [key.ResourceId],
-                TimeZoneIds: ResolveTimeZoneIds([firstParticipant, secondParticipant])
+                ResourceTimeZones: ResolveResourceTimeZones([firstParticipant, secondParticipant])
             ),
             cancellationToken
         );
@@ -253,7 +263,7 @@ public sealed class CalendarConflictService(
                 rangeStart,
                 rangeEnd,
                 [key.ResourceId],
-                TimeZoneIds: ResolveTimeZoneIds([firstParticipant, secondParticipant])
+                ResourceTimeZones: ResolveResourceTimeZones([firstParticipant, secondParticipant])
             ),
             cancellationToken
         );
@@ -291,7 +301,7 @@ public sealed class CalendarConflictService(
             participant = candidate;
         }
 
-        return participant;
+        return participant is null ? null : NormalizeParticipantTimeZone(participant);
     }
 
     private async Task<IReadOnlyCollection<CalendarConflictParticipant>> LoadParticipantsAsync(
@@ -300,20 +310,41 @@ public sealed class CalendarConflictService(
     )
     {
         var participants = new List<CalendarConflictParticipant>();
-        foreach (var provider in _participantProviders)
-            participants.AddRange(await provider.GetParticipantsAsync(query, cancellationToken));
+        foreach (var provider in _participantProviders.Where(provider => provider is not IContextualCalendarConflictParticipantProvider))
+            participants.AddRange(
+                (await provider.GetParticipantsAsync(query, cancellationToken)).Select(NormalizeParticipantTimeZone)
+            );
+
+        var contextualQuery = query;
+        if (query.ResourceTimeZones is null)
+            contextualQuery = query with { ResourceTimeZones = ResolveResourceTimeZones(participants) };
+
+        foreach (var provider in _participantProviders.OfType<IContextualCalendarConflictParticipantProvider>())
+            participants.AddRange(
+                (await provider.GetParticipantsAsync(contextualQuery, cancellationToken)).Select(
+                    NormalizeParticipantTimeZone
+                )
+            );
 
         return participants;
     }
 
-    private static IReadOnlyCollection<string> ResolveTimeZoneIds(
+    private static CalendarConflictParticipant NormalizeParticipantTimeZone(
+        CalendarConflictParticipant participant
+    ) => participant with { TimeZoneId = TimeZoneService.NormalizeOptionalTimeZoneId(participant.TimeZoneId) };
+
+    private static IReadOnlyCollection<CalendarConflictResourceTimeZone> ResolveResourceTimeZones(
         IEnumerable<CalendarConflictParticipant> participants
     ) =>
         participants
-            .Select(participant => participant.TimeZoneId?.Trim())
-            .Where(timeZoneId => !string.IsNullOrWhiteSpace(timeZoneId))
-            .Select(timeZoneId => timeZoneId!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(participant => !string.IsNullOrWhiteSpace(participant.TimeZoneId))
+            .Select(participant => new CalendarConflictResourceTimeZone(
+                participant.ResourceId,
+                participant.TimeZoneId!.Trim()
+            ))
+            .DistinctBy(
+                context => (context.ResourceId, context.TimeZoneId.ToUpperInvariant())
+            )
             .ToList();
 
     private static IReadOnlyDictionary<CalendarConflictKey, CalendarConflictAcknowledgement> NormalizeAcknowledgements(

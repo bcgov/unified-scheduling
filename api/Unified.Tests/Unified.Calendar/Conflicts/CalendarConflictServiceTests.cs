@@ -1,9 +1,14 @@
 using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
+using Unified.Calendar.Options;
+using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Lookup;
@@ -109,6 +114,30 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetConflictsAsync_WithLocationScope_ReturnsOnlyConflictsTouchingScopedParticipants()
+    {
+        var provider = new MutableProvider
+        {
+            Participants =
+            [
+                CreateParticipant(1, 8, 10),
+                CreateParticipant(2, 9, 11) with { IsInQueryScope = false },
+                CreateParticipant(3, 12, 14) with { IsInQueryScope = false },
+                CreateParticipant(4, 13, 15) with { IsInQueryScope = false },
+            ],
+        };
+        var service = new CalendarConflictService([provider], _db);
+
+        var conflicts = await service.GetConflictsAsync(
+            new CalendarConflictQuery(Baseline(7), Baseline(16), LocationId: 5),
+            TestContext.Current.CancellationToken
+        );
+
+        var conflict = Assert.Single(conflicts);
+        Assert.Equal(new[] { "1", "2" }, new[] { conflict.Entry.EventId, conflict.Overlaps.EventId });
+    }
+
+    [Fact]
     public async Task InvalidateResolvedOverridesAsync_WhenPairStillConflicts_PreservesOverride()
     {
         await _service.CreateOverrideAsync(
@@ -144,6 +173,110 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
                 .CalendarConflictOverrides.Select(overrideEntity => overrideEntity.InvalidatedOn)
                 .SingleAsync(TestContext.Current.CancellationToken)
         );
+    }
+
+    [Fact]
+    public async Task InvalidateResolvedOverridesAsync_WhenAssignmentTimeZoneChanges_InvalidatesHolidayOverride()
+    {
+        var assignmentProvider = new MutableProvider
+        {
+            Participants =
+            [
+                new CalendarConflictParticipant(
+                    "1",
+                    "scheduling",
+                    ActorId,
+                    new DateTimeOffset(2026, 7, 1, 13, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 7, 1, 14, 0, 0, TimeSpan.Zero),
+                    "Assignment 1",
+                    TimeZoneId: "America/Vancouver"
+                ),
+            ],
+        };
+        var service = new CalendarConflictService([CreateHolidayProvider(), assignmentProvider], _db);
+        await service.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = "calendar",
+                FirstEventId = "stat-holiday:CanadaDay:2026-07-01:America/Vancouver",
+                SecondSourceModule = "scheduling",
+                SecondEventId = "1",
+                ResourceId = ActorId,
+                Note = "Approved for Vancouver",
+            },
+            ActorId,
+            TestContext.Current.CancellationToken
+        );
+        assignmentProvider.Participants =
+        [
+            assignmentProvider.Participants.Single() with { TimeZoneId = "America/Toronto" },
+        ];
+
+        await service.InvalidateResolvedOverridesAsync(
+            [new CalendarConflictEventIdentity("scheduling", "1")],
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        var persisted = await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.NotNull(persisted.InvalidatedOn);
+
+        assignmentProvider.Participants =
+        [
+            assignmentProvider.Participants.Single() with { TimeZoneId = "America/Vancouver" },
+        ];
+        var conflictAfterReturningToVancouver = Assert.Single(
+            await service.GetConflictsAsync(
+                new CalendarConflictQuery(
+                    new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero),
+                    ResourceIds: [ActorId],
+                    TimeZoneIds: ["America/Vancouver"],
+                    ResourceTimeZones: [new(ActorId, "America/Vancouver")]
+                ),
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.False(conflictAfterReturningToVancouver.IsOverridden);
+    }
+
+    [Theory]
+    [InlineData(" America/Vancouver ", "America/Vancouver")]
+    [InlineData("Pacific Standard Time", "America/Los_Angeles")]
+    public async Task GetConflictsAsync_WhenOperationalTimeZoneUsesSupportedEquivalentId_NormalizesHolidayContext(
+        string assignmentTimeZoneId,
+        string expectedTimeZoneId
+    )
+    {
+        var assignmentProvider = new MutableProvider
+        {
+            Participants =
+            [
+                new CalendarConflictParticipant(
+                    "normalized-zone-assignment",
+                    "scheduling",
+                    ActorId,
+                    new DateTimeOffset(2026, 7, 1, 13, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 7, 1, 14, 0, 0, TimeSpan.Zero),
+                    "Assignment",
+                    TimeZoneId: assignmentTimeZoneId
+                ),
+            ],
+        };
+        var service = new CalendarConflictService([CreateHolidayProvider(), assignmentProvider], _db);
+
+        var conflict = Assert.Single(
+            await service.GetConflictsAsync(
+                new CalendarConflictQuery(
+                    new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero),
+                    ResourceIds: [ActorId]
+                ),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(expectedTimeZoneId, conflict.Entry.TimeZoneId);
+        Assert.Equal(expectedTimeZoneId, conflict.Overlaps.TimeZoneId);
     }
 
     [Fact]
@@ -258,7 +391,7 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetConflictsForCandidatesAsync_WithParticipantTimeZones_ForwardsDistinctTimeZonesToProviders()
+    public async Task GetConflictsForCandidatesAsync_WithParticipantTimeZones_ForwardsResourceContexts()
     {
         var provider = new TrackingProvider();
         var service = new CalendarConflictService([provider], _db);
@@ -271,7 +404,11 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         await service.GetConflictsForCandidatesAsync(candidates, TestContext.Current.CancellationToken);
 
         Assert.NotNull(provider.LastQuery);
-        Assert.Equal(new[] { "America/Toronto" }, provider.LastQuery!.TimeZoneIds);
+        Assert.Null(provider.LastQuery.TimeZoneIds);
+        Assert.Equal(
+            new[] { "America/Toronto" },
+            provider.LastQuery.ResourceTimeZones?.Select(item => item.TimeZoneId)
+        );
     }
 
     [Fact]
@@ -527,6 +664,21 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         );
 
     private static DateTimeOffset Baseline(int hour) => new(2026, 7, 1, hour, 0, 0, TimeSpan.Zero);
+
+    private HolidayConflictParticipantProvider CreateHolidayProvider()
+    {
+        var timeZoneService = new TimeZoneService();
+        var timeZoneResolver = new CalendarTimeZoneResolver(
+            Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
+            timeZoneService
+        );
+        return new HolidayConflictParticipantProvider(
+            _db,
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
+            timeZoneResolver,
+            timeZoneService
+        );
+    }
 
     private sealed class MutableProvider : ICalendarConflictParticipantProvider
     {

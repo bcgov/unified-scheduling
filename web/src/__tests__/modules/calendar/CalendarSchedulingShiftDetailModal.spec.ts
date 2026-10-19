@@ -303,6 +303,7 @@ describe('CalendarSchedulingShiftDetailModal', () => {
       editFormData: { publish: 'yes' | 'no' };
       selectTab: (tabId: 'edit') => void;
       handleSaveEdit: () => Promise<void>;
+      handleClose: () => void;
     };
 
     vm.selectTab('edit');
@@ -316,9 +317,47 @@ describe('CalendarSchedulingShiftDetailModal', () => {
       'The shift could not be published because linked assignments have unresolved conflicts. Resolve or override the conflicts, then try again.',
     );
     expect(document.body.textContent).toContain('Edit Shift');
-    expect(refreshCalendar).toHaveBeenCalledOnce();
+    expect(refreshCalendar).not.toHaveBeenCalled();
     expect(wrapper.emitted('close')).toBeUndefined();
 
+    vm.handleClose();
+
+    expect(refreshCalendar).toHaveBeenCalledOnce();
+    expect(wrapper.emitted('close')).toBeTruthy();
+
+    wrapper.unmount();
+  });
+
+  it('prevents closing while a save is in progress', async () => {
+    let resolveUpdate: ((value: unknown) => void) | undefined;
+    const updatePromise = new Promise((resolve) => {
+      resolveUpdate = resolve;
+    });
+    const wrapper = await mountShiftDetailModal('Draft', false, {
+      updateShiftEntry: vi.fn().mockReturnValue(updatePromise),
+    });
+    const vm = wrapper.vm as unknown as {
+      selectTab: (tabId: 'edit') => void;
+      handleSaveEdit: () => Promise<void>;
+      handleClose: () => void;
+    };
+
+    vm.selectTab('edit');
+    const savePromise = vm.handleSaveEdit();
+    await flushPromises();
+
+    vm.handleClose();
+
+    const headerClose = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Close',
+    );
+    expect(headerClose).toBeDisabled();
+    expect(wrapper.emitted('close')).toBeUndefined();
+
+    resolveUpdate?.({ data: { value: { id: 42 } }, error: { value: null } });
+    await savePromise;
+
+    expect(wrapper.emitted('close')).toBeTruthy();
     wrapper.unmount();
   });
 

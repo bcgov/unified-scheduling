@@ -1,5 +1,7 @@
+using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Holidays;
@@ -22,6 +24,7 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _db = null!;
     private HolidayConflictParticipantProvider _provider = null!;
+    private readonly UserQueryCounter _userQueryCounter = new();
 
     public async ValueTask InitializeAsync()
     {
@@ -29,7 +32,10 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
         _connection.CreateFunction("now", () => DateTimeOffset.UtcNow.ToString("O"));
         await _connection.OpenAsync(TestContext.Current.CancellationToken);
         _db = new SqliteTestUnifiedDbContext(
-            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite(_connection).Options
+            new DbContextOptionsBuilder<UnifiedDbContext>()
+                .UseSqlite(_connection)
+                .AddInterceptors(_userQueryCounter)
+                .Options
         );
         await _db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
@@ -86,6 +92,7 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
                 Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), participant.Start);
                 Assert.Equal(new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero), participant.End);
                 Assert.Equal("America/Toronto", participant.TimeZoneId);
+                Assert.Equal("stat-holiday:CanadaDay:2026-07-01", participant.CanonicalEventId);
                 Assert.Null(participant.SourceEntityId);
             }
         );
@@ -112,7 +119,7 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
         );
 
         Assert.NotNull(participant);
-        Assert.Equal(identity, participant!.Identity);
+        Assert.Equal(identity, participant.Identity);
         Assert.Equal(FirstEnabledUserId, participant.ResourceId);
         Assert.Equal(new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero), participant.Start);
         Assert.Equal(new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero), participant.End);
@@ -151,6 +158,143 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             new[] { conflict.Entry.SourceModule, conflict.Overlaps.SourceModule }
         );
         Assert.Contains("Canada Day", new[] { conflict.Entry.Title, conflict.Overlaps.Title });
+    }
+
+    [Fact]
+    public async Task GetConflictsForCandidatesAsync_WhenCandidateTimeZonesDiffer_DoesNotApplyHolidayFromAnotherTimeZone()
+    {
+        var torontoAssignment = new CalendarConflictParticipant(
+            "42",
+            "scheduling",
+            FirstEnabledUserId,
+            new DateTimeOffset(2026, 7, 2, 4, 30, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 2, 6, 0, 0, TimeSpan.Zero),
+            "Toronto assignment",
+            TimeZoneId: "America/Toronto"
+        );
+        var vancouverAssignment = new CalendarConflictParticipant(
+            "43",
+            "scheduling",
+            SecondEnabledUserId,
+            new DateTimeOffset(2026, 7, 2, 8, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero),
+            "Vancouver assignment",
+            TimeZoneId: "America/Vancouver"
+        );
+        var service = new CalendarConflictService([_provider], _db);
+
+        var conflicts = await service.GetConflictsForCandidatesAsync(
+            [torontoAssignment, vancouverAssignment],
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Empty(conflicts);
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_WhenMultipleTimeZonesLackResourceContexts_Throws()
+    {
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(
+                    new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero),
+                    ResourceIds: [FirstEnabledUserId],
+                    TimeZoneIds: ["America/Toronto", "America/Vancouver"]
+                ),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Contains("resource-specific", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetConflictsForCandidatesAsync_WhenResourceHasEventsInMultipleTimeZones_UsesEachEventContext()
+    {
+        var torontoAssignment = new CalendarConflictParticipant(
+            "42",
+            "scheduling",
+            FirstEnabledUserId,
+            new DateTimeOffset(2026, 7, 2, 4, 30, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 2, 6, 0, 0, TimeSpan.Zero),
+            "Toronto assignment",
+            TimeZoneId: "America/Toronto"
+        );
+        var vancouverAssignment = new CalendarConflictParticipant(
+            "43",
+            "scheduling",
+            FirstEnabledUserId,
+            new DateTimeOffset(2026, 7, 1, 18, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 1, 19, 0, 0, TimeSpan.Zero),
+            "Vancouver assignment",
+            TimeZoneId: "America/Vancouver"
+        );
+        var service = new CalendarConflictService([_provider], _db);
+
+        var conflicts = await service.GetConflictsForCandidatesAsync(
+            [torontoAssignment, vancouverAssignment],
+            TestContext.Current.CancellationToken
+        );
+
+        var conflict = Assert.Single(conflicts);
+        Assert.Contains("43", new[] { conflict.Entry.EventId, conflict.Overlaps.EventId });
+        Assert.Contains(
+            "stat-holiday:CanadaDay:2026-07-01:America/Vancouver",
+            new[] { conflict.Entry.EventId, conflict.Overlaps.EventId }
+        );
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_WhenRangeContainsNoHoliday_DoesNotQueryUsers()
+    {
+        _userQueryCounter.Reset();
+
+        var participants = await _provider.GetParticipantsAsync(
+            new CalendarConflictQuery(
+                new DateTimeOffset(2026, 8, 24, 7, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 8, 25, 7, 0, 0, TimeSpan.Zero),
+                TimeZoneIds: ["America/Vancouver"]
+            ),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Empty(participants);
+        Assert.Equal(0, _userQueryCounter.UserQueryCount);
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_WhenResourceContextTimeZoneIsBlank_Throws()
+    {
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(
+                    new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero),
+                    ResourceIds: [FirstEnabledUserId],
+                    ResourceTimeZones: [new(FirstEnabledUserId, " ")]
+                ),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Contains("operational time zone", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_WhenResourceContextTimeZoneIsInvalid_Throws()
+    {
+        await Assert.ThrowsAsync<TimeZoneNotFoundException>(() =>
+            _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(
+                    new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero),
+                    ResourceIds: [FirstEnabledUserId],
+                    ResourceTimeZones: [new(FirstEnabledUserId, "Invalid/TimeZone")]
+                ),
+                TestContext.Current.CancellationToken
+            )
+        );
     }
 
     private static User CreateUser(Guid id, bool isEnabled) =>
@@ -196,6 +340,40 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
                     )
                     .ToList()
             );
+        }
+    }
+
+    private sealed class UserQueryCounter : DbCommandInterceptor
+    {
+        public int UserQueryCount { get; private set; }
+
+        public void Reset() => UserQueryCount = 0;
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result
+        )
+        {
+            CountUserQuery(command);
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default
+        )
+        {
+            CountUserQuery(command);
+            return ValueTask.FromResult(result);
+        }
+
+        private void CountUserQuery(DbCommand command)
+        {
+            if (command.CommandText.Contains("FROM \"Users\"", StringComparison.OrdinalIgnoreCase))
+                UserQueryCount++;
         }
     }
 }

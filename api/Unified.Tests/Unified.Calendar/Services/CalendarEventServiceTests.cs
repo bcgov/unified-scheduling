@@ -255,7 +255,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetCalendarDataAsync_WhenLocationAndRequestTimeZonesDiffer_UsesRequestedTimeZone()
+    public async Task GetCalendarDataAsync_WhenLocationAndRequestTimeZonesDiffer_UsesLocationTimeZone()
     {
         var request = CreateRequest(
             new DateOnly(2026, 7, 1),
@@ -267,8 +267,9 @@ public class CalendarEventServiceTests : IAsyncLifetime
         var result = await _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
 
         var holiday = Assert.Single(result.Events);
-        Assert.Equal(new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero), holiday.StartAtUtc);
-        Assert.Equal("America/Vancouver", holiday.TimeZoneId);
+        Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), holiday.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero), holiday.EndAtUtc);
+        Assert.Equal("America/Toronto", holiday.TimeZoneId);
     }
 
     [Fact]
@@ -294,7 +295,9 @@ public class CalendarEventServiceTests : IAsyncLifetime
         await service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
 
         Assert.NotNull(conflictProvider.LastQuery);
-        Assert.Equal(new[] { "America/Toronto" }, conflictProvider.LastQuery!.TimeZoneIds);
+        Assert.Equal(new[] { "America/Toronto" }, conflictProvider.LastQuery.TimeZoneIds);
+        Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), conflictProvider.LastQuery.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero), conflictProvider.LastQuery.EndAtUtc);
     }
 
     [Fact]
@@ -308,7 +311,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetCalendarDataAsync_WhenLocationHasNoConfiguredTimeZone_UsesRequestedTimeZone()
+    public async Task GetCalendarDataAsync_WhenLocationHasNoConfiguredTimeZoneAndRequestHasTimeZone_Throws()
     {
         var request = CreateRequest(
             new DateOnly(2026, 7, 1),
@@ -317,11 +320,23 @@ public class CalendarEventServiceTests : IAsyncLifetime
             timeZoneId: "America/Toronto"
         );
 
-        var result = await _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken)
+        );
 
-        var holiday = Assert.Single(result.Events);
-        Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), holiday.StartAtUtc);
-        Assert.Equal("America/Toronto", holiday.TimeZoneId);
+        Assert.Contains("operational time zone", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetCalendarDataAsync_WhenLocationAndRequestHaveNoTimeZone_Throws()
+    {
+        var request = CreateRequest(new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1), locationId: 11);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken)
+        );
+
+        Assert.Contains("operational time zone", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static CalendarDataRequest CreateRequest(

@@ -9,7 +9,7 @@ public class TimeZoneServiceTests
     [Fact]
     public void ResolveOrUtc_WhenTimeZoneExists_ReturnsTimeZone()
     {
-        var result = _service.ResolveOrUtc("America/Vancouver");
+        var result = _service.ResolveOrUtc(" America/Vancouver ");
 
         Assert.Equal("America/Vancouver", result.Id);
     }
@@ -206,5 +206,14 @@ public class TimeZoneServiceTests
     public void ResolveRequired_WhenTimeZoneIsBlank_Throws()
     {
         Assert.Throws<ArgumentException>(() => _service.ResolveRequired(" "));
+    }
+
+    [Fact]
+    public void ResolveRequired_WhenWindowsAliasIsSupported_NormalizesToIanaId()
+    {
+        var result = _service.ResolveRequired("Pacific Standard Time");
+
+        Assert.Equal(TimeZoneService.NormalizeTimeZoneId("Pacific Standard Time"), result.Id);
+        Assert.NotEqual("Pacific Standard Time", result.Id);
     }
 }

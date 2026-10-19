@@ -8,7 +8,10 @@ public sealed record CalendarConflictParticipant(
     DateTimeOffset End,
     string Title,
     int? SourceEntityId = null,
-    string? TimeZoneId = null
+    string? TimeZoneId = null,
+    bool RequiresMatchingTimeZone = false,
+    bool IsInQueryScope = true,
+    string? CanonicalEventId = null
 )
 {
     public CalendarConflictEventIdentity Identity => CalendarConflictEventIdentity.Create(SourceModule, EventId);
