@@ -37,7 +37,14 @@ public sealed class CalendarQueryService(
         );
 
         var locationTimeZoneId = await GetLocationTimeZoneIdAsync(request.LocationId, cancellationToken);
-        var timeZone = timeZoneResolver.Resolve(request.TimeZoneId, locationTimeZoneId);
+        if (request.LocationId.HasValue && string.IsNullOrWhiteSpace(locationTimeZoneId))
+            throw new InvalidOperationException(
+                $"Location {request.LocationId.Value} does not have an operational time zone."
+            );
+
+        var timeZone = request.LocationId.HasValue
+            ? timeZoneResolver.Resolve(null, locationTimeZoneId)
+            : timeZoneResolver.Resolve(request.TimeZoneId);
         var utcRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
             request.StartDate,
             request.EndDate,
@@ -87,10 +94,9 @@ public sealed class CalendarQueryService(
                 ViewerPermissions: viewerPermissions,
                 TimeZoneIds:
                 [
-                    string.IsNullOrWhiteSpace(locationTimeZoneId)
-                        ? timeZone.Id
-                        : timeZoneResolver.Resolve(null, locationTimeZoneId).Id,
-                ]
+                    timeZone.Id,
+                ],
+                LocationId: request.LocationId
             ),
             cancellationToken
         );

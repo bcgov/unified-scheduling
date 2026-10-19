@@ -72,6 +72,7 @@ const leaveFormData = ref<LeaveFormData>({
 });
 const createdShiftId = ref<number | null>(null);
 const hasCreatedUnpublishedShift = computed(() => createdShiftId.value !== null);
+const refreshCalendarOnClose = ref(false);
 const apiError = ref('');
 const formErrors = ref<Record<string, string>>({});
 const recurrenceError = ref('');
@@ -145,6 +146,7 @@ watch(
       notes: '',
     };
     createdShiftId.value = null;
+    refreshCalendarOnClose.value = false;
     apiError.value = '';
     recurrenceError.value = '';
     formErrors.value = {};
@@ -261,6 +263,10 @@ function formatInitialAssignmentEventLabel(event: CalendarEventBase) {
 
 function handleClose() {
   if (!isSaving.value) {
+    if (refreshCalendarOnClose.value) {
+      calendarStore.refresh();
+      refreshCalendarOnClose.value = false;
+    }
     emit('close');
   }
 }
@@ -405,7 +411,7 @@ async function handleSaveLeave() {
 }
 
 function handlePublicationFailure() {
-  calendarStore.refresh();
+  refreshCalendarOnClose.value = true;
   apiError.value =
     'The shift was created and remains Draft, but it could not be published. Close and reopen it to continue.';
 }

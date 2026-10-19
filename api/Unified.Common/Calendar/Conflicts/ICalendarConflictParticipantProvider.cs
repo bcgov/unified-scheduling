@@ -13,3 +13,10 @@ public interface ICalendarConflictParticipantProvider
         CancellationToken cancellationToken = default
     );
 }
+
+/// <summary>
+/// Identifies providers whose participants depend on resource contexts supplied by other providers or mutation
+/// candidates. Contextual providers are loaded after ordinary providers so global query values are not treated as
+/// resource-specific applicability.
+/// </summary>
+public interface IContextualCalendarConflictParticipantProvider : ICalendarConflictParticipantProvider;
