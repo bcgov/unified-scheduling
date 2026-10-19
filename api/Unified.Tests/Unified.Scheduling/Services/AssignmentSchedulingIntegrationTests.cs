@@ -11,6 +11,7 @@ using Unified.Calendar.Mappings;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Calendar.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Common.Validation;
@@ -1658,6 +1659,23 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var link = Assert.Single(await _db.ShiftAssignmentEntries.ToListAsync(TestContext.Current.CancellationToken));
         Assert.Equal(shift.Id, link.ShiftEntryId);
         Assert.Equal(assignment.Id, link.AssignmentEntryId);
+    }
+
+    [Fact]
+    public async Task SchedulingConflictParticipantProvider_WhenAssignmentHasLocation_UsesLocationTimeZone()
+    {
+        var (_, assignment, _) = await CreateLinkedEntriesAsync();
+        var provider = new SchedulingConflictParticipantProvider(_db);
+
+        var participant = Assert.Single(
+            await provider.GetParticipantsAsync(
+                new CalendarConflictQuery(At(9), At(17)),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(assignment.EventId.ToString(), participant.EventId);
+        Assert.Equal("America/Vancouver", participant.TimeZoneId);
     }
 
     [Fact]
