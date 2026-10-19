@@ -10,6 +10,7 @@ public interface ICalendarEventEntryFactory<TRequest, TEntity>
 
     Event GetEvent(TEntity entity);
 
+    TEntity UpdateEntry(TRequest request, TEntity existing);
     TEntity UpdateEntry<TUpdateRequest>(TUpdateRequest request, TEntity existing)
         where TUpdateRequest : TRequest => UpdateEntry((TRequest)request, existing);
 }
