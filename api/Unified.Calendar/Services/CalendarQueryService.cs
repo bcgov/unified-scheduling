@@ -81,7 +81,17 @@ public sealed class CalendarQueryService(
                 .ToHashSet(StringComparer.Ordinal)
             : null;
         var conflicts = await calendarConflictService.GetConflictsAsync(
-            new CalendarConflictQuery(utcRange.StartAtUtc, utcRange.EndAtUtc, ViewerPermissions: viewerPermissions),
+            new CalendarConflictQuery(
+                utcRange.StartAtUtc,
+                utcRange.EndAtUtc,
+                ViewerPermissions: viewerPermissions,
+                TimeZoneIds:
+                [
+                    string.IsNullOrWhiteSpace(locationTimeZoneId)
+                        ? timeZone.Id
+                        : timeZoneResolver.Resolve(null, locationTimeZoneId).Id,
+                ]
+            ),
             cancellationToken
         );
         var response = new CalendarDataResponse

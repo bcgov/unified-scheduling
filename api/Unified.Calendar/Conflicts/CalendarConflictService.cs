@@ -43,7 +43,8 @@ public sealed class CalendarConflictService(
             candidates.Min(candidate => candidate.Start),
             candidates.Max(candidate => candidate.End),
             candidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
-            IncludeDraftParticipants: false
+            IncludeDraftParticipants: false,
+            TimeZoneIds: ResolveTimeZoneIds(candidates)
         );
         var existing = (await LoadParticipantsAsync(query, cancellationToken)).Where(participant =>
             !candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(participant))
@@ -119,7 +120,12 @@ public sealed class CalendarConflictService(
             firstParticipant.Start < secondParticipant.Start ? firstParticipant.Start : secondParticipant.Start;
         var rangeEnd = firstParticipant.End > secondParticipant.End ? firstParticipant.End : secondParticipant.End;
         var participants = await LoadParticipantsAsync(
-            new CalendarConflictQuery(rangeStart, rangeEnd, [key.ResourceId]),
+            new CalendarConflictQuery(
+                rangeStart,
+                rangeEnd,
+                [key.ResourceId],
+                TimeZoneIds: ResolveTimeZoneIds([firstParticipant, secondParticipant])
+            ),
             cancellationToken
         );
         var conflict = CalendarConflictDetector
@@ -243,7 +249,12 @@ public sealed class CalendarConflictService(
             firstParticipant.Start < secondParticipant.Start ? firstParticipant.Start : secondParticipant.Start;
         var rangeEnd = firstParticipant.End > secondParticipant.End ? firstParticipant.End : secondParticipant.End;
         var participants = await LoadParticipantsAsync(
-            new CalendarConflictQuery(rangeStart, rangeEnd, [key.ResourceId]),
+            new CalendarConflictQuery(
+                rangeStart,
+                rangeEnd,
+                [key.ResourceId],
+                TimeZoneIds: ResolveTimeZoneIds([firstParticipant, secondParticipant])
+            ),
             cancellationToken
         );
         return CalendarConflictDetector.Detect(participants).Select(CalendarConflictKey.Create).Contains(key);
@@ -294,6 +305,16 @@ public sealed class CalendarConflictService(
 
         return participants;
     }
+
+    private static IReadOnlyCollection<string> ResolveTimeZoneIds(
+        IEnumerable<CalendarConflictParticipant> participants
+    ) =>
+        participants
+            .Select(participant => participant.TimeZoneId?.Trim())
+            .Where(timeZoneId => !string.IsNullOrWhiteSpace(timeZoneId))
+            .Select(timeZoneId => timeZoneId!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private static IReadOnlyDictionary<CalendarConflictKey, CalendarConflictAcknowledgement> NormalizeAcknowledgements(
         IReadOnlyCollection<CalendarConflictAcknowledgement>? acknowledgements

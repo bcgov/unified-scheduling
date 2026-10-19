@@ -4820,6 +4820,23 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SchedulingConflictParticipantProvider_WhenAssignmentHasLocation_UsesLocationTimeZone()
+    {
+        var (_, assignment, _) = await CreateLinkedEntriesAsync();
+        var provider = new SchedulingConflictParticipantProvider(_db);
+
+        var participant = Assert.Single(
+            await provider.GetParticipantsAsync(
+                new CalendarConflictQuery(At(9), At(17)),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(assignment.EventId.ToString(), participant.EventId);
+        Assert.Equal("America/Vancouver", participant.TimeZoneId);
+    }
+
+    [Fact]
     public async Task UpdateAssignmentEntryAsync_WithNullShiftEntryLinks_PreservesExistingRelationships()
     {
         var (shift, assignment, _) = await CreateLinkedEntriesAsync();
