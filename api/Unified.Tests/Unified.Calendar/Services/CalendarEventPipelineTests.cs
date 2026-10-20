@@ -10,6 +10,8 @@ namespace Unified.Tests.Calendar.Services;
 public sealed class CalendarEventPipelineTests
 {
     private static readonly DateTimeOffset StartAtUtc = new(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset SeriesStartAtUtc = StartAtUtc.AddDays(-7);
+    private static readonly DateTimeOffset SeriesEndAtUtc = SeriesStartAtUtc.AddHours(1);
 
     [Fact]
     public async Task BuildEventAsync_RunsValidatorsThenGuardOnceBeforeBuildingSeries()
@@ -120,6 +122,8 @@ public sealed class CalendarEventPipelineTests
             Description = "  Description  ",
             StartAtUtc = StartAtUtc,
             EndAtUtc = StartAtUtc.AddHours(1),
+            SeriesStartAtUtc = SeriesStartAtUtc,
+            SeriesEndAtUtc = SeriesEndAtUtc,
             TimeZoneId = "  America/Vancouver  ",
         };
         var factory = new FakeEntryFactory();
@@ -132,8 +136,8 @@ public sealed class CalendarEventPipelineTests
         Assert.Equal("Entry title", factory.CreatedEvent!.Title);
         Assert.Equal("Description", factory.CreatedEvent.Description);
         Assert.Equal("America/Vancouver", factory.CreatedEvent.TimeZoneId);
-        Assert.Equal(StartAtUtc, factory.CreatedEvent.SeriesStartAtUtc);
-        Assert.Equal(StartAtUtc.AddHours(1), factory.CreatedEvent.SeriesEndAtUtc);
+        Assert.Equal(SeriesStartAtUtc, factory.CreatedEvent.SeriesStartAtUtc);
+        Assert.Equal(SeriesEndAtUtc, factory.CreatedEvent.SeriesEndAtUtc);
         Assert.Equal("test-module", factory.CreatedEvent.SourceModule);
         Assert.Equal("test-type", factory.CreatedEvent.EventTypeCode);
         Assert.Equal(CalendarEventStatusTypeCodes.Draft, factory.CreatedEvent.StatusTypeCode);

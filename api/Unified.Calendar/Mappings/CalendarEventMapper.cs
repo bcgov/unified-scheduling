@@ -26,7 +26,7 @@ public sealed class CalendarEventMapper
         string eventTypeCode,
         int? eventSeriesId = null
     )
-        where TRequest : CalendarEventBase
+        where TRequest : CalendarEventEntryRequest
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -38,8 +38,8 @@ public sealed class CalendarEventMapper
                 EventTypeCode = eventTypeCode,
                 StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
                 SourceModule = sourceModule,
-                SeriesStartAtUtc = request.StartAtUtc,
-                SeriesEndAtUtc = request.EndAtUtc,
+                SeriesStartAtUtc = request.SeriesStartAtUtc,
+                SeriesEndAtUtc = request.SeriesEndAtUtc,
             },
             MappingConfig
         );
@@ -93,8 +93,10 @@ public sealed class CalendarEventMapper
             EndAtUtc = eventEntity.EndAtUtc,
             TimeZoneId = eventEntity.TimeZoneId,
             AllDay = eventEntity.AllDay,
-            LocationId = eventEntity.LocationId ?? 0,
+            LocationId = eventEntity.LocationId,
             UserIds = userIds,
+            SeriesStartAtUtc = eventEntity.SeriesStartAtUtc,
+            SeriesEndAtUtc = eventEntity.SeriesEndAtUtc,
         };
     }
 
@@ -132,7 +134,7 @@ public sealed class CalendarEventMapper
             StartAtUtc = eventSeries.StartAtUtc,
             EndAtUtc = eventSeries.EndAtUtc,
             AllDay = eventSeries.AllDay,
-            LocationId = eventSeries.LocationId ?? 0,
+            LocationId = eventSeries.LocationId,
             UserIds = userIds,
             EventIds = eventIds,
         };
