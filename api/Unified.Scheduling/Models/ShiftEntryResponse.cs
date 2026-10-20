@@ -8,9 +8,5 @@ public sealed record ShiftEntryResponse : CalendarEventEntryResponse
 
     public int EventId { get; init; }
 
-    public DateTimeOffset? SeriesStartAtUtc { get; init; }
-
-    public DateTimeOffset? SeriesEndAtUtc { get; init; }
-
     public IReadOnlyCollection<ShiftAssignmentEntryResponse> AssignmentLinks { get; init; } = [];
 }

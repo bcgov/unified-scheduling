@@ -12,9 +12,5 @@ public record AssignmentEntryRequest : CalendarEventEntryRequest
 
     public int Capacity { get; init; }
 
-    public DateTimeOffset? SeriesStartAtUtc { get; init; }
-
-    public DateTimeOffset? SeriesEndAtUtc { get; init; }
-
     public IReadOnlyCollection<ShiftEntryLinkRequest>? ShiftEntryLinks { get; init; }
 }

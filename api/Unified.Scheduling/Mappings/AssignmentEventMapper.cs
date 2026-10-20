@@ -24,10 +24,6 @@ internal static class AssignmentEventMapper
             eventSeriesId
         );
 
-        eventEntity.SeriesStartAtUtc = request.SeriesStartAtUtc;
-
-        eventEntity.SeriesEndAtUtc = request.SeriesEndAtUtc;
-
         return eventEntity;
     }
 

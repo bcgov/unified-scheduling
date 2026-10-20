@@ -22,8 +22,6 @@ internal static class ShiftEventMapper
             SchedulingConstants.ShiftEventTypeCode,
             eventSeriesId
         );
-        eventEntity.SeriesStartAtUtc = request.SeriesStartAtUtc;
-        eventEntity.SeriesEndAtUtc = request.SeriesEndAtUtc;
 
         return eventEntity;
     }

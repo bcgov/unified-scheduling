@@ -407,16 +407,18 @@ public sealed class AssignmentSeriesService(
     }
 
     private async Task ValidateAssignmentValuesAsync(
-        int locationId,
+        int? locationId,
         int categoryId,
         int subCategoryId,
         AssignmentDefinition definition,
         CancellationToken cancellationToken
     )
     {
-        if (definition.LocationId != locationId)
+        if (locationId is not int requiredLocationId)
+            throw new InvalidOperationException("An assignment location is required.");
+        if (definition.LocationId != requiredLocationId)
             throw new InvalidOperationException("Assignment location must match the assignment definition location.");
-        if (!await db.Locations.AnyAsync(item => item.Id == locationId, cancellationToken))
+        if (!await db.Locations.AnyAsync(item => item.Id == requiredLocationId, cancellationToken))
             throw new InvalidOperationException("Location does not exist.");
         if (!await db.StatCategories.AnyAsync(item => item.Id == categoryId && !item.IsArchived, cancellationToken))
             throw new InvalidOperationException("Category does not exist or is archived.");

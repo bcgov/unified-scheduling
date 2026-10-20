@@ -25,10 +25,6 @@ public sealed record AssignmentEntryResponse : CalendarEventEntryResponse
 
     public IReadOnlyCollection<Guid> AssignedUserIds { get; init; } = [];
 
-    public DateTimeOffset? SeriesStartAtUtc { get; init; }
-
-    public DateTimeOffset? SeriesEndAtUtc { get; init; }
-
     public new DateTimeOffset? StartAtUtc { get; init; }
 
     public int EventId { get; init; }
