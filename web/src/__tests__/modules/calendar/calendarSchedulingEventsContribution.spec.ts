@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { http, HttpResponse } from 'msw';
+import { server } from '../../mocks/server';
 
 describe('calendarSchedulingEventsContribution', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.useRealTimers();
     setActivePinia(createPinia());
+    server.use(
+      http.get('*/api/lookup/PositionTypes', () => HttpResponse.json([{ code: 'Chief Sheriff', displayOrder: 1 }])),
+    );
   });
 
   it('loads unfiltered scheduling data without an active location', async () => {
