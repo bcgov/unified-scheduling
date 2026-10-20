@@ -78,7 +78,8 @@ public sealed class CalendarEventPipelineTests
                     Assert.Equal("Original", factory.Event.Title);
                     calls.Add(1);
                     throw new InvalidOperationException("Domain guard failed.");
-                }
+                },
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
         Assert.Equal(new[] { 1 }, calls);
@@ -106,7 +107,8 @@ public sealed class CalendarEventPipelineTests
                     factory.Entity,
                     "test-module",
                     "test-type",
-                    additionalGuards: _ => called = true
+                    additionalGuards: _ => called = true,
+                    cancellationToken: TestContext.Current.CancellationToken
                 )
         );
         Assert.False(called);
@@ -129,7 +131,12 @@ public sealed class CalendarEventPipelineTests
         var factory = new FakeEntryFactory();
         var service = CreateEntryService(factory);
 
-        var result = await service.BuildEventAsync(request, "test-module", "test-type");
+        var result = await service.BuildEventAsync(
+            request,
+            "test-module",
+            "test-type",
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Same(factory.Entity, result);
         Assert.Same(request, factory.CreatedRequest);
@@ -166,7 +173,13 @@ public sealed class CalendarEventPipelineTests
             StartAtUtc = StartAtUtc.AddHours(1),
         };
 
-        var result = await service.UpdateEventAsync(request, existing, "test-module", "test-type");
+        var result = await service.UpdateEventAsync(
+            request,
+            existing,
+            "test-module",
+            "test-type",
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Same(existing, result);
         Assert.Same(existing, factory.UpdatedEntity);
@@ -199,7 +212,8 @@ public sealed class CalendarEventPipelineTests
                 new CalendarEventEntryRequest { Title = "Updated", StartAtUtc = StartAtUtc },
                 factory.Entity,
                 "test-module",
-                "test-type"
+                "test-type",
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
 
@@ -220,7 +234,12 @@ public sealed class CalendarEventPipelineTests
         var factory = new FakeSeriesFactory();
         var service = CreateSeriesService(factory);
 
-        var result = await service.BuildEventAsync(request, "ignored-module", "test-type");
+        var result = await service.BuildEventAsync(
+            request,
+            "ignored-module",
+            "test-type",
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Same(factory.Entity, result);
         Assert.Same(request, factory.CreatedRequest);
@@ -257,7 +276,13 @@ public sealed class CalendarEventPipelineTests
             RecurrenceRule = "FREQ=DAILY",
         };
 
-        var result = await service.UpdateEventAsync(request, existing, "ignored-module", "test-type");
+        var result = await service.UpdateEventAsync(
+            request,
+            existing,
+            "ignored-module",
+            "test-type",
+            cancellationToken: TestContext.Current.CancellationToken
+        );
 
         Assert.Same(existing, result);
         Assert.Same(request, factory.UpdatedRequest);
@@ -296,7 +321,8 @@ public sealed class CalendarEventPipelineTests
                 },
                 existing,
                 "ignored-module",
-                "test-type"
+                "test-type",
+                cancellationToken: TestContext.Current.CancellationToken
             )
         );
 
