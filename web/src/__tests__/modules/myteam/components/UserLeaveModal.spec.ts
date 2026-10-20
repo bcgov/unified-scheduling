@@ -22,13 +22,6 @@ vi.mock('@/stores/LocationsStore', () => ({
   useLocationsStore: () => ({ selectedLocationId: '', entitiesMap: {} }),
 }));
 
-vi.mock('@/modules/leave/leaveRequest', () => ({
-  buildLeaveRequest: vi.fn((formData: Record<string, unknown>) => ({
-    kind: 'entry',
-    request: formData,
-  })),
-}));
-
 const UaModalStub = defineComponent({
   name: 'UaModal',
   template: '<div><slot /><slot name="actions" /></div>',
@@ -61,6 +54,7 @@ describe('UserLeaveModal', () => {
         timeZoneId: 'America/Vancouver',
         notes: 'Latest server note',
         locationId: 3,
+        leaveSeriesId: 77,
       }),
       error: ref(null),
     });
@@ -107,7 +101,8 @@ describe('UserLeaveModal', () => {
       42,
       expect.objectContaining({
         notes: 'Latest server note',
-        leaveType: 9,
+        leaveTypeId: 9,
+        leaveSeriesId: 77,
       }),
     );
   });

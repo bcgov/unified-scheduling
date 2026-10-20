@@ -16,6 +16,7 @@ export function buildLeaveRequest(
   options: {
     locationId: number | null | undefined;
     timeZoneId: string;
+    leaveSeriesId?: number | null;
     employeeOptions?: SelectOption[];
   },
 ): LeaveRequestResult {
@@ -70,7 +71,7 @@ export function buildLeaveRequest(
     };
   }
 
-  return { kind: 'entry', request: commonRequest };
+  return { kind: 'entry', request: { ...commonRequest, leaveSeriesId: options.leaveSeriesId ?? null } };
 }
 
 export function buildLeaveTitle(employeeNames: string[]) {

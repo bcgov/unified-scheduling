@@ -14,6 +14,7 @@ describe('leaveRequest', () => {
       {
         locationId: 1,
         timeZoneId: 'America/Vancouver',
+        leaveSeriesId: 42,
         employeeOptions: [
           { code: 'user-1', description: 'Alex Smith' },
           { code: 'user-2', description: 'Sam Lee' },
@@ -23,7 +24,7 @@ describe('leaveRequest', () => {
 
     expect(result).toMatchObject({
       kind: 'entry',
-      request: { title: 'Alex Smith, Sam Lee leave' },
+      request: { title: 'Alex Smith, Sam Lee leave', leaveSeriesId: 42 },
     });
   });
 

@@ -326,6 +326,7 @@ async function handleSave() {
         ? (selectedSeries.value?.locationId ?? props.event.locationId)
         : (selectedEntry.value?.locationId ?? props.event.locationId),
     timeZoneId: timeZoneId.value,
+    leaveSeriesId: selectedOpenScope.value === 'event' ? (leaveSeriesId.value ?? null) : null,
     employeeOptions: employeeOptions.value,
   });
   if (built.error !== undefined) {

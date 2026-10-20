@@ -54,6 +54,7 @@ export const GetApiAuthUserResponse = zod.object({
       'ShiftsDelete',
       'ShiftsExpire',
       'ScheduleViewDistribute',
+      'SchedulePublish',
       'AssignmentsView',
       'AssignmentsCreate',
       'AssignmentsAssign',

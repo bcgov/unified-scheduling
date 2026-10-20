@@ -9,21 +9,20 @@ export interface SchedulingLeaveSeriesRequest {
   leaveTypeId?: number;
   /** @nullable */
   recurrenceRule?: string | null;
-  eventSeriesId?: number;
-  eventIds?: number[];
-  title: string;
+  title?: string;
   /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
   color?: string | null;
-  startAtUtc: string;
+  startAtUtc?: string;
   /** @nullable */
   endAtUtc?: string | null;
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;
-  locationId?: number;
+  /** @nullable */
+  locationId?: number | null;
   userIds?: string[];
 }

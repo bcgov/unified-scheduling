@@ -9,6 +9,7 @@ export interface SchedulingLeaveSeriesResponse {
   leaveTypeId?: number;
   leaveEntryIds?: number[];
   id?: number;
+  eventSeriesId?: number;
   /** @nullable */
   eventTypeCode?: string | null;
   /** @nullable */
@@ -19,23 +20,23 @@ export interface SchedulingLeaveSeriesResponse {
   cancelledByUserId?: string | null;
   /** @nullable */
   cancellationReason?: string | null;
+  eventIds?: number[];
   /** @nullable */
   recurrenceRule?: string | null;
-  eventSeriesId?: number;
-  eventIds?: number[];
-  title: string;
+  title?: string;
   /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
   color?: string | null;
-  startAtUtc: string;
+  startAtUtc?: string;
   /** @nullable */
   endAtUtc?: string | null;
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;
-  locationId?: number;
+  /** @nullable */
+  locationId?: number | null;
   userIds?: string[];
 }

@@ -158,6 +158,7 @@ const handleSave = async () => {
   const built = buildLeaveRequest(formData.value, {
     locationId: locationId.value,
     timeZoneId: timeZoneId.value,
+    leaveSeriesId: isSeriesEdit.value ? null : (loadedEntry.value?.leaveSeriesId ?? props.entry?.leaveSeriesId ?? null),
     employeeOptions: [{ code: props.user.id, description: formatUserOptionLabel(props.user) }],
   });
   if (built.error !== undefined) {

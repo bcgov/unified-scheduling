@@ -15,6 +15,7 @@ export * from './permissions/permissions.zod.ts';
 export * from './region/region.zod.ts';
 export * from './reporting/reporting.zod.ts';
 export * from './roles/roles.zod.ts';
+export * from './schedule-publish/schedule-publish.zod.ts';
 export * from './scheduling-calendar/scheduling-calendar.zod.ts';
 export * from './scheduling-leave/scheduling-leave.zod.ts';
 export * from './shift/shift.zod.ts';

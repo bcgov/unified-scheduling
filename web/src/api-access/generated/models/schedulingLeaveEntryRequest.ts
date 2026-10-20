@@ -6,20 +6,27 @@
  */
 
 export interface SchedulingLeaveEntryRequest {
+  /** @nullable */
+  leaveSeriesId?: number | null;
   leaveTypeId?: number;
-  title: string;
+  /** @nullable */
+  seriesStartAtUtc?: string | null;
+  /** @nullable */
+  seriesEndAtUtc?: string | null;
+  title?: string;
   /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
   color?: string | null;
-  startAtUtc: string;
+  startAtUtc?: string;
   /** @nullable */
   endAtUtc?: string | null;
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;
-  locationId?: number;
+  /** @nullable */
+  locationId?: number | null;
   userIds?: string[];
 }

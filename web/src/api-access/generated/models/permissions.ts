@@ -33,6 +33,7 @@ export const Permissions = {
   ShiftsDelete: 'ShiftsDelete',
   ShiftsExpire: 'ShiftsExpire',
   ScheduleViewDistribute: 'ScheduleViewDistribute',
+  SchedulePublish: 'SchedulePublish',
   AssignmentsView: 'AssignmentsView',
   AssignmentsCreate: 'AssignmentsCreate',
   AssignmentsAssign: 'AssignmentsAssign',
