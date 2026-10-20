@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { HttpResponse, http } from 'msw';
 import { ref } from 'vue';
@@ -19,6 +19,14 @@ import { Gender } from '@/api-access/generated/models';
 const { getApiTrainingProfileTypesMock } = vi.hoisted(() => ({
   getApiTrainingProfileTypesMock: vi.fn(),
 }));
+
+beforeEach(() => {
+  server.use(
+    http.get('*/api/lookup/PositionTypes', () =>
+      HttpResponse.json([{ code: 'Constable', description: 'Constable', displayOrder: 1 }]),
+    ),
+  );
+});
 
 vi.mock('@/api-access/generated/training/training', () => ({
   getApiTrainingProfileTypes: getApiTrainingProfileTypesMock,
@@ -79,6 +87,76 @@ const setupTrainingProfileLookupMock = (options?: {
     isFetching: ref(options?.isFetching ?? false),
   });
 };
+
+describe('UserFormModal - unavailable positions', () => {
+  it('preserves an existing rank and other fields while allowing an unchanged-rank edit', async () => {
+    setupTrainingProfileLookupMock();
+    const app = await createTestApp();
+    let submitted: Record<string, unknown> | undefined;
+    server.use(
+      http.get('*/api/lookup/PositionTypes', () => new HttpResponse(null, { status: 500 })),
+      http.put('*/api/users/:id', async ({ request }) => {
+        submitted = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...baseUser, ...validFormData });
+      }),
+    );
+    const wrapper = mount(UserFormModal, {
+      props: { user: { ...baseUser, ...validFormData } },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const vm = wrapper.vm as unknown as { formData: typeof validFormData; handleSave(): Promise<void> };
+    expect(vm.formData.rank).toBe('Constable');
+    expect(document.body.textContent).toContain('Position options are unavailable');
+    vm.formData.firstName = 'Janet';
+    await vm.handleSave();
+    await flushPromises();
+    expect(submitted).toMatchObject({ firstName: 'Janet', rank: 'Constable' });
+    wrapper.unmount();
+  });
+
+  it('blocks creation until a retry loads positions and preserves entered fields', async () => {
+    setupTrainingProfileLookupMock();
+    const app = await createTestApp();
+    let calls = 0;
+    let creates = 0;
+    server.use(
+      http.get('*/api/lookup/PositionTypes', () => {
+        calls++;
+        return calls === 1
+          ? new HttpResponse(null, { status: 500 })
+          : HttpResponse.json([{ code: 'Constable', description: 'Constable', displayOrder: 1 }]);
+      }),
+      http.post('*/api/users', () => {
+        creates++;
+        return HttpResponse.json({ ...baseUser, ...validFormData });
+      }),
+    );
+    const wrapper = mount(UserFormModal, {
+      props: { user: null },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    const vm = wrapper.vm as unknown as {
+      formData: typeof validFormData;
+      handleSave(): Promise<void>;
+      loadPositions(): Promise<void>;
+    };
+    Object.assign(vm.formData, validFormData);
+    await vm.handleSave();
+    expect(creates).toBe(0);
+    await vm.loadPositions();
+    expect(vm.formData.firstName).toBe('Jane');
+    expect(vm.formData.rank).toBe('Constable');
+    await vm.handleSave();
+    await flushPromises();
+    expect(creates).toBe(1);
+    expect(calls).toBe(2);
+    wrapper.unmount();
+  });
+});
 
 describe('UserFormModal — photo upload', () => {
   it('shows initials avatar placeholder when no photo', async () => {

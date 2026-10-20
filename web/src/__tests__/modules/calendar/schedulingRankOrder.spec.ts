@@ -193,6 +193,29 @@ describe('scheduling rank order', () => {
     );
   });
 
+  it('recovers from a partially invalid position lookup without resetting the store', async () => {
+    let calls = 0;
+    server.use(
+      http.get('*/api/lookup/PositionTypes', () => {
+        calls++;
+        return HttpResponse.json(calls === 1 ? [positions[0], { code: 'Sergeant' }] : positions);
+      }),
+      http.get('*/api/users', () =>
+        HttpResponse.json([
+          user('unknown', 'Retired', 'Alpha'),
+          user('sergeant', 'Sergeant', 'Zulu'),
+          user('chief', 'Chief Sheriff', 'Zulu'),
+        ]),
+      ),
+      http.get('*/api/users/:id/acting-positions', () => HttpResponse.json([])),
+      http.post('*/api/scheduling/calendar/events', () => HttpResponse.json({ events: [] })),
+    );
+    await expect(calendarSchedulingEventsContribution.load(context)).rejects.toThrow('Position type display order');
+    const recovered = await calendarSchedulingEventsContribution.load(context);
+    expect(recovered.resources?.map((item) => item.id)).toEqual(['chief', 'sergeant', 'unknown']);
+    expect(calls).toBe(2);
+  });
+
   it('preserves assignment rows, shift associations and the trailing unassigned row', () => {
     const response = {
       contributions: {

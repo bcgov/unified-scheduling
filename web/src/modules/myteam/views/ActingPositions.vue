@@ -14,7 +14,7 @@ import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { useLookupStore } from '@/stores/LookupStore';
 import { toCalendarDateString, toTimeInputValue } from '@/utils/date';
 import { mdiClockRemove, mdiPencil, mdiPlus } from '@mdi/js';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import ActingPositionModal from '../components/ActingPositionModal.vue';
 import ExpireActingPositionModal from '../components/ExpireActingPositionModal.vue';
 
@@ -27,7 +27,27 @@ const userId = computed(() => props.user.id);
 const accessControl = useAccessControl();
 const lookupStore = useLookupStore();
 
-onMounted(() => lookupStore.load(LookupCodeTypes.PositionTypes));
+const positionLookupFailed = ref(false);
+const positionLookupLoading = ref(true);
+let isMounted = true;
+const positionTypesAvailable = computed(() => !!lookupStore.entityMap[LookupCodeTypes.PositionTypes]);
+const loadPositions = async () => {
+  positionLookupLoading.value = true;
+  positionLookupFailed.value = false;
+  try {
+    await lookupStore.load(LookupCodeTypes.PositionTypes);
+  } catch {
+    if (isMounted) positionLookupFailed.value = true;
+  } finally {
+    if (isMounted) positionLookupLoading.value = false;
+  }
+};
+onMounted(() => {
+  void loadPositions();
+});
+onUnmounted(() => {
+  isMounted = false;
+});
 
 const {
   data: actingPositions,
@@ -92,6 +112,7 @@ const handleExpired = async () => {
       <UaBtn
         v-if="accessControl.hasPermission(Permissions.ActingPositionsCreate)"
         :prepend-icon="mdiPlus"
+        :disabled="positionLookupLoading || !positionTypesAvailable"
         @click="handleOpenAddModal"
       >
         Add Acting Position
@@ -100,6 +121,10 @@ const handleExpired = async () => {
 
     <UaAlert v-if="actingPositionsError" type="error" :closable="false">
       Failed to load acting positions: {{ actingPositionsError.message }}
+    </UaAlert>
+    <UaAlert v-if="positionLookupFailed && !positionTypesAvailable" type="warning" :closable="false">
+      Position options are unavailable.
+      <UaBtn variant="text" @click="loadPositions">Retry</UaBtn>
     </UaAlert>
 
     <div v-if="isFetchingPositions" class="loading-state">Loading acting positions...</div>

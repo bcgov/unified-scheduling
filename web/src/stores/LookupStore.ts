@@ -54,7 +54,9 @@ type OrderedLookupCodeResponse = LookupCodeResponse & { displayOrder?: number | 
  *
  * const lookupStore = useLookupStore();
  *
- * onMounted(() => lookupStore.load(LookupCodeTypes.PositionTypes));
+ * onMounted(() => { void lookupStore.load(LookupCodeTypes.PositionTypes).catch(() => {
+ *   // Handle unavailable options in the component.
+ * }); });
  *
  * const positionTypeOptions = computed(() =>
  *   lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes)
@@ -90,7 +92,10 @@ export const useLookupStore = defineStore('lookup', () => {
           const { data, error, execute } = getApiLookupCodeType(codeType, { options: { immediate: false } });
           await execute();
           if (error.value) throw error.value;
-          if (!data.value) throw new Error(`Failed to load lookup ${codeType}.`);
+          if (!Array.isArray(data.value)) throw new Error(`Failed to load lookup ${codeType}.`);
+          if (codeType === LookupCodeTypes.PositionTypes && !isValidPositionTypes(data.value)) {
+            throw new Error('Position type display order is unavailable.');
+          }
           lookupCodeTypes.value = { ...lookupCodeTypes.value, [codeType]: data.value };
         })().finally(() => inFlight.delete(codeType));
         inFlight.set(codeType, request);
@@ -115,3 +120,18 @@ export const useLookupStore = defineStore('lookup', () => {
 
   return { entityMap, load, getSelectOptions, getDescriptionFromCode };
 });
+
+function isValidPositionTypes(entries: LookupCodeResponse[]): boolean {
+  const codes = new Set<string>();
+  return (
+    entries.length > 0 &&
+    entries.every((entry) => {
+      if (!entry || typeof entry.code !== 'string' || !entry.code.trim() || codes.has(entry.code)) return false;
+      if (typeof entry.displayOrder !== 'number' || !Number.isInteger(entry.displayOrder) || entry.displayOrder <= 0) {
+        return false;
+      }
+      codes.add(entry.code);
+      return true;
+    })
+  );
+}

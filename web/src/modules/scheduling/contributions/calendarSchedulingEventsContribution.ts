@@ -298,7 +298,7 @@ async function loadSchedulingResourceData(
   ]);
   if (signal?.aborted) throw new DOMException('Scheduling request was aborted.', 'AbortError');
   const positions = lookupStore.entityMap[LookupCodeTypes.PositionTypes];
-  if (!positions || !Object.values(positions).some((position) => Number.isFinite(position.displayOrder))) {
+  if (!positions) {
     throw new Error('Position type display order is unavailable.');
   }
   const actingPositionsByUserId = await loadActingPositionsByUser(users, signal);

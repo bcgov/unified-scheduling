@@ -39,13 +39,30 @@ const emit = defineEmits<{
 const locationsStore = useLocationsStore();
 const lookupStore = useLookupStore();
 const accessControl = useAccessControl();
+const positionLookupLoading = ref(true);
+const positionLookupFailed = ref(false);
+let isMounted = true;
+
+const loadPositions = async () => {
+  positionLookupLoading.value = true;
+  positionLookupFailed.value = false;
+  try {
+    await lookupStore.load(LookupCodeTypes.PositionTypes);
+    if (isMounted && formErrors.value.rank === 'Position options are unavailable.') {
+      delete formErrors.value.rank;
+    }
+  } catch {
+    if (isMounted) positionLookupFailed.value = true;
+  } finally {
+    if (isMounted) positionLookupLoading.value = false;
+  }
+};
 
 onMounted(async () => {
+  void loadPositions();
   if (canViewTrainingProfiles.value) {
     await trainingProfilesRequest.execute();
   }
-
-  await lookupStore.load(LookupCodeTypes.PositionTypes);
 });
 
 // Tracks the user record being edited. Starts from props.user (edit mode) and is
@@ -129,6 +146,7 @@ const onFileChange = (e: Event) => {
 };
 
 onUnmounted(() => {
+  isMounted = false;
   if (localPhotoPreviewUrl.value) {
     URL.revokeObjectURL(localPhotoPreviewUrl.value);
   }
@@ -229,6 +247,13 @@ const handleClose = () => {
 };
 
 const handleSave = async () => {
+  if (
+    !lookupStore.entityMap[LookupCodeTypes.PositionTypes] &&
+    (!currentUser.value || formData.value.rank !== (currentUser.value.rank ?? ''))
+  ) {
+    formErrors.value = { ...formErrors.value, rank: 'Position options are unavailable.' };
+    return;
+  }
   const payload = validateForm();
   if (!payload) return;
 
@@ -314,6 +339,14 @@ const handleSave = async () => {
       <UaAlert v-else-if="trainingProfilesLookupMessage" type="warning">
         {{ trainingProfilesLookupMessage }}
       </UaAlert>
+      <UaAlert
+        v-if="positionLookupFailed && !lookupStore.entityMap[LookupCodeTypes.PositionTypes]"
+        type="warning"
+        :closable="false"
+      >
+        Position options are unavailable.
+        <UaBtn variant="text" @click="loadPositions">Retry</UaBtn>
+      </UaAlert>
     </template>
 
     <!-- Photo upload -->
@@ -394,6 +427,7 @@ const handleSave = async () => {
         label="Rank"
         :items="positionTypeOptions"
         :error-messages="formErrors.rank"
+        :disabled="isLoading || positionLookupLoading || !lookupStore.entityMap[LookupCodeTypes.PositionTypes]"
       />
 
       <UaTextField

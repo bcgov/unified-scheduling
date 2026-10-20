@@ -62,7 +62,11 @@ onMounted(async () => {
     await trainingProfilesRequest.execute();
   }
 
-  await lookupStore.load(LookupCodeTypes.PositionTypes);
+  try {
+    await lookupStore.load(LookupCodeTypes.PositionTypes);
+  } catch {
+    // The rank code remains available as the existing fallback.
+  }
 });
 </script>
 <template>
