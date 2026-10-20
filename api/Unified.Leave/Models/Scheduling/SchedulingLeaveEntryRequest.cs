@@ -8,5 +8,6 @@ namespace Unified.Leave.Models.Scheduling;
 /// </summary>
 public sealed record SchedulingLeaveEntryRequest : CalendarEventEntryRequest
 {
+    public int? LeaveSeriesId { get; init; }
     public int LeaveTypeId { get; init; }
 }

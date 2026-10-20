@@ -43,9 +43,10 @@ public static class LeaveModule
             throw new InvalidOperationException("Leave requires the Calendar module to be enabled.");
 
         services.AddScoped<ISchedulingLeaveService, SchedulingLeaveService>();
+        services.AddScoped<ISchedulingLeaveEntryService, SchedulingLeaveEntryService>();
+        services.AddScoped<ISchedulingLeaveSeriesService, SchedulingLeaveSeriesService>();
         LeaveServiceProvider.Register(services);
         services.AddScoped<SchedulingLeaveEventMapper>();
-        services.AddScoped<SchedulingLeaveSeriesFacade>();
         services.AddScoped<LeaveSeriesMaterializationHandler>();
         services.AddScoped<
             IEventSeriesMaterializationHandler<LeaveSeriesMaterializationContext>,

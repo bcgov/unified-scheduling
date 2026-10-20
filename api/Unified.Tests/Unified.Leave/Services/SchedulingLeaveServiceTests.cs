@@ -71,24 +71,21 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
             calendarEventMapper,
             calendarLifecycleService
         );
-        var serviceProvider = new LeaveServiceProvider(
-            new CalendarEventServiceProvider<
-                SchedulingLeaveEntryRequest,
-                LeaveEntry,
-                SchedulingLeaveSeriesRequest,
-                LeaveSeries
-            >(entryService, seriesService)
-        );
-        var seriesFacade = new SchedulingLeaveSeriesFacade(materialization, new LeaveSeriesMaterializationHandler(db));
-
         _service = new SchedulingLeaveService(
-            NullLogger<SchedulingLeaveService>.Instance,
-            db,
-            schedulingLeaveEventMapper,
-            eventFactory,
-            serviceProvider,
-            seriesFacade,
-            calendarLifecycleService
+            new SchedulingLeaveEntryService(
+                NullLogger<SchedulingLeaveEntryService>.Instance,
+                db,
+                schedulingLeaveEventMapper,
+                entryService
+            ),
+            new SchedulingLeaveSeriesService(
+                NullLogger<SchedulingLeaveSeriesService>.Instance,
+                db,
+                schedulingLeaveEventMapper,
+                seriesService,
+                materialization,
+                new LeaveSeriesMaterializationHandler(db)
+            )
         );
     }
 
@@ -125,6 +122,46 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         await Assert.ThrowsAsync<DbUpdateException>(() =>
             _service.CreateLeaveEntryAsync(CreateEntryRequest(leaveTypeId: 9999), TestContext.Current.CancellationToken)
         );
+    }
+
+    [Fact]
+    public async Task CreateLeaveEntryAsync_WhenLeaveSeriesProvided_AssociatesEntryAndCalendarEvent()
+    {
+        var series = await _service.CreateLeaveSeriesAsync(
+            CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=1"),
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _service.CreateLeaveEntryAsync(
+            CreateEntryRequest(leaveSeriesId: series.Id) with
+            {
+                SeriesStartAtUtc = Start,
+                SeriesEndAtUtc = End,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var entry = await _database
+            .Db.LeaveEntries.Include(item => item.Event)
+            .SingleAsync(item => item.Id == result.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(series.Id, result.LeaveSeriesId);
+        Assert.Equal(series.Id, entry.LeaveSeriesId);
+        Assert.Equal(series.EventSeriesId, entry.Event!.EventSeriesId);
+        Assert.Equal(Start, result.SeriesStartAtUtc);
+        Assert.Equal(End, result.SeriesEndAtUtc);
+    }
+
+    [Fact]
+    public async Task CreateLeaveEntryAsync_WhenLeaveSeriesMissing_ThrowsAndPersistsNothing()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _service.CreateLeaveEntryAsync(
+                CreateEntryRequest(leaveSeriesId: 9999),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Empty(await _database.Db.LeaveEntries.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -190,6 +227,29 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         Assert.Equal(_sick.Id, entry.LeaveTypeId);
         Assert.Equal([LeaveTestDatabase.UserB], entry.Users.Select(x => x.UserId).ToArray());
         Assert.Equal(1, await _database.Db.Set<LeaveEntryUser>().CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UpdateLeaveEntryAsync_WhenLeaveSeriesChanges_UpdatesEntryAndCalendarAssociations()
+    {
+        var created = await _service.CreateLeaveEntryAsync(CreateEntryRequest(), TestContext.Current.CancellationToken);
+        var series = await _service.CreateLeaveSeriesAsync(
+            CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=1"),
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _service.UpdateLeaveEntryAsync(
+            created.Id,
+            CreateEntryRequest(leaveSeriesId: series.Id),
+            TestContext.Current.CancellationToken
+        );
+
+        var entry = await _database
+            .Db.LeaveEntries.Include(item => item.Event)
+            .SingleAsync(item => item.Id == created.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(series.Id, result!.LeaveSeriesId);
+        Assert.Equal(series.Id, entry.LeaveSeriesId);
+        Assert.Equal(series.EventSeriesId, entry.Event!.EventSeriesId);
     }
 
     [Fact]
@@ -460,7 +520,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateLeaveSeriesAsync_WhenRecurrenceChangedAndEntryNotDraft_DoesNotMutateTrackedSeries()
+    public async Task UpdateLeaveSeriesAsync_WhenRecurrenceChangedAndEntryNotDraft_DoesNotPersistSeriesChanges()
     {
         var created = await _service.CreateLeaveSeriesAsync(
             CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"),
@@ -476,21 +536,27 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
             )
         );
 
-        var trackedLocal = _database.Db.EventSeries.Local.Single();
-        Assert.Equal("Series", trackedLocal.Title);
-        Assert.Equal("FREQ=DAILY;COUNT=2", trackedLocal.RecurrenceRule);
-        Assert.Equal(EntityState.Unchanged, _database.Db.Entry(trackedLocal).State);
+        _database.Db.ChangeTracker.Clear();
+        var persisted = await _database
+            .Db.EventSeries.AsNoTracking()
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("Series", persisted.Title);
+        Assert.Equal("FREQ=DAILY;COUNT=2", persisted.RecurrenceRule);
     }
 
     [Fact]
-    public async Task UpdateLeaveSeriesAsync_WhenRecurrenceUnchanged_SkipsCancelledEntries()
+    public async Task UpdateLeaveSeriesAsync_WhenRecurrenceUnchanged_PreservesOccurrenceOverrides()
     {
         var created = await _service.CreateLeaveSeriesAsync(
             CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"),
             TestContext.Current.CancellationToken
         );
         var cancelledId = created.LeaveEntryIds.Order().First();
-        await SetEntryStatusAsync(cancelledId, CalendarEventStatusTypeCodes.Cancelled);
+        var overridden = await _database
+            .Db.LeaveEntries.Include(entry => entry.Event)
+            .SingleAsync(entry => entry.Id == cancelledId, TestContext.Current.CancellationToken);
+        overridden.Event!.Title = "Occurrence override";
+        await _database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         await _service.UpdateLeaveSeriesAsync(
             created.Id,
@@ -502,8 +568,8 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
             .Db.LeaveEntries.Include(x => x.Event)
             .ToListAsync(TestContext.Current.CancellationToken);
         var cancelled = entries.Single(x => x.Id == cancelledId);
-        Assert.Equal("Series", cancelled.Event!.Title);
-        Assert.Equal(_vacation.Id, cancelled.LeaveTypeId);
+        Assert.Equal("Occurrence override", cancelled.Event!.Title);
+        Assert.Equal(_sick.Id, cancelled.LeaveTypeId);
         var active = entries.Single(x => x.Id != cancelledId);
         Assert.Equal("Renamed", active.Event!.Title);
         Assert.Equal(_sick.Id, active.LeaveTypeId);
@@ -624,25 +690,23 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteLeaveSeriesAsync_WhenEntryIsNotDraft_KeepsItAsStandaloneEntry()
+    public async Task DeleteLeaveSeriesAsync_WhenOccurrenceHasOverrides_RemovesItWithSeries()
     {
         var created = await _service.CreateLeaveSeriesAsync(
             CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2"),
             TestContext.Current.CancellationToken
         );
-        var retainedId = created.LeaveEntryIds.First();
-        await SetEntryStatusAsync(retainedId, CalendarEventStatusTypeCodes.Active);
+        var occurrence = await _database
+            .Db.LeaveEntries.Include(entry => entry.Event)
+            .FirstAsync(TestContext.Current.CancellationToken);
+        occurrence.Event!.Title = "Occurrence override";
+        await _database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         Assert.True(await _service.DeleteLeaveSeriesAsync(created.Id, TestContext.Current.CancellationToken));
-
-        var db = _database.Db;
-        var retained = await db.LeaveEntries.Include(x => x.Event).SingleAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(retainedId, retained.Id);
-        Assert.Null(retained.LeaveSeriesId);
-        Assert.Null(retained.Event!.EventSeriesId);
-        Assert.Empty(await db.LeaveSeries.ToListAsync(TestContext.Current.CancellationToken));
-        Assert.Empty(await db.EventSeries.ToListAsync(TestContext.Current.CancellationToken));
-        Assert.Single(await db.Events.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _database.Db.LeaveEntries.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _database.Db.Events.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _database.Db.LeaveSeries.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _database.Db.EventSeries.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     private async Task SetEntryStatusAsync(int entryId, string status)
@@ -666,7 +730,8 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     private SchedulingLeaveEntryRequest CreateEntryRequest(
         string title = "Leave",
         int? leaveTypeId = null,
-        IReadOnlyCollection<Guid>? userIds = null
+        IReadOnlyCollection<Guid>? userIds = null,
+        int? leaveSeriesId = null
     ) =>
         new()
         {
@@ -675,6 +740,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
             EndAtUtc = End,
             TimeZoneId = "America/Vancouver",
             LocationId = 5,
+            LeaveSeriesId = leaveSeriesId,
             LeaveTypeId = leaveTypeId ?? _vacation.Id,
             UserIds = userIds ?? [LeaveTestDatabase.UserA],
         };

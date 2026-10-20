@@ -38,6 +38,22 @@ public sealed class SchedulingLeaveRequestValidatorTests
         result.ShouldHaveValidationErrorFor(x => x.LeaveTypeId);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task Validate_WhenLeaveSeriesIdIsNotPositive_HasLeaveSeriesIdError(int leaveSeriesId)
+    {
+        var result = await _validator.TestValidateAsync(
+            CreateRequest() with
+            {
+                LeaveSeriesId = leaveSeriesId,
+            },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        result.ShouldHaveValidationErrorFor(x => x.LeaveSeriesId);
+    }
+
     [Fact]
     public async Task Validate_WhenTitleIsEmpty_HasTitleError()
     {

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Unified.Calendar;
 using Unified.Calendar.Services;
+using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
 using Unified.Leave.Factories;
 using Unified.Leave.Models.Scheduling;
@@ -25,9 +26,10 @@ public sealed class LeaveServiceProvider(
 
     public bool SupportsSeries => calendarServices.SupportsSeries;
 
-    public ICalendarEventService<SchedulingLeaveEntryRequest, LeaveEntry> EntryService => calendarServices.EntryService;
+    public ICalendarEventService<SchedulingLeaveEntryRequest, LeaveEntry, Event> EntryService =>
+        calendarServices.EntryService;
 
-    public ICalendarEventService<SchedulingLeaveSeriesRequest, LeaveSeries> SeriesService =>
+    public ICalendarEventSeriesService<SchedulingLeaveSeriesRequest, LeaveSeries> SeriesService =>
         calendarServices.SeriesService;
 
     public static IServiceCollection Register(IServiceCollection services)

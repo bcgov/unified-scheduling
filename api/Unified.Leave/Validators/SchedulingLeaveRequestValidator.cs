@@ -8,6 +8,7 @@ public sealed class SchedulingLeaveRequestValidator : AbstractValidator<Scheduli
 {
     public SchedulingLeaveRequestValidator()
     {
+        RuleFor(request => request.LeaveSeriesId).GreaterThan(0).When(request => request.LeaveSeriesId.HasValue);
         RuleFor(request => request.LeaveTypeId).NotEmpty().GreaterThan(0);
         RuleFor(request => request.Title).NotEmpty().MaximumLength(200);
         RuleFor(request => request.Description).MaximumLength(2000);

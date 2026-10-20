@@ -326,6 +326,7 @@ async function handleSave() {
         ? (selectedSeries.value?.locationId ?? props.event.locationId)
         : (selectedEntry.value?.locationId ?? props.event.locationId),
     timeZoneId: timeZoneId.value,
+    employeeOptions: employeeOptions.value,
   });
   if (built.error !== undefined) {
     apiError.value = built.error;

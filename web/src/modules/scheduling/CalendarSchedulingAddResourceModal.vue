@@ -371,6 +371,7 @@ async function handleSaveLeave() {
   const built = buildLeaveRequest(leaveFormData.value, {
     locationId: activeLocationId.value,
     timeZoneId: timeZoneId.value,
+    employeeOptions: employeeOptions.value,
   });
   if (built.error !== undefined) {
     apiError.value = built.error;

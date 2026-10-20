@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Mapster;
 using Unified.Calendar.Mappings;
 using Unified.Db.Models.Calendar;
@@ -12,7 +13,7 @@ namespace Unified.Leave.Mappings;
 /// building delegates the shared calendar <c>Event</c>/<c>EventSeries</c> field mapping (which itself
 /// uses Mapster/<see cref="Mapster.TypeAdapterConfig"/> internally) to it and adds only the leave
 /// specific properties (<c>Id</c>, <c>LeaveTypeId</c>, <c>LeaveSeriesId</c>/<c>LeaveEntryIds</c>) on
-/// top. Series update planning lives in <see cref="Unified.Leave.Services.SchedulingLeaveSeriesFacade"/>.
+/// top. "/>.
 /// </summary>
 public sealed class SchedulingLeaveEventMapper(CalendarEventMapper calendarEventMapper)
 {
@@ -37,7 +38,8 @@ public sealed class SchedulingLeaveEventMapper(CalendarEventMapper calendarEvent
             LeaveEntryId = entry.Id,
             LeaveSeriesId = entry.LeaveSeriesId,
             LeaveTypeId = entry.LeaveTypeId,
-            LeaveTypeName = entry.LeaveType?.Description,
+            LeaveTypeName = entry.LeaveType?.Code,
+            Description = entry.LeaveType?.Description,
             EventId = entry.EventId,
             UserIds = entry.Users.Select(user => user.UserId).Distinct().ToList(),
             Type = "scheduling.leave",

@@ -14,6 +14,7 @@ public sealed class LeaveEventFactory
         new()
         {
             Event = eventEntity,
+            LeaveSeriesId = request.LeaveSeriesId,
             LeaveTypeId = request.LeaveTypeId,
             Users = request.UserIds.Distinct().Select(userId => new LeaveEntryUser { UserId = userId }).ToList(),
         };
@@ -23,6 +24,7 @@ public sealed class LeaveEventFactory
 
     public LeaveEntry UpdateEntry(SchedulingLeaveEntryRequest request, LeaveEntry existing)
     {
+        existing.LeaveSeriesId = request.LeaveSeriesId;
         existing.LeaveTypeId = request.LeaveTypeId;
         SyncEntryUsers(existing, request.UserIds);
         return existing;

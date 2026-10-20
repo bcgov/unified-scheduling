@@ -3,6 +3,7 @@ import type {
   SchedulingLeaveSeriesRequest as LeaveSeriesRequest,
 } from '@/api-access/generated/models';
 import { defaultEndTime, defaultStartTime, toUtcIso } from '@/modules/scheduling/schedulingDateTime';
+import type { SelectOption } from '@/types/select';
 import type { LeaveFormData } from './components/LeaveForm.vue';
 
 export type LeaveRequestResult =
@@ -12,7 +13,11 @@ export type LeaveRequestResult =
 
 export function buildLeaveRequest(
   form: LeaveFormData,
-  options: { locationId: number | null | undefined; timeZoneId: string },
+  options: {
+    locationId: number | null | undefined;
+    timeZoneId: string;
+    employeeOptions?: SelectOption[];
+  },
 ): LeaveRequestResult {
   const userIds = (form.userIds ?? []).filter((id): id is string => typeof id === 'string' && id.length > 0);
   const leaveTypeId = Number(form.leaveType);
@@ -41,7 +46,11 @@ export function buildLeaveRequest(
 
   const commonRequest = {
     leaveTypeId,
-    title: 'Leave',
+    title: buildLeaveTitle(
+      userIds.map(
+        (userId) => options.employeeOptions?.find((option) => String(option.code) === userId)?.description || userId,
+      ),
+    ),
     notes: form.notes?.trim() || null,
     startAtUtc,
     endAtUtc,
@@ -62,4 +71,9 @@ export function buildLeaveRequest(
   }
 
   return { kind: 'entry', request: commonRequest };
+}
+
+export function buildLeaveTitle(employeeNames: string[]) {
+  const names = employeeNames.map((name) => name.trim()).filter(Boolean);
+  return names.length > 0 ? `${names.join(', ')} leave` : 'Leave';
 }

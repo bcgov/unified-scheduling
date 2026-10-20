@@ -10,6 +10,7 @@ import type {
 } from '@/api-access/generated/models';
 import { resolveSchedulingTimeZoneId } from '@/modules/scheduling/schedulingTimeZone';
 import { defaultEndTime, defaultStartTime, parseFormDateTime } from '@/modules/scheduling/schedulingDateTime';
+import { formatUserOptionLabel } from '@/modules/scheduling/calendarSchedulingShiftForm';
 import {
   createLeaveEntry,
   createLeaveSeries,
@@ -154,7 +155,11 @@ const timeZoneId = computed(() =>
 const handleSave = async () => {
   if (isLoadingEntry.value || isLoadingSeries.value || (isSeriesEdit.value && !loadedSeries.value)) return;
   apiError.value = '';
-  const built = buildLeaveRequest(formData.value, { locationId: locationId.value, timeZoneId: timeZoneId.value });
+  const built = buildLeaveRequest(formData.value, {
+    locationId: locationId.value,
+    timeZoneId: timeZoneId.value,
+    employeeOptions: [{ code: props.user.id, description: formatUserOptionLabel(props.user) }],
+  });
   if (built.error !== undefined) {
     apiError.value = built.error;
     return;
