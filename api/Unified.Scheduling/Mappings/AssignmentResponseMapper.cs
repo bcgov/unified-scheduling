@@ -62,6 +62,7 @@ internal static class AssignmentResponseMapper
         return response with
         {
             Id = assignmentEntry.Id,
+            StartAtUtc = assignmentEntry.Event!.StartAtUtc,
             EventSeriesId = null,
             AssignmentSeriesId = assignmentEntry.AssignmentSeriesId,
             EventId = assignmentEntry.EventId,
