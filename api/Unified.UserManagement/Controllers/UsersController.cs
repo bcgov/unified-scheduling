@@ -28,6 +28,7 @@ public class UsersController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of users.</returns>
     [HttpGet]
+    [Authorize(Policy = UserManagementPolicies.UsersView)]
     [ProducesResponseType(typeof(IEnumerable<UserResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<UserResponse>>> Get(
         [FromQuery] UserQueryParams? queryParams,
@@ -45,6 +46,7 @@ public class UsersController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The requested user if found.</returns>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = UserManagementPolicies.UsersViewOtherProfiles)]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserResponse>> GetById(Guid id, CancellationToken cancellationToken)
@@ -107,6 +109,7 @@ public class UsersController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The updated user if found.</returns>
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = UserManagementPolicies.UsersEdit)]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -182,6 +185,7 @@ public class UsersController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The photo file if found.</returns>
     [HttpGet("{id:guid}/photo")]
+    [Authorize(Policy = UserManagementPolicies.UsersView)]
     [Produces("image/jpeg", "image/png")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

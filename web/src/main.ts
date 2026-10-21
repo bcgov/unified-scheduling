@@ -7,6 +7,8 @@ import { setupMockServiceWorker } from '@/mocks';
 import vuetify from '@/plugins/vuetify';
 import { initializeRouter } from '@/router';
 import { useConfigStore } from '@/stores/config';
+import { redirectToLogin } from '@/utils/authNavigation';
+import ApplicationUnavailable from '@/views/ApplicationUnavailable.vue';
 
 import '@/assets/styles/variables.css';
 import '@/assets/styles/forms.css';
@@ -26,9 +28,20 @@ const bootstrap = async () => {
   await configStore.loadConfig();
 
   // @NOTE: Load user info to ensure permissions are available for route guards
-  const { error, data: userInfo } = await getApiAuthUser();
+  const { error, data: userInfo, response } = await getApiAuthUser();
+  if (error.value) {
+    if (response.value?.status === 401) {
+      redirectToLogin();
+      return;
+    }
+
+    const unavailableApp = createApp(ApplicationUnavailable);
+    unavailableApp.mount('#app');
+    return;
+  }
+
   const authStore = useAuthStore(pinia);
-  if (!error.value && userInfo.value) {
+  if (userInfo.value) {
     authStore.setUserInfo(userInfo.value);
   }
 

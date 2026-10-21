@@ -8,7 +8,6 @@ namespace Unified.Infrastructure.Options;
 public class KeycloakOptions
 {
     public const string SectionName = "Keycloak";
-    public static readonly TimeSpan DefaultRefreshThreshold = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// Keycloak authority URL (e.g., https://keycloak.example.com/realms/myrealm)
@@ -36,9 +35,10 @@ public class KeycloakOptions
     public string Audience { get; set; } = string.Empty;
 
     /// <summary>
-    /// Token refresh threshold (e.g., "00:05:00" for 5 minutes)
+    /// Time before access-token expiration when refresh should be attempted.
     /// </summary>
-    public TimeSpan TokenRefreshThreshold { get; set; } = TimeSpan.FromMinutes(3);
+    [Range(typeof(TimeSpan), "00:00:00.0000001", "10675199.02:48:05.4775807", ErrorMessage = "TokenRefreshThreshold must be greater than zero")]
+    public TimeSpan TokenRefreshThreshold { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
     /// Identity provider hint
@@ -64,11 +64,6 @@ public class KeycloakOptions
     /// Logout endpoint (optional, defaults to {Authority}/protocol/openid-connect/logout)
     /// </summary>
     public string? LogoutEndpoint { get; set; } = "/protocol/openid-connect/logout";
-
-    /// <summary>
-    /// (Optional) Refresh threshold (TimeSpan format) for refreshing access tokens.
-    /// </summary>
-    public string? RefreshThreshold { get; set; }
 
     /// <summary>
     /// Keycloak identity provider hint for automatic provider selection.

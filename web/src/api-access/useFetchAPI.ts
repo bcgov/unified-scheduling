@@ -1,5 +1,9 @@
 import { createFetch, type UseFetchOptions } from '@vueuse/core';
+import { getActivePinia } from 'pinia';
 import { computed, unref, type MaybeRef } from 'vue';
+
+import { useAuthStore } from '@/stores/auth';
+import { redirectToLogin } from '@/utils/authNavigation';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
@@ -9,6 +13,8 @@ type QueryParams = Record<string, QueryParamValue | QueryParamValue[]>;
 type RequestBody = unknown;
 type FetchErrorContext = Parameters<NonNullable<UseFetchOptions['onFetchError']>>[0];
 type AfterFetchContext = Parameters<NonNullable<UseFetchOptions['afterFetch']>>[0];
+
+let authenticationRedirectInProgress = false;
 
 export type UseFetchAPIRequest = {
   url: string;
@@ -110,7 +116,29 @@ const buildFetchError = (payload: unknown, fallback: unknown) => {
   return new Error(typeof fallback === 'string' && fallback ? fallback : 'Request failed.');
 };
 
-const buildUseFetchOptions = (options?: UseFetchOptions): UseFetchOptions => {
+const redirectToLoginForUnauthorizedApiRequest = (requestUrl: string, status?: number) => {
+  if (status !== 401 || authenticationRedirectInProgress) {
+    return;
+  }
+
+  const requestPath = new URL(requestUrl, window.location.origin).pathname;
+  const isApiRequest = requestPath === '/api' || requestPath.startsWith('/api/');
+  const isAuthRequest = requestPath === '/api/auth' || requestPath.startsWith('/api/auth/');
+  if (!isApiRequest || isAuthRequest) {
+    return;
+  }
+
+  authenticationRedirectInProgress = true;
+
+  const pinia = getActivePinia();
+  if (pinia) {
+    useAuthStore(pinia).clearUserInfo();
+  }
+
+  redirectToLogin();
+};
+
+const buildUseFetchOptions = (requestUrl: string, options?: UseFetchOptions): UseFetchOptions => {
   const userAfterFetch = options?.afterFetch;
   const userOnFetchError = options?.onFetchError;
 
@@ -126,6 +154,8 @@ const buildUseFetchOptions = (options?: UseFetchOptions): UseFetchOptions => {
       return userAfterFetch ? userAfterFetch(nextContext) : nextContext;
     },
     async onFetchError(ctx: FetchErrorContext) {
+      redirectToLoginForUnauthorizedApiRequest(requestUrl, ctx.response?.status);
+
       const isNoContentResponse = ctx.response?.status === 204 || ctx.response?.status === 205;
       if (isNoContentResponse) {
         return {
@@ -182,7 +212,7 @@ export const useFetchAPI = <T>(
       headers: resolvedHeaders,
       body: body as BodyInit,
     },
-    buildUseFetchOptions(options),
+    buildUseFetchOptions(url, options),
   );
 
   return request.text() as ReturnType<typeof request.json<T>>;

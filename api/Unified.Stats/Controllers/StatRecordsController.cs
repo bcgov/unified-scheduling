@@ -18,13 +18,14 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<StatRecordResponse>>> GetAll(
         [FromQuery] StatRecordQueryParams? queryParams,
         CancellationToken cancellationToken
     )
     {
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
-            return Unauthorized();
+            return Forbid();
 
         // Non-supervisors may only query their own records — except for location-level
         // groups where data is per-location, not per-employee.
@@ -49,13 +50,14 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [ProducesResponseType(typeof(StatRecordResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<StatRecordResponse>> Create(
         [FromBody] StatRecordRequest request,
         CancellationToken cancellationToken
     )
     {
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
-            return Unauthorized();
+            return Forbid();
 
         await validator.ValidateAndThrowAsync(request, cancellationToken);
 
@@ -67,13 +69,14 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<StatRecordResponse>>> CreateBatch(
         [FromBody] IReadOnlyList<StatRecordRequest> requests,
         CancellationToken cancellationToken
     )
     {
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
-            return Unauthorized();
+            return Forbid();
 
         foreach (var request in requests)
             await validator.ValidateAndThrowAsync(request, cancellationToken);
@@ -86,6 +89,7 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [ProducesResponseType(typeof(StatRecordResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<StatRecordResponse>> Update(
         int id,
@@ -94,7 +98,7 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     )
     {
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
-            return Unauthorized();
+            return Forbid();
 
         await validator.ValidateAndThrowAsync(request, cancellationToken);
 
@@ -106,13 +110,14 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [ProducesResponseType(typeof(IEnumerable<StatRecordResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IEnumerable<StatRecordResponse>>> SaveDay(
         [FromBody] SaveDayRequest request,
         CancellationToken cancellationToken
     )
     {
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
-            return Unauthorized();
+            return Forbid();
 
         var result = await service.SaveDayAsync(
             request,
@@ -127,11 +132,12 @@ public class StatRecordsController(IStatRecordService service, StatRecordRequest
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         if (!TryGetCallerContext(out var callerUserId, out var callerCanEnterForOthers))
-            return Unauthorized();
+            return Forbid();
 
         var deleted = await service.DeleteAsync(id, callerUserId, callerCanEnterForOthers, cancellationToken);
         return deleted ? NoContent() : NotFound();

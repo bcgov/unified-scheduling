@@ -71,7 +71,7 @@ public static class InfrastructureModule
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddHttpClient("TokenRefresh");
+        services.AddHttpClient("TokenRefresh", client => client.Timeout = TimeSpan.FromSeconds(10));
         services.AddHttpContextAccessor();
 
         var sp = services.BuildServiceProvider();
