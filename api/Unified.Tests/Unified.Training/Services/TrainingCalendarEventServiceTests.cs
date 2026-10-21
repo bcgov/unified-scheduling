@@ -58,7 +58,7 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
             {
                 Id = 1,
                 Code = "FIRST-AID",
-                Description = "First Aid",
+                Description = string.Empty,
             }
         );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -83,7 +83,7 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
         Assert.Equal("training.user-training." + first.Id, firstEvent.Id);
         Assert.Equal("training.user-training", firstEvent.Type);
         Assert.Equal("training", firstEvent.SourceModule);
-        Assert.Equal("First Aid", firstEvent.Title);
+        Assert.Equal("Training: FIRST-AID", firstEvent.Title);
         Assert.Equal(_userA, firstEvent.UserId);
         Assert.Equal(1, firstEvent.TrainingId);
         Assert.Equal(1, firstEvent.LocationId);

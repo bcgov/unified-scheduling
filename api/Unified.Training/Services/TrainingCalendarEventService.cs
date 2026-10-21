@@ -38,7 +38,7 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
                 ut.TrainingId,
                 ut.AwardedOn,
                 ut.EndingOn,
-                Title = ut.Training.Description,
+                Code = ut.Training.Code,
                 ut.User.HomeLocationId,
             })
             .ToListAsync(cancellationToken);
@@ -57,7 +57,7 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
                     TrainingId = ut.TrainingId,
                     Type = "training.user-training",
                     SourceModule = "training",
-                    Title = ut.Title,
+                    Title = $"Training: {ut.Code}",
                     Start = new DateTimeOffset(startDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
                     End = new DateTimeOffset(endDay.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
                     AllDay = true,
