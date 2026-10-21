@@ -59,7 +59,15 @@ public sealed class TrainingModuleTests
         AssertContainsScopedRegistration<ITrainingLookupStrategy, TrainingLookupStrategy>(services);
         AssertContainsScopedSelfRegistration<TrainingLookupRequestValidator>(services);
         AssertContainsScopedSelfRegistration<UserTrainingRequestValidator>(services);
+        AssertContainsScopedSelfRegistration<TrainingCalendarEventsRequestValidator>(services);
+        AssertContainsScopedSelfRegistration<TrainingCalendarEventService>(services);
         Assert.Contains("api/training/user-trainings", userTrainingRoutes);
+        Assert.Contains(
+            actionProvider.ActionDescriptors.Items.OfType<ControllerActionDescriptor>(),
+            action =>
+                action.ControllerTypeInfo.AsType() == typeof(TrainingCalendarController)
+                && action.AttributeRouteInfo?.Template?.TrimStart('/') == "api/training/calendar/events"
+        );
     }
 
     [Fact]
@@ -90,6 +98,15 @@ public sealed class TrainingModuleTests
             descriptor => descriptor.ServiceType == typeof(AssignMandatoryTrainingOnUserCreationHandler)
         );
         Assert.Empty(userTrainingActions);
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(TrainingCalendarEventService));
+        Assert.DoesNotContain(
+            services,
+            descriptor => descriptor.ServiceType == typeof(TrainingCalendarEventsRequestValidator)
+        );
+        Assert.DoesNotContain(
+            actionProvider.ActionDescriptors.Items.OfType<ControllerActionDescriptor>(),
+            action => action.ControllerTypeInfo.AsType() == typeof(TrainingCalendarController)
+        );
     }
 
     private static void AssertContainsScopedRegistration<TService, TImplementation>(IServiceCollection services)
