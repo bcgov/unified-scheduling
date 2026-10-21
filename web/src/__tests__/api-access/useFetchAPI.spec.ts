@@ -62,10 +62,7 @@ describe('useFetchAPI', () => {
   it('handles a protected API 401 when Pinia is unavailable', async () => {
     server.use(http.get('*/api/protected', () => HttpResponse.json({}, { status: 401 })));
     const { useFetchAPI } = await loadApi();
-    const request = useFetchAPI<void>(
-      { url: '/api/protected', method: 'GET' },
-      { options: { immediate: false } },
-    );
+    const request = useFetchAPI<void>({ url: '/api/protected', method: 'GET' }, { options: { immediate: false } });
 
     await expect(request.execute()).resolves.toBeDefined();
     expect(new URL(window.location.href).pathname).toBe('/api/auth/login');
@@ -115,10 +112,7 @@ describe('useFetchAPI', () => {
     vi.stubEnv('BASE_URL', '/unified-scheduling/');
     server.use(http.get('*/api/protected', () => HttpResponse.json({}, { status: 401 })));
     const { useFetchAPI } = await loadApi();
-    const request = useFetchAPI<void>(
-      { url: '/api/protected', method: 'GET' },
-      { options: { immediate: false } },
-    );
+    const request = useFetchAPI<void>({ url: '/api/protected', method: 'GET' }, { options: { immediate: false } });
 
     await request.execute();
 

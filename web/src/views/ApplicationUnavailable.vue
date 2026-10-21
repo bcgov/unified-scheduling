@@ -13,8 +13,8 @@ const logoUrl = new URL(`${import.meta.env.BASE_URL}images/bcid-logo-rev-en.svg`
       <section class="unavailable-panel" role="alert">
         <h1 id="unavailable-title">Application unavailable</h1>
         <p>
-          The Unified Scheduling application is currently unavailable. Please refresh your application. If you
-          continue to see this error, contact support.
+          The Unified Scheduling application is currently unavailable. Please refresh your application. If you continue
+          to see this error, contact support.
         </p>
       </section>
     </main>
