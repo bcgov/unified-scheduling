@@ -18,7 +18,7 @@ public sealed class AssignmentSeriesRequestValidator : AbstractValidator<Assignm
         RuleFor(request => request.TimeZoneId).MaximumLength(100).Must(TimeZoneService.IsValidTimeZoneId);
         RuleFor(request => request.StartAtUtc).NotEmpty();
         RuleFor(request => request.EndAtUtc).NotEmpty().GreaterThan(request => request.StartAtUtc);
-        RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
+        RuleFor(request => request.LocationId).NotEmpty().GreaterThan(0);
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);

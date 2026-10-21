@@ -1,5 +1,4 @@
 using Unified.Calendar.Models;
-using Unified.Calendar.Models;
 
 namespace Unified.Scheduling.Models;
 
