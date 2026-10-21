@@ -7,28 +7,32 @@
 import type { ShiftEntryLinkRequest } from './shiftEntryLinkRequest.ts';
 
 export interface AssignmentEntryRequest {
+  assignmentDefinitionId?: number;
   /** @nullable */
   assignmentSeriesId?: number | null;
-  assignmentDefinitionId?: number;
-  title?: string;
-  /** @nullable */
-  description?: string | null;
-  /** @nullable */
-  notes?: string | null;
-  color?: string;
-  startAtUtc?: string;
-  endAtUtc?: string;
-  /** @nullable */
-  seriesStartAtUtc?: string | null;
-  /** @nullable */
-  seriesEndAtUtc?: string | null;
-  /** @nullable */
-  timeZoneId?: string | null;
-  allDay?: boolean;
-  locationId?: number;
   categoryId?: number;
   subCategoryId?: number;
   capacity?: number;
   /** @nullable */
   shiftEntryLinks?: ShiftEntryLinkRequest[] | null;
+  /** @nullable */
+  seriesStartAtUtc?: string | null;
+  /** @nullable */
+  seriesEndAtUtc?: string | null;
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  color?: string | null;
+  startAtUtc?: string;
+  /** @nullable */
+  endAtUtc?: string | null;
+  /** @nullable */
+  timeZoneId?: string | null;
+  allDay?: boolean;
+  /** @nullable */
+  locationId?: number | null;
+  userIds?: string[];
 }

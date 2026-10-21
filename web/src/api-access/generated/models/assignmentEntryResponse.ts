@@ -7,31 +7,27 @@
 import type { ShiftAssignmentEntryResponse } from './shiftAssignmentEntryResponse.ts';
 
 export interface AssignmentEntryResponse {
-  id?: number;
   /** @nullable */
   assignmentSeriesId?: number | null;
-  eventId?: number;
   assignmentDefinitionId?: number;
+  categoryId?: number;
   /** @nullable */
-  title?: string | null;
+  categoryName?: string | null;
+  subCategoryId?: number;
   /** @nullable */
-  description?: string | null;
-  /** @nullable */
-  notes?: string | null;
-  /** @nullable */
-  color?: string | null;
+  subCategoryName?: string | null;
+  capacity?: number;
+  assignedUserCount?: number;
+  linkedShiftEntryIds?: number[];
+  assignedUserIds?: string[];
   /** @nullable */
   startAtUtc?: string | null;
-  /** @nullable */
-  endAtUtc?: string | null;
-  /** @nullable */
-  seriesStartAtUtc?: string | null;
-  /** @nullable */
-  seriesEndAtUtc?: string | null;
-  /** @nullable */
-  timeZoneId?: string | null;
-  allDay?: boolean;
+  eventId?: number;
   isException?: boolean;
+  assignmentLinks?: ShiftAssignmentEntryResponse[];
+  id?: number;
+  /** @nullable */
+  eventSeriesId?: number | null;
   /** @nullable */
   eventTypeCode?: string | null;
   /** @nullable */
@@ -43,16 +39,22 @@ export interface AssignmentEntryResponse {
   /** @nullable */
   cancellationReason?: string | null;
   /** @nullable */
+  seriesStartAtUtc?: string | null;
+  /** @nullable */
+  seriesEndAtUtc?: string | null;
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  color?: string | null;
+  /** @nullable */
+  endAtUtc?: string | null;
+  /** @nullable */
+  timeZoneId?: string | null;
+  allDay?: boolean;
+  /** @nullable */
   locationId?: number | null;
-  categoryId?: number;
-  /** @nullable */
-  categoryName?: string | null;
-  subCategoryId?: number;
-  /** @nullable */
-  subCategoryName?: string | null;
-  capacity?: number;
-  assignedUserCount?: number;
-  linkedShiftEntryIds?: number[];
-  assignedUserIds?: string[];
-  assignmentLinks?: ShiftAssignmentEntryResponse[];
+  userIds?: string[];
 }

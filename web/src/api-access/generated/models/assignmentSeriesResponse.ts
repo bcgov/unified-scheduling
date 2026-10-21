@@ -7,26 +7,18 @@
 import type { ShiftAssignmentSeriesLinkSummaryResponse } from './shiftAssignmentSeriesLinkSummaryResponse.ts';
 
 export interface AssignmentSeriesResponse {
+  assignmentDefinitionId?: number;
+  categoryId?: number;
+  /** @nullable */
+  categoryName?: string | null;
+  subCategoryId?: number;
+  /** @nullable */
+  subCategoryName?: string | null;
+  capacity?: number;
+  assignmentEntryIds?: number[];
+  shiftSeriesLinks?: ShiftAssignmentSeriesLinkSummaryResponse[];
   id?: number;
   eventSeriesId?: number;
-  assignmentDefinitionId?: number;
-  /** @nullable */
-  title?: string | null;
-  /** @nullable */
-  description?: string | null;
-  /** @nullable */
-  notes?: string | null;
-  /** @nullable */
-  color?: string | null;
-  /** @nullable */
-  recurrenceRule?: string | null;
-  /** @nullable */
-  timeZoneId?: string | null;
-  /** @nullable */
-  startAtUtc?: string | null;
-  /** @nullable */
-  endAtUtc?: string | null;
-  allDay?: boolean;
   /** @nullable */
   eventTypeCode?: string | null;
   /** @nullable */
@@ -37,16 +29,23 @@ export interface AssignmentSeriesResponse {
   cancelledByUserId?: string | null;
   /** @nullable */
   cancellationReason?: string | null;
+  eventIds?: number[];
+  /** @nullable */
+  recurrenceRule?: string | null;
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  color?: string | null;
+  startAtUtc?: string;
+  /** @nullable */
+  endAtUtc?: string | null;
+  /** @nullable */
+  timeZoneId?: string | null;
+  allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
-  categoryId?: number;
-  /** @nullable */
-  categoryName?: string | null;
-  subCategoryId?: number;
-  /** @nullable */
-  subCategoryName?: string | null;
-  capacity?: number;
-  eventIds?: number[];
-  assignmentEntryIds?: number[];
-  shiftSeriesLinks?: ShiftAssignmentSeriesLinkSummaryResponse[];
+  userIds?: string[];
 }

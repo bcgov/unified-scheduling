@@ -8,22 +8,26 @@ import type { ShiftSeriesLinkRequest } from './shiftSeriesLinkRequest.ts';
 
 export interface AssignmentSeriesRequest {
   assignmentDefinitionId?: number;
+  categoryId?: number;
+  subCategoryId?: number;
+  capacity?: number;
+  shiftSeriesLinks?: ShiftSeriesLinkRequest[];
+  /** @nullable */
+  recurrenceRule?: string | null;
   title?: string;
   /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;
-  color?: string;
   /** @nullable */
-  recurrenceRule?: string | null;
+  color?: string | null;
+  startAtUtc?: string;
+  /** @nullable */
+  endAtUtc?: string | null;
   /** @nullable */
   timeZoneId?: string | null;
-  startAtUtc?: string;
-  endAtUtc?: string;
   allDay?: boolean;
-  locationId?: number;
-  categoryId?: number;
-  subCategoryId?: number;
-  capacity?: number;
-  shiftSeriesLinks?: ShiftSeriesLinkRequest[];
+  /** @nullable */
+  locationId?: number | null;
+  userIds?: string[];
 }
