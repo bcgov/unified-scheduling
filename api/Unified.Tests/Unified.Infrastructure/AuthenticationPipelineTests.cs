@@ -97,7 +97,7 @@ public class AuthenticationPipelineTests
         var rejectedResponse = Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Unauthorized);
         Assert.False(
             rejectedResponse.Headers.TryGetValues("Set-Cookie", out var rejectedCookies)
-            && rejectedCookies.Any(cookie => cookie.Contains("UnifiedAuth.Development=;", StringComparison.Ordinal))
+                && rejectedCookies.Any(cookie => cookie.Contains("UnifiedAuth.Development=;", StringComparison.Ordinal))
         );
         Assert.Equal(2, handler.CallCount);
     }
@@ -135,7 +135,10 @@ public class AuthenticationPipelineTests
         using var server = CreateServer();
         using var client = server.CreateClient();
 
-        var response = await client.GetAsync("/api/auth/login?redirectUri=%2Fdashboard", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync(
+            "/api/auth/login?redirectUri=%2Fdashboard",
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.NotNull(response.Headers.Location);
@@ -158,9 +161,7 @@ public class AuthenticationPipelineTests
                 );
                 if (refreshHandler is not null)
                 {
-                    services
-                        .AddHttpClient("TokenRefresh")
-                        .ConfigurePrimaryHttpMessageHandler(() => refreshHandler);
+                    services.AddHttpClient("TokenRefresh").ConfigurePrimaryHttpMessageHandler(() => refreshHandler);
                 }
                 services.PostConfigure<OpenIdConnectOptions>(
                     OpenIdConnectDefaults.AuthenticationScheme,
@@ -203,8 +204,8 @@ public class AuthenticationPipelineTests
         params Claim[] additionalClaims
     )
     {
-        var options = server.Services
-            .GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
+        var options = server
+            .Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
             .Get(CookieAuthenticationDefaults.AuthenticationScheme);
         var properties = AuthenticationServiceCollectionExtensionTests.CreateProperties(
             expiresAt.ToString("O"),
@@ -234,8 +235,8 @@ public class AuthenticationPipelineTests
 
     private static string GetCombinedCookieHeader(HttpResponseMessage response)
     {
-        var cookiePairs = response.Headers
-            .GetValues("Set-Cookie")
+        var cookiePairs = response
+            .Headers.GetValues("Set-Cookie")
             .Select(header => header.Split(';', 2)[0])
             .Where(cookie => !cookie.EndsWith("=", StringComparison.Ordinal))
             .ToArray();

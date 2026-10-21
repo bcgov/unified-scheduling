@@ -63,8 +63,7 @@ public static class AuthenticationServiceCollectionExtension
         }
 
         var externalSubject =
-            cookieCtx.Principal.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? cookieCtx.Principal.FindFirstValue("sub");
+            cookieCtx.Principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? cookieCtx.Principal.FindFirstValue("sub");
         if (string.IsNullOrWhiteSpace(externalSubject))
         {
             cookieCtx.RejectPrincipal();
@@ -73,10 +72,7 @@ public static class AuthenticationServiceCollectionExtension
         }
 
         var expiresAt = cookieCtx.Properties.GetTokenValue("expires_at");
-        if (
-            string.IsNullOrWhiteSpace(expiresAt)
-            || !DateTimeOffset.TryParse(expiresAt, out var accessTokenExpiration)
-        )
+        if (string.IsNullOrWhiteSpace(expiresAt) || !DateTimeOffset.TryParse(expiresAt, out var accessTokenExpiration))
         {
             cookieCtx.RejectPrincipal();
             await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -108,11 +104,11 @@ public static class AuthenticationServiceCollectionExtension
             return;
         }
 
-        var logger = cookieCtx.HttpContext.RequestServices
-            .GetRequiredService<ILoggerFactory>()
+        var logger = cookieCtx
+            .HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
             .CreateLogger(nameof(AuthenticationServiceCollectionExtension));
-        var httpClient = cookieCtx.HttpContext.RequestServices
-            .GetRequiredService<IHttpClientFactory>()
+        var httpClient = cookieCtx
+            .HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>()
             .CreateClient("TokenRefresh");
         var tokenEndpoint = string.IsNullOrWhiteSpace(keycloakOptions.RefreshTokenEndpoint)
             ? $"{keycloakOptions.Authority.TrimEnd('/')}/protocol/openid-connect/token"
@@ -130,11 +126,7 @@ public static class AuthenticationServiceCollectionExtension
                     ["refresh_token"] = refreshToken,
                 }
             );
-            response = await httpClient.PostAsync(
-                tokenEndpoint,
-                content,
-                cookieCtx.HttpContext.RequestAborted
-            );
+            response = await httpClient.PostAsync(tokenEndpoint, content, cookieCtx.HttpContext.RequestAborted);
         }
         catch (OperationCanceledException) when (!cookieCtx.HttpContext.RequestAborted.IsCancellationRequested)
         {
@@ -155,7 +147,12 @@ public static class AuthenticationServiceCollectionExtension
         {
             if (!response.IsSuccessStatusCode)
             {
-                if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                if (
+                    response.StatusCode
+                    is HttpStatusCode.BadRequest
+                        or HttpStatusCode.Unauthorized
+                        or HttpStatusCode.Forbidden
+                )
                 {
                     cookieCtx.RejectPrincipal();
                 }
@@ -214,10 +211,7 @@ public static class AuthenticationServiceCollectionExtension
                 new()
                 {
                     Name = "expires_at",
-                    Value = timeProvider
-                        .GetUtcNow()
-                        .AddSeconds(tokenResponse.ExpiresIn)
-                        .ToString("O"),
+                    Value = timeProvider.GetUtcNow().AddSeconds(tokenResponse.ExpiresIn).ToString("O"),
                 },
             };
             if (!string.IsNullOrWhiteSpace(replacementIdToken))
@@ -264,8 +258,7 @@ public static class AuthenticationServiceCollectionExtension
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         return context.Response.CompleteAsync();
                     },
-                    OnValidatePrincipal = ctx =>
-                        ValidateAndRefreshPrincipalAsync(ctx, keycloakOptions),
+                    OnValidatePrincipal = ctx => ValidateAndRefreshPrincipalAsync(ctx, keycloakOptions),
                 };
             })
             .AddOpenIdConnect(options =>

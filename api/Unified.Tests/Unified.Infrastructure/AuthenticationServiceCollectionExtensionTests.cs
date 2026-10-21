@@ -25,13 +25,19 @@ public class AuthenticationServiceCollectionExtensionTests
     public void AddUnifiedAuthentication_Should_Map_IdirClaims_From_UserInfo()
     {
         using var provider = CreateServiceProvider();
-        var options = provider.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>().Get(OpenIdConnectDefaults.AuthenticationScheme);
+        var options = provider
+            .GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
+            .Get(OpenIdConnectDefaults.AuthenticationScheme);
 
         Assert.True(options.GetClaimsFromUserInfoEndpoint);
-        Assert.Contains(options.ClaimActions.OfType<JsonKeyClaimAction>(), action =>
-            action.ClaimType == UnifiedClaimTypes.IdirId && action.JsonKey == "idir_user_guid");
-        Assert.Contains(options.ClaimActions.OfType<JsonKeyClaimAction>(), action =>
-            action.ClaimType == "idir_username" && action.JsonKey == "idir_username");
+        Assert.Contains(
+            options.ClaimActions.OfType<JsonKeyClaimAction>(),
+            action => action.ClaimType == UnifiedClaimTypes.IdirId && action.JsonKey == "idir_user_guid"
+        );
+        Assert.Contains(
+            options.ClaimActions.OfType<JsonKeyClaimAction>(),
+            action => action.ClaimType == "idir_username" && action.JsonKey == "idir_username"
+        );
     }
 
     [Fact]
@@ -214,7 +220,9 @@ public class AuthenticationServiceCollectionExtensionTests
     [InlineData(HttpStatusCode.BadRequest)]
     [InlineData(HttpStatusCode.Unauthorized)]
     [InlineData(HttpStatusCode.Forbidden)]
-    public async Task CookieValidation_NonRecoverableRefreshFailure_Should_Reject_Without_Deleting_Cookie(HttpStatusCode status)
+    public async Task CookieValidation_NonRecoverableRefreshFailure_Should_Reject_Without_Deleting_Cookie(
+        HttpStatusCode status
+    )
     {
         var (options, authenticationService) = CreateCookieOptions();
         var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(status));
@@ -260,14 +268,28 @@ public class AuthenticationServiceCollectionExtensionTests
         var first = CreateRefreshContext(options, authenticationService, handler, 30, timeProvider, requestServices);
         await options.Events.OnValidatePrincipal(first);
 
-        var duringCooldown = CreateRefreshContext(options, authenticationService, handler, 30, timeProvider, requestServices);
+        var duringCooldown = CreateRefreshContext(
+            options,
+            authenticationService,
+            handler,
+            30,
+            timeProvider,
+            requestServices
+        );
         await options.Events.OnValidatePrincipal(duringCooldown);
 
         Assert.NotNull(duringCooldown.Principal);
         Assert.Equal(1, handler.CallCount);
 
         timeProvider.Advance(TimeSpan.FromSeconds(11));
-        var afterCooldown = CreateRefreshContext(options, authenticationService, handler, 30, timeProvider, requestServices);
+        var afterCooldown = CreateRefreshContext(
+            options,
+            authenticationService,
+            handler,
+            30,
+            timeProvider,
+            requestServices
+        );
         await options.Events.OnValidatePrincipal(afterCooldown);
 
         Assert.Equal(2, handler.CallCount);
@@ -278,9 +300,10 @@ public class AuthenticationServiceCollectionExtensionTests
     {
         var timeProvider = new MutableTimeProvider(new DateTimeOffset(2026, 10, 21, 12, 0, 0, TimeSpan.Zero));
         var (options, authenticationService) = CreateCookieOptions();
-        var responses = new Queue<HttpResponseMessage>(
-            [new HttpResponseMessage(HttpStatusCode.ServiceUnavailable), SuccessResponse()]
-        );
+        var responses = new Queue<HttpResponseMessage>([
+            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
+            SuccessResponse(),
+        ]);
         var handler = new RecordingHttpMessageHandler(_ => responses.Dequeue());
         using var requestServices = CreateRequestServices(authenticationService, handler, timeProvider);
         var first = CreateRefreshContext(options, authenticationService, handler, 30, timeProvider, requestServices);
@@ -393,9 +416,10 @@ public class AuthenticationServiceCollectionExtensionTests
     )
     {
         var (options, authenticationService) = CreateCookieOptions();
-        var handler = new RecordingHttpMessageHandler(
-            _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("not-json") }
-        );
+        var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("not-json"),
+        });
         var context = CreateRefreshContext(options, authenticationService, handler, expirationOffsetSeconds);
 
         await options.Events.OnValidatePrincipal(context);
@@ -408,16 +432,16 @@ public class AuthenticationServiceCollectionExtensionTests
     public async Task TicketReceived_Should_Retain_Only_Refresh_Id_And_Expiration_Tokens()
     {
         using var provider = CreateServiceProvider();
-        var options = provider.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>().Get(OpenIdConnectDefaults.AuthenticationScheme);
+        var options = provider
+            .GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
+            .Get(OpenIdConnectDefaults.AuthenticationScheme);
         var expiresAt = DateTimeOffset.UtcNow.AddHours(1).ToString("O");
         var properties = CreateProperties(expiresAt, "refresh", "id", "access");
-        properties.StoreTokens(
-            [
-                .. properties.GetTokens(),
-                new AuthenticationToken { Name = "token_type", Value = "Bearer" },
-                new AuthenticationToken { Name = "scope", Value = "openid profile" },
-            ]
-        );
+        properties.StoreTokens([
+            .. properties.GetTokens(),
+            new AuthenticationToken { Name = "token_type", Value = "Bearer" },
+            new AuthenticationToken { Name = "scope", Value = "openid profile" },
+        ]);
         var context = new TicketReceivedContext(
             new DefaultHttpContext { RequestServices = provider },
             new AuthenticationScheme(OpenIdConnectDefaults.AuthenticationScheme, null, typeof(OpenIdConnectHandler)),
@@ -471,7 +495,9 @@ public class AuthenticationServiceCollectionExtensionTests
     private static (CookieAuthenticationOptions, RecordingAuthenticationService) CreateCookieOptions()
     {
         using var provider = CreateServiceProvider();
-        var options = provider.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(CookieAuthenticationDefaults.AuthenticationScheme);
+        var options = provider
+            .GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
+            .Get(CookieAuthenticationDefaults.AuthenticationScheme);
         return (options, new RecordingAuthenticationService());
     }
 
@@ -490,7 +516,12 @@ public class AuthenticationServiceCollectionExtensionTests
             .Build();
 
     internal static ClaimsPrincipal CreatePrincipal(params Claim[] additionalClaims) =>
-        new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "external-user"), .. additionalClaims], CookieAuthenticationDefaults.AuthenticationScheme));
+        new(
+            new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, "external-user"), .. additionalClaims],
+                CookieAuthenticationDefaults.AuthenticationScheme
+            )
+        );
 
     internal static AuthenticationProperties CreateProperties(
         string? expiresAt,
@@ -549,7 +580,11 @@ public class AuthenticationServiceCollectionExtensionTests
     {
         requestServices ??= CreateRequestServices(authenticationService, handler, timeProvider);
         var httpContext = new DefaultHttpContext { RequestServices = requestServices };
-        var scheme = new AuthenticationScheme(CookieAuthenticationDefaults.AuthenticationScheme, null, typeof(CookieAuthenticationHandler));
+        var scheme = new AuthenticationScheme(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            null,
+            typeof(CookieAuthenticationHandler)
+        );
         var ticket = new AuthenticationTicket(principal, properties, CookieAuthenticationDefaults.AuthenticationScheme);
         return new CookieValidatePrincipalContext(httpContext, scheme, options, ticket);
     }
@@ -589,7 +624,10 @@ public class AuthenticationServiceCollectionExtensionTests
     {
         public int CallCount { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
         {
             CallCount++;
             return Task.FromResult(responseFactory(request));
@@ -599,16 +637,30 @@ public class AuthenticationServiceCollectionExtensionTests
     private sealed class TestHttpClientFactory(HttpMessageHandler handler) : IHttpClientFactory
     {
         private readonly HttpClient _client = new(handler, disposeHandler: false);
+
         public HttpClient CreateClient(string name) => _client;
     }
 
     private sealed class RecordingAuthenticationService : IAuthenticationService
     {
         public int SignOutCallCount { get; private set; }
-        public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme) => Task.FromResult(AuthenticateResult.NoResult());
-        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => Task.CompletedTask;
-        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => Task.CompletedTask;
-        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties) => Task.CompletedTask;
+
+        public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme) =>
+            Task.FromResult(AuthenticateResult.NoResult());
+
+        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
+
+        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
+
+        public Task SignInAsync(
+            HttpContext context,
+            string? scheme,
+            ClaimsPrincipal principal,
+            AuthenticationProperties? properties
+        ) => Task.CompletedTask;
+
         public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
         {
             SignOutCallCount++;

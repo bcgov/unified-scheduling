@@ -63,10 +63,7 @@ public class StatRecordsControllerTests
         {
             ControllerContext = new ControllerContext
             {
-                HttpContext = new DefaultHttpContext
-                {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test")),
-                },
+                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test")) },
             },
         };
     }
@@ -122,7 +119,10 @@ public class StatRecordsControllerTests
     {
         public int CallCount { get; private set; }
 
-        public Task<IReadOnlyCollection<StatRecordResponse>> GetAllAsync(StatRecordQueryParams? queryParams = null, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<StatRecordResponse>> GetAllAsync(
+            StatRecordQueryParams? queryParams = null,
+            CancellationToken cancellationToken = default
+        )
         {
             CallCount++;
             return Task.FromResult<IReadOnlyCollection<StatRecordResponse>>([]);
@@ -134,31 +134,58 @@ public class StatRecordsControllerTests
             return Task.FromResult<StatRecordResponse?>(null);
         }
 
-        public Task<StatRecordResponse> CreateAsync(StatRecordRequest request, Guid callerUserId, bool callerCanEnterForOthers, CancellationToken cancellationToken = default)
+        public Task<StatRecordResponse> CreateAsync(
+            StatRecordRequest request,
+            Guid callerUserId,
+            bool callerCanEnterForOthers,
+            CancellationToken cancellationToken = default
+        )
         {
             CallCount++;
             return Task.FromResult(new StatRecordResponse());
         }
 
-        public Task<IReadOnlyCollection<StatRecordResponse>> CreateBatchAsync(IReadOnlyList<StatRecordRequest> requests, Guid callerUserId, bool callerCanEnterForOthers, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<StatRecordResponse>> CreateBatchAsync(
+            IReadOnlyList<StatRecordRequest> requests,
+            Guid callerUserId,
+            bool callerCanEnterForOthers,
+            CancellationToken cancellationToken = default
+        )
         {
             CallCount++;
             return Task.FromResult<IReadOnlyCollection<StatRecordResponse>>([]);
         }
 
-        public Task<StatRecordResponse?> UpdateAsync(int id, StatRecordRequest request, Guid callerUserId, bool callerCanEnterForOthers, CancellationToken cancellationToken = default)
+        public Task<StatRecordResponse?> UpdateAsync(
+            int id,
+            StatRecordRequest request,
+            Guid callerUserId,
+            bool callerCanEnterForOthers,
+            CancellationToken cancellationToken = default
+        )
         {
             CallCount++;
             return Task.FromResult<StatRecordResponse?>(new StatRecordResponse());
         }
 
-        public Task<bool> DeleteAsync(int id, Guid callerUserId, bool callerCanEnterForOthers, CancellationToken cancellationToken = default)
+        public Task<bool> DeleteAsync(
+            int id,
+            Guid callerUserId,
+            bool callerCanEnterForOthers,
+            CancellationToken cancellationToken = default
+        )
         {
             CallCount++;
             return Task.FromResult(true);
         }
 
-        public Task<IReadOnlyCollection<StatRecordResponse>> SaveDayAsync(SaveDayRequest request, Guid callerUserId, bool callerCanEnterForOthers, bool canOverrideSignedOff = false, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyCollection<StatRecordResponse>> SaveDayAsync(
+            SaveDayRequest request,
+            Guid callerUserId,
+            bool callerCanEnterForOthers,
+            bool canOverrideSignedOff = false,
+            CancellationToken cancellationToken = default
+        )
         {
             CallCount++;
             return Task.FromResult<IReadOnlyCollection<StatRecordResponse>>([]);

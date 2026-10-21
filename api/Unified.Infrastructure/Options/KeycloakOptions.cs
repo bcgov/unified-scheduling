@@ -37,7 +37,12 @@ public class KeycloakOptions
     /// <summary>
     /// Time before access-token expiration when refresh should be attempted.
     /// </summary>
-    [Range(typeof(TimeSpan), "00:00:00.0000001", "10675199.02:48:05.4775807", ErrorMessage = "TokenRefreshThreshold must be greater than zero")]
+    [Range(
+        typeof(TimeSpan),
+        "00:00:00.0000001",
+        "10675199.02:48:05.4775807",
+        ErrorMessage = "TokenRefreshThreshold must be greater than zero"
+    )]
     public TimeSpan TokenRefreshThreshold { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
