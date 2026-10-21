@@ -32,3 +32,21 @@ export function canCreateShifts(context: CalendarRuntimeContext) {
 export function canEditShifts(context: CalendarRuntimeContext) {
   return hasCalendarPermission(context, Permissions.ShiftsEdit);
 }
+
+const isLeaveEnabled = (context: CalendarRuntimeContext) => context.featureFlags?.Leave?.enabled ?? true;
+
+export function canViewLeave(context: CalendarRuntimeContext) {
+  return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveView);
+}
+
+export function canCreateLeave(context: CalendarRuntimeContext) {
+  return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveCreateAndAssign);
+}
+
+export function canEditLeave(context: CalendarRuntimeContext) {
+  return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveEdit);
+}
+
+export function canDeleteLeave(context: CalendarRuntimeContext) {
+  return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveDelete);
+}

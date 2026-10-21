@@ -11,6 +11,7 @@ import {
   calendarDropAction,
   calendarDropUserOnAssignmentResourceAction,
   calendarScheduleStaffAction,
+  calendarSchedulingCreateShiftAction,
   calendarSchedulingEventDetailAction,
   calendarSchedulingHeaderShowConflictAction,
   calendarSchedulingResolveConflictAction,
@@ -46,6 +47,34 @@ describe('calendarSchedulingActions', () => {
     setActivePinia(createPinia());
     closeCalendarSchedulingAssignmentModal();
     closeCalendarSchedulingResourceActionModal();
+  });
+
+  it('makes create shift available only in the schedule view for shift or leave creators', () => {
+    const createContext = {
+      startDate: '2026-07-14',
+      endDate: '2026-07-14',
+      activeViewId: 'calendar-default',
+      filters: {},
+    };
+    const scheduleContext = { ...createContext, activeViewId: 'calendar.matrix-schedule' };
+    const shiftCreator = {
+      featureFlags: {},
+      permissions: [Permissions.ShiftsCreateAndAssign],
+    };
+    const leaveCreator = {
+      featureFlags: { Leave: { enabled: true } },
+      permissions: [Permissions.LeaveCreateAndAssign],
+    };
+    const noPermissions = {
+      featureFlags: { Leave: { enabled: true } },
+      permissions: [],
+    };
+
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, shiftCreator)).toBe(true);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(createContext, shiftCreator)).toBe(false);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, leaveCreator)).toBe(true);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(createContext, leaveCreator)).toBe(false);
+    expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, noPermissions)).toBe(false);
   });
 
   it('opens the add assignment modal on the first date in the displayed range', async () => {
@@ -739,6 +768,56 @@ describe('calendarSchedulingActions', () => {
         },
       },
       writableRuntimeContext,
+    );
+
+    expect(calendarSchedulingResourceActionDate.value).toBe('2026-07-14');
+    expect(calendarSchedulingResourceActionResource.value).toEqual({
+      id: 'user-1',
+      type: 'user',
+      title: 'Alex Alpha',
+    });
+  });
+
+  it('makes the add-resource action available when the user can create leave without shifts', () => {
+    const context = {
+      resource: { id: 'user-1', type: 'user', title: 'Alex Alpha' },
+      cell: { resourceId: 'user-1', date: '2026-07-14', groups: [] },
+      actionId: calendarSchedulingActionIds.addResource,
+      model: {
+        timeZone: 'America/Vancouver',
+        days: [{ date: '2026-07-14', label: 'Tue, Jul 14' }],
+        primaryColumn: { label: 'TEAM', resources: [] },
+        cells: [],
+      },
+    };
+    const leaveOnlyContext = {
+      featureFlags: { Leave: { enabled: true } },
+      permissions: [Permissions.LeaveCreateAndAssign],
+    };
+
+    expect(calendarAddResourceAction.isAvailable?.(context, leaveOnlyContext)).toBe(true);
+    expect(calendarAddResourceAction.isAvailable?.(context, { featureFlags: {}, permissions: [] })).toBe(false);
+  });
+
+  it('opens the add-resource modal when the user can create leave without shifts', async () => {
+    const leaveOnlyContext = {
+      featureFlags: { Leave: { enabled: true } },
+      permissions: [Permissions.LeaveCreateAndAssign],
+    };
+
+    await calendarAddResourceAction.execute(
+      {
+        resource: { id: 'user-1', type: 'user', title: 'Alex Alpha' } as never,
+        cell: { resourceId: 'user-1', date: '2026-07-14', groups: [] },
+        actionId: calendarSchedulingActionIds.addResource,
+        model: {
+          timeZone: 'America/Vancouver',
+          days: [{ date: '2026-07-14', label: 'Tue, Jul 14' }],
+          primaryColumn: { label: 'TEAM', resources: [] },
+          cells: [],
+        },
+      },
+      leaveOnlyContext,
     );
 
     expect(calendarSchedulingResourceActionDate.value).toBe('2026-07-14');

@@ -4,6 +4,8 @@ using Unified.Calendar.Services;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
+using Unified.Leave;
+using Unified.Leave.Services;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 
@@ -13,13 +15,15 @@ public sealed class SchedulingCalendarService(
     ILogger<SchedulingCalendarService> logger,
     UnifiedDbContext db,
     ICalendarTimeZoneResolver timeZoneResolver,
-    ITimeZoneService timeZoneService
+    ITimeZoneService timeZoneService,
+    ILeaveCalendarDataProvider? leaveCalendarDataProvider = null
 ) : ISchedulingCalendarService
 {
     public async Task<SchedulingCalendarDataResponse> GetDataAsync(
         SchedulingCalendarRequest request,
         bool includeShifts,
         bool includeAssignments,
+        bool includeLeave,
         CancellationToken cancellationToken = default
     )
     {
@@ -89,6 +93,24 @@ public sealed class SchedulingCalendarService(
             events.AddRange(
                 (await query.ToListAsync(cancellationToken)).Select(AssignmentResponseMapper.ToCalendarEventResponse)
             );
+        }
+
+        if (includeLeave)
+        {
+            if (leaveCalendarDataProvider is not null)
+            {
+                var leaveEvents = await leaveCalendarDataProvider.GetEventsAsync(
+                    new CalendarEventQueryContext
+                    {
+                        StartAtUtc = range.StartAtUtc,
+                        EndAtUtc = range.EndAtUtc,
+                        LocationId = request.LocationId,
+                        UserIds = request.UserIds ?? [],
+                    },
+                    cancellationToken
+                );
+                events.AddRange(leaveEvents.Select(SchedulingCalendarEventMapper.ToResponse));
+            }
         }
 
         var response = new SchedulingCalendarDataResponse

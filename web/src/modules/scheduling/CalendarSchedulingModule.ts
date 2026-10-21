@@ -12,6 +12,7 @@ import {
   calendarSchedulingHeaderDetailAction,
   calendarSchedulingHeaderResolveConflictAction,
   calendarSchedulingHeaderShowConflictAction,
+  calendarSchedulingHeaderLeaveDetailAction,
   calendarSchedulingResolveConflictAction,
   calendarSchedulingShowConflictAction,
 } from './calendarSchedulingActions';
@@ -40,6 +41,7 @@ export function registerCalendarSchedulingModule() {
   calendarActionRegistry.registerMatrixResourceAction(calendarAddResourceAction);
   calendarActionRegistry.registerMatrixResourceAction(calendarAddAssignmentResourceAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderDetailAction);
+  calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderLeaveDetailAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowConflictAction);
   calendarActionRegistry.registerMatrixCellHeaderAction(calendarSchedulingHeaderResolveConflictAction);
   calendarActionRegistry.registerMatrixEventBlockAction(calendarSchedulingShowConflictAction);

@@ -156,6 +156,7 @@ public sealed class SchedulingAuthorizationTests
             SchedulingCalendarRequest request,
             bool includeShifts,
             bool includeAssignments,
+            bool includeLeave,
             CancellationToken cancellationToken = default
         )
         {

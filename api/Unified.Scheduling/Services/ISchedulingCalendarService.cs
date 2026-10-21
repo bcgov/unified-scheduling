@@ -8,6 +8,7 @@ public interface ISchedulingCalendarService
         SchedulingCalendarRequest request,
         bool includeShifts,
         bool includeAssignments,
+        bool includeLeave,
         CancellationToken cancellationToken = default
     );
 }

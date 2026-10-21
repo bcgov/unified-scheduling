@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { mdiRepeat } from '@mdi/js';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
+import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
@@ -53,10 +55,12 @@ import {
   calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
+  calendarSchedulingLeaveDetailEvent,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingResourceActionModal,
+  closeCalendarSchedulingLeaveDetail,
   getCalendarSchedulingHeaderConflictKey,
   isCalendarSchedulingAssignmentModalOpen,
   isCalendarSchedulingResourceActionModalOpen,
@@ -64,7 +68,8 @@ import {
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
 } from './calendarSchedulingState';
-import { canCreateShifts, canEditShifts } from './calendarSchedulingPermissions';
+import { canCreateShifts, canEditShifts, canCreateLeave, canEditLeave } from './calendarSchedulingPermissions';
+import { isCalendarSchedulingEvent, isLeaveEvent } from './calendarSchedulingData';
 
 const props = defineProps<{
   model: CalendarMatrixViewModel;
@@ -81,6 +86,8 @@ const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
 const canCreateShift = computed(() => Boolean(props.runtimeContext && canCreateShifts(props.runtimeContext)));
 const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShifts(props.runtimeContext)));
+const canAllowCreateLeave = computed(() => Boolean(props.runtimeContext && canCreateLeave(props.runtimeContext)));
+const canAllowEditLeave = computed(() => Boolean(props.runtimeContext && canEditLeave(props.runtimeContext)));
 
 function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
   if (item.type !== 'assignment') {
@@ -100,8 +107,15 @@ function handleAssignmentDefinitionSaved() {
   calendarStore.refresh();
 }
 
+function isRecurringLeave(event: CalendarEventBase) {
+  return (
+    isLeaveEvent(event) &&
+    (event.eventSeriesId != null || (isCalendarSchedulingEvent(event) && event.metadata.leaveSeriesId != null))
+  );
+}
+
 function editExistingShift() {
-  if (!canEditShift.value) {
+  if (!canEditShift.value && !canAllowEditLeave.value) {
     return;
   }
 
@@ -115,7 +129,7 @@ function editExistingShift() {
 }
 
 function createNewShift() {
-  if (!canCreateShift.value) {
+  if (!canCreateShift.value && !canAllowCreateLeave.value) {
     return;
   }
 
@@ -330,6 +344,16 @@ function isAssignmentEvent(event: CalendarEventBase) {
           @drag-start="onDragStart"
           @event-click="onEventClick"
         >
+          <template #header>
+            <span
+              v-if="isRecurringLeave(event)"
+              class="calendar-scheduling-event-block__recurrence"
+              title="Recurring leave"
+            >
+              <v-icon :icon="mdiRepeat" size="small" aria-label="Recurring" />
+            </span>
+            {{ event.title }}
+          </template>
           <CalendarSchedulingAssignmentEventContent v-if="showAssignmentContent" :event="event" />
         </CalendarMatrixEventBlock>
 
@@ -349,6 +373,13 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :event="calendarSchedulingDetailEvent"
     :initial-open-scope="calendarSchedulingDetailInitialOpenScope"
     @close="closeCalendarSchedulingEventDetail"
+  />
+
+  <CalendarSchedulingLeaveDetailModal
+    v-if="calendarSchedulingLeaveDetailEvent"
+    :event="calendarSchedulingLeaveDetailEvent"
+    :runtime-context="runtimeContext"
+    @close="closeCalendarSchedulingLeaveDetail"
   />
 
   <CalendarSchedulingAssignmentDefinitionCreateModal
@@ -382,7 +413,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     <p>This team member already has an active shift on this date. Would you like to edit it or create a new shift?</p>
 
     <template #actions>
-      <UaBtn v-if="canCreateShift" variant="outlined" @click="createNewShift">Create new shift</UaBtn>
+      <UaBtn v-if="canCreateShift" variant="outlined" @click="createNewShift"> Create new shift </UaBtn>
       <UaBtn v-if="canEditShift" color="primary" variant="flat" @click="editExistingShift">Edit existing shift</UaBtn>
     </template>
   </UaModal>

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.Leave;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
@@ -35,7 +36,6 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<UserActingPosition> UserActingPositions { get; set; }
     public DbSet<UserAwayLocation> UserAwayLocations { get; set; }
     public DbSet<LeaveType> LeaveTypes { get; set; }
-    public DbSet<UserLeave> UserLeaves { get; set; }
     public DbSet<EventStatusType> EventStatusTypes { get; set; }
     public DbSet<EventType> EventTypes { get; set; }
     public DbSet<PositionType> PositionTypes { get; set; }
@@ -61,6 +61,10 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<ShiftAssignmentSeriesLinkUser> ShiftAssignmentSeriesLinkUsers { get; set; }
     public DbSet<ShiftAssignmentEntry> ShiftAssignmentEntries { get; set; }
     public DbSet<ShiftAssignmentEntryUser> ShiftAssignmentEntryUsers { get; set; }
+    public DbSet<LeaveSeries> LeaveSeries { get; set; }
+    public DbSet<LeaveSeriesUser> LeaveSeriesUsers { get; set; }
+    public DbSet<LeaveEntry> LeaveEntries { get; set; }
+    public DbSet<LeaveEntryUser> LeaveEntryUsers { get; set; }
 
     // Stats
     public DbSet<StatGroup> StatGroups { get; set; }

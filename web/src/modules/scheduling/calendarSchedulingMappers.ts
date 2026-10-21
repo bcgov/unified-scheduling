@@ -36,6 +36,8 @@ import {
   type CalendarMatrixViewModel,
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import {
+  isLeaveEvent,
+  leaveEventColor,
   isCalendarSchedulingEvent,
   type CalendarAssignmentCapacitySlotState,
   type CalendarAssignmentPartialCoverageShift,
@@ -89,6 +91,7 @@ export function buildCalendarSchedulingViewModel(
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
   const conflicts = selectCalendarConflicts(response);
+  const leaveEvents = schedulingEvents.filter(isLeaveEvent);
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
@@ -112,17 +115,27 @@ export function buildCalendarSchedulingViewModel(
               isEventOnMatrixDate(event, day.date, timeZone) &&
               assignmentEventBelongsToUserScheduleCell(event, user.id, userShiftEvents),
           );
-
+      const userLeaveEvents = isUnassignedRow
+        ? []
+        : leaveEvents.filter(
+            (event) =>
+              isCalendarSchedulingEvent(event) &&
+              event.metadata.userIds?.includes(user.id) &&
+              isEventOnMatrixDate(event, day.date, timeZone),
+          );
       cells.push({
         resourceId: user.id,
         date: day.date,
-        headers: userShiftEvents.map((event) =>
-          buildCellHeader(
-            event,
-            timeZone,
-            getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
+        headers: [
+          ...userShiftEvents.map((event) =>
+            buildCellHeader(
+              event,
+              timeZone,
+              getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
+            ),
           ),
-        ),
+          ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
+        ],
         groups: [
           {
             id: 'assignments',
@@ -921,4 +934,25 @@ function resolveCalendarSchedulingColor(color?: string | null) {
   }
 
   return calendarMatrixColorMap[normalized as keyof typeof calendarMatrixColorMap] ?? normalized;
+}
+
+function buildLeaveCellHeader(
+  event: CalendarEventBase,
+  timeZone = defaultSchedulingTimeZoneId,
+): CalendarMatrixCellHeader {
+  const leaveTypeName = isCalendarSchedulingEvent(event) ? event.metadata.leaveTypeName : undefined;
+  const label = leaveTypeName || event.title || 'Leave';
+
+  return {
+    id: event.id,
+    text: event.allDay
+      ? label
+      : `${label} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
+    title: `Leave: ${label}`,
+    status: event.statusTypeCode,
+    color: resolveCalendarSchedulingColor(event.color ?? leaveEventColor),
+    payload: event,
+    actionId: calendarSchedulingActionIds.viewLeaveDetails,
+    action: { actionId: calendarSchedulingActionIds.viewLeaveDetails, type: CalendarMatrixActionType.Button },
+  };
 }

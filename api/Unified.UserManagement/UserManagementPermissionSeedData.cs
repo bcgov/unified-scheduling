@@ -58,6 +58,30 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
             Id = nameof(Permissions.UsersViewOtherProfiles),
             Description = "View other user profiles",
         },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersLeaveView),
+            Description = "View leave for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersLeaveCreate),
+            Description = "Create leave for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersLeaveEdit),
+            Description = "Edit leave for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersLeaveDelete),
+            Description = "Delete leave for users",
+        },
         // Roles
         new()
         {

@@ -19,10 +19,12 @@ import {
   showCalendarSchedulingExistingShiftChoice,
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
+  showCalendarSchedulingLeaveDetail,
   toggleCalendarSchedulingConflict,
   toggleCalendarSchedulingHeaderConflict,
 } from './calendarSchedulingState';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
+import { isLeaveEvent } from './calendarSchedulingData';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { isSchedulingCancelled } from './schedulingLifecycle';
 import {
@@ -34,9 +36,11 @@ import {
   canAssignAssignments,
   canCreateAssignments,
   canCreateShifts,
+  canCreateLeave,
   canEditAssignments,
   canViewAssignments,
   canViewShifts,
+  canViewLeave,
 } from './calendarSchedulingPermissions';
 
 export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
@@ -44,9 +48,10 @@ export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
   moduleId: CalendarModuleId.SchedulingUi,
   label: '+ Create Shift',
   isAvailable: (context, runtimeContext) =>
-    context.activeViewId === calendarShiftViewContribution.id && canCreateShifts(runtimeContext),
+    context.activeViewId === calendarShiftViewContribution.id &&
+    (canCreateShifts(runtimeContext) || canCreateLeave(runtimeContext)),
   run: (context, runtimeContext) => {
-    if (!canCreateShifts(runtimeContext)) return;
+    if (!canCreateShifts(runtimeContext) && !canCreateLeave(runtimeContext)) return;
     showCalendarSchedulingResourceActionModal(undefined, context.startDate);
   },
 };
@@ -83,9 +88,10 @@ export const calendarAddResourceAction: CalendarMatrixResourceAction = {
   label: 'Add resource',
   order: 10,
   isAvailable: (context, runtimeContext) =>
-    context.actionId === calendarSchedulingActionIds.addResource && canCreateShifts(runtimeContext),
+    context.actionId === calendarSchedulingActionIds.addResource &&
+    (canCreateShifts(runtimeContext) || canCreateLeave(runtimeContext)),
   execute: (context, runtimeContext) => {
-    if (!canCreateShifts(runtimeContext)) return;
+    if (!canCreateShifts(runtimeContext) && !canCreateLeave(runtimeContext)) return;
     showCalendarSchedulingResourceActionModal(context.resource, context.cell?.date);
   },
 };
@@ -205,13 +211,22 @@ export const calendarSchedulingEventDetailAction: CalendarViewDetailAction = {
   id: 'calendar-scheduling.event-detail.modal',
   moduleId: CalendarModuleId.SchedulingUi,
   isAvailable: (context) =>
-    (context.event.sourceModule === CalendarModuleId.SchedulingUi ||
-      context.event.sourceModule === CalendarModuleId.Scheduling ||
-      isAssignmentEvent(context.event)) &&
-    (isAssignmentEvent(context.event)
-      ? canViewAssignments(context.runtimeContext)
-      : canViewShifts(context.runtimeContext)),
+    isLeaveEvent(context.event)
+      ? canViewLeave(context.runtimeContext)
+      : (context.event.sourceModule === CalendarModuleId.SchedulingUi ||
+          context.event.sourceModule === CalendarModuleId.Scheduling ||
+          isAssignmentEvent(context.event)) &&
+        (isAssignmentEvent(context.event)
+          ? canViewAssignments(context.runtimeContext)
+          : canViewShifts(context.runtimeContext)),
   run: (context) => {
+    if (isLeaveEvent(context.event)) {
+      if (canViewLeave(context.runtimeContext)) {
+        showCalendarSchedulingLeaveDetail(context.event);
+      }
+      return;
+    }
+
     if (
       (isAssignmentEvent(context.event) && !canViewAssignments(context.runtimeContext)) ||
       (!isAssignmentEvent(context.event) && !canViewShifts(context.runtimeContext))
@@ -259,6 +274,22 @@ export const calendarSchedulingHeaderDetailAction: CalendarMatrixCellHeaderActio
   execute: (context, runtimeContext) => {
     if (canViewShifts(runtimeContext) && isCalendarEventBase(context.header.payload)) {
       showCalendarSchedulingEventDetail(context.header.payload);
+    }
+  },
+};
+
+export const calendarSchedulingHeaderLeaveDetailAction: CalendarMatrixCellHeaderAction = {
+  id: calendarSchedulingActionIds.viewLeaveDetails,
+  moduleId: CalendarModuleId.SchedulingUi,
+  label: 'View leave details',
+  order: 10,
+  isAvailable: (context, runtimeContext) =>
+    context.actionId === calendarSchedulingActionIds.viewLeaveDetails &&
+    isCalendarEventBase(context.header.payload) &&
+    canViewLeave(runtimeContext),
+  execute: (context, runtimeContext) => {
+    if (canViewLeave(runtimeContext) && isCalendarEventBase(context.header.payload)) {
+      showCalendarSchedulingLeaveDetail(context.header.payload);
     }
   },
 };

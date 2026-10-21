@@ -5,9 +5,14 @@ import type { CalendarResourceBase } from '@/modules/calendar/calendarTypes';
 import { CalendarContributionId, CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
 import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
-import type { CalendarSchedulingEvent, CalendarUser } from '../calendarSchedulingData';
+import {
+  isLeaveEvent,
+  leaveEventColor,
+  type CalendarSchedulingEvent,
+  type CalendarUser,
+} from '../calendarSchedulingData';
 import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
-import { canViewAssignments, canViewShifts } from '../calendarSchedulingPermissions';
+import { canViewAssignments, canViewShifts, canViewLeave } from '../calendarSchedulingPermissions';
 import { useUsersStore } from '@/stores/Users';
 import { formatUserName } from '@/utils/user';
 
@@ -32,7 +37,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
   isAvailable(runtimeContext) {
     return (
       (runtimeContext.featureFlags.Scheduling?.enabled ?? true) &&
-      (canViewShifts(runtimeContext) || canViewAssignments(runtimeContext))
+      (canViewShifts(runtimeContext) || canViewAssignments(runtimeContext) || canViewLeave(runtimeContext))
     );
   },
   onDeactivate() {
@@ -63,6 +68,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
       contributionId: CalendarContributionId.SchedulingEvents,
       events: events.map<CalendarSchedulingEvent>((event) => {
         const assignedUserIds = event.assignedUserIds ?? [];
+        const leaveFields = resolveLeaveFields(event);
 
         return {
           id: event.id,
@@ -71,7 +77,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
           title: event.title,
           description: event.description ?? undefined,
           notes: event.notes ?? undefined,
-          color: event.color ?? undefined,
+          color: event.color ?? (isLeaveEvent(event) ? leaveEventColor : undefined),
           start: event.start,
           end: event.end ?? undefined,
           seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
@@ -106,6 +112,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
             categoryName: event.categoryName ?? undefined,
             subCategoryId: event.subCategoryId ?? undefined,
             subCategoryName: event.subCategoryName ?? undefined,
+            ...leaveFields,
           },
         };
       }),
@@ -115,6 +122,31 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
     };
   },
 };
+
+function resolveLeaveFields(event: object & { id?: unknown }) {
+  const source = event as {
+    id?: unknown;
+    leaveEntryId?: unknown;
+    leaveSeriesId?: unknown;
+    leaveTypeId?: unknown;
+    leaveTypeName?: unknown;
+  };
+  const parsedEntryId = Number(source.leaveEntryId);
+  const entryIdMatch = typeof source.id === 'string' ? /^scheduling\.leave-entry\.(\d+)$/.exec(source.id) : null;
+  const leaveEntryId = Number.isInteger(parsedEntryId) && parsedEntryId > 0 ? parsedEntryId : Number(entryIdMatch?.[1]);
+  const parsedSeriesId = Number(source.leaveSeriesId);
+  const seriesIdMatch = typeof source.id === 'string' ? /^scheduling\.leave-series\.(\d+)$/.exec(source.id) : null;
+  const leaveSeriesId =
+    Number.isInteger(parsedSeriesId) && parsedSeriesId > 0 ? parsedSeriesId : Number(seriesIdMatch?.[1]);
+  const leaveTypeId = Number(source.leaveTypeId);
+
+  return {
+    leaveEntryId: Number.isInteger(leaveEntryId) && leaveEntryId > 0 ? String(leaveEntryId) : undefined,
+    leaveSeriesId: Number.isInteger(leaveSeriesId) && leaveSeriesId > 0 ? String(leaveSeriesId) : undefined,
+    leaveTypeId: Number.isInteger(leaveTypeId) && leaveTypeId > 0 ? leaveTypeId : undefined,
+    leaveTypeName: typeof source.leaveTypeName === 'string' ? source.leaveTypeName : undefined,
+  };
+}
 
 function resolveAssignmentDefinitionId(event: unknown) {
   if (!event || typeof event !== 'object' || !('assignmentDefinitionId' in event)) {

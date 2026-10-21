@@ -20,6 +20,10 @@ public enum Permissions
     UsersView,
     UsersExpire,
     UsersViewOtherProfiles,
+    UsersLeaveCreate,
+    UsersLeaveEdit,
+    UsersLeaveDelete,
+    UsersLeaveView,
 
     // --- Roles ---
     RolesView,
@@ -111,4 +115,10 @@ public enum Permissions
 
     // --- Audit ---
     AuditRead,
+
+    // --- Leave ---
+    LeaveCreateAndAssign,
+    LeaveEdit,
+    LeaveDelete,
+    LeaveView,
 }

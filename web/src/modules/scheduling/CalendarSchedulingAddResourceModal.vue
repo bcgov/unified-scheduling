@@ -28,8 +28,13 @@ import {
 import { useSchedulingEmployeeOptions } from './useSchedulingEmployeeOptions';
 import { useSchedulingAssignmentOptions } from './useSchedulingAssignmentOptions';
 import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
+import { defaultEndTime, defaultStartTime } from './schedulingDateTime';
+import { createLeaveEntry, createLeaveSeries } from '@/modules/leave/api/leaveApi';
+import { buildLeaveRequest } from '@/modules/leave/leaveRequest';
 import type { SelectOption } from '@/types/select';
 import { useAccessControl } from '@/composables/useAccessControl';
+import LeaveForm, { type LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
+import CalendarSchedulingResourceTabs from './CalendarSchedulingResourceTabs.vue';
 
 const props = defineProps<{
   initialDate?: string;
@@ -47,8 +52,22 @@ const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 const accessControl = useAccessControl();
 const canCreateShift = computed(() => accessControl.hasPermission(Permissions.ShiftsCreateAndAssign));
+const canCreateLeave = computed(
+  () =>
+    (accessControl.featureFlags.value?.Leave?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.LeaveCreateAndAssign),
+);
 
 const isSaving = ref(false);
+const activeTab = ref<'schedule' | 'leave'>('schedule');
+const leaveHasValidationError = ref(false);
+const leaveFormData = ref<LeaveFormData>({
+  userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
+  date: props.initialDate ?? '',
+  startTime: defaultStartTime,
+  endTime: defaultEndTime,
+  notes: '',
+});
 const createdShiftId = ref<number | null>(null);
 const hasCreatedUnpublishedShift = computed(() => createdShiftId.value !== null);
 const apiError = ref('');
@@ -108,13 +127,20 @@ const mergedAssignmentEntryOptions = computed(() =>
     assignmentEntryLabelsById.value,
   ),
 );
-const modalTitle = computed(() => 'New Shift');
+const modalTitle = computed(() => formData.value.title ?? '');
 const locationOptions = computed(() => locationsStore.selectOptions);
 
 watch(
   () => [props.resource, props.initialDate, props.initialAssignmentEntryId, props.initialAssignmentEvents] as const,
   ([resource, initialDate]) => {
     formData.value = createInitialFormData(resource, initialDate);
+    leaveFormData.value = {
+      userIds: resource?.type === 'user' ? [resource.id] : [],
+      date: initialDate ?? '',
+      startTime: '',
+      endTime: '',
+      notes: '',
+    };
     createdShiftId.value = null;
     apiError.value = '';
     recurrenceError.value = '';
@@ -334,6 +360,46 @@ async function handleSave() {
   }
 }
 
+async function handleSaveLeave() {
+  apiError.value = '';
+  if (leaveHasValidationError.value) return;
+  if (!canCreateLeave.value) {
+    apiError.value = 'You do not have permission to create leave.';
+    return;
+  }
+
+  const built = buildLeaveRequest(leaveFormData.value, {
+    locationId: activeLocationId.value,
+    timeZoneId: timeZoneId.value,
+    employeeOptions: employeeOptions.value,
+  });
+  if (built.error !== undefined) {
+    apiError.value = built.error;
+    return;
+  }
+
+  isSaving.value = true;
+
+  try {
+    const result =
+      built.kind === 'series' ? await createLeaveSeries(built.request) : await createLeaveEntry(built.request);
+
+    if (result.error.value) {
+      apiError.value =
+        result.error.value.message ||
+        (built.kind === 'series' ? 'Failed to create recurring leave.' : 'Failed to create leave.');
+      return;
+    }
+
+    calendarStore.refresh();
+    emit('close');
+  } catch (error: unknown) {
+    apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+  } finally {
+    isSaving.value = false;
+  }
+}
+
 function handlePublicationFailure() {
   calendarStore.refresh();
   apiError.value =
@@ -384,44 +450,71 @@ function applyServerValidationErrors(rawError: unknown) {
 }
 </script>
 <template>
-  <UaModal :title="modalTitle" width="760" :loading="isSaving" @close="handleClose">
+  <UaModal :title="modalTitle" width="900" :loading="isSaving" @close="handleClose">
     <template #alerts>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>
     </template>
 
-    <div class="resource-shift-modal">
-      <section class="resource-shift-modal__panel">
-        <CalendarSchedulingShiftForm
-          v-model="formData"
-          id-prefix="new-shift"
-          :form-errors="formErrors"
-          :disabled="isSaving || hasCreatedUnpublishedShift || !canCreateShift"
-          :location-options="locationOptions"
-          :employee-options="employeeOptions"
-          :is-loading-users="isLoadingUsers"
-          :assignment-entry-options="mergedAssignmentEntryOptions"
-          :assignment-series-options="assignmentSeriesOptions"
-          :assignment-warning="assignmentWarning"
-          :is-loading-assignments="isLoadingAssignments"
-          :show-series-assignment="isSeriesScope"
-          @recurrence-change="handleRecurrenceChange"
-          @recurrence-invalid="handleRecurrenceInvalid"
-        />
-      </section>
-    </div>
+    <CalendarSchedulingResourceTabs @update:active-tab="activeTab = $event">
+      <template #schedule>
+        <section class="resource-shift-modal__panel">
+          <CalendarSchedulingShiftForm
+            v-model="formData"
+            id-prefix="new-shift"
+            :form-errors="formErrors"
+            :disabled="isSaving || hasCreatedUnpublishedShift || !canCreateShift"
+            :location-options="locationOptions"
+            :employee-options="employeeOptions"
+            :is-loading-users="isLoadingUsers"
+            :assignment-entry-options="mergedAssignmentEntryOptions"
+            :assignment-series-options="assignmentSeriesOptions"
+            :assignment-warning="assignmentWarning"
+            :is-loading-assignments="isLoadingAssignments"
+            :show-series-assignment="isSeriesScope"
+            @recurrence-change="handleRecurrenceChange"
+            @recurrence-invalid="handleRecurrenceInvalid"
+          />
+        </section>
+      </template>
+
+      <template #leave>
+        <section class="resource-shift-modal__panel">
+          <LeaveForm
+            v-model="leaveFormData"
+            :disabled="isSaving || !canCreateLeave"
+            :employee-options="employeeOptions"
+            :loading-employees="isLoadingUsers"
+            :time-zone-id="timeZoneId"
+            show-employees
+            show-repeat
+            @validation-change="leaveHasValidationError = $event"
+          />
+        </section>
+      </template>
+    </CalendarSchedulingResourceTabs>
 
     <template #actions>
       <UaBtn variant="outlined" :disabled="isSaving" @click="handleClose">
         {{ hasCreatedUnpublishedShift ? 'Close' : 'Cancel' }}
       </UaBtn>
       <UaBtn
-        v-if="!hasCreatedUnpublishedShift && canCreateShift"
+        v-if="activeTab === 'schedule' && !hasCreatedUnpublishedShift && canCreateShift"
         color="primary"
         variant="flat"
         :loading="isSaving"
         @click="handleSave"
+      >
+        Save
+      </UaBtn>
+      <UaBtn
+        v-if="activeTab === 'leave' && canCreateLeave"
+        color="primary"
+        variant="flat"
+        :loading="isSaving"
+        :disabled="leaveHasValidationError"
+        @click="handleSaveLeave"
       >
         Save
       </UaBtn>

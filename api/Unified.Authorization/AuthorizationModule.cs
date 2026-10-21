@@ -66,4 +66,26 @@ public static class AuthorizationModule
     {
         return builder.AddPermissionPolicy(permission.ToString());
     }
+
+    /// <summary>
+    /// Registers a named policy that succeeds when the user holds at least one of the given permissions.
+    /// Unlike single-permission policies, a missing permission results in a standard 403 forbid.
+    /// </summary>
+    public static AuthorizationBuilder AddAnyPermissionPolicy(
+        this AuthorizationBuilder builder,
+        string policyName,
+        params Permissions[] permissions
+    )
+    {
+        var values = permissions.Select(p => p.ToString()).ToHashSet();
+        return builder.AddPolicy(
+            policyName,
+            policy =>
+                policy
+                    .RequireAuthenticatedUser()
+                    .RequireAssertion(context =>
+                        context.User.Claims.Any(c => c.Type == UnifiedClaimTypes.Permission && values.Contains(c.Value))
+                    )
+        );
+    }
 }

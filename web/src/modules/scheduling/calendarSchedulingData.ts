@@ -42,6 +42,18 @@ export interface CalendarEventMetadata {
   categoryName?: string;
   subCategoryId?: number;
   subCategoryName?: string;
+  leaveEntryId?: string;
+  leaveSeriesId?: string;
+  leaveTypeId?: number;
+  leaveTypeName?: string;
+}
+
+export const leaveEventType = 'scheduling.leave';
+export const leaveEventTypeCode = 'leave';
+export const leaveEventColor = 'purple';
+
+export function isLeaveEvent(event: { type?: string | null; eventTypeCode?: string | null }) {
+  return event.type === leaveEventType || event.eventTypeCode === leaveEventTypeCode;
 }
 
 export type CalendarAssignmentCapacitySlotState = 'empty' | 'filled' | 'partial';

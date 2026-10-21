@@ -138,7 +138,12 @@ public static class UserManagementModule
             .AddPermissionPolicy(Permissions.AwayLocationsView)
             .AddPermissionPolicy(Permissions.AwayLocationsCreate)
             .AddPermissionPolicy(Permissions.AwayLocationsEdit)
-            .AddPermissionPolicy(Permissions.AwayLocationsExpire);
+            .AddPermissionPolicy(Permissions.AwayLocationsExpire)
+            // Leave
+            .AddPermissionPolicy(Permissions.UsersLeaveCreate)
+            .AddPermissionPolicy(Permissions.UsersLeaveEdit)
+            .AddPermissionPolicy(Permissions.UsersLeaveDelete)
+            .AddPermissionPolicy(Permissions.UsersLeaveView);
 
         return services;
     }

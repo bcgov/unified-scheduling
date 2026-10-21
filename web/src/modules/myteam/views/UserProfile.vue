@@ -54,6 +54,12 @@ const handleEditModalClose = () => {
   showEditUserModal.value = false;
 };
 
+const showLeaveTab = computed(
+  () =>
+    (accessControl.featureFlags.value?.Leave?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.UsersLeaveView),
+);
+
 onMounted(async () => {
   await lookupStore.load(LookupCodeTypes.PositionTypes);
 });
@@ -114,6 +120,9 @@ onMounted(async () => {
           :to="{ name: 'UserTraining', params: { userId: props.userId } }"
         >
           Training
+        </UaBtn>
+        <UaBtn v-if="showLeaveTab" variant="outlined" :to="{ name: 'UserLeave', params: { userId: props.userId } }">
+          Leave
         </UaBtn>
         <UaBtn
           v-if="accessControl.hasPermission(Permissions.AwayLocationsView)"
