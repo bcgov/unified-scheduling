@@ -22,11 +22,20 @@ export const getGetApiTrainingsUsersUserIdResponseMock = (): UserTrainingRespons
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.number.int(),
@@ -37,11 +46,20 @@ export const getGetApiTrainingsUsersUserIdResponseMock = (): UserTrainingRespons
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.number.int(),
@@ -52,11 +70,20 @@ export const getGetApiTrainingsUsersUserIdResponseMock = (): UserTrainingRespons
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
     })),
   ]);
 
@@ -73,11 +100,20 @@ export const getGetApiTrainingsTrainingIdUsersUserIdResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -89,11 +125,20 @@ export const getGetApiTrainingsTrainingIdUsersUserIdResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -105,11 +150,20 @@ export const getGetApiTrainingsTrainingIdUsersUserIdResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);
@@ -119,15 +173,24 @@ export const getGetApiTrainingUserTrainingsExpiryDateResponseMock = (
 ): UserTrainingExpiryDateResponse =>
   faker.helpers.arrayElement([
     {
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);
@@ -145,11 +208,20 @@ export const getPostApiTrainingUserTrainingsResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -161,11 +233,20 @@ export const getPostApiTrainingUserTrainingsResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -177,11 +258,20 @@ export const getPostApiTrainingUserTrainingsResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);
@@ -199,11 +289,20 @@ export const getPutApiTrainingUserTrainingsIdResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -215,11 +314,20 @@ export const getPutApiTrainingUserTrainingsIdResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
     {
@@ -231,11 +339,20 @@ export const getPutApiTrainingUserTrainingsIdResponseMock = (
       trainingCategoryName: faker.string.alpha({ length: { min: 10, max: 20 } }),
       awardedOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
       endingOn: faker.date.past().toISOString().slice(0, 19) + 'Z',
-      expiryDate: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      expiryDate: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       noticeState: faker.string.alpha({ length: { min: 10, max: 20 } }),
-      notes: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      notes: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+        undefined,
+      ]),
       createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+      updatedOn: faker.helpers.arrayElement([
+        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+        undefined,
+      ]),
       ...overrideResponse,
     },
   ]);
