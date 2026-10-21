@@ -4,11 +4,12 @@ import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { mdiLogout, mdiEarth } from '@mdi/js';
 import UaSelect from '@/shared/components/UaSelect.vue';
+import { useBranding } from '@/composables/useBranding';
 
-const bcgovLogo = new URL('/images/bcid-logo-rev-en.svg', import.meta.url).href;
 const navigationStore = useNavigationStore();
 const authStore = useAuthStore();
 const locationsStore = useLocationsStore();
+const branding = useBranding();
 
 const handleLogout = () => {
   authStore.clearUserInfo();
@@ -20,7 +21,11 @@ const handleLogout = () => {
   <div class="app-bar-wrapper">
     <v-app-bar class="app-bar" density="compact" flat>
       <div class="appbar-logo">
-        <img width="177" height="44" :src="bcgovLogo" alt="B.C. Government Logo" />
+        <img width="177" height="44" :src="branding.primaryLogoUrl.value" :alt="branding.primaryLogoAlt.value" />
+      </div>
+      <div v-if="branding.secondaryLogoUrl.value" class="appbar-logo-separator" />
+      <div v-if="branding.secondaryLogoUrl.value" class="appbar-logo appbar-logo--secondary">
+        <img height="65" :src="branding.secondaryLogoUrl.value" :alt="branding.secondaryLogoAlt.value" />
       </div>
       <div v-if="authStore.isRegistered" class="router-link-container">
         <RouterLink
@@ -90,6 +95,22 @@ const handleLogout = () => {
 .appbar-logo {
   margin-left: clamp(var(--ua-spacing-xs), 1.2vw, var(--ua-spacing-xl));
   margin-right: clamp(var(--ua-spacing-xs), 0.8vw, var(--ua-spacing-md));
+  flex: 0 0 auto;
+}
+
+.appbar-logo--secondary {
+  margin-left: 0;
+  display: flex;
+  align-items: center;
+  padding: 4px var(--ua-spacing-sm);
+  border-radius: var(--ua-card-border-radius);
+}
+
+.appbar-logo-separator {
+  width: 1px;
+  align-self: stretch;
+  margin-block: var(--ua-spacing-xs);
+  background-color: rgba(255, 255, 255, 0.4);
   flex: 0 0 auto;
 }
 
