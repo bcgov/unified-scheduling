@@ -47,7 +47,9 @@ public sealed class BiOracleLocationMappingSeedTests
         await seeder.SeedAsync(context, TestContext.Current.CancellationToken);
         await seeder.SeedAsync(context, TestContext.Current.CancellationToken);
 
-        var mapping = await context.BiOracleLocationMappings.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var mapping = await context.BiOracleLocationMappings.SingleAsync(
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         Assert.Equal("1201", mapping.JustinLocationCode);
         Assert.Equal(38, mapping.CrtLocId);
     }
@@ -73,7 +75,9 @@ public sealed class BiOracleLocationMappingSeedTests
             )
         );
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(context, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(context, TestContext.Current.CancellationToken)
+        );
     }
 
     private static BiOracleLocationMappingSeeder Seeder(

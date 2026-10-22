@@ -217,7 +217,9 @@ public sealed class BiOracleStatMappingSeedTests
         await using var context = CreateContext();
         var seeder = Seeder(MappingSet(Mapping(1, 999, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1")));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(context, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(context, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -228,7 +230,9 @@ public sealed class BiOracleStatMappingSeedTests
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         var seeder = Seeder(MappingSet(Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1")));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(context, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(context, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -241,8 +245,12 @@ public sealed class BiOracleStatMappingSeedTests
 
         await seeder.SeedAsync(context, TestContext.Current.CancellationToken);
 
-        var mappingSet = await context.BiOracleStatMappingSets.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
-        var mapping = await context.BiOracleStatMappings.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var mappingSet = await context.BiOracleStatMappingSets.SingleAsync(
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        var mapping = await context.BiOracleStatMappings.SingleAsync(
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         Assert.Equal(new DateOnly(2026, 1, 1), mappingSet.EffectiveDate);
         Assert.Equal(100, mapping.SubCategoryMetricId);
         Assert.Equal("GRD_ESC_HRS_L1", mapping.TargetColumn);
@@ -261,10 +269,14 @@ public sealed class BiOracleStatMappingSeedTests
             null
         );
 
-        await Seeder(definition, new FixedTimeProvider(SeedTime)).SeedAsync(context, TestContext.Current.CancellationToken);
-        await Seeder(definition, new FixedTimeProvider(SeedTime.AddDays(10))).SeedAsync(context, TestContext.Current.CancellationToken);
+        await Seeder(definition, new FixedTimeProvider(SeedTime))
+            .SeedAsync(context, TestContext.Current.CancellationToken);
+        await Seeder(definition, new FixedTimeProvider(SeedTime.AddDays(10)))
+            .SeedAsync(context, TestContext.Current.CancellationToken);
 
-        var mappingSet = await context.BiOracleStatMappingSets.SingleAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var mappingSet = await context.BiOracleStatMappingSets.SingleAsync(
+            cancellationToken: TestContext.Current.CancellationToken
+        );
         Assert.Equal(new DateOnly(2026, 9, 26), mappingSet.EffectiveDate);
     }
 
@@ -303,7 +315,9 @@ public sealed class BiOracleStatMappingSeedTests
             )
         );
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync(context, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            seeder.SeedAsync(context, TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -321,8 +335,16 @@ public sealed class BiOracleStatMappingSeedTests
         await using var secondContext = CreateContext(databaseName);
         await Seeder(definition).SeedAsync(secondContext, TestContext.Current.CancellationToken);
 
-        Assert.Single(await secondContext.BiOracleStatMappingSets.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken));
-        Assert.Single(await secondContext.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Single(
+            await secondContext.BiOracleStatMappingSets.ToArrayAsync(
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Single(
+            await secondContext.BiOracleStatMappings.ToArrayAsync(
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
     }
 
     [Fact]
@@ -348,10 +370,13 @@ public sealed class BiOracleStatMappingSeedTests
                         Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
                     )
                 )
-                .SeedAsync(context, TestContext.Current.CancellationToken));
+                .SeedAsync(context, TestContext.Current.CancellationToken)
+        );
 
         Assert.Contains("persisted", exception.Message);
-        Assert.Single(await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Single(
+            await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -370,10 +395,13 @@ public sealed class BiOracleStatMappingSeedTests
         await using var context = CreateContext(databaseName);
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Seeder(MappingSet(Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1")))
-                .SeedAsync(context, TestContext.Current.CancellationToken));
+                .SeedAsync(context, TestContext.Current.CancellationToken)
+        );
 
         Assert.Contains("persisted", exception.Message);
-        Assert.Empty(await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Empty(
+            await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -399,10 +427,14 @@ public sealed class BiOracleStatMappingSeedTests
         await using var context = CreateContext(databaseName);
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Seeder(MappingSet(Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L1")))
-                .SeedAsync(context, TestContext.Current.CancellationToken));
+                .SeedAsync(context, TestContext.Current.CancellationToken)
+        );
 
         Assert.Contains("historical mappings absent", exception.Message);
-        Assert.Equal(2, await context.BiOracleStatMappings.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(
+            2,
+            await context.BiOracleStatMappings.CountAsync(cancellationToken: TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -420,10 +452,16 @@ public sealed class BiOracleStatMappingSeedTests
         await using var context = CreateContext(databaseName);
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Seeder(MappingSet(Mapping(1, 100, BiOracleTargetTable.SheriffServices, "GRD_ESC_HRS_L2")))
-                .SeedAsync(context, TestContext.Current.CancellationToken));
+                .SeedAsync(context, TestContext.Current.CancellationToken)
+        );
 
         Assert.Contains("immutable", exception.Message);
-        Assert.Equal("GRD_ESC_HRS_L1", (await context.BiOracleStatMappings.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).TargetColumn);
+        Assert.Equal(
+            "GRD_ESC_HRS_L1",
+            (
+                await context.BiOracleStatMappings.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)
+            ).TargetColumn
+        );
     }
 
     [Fact]
@@ -453,7 +491,9 @@ public sealed class BiOracleStatMappingSeedTests
         }
 
         await using var context = CreateContext(databaseName);
-        Assert.Empty(await context.BiOracleEtlRuns.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Empty(
+            await context.BiOracleEtlRuns.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
+        );
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Seeder(
                     MappingSet(
@@ -461,8 +501,11 @@ public sealed class BiOracleStatMappingSeedTests
                         Mapping(2, 101, BiOracleTargetTable.SheriffServicesHours, "GRD_ESC_REG_HRS_L1")
                     )
                 )
-                .SeedAsync(context, TestContext.Current.CancellationToken));
-        Assert.Single(await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken));
+                .SeedAsync(context, TestContext.Current.CancellationToken)
+        );
+        Assert.Single(
+            await context.BiOracleStatMappings.ToArrayAsync(cancellationToken: TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -492,12 +535,31 @@ public sealed class BiOracleStatMappingSeedTests
             )
             .SeedAsync(context, TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, await context.BiOracleStatMappingSets.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
-        Assert.Equal(2, await context.BiOracleStatMappings.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
-        Assert.Equal(2, (await context.BiOracleStatMappings.SingleAsync(mapping => mapping.Id == 2, cancellationToken: TestContext.Current.CancellationToken)).MappingSetId);
+        Assert.Equal(
+            2,
+            await context.BiOracleStatMappingSets.CountAsync(cancellationToken: TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(
+            2,
+            await context.BiOracleStatMappings.CountAsync(cancellationToken: TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(
+            2,
+            (
+                await context.BiOracleStatMappings.SingleAsync(
+                    mapping => mapping.Id == 2,
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            ).MappingSetId
+        );
         Assert.Equal(
             new DateOnly(2026, 8, 31),
-            (await context.BiOracleStatMappingSets.SingleAsync(mappingSet => mappingSet.Id == 1, cancellationToken: TestContext.Current.CancellationToken)).ExpiryDate
+            (
+                await context.BiOracleStatMappingSets.SingleAsync(
+                    mappingSet => mappingSet.Id == 1,
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            ).ExpiryDate
         );
     }
 
@@ -511,15 +573,30 @@ public sealed class BiOracleStatMappingSeedTests
             context.SubCategoryMetrics.Add(new SubCategoryMetric { Id = 100 });
             await context.SaveChangesAsync(TestContext.Current.CancellationToken);
             await Seeder(definition).SeedAsync(context, TestContext.Current.CancellationToken);
-            (await context.SubCategoryMetrics.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).IsArchived = true;
+            (
+                await context.SubCategoryMetrics.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)
+            ).IsArchived = true;
             await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var secondContext = CreateContext(databaseName);
         await Seeder(definition).SeedAsync(secondContext, TestContext.Current.CancellationToken);
 
-        Assert.Equal(100, (await secondContext.BiOracleStatMappings.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).SubCategoryMetricId);
-        Assert.True((await secondContext.SubCategoryMetrics.SingleAsync(cancellationToken: TestContext.Current.CancellationToken)).IsArchived);
+        Assert.Equal(
+            100,
+            (
+                await secondContext.BiOracleStatMappings.SingleAsync(
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            ).SubCategoryMetricId
+        );
+        Assert.True(
+            (
+                await secondContext.SubCategoryMetrics.SingleAsync(
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            ).IsArchived
+        );
     }
 
     [Fact]
@@ -545,15 +622,24 @@ public sealed class BiOracleStatMappingSeedTests
                 new SubCategoryMetric { Id = 101 }
             );
             await initialContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-            await SeederForSets(historicalSet, currentSet).SeedAsync(initialContext, TestContext.Current.CancellationToken);
-            (await initialContext.SubCategoryMetrics.SingleAsync(metric => metric.Id == 100, cancellationToken: TestContext.Current.CancellationToken)).IsArchived = true;
+            await SeederForSets(historicalSet, currentSet)
+                .SeedAsync(initialContext, TestContext.Current.CancellationToken);
+            (
+                await initialContext.SubCategoryMetrics.SingleAsync(
+                    metric => metric.Id == 100,
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            ).IsArchived = true;
             await initialContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await using var context = CreateContext(databaseName);
         await SeederForSets(historicalSet, currentSet).SeedAsync(context, TestContext.Current.CancellationToken);
 
-        Assert.Equal(2, await context.BiOracleStatMappings.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Equal(
+            2,
+            await context.BiOracleStatMappings.CountAsync(cancellationToken: TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]
@@ -575,7 +661,8 @@ public sealed class BiOracleStatMappingSeedTests
 
         await using var context = CreateContext(databaseName);
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Seeder(definition).SeedAsync(context, TestContext.Current.CancellationToken));
+            Seeder(definition).SeedAsync(context, TestContext.Current.CancellationToken)
+        );
 
         Assert.Contains("missing SubCategoryMetric", exception.Message);
     }
