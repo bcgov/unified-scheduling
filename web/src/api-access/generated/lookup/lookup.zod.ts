@@ -13,6 +13,7 @@ export const GetApiLookupCodeTypeParams = zod.strictObject({
 export const GetApiLookupCodeTypeResponseItem = zod.object({
   code: zod.string().optional(),
   description: zod.string().optional(),
+  displayOrder: zod.int().nullish(),
   effectiveDate: zod.iso.datetime({ offset: true }).optional(),
   expiryDate: zod.iso.datetime({ offset: true }).nullish(),
 });
