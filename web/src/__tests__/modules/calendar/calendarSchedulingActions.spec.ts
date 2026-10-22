@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { CalendarMatrixDropActionContext } from '@/modules/calendar/registry/calendarActionRegistryTypes';
+import { calendarActionRegistry } from '@/modules/calendar/registry/calendarActionRegistry';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { Permissions } from '@/api-access/generated/models';
 import { calendarSchedulingActionIds } from '@/modules/scheduling/calendarSchedulingActionIds';
+import { calendarAssignmentViewContribution } from '@/modules/scheduling/calendarAssignmentViewContribution';
+import { calendarShiftViewContribution } from '@/modules/scheduling/calendarShiftViewContribution';
+import { registerCalendarSchedulingModule } from '@/modules/scheduling/CalendarSchedulingModule';
 import {
   calendarAddAssignmentAction,
   calendarAddResourceAction,
@@ -14,6 +18,7 @@ import {
   calendarSchedulingCreateShiftAction,
   calendarSchedulingEventDetailAction,
   calendarSchedulingHeaderShowConflictAction,
+  calendarSchedulingPublishAction,
   calendarSchedulingResolveConflictAction,
   calendarSchedulingShowConflictAction,
 } from '@/modules/scheduling/calendarSchedulingActions';
@@ -32,7 +37,9 @@ import {
   calendarSchedulingResourceActionAssignmentEntryId,
   calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionResource,
+  calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
+  closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   getCalendarSchedulingHeaderConflictKey,
   showCalendarSchedulingEventDetail,
@@ -46,6 +53,7 @@ describe('calendarSchedulingActions', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     closeCalendarSchedulingAssignmentModal();
+    closeCalendarSchedulingPublishModal();
     closeCalendarSchedulingResourceActionModal();
   });
 
@@ -75,6 +83,92 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, leaveCreator)).toBe(true);
     expect(calendarSchedulingCreateShiftAction.isAvailable?.(createContext, leaveCreator)).toBe(false);
     expect(calendarSchedulingCreateShiftAction.isAvailable?.(scheduleContext, noPermissions)).toBe(false);
+  });
+
+  it('shows publish only for an authorized location scope', () => {
+    const context = {
+      startDate: '2026-08-24',
+      endDate: '2026-08-30',
+      locationId: 7,
+      filters: {},
+    };
+
+    expect(calendarSchedulingPublishAction.isAvailable?.(context, { featureFlags: {}, permissions: [] })).toBe(false);
+    expect(
+      calendarSchedulingPublishAction.isAvailable?.(context, {
+        featureFlags: {},
+        permissions: [Permissions.SchedulePublish],
+      }),
+    ).toBe(true);
+    expect(
+      calendarSchedulingPublishAction.isAvailable?.(
+        { ...context, locationId: undefined },
+        { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+      ),
+    ).toBe(false);
+  });
+
+  it('opens publish for the displayed location and date range', async () => {
+    await calendarSchedulingPublishAction.run(
+      {
+        startDate: '2026-08-24',
+        endDate: '2026-08-30',
+        locationId: 7,
+        filters: {},
+      },
+      { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+    );
+
+    expect(calendarSchedulingPublishRequest.value).toEqual({
+      locationId: 7,
+      startDate: '2026-08-24',
+      endDate: '2026-08-29',
+    });
+  });
+
+  it.each([
+    ['day', '2026-10-22', '2026-10-23', '2026-10-22'],
+    ['week', '2026-10-19', '2026-10-26', '2026-10-25'],
+    ['work week', '2026-10-19', '2026-10-24', '2026-10-23'],
+    ['month', '2026-10-01', '2026-11-01', '2026-10-31'],
+    ['DST boundary', '2026-03-08', '2026-03-09', '2026-03-08'],
+  ])(
+    'publishes the inclusive %s range in Schedule and Assignment views',
+    async (_period, startDate, endDate, publishEndDate) => {
+      registerCalendarSchedulingModule();
+
+      for (const viewId of [calendarShiftViewContribution.id, calendarAssignmentViewContribution.id]) {
+        const action = calendarActionRegistry
+          .getToolbarActionsForView(viewId)
+          .find((candidate) => candidate.id === calendarSchedulingPublishAction.id);
+        expect(action).toBe(calendarSchedulingPublishAction);
+
+        await action!.run(
+          { startDate, endDate, locationId: 7, filters: {} },
+          { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+        );
+
+        expect(calendarSchedulingPublishRequest.value).toEqual({
+          locationId: 7,
+          startDate,
+          endDate: publishEndDate,
+        });
+        closeCalendarSchedulingPublishModal();
+      }
+    },
+  );
+
+  it('does not open publish without permission or a location', async () => {
+    const context = { startDate: '2026-10-19', endDate: '2026-10-26', locationId: 7, filters: {} };
+
+    await calendarSchedulingPublishAction.run(context, { featureFlags: {}, permissions: [] });
+    expect(calendarSchedulingPublishRequest.value).toBeUndefined();
+
+    await calendarSchedulingPublishAction.run(
+      { ...context, locationId: undefined },
+      { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+    );
+    expect(calendarSchedulingPublishRequest.value).toBeUndefined();
   });
 
   it('opens the add assignment modal on the first date in the displayed range', async () => {

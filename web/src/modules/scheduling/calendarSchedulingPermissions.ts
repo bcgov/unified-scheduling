@@ -50,3 +50,7 @@ export function canEditLeave(context: CalendarRuntimeContext) {
 export function canDeleteLeave(context: CalendarRuntimeContext) {
   return isLeaveEnabled(context) && hasCalendarPermission(context, Permissions.LeaveDelete);
 }
+
+export function canPublishSchedule(context: CalendarRuntimeContext) {
+  return hasCalendarPermission(context, Permissions.SchedulePublish);
+}
