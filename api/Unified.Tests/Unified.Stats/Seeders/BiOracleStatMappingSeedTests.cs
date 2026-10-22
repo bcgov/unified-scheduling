@@ -579,7 +579,9 @@ public sealed class BiOracleStatMappingSeedTests
         }
 
         await using var context = CreateContext(databaseName);
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Seeder(definition).SeedAsync(context));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Seeder(definition).SeedAsync(context)
+        );
 
         Assert.Contains("missing SubCategoryMetric", exception.Message);
     }
