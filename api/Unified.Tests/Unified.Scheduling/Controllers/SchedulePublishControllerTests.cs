@@ -91,7 +91,10 @@ public sealed class SchedulePublishControllerTests
 
         Assert.False(response.CanPublish);
         Assert.Contains(otherConflict, response.Blockers.Conflicts);
-        var visibleTrainingConflict = Assert.Single(response.Blockers.Conflicts, conflict => conflict.Id != otherConflict.Id);
+        var visibleTrainingConflict = Assert.Single(
+            response.Blockers.Conflicts,
+            conflict => conflict.Id != otherConflict.Id
+        );
         if (canViewTraining)
             Assert.Equal(trainingConflict, visibleTrainingConflict);
         else
