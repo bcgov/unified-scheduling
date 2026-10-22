@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
+using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Calendar;
 using Unified.Calendar.Conflicts;
@@ -16,6 +17,75 @@ namespace Unified.Tests.Calendar.Controllers;
 
 public class CalendarControllerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetData_TrainingConflicts_RequireTrainingViewPermission(bool canViewTraining)
+    {
+        var resourceId = Guid.NewGuid();
+        var start = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
+        var trainingConflict = CalendarConflictResponse.FromConflict(
+            new CalendarConflict(
+                new CalendarConflictParticipant(
+                    "training.user-training.7",
+                    "training",
+                    resourceId,
+                    start,
+                    start.AddDays(1),
+                    "Training: SECRET",
+                    7
+                ),
+                new CalendarConflictParticipant("42", "scheduling", resourceId, start, start.AddHours(1), "Assignment"),
+                resourceId,
+                start,
+                start.AddHours(1)
+            )
+        );
+        var otherConflict = CalendarConflictResponse.FromConflict(
+            new CalendarConflict(
+                new CalendarConflictParticipant("11", "scheduling", resourceId, start, start.AddHours(1), "First"),
+                new CalendarConflictParticipant("12", "scheduling", resourceId, start, start.AddHours(1), "Second"),
+                resourceId,
+                start,
+                start.AddHours(1)
+            )
+        );
+        var controller = new CalendarController(
+            NullLogger<CalendarController>.Instance,
+            new FakeCalendarEventService
+            {
+                Result = new CalendarDataResponse { Conflicts = [trainingConflict, otherConflict] },
+            },
+            new FakeCalendarConflictService(),
+            new CalendarDataRequestValidator(),
+            new CalendarConflictAcknowledgementValidator()
+        );
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(
+                    new ClaimsIdentity(
+                        canViewTraining
+                            ? [new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.UserTrainingsView))]
+                            : []
+                    )
+                ),
+            },
+        };
+
+        var result = await controller.GetData(
+            new CalendarDataRequest { StartDate = new DateOnly(2026, 6, 1), EndDate = new DateOnly(2026, 6, 2) },
+            TestContext.Current.CancellationToken
+        );
+
+        var payload = Assert.IsType<CalendarDataResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Contains(otherConflict, payload.Conflicts);
+        Assert.Equal(canViewTraining, payload.Conflicts.Contains(trainingConflict));
+        if (!canViewTraining)
+            Assert.DoesNotContain("SECRET", System.Text.Json.JsonSerializer.Serialize(payload));
+    }
+
     [Fact]
     public async Task GetEvents_WhenRequestIsValid_ReturnsOkResult()
     {

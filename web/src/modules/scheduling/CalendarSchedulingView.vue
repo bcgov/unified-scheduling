@@ -171,13 +171,12 @@ const selectedConflict = ref<CalendarConflict>();
 const selectedConflictEventId = ref<number>();
 const conflictOverrideLoading = ref(false);
 const conflictErrorMessage = ref('');
-const canEditConflictEvents = computed(
-  () =>
-    selectedConflict.value != null &&
-    selectedConflict.value.entry.sourceModule === 'scheduling' &&
-    selectedConflict.value.overlaps.sourceModule === 'scheduling' &&
-    props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true,
-);
+function canEditConflictEvent(event: CalendarConflictEvent) {
+  return (
+    event.sourceModule === 'scheduling' &&
+    props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true
+  );
+}
 const canOverrideConflicts = computed(
   () => props.runtimeContext?.permissions?.includes(Permissions.CalendarConflictsOverride) === true,
 );
@@ -425,7 +424,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :time-zone="model.timeZone"
     :loading="conflictOverrideLoading"
     :error-message="conflictErrorMessage"
-    :can-edit-event="canEditConflictEvents"
+    :can-edit-event="canEditConflictEvent"
     :can-override="canOverrideConflicts"
     @close="selectedConflict = undefined"
     @edit-event="editConflictEvent"
