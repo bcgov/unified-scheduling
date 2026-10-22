@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
+using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
@@ -74,6 +75,12 @@ public class UnifiedDbContext : AuditDbContext
     public DbSet<SubCategoryMetric> SubCategoryMetrics { get; set; }
     public DbSet<StatRecord> StatRecords { get; set; }
     public DbSet<StatSignoff> StatSignoffs { get; set; }
+
+    // Loan Out
+    public DbSet<LoanOutEntry> LoanOutEntries { get; set; }
+    public DbSet<LoanOutEntryUser> LoanOutEntryUsers { get; set; }
+    public DbSet<LoanOutSeries> LoanOutSeries { get; set; }
+    public DbSet<LoanOutSeriesUser> LoanOutSeriesUsers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
