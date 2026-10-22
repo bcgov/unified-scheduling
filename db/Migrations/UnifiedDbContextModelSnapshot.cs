@@ -1737,6 +1737,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -1801,6 +1802,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()
@@ -1866,6 +1868,7 @@ namespace Unified.Db.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
 
                     b.Property<uint>("ConcurrencyToken")
                         .IsConcurrencyToken()

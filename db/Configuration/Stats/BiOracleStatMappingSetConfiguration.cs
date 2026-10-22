@@ -9,6 +9,7 @@ public class BiOracleStatMappingSetConfiguration : BaseEntityConfiguration<BiOra
     public override void Configure(EntityTypeBuilder<BiOracleStatMappingSet> builder)
     {
         builder.ToTable("BiOracleStatMappingSets", "etl");
+        builder.Property(mappingSet => mappingSet.Id).HasIdentityOptions(startValue: 200);
         builder.HasIndex(mappingSet => mappingSet.EffectiveDate).IsUnique();
         builder.HasIndex(mappingSet => mappingSet.ExpiryDate);
         builder.ToTable(table =>

@@ -10,6 +10,7 @@ public class BiOracleLocationMappingConfiguration : BaseEntityConfiguration<BiOr
     {
         builder.ToTable("BiOracleLocationMapping", "etl");
 
+        builder.Property(mapping => mapping.Id).HasIdentityOptions(startValue: 200);
         builder.Property(mapping => mapping.JustinLocationCode).HasMaxLength(4);
 
         builder.HasIndex(mapping => mapping.JustinLocationCode).IsUnique();

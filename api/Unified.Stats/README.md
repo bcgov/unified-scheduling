@@ -166,14 +166,15 @@ Categories with no natural sub-division use a `General` placeholder (ids 18, 19,
 
 ### Identity Sequence Conflict Prevention
 
-Seeded rows use explicit IDs starting at 1. To prevent the PostgreSQL identity sequence from colliding with seeded IDs on subsequent inserts, the following tables have their identity sequence set to start at 200:
+Seeded rows use explicit IDs starting at 1. To prevent the PostgreSQL identity sequence from colliding with seeded IDs on subsequent inserts, these tables reserve generated IDs above their seeded ranges:
 
-- `StatGroups`, `StatCategories`, `SubCategories`, `StatMetrics`
+- `StatGroups`, `StatCategories`, `SubCategories`, `StatMetrics`, `etl.BiOracleLocationMapping`, and `etl.BiOracleStatMappingSets` start at 200.
+- `etl.BiOracleStatMappings` starts at 1000 (seeded IDs 1-516).
 
-This is configured in the EF entity configurations via `HasIdentityOptions(startValue: 200)` and reflected in the migration annotation `"Npgsql:IdentitySequenceOptions", "'200', '1', '', '', 'False', '1'"`.
+This is configured in the EF entity configurations via `HasIdentityOptions(startValue: ...)` and reflected in the migration's `Npgsql:IdentitySequenceOptions` annotations.
 
 ### Adding or Changing Reference Data
 
 1. Update the relevant seeder's static array (add, remove, or edit an entry)
-2. If the change involves new IDs beyond the current max, verify the identity `startValue: 200` still leaves enough headroom
+2. If the change involves new IDs beyond the current max, verify the table's identity sequence start still leaves enough headroom
 3. Deploy — the seeder will upsert on next startup

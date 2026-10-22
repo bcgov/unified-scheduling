@@ -22,6 +22,10 @@ namespace Unified.Db.Migrations
                     Id = table
                         .Column<int>(type: "integer", nullable: false)
                         .Annotation(
+                            "Npgsql:IdentitySequenceOptions",
+                            "'200', '1', '', '', 'False', '1'"
+                        )
+                        .Annotation(
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
                         ),
@@ -81,6 +85,10 @@ namespace Unified.Db.Migrations
                 {
                     Id = table
                         .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:IdentitySequenceOptions",
+                            "'200', '1', '', '', 'False', '1'"
+                        )
                         .Annotation(
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
@@ -212,6 +220,10 @@ namespace Unified.Db.Migrations
                 {
                     Id = table
                         .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:IdentitySequenceOptions",
+                            "'1000', '1', '', '', 'False', '1'"
+                        )
                         .Annotation(
                             "Npgsql:ValueGenerationStrategy",
                             NpgsqlValueGenerationStrategy.IdentityByDefaultColumn

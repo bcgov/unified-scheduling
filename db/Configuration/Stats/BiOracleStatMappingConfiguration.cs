@@ -9,6 +9,7 @@ public class BiOracleStatMappingConfiguration : BaseEntityConfiguration<BiOracle
     public override void Configure(EntityTypeBuilder<BiOracleStatMapping> builder)
     {
         builder.ToTable("BiOracleStatMappings", "etl");
+        builder.Property(mapping => mapping.Id).HasIdentityOptions(startValue: 1000);
 
         builder
             .HasOne(mapping => mapping.MappingSet)
