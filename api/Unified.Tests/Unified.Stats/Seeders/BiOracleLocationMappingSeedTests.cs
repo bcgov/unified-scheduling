@@ -12,9 +12,9 @@ public sealed class BiOracleLocationMappingSeedTests
     {
         var definitions = BiOracleLocationMappingSeedData.Definitions;
 
-        Assert.Equal(118, definitions.Count);
-        Assert.Equal(118, definitions.Select(mapping => mapping.JustinLocationCode).Distinct().Count());
-        Assert.Equal(118, definitions.Select(mapping => mapping.CrtLocId).Distinct().Count());
+        Assert.Equal(119, definitions.Count);
+        Assert.Equal(119, definitions.Select(mapping => mapping.JustinLocationCode).Distinct().Count());
+        Assert.Equal(119, definitions.Select(mapping => mapping.CrtLocId).Distinct().Count());
         Assert.All(
             definitions,
             mapping =>
@@ -24,6 +24,7 @@ public sealed class BiOracleLocationMappingSeedTests
             }
         );
         Assert.Contains(definitions, mapping => mapping.JustinLocationCode == "5831" && mapping.CrtLocId == 127);
+        Assert.Contains(definitions, mapping => mapping.Id == 119 && mapping.JustinLocationCode == "1131" && mapping.CrtLocId == 310);
     }
 
     [Fact]

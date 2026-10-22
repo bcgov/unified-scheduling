@@ -3,7 +3,7 @@ namespace Unified.Stats.Seeders;
 public static class BiOracleLocationMappingSeedData
 {
     /// <summary>
-    /// Note, all seed data taken from legacy access SRF_LOCATION table for consistency with legacy etl.
+    /// Most seed data was taken from the legacy Access SRF_LOCATION table for consistency with legacy ETL.
     /// </summary>
     public static IReadOnlyList<BiOracleLocationMappingSeedDefinition> Definitions { get; } =
     [
@@ -126,6 +126,8 @@ public static class BiOracleLocationMappingSeedData
         LegacyLocation(116, "5959", 141),
         LegacyLocation(117, "5961", 142),
         LegacyLocation(118, "5971", 143),
+        // Ahousaht Provincial Court (AgencyId 19844.0877); the seed ID is not a Unified location ID.
+        Location(119, "1131", 310, new(1989, 1, 1)),
     ];
 
     private static BiOracleLocationMappingSeedDefinition LegacyLocation(

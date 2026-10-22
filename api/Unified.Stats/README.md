@@ -73,18 +73,20 @@ the purge remains an operational follow-up. The cleanup should delete runs with
 must never delete mapping sets or mappings.
 
 The `BiOracleMappingsDataSet` contains the approved 516-row
-`SubCategoryMetricId` mapping and 118 legacy location mappings from
-`SHF_LOCATIONS.CSBMD_LOC_CD` to `SHF_LOCATIONS.CORIN_CODE`. The initial stat
-mapping effective date is the UTC calendar date when mapping set 1 is first
+`SubCategoryMetricId` mapping and 119 location mappings (118 legacy mappings plus
+Ahousaht Provincial Court) from JUSTIN location codes to CORIN location IDs. The
+initial stat mapping effective date is the UTC calendar date when mapping set 1 is first
 seeded. Later seed runs retain the stored date. Deployments that require the BI
 Oracle mappings select this data set through the central `SeedData:DataSets`
 mechanism.
 
-Both location-code values are unique in the seeded mappings. ETL location selection uses
-`PerformedAtLocationId ?? LocationId`, then resolves the selected location's
-`JustinLocationCode` through this table. The mapping deliberately has no EF
-foreign key to `Locations`; its effective and expiry dates come from
-`SHF_LOCATIONS`.
+Both location-code values are unique in the seeded mappings. ETL location selection
+uses `PerformedAtLocationId ?? LocationId` to find the `Locations` row in that
+environment, then maps its `JustinLocationCode` through this table. The mapping
+has no EF foreign key to `Locations`; its seed IDs are mapping-row IDs, not
+Unified location IDs. The legacy mappings' effective and expiry dates come from
+`SHF_LOCATIONS`; Ahousaht Provincial Court (AgencyId `19844.0877`) uses
+1989-01-01 with no expiry.
 
 ## Seeders
 
@@ -99,7 +101,7 @@ Seeders live in `Unified.Stats/Seeders/`, extend `SeederBase<UnifiedDbContext>`,
 | 12    | `SubCategorySeeder`             | 91                  | Sub-categories per category                 |
 | 13    | `StatMetricSeeder`              | 49                  | Deduplicated metrics                        |
 | 14    | `SubCategoryMetricSeeder`       | Configured taxonomy | Sub-category/metric leaf mappings           |
-| 15    | `BiOracleLocationMappingSeeder` | 118                 | Legacy JUSTIN-to-Oracle location mappings   |
+| 15    | `BiOracleLocationMappingSeeder` | 119                 | JUSTIN-to-Oracle location mappings          |
 | 16    | `BiOracleStatMappingSeeder`     | 516                 | Effective-dated Oracle destination mappings |
 
 Stats seeders run after the core UserManagement seeders (User=0, Region=1, Location=2).
