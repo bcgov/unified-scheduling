@@ -7,22 +7,41 @@
 import type { ShiftAssignmentEntryResponse } from './shiftAssignmentEntryResponse.ts';
 
 export interface ShiftEntryResponse {
-  id?: number;
   /** @nullable */
   shiftSeriesId?: number | null;
   eventId?: number;
+  assignmentLinks?: ShiftAssignmentEntryResponse[];
+  id?: number;
   /** @nullable */
-  title?: string | null;
+  eventSeriesId?: number | null;
   /** @nullable */
-  startAtUtc?: string | null;
+  eventTypeCode?: string | null;
+  /** @nullable */
+  statusTypeCode?: string | null;
+  /** @nullable */
+  cancelledAt?: string | null;
+  /** @nullable */
+  cancelledByUserId?: string | null;
+  /** @nullable */
+  cancellationReason?: string | null;
+  /** @nullable */
+  seriesStartAtUtc?: string | null;
+  /** @nullable */
+  seriesEndAtUtc?: string | null;
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  color?: string | null;
+  startAtUtc?: string;
   /** @nullable */
   endAtUtc?: string | null;
   /** @nullable */
   timeZoneId?: string | null;
-  /** @nullable */
-  statusTypeCode?: string | null;
+  allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
   userIds?: string[];
-  assignmentLinks?: ShiftAssignmentEntryResponse[];
 }

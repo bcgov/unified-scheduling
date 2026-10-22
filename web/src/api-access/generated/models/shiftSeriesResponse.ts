@@ -6,25 +6,9 @@
  */
 
 export interface ShiftSeriesResponse {
+  shiftEntryIds?: number[];
   id?: number;
   eventSeriesId?: number;
-  /** @nullable */
-  title?: string | null;
-  /** @nullable */
-  description?: string | null;
-  /** @nullable */
-  notes?: string | null;
-  /** @nullable */
-  color?: string | null;
-  /** @nullable */
-  recurrenceRule?: string | null;
-  /** @nullable */
-  timeZoneId?: string | null;
-  /** @nullable */
-  startAtUtc?: string | null;
-  /** @nullable */
-  endAtUtc?: string | null;
-  allDay?: boolean;
   /** @nullable */
   eventTypeCode?: string | null;
   /** @nullable */
@@ -35,9 +19,23 @@ export interface ShiftSeriesResponse {
   cancelledByUserId?: string | null;
   /** @nullable */
   cancellationReason?: string | null;
+  eventIds?: number[];
+  /** @nullable */
+  recurrenceRule?: string | null;
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  color?: string | null;
+  startAtUtc?: string;
+  /** @nullable */
+  endAtUtc?: string | null;
+  /** @nullable */
+  timeZoneId?: string | null;
+  allDay?: boolean;
   /** @nullable */
   locationId?: number | null;
   userIds?: string[];
-  eventIds?: number[];
-  shiftEntryIds?: number[];
 }

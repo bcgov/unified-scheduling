@@ -3,8 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
+using Unified.Calendar.Factories;
+using Unified.Calendar.Mappings;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
@@ -14,6 +17,7 @@ using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.UserManagement;
 using Unified.Scheduling;
+using Unified.Scheduling.Factories;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
@@ -61,19 +65,16 @@ public class ShiftServiceTests : IAsyncLifetime
             _dbContext
         );
 
-        _service = new ShiftService(
-            NullLogger<ShiftService>.Instance,
+        _service = CreateShift(
             _dbContext,
             materializationService,
             recurrenceExpander,
-            materializationHandler,
             new ShiftAssignmentService(
                 NullLogger<ShiftAssignmentService>.Instance,
                 _dbContext,
                 timeZoneService,
                 conflictService
             ),
-            new CalendarLifecycleService(),
             timeZoneService,
             TimeProvider.System,
             conflictService
@@ -2071,4 +2072,62 @@ public class ShiftServiceTests : IAsyncLifetime
             Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
             new TimeZoneService()
         );
+
+    private static CalendarEventEntryService<TRequest, TEntity> Entry<TRequest, TEntity>(
+        ICalendarEventEntryFactory<TRequest, TEntity> factory
+    )
+        where TRequest : CalendarEventEntryRequest
+        where TEntity : class =>
+        new(
+            NullLogger<CalendarEventEntryService<TRequest, TEntity>>.Instance,
+            factory,
+            new CalendarLifecycleService(),
+            new CalendarEventMapper()
+        );
+
+    private static ShiftService CreateShift(
+        UnifiedDbContext db,
+        IEventSeriesMaterializationService materializer,
+        IRecurrenceExpander expander,
+        IShiftAssignmentService links,
+        ITimeZoneService zones,
+        TimeProvider time,
+        ICalendarConflictService conflicts
+    )
+    {
+        var factory = new ShiftEventFactory();
+        var lifecycle = new CalendarLifecycleService();
+        var shiftConflicts = new ShiftConflictService(db, zones);
+        var series = new ShiftSeriesService(
+            NullLogger<ShiftSeriesService>.Instance,
+            db,
+            new CalendarEventSeriesService<ShiftSeriesRequest, ShiftSeries>(
+                factory,
+                new CalendarEventMapper(),
+                lifecycle
+            ),
+            materializer,
+            expander,
+            new ShiftSeriesMaterializationHandler(db),
+            links,
+            lifecycle,
+            zones,
+            time,
+            conflicts,
+            shiftConflicts
+        );
+        var entries = new ShiftEntryService(
+            NullLogger<ShiftEntryService>.Instance,
+            db,
+            Entry<ShiftEntryRequest, ShiftEntry>(factory),
+            series,
+            links,
+            lifecycle,
+            zones,
+            time,
+            conflicts,
+            shiftConflicts
+        );
+        return new ShiftService(entries, series);
+    }
 }

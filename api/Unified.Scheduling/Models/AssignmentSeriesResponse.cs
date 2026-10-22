@@ -1,42 +1,10 @@
+using Unified.Common.Calendar.Scheduling.Models;
+
 namespace Unified.Scheduling.Models;
 
-public sealed record AssignmentSeriesResponse
+public sealed record AssignmentSeriesResponse : CalendarEventSeriesResponse
 {
-    public int Id { get; init; }
-
-    public int EventSeriesId { get; init; }
-
     public int AssignmentDefinitionId { get; init; }
-
-    public string? Title { get; init; }
-
-    public string? Description { get; init; }
-
-    public string? Notes { get; init; }
-
-    public string? Color { get; init; }
-
-    public string? RecurrenceRule { get; init; }
-
-    public string? TimeZoneId { get; init; }
-
-    public DateTimeOffset? StartAtUtc { get; init; }
-
-    public DateTimeOffset? EndAtUtc { get; init; }
-
-    public bool AllDay { get; init; }
-
-    public string? EventTypeCode { get; init; }
-
-    public string? StatusTypeCode { get; init; }
-
-    public DateTimeOffset? CancelledAt { get; init; }
-
-    public Guid? CancelledByUserId { get; init; }
-
-    public string? CancellationReason { get; init; }
-
-    public int? LocationId { get; init; }
 
     public int CategoryId { get; init; }
 
@@ -47,8 +15,6 @@ public sealed record AssignmentSeriesResponse
     public string? SubCategoryName { get; init; }
 
     public int Capacity { get; init; }
-
-    public IReadOnlyCollection<int> EventIds { get; init; } = [];
 
     public IReadOnlyCollection<int> AssignmentEntryIds { get; init; } = [];
 

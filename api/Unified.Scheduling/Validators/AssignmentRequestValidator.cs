@@ -18,7 +18,7 @@ public sealed class AssignmentSeriesRequestValidator : AbstractValidator<Assignm
         RuleFor(request => request.TimeZoneId).MaximumLength(100).Must(TimeZoneService.IsValidTimeZoneId);
         RuleFor(request => request.StartAtUtc).NotEmpty();
         RuleFor(request => request.EndAtUtc).NotEmpty().GreaterThan(request => request.StartAtUtc);
-        RuleFor(request => request.LocationId).GreaterThan(0);
+        RuleFor(request => request.LocationId).NotEmpty().GreaterThan(0);
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
@@ -48,7 +48,7 @@ public sealed class AssignmentEntryRequestValidator : AbstractValidator<Assignme
         RuleFor(request => request.SeriesStartAtUtc)
             .LessThan(request => request.SeriesEndAtUtc!.Value)
             .When(request => request.SeriesStartAtUtc.HasValue && request.SeriesEndAtUtc.HasValue);
-        RuleFor(request => request.LocationId).GreaterThan(0);
+        RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
@@ -68,7 +68,7 @@ public sealed class AssignmentEntryUpdateRequestValidator : AbstractValidator<As
         RuleFor(request => request.TimeZoneId).MaximumLength(100).Must(TimeZoneService.IsValidTimeZoneId);
         RuleFor(request => request.StartAtUtc).NotEmpty();
         RuleFor(request => request.EndAtUtc).NotEmpty().GreaterThan(request => request.StartAtUtc);
-        RuleFor(request => request.LocationId).GreaterThan(0);
+        RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
         RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);

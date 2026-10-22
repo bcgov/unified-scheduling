@@ -7,22 +7,23 @@
 import type { AssignmentSeriesLinkRequest } from './assignmentSeriesLinkRequest.ts';
 
 export interface ShiftSeriesRequest {
-  title: string;
+  assignmentSeriesLinks?: AssignmentSeriesLinkRequest[];
+  /** @nullable */
+  recurrenceRule?: string | null;
+  title?: string;
   /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;
   /** @nullable */
   color?: string | null;
-  /** @nullable */
-  recurrenceRule?: string | null;
-  /** @nullable */
-  timeZoneId?: string | null;
-  startAtUtc: string;
+  startAtUtc?: string;
   /** @nullable */
   endAtUtc?: string | null;
+  /** @nullable */
+  timeZoneId?: string | null;
   allDay?: boolean;
-  locationId?: number;
+  /** @nullable */
+  locationId?: number | null;
   userIds?: string[];
-  assignmentSeriesLinks?: AssignmentSeriesLinkRequest[];
 }
