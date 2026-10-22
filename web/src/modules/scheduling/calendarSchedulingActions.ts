@@ -1,6 +1,6 @@
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
-import { toDateTime } from '@/utils/date';
+import { addDays, toDateTime } from '@/utils/date';
 import { CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
 import type {
   CalendarDropAction,
@@ -66,7 +66,7 @@ export const calendarSchedulingPublishAction: CalendarToolbarAction = {
   isAvailable: (context, runtimeContext) => Boolean(context.locationId) && canPublishSchedule(runtimeContext),
   run: (context, runtimeContext) => {
     if (context.locationId && canPublishSchedule(runtimeContext)) {
-      showCalendarSchedulingPublishModal(context.locationId, context.startDate, context.endDate);
+      showCalendarSchedulingPublishModal(context.locationId, context.startDate, addDays(context.endDate, -1));
     }
   },
 };
