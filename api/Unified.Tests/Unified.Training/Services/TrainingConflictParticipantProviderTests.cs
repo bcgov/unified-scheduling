@@ -93,8 +93,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         Assert.Equal("training", legacy.SourceModule);
         Assert.Equal("Training: FIRST-AID", legacy.Title);
         var projectedTitle = Assert
-            .Single(
-                (
+            .Single((
                     await new TrainingCalendarEventService(_db).GetEventsAsync(
                         new global::Unified.Training.Models.Calendar.TrainingCalendarEventsRequest
                         {
@@ -104,9 +103,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
                         },
                         TestContext.Current.CancellationToken
                     )
-                ).Where(item => item.UserTrainingId == second.Id)
-            )
-            .Title;
+                ), item => item.UserTrainingId == second.Id).Title;
         Assert.Equal(projectedTitle, legacy.Title);
         Assert.Equal(_userA, legacy.ResourceId);
         Assert.Equal(new DateTimeOffset(2026, 10, 22, 7, 0, 0, TimeSpan.Zero), legacy.Start);
