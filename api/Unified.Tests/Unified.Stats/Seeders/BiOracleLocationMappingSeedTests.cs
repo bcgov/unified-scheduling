@@ -24,7 +24,10 @@ public sealed class BiOracleLocationMappingSeedTests
             }
         );
         Assert.Contains(definitions, mapping => mapping.JustinLocationCode == "5831" && mapping.CrtLocId == 127);
-        Assert.Contains(definitions, mapping => mapping.Id == 119 && mapping.JustinLocationCode == "1131" && mapping.CrtLocId == 310);
+        Assert.Contains(
+            definitions,
+            mapping => mapping.Id == 119 && mapping.JustinLocationCode == "1131" && mapping.CrtLocId == 310
+        );
     }
 
     [Fact]
