@@ -30,7 +30,11 @@ const gotoProfile = () => {
 };
 
 onMounted(async () => {
-  await lookupStore.load(LookupCodeTypes.PositionTypes);
+  try {
+    await lookupStore.load(LookupCodeTypes.PositionTypes);
+  } catch {
+    // Keep the existing placeholder until a later lookup succeeds.
+  }
 });
 </script>
 

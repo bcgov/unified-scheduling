@@ -14,6 +14,9 @@ import {
 import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
 import { canViewAssignments, canViewShifts, canViewLeave } from '../calendarSchedulingPermissions';
 import { useUsersStore } from '@/stores/Users';
+import { useLookupStore } from '@/stores/LookupStore';
+import { LookupCodeTypes } from '@/api-access/generated/models';
+import { sortSchedulingUsers } from '../sortSchedulingUsers';
 import { formatUserName } from '@/utils/user';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
@@ -287,14 +290,21 @@ async function loadSchedulingResourceData(
   }
 
   const usersStore = useUsersStore();
+  const lookupStore = useLookupStore();
   const [users] = await Promise.all([
     usersStore.ensureUsersForLocation(locationId, signal),
     usersStore.ensureAllUsers(signal),
+    lookupStore.load(LookupCodeTypes.PositionTypes),
   ]);
+  if (signal?.aborted) throw new DOMException('Scheduling request was aborted.', 'AbortError');
+  const positions = lookupStore.entityMap[LookupCodeTypes.PositionTypes];
+  if (!positions) {
+    throw new Error('Position type display order is unavailable.');
+  }
   const actingPositionsByUserId = await loadActingPositionsByUser(users, signal);
 
   return {
-    users,
+    users: sortSchedulingUsers(users, positions),
     getUserById: usersStore.getUserById,
     actingPositionsByUserId,
   };

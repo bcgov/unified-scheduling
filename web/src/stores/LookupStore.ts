@@ -7,7 +7,6 @@ import type { SelectOption } from '@/types/select';
 import { mapToSelectOptions } from '@/utils/select';
 
 type LookupCodeTypesMap = Partial<Record<LookupCodeTypes, LookupCodeResponse[]>>;
-type LookupCodeTypesLoadingMap = Partial<Record<LookupCodeTypes, boolean>>;
 type OrderedLookupCodeResponse = LookupCodeResponse & { displayOrder?: number | null };
 /**
  * LookupStore
@@ -55,7 +54,9 @@ type OrderedLookupCodeResponse = LookupCodeResponse & { displayOrder?: number | 
  *
  * const lookupStore = useLookupStore();
  *
- * onMounted(() => lookupStore.load(LookupCodeTypes.PositionTypes));
+ * onMounted(() => { void lookupStore.load(LookupCodeTypes.PositionTypes).catch(() => {
+ *   // Handle unavailable options in the component.
+ * }); });
  *
  * const positionTypeOptions = computed(() =>
  *   lookupStore.getSelectOptions(LookupCodeTypes.PositionTypes)
@@ -69,7 +70,7 @@ type OrderedLookupCodeResponse = LookupCodeResponse & { displayOrder?: number | 
  */
 export const useLookupStore = defineStore('lookup', () => {
   const lookupCodeTypes = shallowRef<LookupCodeTypesMap>({});
-  const lookupCodeTypesLoading = shallowRef<LookupCodeTypesLoadingMap>({});
+  const inFlight = new Map<LookupCodeTypes, Promise<void>>();
 
   const entityMap = computed(() => {
     const map: Partial<Record<LookupCodeTypes, Record<string, LookupCodeResponse>>> = {};
@@ -82,18 +83,24 @@ export const useLookupStore = defineStore('lookup', () => {
 
   const load = async (...codeTypes: LookupCodeTypes[]): Promise<void> => {
     await Promise.all(
-      codeTypes
-        .filter((codeType) => !lookupCodeTypes.value[codeType] && !lookupCodeTypesLoading.value[codeType])
-        .map(async (codeType) => {
-          lookupCodeTypesLoading.value = { ...lookupCodeTypesLoading.value, [codeType]: true };
+      codeTypes.map((codeType) => {
+        if (lookupCodeTypes.value[codeType]) return Promise.resolve();
+        const existing = inFlight.get(codeType);
+        if (existing) return existing;
 
-          try {
-            const { data } = await getApiLookupCodeType(codeType);
-            lookupCodeTypes.value = { ...lookupCodeTypes.value, [codeType]: data.value ?? [] };
-          } finally {
-            lookupCodeTypesLoading.value = { ...lookupCodeTypesLoading.value, [codeType]: false };
+        const request = (async () => {
+          const { data, error, execute } = getApiLookupCodeType(codeType, { options: { immediate: false } });
+          await execute();
+          if (error.value) throw error.value;
+          if (!Array.isArray(data.value)) throw new Error(`Failed to load lookup ${codeType}.`);
+          if (codeType === LookupCodeTypes.PositionTypes && !isValidPositionTypes(data.value)) {
+            throw new Error('Position type display order is unavailable.');
           }
-        }),
+          lookupCodeTypes.value = { ...lookupCodeTypes.value, [codeType]: data.value };
+        })().finally(() => inFlight.delete(codeType));
+        inFlight.set(codeType, request);
+        return request;
+      }),
     );
   };
 
@@ -113,3 +120,18 @@ export const useLookupStore = defineStore('lookup', () => {
 
   return { entityMap, load, getSelectOptions, getDescriptionFromCode };
 });
+
+function isValidPositionTypes(entries: LookupCodeResponse[]): boolean {
+  const codes = new Set<string>();
+  return (
+    entries.length > 0 &&
+    entries.every((entry) => {
+      if (!entry || typeof entry.code !== 'string' || !entry.code.trim() || codes.has(entry.code)) return false;
+      if (typeof entry.displayOrder !== 'number' || !Number.isInteger(entry.displayOrder) || entry.displayOrder <= 0) {
+        return false;
+      }
+      codes.add(entry.code);
+      return true;
+    })
+  );
+}
