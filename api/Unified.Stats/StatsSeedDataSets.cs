@@ -37,7 +37,8 @@ public static class StatsSeedDataSets
                     Source = BiOracleMappingsDataSet,
                     Definitions = BiOracleLocationMappingSeedData.Definitions,
                 },
-            ]
+            ],
+            AvailableWhen: configuration => configuration.GetValue<bool>("FeatureFlags:Stats:Enabled")
         ),
     ];
 }

@@ -58,7 +58,9 @@ public static class SeedDataComposition
             if (!dataSet.IsAvailable(configuration))
             {
                 throw new InvalidOperationException(
-                    $"Seed-data set '{dataSetKey}' requires FeatureFlags:{dataSet.RequiredFeature} to be enabled."
+                    dataSet.RequiredFeature is null
+                        ? $"Seed-data set '{dataSetKey}' is unavailable under the current feature flags."
+                        : $"Seed-data set '{dataSetKey}' requires FeatureFlags:{dataSet.RequiredFeature} to be enabled."
                 );
             }
 
