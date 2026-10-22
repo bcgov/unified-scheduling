@@ -123,8 +123,8 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(2026, 3, 8, 8, 7)]
-    [InlineData(2026, 11, 1, 7, 8)]
+    [InlineData(2025, 3, 9, 8, 7)]
+    [InlineData(2025, 11, 2, 7, 8)]
     public async Task GetParticipantsAsync_DstDay_UsesLocalMidnights(
         int year,
         int month,
