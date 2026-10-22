@@ -124,6 +124,11 @@ const selectedDetailEvent = computed(() => {
 
   return calendarEvents.value.find((event) => event.id === selectedEventId.value);
 });
+const selectedDetailComponent = computed(() =>
+  selectedDetailEvent.value
+    ? (calendarRegistry.getEventDetailComponent(selectedDetailEvent.value.sourceModule) ?? CalendarEventDetailModal)
+    : CalendarEventDetailModal,
+);
 
 const toolbarActions = computed<CalendarToolbarAction[]>(() => {
   return activeView.value
@@ -338,8 +343,10 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
       <div v-else class="calendar-page__state">No calendar views are registered.</div>
     </UaCard>
 
-    <CalendarEventDetailModal
+    <component
       v-if="selectedDetailEvent"
+      :is="selectedDetailComponent"
+      :key="selectedDetailEvent.id"
       :event="selectedDetailEvent"
       @close="calendarStore.clearSelectedEvent()"
     />
