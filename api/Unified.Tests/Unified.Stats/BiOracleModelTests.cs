@@ -156,7 +156,7 @@ public sealed class BiOracleModelTests
         Assert.Equal(DeleteBehavior.Cascade, stageRunForeignKey.DeleteBehavior);
     }
 
-    private IMutableEntityType Entity<TEntity>() => (IMutableEntityType)_model.FindEntityType(typeof(TEntity))!;
+    private IEntityType Entity<TEntity>() => _model.FindEntityType(typeof(TEntity))!;
 
     private static IEnumerable<string> PropertyNames(IReadOnlyIndex index) =>
         index.Properties.Select(property => property.Name);
