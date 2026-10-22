@@ -32,7 +32,7 @@ public sealed class BiOracleStatMappingSeeder(
 
         var mappingSets = await ResolveEffectiveDatesAsync(dbContext, configuredMappingSets, cancellationToken);
         BiOracleStatMappingSeedValidator.Validate(mappingSets);
-        await ValidateSubCategoryMetricsAsync(dbContext, mappingSets, cancellationToken);
+        var archivedMetricIds = await ValidateSubCategoryMetricsAsync(dbContext, mappingSets, cancellationToken);
 
         foreach (var definition in mappingSets)
         {
@@ -41,6 +41,7 @@ public sealed class BiOracleStatMappingSeeder(
                 cancellationToken
             );
 
+            var isNewMappingSet = mappingSet is null;
             if (mappingSet is null)
             {
                 mappingSet = new BiOracleStatMappingSet
@@ -63,7 +64,7 @@ public sealed class BiOracleStatMappingSeeder(
                 mappingSet.ExpiryDate = definition.ExpiryDate;
             }
 
-            await SeedMappingsAsync(dbContext, definition, cancellationToken);
+            await SeedMappingsAsync(dbContext, definition, isNewMappingSet, archivedMetricIds, cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -96,7 +97,7 @@ public sealed class BiOracleStatMappingSeeder(
             .ToArray();
     }
 
-    private static async Task ValidateSubCategoryMetricsAsync(
+    private static async Task<HashSet<int>> ValidateSubCategoryMetricsAsync(
         UnifiedDbContext dbContext,
         IEnumerable<BiOracleStatMappingSetSeedDefinition> mappingSets,
         CancellationToken cancellationToken
@@ -120,28 +121,22 @@ public sealed class BiOracleStatMappingSeeder(
             );
         }
 
-        var archivedIds = metrics.Where(metric => metric.IsArchived).Select(metric => metric.Id).ToArray();
-        if (archivedIds.Length > 0)
-        {
-            throw new InvalidOperationException(
-                $"BiOracle mappings reference archived SubCategoryMetric IDs: {string.Join(", ", archivedIds)}."
-            );
-        }
+        return metrics.Where(metric => metric.IsArchived).Select(metric => metric.Id).ToHashSet();
     }
 
     private static async Task SeedMappingsAsync(
         UnifiedDbContext dbContext,
         BiOracleStatMappingSetSeedDefinition mappingSet,
+        bool isNewMappingSet,
+        HashSet<int> archivedMetricIds,
         CancellationToken cancellationToken
     )
     {
-        var existingMappings = await dbContext
-            .BiOracleStatMappings.Where(mapping => mapping.MappingSetId == mappingSet.Id)
-            .ToArrayAsync(cancellationToken);
-        var hasEtlRuns = await dbContext.BiOracleEtlRuns.AnyAsync(
-            run => run.MappingSetId == mappingSet.Id,
-            cancellationToken
-        );
+        var existingMappings = isNewMappingSet
+            ? Array.Empty<BiOracleStatMapping>()
+            : await dbContext
+                .BiOracleStatMappings.Where(mapping => mapping.MappingSetId == mappingSet.Id)
+                .ToArrayAsync(cancellationToken);
 
         var unexpectedIds = existingMappings
             .Select(mapping => mapping.Id)
@@ -159,10 +154,17 @@ public sealed class BiOracleStatMappingSeeder(
             var existing = existingMappings.SingleOrDefault(mapping => mapping.Id == definition.Id);
             if (existing is null)
             {
-                if (hasEtlRuns)
+                if (!isNewMappingSet)
                 {
                     throw new InvalidOperationException(
-                        $"BiOracle mapping set {mappingSet.Id} has been used by an ETL run and cannot accept new mappings."
+                        $"BiOracle mapping set {mappingSet.Id} is persisted and cannot accept new mappings."
+                    );
+                }
+
+                if (archivedMetricIds.Contains(definition.SubCategoryMetricId))
+                {
+                    throw new InvalidOperationException(
+                        $"BiOracle mappings reference archived SubCategoryMetric IDs: {definition.SubCategoryMetricId}."
                     );
                 }
 
