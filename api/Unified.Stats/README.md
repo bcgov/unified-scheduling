@@ -88,6 +88,13 @@ Unified location IDs. The legacy mappings' effective and expiry dates come from
 `SHF_LOCATIONS`; Ahousaht Provincial Court (AgencyId `19844.0877`) uses
 1989-01-01 with no expiry.
 
+The seed data preserves 1989-01-01 as the shared legacy baseline, while explicitly
+dated locations retain their individual dates. The checked-in mapping data and
+documentation do not substantiate why 1989 was originally chosen. New location
+mapping definitions must supply an effective date explicitly. JUSTIN mapping codes
+must be exactly four characters without surrounding whitespace; validation rejects
+invalid codes rather than trimming or changing their case.
+
 ## Seeders
 
 Seeders live in `Unified.Stats/Seeders/`, extend `SeederBase<UnifiedDbContext>`, and are explicitly registered by `StatsModule`.

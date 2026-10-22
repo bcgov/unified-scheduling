@@ -179,12 +179,64 @@ public sealed class BiOracleStatMappingSeedTests
     }
 
     [Fact]
+    public void Validate_DifferentMappingSetIdsWithSameEffectiveDate_Throws()
+    {
+        var effectiveDate = new DateOnly(2026, 1, 1);
+        var first = MappingSet([], id: 1, effectiveDate, expiryDate: effectiveDate);
+        var second = MappingSet([], id: 2, effectiveDate, expiryDate: null);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            BiOracleStatMappingSeedValidator.Validate([first, second])
+        );
+
+        Assert.Contains("Duplicate BiOracle mapping-set effective date", exception.Message);
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(31)]
+    public void Validate_NonOverlappingHistoricalAndCurrentPeriods_DoesNotThrow(int expiryDay)
+    {
+        var historical = MappingSet(
+            [],
+            id: 1,
+            effectiveDate: new DateOnly(2026, 1, 1),
+            expiryDate: new DateOnly(2026, 8, expiryDay)
+        );
+        var current = MappingSet([], id: 2, effectiveDate: new DateOnly(2026, 9, 1), expiryDate: null);
+
+        BiOracleStatMappingSeedValidator.Validate([current, historical]);
+    }
+
+    [Fact]
     public void Validate_OverlappingMappingSets_Throws()
+    {
+        var first = MappingSet(
+            [],
+            id: 1,
+            effectiveDate: new DateOnly(2026, 1, 1),
+            expiryDate: new DateOnly(2026, 9, 1)
+        );
+        var second = MappingSet([], id: 2, effectiveDate: new DateOnly(2026, 9, 1), expiryDate: null);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            BiOracleStatMappingSeedValidator.Validate([first, second])
+        );
+
+        Assert.Contains("overlapping effective periods", exception.Message);
+    }
+
+    [Fact]
+    public void Validate_MultipleUnexpiredMappingSets_Throws()
     {
         var first = MappingSet([], id: 1, effectiveDate: new DateOnly(2026, 1, 1), expiryDate: null);
         var second = MappingSet([], id: 2, effectiveDate: new DateOnly(2026, 9, 1), expiryDate: null);
 
-        Assert.Throws<InvalidOperationException>(() => BiOracleStatMappingSeedValidator.Validate([first, second]));
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            BiOracleStatMappingSeedValidator.Validate([first, second])
+        );
+
+        Assert.Contains("exactly one unexpired mapping set", exception.Message);
     }
 
     [Fact]
@@ -335,11 +387,12 @@ public sealed class BiOracleStatMappingSeedTests
         await using var secondContext = CreateContext(databaseName);
         await Seeder(definition).SeedAsync(secondContext, TestContext.Current.CancellationToken);
 
-        Assert.Single(
+        var mappingSet = Assert.Single(
             await secondContext.BiOracleStatMappingSets.ToArrayAsync(
                 cancellationToken: TestContext.Current.CancellationToken
             )
         );
+        Assert.Equal(definition.EffectiveDate, mappingSet.EffectiveDate);
         Assert.Single(
             await secondContext.BiOracleStatMappings.ToArrayAsync(
                 cancellationToken: TestContext.Current.CancellationToken

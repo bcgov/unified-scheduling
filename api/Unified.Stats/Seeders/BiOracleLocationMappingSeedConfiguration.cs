@@ -18,7 +18,7 @@ public sealed record BiOracleLocationMappingSeedDefinition
 
     public required int CrtLocId { get; init; }
 
-    public DateOnly EffectiveDate { get; init; } = new(1989, 1, 1);
+    public required DateOnly EffectiveDate { get; init; }
 
     public DateOnly? ExpiryDate { get; init; }
 }

@@ -11,6 +11,9 @@ public sealed class BiOracleLocationMappingSeeder(
     IEnumerable<BiOracleLocationMappingSeedConfiguration> configurations
 ) : SeederBase<UnifiedDbContext>(logger)
 {
+    // Matching requires canonical four-character JUSTIN codes, without surrounding whitespace.
+    private const int JustinLocationCodeLength = 4;
+
     public override int Order => 15;
 
     public override string Name => "BiOracleLocationMapping";
@@ -62,12 +65,13 @@ public sealed class BiOracleLocationMappingSeeder(
     {
         var invalidCode = definitions.FirstOrDefault(item =>
             string.IsNullOrWhiteSpace(item.Definition.JustinLocationCode)
-            || item.Definition.JustinLocationCode.Length != 4
+            || item.Definition.JustinLocationCode.Length != JustinLocationCodeLength
+            || item.Definition.JustinLocationCode != item.Definition.JustinLocationCode.Trim()
         );
         if (invalidCode.Definition is not null)
         {
             throw new InvalidOperationException(
-                $"BiOracle location mapping {invalidCode.Definition.Id} requires a four-character JUSTIN location code."
+                $"BiOracle location mapping {invalidCode.Definition.Id} requires a four-character JUSTIN location code without surrounding whitespace."
             );
         }
 

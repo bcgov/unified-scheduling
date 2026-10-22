@@ -111,7 +111,10 @@ public sealed class BiOracleModelTests
                     ])
         );
         Assert.Contains(
-            _context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(BiOracleStatStage))!.GetCheckConstraints(),
+            _context
+                .GetService<IDesignTimeModel>()
+                .Model.FindEntityType(typeof(BiOracleStatStage))!
+                .GetCheckConstraints(),
             constraint => constraint.Name == "CK_BiOracleStatStages_LocationLevelSupervisor"
         );
     }
@@ -142,7 +145,9 @@ public sealed class BiOracleModelTests
     {
         var mappingForeignKeys = Entity<BiOracleStatMapping>().GetForeignKeys().ToArray();
         var mappingDeleteBehavior = (string propertyName) =>
-            mappingForeignKeys.Single(foreignKey => foreignKey.Properties.Any(property => property.Name == propertyName)).DeleteBehavior;
+            mappingForeignKeys
+                .Single(foreignKey => foreignKey.Properties.Any(property => property.Name == propertyName))
+                .DeleteBehavior;
         var runMappingSetForeignKey = Entity<BiOracleEtlRun>()
             .GetForeignKeys()
             .Single(foreignKey =>

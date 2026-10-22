@@ -2,6 +2,9 @@ namespace Unified.Stats.Seeders;
 
 public static class BiOracleLocationMappingSeedData
 {
+    // Preserve the legacy baseline; why 1989 was chosen is unverified. Explicitly dated locations retain their own dates.
+    private static readonly DateOnly LegacyBaselineEffectiveDate = new(1989, 1, 1);
+
     /// <summary>
     /// Most seed data was taken from the legacy Access SRF_LOCATION table for consistency with legacy ETL.
     /// </summary>
@@ -127,7 +130,7 @@ public static class BiOracleLocationMappingSeedData
         LegacyLocation(117, "5961", 142),
         LegacyLocation(118, "5971", 143),
         // Ahousaht Provincial Court (AgencyId 19844.0877); the seed ID is not a Unified location ID.
-        Location(119, "1131", 310, new(1989, 1, 1)),
+        Location(119, "1131", 310, LegacyBaselineEffectiveDate),
     ];
 
     private static BiOracleLocationMappingSeedDefinition LegacyLocation(
@@ -135,7 +138,7 @@ public static class BiOracleLocationMappingSeedData
         string justinLocationCode,
         int crtLocId,
         DateOnly? expiryDate = null
-    ) => Location(id, justinLocationCode, crtLocId, new(1989, 1, 1), expiryDate);
+    ) => Location(id, justinLocationCode, crtLocId, LegacyBaselineEffectiveDate, expiryDate);
 
     private static BiOracleLocationMappingSeedDefinition Location(
         int id,
