@@ -13,10 +13,14 @@ using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
+using Unified.Db.Models.Stats;
+using Unified.Db.Models.Training;
+using Unified.Db.Models.UserManagement;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
+using Unified.Training.Services;
 
 namespace Unified.Tests.Scheduling.Services;
 
@@ -215,6 +219,147 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         Assert.Equal(CalendarEventStatusTypeCodes.Draft, eventEntity.StatusTypeCode);
+    }
+
+    [Fact]
+    public async Task PublishAsync_RechecksTrainingConflictAndHonorsOverride()
+    {
+        var assignment = await SeedLinkedDraftAssignmentAsync();
+        var timeZoneService = new TimeZoneService();
+        var timeZoneResolver = new CalendarTimeZoneResolver(
+            Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+            timeZoneService
+        );
+        var conflictService = new CalendarConflictService(
+            [
+                new SchedulingConflictParticipantProvider(_db),
+                new TrainingConflictParticipantProvider(_db, timeZoneResolver, timeZoneService),
+            ],
+            _db
+        );
+        var service = CreateService([], conflictService: conflictService);
+        Assert.True((await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken)).CanPublish);
+
+        var training = new UserTraining
+        {
+            UserId = ResourceId,
+            TrainingId = 1,
+            AwardedOn = new DateTimeOffset(2026, 10, 6, 0, 0, 0, TimeSpan.Zero),
+            EndingOn = new DateTimeOffset(2026, 10, 6, 0, 0, 0, TimeSpan.Zero),
+        };
+        _db.UserTrainings.Add(training);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var blocked = await Assert.ThrowsAsync<SchedulePublishBlockedException>(() =>
+            service.PublishAsync(CreateRequest(), null, TestContext.Current.CancellationToken)
+        );
+        Assert.Contains(
+            blocked.Preview.Blockers.Conflicts,
+            conflict => conflict.FirstSourceModule == "training" || conflict.SecondSourceModule == "training"
+        );
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, assignment.Event!.StatusTypeCode);
+
+        await conflictService.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = "training",
+                FirstEventId = TrainingConflictParticipantProvider.IdentityFor(training.Id).EventId,
+                SecondSourceModule = "scheduling",
+                SecondEventId = assignment.EventId.ToString(),
+                ResourceId = ResourceId,
+                Note = "Approved",
+            },
+            ResourceId,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.True((await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken)).CanPublish);
+        await service.PublishAsync(CreateRequest(), null, TestContext.Current.CancellationToken);
+    }
+
+    private async Task<AssignmentEntry> SeedLinkedDraftAssignmentAsync()
+    {
+        _db.EventTypes.Add(
+            new EventType { Code = SchedulingConstants.AssignmentEventTypeCode, Description = "Assignment" }
+        );
+        _db.Users.Add(
+            new User
+            {
+                Id = ResourceId,
+                IdirName = "assigned-user",
+                IsEnabled = true,
+                HomeLocationId = 5,
+            }
+        );
+        _db.Trainings.Add(
+            new global::Unified.Db.Models.Training.Training
+            {
+                Id = 1,
+                Code = "FIRST-AID",
+                Description = "Course",
+            }
+        );
+        _db.StatGroups.Add(new StatGroup { Id = 1, Name = "Group" });
+        _db.StatCategories.Add(
+            new StatCategory
+            {
+                Id = 1,
+                GroupId = 1,
+                Name = "Category",
+            }
+        );
+        _db.SubCategories.Add(
+            new SubCategory
+            {
+                Id = 1,
+                CategoryId = 1,
+                Name = "Subcategory",
+            }
+        );
+        _db.AssignmentDefinitions.Add(
+            new AssignmentDefinition
+            {
+                Id = 1,
+                LocationId = 5,
+                Name = "Assignment",
+                NormalizedName = "assignment",
+                DefaultCapacity = 1,
+                CategoryId = 1,
+                SubCategoryId = 1,
+            }
+        );
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var shift = await SeedDraftShiftAsync();
+        shift.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        var assignment = new AssignmentEntry
+        {
+            AssignmentDefinitionId = 1,
+            CategoryId = 1,
+            SubCategoryId = 1,
+            Capacity = 1,
+            Event = new Event
+            {
+                Title = "Draft assignment",
+                StartAtUtc = ShiftStart,
+                EndAtUtc = ShiftEnd,
+                EventTypeCode = SchedulingConstants.AssignmentEventTypeCode,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+                SourceModule = SchedulingConstants.SourceModule,
+                LocationId = 5,
+            },
+            ShiftAssignmentEntries =
+            [
+                new ShiftAssignmentEntry
+                {
+                    ShiftEntryId = shift.Id,
+                    Users = [new ShiftAssignmentEntryUser { UserId = ResourceId }],
+                },
+            ],
+        };
+        _db.AssignmentEntries.Add(assignment);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return assignment;
     }
 
     private SchedulePublishService CreateService(
