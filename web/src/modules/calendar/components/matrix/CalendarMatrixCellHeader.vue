@@ -88,6 +88,7 @@ function handleActionClick() {
           {{ header.text }}
         </slot>
       </span>
+      <span v-if="header.subtitle" class="calendar-matrix-cell-header__subtitle">{{ header.subtitle }}</span>
     </button>
     <div v-else class="calendar-matrix-cell-header__main">
       <span class="calendar-matrix-cell-header__text">
@@ -95,6 +96,7 @@ function handleActionClick() {
           {{ header.text }}
         </slot>
       </span>
+      <span v-if="header.subtitle" class="calendar-matrix-cell-header__subtitle">{{ header.subtitle }}</span>
     </div>
 
     <span v-if="hasInfoIcons" class="calendar-matrix-cell-header__info-icons">
@@ -161,11 +163,12 @@ function handleActionClick() {
 }
 
 .calendar-matrix-cell-header__main {
-  align-items: center;
+  align-items: flex-start;
   background: transparent;
   border: 0;
   color: inherit;
   display: flex;
+  flex-direction: column;
   font: inherit;
   font-size: inherit;
   font-weight: inherit;
@@ -271,6 +274,12 @@ button.calendar-matrix-cell-header__action {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.calendar-matrix-cell-header__subtitle {
+  font-size: var(--ua-font-size-xs);
+  font-weight: normal;
+  line-height: 1.2;
 }
 
 @media (hover: hover) and (pointer: fine) {

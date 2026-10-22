@@ -9,6 +9,7 @@ import classicThemePlugin from '@fullcalendar/vue3/themes/classic';
 import dayGridPlugin from '@fullcalendar/vue3/daygrid';
 import timeGridPlugin from '@fullcalendar/vue3/timegrid';
 import { computed } from 'vue';
+import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 
 const emit = defineEmits<{
   (event: 'eventClick', payload: EventClickInfo): void;
@@ -74,6 +75,7 @@ const props = withDefaults(
 const calendarKey = computed(
   () => `${props.view}:${props.initialDate ?? ''}:${props.weekends ? 'weekends' : 'weekdays'}`,
 );
+const allDayLabelCss = JSON.stringify(CALENDAR_ALL_DAY_LABEL);
 
 const defaultCalendarOptions = computed<CalendarOptions>(() => ({
   plugins: [classicThemePlugin, dayGridPlugin, timeGridPlugin],
@@ -112,7 +114,8 @@ const defaultCalendarOptions = computed<CalendarOptions>(() => ({
   eventClass(arg) {
     const eventTypeCode = toCalendarEventClassToken(String(arg.event.extendedProps['eventTypeCode'] ?? 'general'));
     const eventType = toCalendarEventClassToken(String(arg.event.extendedProps['type'] ?? 'calendar.general'));
-    return `ua-calendar__event--${eventTypeCode} ua-calendar__event-type--${eventType}`;
+    const allDayClass = arg.event.allDay ? ' ua-calendar__event--all-day' : '';
+    return `ua-calendar__event--${eventTypeCode} ua-calendar__event-type--${eventType}${allDayClass}`;
   },
 }));
 
@@ -158,7 +161,7 @@ const forwardedFullCalendarProps = computed(() => {
 </script>
 
 <template>
-  <div class="ua-calendar">
+  <div class="ua-calendar" :style="{ '--calendar-all-day-label': allDayLabelCss }">
     <FullCalendar :key="calendarKey" v-bind="forwardedFullCalendarProps" />
   </div>
 </template>

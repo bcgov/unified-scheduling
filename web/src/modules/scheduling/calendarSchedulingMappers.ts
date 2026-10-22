@@ -1,5 +1,6 @@
 import {
   addDays,
+  CALENDAR_ALL_DAY_LABEL,
   DATE_FORMAT,
   formatCalendarEventTimeRange,
   hasExplicitTimeZoneOffset,
@@ -52,6 +53,7 @@ import {
   type CalendarSchedulingAssignmentResource,
 } from './contributions/calendarSchedulingAssignmentResourcesContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
+import { trainingCalendarDetailActionId } from '@/modules/training/calendarTrainingIdentifiers';
 import { calendarMatrixColorMap } from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 import { DateTime } from 'luxon';
@@ -126,6 +128,7 @@ export function buildCalendarSchedulingViewModel(
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
   const conflicts = selectCalendarConflicts(response);
   const leaveEvents = schedulingEvents.filter((event) => isLeaveEvent(event) || isLoanOutEvent(event));
+  const trainingEvents = selectContribution(response, 'training.events')?.events ?? [];
   const userResources = selectSchedulingUserResources(response);
   const userResourcesById = new Map(userResources.map((user) => [user.id, user]));
   const homeLocationUserIds = new Set(
@@ -170,11 +173,28 @@ export function buildCalendarSchedulingViewModel(
       const isLoanOutUser = !isUnassignedRow && Boolean(userResource?.loanOutMetaData?.length);
       const isLoanOutDay = isLoanedOutOnDate(userResource?.loanOutMetaData, day.date, timeZone);
       const isUnavailable = isLoanOutUser && !homeLocationUserIds.has(user.id) && !isLoanOutDay;
+      const userTrainingEvents = isUnassignedRow
+        ? []
+        : trainingEvents.filter(
+            (event) =>
+              event.resourceIds?.includes(user.id) && event.start <= day.date && day.date < (event.end ?? event.start),
+          );
       cells.push({
         resourceId: user.id,
         date: day.date,
         disabled: isUnavailable,
+        showResourceAdd: userShiftEvents.length === 0,
         headers: [
+          ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
+          ...userTrainingEvents.map((event) => ({
+            id: event.id,
+            text: event.title,
+            subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
+            title: event.title,
+            color: 'rgb(var(--v-theme-accent))',
+            actionId: trainingCalendarDetailActionId,
+            payload: event,
+          })),
           ...userShiftEvents.map((event) =>
             buildCellHeader(
               event,
@@ -182,7 +202,6 @@ export function buildCalendarSchedulingViewModel(
               getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
             ),
           ),
-          ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
         ],
         groups: [
           {
@@ -721,10 +740,10 @@ function buildCellHeader(
 ): CalendarMatrixCellHeader {
   return {
     id: event.id,
-    text: formatCalendarEventTimeRange(event.start, event.end, {
-      allDay: event.allDay,
-      timeZone: event.timeZoneId ?? timeZone,
-    }),
+    text: event.allDay
+      ? event.title
+      : formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone }),
+    subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: event.title,
     status: event.statusTypeCode,
     color: resolveCalendarSchedulingColor(event.color),
@@ -1026,6 +1045,7 @@ function buildLeaveCellHeader(
       : event.allDay
         ? label
         : `${label} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
+    subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: `${loanOut ? 'Loan Out' : 'Leave'}: ${label}`,
     status: event.statusTypeCode,
     color: resolveCalendarSchedulingColor(event.color ?? leaveEventColor),

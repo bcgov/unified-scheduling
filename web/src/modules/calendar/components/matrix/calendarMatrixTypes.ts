@@ -102,12 +102,14 @@ export interface CalendarMatrixCell {
   disabled?: boolean;
   headers?: CalendarMatrixCellHeader[];
   groups: CalendarMatrixEventGroup[];
+  showResourceAdd?: boolean;
   payload?: unknown;
 }
 
 export interface CalendarMatrixCellHeader {
   id?: string;
   text: string;
+  subtitle?: string;
   title?: string;
   status?: string;
   color?: string;
