@@ -59,7 +59,10 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
                     SourceModule = "training",
                     Title = $"Training: {ut.Code}",
                     Start = new DateTimeOffset(startDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
-                    End = new DateTimeOffset(endDay.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+                    // The day after DateOnly.MaxValue cannot be represented; cap that event to the requested range.
+                    End = endDay == DateOnly.MaxValue
+                        ? exclusiveEnd
+                        : new DateTimeOffset(endDay.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
                     AllDay = true,
                     IsReadOnly = true,
                     LocationId = ut.HomeLocationId,

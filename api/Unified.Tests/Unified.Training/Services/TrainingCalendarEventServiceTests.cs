@@ -111,6 +111,21 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetEventsAsync_MaximumStoredEnd_CapsEventAtRequestedExclusiveEnd()
+    {
+        var longRunning = await AddAsync(_userA, 1, 2026, 1, 1, 9999, 12, 31);
+        var ordinary = await AddAsync(_userB, 1, 2026, 1, 6, 2026, 1, 6);
+
+        var events = await _service.GetEventsAsync(Request(5, 7), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, events.Count);
+        var longRunningEvent = Assert.Single(events, e => e.UserTrainingId == longRunning.Id);
+        Assert.Equal(Day(2026, 1, 1), longRunningEvent.Start);
+        Assert.Equal(Day(2026, 1, 8), longRunningEvent.End);
+        Assert.Equal(Day(2026, 1, 7), Assert.Single(events, e => e.UserTrainingId == ordinary.Id).End);
+    }
+
+    [Fact]
     public async Task GetEventsAsync_LocationAndUserFilters_AreCombined()
     {
         var included = await AddAsync(_userA, 1, 2026, 1, 5, 2026, 1, 5);
