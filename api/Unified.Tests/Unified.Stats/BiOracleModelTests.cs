@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Unified.Db;
 using Unified.Db.Models;
@@ -9,9 +10,9 @@ namespace Unified.Tests.Stats;
 
 public sealed class BiOracleModelTests
 {
-    private readonly IModel _model = new UnifiedDbContext(
+    private readonly UnifiedDbContext _context = new(
         new DbContextOptionsBuilder<UnifiedDbContext>().UseNpgsql("Host=localhost;Database=model-tests").Options
-    ).Model;
+    );
 
     [Fact]
     public void Model_MapsAllBiOracleEntitiesToEtlSchema()
@@ -110,7 +111,7 @@ public sealed class BiOracleModelTests
                     ])
         );
         Assert.Contains(
-            stage.GetCheckConstraints(),
+            _context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(BiOracleStatStage))!.GetCheckConstraints(),
             constraint => constraint.Name == "CK_BiOracleStatStages_LocationLevelSupervisor"
         );
     }
@@ -140,6 +141,8 @@ public sealed class BiOracleModelTests
     public void Relationships_PreserveMappingHistoryAndCascadeRunStageCleanup()
     {
         var mappingForeignKeys = Entity<BiOracleStatMapping>().GetForeignKeys().ToArray();
+        var mappingDeleteBehavior = (string propertyName) =>
+            mappingForeignKeys.Single(foreignKey => foreignKey.Properties.Any(property => property.Name == propertyName)).DeleteBehavior;
         var runMappingSetForeignKey = Entity<BiOracleEtlRun>()
             .GetForeignKeys()
             .Single(foreignKey =>
@@ -151,12 +154,15 @@ public sealed class BiOracleModelTests
                 foreignKey.Properties.Any(property => property.Name == nameof(BiOracleStatStage.LoadId))
             );
 
-        Assert.All(mappingForeignKeys, foreignKey => Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior));
+        Assert.Equal(DeleteBehavior.Restrict, mappingDeleteBehavior(nameof(BiOracleStatMapping.MappingSetId)));
+        Assert.Equal(DeleteBehavior.Restrict, mappingDeleteBehavior(nameof(BiOracleStatMapping.SubCategoryMetricId)));
+        Assert.Equal(DeleteBehavior.SetNull, mappingDeleteBehavior(nameof(BiOracleStatMapping.CreatedById)));
+        Assert.Equal(DeleteBehavior.SetNull, mappingDeleteBehavior(nameof(BiOracleStatMapping.UpdatedById)));
         Assert.Equal(DeleteBehavior.Restrict, runMappingSetForeignKey.DeleteBehavior);
         Assert.Equal(DeleteBehavior.Cascade, stageRunForeignKey.DeleteBehavior);
     }
 
-    private IEntityType Entity<TEntity>() => _model.FindEntityType(typeof(TEntity))!;
+    private IEntityType Entity<TEntity>() => _context.Model.FindEntityType(typeof(TEntity))!;
 
     private static IEnumerable<string> PropertyNames(IReadOnlyIndex index) =>
         index.Properties.Select(property => property.Name);
