@@ -18,12 +18,14 @@ const props = withDefaults(
     display?: CalendarMatrixEventDisplay;
     variant?: CalendarMatrixEventGroupVariant;
     showColorBar?: boolean;
+    showTime?: boolean;
     selectOnClick?: boolean;
     timeZone?: string;
   }>(),
   {
     variant: 'primary',
     showColorBar: false,
+    showTime: true,
     selectOnClick: true,
   },
 );
@@ -181,7 +183,7 @@ function handleDragEnd() {
       class="calendar-matrix-event-block__main"
       type="button"
       :draggable="isDraggable"
-      :aria-label="`${event.title}, ${timeDisplay}`"
+      :aria-label="showTime && timeDisplay ? `${event.title}, ${timeDisplay}` : event.title"
       @click="handleClick"
       @dragstart="handleDragStart"
       @dragend="handleDragEnd"
@@ -192,7 +194,7 @@ function handleDragEnd() {
             {{ event.title }}
           </slot>
         </div>
-        <div class="calendar-matrix-event-block__meta">{{ timeDisplay }}</div>
+        <div v-if="showTime" class="calendar-matrix-event-block__meta">{{ timeDisplay }}</div>
       </slot>
     </button>
     <button

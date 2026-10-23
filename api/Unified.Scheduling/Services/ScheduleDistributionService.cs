@@ -51,6 +51,7 @@ public sealed class ScheduleDistributionService(
                 StartDate = context.StartDate,
                 EndDate = context.EndDate,
                 Period = ToPdfPeriod(context.Period),
+                IncludeAssignmentTimes = context.IncludeAssignmentTimes,
             },
             cancellationToken
         );

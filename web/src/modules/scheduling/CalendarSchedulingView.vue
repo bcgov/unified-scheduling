@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { mdiRepeat } from '@mdi/js';
+import { useRoute } from 'vue-router';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
 import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
@@ -8,11 +9,13 @@ import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentMod
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
 import CalendarSchedulingAssignmentDefinitionCreateModal from './CalendarSchedulingAssignmentDefinitionCreateModal.vue';
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
+import CalendarSchedulingDistributionModal from './CalendarSchedulingDistributionModal.vue';
 import CalendarSchedulingPublishModal from './CalendarSchedulingPublishModal.vue';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
 import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { resolveCalendarEventId } from '@/modules/calendar/calendarSelectors';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
@@ -26,6 +29,7 @@ import type {
 } from '@/modules/calendar/calendarTypes';
 import { postApiCalendarConflictsOverrides } from '@/api-access/generated/calendar/calendar';
 import { Permissions } from '@/api-access/generated/models';
+import { CalendarActionId } from '@/modules/calendar/calendarIdentifiers';
 import {
   CalendarMatrixActionType,
   type CalendarMatrixConflictItem,
@@ -50,6 +54,7 @@ import {
   calendarSchedulingAssignmentModalShiftEntryIds,
   calendarSchedulingConflictEventId,
   calendarSchedulingConflictHeaderId,
+  calendarSchedulingDistributionRequest,
   calendarSchedulingDetailEvent,
   calendarSchedulingDetailInitialOpenScope,
   calendarSchedulingExistingShiftChoice,
@@ -62,6 +67,7 @@ import {
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingEventDetail,
+  closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   closeCalendarSchedulingLeaveDetail,
@@ -77,22 +83,32 @@ import { isCalendarSchedulingEvent, isLeaveEvent } from './calendarSchedulingDat
 
 const props = defineProps<{
   model: CalendarMatrixViewModel;
+  period?: CalendarPeriod;
   runtimeContext?: CalendarRuntimeContext;
   showAssignmentContent?: boolean;
+  renderToken?: string;
 }>();
 
 const emit = defineEmits<{
   (event: 'eventClick', payload: CalendarEventBase): void;
+  (event: 'renderComplete', renderToken?: string): void;
 }>();
 
 const calendarStore = useCalendarStore();
 const calendarAlertStore = useCalendarAlertStore();
+const route = useRoute();
 const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
 const canCreateShift = computed(() => Boolean(props.runtimeContext && canCreateShifts(props.runtimeContext)));
 const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShifts(props.runtimeContext)));
 const canAllowCreateLeave = computed(() => Boolean(props.runtimeContext && canCreateLeave(props.runtimeContext)));
 const canAllowEditLeave = computed(() => Boolean(props.runtimeContext && canEditLeave(props.runtimeContext)));
+const includeAssignmentTimes = computed(
+  () =>
+    props.runtimeContext?.presentationMode !== 'print' ||
+    props.showAssignmentContent === true ||
+    route.query.includeAssignmentTimes !== 'false',
+);
 
 function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
   if (item.type !== 'assignment') {
@@ -314,14 +330,17 @@ function isAssignmentEvent(event: CalendarEventBase) {
   <CalendarMatrixView
     class="calendar-scheduling-matrix"
     :model="model"
+    :render-token="renderToken"
     :runtime-context="runtimeContext"
     @event-click="emit('eventClick', $event)"
+    @render-complete="emit('renderComplete', $event)"
     @side-panel-item-click="handleSidePanelItemClick"
   >
     <template #cell-header="{ cell, header, onHeaderAction, onHeaderClick }">
       <div
         class="calendar-scheduling-header"
         :class="{
+          'is-holiday': header.actionId === CalendarActionId.EventDetail,
           'has-conflict-overlay':
             calendarSchedulingConflictHeaderId != null &&
             calendarSchedulingConflictHeaderId === getCalendarSchedulingHeaderConflictKey(cell, header.id),
@@ -355,6 +374,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
           :display="display"
           :variant="group.variant"
           :show-color-bar="group.showColorBar"
+          :show-time="includeAssignmentTimes || !isAssignmentEvent(event)"
           :time-zone="model.timeZone"
           @event-action="handleEventAction($event, cell, onEventAction)"
           @drag-start="onDragStart"
@@ -411,6 +431,17 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :request="calendarSchedulingPublishRequest"
     @close="closeCalendarSchedulingPublishModal"
     @published="handleSchedulePublished"
+  />
+
+  <CalendarSchedulingDistributionModal
+    v-if="calendarSchedulingDistributionRequest"
+    :location-id="calendarSchedulingDistributionRequest.locationId"
+    :start-date="calendarSchedulingDistributionRequest.startDate"
+    :end-date="calendarSchedulingDistributionRequest.endDate"
+    :period="props.period ?? 'week'"
+    :view="showAssignmentContent ? 'assignments' : 'schedule'"
+    :model="model"
+    @close="closeCalendarSchedulingDistributionModal"
   />
 
   <CalendarSchedulingAssignmentModal
@@ -481,6 +512,12 @@ function isAssignmentEvent(event: CalendarEventBase) {
 
 .calendar-scheduling-header {
   position: relative;
+}
+
+.calendar-scheduling-header.is-holiday :deep(.calendar-matrix-cell-header) {
+  background: rgb(var(--v-theme-surface));
+  border-color: var(--calendar-event-holiday-color);
+  color: var(--ua-text-primary);
 }
 
 .calendar-scheduling-header.has-conflict-overlay {

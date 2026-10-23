@@ -146,6 +146,7 @@ describe('calendar workflow', () => {
         {
           startDate: '2025-04-07',
           endDate: '2025-04-14',
+          activeViewId: 'workflow-view',
           locationId: 12,
           filters: { timeZoneId: 'America/Toronto' },
         },
@@ -165,6 +166,7 @@ describe('calendar workflow', () => {
         {
           startDate: previousRange.startDate,
           endDate: previousRange.endDate,
+          activeViewId: 'workflow-view',
           locationId: 12,
           filters: { timeZoneId: 'America/Toronto' },
         },
@@ -182,6 +184,7 @@ describe('calendar workflow', () => {
         {
           startDate: '2025-04-07',
           endDate: '2025-04-14',
+          activeViewId: 'workflow-view',
           locationId: 12,
           filters: { timeZoneId: 'America/Toronto' },
         },
@@ -200,6 +203,7 @@ describe('calendar workflow', () => {
         {
           startDate: todayRange.startDate,
           endDate: todayRange.endDate,
+          activeViewId: 'workflow-view',
           locationId: 12,
           filters: { timeZoneId: 'America/Toronto' },
         },
@@ -227,6 +231,7 @@ describe('calendar workflow', () => {
         {
           startDate: '2025-04-14',
           endDate: '2025-04-21',
+          activeViewId: 'workflow-view',
           locationId: 12,
           filters: { timeZoneId: 'America/Toronto' },
         },
@@ -245,6 +250,7 @@ describe('calendar workflow', () => {
         {
           startDate: '2025-04-16',
           endDate: '2025-04-17',
+          activeViewId: 'workflow-view',
           locationId: 12,
           filters: { timeZoneId: 'America/Toronto' },
         },
@@ -262,6 +268,7 @@ describe('calendar workflow', () => {
         {
           startDate: '2025-04-14',
           endDate: '2025-04-19',
+          activeViewId: 'workflow-view',
           locationId: 12,
           filters: { timeZoneId: 'America/Toronto' },
         },
@@ -351,7 +358,13 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: expectedRange.startDate, endDate: expectedRange.endDate, locationId: 12, filters: {} },
+        {
+          startDate: expectedRange.startDate,
+          endDate: expectedRange.endDate,
+          activeViewId: 'period-view',
+          locationId: 12,
+          filters: {},
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
     } finally {
@@ -412,5 +425,108 @@ describe('calendar workflow', () => {
     expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(false);
 
     wrapper.unmount();
+  });
+
+  it('resolves print context only after current data and child rendering, and reports load failures', async () => {
+    const loadData = vi.fn().mockResolvedValue({ contributions: {} });
+    const PrintView = defineComponent({
+      props: { renderToken: { type: String, default: '' } },
+      emits: ['renderComplete'],
+      template: `
+        <div data-testid="print-view">
+          <span>Published schedule content</span>
+          <button data-testid="complete-render" @click="$emit('renderComplete', renderToken)">Complete</button>
+        </div>
+      `,
+    });
+
+    vi.doMock('@/modules/calendar/calendarDataService', () => ({
+      calendarDataService: { loadData, cancel: vi.fn(), endSession: vi.fn() },
+    }));
+    vi.doMock('@/modules/calendar/registry/calendarActionRegistry', () => ({
+      calendarActionRegistry: {
+        getCreateActions: vi.fn(() => []),
+        getToolbarActionsForView: vi.fn(() => []),
+        getViewDetailActions: vi.fn(() => []),
+      },
+    }));
+    vi.doMock('@/modules/calendar/registry/calendarRegistry', () => ({
+      calendarRegistry: {
+        getAvailableViews: vi.fn(() => [
+          {
+            id: 'calendar.matrix-schedule',
+            label: 'Schedule',
+            component: PrintView,
+            supportedPeriods: ['day', 'week', 'work-week'],
+            buildModel: () => ({ timeZone: 'America/Vancouver' }),
+          },
+        ]),
+      },
+    }));
+
+    const [{ default: Calendar }, { useCalendarStore }, { useLocationsStore }] = await Promise.all([
+      import('@/modules/calendar/Calendar.vue'),
+      import('@/modules/calendar/calendarStore'),
+      import('@/stores/LocationsStore'),
+    ]);
+    const { mountPlugins, pinia, router } = await createTestApp({ loadConfig: false });
+    await router.push({
+      path: '/calendar',
+      query: {
+        mode: 'print',
+        view: 'schedule',
+        locationId: '7',
+        startDate: '2026-08-24',
+        endDate: '2026-08-31',
+        period: 'week',
+      },
+    });
+    await router.isReady();
+    const locationsStore = useLocationsStore(pinia);
+    locationsStore.entities = [{ id: 7, name: 'Seven', timezone: 'America/Vancouver' }];
+    const calendarStore = useCalendarStore(pinia);
+    const wrapper = mount(Calendar, { global: { plugins: mountPlugins } });
+
+    try {
+      await flushPromises();
+
+      expect(calendarStore.activeViewId).toBe('calendar.matrix-schedule');
+      expect(calendarStore.period).toBe('week');
+      expect(calendarStore.dateRange).toEqual({ startDate: '2026-08-24', endDate: '2026-08-31' });
+      expect(locationsStore.selectedLocationId).toBe(7);
+      expect(loadData).toHaveBeenLastCalledWith(
+        expect.objectContaining({ presentationMode: 'print' }),
+        expect.objectContaining({
+          startDate: '2026-08-24',
+          endDate: '2026-08-31',
+          activeViewId: 'calendar.matrix-schedule',
+          locationId: 7,
+        }),
+        expect.any(Object),
+      );
+      expect(wrapper.get('#calendar-print-root').attributes('data-render-state')).toBe('loading');
+
+      const printView = wrapper.getComponent(PrintView);
+      const firstRenderToken = printView.props('renderToken') as string;
+      printView.vm.$emit('renderComplete', 'stale-token');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.get('#calendar-print-root').attributes('data-render-state')).toBe('loading');
+
+      await wrapper.get('[data-testid="complete-render"]').trigger('click');
+      await wrapper.vm.$nextTick();
+      expect(wrapper.get('#calendar-print-root').attributes('data-render-state')).toBe('complete');
+
+      loadData.mockRejectedValueOnce(new Error('load failed'));
+      calendarStore.refresh();
+      await flushPromises();
+      expect(wrapper.get('#calendar-print-root').attributes('data-render-state')).toBe('error');
+      expect(wrapper.text()).toContain('Failed to retrieve calendar data.');
+
+      printView.vm.$emit('renderComplete', firstRenderToken);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.get('#calendar-print-root').attributes('data-render-state')).toBe('error');
+    } finally {
+      wrapper.unmount();
+    }
   });
 });

@@ -370,7 +370,7 @@ public sealed class PlaywrightSchedulePdfRenderer(
             _ => throw new PdfRenderingException("The calendar print period is invalid."),
         };
         var relativeTarget = FormattableString.Invariant(
-            $"calendar?view={view}&mode=print&locationId={request.LocationId}&startDate={request.StartDate:yyyy-MM-dd}&endDate={request.EndDate:yyyy-MM-dd}&period={period}"
+            $"calendar?view={view}&mode=print&locationId={request.LocationId}&startDate={request.StartDate:yyyy-MM-dd}&endDate={request.EndDate:yyyy-MM-dd}&period={period}&includeAssignmentTimes={request.IncludeAssignmentTimes.ToString().ToLowerInvariant()}"
         );
 
         return new Uri(baseUri, relativeTarget);

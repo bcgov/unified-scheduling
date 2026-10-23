@@ -16,6 +16,7 @@ import {
   calendarDropUserOnAssignmentResourceAction,
   calendarScheduleStaffAction,
   calendarSchedulingCreateShiftAction,
+  calendarSchedulingDistributionAction,
   calendarSchedulingEventDetailAction,
   calendarSchedulingHeaderShowConflictAction,
   calendarSchedulingPublishAction,
@@ -33,12 +34,14 @@ import {
   calendarSchedulingConflictEventId,
   calendarSchedulingConflictHeaderId,
   calendarSchedulingDetailEvent,
+  calendarSchedulingDistributionRequest,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionAssignmentEntryId,
   calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionResource,
   calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
+  closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   getCalendarSchedulingHeaderConflictKey,
@@ -53,6 +56,7 @@ describe('calendarSchedulingActions', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     closeCalendarSchedulingAssignmentModal();
+    closeCalendarSchedulingDistributionModal();
     closeCalendarSchedulingPublishModal();
     closeCalendarSchedulingResourceActionModal();
   });
@@ -97,13 +101,13 @@ describe('calendarSchedulingActions', () => {
     expect(
       calendarSchedulingPublishAction.isAvailable?.(context, {
         featureFlags: {},
-        permissions: [Permissions.SchedulePublish],
+        permissions: [Permissions.SchedulePublish, Permissions.ShiftsView],
       }),
     ).toBe(true);
     expect(
       calendarSchedulingPublishAction.isAvailable?.(
         { ...context, locationId: undefined },
-        { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+        { featureFlags: {}, permissions: [Permissions.SchedulePublish, Permissions.ShiftsView] },
       ),
     ).toBe(false);
   });
@@ -116,7 +120,7 @@ describe('calendarSchedulingActions', () => {
         locationId: 7,
         filters: {},
       },
-      { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+      { featureFlags: {}, permissions: [Permissions.SchedulePublish, Permissions.ShiftsView] },
     );
 
     expect(calendarSchedulingPublishRequest.value).toEqual({
@@ -145,7 +149,10 @@ describe('calendarSchedulingActions', () => {
 
         await action!.run(
           { startDate, endDate, locationId: 7, filters: {} },
-          { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+          {
+            featureFlags: {},
+            permissions: [Permissions.SchedulePublish, Permissions.ShiftsView, Permissions.AssignmentsView],
+          },
         );
 
         expect(calendarSchedulingPublishRequest.value).toEqual({
@@ -169,6 +176,43 @@ describe('calendarSchedulingActions', () => {
       { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
     );
     expect(calendarSchedulingPublishRequest.value).toBeUndefined();
+  });
+
+  it('shows distribution only when the user can view the active schedule', async () => {
+    const context = {
+      startDate: '2026-08-24',
+      endDate: '2026-08-31',
+      locationId: 7,
+      filters: {},
+    };
+    const assignmentPermissions = {
+      featureFlags: {},
+      permissions: [Permissions.ScheduleViewDistribute, Permissions.AssignmentsView],
+    };
+
+    expect(
+      calendarSchedulingDistributionAction.isAvailable?.(
+        { ...context, activeViewId: calendarShiftViewContribution.id },
+        assignmentPermissions,
+      ),
+    ).toBe(false);
+    expect(
+      calendarSchedulingDistributionAction.isAvailable?.(
+        { ...context, activeViewId: calendarAssignmentViewContribution.id },
+        assignmentPermissions,
+      ),
+    ).toBe(true);
+
+    await calendarSchedulingDistributionAction.run(
+      { ...context, activeViewId: calendarAssignmentViewContribution.id },
+      assignmentPermissions,
+    );
+
+    expect(calendarSchedulingDistributionRequest.value).toEqual({
+      locationId: 7,
+      startDate: '2026-08-24',
+      endDate: '2026-08-31',
+    });
   });
 
   it('opens the add assignment modal on the first date in the displayed range', async () => {
@@ -368,7 +412,7 @@ describe('calendarSchedulingActions', () => {
       model: {
         timeZone: 'America/Vancouver',
         payload: {
-          assignmentEvents: [
+          events: [
             {
               id: 'scheduling.assignment-entry.90',
               type: 'scheduling.assignment',
@@ -435,6 +479,22 @@ describe('calendarSchedulingActions', () => {
       },
       model: {
         timeZone: 'America/Vancouver',
+        payload: {
+          events: [
+            {
+              id: 'assignment-entry-90',
+              type: 'scheduling.assignment',
+              sourceModule: 'calendar-assignment',
+              title: 'Court Room Monitor',
+              start: '2026-07-12T16:00:00Z',
+              metadata: {
+                assignmentDefinitionId: '20',
+                assignmentEntryId: '90',
+                assignedUserIds: ['user-2'],
+              },
+            },
+          ],
+        },
         days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
         primaryColumn: {
           label: 'TEAM',
@@ -515,7 +575,7 @@ describe('calendarSchedulingActions', () => {
       },
       model: {
         timeZone: 'America/Vancouver',
-        payload: { assignmentEvents: [existingAssignment] },
+        payload: { events: [existingAssignment] },
         days: [{ date: '2026-07-12', label: 'Sun, Jul 12' }],
         primaryColumn: {
           label: 'TEAM',
