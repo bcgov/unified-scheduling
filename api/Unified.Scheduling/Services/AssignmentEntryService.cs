@@ -156,6 +156,8 @@ public sealed class AssignmentEntryService(
             .Include(entry => entry.ShiftAssignmentEntries)
                 .ThenInclude(link => link.ShiftEntry)
                     .ThenInclude(shiftEntry => shiftEntry!.Event)
+            .Include(entry => entry.ShiftAssignmentEntries)
+                .ThenInclude(link => link.ShiftAssignmentSeriesLink)
             .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken);
 
         if (assignmentEntry is null)
