@@ -16,7 +16,7 @@ const props = defineProps<{
   timeZone: string;
   loading?: boolean;
   errorMessage?: string;
-  canEditEvent?: boolean;
+  canEditEvent?: boolean | ((event: CalendarConflictEvent) => boolean);
   canOverride?: boolean;
 }>();
 
@@ -57,6 +57,10 @@ const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update over
 function editEvent(event: CalendarConflictEvent) {
   emit('editEvent', event);
 }
+
+function isEventEditable(event: CalendarConflictEvent) {
+  return typeof props.canEditEvent === 'function' ? props.canEditEvent(event) : props.canEditEvent;
+}
 </script>
 
 <template>
@@ -75,7 +79,7 @@ function editEvent(event: CalendarConflictEvent) {
             </small>
           </span>
           <button
-            v-if="canEditEvent"
+            v-if="isEventEditable(conflictSection.entry)"
             type="button"
             class="calendar-conflict-detail__edit"
             :aria-label="`Edit ${conflictSection.entry.title}`"
@@ -94,7 +98,7 @@ function editEvent(event: CalendarConflictEvent) {
             </small>
           </span>
           <button
-            v-if="canEditEvent"
+            v-if="isEventEditable(conflictSection.overlaps)"
             type="button"
             class="calendar-conflict-detail__edit"
             :aria-label="`Edit ${conflictSection.overlaps.title}`"
