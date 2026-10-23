@@ -13,7 +13,9 @@ public sealed class ScheduleDistributionRequestValidator : AbstractValidator<Sch
     {
         RuleFor(request => request.Context).NotNull();
         RuleFor(request => request.RecipientUserIds).NotNull().NotEmpty().Must(HaveUniqueRecipients);
-        RuleForEach(request => request.RecipientUserIds!).NotEmpty().When(request => request.RecipientUserIds is not null);
+        RuleForEach(request => request.RecipientUserIds!)
+            .NotEmpty()
+            .When(request => request.RecipientUserIds is not null);
         RuleFor(request => request.RecipientUserIds)
             .Must(recipients => recipients is null || recipients.Count <= MaximumRecipientCount)
             .When(request => request.RecipientUserIds is not null);

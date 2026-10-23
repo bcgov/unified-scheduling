@@ -1,6 +1,6 @@
 using System.Globalization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Authorization.Claims;
 using Unified.Calendar.Conflicts;
@@ -81,11 +81,7 @@ public sealed class CalendarQueryService(
                 .ToHashSet(StringComparer.Ordinal)
             : null;
         var conflicts = await calendarConflictService.GetConflictsAsync(
-            new CalendarConflictQuery(
-                utcRange.StartAtUtc,
-                utcRange.EndAtUtc,
-                ViewerPermissions: viewerPermissions
-            ),
+            new CalendarConflictQuery(utcRange.StartAtUtc, utcRange.EndAtUtc, ViewerPermissions: viewerPermissions),
             cancellationToken
         );
         var response = new CalendarDataResponse

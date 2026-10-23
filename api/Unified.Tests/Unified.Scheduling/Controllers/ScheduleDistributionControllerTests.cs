@@ -53,10 +53,7 @@ public sealed class ScheduleDistributionControllerTests
     [Theory]
     [InlineData("schedule", Permissions.AssignmentsView)]
     [InlineData("assignments", Permissions.ShiftsView)]
-    public async Task Distribute_WithoutPermissionForRequestedView_ReturnsForbidden(
-        string view,
-        Permissions permission
-    )
+    public async Task Distribute_WithoutPermissionForRequestedView_ReturnsForbidden(string view, Permissions permission)
     {
         var service = new RecordingDistributionService();
         var controller = CreateController(service, permission);
@@ -70,10 +67,7 @@ public sealed class ScheduleDistributionControllerTests
     [Theory]
     [InlineData("schedule", Permissions.ShiftsView)]
     [InlineData("assignments", Permissions.AssignmentsView)]
-    public async Task Distribute_WithPermissionForRequestedView_InvokesService(
-        string view,
-        Permissions permission
-    )
+    public async Task Distribute_WithPermissionForRequestedView_InvokesService(string view, Permissions permission)
     {
         var service = new RecordingDistributionService();
         var controller = CreateController(service, permission);
@@ -110,9 +104,7 @@ public sealed class ScheduleDistributionControllerTests
         params Permissions[] permissions
     )
     {
-        var claims = permissions.Select(permission =>
-            new Claim(UnifiedClaimTypes.Permission, permission.ToString())
-        );
+        var claims = permissions.Select(permission => new Claim(UnifiedClaimTypes.Permission, permission.ToString()));
         return new ScheduleDistributionController(
             service,
             new ScheduleDistributionRequestValidator(),
@@ -121,10 +113,7 @@ public sealed class ScheduleDistributionControllerTests
         {
             ControllerContext = new ControllerContext
             {
-                HttpContext = new DefaultHttpContext
-                {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")),
-                },
+                HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")) },
             },
         };
     }

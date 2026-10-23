@@ -113,8 +113,7 @@ public sealed class PlaywrightSchedulePdfRenderer(
                 throw new PdfRenderingException("The calendar print view could not be loaded.");
 
             var renderRoot = page.Locator(RenderRootSelector);
-            await page
-                .Locator(
+            await page.Locator(
                     $"{RenderRootSelector}[data-render-state='complete'], {RenderRootSelector}[data-render-state='error']"
                 )
                 .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Attached })
@@ -127,8 +126,7 @@ public sealed class PlaywrightSchedulePdfRenderer(
                 )
                 .WaitAsync(renderToken);
 
-            await page.EmulateMediaAsync(new PageEmulateMediaOptions { Media = Media.Print })
-                .WaitAsync(renderToken);
+            await page.EmulateMediaAsync(new PageEmulateMediaOptions { Media = Media.Print }).WaitAsync(renderToken);
 
             return await page.PdfAsync(
                     new PagePdfOptions

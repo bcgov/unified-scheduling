@@ -136,10 +136,7 @@ public static class SchedulingModule
                         .AddRequirements(new PermissionRequirement(nameof(Permissions.SchedulePublish)))
                         .RequireAssertion(context =>
                             context.User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.ShiftsView))
-                            || context.User.HasClaim(
-                                UnifiedClaimTypes.Permission,
-                                nameof(Permissions.AssignmentsView)
-                            )
+                            || context.User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.AssignmentsView))
                         )
             )
             .AddPolicy(
@@ -150,10 +147,7 @@ public static class SchedulingModule
                         .AddRequirements(new PermissionRequirement(nameof(Permissions.ScheduleViewDistribute)))
                         .RequireAssertion(context =>
                             context.User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.ShiftsView))
-                            || context.User.HasClaim(
-                                UnifiedClaimTypes.Permission,
-                                nameof(Permissions.AssignmentsView)
-                            )
+                            || context.User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.AssignmentsView))
                         )
             )
             .AddPermissionPolicy(Permissions.ShiftsView)
