@@ -149,7 +149,10 @@ describe('calendarSchedulingActions', () => {
 
         await action!.run(
           { startDate, endDate, locationId: 7, filters: {} },
-          { featureFlags: {}, permissions: [Permissions.SchedulePublish] },
+          {
+            featureFlags: {},
+            permissions: [Permissions.SchedulePublish, Permissions.ShiftsView, Permissions.AssignmentsView],
+          },
         );
 
         expect(calendarSchedulingPublishRequest.value).toEqual({

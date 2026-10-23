@@ -1,8 +1,5 @@
 import { CalendarActionId, CalendarModuleId } from '../calendarIdentifiers';
-import type {
-  CalendarMatrixCellHeaderAction,
-  CalendarViewDetailAction,
-} from '../registry/calendarActionRegistryTypes';
+import type { CalendarMatrixCellHeaderAction, CalendarViewDetailAction } from '../registry/calendarActionRegistryTypes';
 import { useCalendarStore } from '../calendarStore';
 
 export const calendarEventDetailModalAction: CalendarViewDetailAction = {
