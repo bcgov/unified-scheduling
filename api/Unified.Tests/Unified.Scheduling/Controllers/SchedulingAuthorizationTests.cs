@@ -134,7 +134,9 @@ public sealed class SchedulingAuthorizationTests
     [Fact]
     public void ScheduleDistribution_RequiresDistributionAndScheduleViewPolicy()
     {
-        var method = typeof(ScheduleDistributionController).GetMethod(nameof(ScheduleDistributionController.Distribute));
+        var method = typeof(ScheduleDistributionController).GetMethod(
+            nameof(ScheduleDistributionController.Distribute)
+        );
 
         Assert.NotNull(method);
         var authorize = Assert.Single(method.GetCustomAttributes<AuthorizeAttribute>());

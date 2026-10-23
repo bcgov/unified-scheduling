@@ -169,8 +169,7 @@ public sealed class ScheduleDistributionServiceTests : IAsyncLifetime
     private ScheduleDistributionService CreateService(
         RecordingPdfRenderer renderer,
         RecordingEmailService emailService
-    ) =>
-        new(_db, renderer, emailService, NullLogger<ScheduleDistributionService>.Instance);
+    ) => new(_db, renderer, emailService, NullLogger<ScheduleDistributionService>.Instance);
 
     private static ScheduleDistributionRequest CreateRequest(IReadOnlyCollection<Guid> recipientIds) =>
         new()
@@ -189,8 +188,20 @@ public sealed class ScheduleDistributionServiceTests : IAsyncLifetime
     private async Task SeedAsync()
     {
         _db.Locations.AddRange(
-            new Location { Id = 7, AgencyId = "A7", Name = "Seven", Timezone = "America/Vancouver" },
-            new Location { Id = 8, AgencyId = "A8", Name = "Eight", Timezone = "America/Edmonton" }
+            new Location
+            {
+                Id = 7,
+                AgencyId = "A7",
+                Name = "Seven",
+                Timezone = "America/Vancouver",
+            },
+            new Location
+            {
+                Id = 8,
+                AgencyId = "A8",
+                Name = "Eight",
+                Timezone = "America/Edmonton",
+            }
         );
         _db.Users.AddRange(
             CreateUser(EligibleUserId, true, 7, "eligible@example.com"),
