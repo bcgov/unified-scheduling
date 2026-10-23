@@ -22,6 +22,7 @@
     <ProjectReference Include="..\Unified.Api\Unified.Api.csproj" />
     <ProjectReference Include="..\Unified.Calendar\Unified.Calendar.csproj" />
     <ProjectReference Include="..\Unified.Core\Unified.Core.csproj" />
+    <ProjectReference Include="..\Unified.DataMigration\Unified.DataMigration.csproj" />
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
     <ProjectReference Include="..\Unified.Hangfire\Unified.Hangfire.csproj" />
     <ProjectReference Include="..\Unified.Infrastructure\Unified.Infrastructure.csproj" />
