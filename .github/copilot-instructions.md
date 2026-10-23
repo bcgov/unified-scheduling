@@ -23,11 +23,12 @@ Configure repo-managed hooks once per clone:
 git config core.hooksPath .githooks
 ```
 
-The committed `.githooks/pre-push` hook runs:
+The committed `.githooks/pre-push` hook scopes checks to the areas changed by the pushed commits:
 
-- `cd web && npm run pre:check`
-- `dotnet tool restore`
-- `dotnet tool run csharpier check ./api ./db`
+- `web/` changes: oxlint and eslint on the changed web files (full `npm run lint:check` when lint config or dependencies change), plus `npm run prettier:check` across `web/`
+- `api/` or `db/` changes: `dotnet tool restore` and `dotnet tool run csharpier check ./api ./db`
+
+The working tree must match the pushed commit in the checked areas (commit or `git stash -u` first). Docs-only pushes skip the checks.
 
 **Run a single test file:**
 
