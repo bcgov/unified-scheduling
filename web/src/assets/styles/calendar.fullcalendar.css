@@ -49,6 +49,12 @@
   padding: 0.15rem 0.3rem;
 }
 
+.ua-calendar .ua-calendar__event--all-day .fc-event-title::after {
+  content: var(--calendar-all-day-label);
+  display: block;
+  font-weight: normal;
+}
+
 .ua-calendar .fc-list-empty {
   color: var(--ua-text-muted);
 }
@@ -63,4 +69,8 @@
 
 .ua-calendar .ua-calendar__event--general {
   --fc-event-border-color: var(--calendar-event-general-color);
+}
+
+.ua-calendar .ua-calendar__event--training {
+  --fc-event-border-color: rgb(var(--v-theme-accent));
 }

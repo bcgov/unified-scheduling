@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { RouteRecordRaw } from 'vue-router';
-import type { FeatureFlagsResponse, TrainingFeatureFlags } from '@/api-access/generated/models';
+import { Permissions, type FeatureFlagsResponse, type TrainingFeatureFlags } from '@/api-access/generated/models';
 
 describe('training module', () => {
   beforeEach(() => {
@@ -53,5 +53,54 @@ describe('training module', () => {
 
     expect(routes).toHaveLength(0);
     expect(navigationStore.links).toHaveLength(0);
+  });
+
+  it('registers its calendar contribution only with Calendar and Training enabled', async () => {
+    const [{ registerModule }, { calendarRegistry }] = await Promise.all([
+      import('@/modules/training/TrainingModule'),
+      import('@/modules/calendar/registry/calendarRegistry'),
+    ]);
+    const query = { startDate: '2025-01-01', endDate: '2025-01-02', filters: {} };
+    const enabled: FeatureFlagsResponse = {
+      Training: { source: 'Training', enabled: true },
+      Calendar: { source: 'Calendar', enabled: true, calendarMatrixTest: false },
+    };
+
+    registerModule([], { ...enabled, Calendar: { ...enabled.Calendar!, enabled: false } });
+    expect(
+      calendarRegistry.getAvailableModuleContributions(
+        { featureFlags: enabled, permissions: [Permissions.UserTrainingsView] },
+        query,
+      ),
+    ).toEqual([]);
+
+    registerModule([], enabled);
+    registerModule([], enabled);
+    expect(
+      calendarRegistry
+        .getAvailableModuleContributions({ featureFlags: enabled, permissions: [Permissions.UserTrainingsView] }, query)
+        .map((item) => item.contributionId),
+    ).toEqual(['training.events']);
+    expect(calendarRegistry.getAvailableModuleContributions({ featureFlags: enabled, permissions: [] }, query)).toEqual(
+      [],
+    );
+    expect(
+      calendarRegistry.getAvailableModuleContributions(
+        {
+          featureFlags: { ...enabled, Training: { source: 'Training', enabled: false } },
+          permissions: [Permissions.UserTrainingsView],
+        },
+        query,
+      ),
+    ).toEqual([]);
+    expect(
+      calendarRegistry.getAvailableModuleContributions(
+        {
+          featureFlags: { ...enabled, Calendar: { ...enabled.Calendar!, enabled: false } },
+          permissions: [Permissions.UserTrainingsView],
+        },
+        query,
+      ),
+    ).toEqual([]);
   });
 });
