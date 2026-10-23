@@ -13,9 +13,10 @@ import * as reportsModule from '@/modules/reports/ReportsModule';
 import * as auditModule from '@/modules/audit/AuditModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
+import { redirectToLogin } from '@/utils/authNavigation';
 
-const AUTH_LOGIN_PATH = '/api/auth/login';
 const UNREGISTERED_ROUTE_PATH = '/unregistered';
+const APPLICATION_UNAVAILABLE_ROUTE_PATH = '/application-unavailable';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -29,7 +30,8 @@ declare module 'vue-router' {
  * Auth guard that checks authentication before navigating to protected routes.
  *  1. Calls the backend /api/auth/user endpoint
  *  2. If authenticated, stores user info and allows navigation
- *  3. If 401, HttpService interceptor redirects to /api/auth/login (Keycloak SSO)
+ *  3. If 401, redirects to /api/auth/login (Keycloak SSO)
+ *  4. If authentication cannot be checked, shows the application unavailable route
  */
 async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormalizedLoaded) {
   const authStore = useAuthStore();
@@ -43,7 +45,16 @@ async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormal
   }
 
   try {
-    const { data: userInfo } = await getApiAuthUser();
+    const { data: userInfo, error, response } = await getApiAuthUser();
+
+    if (error.value) {
+      if (response.value?.status === 401) {
+        redirectToLogin(to.fullPath);
+        return false;
+      }
+
+      return { path: APPLICATION_UNAVAILABLE_ROUTE_PATH };
+    }
 
     authStore.setUserInfo(userInfo.value);
 
@@ -59,17 +70,9 @@ async function authGuard(to: RouteLocationNormalized, _from: RouteLocationNormal
     redirectToLogin(to.fullPath);
     return false;
   } catch {
-    // getUserInfo returned 401 — redirect to backend login.
-    // Pass the intended destination so the user returns here after SSO.
-    redirectToLogin(to.fullPath);
-    return false;
+    return { path: APPLICATION_UNAVAILABLE_ROUTE_PATH };
   }
 }
-
-const redirectToLogin = (returnUrl: string) => {
-  const redirectUri = encodeURIComponent(returnUrl);
-  window.location.href = `${AUTH_LOGIN_PATH}?redirectUri=${redirectUri}`;
-};
 
 const baseRoutes: RouteRecordRaw[] = [
   {
@@ -79,6 +82,15 @@ const baseRoutes: RouteRecordRaw[] = [
     meta: {
       title: 'Registration required',
       requiresAuth: true,
+    },
+  },
+  {
+    path: APPLICATION_UNAVAILABLE_ROUTE_PATH,
+    name: 'ApplicationUnavailable',
+    component: () => import('@/views/ApplicationUnavailable.vue'),
+    meta: {
+      title: 'Application unavailable',
+      fullScreen: true,
     },
   },
   {

@@ -27,7 +27,7 @@ Configuration class for Keycloak settings with automatic validation at startup.
 - `Audience` - JWT bearer token audience claim
 
 **Optional Properties:**
-- `TokenRefreshThreshold` - TimeSpan for when to refresh tokens (default: 5 minutes)
+- `TokenRefreshThreshold` - TimeSpan before access-token expiration when refresh begins (default: 1 minute)
 - `CallbackPath` - OIDC callback path (default: `/api/auth/signin-oidc`)
 - `IdpHint` - Identity provider hint (default: `idir`)
 
@@ -56,13 +56,18 @@ builder.Services.AddInfrastructureModule(builder.Configuration);
 - Automatically refreshes access tokens when they near expiration
 - Uses modern `HttpClient` with `FormUrlEncodedContent` (no deprecated libraries)
 - Configured with SameSite=None and SecurePolicy=Always for cross-origin support
-- Cookie path restricted to `/api/auth` to minimize unnecessary cookie transmission
+- Retains only the refresh token, ID token, and access-token expiration in the protected ticket
 
 **Token Refresh Flow:**
 - Checks token expiration on each authenticated request
 - If within `TokenRefreshThreshold`, uses refresh token to get new access token
 - Updates cookies with new tokens transparently
-- Signs out user if refresh fails
+- Rejects invalid or revoked refresh tokens without deleting a replacement cookie that another concurrent request may have issued
+- Applies a 10-second process-local cooldown after transient Keycloak failures; an expired access token is never accepted during the cooldown
+
+Concurrent requests can still produce one successful refresh and one HTTP 401 when Keycloak rotates refresh tokens. The failed response no longer deletes the successful response's cookie, but the frontend may begin reauthentication if it handles the HTTP 401 before the successful response. The cooldown is process-local and is therefore best-effort across multiple API replicas.
+
+Authentication-cookie tests use a conservative 16 KB combined `Cookie` request-header budget. Production nginx accepts request-header buffers up to 32 KB, but compatibility with every upstream ingress limit still requires deployment verification.
 
 ### 2. OpenID Connect (OIDC)
 - Handles interactive authentication flows (login redirects)
@@ -70,7 +75,7 @@ builder.Services.AddInfrastructureModule(builder.Configuration);
 - Signs into Cookie scheme after successful authentication
 - Removes unnecessary claims to reduce payload size
 - Supports identity provider hints (e.g., `idir` for BC Gov IDIR)
-- Only saves essential tokens (access_token, refresh_token)
+- Saves only the refresh token, ID token, and access-token expiration in the authentication cookie
 
 ### 3. JWT Bearer
 - **Primary default scheme** for API authentication
