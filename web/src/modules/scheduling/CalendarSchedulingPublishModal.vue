@@ -9,6 +9,7 @@ import { PostApiSchedulingPublishPreviewResponse } from '@/api-access/generated/
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
+import { useLocationsStore } from '@/stores/LocationsStore';
 
 const props = defineProps<{
   request: SchedulePublishRequest;
@@ -19,6 +20,8 @@ const emit = defineEmits<{
   (event: 'published', count: number): void;
 }>();
 
+const locationsStore = useLocationsStore();
+const locationName = computed(() => locationsStore.entitiesMap[props.request.locationId]?.name || 'Unknown location');
 const preview = ref<SchedulePublishPreviewResponse>();
 const isLoading = ref(false);
 const isPublishing = ref(false);
@@ -109,7 +112,7 @@ function toAvatarText(displayName: string) {
     <dl class="schedule-publish__scope">
       <div>
         <dt>Location</dt>
-        <dd>{{ request.locationId }}</dd>
+        <dd>{{ locationName }}</dd>
       </div>
       <div>
         <dt>Date range</dt>

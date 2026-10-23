@@ -6,6 +6,7 @@ import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
 import { createPinia } from 'pinia';
 import CalendarSchedulingPublishModal from '@/modules/scheduling/CalendarSchedulingPublishModal.vue';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import { server } from '../../mocks/server';
 
 afterEach(() => {
@@ -16,6 +17,12 @@ describe('CalendarSchedulingPublishModal', () => {
   it('previews and publishes the immutable calendar scope', async () => {
     const vuetify = createVuetify({ components, directives });
     const pinia = createPinia();
+    const locationsStore = useLocationsStore(pinia);
+    locationsStore.entities = [
+      { id: 7, name: 'Vancouver' },
+      { id: 8, name: 'Victoria' },
+    ];
+    locationsStore.setSelectedLocationId(8);
     const requestBodies: Record<string, unknown>[] = [];
 
     server.use(
@@ -65,6 +72,7 @@ describe('CalendarSchedulingPublishModal', () => {
 
     await flushPromises();
 
+    expect(document.querySelector('.schedule-publish__scope dd')?.textContent?.trim()).toBe('Vancouver');
     expect(document.body.textContent).not.toContain('Shift entries');
     expect(document.body.textContent).not.toContain('2 employees do not have');
     expect(document.body.textContent).toContain('Alex Morgan');
