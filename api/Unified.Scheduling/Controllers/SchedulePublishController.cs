@@ -18,7 +18,7 @@ public sealed class SchedulePublishController(
 ) : ControllerBase
 {
     [HttpPost("preview")]
-    [Authorize(Policy = SchedulingPolicies.SchedulePublish)]
+    [Authorize(Policy = SchedulingPolicies.SchedulePublishWithView)]
     [ProducesResponseType(typeof(SchedulePublishPreviewResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<SchedulePublishPreviewResponse>> Preview(
         [FromBody] SchedulePublishRequest request,
@@ -30,7 +30,7 @@ public sealed class SchedulePublishController(
     }
 
     [HttpPost]
-    [Authorize(Policy = SchedulingPolicies.SchedulePublish)]
+    [Authorize(Policy = SchedulingPolicies.SchedulePublishWithView)]
     [ProducesResponseType(typeof(SchedulePublishResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(SchedulePublishPreviewResponse), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<SchedulePublishResult>> Publish(
