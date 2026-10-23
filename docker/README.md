@@ -34,6 +34,22 @@ To get full usage information on the script, run:
 ./manage start
 ```
 
+### Upgrade a local PostgreSQL 16 database
+
+After updating to the PostgreSQL 18 Docker configuration, leave the existing PostgreSQL 16 `db` container
+running and run:
+
+```bash
+./manage upgrade-db-16-18
+```
+
+The script stops the application services, backs up and validates the configured application database, removes
+the PostgreSQL 16 container without removing its data volume, starts PostgreSQL 18 with a new volume, restores
+the backup, and restarts the application services. Backups are retained under `docker/postgres-backups/` and are
+excluded from Git.
+
+Do not use `./manage down` before upgrading because that command removes project volumes.
+
 ### Start in debug mode (with hot reload)
 
 ```bash
