@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20261022191600_AddLoanOutModule")]
+    [Migration("20261027231050_AddLoanOutModule")]
     partial class AddLoanOutModule
     {
         /// <inheritdoc />
@@ -1157,6 +1157,9 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("EffectiveDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -1178,7 +1181,10 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("PositionTypes");
+                    b.ToTable("PositionTypes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PositionTypes_DisplayOrderPositive", "\"DisplayOrder\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Region", b =>
@@ -1858,6 +1864,327 @@ namespace Unified.Db.Migrations
                         .IsUnique();
 
                     b.ToTable("ShiftSeriesUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleEtlRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("LoadId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("LoadedCellCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MappingSetId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("ReportingMonth")
+                        .HasColumnType("date");
+
+                    b.Property<int>("SourceRecordCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StagedCellCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("MappingSetId");
+
+                    b.HasIndex("ReportingMonth");
+
+                    b.HasIndex("StartedAt");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("BiOracleEtlRuns", "etl", t =>
+                        {
+                            t.HasCheckConstraint("CK_BiOracleEtlRuns_Counts", "\"SourceRecordCount\" >= 0 AND \"StagedCellCount\" >= 0 AND \"LoadedCellCount\" >= 0");
+
+                            t.HasCheckConstraint("CK_BiOracleEtlRuns_Status", "\"Status\" IN ('Running', 'Succeeded', 'Failed', 'Skipped')");
+                        });
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleLocationMapping", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("CrtLocId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("JustinLocationCode")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("CrtLocId")
+                        .IsUnique();
+
+                    b.HasIndex("ExpiryDate");
+
+                    b.HasIndex("JustinLocationCode")
+                        .IsUnique();
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("BiOracleLocationMapping", "etl", t =>
+                        {
+                            t.HasCheckConstraint("CK_BiOracleLocationMapping_EffectivePeriod", "\"ExpiryDate\" IS NULL OR \"ExpiryDate\" >= \"EffectiveDate\"");
+
+                            t.HasCheckConstraint("CK_BiOracleLocationMapping_JustinLocationCode", "length(trim(\"JustinLocationCode\")) = 4");
+                        });
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleStatMapping", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 1000L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("MappingSetId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SubCategoryMetricId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TargetColumn")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("TargetTable")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("MappingSetId");
+
+                    b.HasIndex("SubCategoryMetricId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("MappingSetId", "SubCategoryMetricId", "TargetTable", "TargetColumn")
+                        .IsUnique();
+
+                    b.ToTable("BiOracleStatMappings", "etl", t =>
+                        {
+                            t.HasCheckConstraint("CK_BiOracleStatMappings_TargetColumn", "length(trim(\"TargetColumn\")) > 0");
+
+                            t.HasCheckConstraint("CK_BiOracleStatMappings_TargetTable", "\"TargetTable\" IN ('SHERIFF_SRVCES', 'SHERIFF_SRVCES_HOURS')");
+                        });
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleStatMappingSet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("EffectiveDate")
+                        .IsUnique();
+
+                    b.HasIndex("ExpiryDate");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("BiOracleStatMappingSets", "etl", t =>
+                        {
+                            t.HasCheckConstraint("CK_BiOracleStatMappingSets_EffectivePeriod", "\"ExpiryDate\" IS NULL OR \"ExpiryDate\" >= \"EffectiveDate\"");
+                        });
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleStatStage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CrtLocId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsLocationLevel")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSupervisor")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("LoadId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("ReportingMonth")
+                        .HasColumnType("date");
+
+                    b.Property<int>("SourceRowCount")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("StatValue")
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("TargetColumn")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("TargetTable")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoadId");
+
+                    b.HasIndex("LoadId", "ReportingMonth", "CrtLocId", "IsLocationLevel", "IsSupervisor", "TargetTable", "TargetColumn")
+                        .IsUnique();
+
+                    b.ToTable("BiOracleStatStages", "etl", t =>
+                        {
+                            t.HasCheckConstraint("CK_BiOracleStatStages_LocationLevelSupervisor", "NOT \"IsLocationLevel\" OR NOT \"IsSupervisor\"");
+
+                            t.HasCheckConstraint("CK_BiOracleStatStages_SourceRowCount", "\"SourceRowCount\" > 0");
+
+                            t.HasCheckConstraint("CK_BiOracleStatStages_TargetColumn", "length(trim(\"TargetColumn\")) > 0");
+
+                            t.HasCheckConstraint("CK_BiOracleStatStages_TargetTable", "\"TargetTable\" IN ('SHERIFF_SRVCES', 'SHERIFF_SRVCES_HOURS')");
+                        });
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatCategory", b =>
@@ -3374,7 +3701,7 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Unified.Db.Models.LoanOut.LoanOutSeries", null)
+                    b.HasOne("Unified.Db.Models.LoanOut.LoanOutSeries", "LoanOutSeries")
                         .WithMany("LoanOutEntries")
                         .HasForeignKey("LoanOutSeriesId");
 
@@ -3388,6 +3715,8 @@ namespace Unified.Db.Migrations
                     b.Navigation("Event");
 
                     b.Navigation("LoanOutLocation");
+
+                    b.Navigation("LoanOutSeries");
 
                     b.Navigation("UpdatedBy");
                 });
@@ -4006,6 +4335,110 @@ namespace Unified.Db.Migrations
                     b.Navigation("UpdatedBy");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleEtlRun", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Stats.BiOracleStatMappingSet", "MappingSet")
+                        .WithMany("EtlRuns")
+                        .HasForeignKey("MappingSetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("MappingSet");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleLocationMapping", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleStatMapping", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Stats.BiOracleStatMappingSet", "MappingSet")
+                        .WithMany("Mappings")
+                        .HasForeignKey("MappingSetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Stats.SubCategoryMetric", "SubCategoryMetric")
+                        .WithMany()
+                        .HasForeignKey("SubCategoryMetricId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("MappingSet");
+
+                    b.Navigation("SubCategoryMetric");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleStatMappingSet", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleStatStage", b =>
+                {
+                    b.HasOne("Unified.Db.Models.Stats.BiOracleEtlRun", "EtlRun")
+                        .WithMany("StagedCells")
+                        .HasForeignKey("LoadId")
+                        .HasPrincipalKey("LoadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EtlRun");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatCategory", b =>
@@ -4646,6 +5079,18 @@ namespace Unified.Db.Migrations
                     b.Navigation("ShiftEntries");
 
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleEtlRun", b =>
+                {
+                    b.Navigation("StagedCells");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.Stats.BiOracleStatMappingSet", b =>
+                {
+                    b.Navigation("EtlRuns");
+
+                    b.Navigation("Mappings");
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
