@@ -5,7 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type StatutoryHolidayType = (typeof StatutoryHolidayType)[keyof typeof StatutoryHolidayType] | null;
+export type StatutoryHolidayType = (typeof StatutoryHolidayType)[keyof typeof StatutoryHolidayType];
 
 export const StatutoryHolidayType = {
   NewYearsDay: 'NewYearsDay',
