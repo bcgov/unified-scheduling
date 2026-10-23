@@ -11,8 +11,9 @@ namespace Unified.Tests.Infrastructure.Pdf;
 
 public sealed class ScheduleDistributionRenderingOptionsValidatorTests
 {
-    private readonly ScheduleDistributionRenderingOptionsValidator _validator =
-        new(new TestHostEnvironment { EnvironmentName = Environments.Development });
+    private readonly ScheduleDistributionRenderingOptionsValidator _validator = new(
+        new TestHostEnvironment { EnvironmentName = Environments.Development }
+    );
 
     [Fact]
     public void Validate_WhenFrontendBaseUrlIsMissing_FailsWithoutThrowing()
@@ -20,7 +21,10 @@ public sealed class ScheduleDistributionRenderingOptionsValidatorTests
         var result = _validator.Validate(null, new ScheduleDistributionRenderingOptions());
 
         Assert.True(result.Failed);
-        Assert.Contains(result.Failures, failure => failure.Contains(nameof(ScheduleDistributionRenderingOptions.FrontendBaseUrl)));
+        Assert.Contains(
+            result.Failures,
+            failure => failure.Contains(nameof(ScheduleDistributionRenderingOptions.FrontendBaseUrl))
+        );
     }
 
     [Fact]
@@ -49,7 +53,10 @@ public sealed class ScheduleDistributionRenderingOptionsValidatorTests
         );
 
         Assert.True(result.Failed);
-        Assert.Contains(result.Failures, failure => failure.Contains(nameof(ScheduleDistributionRenderingOptions.MaximumConcurrentRenders)));
+        Assert.Contains(
+            result.Failures,
+            failure => failure.Contains(nameof(ScheduleDistributionRenderingOptions.MaximumConcurrentRenders))
+        );
     }
 
     [Theory]
@@ -84,9 +91,7 @@ public sealed class ScheduleDistributionRenderingOptionsValidatorTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddHttpContextAccessor();
-        services.AddSingleton<IHostEnvironment>(
-            new TestHostEnvironment { EnvironmentName = Environments.Development }
-        );
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment { EnvironmentName = Environments.Development });
         services.Configure<global::Unified.Infrastructure.Options.KeycloakOptions>(_ => { });
         services.AddPlaywrightPdfRendering(new ConfigurationBuilder().Build());
 

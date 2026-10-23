@@ -29,7 +29,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         {
             Id = 30,
             ShiftEntryId = 40,
-            ShiftEntry = new ShiftEntry { Id = 40, EventId = shiftEvent.Id, Event = shiftEvent },
+            ShiftEntry = new ShiftEntry
+            {
+                Id = 40,
+                EventId = shiftEvent.Id,
+                Event = shiftEvent,
+            },
             AssignmentEntryId = 50,
             AssignmentEntry = new AssignmentEntry
             {
@@ -43,7 +48,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             },
         };
         _db.ShiftAssignmentEntryUsers.Add(
-            new ShiftAssignmentEntryUser { Id = 60, UserId = UserId, ShiftAssignmentEntry = link }
+            new ShiftAssignmentEntryUser
+            {
+                Id = 60,
+                UserId = UserId,
+                ShiftAssignmentEntry = link,
+            }
         );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
@@ -73,20 +83,13 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         {
             { [nameof(Permissions.ShiftsView)], "10", "Visible shift" },
             { [nameof(Permissions.AssignmentsView)], "20", "Restricted assignment" },
-            {
-                [nameof(Permissions.ShiftsView), nameof(Permissions.AssignmentsView)],
-                "20",
-                "Restricted assignment"
-            },
+            { [nameof(Permissions.ShiftsView), nameof(Permissions.AssignmentsView)], "20", "Restricted assignment" },
         };
 
     [Fact]
     public async Task GetParticipantsAsync_WithoutViewPermission_ReturnsNoParticipants()
     {
-        var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([]),
-            TestContext.Current.CancellationToken
-        );
+        var participants = await _provider.GetParticipantsAsync(CreateQuery([]), TestContext.Current.CancellationToken);
 
         Assert.Empty(participants);
     }
