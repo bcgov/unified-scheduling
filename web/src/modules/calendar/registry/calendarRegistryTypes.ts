@@ -14,7 +14,11 @@ export interface CalendarContributionLoadOptions {
 export interface CalendarModuleContribution {
   moduleId: string;
   contributionId: string;
-  load: (context: CalendarQueryContext, options?: CalendarContributionLoadOptions) => Promise<CalendarContributionData>;
+  load: (
+    context: CalendarQueryContext,
+    options?: CalendarContributionLoadOptions,
+    runtimeContext?: CalendarRuntimeContext,
+  ) => Promise<CalendarContributionData>;
   isAvailable?: (runtimeContext: CalendarRuntimeContext, queryContext: CalendarQueryContext) => boolean;
   onDeactivate?: () => void;
 }

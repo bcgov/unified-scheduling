@@ -6,6 +6,7 @@ import CalendarSchedulingAssignmentModal from '@/modules/scheduling/CalendarSche
 import CalendarSchedulingAddResourceModal from '@/modules/scheduling/CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentDefinitionCreateModal from '@/modules/scheduling/CalendarSchedulingAssignmentDefinitionCreateModal.vue';
 import CalendarSchedulingConflictOverlay from '@/modules/scheduling/CalendarSchedulingConflictOverlay.vue';
+import CalendarSchedulingDistributionModal from '@/modules/scheduling/CalendarSchedulingDistributionModal.vue';
 import CalendarSchedulingShiftDetailModal from '@/modules/scheduling/CalendarSchedulingShiftDetailModal.vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
@@ -20,11 +21,13 @@ import {
   calendarSchedulingConflictEventId,
   calendarSchedulingConflictHeaderId,
   closeCalendarSchedulingAssignmentModal,
+  closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingResourceActionModal,
   getCalendarSchedulingHeaderConflictKey,
   showCalendarSchedulingAssignmentModal,
+  showCalendarSchedulingDistributionModal,
   showCalendarSchedulingExistingShiftChoice,
   showCalendarSchedulingResourceActionModal,
 } from '@/modules/scheduling/calendarSchedulingState';
@@ -51,6 +54,7 @@ const model: CalendarMatrixViewModel = {
 describe('CalendarSchedulingView', () => {
   afterEach(() => {
     closeCalendarSchedulingAssignmentModal();
+    closeCalendarSchedulingDistributionModal();
     closeCalendarSchedulingEventDetail();
     closeCalendarSchedulingExistingShiftChoice();
     closeCalendarSchedulingResourceActionModal();
@@ -96,6 +100,29 @@ describe('CalendarSchedulingView', () => {
     });
 
     wrapper.unmount();
+  });
+
+  it('keeps the distribution modal open without refreshing after distribution', async () => {
+    showCalendarSchedulingDistributionModal(7, '2026-08-24', '2026-08-25');
+    const app = await createTestApp({ loadConfig: false });
+    const calendarStore = useCalendarStore(app.pinia);
+    const wrapper = mount(CalendarSchedulingView, {
+      props: { model },
+      global: {
+        plugins: app.mountPlugins,
+        stubs: {
+          CalendarMatrixView: { template: '<div><slot /></div>' },
+          CalendarSchedulingDistributionModal: true,
+        },
+      },
+    });
+
+    const modal = wrapper.getComponent(CalendarSchedulingDistributionModal);
+    modal.vm.$emit('distributed', 1);
+    await wrapper.vm.$nextTick();
+
+    expect(calendarStore.refreshNonce).toBe(0);
+    expect(wrapper.findComponent(CalendarSchedulingDistributionModal).exists()).toBe(true);
   });
 
   it('forwards assignment drop context to the add-resource modal', async () => {

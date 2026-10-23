@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { DateTime } from 'luxon';
+import { computed, nextTick, onBeforeUnmount, onErrorCaptured, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { formatRangeLabel } from '@/utils/date';
+import {
+  addDays,
+  buildDateRangeForPeriod,
+  formatCalendarDateOnly,
+  formatDateTime,
+  formatRangeLabel,
+} from '@/utils/date';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
 import CalendarMatrixSkeleton from './components/matrix/CalendarMatrixSkeleton.vue';
 import { useCalendarAlertStore } from './calendarAlertStore';
 import { calendarDataService } from './calendarDataService';
-import { DEFAULT_CALENDAR_PERIODS } from './calendarPeriodOptions';
+import { DEFAULT_CALENDAR_PERIODS, isCalendarPeriod } from './calendarPeriodOptions';
 import { calendarActionRegistry } from './registry/calendarActionRegistry';
 import { calendarRegistry } from './registry/calendarRegistry';
 import type { CalendarToolbarButton } from './registry/calendarActionRegistryTypes';
@@ -25,12 +33,54 @@ import { selectCalendarEvents } from './calendarSelectors';
 import CalendarToolbar from './components/CalendarToolbar.vue';
 
 const accessControl = useAccessControl();
+const route = useRoute();
 const calendarStore = useCalendarStore();
 const calendarAlertStore = useCalendarAlertStore();
 const locationsStore = useLocationsStore();
 const { activeViewId, dateRange, anchorDate, period, filters, refreshNonce, selectedEventId } =
   storeToRefs(calendarStore);
 const { selectedLocationId } = storeToRefs(locationsStore);
+const scheduleViewId = 'calendar.matrix-schedule';
+const assignmentViewId = 'calendar.matrix-assignment';
+const viewIdByRouteView: Record<string, string> = {
+  schedule: scheduleViewId,
+  assignments: assignmentViewId,
+};
+const isPrintMode = computed(() => route.query.mode === 'print');
+
+interface CalendarPrintContext {
+  viewId: string;
+  locationId: number;
+  startDate: string;
+  endDate: string;
+  period: CalendarPeriod;
+}
+
+const printContext = computed<CalendarPrintContext | undefined>(() => {
+  if (!isPrintMode.value) {
+    return undefined;
+  }
+
+  const viewId = viewIdByRouteView[readQueryValue(route.query.view) ?? ''];
+  const locationId = parsePositiveInteger(readQueryValue(route.query.locationId));
+  const startDate = readQueryValue(route.query.startDate);
+  const endDate = readQueryValue(route.query.endDate);
+  const requestedPeriod = readQueryValue(route.query.period);
+  const period = isCalendarPeriod(requestedPeriod) && requestedPeriod !== 'month' ? requestedPeriod : undefined;
+
+  if (
+    !viewId ||
+    !locationId ||
+    !isValidDateOnly(startDate) ||
+    !isValidDateOnly(endDate) ||
+    !period ||
+    buildDateRangeForPeriod(startDate, period).endDate !== endDate
+  ) {
+    return undefined;
+  }
+
+  return { viewId, locationId, startDate, endDate, period };
+});
 
 const activeLocationId = computed<number | undefined>(() => {
   const candidate = selectedLocationId.value;
@@ -51,10 +101,15 @@ const activeLocationTimeZone = computed(() => {
 const runtimeContext = computed<CalendarRuntimeContext>(() => ({
   featureFlags: accessControl.configStore.config?.featureFlags ?? {},
   permissions: accessControl.authStore.userInfo?.permissions ?? [],
+  presentationMode: isPrintMode.value ? 'print' : 'interactive',
 }));
 
 const views = computed(() => calendarRegistry.getAvailableViews(runtimeContext.value));
 const loading = ref(false);
+const hasLoadedData = ref(false);
+const printGeneratedAt = ref('');
+const activePrintRenderToken = ref('');
+const completedPrintRenderToken = ref('');
 const errorMessage = ref('');
 const dataResponse = ref<CalendarDataResponse>({ contributions: {} });
 const LOCATION_REQUIRED_ALERT_ID = 'calendar.location.required';
@@ -62,8 +117,16 @@ const LOCATION_REQUIRED_ALERT_ID = 'calendar.location.required';
 let latestRequestId = 0;
 
 watch(
-  views,
-  (availableViews) => {
+  [views, printContext],
+  ([availableViews, requestedPrintContext]) => {
+    const requestedViewId = requestedPrintContext?.viewId;
+    if (requestedViewId && availableViews.some((view) => view.id === requestedViewId)) {
+      if (activeViewId.value !== requestedViewId) {
+        calendarStore.setActiveView(requestedViewId);
+      }
+      return;
+    }
+
     const activeViewExists = availableViews.some((view) => view.id === activeViewId.value);
 
     if ((!activeViewId.value || !activeViewExists) && availableViews.length > 0) {
@@ -104,6 +167,7 @@ const queryContext = computed<CalendarQueryContext>(() => {
   return {
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
+    activeViewId: activeView.value?.id,
     locationId: activeLocationId.value,
     filters: effectiveFilters,
   };
@@ -123,6 +187,84 @@ const activeViewModel = computed(() => {
   }
 
   return activeView.value.buildModel(dataResponse.value, queryContext.value, runtimeContext.value, period.value);
+});
+
+const isPrintContextResolved = computed(() => {
+  const context = printContext.value;
+  return (
+    context != null &&
+    activeView.value?.id === context.viewId &&
+    activeLocationId.value === context.locationId &&
+    queryContext.value.startDate === context.startDate &&
+    queryContext.value.endDate === context.endDate &&
+    period.value === context.period
+  );
+});
+
+const printContextError = computed(() => {
+  if (!isPrintMode.value) {
+    return undefined;
+  }
+  if (!printContext.value) {
+    return 'The calendar print context is invalid.';
+  }
+  if (!views.value.some((view) => view.id === printContext.value?.viewId)) {
+    return 'The requested calendar print view is unavailable.';
+  }
+  if (!loading.value && hasLoadedData.value && isUnsupportedPrintViewModel(activeViewModel.value)) {
+    return 'The requested calendar print view is unsupported.';
+  }
+  return errorMessage.value || undefined;
+});
+
+const printRenderState = computed(() => {
+  if (printContextError.value) {
+    return 'error';
+  }
+
+  if (
+    !isPrintMode.value ||
+    loading.value ||
+    !hasLoadedData.value ||
+    !printGeneratedAt.value ||
+    !activeView.value ||
+    !activeViewModel.value ||
+    isUnsupportedPrintViewModel(activeViewModel.value) ||
+    !isPrintContextResolved.value ||
+    !activePrintRenderToken.value ||
+    completedPrintRenderToken.value !== activePrintRenderToken.value
+  ) {
+    return 'loading';
+  }
+
+  return 'complete';
+});
+const hasTriggeredPrintDialog = ref(false);
+
+watch(
+  [printRenderState, () => route.query.printDialog],
+  async ([renderState, printDialog]) => {
+    if (renderState !== 'complete' || printDialog !== '1' || hasTriggeredPrintDialog.value) {
+      return;
+    }
+
+    hasTriggeredPrintDialog.value = true;
+    await nextTick();
+    await document.fonts?.ready;
+    await waitForAnimationFrame();
+    await waitForAnimationFrame();
+    window.print();
+  },
+  { immediate: true },
+);
+
+onErrorCaptured(() => {
+  if (!isPrintMode.value) {
+    return;
+  }
+
+  errorMessage.value = 'Failed to render the calendar print view.';
+  return false;
 });
 
 const calendarEvents = computed(() => selectCalendarEvents(dataResponse.value));
@@ -161,9 +303,19 @@ const createActions = computed<CalendarToolbarButton[]>(() => {
 const rangeLabel = computed(() =>
   formatRangeLabel(queryContext.value.startDate, queryContext.value.endDate, period.value),
 );
+const printLocationHeading = computed(() => {
+  const locationId = activeLocationId.value;
+  return locationId ? (locationsStore.entitiesMap[locationId]?.name ?? 'Unknown location') : 'Unknown location';
+});
+const printDateRange = computed(() => {
+  const startDate = formatCalendarDateOnly(queryContext.value.startDate);
+  const endDate = formatCalendarDateOnly(addDays(queryContext.value.endDate, -1));
+  return `${startDate} - ${endDate}`;
+});
 const runtimeContextKey = computed(() => JSON.stringify(runtimeContext.value));
 const reloadKey = computed(() =>
   JSON.stringify({
+    activeViewId: activeView.value?.id ?? null,
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
     period: period.value,
@@ -174,23 +326,57 @@ const reloadKey = computed(() =>
   }),
 );
 
+watch(
+  printContext,
+  (context) => {
+    if (!context) {
+      return;
+    }
+
+    calendarStore.setPeriod(context.period);
+    calendarStore.setAnchorDate(context.startDate);
+    locationsStore.setSelectedLocationId(context.locationId);
+  },
+  { immediate: true },
+);
+
 const loadData = async () => {
   const requestId = ++latestRequestId;
+  completedPrintRenderToken.value = '';
 
   if (activeLocationId.value === undefined) {
     calendarDataService.cancel();
     loading.value = false;
     errorMessage.value = '';
     dataResponse.value = { contributions: {} };
+    hasLoadedData.value = false;
+    printGeneratedAt.value = '';
+    activePrintRenderToken.value = '';
     calendarStore.clearSelectedEvent();
     return;
   }
 
   loading.value = true;
+  hasLoadedData.value = false;
+  printGeneratedAt.value = '';
+  activePrintRenderToken.value = isPrintMode.value ? `${reloadKey.value}:${requestId}` : '';
   errorMessage.value = '';
 
   try {
     dataResponse.value = await calendarDataService.loadData(runtimeContext.value, queryContext.value, calendarRegistry);
+    if (requestId === latestRequestId) {
+      hasLoadedData.value = true;
+      if (isPrintMode.value) {
+        const generatedAt = DateTime.now().setZone(resolvePrintTimeZone());
+        printGeneratedAt.value = `${formatDateTime(generatedAt, 'en-CA', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })} ${generatedAt.offsetNameShort ?? generatedAt.zoneName}`;
+      }
+    }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return;
@@ -299,11 +485,55 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
     await action.run(actionContext);
   }
 };
+
+function readQueryValue(value: unknown) {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function parsePositiveInteger(value?: string) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function isValidDateOnly(value?: string): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  return DateTime.fromISO(value).isValid;
+}
+
+function isUnsupportedPrintViewModel(value: unknown) {
+  return Boolean(value && typeof value === 'object' && 'unsupportedMessage' in value && value.unsupportedMessage);
+}
+
+function resolvePrintTimeZone() {
+  const model = activeViewModel.value;
+  if (model && typeof model === 'object' && 'timeZone' in model && typeof model.timeZone === 'string') {
+    return model.timeZone;
+  }
+  return activeLocationTimeZone.value;
+}
+
+function handlePrintRenderComplete(renderToken?: string) {
+  if (isPrintMode.value && renderToken === activePrintRenderToken.value) {
+    completedPrintRenderToken.value = renderToken;
+  }
+}
+
+function waitForAnimationFrame() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
 </script>
 
 <template>
-  <section class="calendar-page">
-    <div v-if="calendarAlertStore.alerts.length" class="calendar-alerts">
+  <section
+    id="calendar-print-root"
+    class="calendar-page"
+    :class="{ 'calendar-page--print': isPrintMode }"
+    :data-render-state="printRenderState"
+  >
+    <div v-if="!isPrintMode && calendarAlertStore.alerts.length" class="calendar-alerts">
       <UaAlert
         v-for="alert in calendarAlertStore.alerts"
         :key="alert.id"
@@ -321,6 +551,7 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
 
     <UaCard class="calendar-page__panel" body-padding="none">
       <CalendarToolbar
+        v-if="!isPrintMode"
         :views="views"
         :active-view-id="activeViewId"
         :create-actions="createActions"
@@ -340,6 +571,12 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
         @trigger-create-action="handleCreateAction"
       />
 
+      <header v-if="isPrintMode" class="calendar-page__print-heading">
+        <p class="calendar-page__print-location">{{ printLocationHeading }}:</p>
+        <h1>{{ printDateRange }}</h1>
+        <p class="calendar-page__print-summary">Summary as of {{ printGeneratedAt }}</p>
+      </header>
+
       <CalendarMatrixSkeleton
         v-if="activeLocationId !== undefined && loading && activeView?.loadingVariant === 'matrix'"
       />
@@ -348,15 +585,18 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
         <component
           :is="activeView.component"
           :model="activeViewModel"
+          :period="period"
+          :render-token="activePrintRenderToken"
           :runtime-context="runtimeContext"
           @event-click="handleViewEventClick"
+          @render-complete="handlePrintRenderComplete"
         />
       </div>
       <div v-else class="calendar-page__state">No calendar views are registered.</div>
     </UaCard>
 
     <CalendarEventDetailModal
-      v-if="selectedDetailEvent"
+      v-if="!isPrintMode && selectedDetailEvent"
       :event="selectedDetailEvent"
       @close="calendarStore.clearSelectedEvent()"
     />
@@ -397,5 +637,108 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
   background: var(--ua-calendar-panel-bg);
   min-height: 320px;
   padding: 0 0 var(--ua-spacing-xl);
+}
+
+.calendar-page__print-heading {
+  border: 1px solid var(--ua-text-primary);
+  border-radius: var(--ua-border-radius-sm);
+  box-sizing: border-box;
+  margin: var(--ua-spacing-lg) auto var(--ua-spacing-xl);
+  padding: var(--ua-spacing-sm) var(--ua-spacing-xl);
+  width: min(28rem, calc(100% - var(--ua-spacing-xl)));
+}
+
+.calendar-page__print-location {
+  color: var(--ua-text-primary);
+  font-size: var(--ua-font-size-base);
+  margin: 0;
+}
+
+.calendar-page__print-heading h1 {
+  color: var(--ua-text-primary);
+  font-size: var(--ua-font-size-md);
+  font-weight: var(--ua-font-weight-bold);
+  margin: var(--ua-spacing-xs) 0 0;
+}
+
+.calendar-page__print-summary {
+  color: var(--ua-text-secondary);
+  font-size: var(--ua-font-size-sm);
+  font-style: italic;
+  margin: var(--ua-spacing-xs) 0 0;
+}
+
+.calendar-page--print {
+  padding: 0;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.calendar-page--print .calendar-page__panel {
+  max-height: none;
+  overflow: visible;
+}
+
+.calendar-page--print .calendar-page__view {
+  padding-bottom: 0;
+  pointer-events: none;
+}
+
+.calendar-page--print :deep(.calendar-matrix-view) {
+  padding-top: 0;
+}
+
+.calendar-page--print :deep(.calendar-matrix-grid__scroller) {
+  overflow: visible;
+}
+
+.calendar-page--print :deep(.calendar-matrix-side-panel),
+.calendar-page--print :deep(.calendar-matrix-side-panel__list) {
+  max-height: none;
+  overflow: visible;
+}
+
+.calendar-page--print :deep(.calendar-matrix-event-block__action),
+.calendar-page--print :deep(.calendar-matrix-cell-header__action),
+.calendar-page--print :deep(.calendar-matrix-cell__empty-add),
+.calendar-page--print :deep(.calendar-matrix-resource-row__add),
+.calendar-page--print :deep(.calendar-matrix-side-panel__header .v-btn) {
+  display: none !important;
+}
+
+.calendar-page--print :deep([draggable='true']) {
+  cursor: default !important;
+}
+
+.calendar-page--print :deep(.calendar-matrix-event-block__meta),
+.calendar-page--print :deep(.calendar-matrix-cell-header__text) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+@media print {
+  @page {
+    size: letter landscape;
+    margin: 0.25in;
+  }
+
+  .calendar-page--print :deep(.calendar-matrix-grid) {
+    --calendar-matrix-resource-column-min-width: 1.5in;
+    --calendar-matrix-resource-column-max-width: 1.5in;
+    --calendar-matrix-day-column-min-width: 0.8in;
+    font-size: 8pt;
+    width: 100%;
+  }
+
+  .calendar-page--print :deep(.calendar-matrix-grid__table) {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .calendar-page--print :deep(.calendar-matrix-resource-row),
+  .calendar-page--print :deep(.calendar-matrix-cell) {
+    break-inside: avoid-page;
+  }
 }
 </style>

@@ -16,6 +16,7 @@ import type {
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import {
   closeCalendarSchedulingConflict,
+  showCalendarSchedulingDistributionModal,
   showCalendarSchedulingAssignmentModal,
   showCalendarSchedulingExistingShiftChoice,
   showCalendarSchedulingEventDetail,
@@ -27,6 +28,8 @@ import {
 } from './calendarSchedulingState';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
 import { isLeaveEvent } from './calendarSchedulingData';
+import { calendarAssignmentViewContribution } from './calendarAssignmentViewContribution';
+import type { CalendarSchedulingMatrixPayload } from './calendarSchedulingMappers';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { isSchedulingCancelled } from './schedulingLifecycle';
 import {
@@ -39,6 +42,7 @@ import {
   canCreateAssignments,
   canCreateShifts,
   canCreateLeave,
+  canDistributeSchedule,
   canEditAssignments,
   canPublishSchedule,
   canViewAssignments,
@@ -67,6 +71,24 @@ export const calendarSchedulingPublishAction: CalendarToolbarAction = {
   run: (context, runtimeContext) => {
     if (context.locationId && canPublishSchedule(runtimeContext)) {
       showCalendarSchedulingPublishModal(context.locationId, context.startDate, addDays(context.endDate, -1));
+    }
+  },
+};
+
+export const calendarSchedulingDistributionAction: CalendarToolbarAction = {
+  id: calendarSchedulingActionIds.distributeSchedule,
+  label: 'Distribute',
+  variant: 'outlined',
+  isAvailable: (context, runtimeContext) =>
+    Boolean(context.locationId) &&
+    canDistributeSchedule(
+      runtimeContext,
+      context.activeViewId === calendarAssignmentViewContribution.id ? 'assignments' : 'schedule',
+    ),
+  run: (context, runtimeContext) => {
+    const view = context.activeViewId === calendarAssignmentViewContribution.id ? 'assignments' : 'schedule';
+    if (context.locationId && canDistributeSchedule(runtimeContext, view)) {
+      showCalendarSchedulingDistributionModal(context.locationId, context.startDate, context.endDate);
     }
   },
 };
@@ -401,16 +423,8 @@ function resolveTargetUserId(context: CalendarMatrixDropActionContext) {
 
 function resolveExistingAssignmentEntryId(context: CalendarMatrixDropActionContext) {
   const definitionId = resolveAssignmentDefinitionId(context);
-  const modelAssignmentEvents =
-    typeof context.model.payload === 'object' &&
-    context.model.payload !== null &&
-    Array.isArray((context.model.payload as { assignmentEvents?: unknown }).assignmentEvents)
-      ? ((context.model.payload as { assignmentEvents: CalendarEventBase[] }).assignmentEvents ?? [])
-      : [];
-  const renderedAssignmentEvents = context.model.cells.flatMap((cell) =>
-    cell.groups.flatMap((group) => group.events.map((item) => item.event).filter(isAssignmentEvent)),
-  );
-  const matchingEvent = [...modelAssignmentEvents, ...renderedAssignmentEvents].find(
+  const events = (context.model.payload as CalendarSchedulingMatrixPayload | undefined)?.events ?? [];
+  const matchingEvent = events.find(
     (event) =>
       isAssignmentEvent(event) &&
       (!definitionId || resolveEventAssignmentDefinitionId(event) === definitionId) &&

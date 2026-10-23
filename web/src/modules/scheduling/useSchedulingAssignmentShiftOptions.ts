@@ -9,6 +9,7 @@ export interface SchedulingAssignmentShiftOptionsOptions {
   locationId: ComputedRef<number | null>;
   date: ComputedRef<string | undefined>;
   timeZoneId: ComputedRef<string>;
+  enabled?: ComputedRef<boolean>;
   onError(message: string): void;
   onLoaded?(): void;
 }
@@ -23,7 +24,7 @@ export function useSchedulingAssignmentShiftOptions(options: SchedulingAssignmen
     const requestId = requestGuard.begin();
     shiftSeries.value = [];
     shiftEntries.value = [];
-    if (!options.locationId.value) {
+    if (!(options.enabled?.value ?? true) || !options.locationId.value) {
       isLoading.value = false;
       return;
     }
