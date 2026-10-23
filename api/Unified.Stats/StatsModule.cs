@@ -64,6 +64,8 @@ public static class StatsModule
         s.AddSeeder<UnifiedDbContext, SubCategorySeeder>();
         s.AddSeeder<UnifiedDbContext, StatMetricSeeder>();
         s.AddSeeder<UnifiedDbContext, SubCategoryMetricSeeder>();
+        s.AddSeeder<UnifiedDbContext, BiOracleStatMappingSeeder>();
+        s.AddSeeder<UnifiedDbContext, BiOracleLocationMappingSeeder>();
 
         // Register permission policies owned by this module
         s.AddAuthorizationBuilder()

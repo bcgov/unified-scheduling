@@ -6,6 +6,7 @@ using Unified.Common.Seeding;
 using Unified.Db;
 using Unified.Reporting;
 using Unified.Stats;
+using Unified.Stats.Seeders;
 using Unified.Training;
 using Unified.Training.Seeders;
 using Unified.UserManagement;
@@ -15,6 +16,64 @@ namespace Unified.Tests.UserManagement.Seeders;
 
 public sealed class SeedDataCompositionTests
 {
+    [Fact]
+    public void AddConfiguredSeedData_BiOracleMappingsDataSet_RegistersCompleteMappings()
+    {
+        var services = new ServiceCollection();
+        services.AddConfiguredSeedData(
+            BuildConfiguration(
+                [StatsSeedDataSets.StatsPermissionsDataSet, StatsSeedDataSets.BiOracleMappingsDataSet],
+                "Stats:Enabled"
+            ),
+            AllDataSets
+        );
+
+        using var provider = services.BuildServiceProvider();
+        var statMappings = Assert.Single(provider.GetServices<BiOracleStatMappingSeedConfiguration>());
+        var locationMappings = Assert.Single(provider.GetServices<BiOracleLocationMappingSeedConfiguration>());
+
+        Assert.Equal(516, Assert.Single(statMappings.Definitions).Mappings.Count);
+        Assert.Equal(119, locationMappings.Definitions.Count);
+    }
+
+    [Fact]
+    public void AddConfiguredSeedData_StatsDisabledWithoutBiOracleMappings_Succeeds()
+    {
+        var services = new ServiceCollection();
+        services.AddConfiguredSeedData(BuildConfiguration([]), AllDataSets);
+
+        using var provider = services.BuildServiceProvider();
+        Assert.Empty(provider.GetServices<BiOracleStatMappingSeedConfiguration>());
+    }
+
+    [Fact]
+    public void AddConfiguredSeedData_StatsDisabledWithBiOracleMappings_ThrowsConfigurationError()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            new ServiceCollection().AddConfiguredSeedData(
+                BuildConfiguration(StatsSeedDataSets.BiOracleMappingsDataSet),
+                AllDataSets
+            )
+        );
+
+        Assert.Contains(StatsSeedDataSets.BiOracleMappingsDataSet, exception.Message);
+        Assert.Contains("unavailable", exception.Message);
+    }
+
+    [Fact]
+    public void AddConfiguredSeedData_StatsEnabledWithoutBiOracleMappings_DoesNotRequireIt()
+    {
+        var services = new ServiceCollection();
+        services.AddConfiguredSeedData(
+            BuildConfiguration([StatsSeedDataSets.StatsPermissionsDataSet], "Stats:Enabled"),
+            AllDataSets
+        );
+
+        using var provider = services.BuildServiceProvider();
+        Assert.Single(provider.GetServices<PermissionSeedConfiguration>());
+        Assert.Empty(provider.GetServices<BiOracleStatMappingSeedConfiguration>());
+    }
+
     [Fact]
     public void AddConfiguredSeedData_SheriffRegionLocationDataSet_RegistersRegionsAndLocations()
     {

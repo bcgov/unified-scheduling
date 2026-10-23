@@ -120,7 +120,9 @@ public sealed class SeederRegistrationTests
             typeof(StatCategorySeeder),
             typeof(SubCategorySeeder),
             typeof(StatMetricSeeder),
-            typeof(SubCategoryMetricSeeder)
+            typeof(SubCategoryMetricSeeder),
+            typeof(BiOracleStatMappingSeeder),
+            typeof(BiOracleLocationMappingSeeder)
         );
     }
 
