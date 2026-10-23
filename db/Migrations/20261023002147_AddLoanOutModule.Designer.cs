@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20261022191600_AddLoanOutModule")]
+    [Migration("20261023002147_AddLoanOutModule")]
     partial class AddLoanOutModule
     {
         /// <inheritdoc />
@@ -1157,6 +1157,9 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("EffectiveDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -1178,7 +1181,10 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("PositionTypes");
+                    b.ToTable("PositionTypes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PositionTypes_DisplayOrderPositive", "\"DisplayOrder\" > 0");
+                        });
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Region", b =>
@@ -3374,7 +3380,7 @@ namespace Unified.Db.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Unified.Db.Models.LoanOut.LoanOutSeries", null)
+                    b.HasOne("Unified.Db.Models.LoanOut.LoanOutSeries", "LoanOutSeries")
                         .WithMany("LoanOutEntries")
                         .HasForeignKey("LoanOutSeriesId");
 
@@ -3388,6 +3394,8 @@ namespace Unified.Db.Migrations
                     b.Navigation("Event");
 
                     b.Navigation("LoanOutLocation");
+
+                    b.Navigation("LoanOutSeries");
 
                     b.Navigation("UpdatedBy");
                 });

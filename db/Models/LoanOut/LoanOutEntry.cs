@@ -11,6 +11,10 @@ public class LoanOutEntry : BaseEntity
 
     public int EventId { get; set; }
 
+    public int? LoanOutSeriesId { get; set; }
+
+    public LoanOutSeries? LoanOutSeries { get; set; }
+
     public int LoanOutLocationId { get; set; }
 
     public Location? LoanOutLocation { get; set; }
