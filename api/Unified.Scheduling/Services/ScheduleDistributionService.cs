@@ -21,10 +21,9 @@ public sealed class ScheduleDistributionService(
     {
         var context = request.Context ?? throw new InvalidOperationException("A distribution context is required.");
         var recipientUserIds = request.RecipientUserIds ?? [];
-        var location = await db.Locations.AsNoTracking().SingleOrDefaultAsync(
-            candidate => candidate.Id == context.LocationId,
-            cancellationToken
-        );
+        var location = await db
+            .Locations.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == context.LocationId, cancellationToken);
         if (location is null)
             throw new KeyNotFoundException($"Location {context.LocationId} was not found.");
 
@@ -63,13 +62,15 @@ public sealed class ScheduleDistributionService(
             {
                 To = recipientEmails.Length == 1 ? recipientEmails : [],
                 Bcc = recipientEmails.Length > 1 ? recipientEmails : [],
-                Subject = $"Schedule for {location.Name} ({context.StartDate:yyyy-MM-dd}-{context.EndDate.AddDays(-1):yyyy-MM-dd})",
+                Subject =
+                    $"Schedule for {location.Name} ({context.StartDate:yyyy-MM-dd}-{context.EndDate.AddDays(-1):yyyy-MM-dd})",
                 Body = "A PDF copy of the schedule is attached.",
                 Attachments =
                 [
                     new EmailAttachment
                     {
-                        FileName = $"schedule-{location.Id}-{context.StartDate:yyyyMMdd}-{context.EndDate.AddDays(-1):yyyyMMdd}.pdf",
+                        FileName =
+                            $"schedule-{location.Id}-{context.StartDate:yyyyMMdd}-{context.EndDate.AddDays(-1):yyyyMMdd}.pdf",
                         ContentType = "application/pdf",
                         Content = attachmentContent,
                     },
