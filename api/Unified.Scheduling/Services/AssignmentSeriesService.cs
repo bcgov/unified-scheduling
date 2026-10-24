@@ -126,7 +126,7 @@ public sealed class AssignmentSeriesService(
         await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
         await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
             assignmentSeries.Id,
-            request.ShiftSeriesLinks,
+            request.ShiftSeriesLinks ?? [],
             cancellationToken
         );
         await transaction.CommitAsync(cancellationToken);
@@ -159,6 +159,8 @@ public sealed class AssignmentSeriesService(
                 .ThenInclude(eventSeries => eventSeries.Events)
             .Include(series => series.AssignmentEntries)
                 .ThenInclude(entry => entry.Event)
+            .Include(series => series.ShiftAssignmentSeriesLinks)
+                .ThenInclude(link => link.Users)
             .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
         if (entity is null)
         {
@@ -167,6 +169,16 @@ public sealed class AssignmentSeriesService(
         }
         // Capture recurrence changes and inherited values before the update mutates the series.
         var updatePlan = AssignmentSeriesUpdatePlanner.CreatePlan(entity, request);
+        var existingShiftSeriesLinks =
+            request.ShiftSeriesLinks is null && updatePlan.RegenerateEntries
+                ? entity
+                    .ShiftAssignmentSeriesLinks.Select(link => new ShiftSeriesLinkRequest
+                    {
+                        ShiftSeriesId = link.ShiftSeriesId,
+                        AssignedUserIds = link.Users.Select(user => user.UserId).ToList(),
+                    })
+                    .ToList()
+                : null;
 
         var assignmentSeries =
             await calendarEventSeriesService.UpdateEventAsync(
@@ -196,11 +208,13 @@ public sealed class AssignmentSeriesService(
             PropagateSeriesChangesToEntries(assignmentSeries, request, updatePlan);
         await db.SaveChangesAsync(cancellationToken);
         await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
-        await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
-            assignmentSeries.Id,
-            request.ShiftSeriesLinks,
-            cancellationToken
-        );
+        var linksToApply = request.ShiftSeriesLinks ?? existingShiftSeriesLinks;
+        if (linksToApply is not null)
+            await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
+                assignmentSeries.Id,
+                linksToApply,
+                cancellationToken
+            );
         var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
             db,
             id,

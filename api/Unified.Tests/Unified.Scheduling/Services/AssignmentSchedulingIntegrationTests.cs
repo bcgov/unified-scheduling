@@ -335,6 +335,96 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAssignmentSeriesAsync_WhenLinksAreOmitted_PreservesExistingLinksAndUsers()
+    {
+        var (_, assignmentSeries) = await CreateLinkedSeriesAsync();
+
+        _db.ChangeTracker.Clear();
+
+        await _assignmentService.UpdateAssignmentSeriesAsync(
+            assignmentSeries.Id,
+            CreateAssignmentSeriesRequest() with
+            {
+                Title = "Updated assignment series",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var link = Assert.Single(
+            await _db
+                .ShiftAssignmentSeriesLinks.Include(existingLink => existingLink.Users)
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal([UserA], link.Users.Select(user => user.UserId));
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentSeriesAsync_WhenLinksAreOmittedAndTimeChanges_PreservesExistingLinksAndUsers()
+    {
+        var (_, assignmentSeries) = await CreateLinkedSeriesAsync();
+
+        _db.ChangeTracker.Clear();
+
+        await _assignmentService.UpdateAssignmentSeriesAsync(
+            assignmentSeries.Id,
+            CreateAssignmentSeriesRequest() with
+            {
+                StartAtUtc = At(11),
+                EndAtUtc = At(13),
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var link = Assert.Single(
+            await _db
+                .ShiftAssignmentSeriesLinks.Include(existingLink => existingLink.Users)
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal([UserA], link.Users.Select(user => user.UserId));
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentSeriesAsync_WhenLinksAreOmittedAndRecurrenceChanges_PreservesExistingLinksAndUsers()
+    {
+        var (_, assignmentSeries) = await CreateLinkedSeriesAsync();
+
+        _db.ChangeTracker.Clear();
+
+        await _assignmentService.UpdateAssignmentSeriesAsync(
+            assignmentSeries.Id,
+            CreateAssignmentSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var link = Assert.Single(
+            await _db
+                .ShiftAssignmentSeriesLinks.Include(existingLink => existingLink.Users)
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal([UserA], link.Users.Select(user => user.UserId));
+    }
+
+    [Fact]
+    public async Task UpdateAssignmentSeriesAsync_WhenLinksAreEmpty_RemovesExistingLinks()
+    {
+        var (_, assignmentSeries) = await CreateLinkedSeriesAsync();
+
+        await _assignmentService.UpdateAssignmentSeriesAsync(
+            assignmentSeries.Id,
+            CreateAssignmentSeriesRequest() with
+            {
+                ShiftSeriesLinks = [],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Empty(await _db.ShiftAssignmentSeriesLinks.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task UpdateShiftSeriesAsync_WhenRecurrenceChanges_ReconcilesDesiredLinks()
     {
         var (shiftSeries, assignmentSeries) = await CreateLinkedSeriesAsync();
