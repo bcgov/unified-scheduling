@@ -126,7 +126,7 @@ public sealed class AssignmentSeriesService(
         await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
         await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
             assignmentSeries.Id,
-            request.ShiftSeriesLinks,
+            request.ShiftSeriesLinks ?? [],
             cancellationToken
         );
         await transaction.CommitAsync(cancellationToken);
@@ -159,6 +159,8 @@ public sealed class AssignmentSeriesService(
                 .ThenInclude(eventSeries => eventSeries.Events)
             .Include(series => series.AssignmentEntries)
                 .ThenInclude(entry => entry.Event)
+            .Include(series => series.ShiftAssignmentSeriesLinks)
+                .ThenInclude(link => link.Users)
             .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
         if (entity is null)
         {
@@ -196,11 +198,12 @@ public sealed class AssignmentSeriesService(
             PropagateSeriesChangesToEntries(assignmentSeries, request, updatePlan);
         await db.SaveChangesAsync(cancellationToken);
         await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
-        await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
-            assignmentSeries.Id,
-            request.ShiftSeriesLinks,
-            cancellationToken
-        );
+        if (request.ShiftSeriesLinks is not null)
+            await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
+                assignmentSeries.Id,
+                request.ShiftSeriesLinks,
+                cancellationToken
+            );
         var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
             db,
             id,

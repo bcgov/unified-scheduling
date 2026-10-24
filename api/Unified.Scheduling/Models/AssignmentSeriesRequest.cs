@@ -11,5 +11,5 @@ public sealed record AssignmentSeriesRequest : CalendarEventSeriesRequest
 
     public int Capacity { get; init; }
 
-    public IReadOnlyCollection<ShiftSeriesLinkRequest> ShiftSeriesLinks { get; init; } = [];
+    public IReadOnlyCollection<ShiftSeriesLinkRequest>? ShiftSeriesLinks { get; init; }
 }
