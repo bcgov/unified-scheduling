@@ -409,6 +409,35 @@ export function getFieldErrors(error: zod.ZodError): Record<string, string> {
   return errors;
 }
 
+export function normalizeShiftServerValidationErrors(errors: Record<string, string>): Record<string, string> {
+  return Object.entries(errors).reduce<Record<string, string>>((result, [fieldName, message]) => {
+    const normalized = fieldName.toLowerCase();
+    const formField =
+      normalized === 'startatutc'
+        ? 'startTime'
+        : normalized === 'endatutc'
+          ? 'endTime'
+          : normalized === 'userid' || normalized === 'userids'
+            ? 'userIds'
+            : normalized === 'assignmentseriesids' || normalized === 'assignmentserieslinks'
+              ? 'assignmentSeriesId'
+              : normalized === 'assignmententryids' || normalized === 'assignmententrylinks'
+                ? 'assignmentEntryIds'
+                : fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
+
+    if (formField === 'userIds' && message === validationMessages.required) {
+      result[formField] = 'Select at least one employee.';
+    } else if (formField === 'userIds' && message === validationMessages.invalid) {
+      result[formField] = 'Select each employee only once.';
+    } else if (formField === 'startTime' && message === 'Value is too large') {
+      result[formField] = 'Start time must be before end time.';
+    } else {
+      result[formField] = message;
+    }
+    return result;
+  }, {});
+}
+
 function createShiftFormSchema(options: ShiftFormValidationOptions) {
   return PostApiSchedulingShiftsEntriesBody.partial()
     .extend({
