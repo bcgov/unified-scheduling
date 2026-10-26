@@ -10,6 +10,17 @@ const validationCodeToMessage: Record<string, string> = {
   TOO_LONG: validationMessages.tooLong,
   INVALID_EMAIL: validationMessages.invalidEmail,
   INVALID: validationMessages.invalid,
+  NotEmptyValidator: validationMessages.required,
+  NotNullValidator: validationMessages.required,
+  MaximumLengthValidator: validationMessages.tooLong,
+  MinimumLengthValidator: 'Value is too short',
+  GreaterThanValidator: 'Value is too small',
+  GreaterThanOrEqualValidator: 'Value is too small',
+  LessThanValidator: 'Value is too large',
+  LessThanOrEqualValidator: 'Value is too large',
+  EmailValidator: validationMessages.invalidEmail,
+  PredicateValidator: validationMessages.invalid,
+  NotEqualValidator: validationMessages.invalid,
 };
 
 const toErrorCodeList = (value: unknown): string[] => {
@@ -25,7 +36,7 @@ const toErrorCodeList = (value: unknown): string[] => {
 };
 
 export const getValidationMessageFromCode = (errorCode: string): string => {
-  return validationCodeToMessage[errorCode] ?? errorCode;
+  return validationCodeToMessage[errorCode] ?? (errorCode.endsWith('Validator') ? validationMessages.invalid : errorCode);
 };
 
 export const mapToValidationErrors = (rawError: unknown): Record<string, string> | null => {

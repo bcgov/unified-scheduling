@@ -1525,7 +1525,14 @@ function resolveAssignmentSaveError(error: unknown, fallback: string) {
 
 function normalizeAssignmentServerValidationErrors(errors: Record<string, string>) {
   return Object.entries(errors).reduce<Record<string, string>>((result, [fieldName, message]) => {
-    result[mapAssignmentServerValidationField(fieldName)] = message;
+    const formField = mapAssignmentServerValidationField(fieldName);
+    if (formField === 'endTime' && message === 'Value is too small') {
+      result[formField] = 'End time must be after start time.';
+    } else if (formField === 'startTime' && message === 'Value is too large') {
+      result[formField] = 'Start time must be before end time.';
+    } else {
+      result[formField] = message;
+    }
     return result;
   }, {});
 }
