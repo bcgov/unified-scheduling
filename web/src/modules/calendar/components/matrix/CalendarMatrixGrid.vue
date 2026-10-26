@@ -138,6 +138,20 @@ function resolveCell(resourceId: string, date: string) {
   padding-bottom: var(--calendar-matrix-scroll-padding-bottom, 0);
 }
 
+@media (min-width: 901px) {
+  .calendar-matrix-grid {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .calendar-matrix-grid__scroller {
+    flex: 1 1 auto;
+    min-height: 0;
+    overscroll-behavior-y: contain;
+  }
+}
+
 .calendar-matrix-grid__table {
   background: var(--ua-border-color);
   display: grid;
