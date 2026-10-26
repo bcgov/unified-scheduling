@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
-import { mdiAlert } from '@mdi/js';
+import { mdiAlert, mdiDragVertical } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { formatCalendarDateTimeRange, formatCalendarEventDate, formatCalendarEventTimeRange } from '@/utils/date';
 import UaActionPrompt from '@/shared/components/UaActionPrompt.vue';
@@ -162,6 +162,22 @@ function handleDragEnd() {
         </ul>
       </div>
     </v-tooltip>
+    <v-tooltip
+      v-if="item.draggable"
+      text="Click and drag to a day."
+      location="bottom"
+      content-class="calendar-matrix-side-panel-item__tooltip"
+    >
+      <template #activator="{ props: tooltipProps }">
+        <span
+          v-bind="tooltipProps"
+          class="calendar-matrix-side-panel-item__drag-icon"
+          aria-label="Click and drag to a day."
+        >
+          <v-icon :icon="mdiDragVertical" size="18" aria-hidden="true" />
+        </span>
+      </template>
+    </v-tooltip>
   </article>
 </template>
 
@@ -237,6 +253,20 @@ function handleDragEnd() {
 .calendar-matrix-side-panel-item__content {
   display: grid;
   gap: 0.125rem;
+  min-width: 0;
+}
+
+.calendar-matrix-side-panel-item__drag-icon {
+  align-items: center;
+  color: rgb(var(--v-theme-primary));
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+:global(.v-tooltip > .calendar-matrix-side-panel-item__tooltip.v-overlay__content) {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
 }
 
 .calendar-matrix-side-panel-item__title {
