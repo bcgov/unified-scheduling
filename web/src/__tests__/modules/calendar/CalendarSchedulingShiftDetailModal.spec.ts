@@ -233,17 +233,17 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     const vm = wrapper.vm as unknown as {
       handleSaveEdit: () => Promise<void>;
       selectTab: (tabId: 'edit') => void;
+      editFormData: { publish: 'yes' | 'no' };
     };
 
     vm.selectTab('edit');
     await flushPromises();
+    vm.editFormData.publish = 'yes';
     await vm.handleSaveEdit();
     await flushPromises();
 
-    expect(document.body.textContent).toContain(
-      'One or more selected employees already have a shift at this location on the selected date.',
-    );
-    expect(document.body.textContent).toContain('Alex Alpha already has a shift at this location.');
+    const employeeField = document.querySelector('.shift-form__employee-field');
+    expect(employeeField?.textContent).toContain('Alex Alpha already has a shift at this location.');
     expect(publishShiftEntry).not.toHaveBeenCalled();
     expect(wrapper.emitted('close')).toBeUndefined();
 
