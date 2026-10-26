@@ -110,6 +110,8 @@ const activePrintRenderToken = ref('');
 const completedPrintRenderToken = ref('');
 const errorMessage = ref('');
 const dataResponse = ref<CalendarDataResponse>({ contributions: {} });
+const loadedContextKey = ref<string>();
+const calendarPage = ref<HTMLElement>();
 const LOCATION_REQUIRED_ALERT_ID = 'calendar.location.required';
 
 let latestRequestId = 0;
@@ -300,6 +302,9 @@ const createActions = computed<CalendarToolbarButton[]>(() => {
     label: action.label,
     disabled: action.disabled,
     variant: 'outlined' as const,
+    prompt: hasCurrentData.value
+      ? action.getPrompt?.(dataResponse.value, createActionContext(), runtimeContext.value)
+      : undefined,
   }));
 });
 
@@ -316,7 +321,7 @@ const printDateRange = computed(() => {
   return `${startDate} - ${endDate}`;
 });
 const runtimeContextKey = computed(() => JSON.stringify(runtimeContext.value));
-const reloadKey = computed(() =>
+const dataContextKey = computed(() =>
   JSON.stringify({
     activeViewId: activeView.value?.id ?? null,
     startDate: dateRange.value.startDate,
@@ -324,10 +329,88 @@ const reloadKey = computed(() =>
     period: period.value,
     locationId: activeLocationId.value ?? null,
     filters: queryContext.value.filters,
-    refreshNonce: refreshNonce.value,
     runtimeContextKey: runtimeContextKey.value,
   }),
 );
+const reloadKey = computed(() => JSON.stringify({ context: dataContextKey.value, refreshNonce: refreshNonce.value }));
+const hasCurrentData = computed(() => loadedContextKey.value === dataContextKey.value);
+
+let panelScrollContext = {
+  viewId: activeViewId.value,
+  locationId: activeLocationId.value,
+  generation: calendarStore.scrollGeneration,
+};
+let panelScrollCount = 0;
+
+function getPanel() {
+  return calendarPage.value?.querySelector<HTMLElement>('.calendar-page__panel');
+}
+
+function savePanelScroll() {
+  const panel = getPanel();
+  if (!panel) return;
+  calendarStore.savePanelScrollPosition(
+    panelScrollContext.viewId,
+    panelScrollContext.locationId,
+    panelScrollContext.generation,
+    panel.scrollTop,
+  );
+}
+
+function handlePanelScroll(event: Event) {
+  if (event.target === getPanel()) {
+    panelScrollCount += 1;
+    savePanelScroll();
+  }
+}
+
+function restorePanelScroll() {
+  const panel = getPanel();
+  if (!panel) return;
+  const { panelTop } = calendarStore.getScrollPosition(panelScrollContext.viewId, panelScrollContext.locationId);
+  panel.scrollTop = Math.min(Math.max(0, panelTop), Math.max(0, panel.scrollHeight - panel.clientHeight));
+  savePanelScroll();
+}
+
+watch(
+  [() => dateRange.value.startDate, () => dateRange.value.endDate, period, activeLocationId],
+  () => {
+    calendarStore.resetScrollPositions();
+    panelScrollContext = {
+      viewId: activeViewId.value,
+      locationId: activeLocationId.value,
+      generation: calendarStore.scrollGeneration,
+    };
+    const panel = getPanel();
+    if (panel) {
+      panel.scrollTop = 0;
+      panel.scrollLeft = 0;
+    }
+  },
+  { flush: 'sync' },
+);
+
+watch(activeViewId, (viewId) => {
+  savePanelScroll();
+  const generation = calendarStore.scrollGeneration;
+  const locationId = activeLocationId.value;
+  const scrollCount = panelScrollCount;
+  void nextTick().then(() => {
+    if (generation !== calendarStore.scrollGeneration || viewId !== activeViewId.value) return;
+    panelScrollContext = { viewId, locationId, generation };
+    if (panelScrollCount === scrollCount) restorePanelScroll();
+    else savePanelScroll();
+  });
+});
+
+watch(dataResponse, () => {
+  void nextTick().then(() => {
+    const panel = getPanel();
+    if (!panel || !hasCurrentData.value) return;
+    panel.scrollTop = Math.min(panel.scrollTop, Math.max(0, panel.scrollHeight - panel.clientHeight));
+    savePanelScroll();
+  });
+});
 
 watch(
   printContext,
@@ -346,6 +429,7 @@ watch(
 const loadData = async () => {
   const requestId = ++latestRequestId;
   completedPrintRenderToken.value = '';
+  const requestContextKey = dataContextKey.value;
 
   if (activeLocationId.value === undefined) {
     calendarDataService.cancel();
@@ -355,6 +439,7 @@ const loadData = async () => {
     hasLoadedData.value = false;
     printGeneratedAt.value = '';
     activePrintRenderToken.value = '';
+    loadedContextKey.value = undefined;
     calendarStore.clearSelectedEvent();
     return;
   }
@@ -367,8 +452,9 @@ const loadData = async () => {
 
   try {
     const response = await calendarDataService.loadData(runtimeContext.value, queryContext.value, calendarRegistry);
-    if (requestId === latestRequestId) {
+    if (requestId === latestRequestId && requestContextKey === dataContextKey.value) {
       dataResponse.value = response;
+      loadedContextKey.value = requestContextKey;
       hasLoadedData.value = true;
       if (isPrintMode.value) {
         const generatedAt = DateTime.now().setZone(resolvePrintTimeZone());
@@ -387,7 +473,6 @@ const loadData = async () => {
     }
 
     if (requestId === latestRequestId) {
-      dataResponse.value = { contributions: {} };
       errorMessage.value = 'Failed to retrieve calendar data.';
     }
   } finally {
@@ -438,6 +523,7 @@ const handlePrevious = () => calendarStore.shiftPeriod('previous');
 const handleNext = () => calendarStore.shiftPeriod('next');
 
 const handleToday = () => calendarStore.goToToday();
+const handleRefresh = () => calendarStore.refresh();
 
 const handleDateSelection = (selectedDate: string) => calendarStore.setAnchorDate(selectedDate);
 
@@ -533,6 +619,7 @@ function waitForAnimationFrame() {
 
 <template>
   <section
+    ref="calendarPage"
     id="calendar-print-root"
     class="calendar-page"
     :class="{ 'calendar-page--print': isPrintMode }"
@@ -558,6 +645,7 @@ function waitForAnimationFrame() {
       class="calendar-page__panel"
       :class="{ 'calendar-page__panel--bounded': !isPrintMode && activeView?.fillAvailableHeight }"
       body-padding="none"
+      @scroll.capture.passive="handlePanelScroll"
     >
       <CalendarToolbar
         v-if="!isPrintMode"
@@ -576,6 +664,7 @@ function waitForAnimationFrame() {
         @previous="handlePrevious"
         @next="handleNext"
         @today="handleToday"
+        @refresh="handleRefresh"
         @trigger-toolbar-action="handleToolbarAction"
         @trigger-create-action="handleCreateAction"
       />
@@ -587,10 +676,15 @@ function waitForAnimationFrame() {
       </header>
 
       <CalendarMatrixSkeleton
-        v-if="activeLocationId !== undefined && loading && activeView?.loadingVariant === 'matrix'"
+        v-if="activeLocationId !== undefined && loading && !hasCurrentData && activeView?.loadingVariant === 'matrix'"
       />
-      <div v-else-if="activeLocationId !== undefined && loading" class="calendar-page__state">Loading calendar...</div>
-      <div v-else-if="activeLocationId !== undefined && activeView && activeViewModel" class="calendar-page__view">
+      <div v-else-if="activeLocationId !== undefined && loading && !hasCurrentData" class="calendar-page__state">
+        Loading calendar...
+      </div>
+      <div
+        v-else-if="activeLocationId !== undefined && hasCurrentData && activeView && activeViewModel"
+        class="calendar-page__view"
+      >
         <component
           :is="activeView.component"
           :model="activeViewModel"
@@ -601,6 +695,7 @@ function waitForAnimationFrame() {
           @render-complete="handlePrintRenderComplete"
         />
       </div>
+      <div v-else-if="activeLocationId !== undefined && activeView && errorMessage" class="calendar-page__state" />
       <div v-else class="calendar-page__state">No calendar views are registered.</div>
     </UaCard>
 

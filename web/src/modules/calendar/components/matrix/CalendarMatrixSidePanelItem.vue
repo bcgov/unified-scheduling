@@ -3,6 +3,7 @@ import { computed, inject } from 'vue';
 import { mdiAlert } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { formatCalendarDateTimeRange, formatCalendarEventDate, formatCalendarEventTimeRange } from '@/utils/date';
+import UaActionPrompt from '@/shared/components/UaActionPrompt.vue';
 import { calendarMatrixContextKey } from './calendarMatrixContext';
 import type {
   CalendarMatrixDragPayload,
@@ -101,12 +102,14 @@ function handleDragEnd() {
       'is-clickable': item.type === 'assignment',
       'is-hoverable': item.type === 'assignment' || item.type === 'user',
       'has-warnings': warningGroups.length > 0,
+      'ua-action-prompt--highlighted': Boolean(item.prompt),
     }"
     :draggable="item.draggable === true"
     @click="emit('itemClick', item)"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
   >
+    <UaActionPrompt v-if="item.prompt" :prompt="item.prompt" parent-activator />
     <slot :item="item">
       <span v-if="item.avatarText" class="calendar-matrix-side-panel-item__avatar">{{ item.avatarText }}</span>
       <span class="calendar-matrix-side-panel-item__content">
@@ -207,6 +210,11 @@ function handleDragEnd() {
 
 .calendar-matrix-side-panel-item.is-draggable {
   cursor: grab;
+}
+
+.calendar-matrix-side-panel-item.ua-action-prompt--highlighted {
+  border: 2px solid rgb(var(--v-theme-accent));
+  box-shadow: inset 0 0 0 1px rgb(var(--v-theme-primary));
 }
 
 @media (hover: hover) and (pointer: fine) {

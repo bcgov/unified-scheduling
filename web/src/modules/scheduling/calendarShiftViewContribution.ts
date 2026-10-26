@@ -15,5 +15,5 @@ export const calendarShiftViewContribution: CalendarViewDefinition = {
   fillAvailableHeight: true,
   isAvailable: (context) => canViewShifts(context) || canViewLeave(context) || canViewLoanOut(context),
   buildModel: (data, queryContext, runtimeContext, period) =>
-    buildCalendarSchedulingViewModel(data, queryContext, period, canViewAssignments(runtimeContext)),
+    buildCalendarSchedulingViewModel(data, queryContext, period, canViewAssignments(runtimeContext), runtimeContext),
 };

@@ -33,6 +33,8 @@ async function mountShiftDetailModal(
   statusTypeCode: string,
   belongsToSeries = false,
   apiOverrides: Record<string, unknown> = {},
+  initialTab?: 'details' | 'edit',
+  initialOpenScope?: 'event' | 'series',
 ) {
   vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => ({
     loadShiftEntry: vi.fn().mockResolvedValue({
@@ -107,6 +109,8 @@ async function mountShiftDetailModal(
   const wrapper = mount(CalendarSchedulingShiftDetailModal, {
     props: {
       event: createShiftEvent(statusTypeCode, belongsToSeries),
+      initialTab,
+      initialOpenScope,
     },
     global: { plugins: app.mountPlugins },
     attachTo: document.body,
@@ -141,6 +145,37 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     expect(document.body.textContent).toContain('Employee');
     expect(document.body.textContent).toContain('Linked assignments');
     expect(document.body.textContent).toContain('Court Coverage');
+
+    wrapper.unmount();
+  });
+
+  it('opens a draft shift directly in the edit tab when requested', async () => {
+    const wrapper = await mountShiftDetailModal('Draft', false, {}, 'edit');
+
+    expect(document.body.textContent).toContain('Edit Shift');
+    expect(document.body.textContent).toContain('Employee');
+
+    wrapper.unmount();
+  });
+
+  it('loads a series occurrence before opening its edit tab', async () => {
+    const loadShiftEntry = vi.fn().mockResolvedValue({
+      data: {
+        value: {
+          id: 42,
+          statusTypeCode: 'Draft',
+          locationId: 12,
+          startAtUtc: '2026-07-13T16:00:00Z',
+          endAtUtc: '2026-07-14T00:00:00Z',
+          userIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      },
+      error: { value: null },
+    });
+    const wrapper = await mountShiftDetailModal('Draft', true, { loadShiftEntry }, 'edit', 'event');
+
+    expect(loadShiftEntry).toHaveBeenCalledWith(42);
+    expect(document.body.textContent).toContain('Edit Shift');
 
     wrapper.unmount();
   });

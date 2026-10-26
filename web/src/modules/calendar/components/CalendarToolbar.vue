@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { mdiCalendarMonthOutline, mdiChevronLeft, mdiChevronRight } from '@mdi/js';
+import { mdiCalendarMonthOutline, mdiChevronLeft, mdiChevronRight, mdiRefresh } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed, ref } from 'vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
+import UaPromptedButton from '@/shared/components/UaPromptedButton.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import type { SelectOption, SelectValue } from '@/types/select';
 import CalendarViewTabs from './CalendarViewTabs.vue';
@@ -30,6 +31,7 @@ const emit = defineEmits<{
   (event: 'previous'): void;
   (event: 'next'): void;
   (event: 'today'): void;
+  (event: 'refresh'): void;
   (event: 'triggerToolbarAction', actionId: string): void;
   (event: 'triggerCreateAction', actionId: string): void;
 }>();
@@ -73,15 +75,16 @@ function handleDateSelection(value: unknown) {
       />
 
       <div v-if="createActions.length || toolbarActions.length" class="calendar-toolbar-shell__actions">
-        <UaBtn
+        <UaPromptedButton
           v-for="action in createActions"
           :key="action.id"
+          :prompt="action.prompt"
           :disabled="action.disabled || isLoading"
           :variant="action.variant ?? 'outlined'"
           @click="emit('triggerCreateAction', action.id)"
         >
           {{ action.label }}
-        </UaBtn>
+        </UaPromptedButton>
         <UaBtn
           v-for="action in toolbarActions"
           :key="action.id"
@@ -151,6 +154,16 @@ function handleDateSelection(value: unknown) {
 
         <UaBtn class="calendar-toolbar__today-button" variant="outlined" :disabled="isLoading" @click="emit('today')">
           Today
+        </UaBtn>
+        <UaBtn
+          class="calendar-toolbar__refresh-button"
+          variant="outlined"
+          :disabled="isLoading"
+          aria-label="Refresh calendar"
+          title="Refresh calendar"
+          @click="emit('refresh')"
+        >
+          <v-icon :icon="mdiRefresh" aria-hidden="true" />
         </UaBtn>
       </div>
     </div>
@@ -233,11 +246,13 @@ function handleDateSelection(value: unknown) {
   max-width: calc(100vw - 2 * var(--ua-spacing-md));
 }
 
-.calendar-toolbar__nav-button {
+.calendar-toolbar__nav-button,
+.calendar-toolbar__refresh-button {
   flex: 0 0 auto;
 }
 
-:deep(.calendar-toolbar__nav-button.v-btn) {
+:deep(.calendar-toolbar__nav-button.v-btn),
+:deep(.calendar-toolbar__refresh-button.v-btn) {
   border-radius: var(--ua-border-radius);
   height: var(--calendar-toolbar-control-height);
   min-height: var(--calendar-toolbar-control-height);
@@ -247,6 +262,7 @@ function handleDateSelection(value: unknown) {
 }
 
 :deep(.calendar-toolbar__nav-button.v-btn),
+:deep(.calendar-toolbar__refresh-button.v-btn),
 :deep(.calendar-toolbar__today-button.v-btn),
 .calendar-toolbar__range,
 .calendar-toolbar-shell :deep(.v-field) {

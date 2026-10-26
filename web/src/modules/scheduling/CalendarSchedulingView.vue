@@ -13,8 +13,6 @@ import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverl
 import CalendarSchedulingDistributionModal from './CalendarSchedulingDistributionModal.vue';
 import CalendarSchedulingPublishModal from './CalendarSchedulingPublishModal.vue';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
-import UaBtn from '@/shared/components/UaBtn.vue';
-import UaModal from '@/shared/components/UaModal.vue';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
 import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
@@ -47,27 +45,30 @@ import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import {
   calendarSchedulingAssignmentModalAssignmentDefinitionId,
   calendarSchedulingAssignmentModalAssignedUserId,
+  calendarSchedulingAssignmentModalDraggedUserOnly,
   calendarSchedulingAssignmentModalDate,
   calendarSchedulingAssignmentModalEditScope,
   calendarSchedulingAssignmentModalEntryId,
   calendarSchedulingAssignmentModalMode,
   calendarSchedulingAssignmentModalSeriesId,
   calendarSchedulingAssignmentModalShiftEntryIds,
+  calendarSchedulingAssignmentTypeCreateRequest,
   calendarSchedulingConflictEventId,
   calendarSchedulingConflictHeaderId,
   calendarSchedulingDistributionRequest,
   calendarSchedulingDetailEvent,
   calendarSchedulingDetailInitialOpenScope,
-  calendarSchedulingExistingShiftChoice,
+  calendarSchedulingDetailInitialTab,
   calendarSchedulingResourceActionAssignmentEntryId,
   calendarSchedulingResourceActionAssignmentEvents,
+  calendarSchedulingResourceActionMissingShiftWarning,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
   calendarSchedulingLeaveDetailEvent,
   calendarSchedulingLoanOutDetailEvent,
   calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
-  closeCalendarSchedulingExistingShiftChoice,
+  closeCalendarSchedulingAssignmentTypeCreateModal,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingPublishModal,
@@ -79,9 +80,8 @@ import {
   isCalendarSchedulingResourceActionModalOpen,
   showCalendarSchedulingAssignmentModal,
   showCalendarSchedulingEventDetail,
-  showCalendarSchedulingResourceActionModal,
 } from './calendarSchedulingState';
-import { canCreateShifts, canEditShifts, canCreateLeave, canEditLeave } from './calendarSchedulingPermissions';
+import { canEditShifts } from './calendarSchedulingPermissions';
 import { isCalendarSchedulingEvent, isLeaveEvent } from './calendarSchedulingData';
 
 const props = defineProps<{
@@ -102,10 +102,7 @@ const calendarAlertStore = useCalendarAlertStore();
 const route = useRoute();
 const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
-const canCreateShift = computed(() => Boolean(props.runtimeContext && canCreateShifts(props.runtimeContext)));
 const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShifts(props.runtimeContext)));
-const canAllowCreateLeave = computed(() => Boolean(props.runtimeContext && canCreateLeave(props.runtimeContext)));
-const canAllowEditLeave = computed(() => Boolean(props.runtimeContext && canEditLeave(props.runtimeContext)));
 const includeAssignmentTimes = computed(
   () =>
     props.runtimeContext?.presentationMode !== 'print' ||
@@ -128,7 +125,13 @@ function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
 
 function handleAssignmentDefinitionSaved() {
   assignmentDefinitionId.value = undefined;
+  closeCalendarSchedulingAssignmentTypeCreateModal();
   calendarStore.refresh();
+}
+
+function handleAssignmentDefinitionClose() {
+  assignmentDefinitionId.value = undefined;
+  closeCalendarSchedulingAssignmentTypeCreateModal();
 }
 
 function isRecurringLeave(event: CalendarEventBase) {
@@ -147,37 +150,6 @@ function handleSchedulePublished(count: number) {
     source: 'calendar-scheduling',
   });
   calendarStore.refresh();
-}
-
-function editExistingShift() {
-  if (!canEditShift.value && !canAllowEditLeave.value) {
-    return;
-  }
-
-  const choice = calendarSchedulingExistingShiftChoice.value;
-  if (!choice) {
-    return;
-  }
-
-  closeCalendarSchedulingExistingShiftChoice();
-  showCalendarSchedulingEventDetail(choice.shiftEvent, { initialOpenScope: 'event' });
-}
-
-function createNewShift() {
-  if (!canCreateShift.value && !canAllowCreateLeave.value) {
-    return;
-  }
-
-  const choice = calendarSchedulingExistingShiftChoice.value;
-  if (!choice) {
-    return;
-  }
-
-  closeCalendarSchedulingExistingShiftChoice();
-  showCalendarSchedulingResourceActionModal(choice.resource, choice.date, {
-    assignmentEntryId: choice.assignmentEntryId,
-    assignmentEvents: choice.assignmentEvents,
-  });
 }
 
 function eventCellKey(cell: CalendarMatrixCell, event: CalendarEventBase) {
@@ -414,6 +386,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     v-if="calendarSchedulingDetailEvent"
     :event="calendarSchedulingDetailEvent"
     :initial-open-scope="calendarSchedulingDetailInitialOpenScope"
+    :initial-tab="calendarSchedulingDetailInitialTab"
     @close="closeCalendarSchedulingEventDetail"
   />
 
@@ -431,10 +404,12 @@ function isAssignmentEvent(event: CalendarEventBase) {
     @close="closeCalendarSchedulingLoanOutDetail"
   />
   <CalendarSchedulingAssignmentDefinitionCreateModal
-    v-if="assignmentDefinitionId"
+    v-if="assignmentDefinitionId || calendarSchedulingAssignmentTypeCreateRequest"
     :assignment-definition-id="assignmentDefinitionId"
-    mode="view"
-    @close="assignmentDefinitionId = undefined"
+    :current-location-id="calendarSchedulingAssignmentTypeCreateRequest?.locationId"
+    :initial-effective-date="calendarSchedulingAssignmentTypeCreateRequest?.startDate"
+    :mode="assignmentDefinitionId ? 'view' : 'create'"
+    @close="handleAssignmentDefinitionClose"
     @saved="handleAssignmentDefinitionSaved"
   />
 
@@ -467,23 +442,10 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :initial-assignment-definition-id="calendarSchedulingAssignmentModalAssignmentDefinitionId"
     :initial-shift-entry-ids="calendarSchedulingAssignmentModalShiftEntryIds"
     :initial-assigned-user-id="calendarSchedulingAssignmentModalAssignedUserId"
+    :dragged-user-only="calendarSchedulingAssignmentModalDraggedUserOnly"
     :time-zone="model.timeZone"
     @close="closeCalendarSchedulingAssignmentModal"
   />
-
-  <UaModal
-    v-if="calendarSchedulingExistingShiftChoice"
-    title="Shift exists"
-    width="520"
-    @close="closeCalendarSchedulingExistingShiftChoice"
-  >
-    <p>This team member already has an active shift on this date. Would you like to edit it or create a new shift?</p>
-
-    <template #actions>
-      <UaBtn v-if="canCreateShift" variant="outlined" @click="createNewShift"> Create new shift </UaBtn>
-      <UaBtn v-if="canEditShift" color="primary" variant="flat" @click="editExistingShift">Edit existing shift</UaBtn>
-    </template>
-  </UaModal>
 
   <CalendarConflictDetailModal
     v-if="selectedConflict && selectedConflictEventId != null"
@@ -503,6 +465,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :initial-date="calendarSchedulingResourceActionDate"
     :initial-assignment-entry-id="calendarSchedulingResourceActionAssignmentEntryId"
     :initial-assignment-events="calendarSchedulingResourceActionAssignmentEvents"
+    :missing-shift-warning="calendarSchedulingResourceActionMissingShiftWarning"
     :resource="calendarSchedulingResourceActionResource"
     :time-zone="model.timeZone"
     @close="closeCalendarSchedulingResourceActionModal"
