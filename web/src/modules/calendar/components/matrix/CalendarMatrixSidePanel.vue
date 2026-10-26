@@ -82,7 +82,12 @@ const emit = defineEmits<{
   gap: var(--ua-spacing-sm);
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+}
+
+@media (min-width: 901px) {
+  .calendar-matrix-side-panel__list {
+    overscroll-behavior-y: contain;
+  }
 }
 
 .calendar-matrix-side-panel__empty {
