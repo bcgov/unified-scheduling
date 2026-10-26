@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import type { CalendarMatrixResource } from './calendarMatrixTypes';
+import { inject } from 'vue';
+import UaActionPrompt from '@/shared/components/UaActionPrompt.vue';
+import { calendarMatrixContextKey } from './calendarMatrixContext';
+import type { CalendarMatrixDragPayload, CalendarMatrixResource } from './calendarMatrixTypes';
 
 const props = defineProps<{
   resource: CalendarMatrixResource;
@@ -7,7 +10,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'addResource', payload: CalendarMatrixResource): void;
+  (event: 'dragStart', payload: CalendarMatrixDragPayload): void;
 }>();
+
+const matrixContext = inject(calendarMatrixContextKey, undefined);
 
 function handleAddResource() {
   if (!props.resource.action) {
@@ -16,10 +22,31 @@ function handleAddResource() {
 
   emit('addResource', props.resource);
 }
+
+function handleDragStart(event: DragEvent) {
+  if (!props.resource.draggable) return;
+  const payload: CalendarMatrixDragPayload = {
+    source: 'resource-row',
+    itemId: props.resource.id,
+    itemType: props.resource.type,
+    payload: { title: props.resource.title },
+  };
+  matrixContext?.startDrag(payload);
+  event.dataTransfer?.setData('application/json', JSON.stringify(payload));
+  event.dataTransfer?.setData('text/plain', payload.itemId);
+  emit('dragStart', payload);
+}
 </script>
 
 <template>
-  <div class="calendar-matrix-resource-row" role="rowheader" :aria-label="resource.title">
+  <div
+    class="calendar-matrix-resource-row"
+    role="rowheader"
+    :aria-label="resource.title"
+    :draggable="resource.draggable === true"
+    @dragstart="handleDragStart"
+    @dragend="matrixContext?.clearDrag()"
+  >
     <slot :resource="resource">
       <span v-if="resource.avatarText" class="calendar-matrix-resource-row__avatar">{{ resource.avatarText }}</span>
       <span class="calendar-matrix-resource-row__content">
@@ -37,18 +64,23 @@ function handleAddResource() {
         </span>
       </span>
     </slot>
-    <button
-      v-if="resource.action"
-      class="calendar-matrix-resource-row__add"
-      type="button"
-      :aria-label="resource.action.ariaLabel"
-      @click="handleAddResource"
-    >
-      <slot name="action" :resource="resource" :action="resource.action">
-        <v-icon v-if="resource.action.icon" :icon="resource.action.icon" size="16" />
-        <span v-else>{{ resource.action.label ?? '+' }}</span>
-      </slot>
-    </button>
+    <UaActionPrompt v-if="resource.action" :prompt="resource.action.prompt">
+      <template #activator="{ tooltipProps, highlighted }">
+        <button
+          v-bind="tooltipProps"
+          class="calendar-matrix-resource-row__add"
+          :class="{ 'ua-action-prompt--highlighted': highlighted }"
+          type="button"
+          :aria-label="resource.action?.ariaLabel"
+          @click="handleAddResource"
+        >
+          <slot name="action" :resource="resource" :action="resource.action">
+            <v-icon v-if="resource.action?.icon" :icon="resource.action.icon" size="16" />
+            <span v-else>{{ resource.action?.label ?? '+' }}</span>
+          </slot>
+        </button>
+      </template>
+    </UaActionPrompt>
   </div>
 </template>
 

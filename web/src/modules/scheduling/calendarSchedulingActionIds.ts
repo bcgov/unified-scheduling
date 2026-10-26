@@ -1,5 +1,6 @@
 export const calendarSchedulingActionIds = {
   createShift: 'calendar-scheduling.create-shift',
+  createAssignmentType: 'calendar-scheduling.create-assignment-type',
   publishSchedule: 'calendar-scheduling.publish-schedule',
   addAssignment: 'calendar-scheduling.add-assignment',
   addAssignmentResource: 'calendar-scheduling.add-assignment-resource',

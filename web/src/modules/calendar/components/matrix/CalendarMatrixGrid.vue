@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useLocationsStore } from '@/stores/LocationsStore';
+import { useCalendarStore } from '../../calendarStore';
 import type { CalendarEventBase } from '../../calendarTypes';
 import CalendarMatrixCell from './CalendarMatrixCell.vue';
 import CalendarMatrixHeader from './CalendarMatrixHeader.vue';
@@ -17,6 +19,65 @@ import type {
 const props = defineProps<{
   model: CalendarMatrixViewModel;
 }>();
+
+const calendarStore = useCalendarStore();
+const locationsStore = useLocationsStore();
+const scroller = ref<HTMLElement>();
+const selectedLocationId = Number(locationsStore.selectedLocationId);
+const scrollContext = {
+  viewId: calendarStore.activeViewId,
+  locationId: Number.isInteger(selectedLocationId) && selectedLocationId > 0 ? selectedLocationId : undefined,
+  generation: calendarStore.scrollGeneration,
+};
+
+function captureScroll() {
+  if (!scroller.value) return;
+  calendarStore.saveGridScrollPosition(
+    scrollContext.viewId,
+    scrollContext.locationId,
+    scrollContext.generation,
+    scroller.value.scrollTop,
+    scroller.value.scrollLeft,
+  );
+}
+
+function clampScroll(top: number, left: number) {
+  if (!scroller.value) return;
+  scroller.value.scrollTop = Math.min(
+    Math.max(0, top),
+    Math.max(0, scroller.value.scrollHeight - scroller.value.clientHeight),
+  );
+  scroller.value.scrollLeft = Math.min(
+    Math.max(0, left),
+    Math.max(0, scroller.value.scrollWidth - scroller.value.clientWidth),
+  );
+  captureScroll();
+}
+
+function isCurrentScrollContext() {
+  return (
+    scrollContext.generation === calendarStore.scrollGeneration && scrollContext.viewId === calendarStore.activeViewId
+  );
+}
+
+onMounted(() => {
+  void nextTick().then(() => {
+    if (!isCurrentScrollContext()) return;
+    const { top, left } = calendarStore.getScrollPosition(scrollContext.viewId, scrollContext.locationId);
+    clampScroll(top, left);
+  });
+});
+
+watch(
+  () => props.model,
+  async () => {
+    await nextTick();
+    if (!isCurrentScrollContext() || !scroller.value) return;
+    clampScroll(scroller.value.scrollTop, scroller.value.scrollLeft);
+  },
+);
+
+onBeforeUnmount(captureScroll);
 
 const matrixResourceColumn =
   'minmax(var(--calendar-matrix-resource-column-min-width), var(--calendar-matrix-resource-column-max-width))';
@@ -63,7 +124,7 @@ function resolveCell(resourceId: string, date: string) {
 
 <template>
   <div class="calendar-matrix-grid">
-    <div class="calendar-matrix-grid__scroller">
+    <div ref="scroller" class="calendar-matrix-grid__scroller" @scroll.passive="captureScroll">
       <div
         class="calendar-matrix-grid__table"
         role="grid"
@@ -79,6 +140,7 @@ function resolveCell(resourceId: string, date: string) {
                 :class="{ 'is-last-row': resourceIndex === model.primaryColumn.resources.length - 1 }"
                 :resource="resource"
                 @add-resource="emit('resourceAdd', { resource: $event })"
+                @drag-start="emit('dragStart', $event)"
               >
                 <template v-if="$slots['resource-row']" #default="slotProps">
                   <slot name="resource-row" v-bind="slotProps" />

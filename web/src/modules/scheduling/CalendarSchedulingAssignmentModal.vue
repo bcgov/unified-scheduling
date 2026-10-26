@@ -14,6 +14,7 @@ import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
+import UaPromptedButton from '@/shared/components/UaPromptedButton.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
@@ -61,6 +62,7 @@ import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { createLatestRequestGuard } from './latestRequestGuard';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { toUtcBusinessDateInput } from './assignmentDefinitionDateHelpers';
+import { hasNoAssignmentTypesForWeek, missingAssignmentTypePrompt } from './assignmentDefinitionPrompt';
 import {
   buildLocalDateTimeRange,
   formatTimeOptionRange,
@@ -80,6 +82,7 @@ const props = defineProps<{
   initialAssignmentDefinitionId?: number;
   initialShiftEntryIds?: number[];
   initialAssignedUserId?: string;
+  draggedUserOnly?: boolean;
   timeZone?: string;
 }>();
 
@@ -238,6 +241,7 @@ const {
   assignmentDefinitions,
   assignmentDefinitionOptions,
   isLoadingAssignmentDefinitions,
+  isAssignmentDefinitionsLoaded,
   loadAssignmentDefinitions,
   selectedAssignmentDefinition,
   upsertAssignmentDefinition,
@@ -250,6 +254,17 @@ const {
     apiError.value = message;
   },
   onLoaded: applyInitialSelections,
+});
+const addAssignmentTypePrompt = computed(() => {
+  if (!canCreateAssignment.value || isReadOnly.value || !isAssignmentDefinitionsLoaded.value) return undefined;
+  return hasNoAssignmentTypesForWeek(
+    assignmentDefinitions.value,
+    activeLocationId.value,
+    calendarStore.anchorDate,
+    timeZoneId.value,
+  )
+    ? missingAssignmentTypePrompt
+    : undefined;
 });
 const locationOptionsWithSelected = computed(() => {
   const locationId = activeLocationId.value;
@@ -636,11 +651,18 @@ function applyInitialSelections() {
   }
 
   const hasExplicitInitialShiftEntryIds = props.initialShiftEntryIds !== undefined;
-  const shiftEntryIds = hasExplicitInitialShiftEntryIds
-    ? (props.initialShiftEntryIds ?? [])
-    : resolveOverlappingShiftEntryIdsForCurrentAssignment();
+  const shiftEntryIds = props.initialShiftEntryIds ?? [];
 
   if (shiftEntryIds.length && !initialShiftEntriesAreLoaded(shiftEntryIds)) {
+    return;
+  }
+
+  if (
+    props.draggedUserOnly &&
+    props.initialAssignedUserId &&
+    shiftEntryIds.some((shiftEntryId) => !getShiftEntryUserIds(shiftEntryId).includes(props.initialAssignedUserId!))
+  ) {
+    apiError.value = 'The selected user does not belong to this shift.';
     return;
   }
 
@@ -662,9 +684,11 @@ function applyInitialSelections() {
     updateField(
       'shiftEntryLinks',
       mergedShiftEntryIds.map((shiftEntryId) => {
+        const draggedUserId =
+          props.draggedUserOnly && initialShiftEntryIdSet.has(shiftEntryId) ? props.initialAssignedUserId : undefined;
         const link = existingLinksById.get(shiftEntryId) ?? {
           shiftEntryId,
-          assignedUserIds: getShiftEntryUserIds(shiftEntryId),
+          assignedUserIds: draggedUserId ? [draggedUserId] : getShiftEntryUserIds(shiftEntryId),
         };
         const assignedUserIds =
           props.initialAssignedUserId && initialShiftEntryIdSet.has(shiftEntryId)
@@ -1167,19 +1191,6 @@ function getLinkUserError(type: 'shiftSeriesLinks' | 'shiftEntryLinks', index: n
     formErrors.value[type] ||
     ''
   );
-}
-
-function resolveOverlappingShiftEntryIdsForCurrentAssignment() {
-  if (
-    !props.initialAssignmentDefinitionId ||
-    !formData.value.date ||
-    !formData.value.startTime ||
-    !formData.value.endTime
-  ) {
-    return [];
-  }
-
-  return futureShiftEntries.value.filter((entry) => typeof entry.id === 'number').map((entry) => entry.id as number);
 }
 
 function getAssignmentDayRange() {
@@ -1823,16 +1834,17 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
             :loading="isLoadingAssignmentDefinitions"
             @update:model-value="updateAssignmentDefinition"
           />
-          <UaBtn
+          <UaPromptedButton
             v-if="!isReadOnly && canCreateAssignment"
             class="assignment-modal__add-type-button"
             variant="flat"
+            :prompt="addAssignmentTypePrompt"
             :disabled="fieldsDisabled"
             aria-label="Add Assignment Type"
             @click="openAssignmentDefinitionModal"
           >
             <v-icon :icon="mdiPlus" size="18" />
-          </UaBtn>
+          </UaPromptedButton>
         </div>
         <p v-if="formErrors.assignmentDefinitionId" class="assignment-modal__field-error">
           {{ formErrors.assignmentDefinitionId }}
@@ -2200,14 +2212,11 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
   align-items: start;
 }
 
-.assignment-modal__add-type-button {
+:global(.assignment-modal__add-type-button.v-btn) {
   justify-self: stretch;
-}
-
-:deep(.assignment-modal__add-type-button.v-btn) {
   background: var(--ua-icon-success);
   border-radius: var(--ua-border-radius);
-  color: #fff;
+  color: rgb(var(--v-theme-on-primary));
   height: 100%;
   padding-inline: 0;
 }
@@ -2288,7 +2297,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
     grid-template-columns: 1fr;
   }
 
-  .assignment-modal__add-type-button {
+  :global(.assignment-modal__add-type-button.v-btn) {
     justify-self: start;
   }
 }

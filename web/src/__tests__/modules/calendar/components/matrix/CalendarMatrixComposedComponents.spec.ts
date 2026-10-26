@@ -14,6 +14,7 @@ import type {
   CalendarMatrixViewModel,
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import { useLocationsStore } from '@/stores/LocationsStore';
 
 const event: CalendarEventBase = {
   id: 'event-1',
@@ -251,6 +252,81 @@ describe('CalendarMatrixCell', () => {
 });
 
 describe('CalendarMatrixGrid', () => {
+  it('does not overwrite a newer scroll action with an older saved position', async () => {
+    const { mountPlugins, pinia } = await createTestApp({ loadConfig: false });
+    const calendarStore = useCalendarStore(pinia);
+    useLocationsStore(pinia).setSelectedLocationId(12);
+    calendarStore.setActiveView('shifts');
+    calendarStore.saveGridScrollPosition('shifts', 12, calendarStore.scrollGeneration, 80, 90);
+
+    const wrapper = mount(CalendarMatrixGrid, { props: { model }, global: { plugins: mountPlugins } });
+    const scroller = wrapper.get('.calendar-matrix-grid__scroller').element as HTMLElement;
+    Object.defineProperties(scroller, {
+      scrollHeight: { configurable: true, value: 500 },
+      clientHeight: { configurable: true, value: 100 },
+      scrollWidth: { configurable: true, value: 500 },
+      clientWidth: { configurable: true, value: 100 },
+    });
+    scroller.scrollTop = 20;
+    scroller.scrollLeft = 30;
+    scroller.dispatchEvent(new Event('scroll'));
+
+    await wrapper.vm.$nextTick();
+    expect(scroller.scrollTop).toBe(20);
+    expect(scroller.scrollLeft).toBe(30);
+    wrapper.unmount();
+  });
+
+  it('restores the latest scroll offsets after remount and clamps them to the new bounds', async () => {
+    const { mountPlugins, pinia } = await createTestApp({ loadConfig: false });
+    const calendarStore = useCalendarStore(pinia);
+    useLocationsStore(pinia).setSelectedLocationId(12);
+    calendarStore.setActiveView('shifts');
+    const mountGrid = () => mount(CalendarMatrixGrid, { props: { model }, global: { plugins: mountPlugins } });
+    const setBounds = (element: HTMLElement, height: number, width: number) => {
+      Object.defineProperties(element, {
+        scrollHeight: { configurable: true, value: height },
+        clientHeight: { configurable: true, value: 100 },
+        scrollWidth: { configurable: true, value: width },
+        clientWidth: { configurable: true, value: 100 },
+      });
+    };
+
+    let wrapper = mountGrid();
+    let scroller = wrapper.get('.calendar-matrix-grid__scroller').element as HTMLElement;
+    setBounds(scroller, 500, 500);
+    scroller.scrollTop = 120;
+    scroller.scrollLeft = 180;
+    scroller.dispatchEvent(new Event('scroll'));
+    wrapper.unmount();
+
+    wrapper = mountGrid();
+    scroller = wrapper.get('.calendar-matrix-grid__scroller').element as HTMLElement;
+    setBounds(scroller, 160, 170);
+    await wrapper.vm.$nextTick();
+    expect(scroller.scrollTop).toBe(60);
+    expect(scroller.scrollLeft).toBe(70);
+    wrapper.unmount();
+
+    calendarStore.setActiveView('assignments');
+    wrapper = mountGrid();
+    scroller = wrapper.get('.calendar-matrix-grid__scroller').element as HTMLElement;
+    setBounds(scroller, 500, 500);
+    await wrapper.vm.$nextTick();
+    expect(scroller.scrollTop).toBe(0);
+    expect(scroller.scrollLeft).toBe(0);
+    wrapper.unmount();
+
+    calendarStore.setActiveView('shifts');
+    wrapper = mountGrid();
+    scroller = wrapper.get('.calendar-matrix-grid__scroller').element as HTMLElement;
+    setBounds(scroller, 500, 500);
+    await wrapper.vm.$nextTick();
+    expect(scroller.scrollTop).toBe(60);
+    expect(scroller.scrollLeft).toBe(70);
+    wrapper.unmount();
+  });
+
   it('renders header, resource rows, cells, and forwards child events', async () => {
     const { wrapper } = await mountWithApp(CalendarMatrixGrid, {
       props: { model },

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
@@ -57,6 +57,8 @@ const views = computed(() => calendarRegistry.getAvailableViews(runtimeContext.v
 const loading = ref(false);
 const errorMessage = ref('');
 const dataResponse = ref<CalendarDataResponse>({ contributions: {} });
+const loadedContextKey = ref<string>();
+const calendarPage = ref<HTMLElement>();
 const LOCATION_REQUIRED_ALERT_ID = 'calendar.location.required';
 
 let latestRequestId = 0;
@@ -155,6 +157,9 @@ const createActions = computed<CalendarToolbarButton[]>(() => {
     label: action.label,
     disabled: action.disabled,
     variant: 'outlined' as const,
+    prompt: hasCurrentData.value
+      ? action.getPrompt?.(dataResponse.value, createActionContext(), runtimeContext.value)
+      : undefined,
   }));
 });
 
@@ -162,26 +167,106 @@ const rangeLabel = computed(() =>
   formatRangeLabel(queryContext.value.startDate, queryContext.value.endDate, period.value),
 );
 const runtimeContextKey = computed(() => JSON.stringify(runtimeContext.value));
-const reloadKey = computed(() =>
+const dataContextKey = computed(() =>
   JSON.stringify({
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
     period: period.value,
     locationId: activeLocationId.value ?? null,
     filters: queryContext.value.filters,
-    refreshNonce: refreshNonce.value,
     runtimeContextKey: runtimeContextKey.value,
   }),
 );
+const reloadKey = computed(() => JSON.stringify({ context: dataContextKey.value, refreshNonce: refreshNonce.value }));
+const hasCurrentData = computed(() => loadedContextKey.value === dataContextKey.value);
+
+let panelScrollContext = {
+  viewId: activeViewId.value,
+  locationId: activeLocationId.value,
+  generation: calendarStore.scrollGeneration,
+};
+let panelScrollCount = 0;
+
+function getPanel() {
+  return calendarPage.value?.querySelector<HTMLElement>('.calendar-page__panel');
+}
+
+function savePanelScroll() {
+  const panel = getPanel();
+  if (!panel) return;
+  calendarStore.savePanelScrollPosition(
+    panelScrollContext.viewId,
+    panelScrollContext.locationId,
+    panelScrollContext.generation,
+    panel.scrollTop,
+  );
+}
+
+function handlePanelScroll(event: Event) {
+  if (event.target === getPanel()) {
+    panelScrollCount += 1;
+    savePanelScroll();
+  }
+}
+
+function restorePanelScroll() {
+  const panel = getPanel();
+  if (!panel) return;
+  const { panelTop } = calendarStore.getScrollPosition(panelScrollContext.viewId, panelScrollContext.locationId);
+  panel.scrollTop = Math.min(Math.max(0, panelTop), Math.max(0, panel.scrollHeight - panel.clientHeight));
+  savePanelScroll();
+}
+
+watch(
+  [() => dateRange.value.startDate, () => dateRange.value.endDate, period, activeLocationId],
+  () => {
+    calendarStore.resetScrollPositions();
+    panelScrollContext = {
+      viewId: activeViewId.value,
+      locationId: activeLocationId.value,
+      generation: calendarStore.scrollGeneration,
+    };
+    const panel = getPanel();
+    if (panel) {
+      panel.scrollTop = 0;
+      panel.scrollLeft = 0;
+    }
+  },
+  { flush: 'sync' },
+);
+
+watch(activeViewId, (viewId) => {
+  savePanelScroll();
+  const generation = calendarStore.scrollGeneration;
+  const locationId = activeLocationId.value;
+  const scrollCount = panelScrollCount;
+  void nextTick().then(() => {
+    if (generation !== calendarStore.scrollGeneration || viewId !== activeViewId.value) return;
+    panelScrollContext = { viewId, locationId, generation };
+    if (panelScrollCount === scrollCount) restorePanelScroll();
+    else savePanelScroll();
+  });
+});
+
+watch(dataResponse, () => {
+  void nextTick().then(() => {
+    const panel = getPanel();
+    if (!panel || !hasCurrentData.value) return;
+    panel.scrollTop = Math.min(panel.scrollTop, Math.max(0, panel.scrollHeight - panel.clientHeight));
+    savePanelScroll();
+  });
+});
 
 const loadData = async () => {
   const requestId = ++latestRequestId;
+  const requestContextKey = dataContextKey.value;
 
   if (activeLocationId.value === undefined) {
     calendarDataService.cancel();
     loading.value = false;
     errorMessage.value = '';
     dataResponse.value = { contributions: {} };
+    loadedContextKey.value = undefined;
     calendarStore.clearSelectedEvent();
     return;
   }
@@ -190,7 +275,11 @@ const loadData = async () => {
   errorMessage.value = '';
 
   try {
-    dataResponse.value = await calendarDataService.loadData(runtimeContext.value, queryContext.value, calendarRegistry);
+    const response = await calendarDataService.loadData(runtimeContext.value, queryContext.value, calendarRegistry);
+    if (requestId === latestRequestId && requestContextKey === dataContextKey.value) {
+      dataResponse.value = response;
+      loadedContextKey.value = requestContextKey;
+    }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return;
@@ -247,6 +336,7 @@ const handlePrevious = () => calendarStore.shiftPeriod('previous');
 const handleNext = () => calendarStore.shiftPeriod('next');
 
 const handleToday = () => calendarStore.goToToday();
+const handleRefresh = () => calendarStore.refresh();
 
 const handleDateSelection = (selectedDate: string) => calendarStore.setAnchorDate(selectedDate);
 
@@ -302,7 +392,7 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
 </script>
 
 <template>
-  <section class="calendar-page">
+  <section ref="calendarPage" class="calendar-page">
     <div v-if="calendarAlertStore.alerts.length" class="calendar-alerts">
       <UaAlert
         v-for="alert in calendarAlertStore.alerts"
@@ -323,6 +413,7 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
       class="calendar-page__panel"
       :class="{ 'calendar-page__panel--bounded': activeView?.fillAvailableHeight }"
       body-padding="none"
+      @scroll.capture.passive="handlePanelScroll"
     >
       <CalendarToolbar
         :views="views"
@@ -340,15 +431,21 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
         @previous="handlePrevious"
         @next="handleNext"
         @today="handleToday"
+        @refresh="handleRefresh"
         @trigger-toolbar-action="handleToolbarAction"
         @trigger-create-action="handleCreateAction"
       />
 
       <CalendarMatrixSkeleton
-        v-if="activeLocationId !== undefined && loading && activeView?.loadingVariant === 'matrix'"
+        v-if="activeLocationId !== undefined && loading && !hasCurrentData && activeView?.loadingVariant === 'matrix'"
       />
-      <div v-else-if="activeLocationId !== undefined && loading" class="calendar-page__state">Loading calendar...</div>
-      <div v-else-if="activeLocationId !== undefined && activeView && activeViewModel" class="calendar-page__view">
+      <div v-else-if="activeLocationId !== undefined && loading && !hasCurrentData" class="calendar-page__state">
+        Loading calendar...
+      </div>
+      <div
+        v-else-if="activeLocationId !== undefined && hasCurrentData && activeView && activeViewModel"
+        class="calendar-page__view"
+      >
         <component
           :is="activeView.component"
           :model="activeViewModel"
@@ -356,6 +453,7 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
           @event-click="handleViewEventClick"
         />
       </div>
+      <div v-else-if="activeLocationId !== undefined && activeView && errorMessage" class="calendar-page__state" />
       <div v-else class="calendar-page__state">No calendar views are registered.</div>
     </UaCard>
 

@@ -152,8 +152,10 @@ describe('calendar workflow', () => {
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
+      calendarStore.saveGridScrollPosition('workflow-view', 12, calendarStore.scrollGeneration, 100, 200);
       await wrapper.get('button[aria-label="Previous"]').trigger('click');
       await flushPromises();
+      expect(calendarStore.getScrollPosition('workflow-view', 12)).toEqual({ top: 0, left: 0, panelTop: 0 });
 
       const previousAnchor = shiftCalendarAnchor('2025-04-07', 'week', 'previous');
       const previousRange = buildDateRangeForPeriod(previousAnchor, 'week');
@@ -274,6 +276,11 @@ describe('calendar workflow', () => {
       expect(calendarStore.selectedEventId).toBe('evt-1');
       expect(document.body.textContent).toContain('Event Details');
       expect(document.body.textContent).toContain('Main Hall');
+
+      calendarStore.saveGridScrollPosition('workflow-view', 12, calendarStore.scrollGeneration, 100, 200);
+      locationsStore.setSelectedLocationId(13);
+      await flushPromises();
+      expect(calendarStore.getScrollPosition('workflow-view', 12)).toEqual({ top: 0, left: 0, panelTop: 0 });
     } finally {
       wrapper.unmount();
     }
@@ -361,10 +368,12 @@ describe('calendar workflow', () => {
 
   it('renders a matrix skeleton while a matrix view is loading', async () => {
     let resolveLoad: (value: { contributions: Record<string, never> }) => void = () => undefined;
+    let rejectLoad: (reason: Error) => void = () => undefined;
     const loadData = vi.fn(
       () =>
-        new Promise<{ contributions: Record<string, never> }>((resolve) => {
+        new Promise<{ contributions: Record<string, never> }>((resolve, reject) => {
           resolveLoad = resolve;
+          rejectLoad = reject;
         }),
     );
 
@@ -396,12 +405,14 @@ describe('calendar workflow', () => {
       },
     }));
 
-    const [{ default: Calendar }, { useLocationsStore }] = await Promise.all([
+    const [{ default: Calendar }, { useCalendarStore }, { useLocationsStore }] = await Promise.all([
       import('@/modules/calendar/Calendar.vue'),
+      import('@/modules/calendar/calendarStore'),
       import('@/stores/LocationsStore'),
     ]);
     const { mountPlugins, pinia } = await createTestApp({ loadConfig: false });
     useLocationsStore(pinia).setSelectedLocationId(12);
+    const calendarStore = useCalendarStore(pinia);
     const wrapper = mount(Calendar, { global: { plugins: mountPlugins } });
 
     await wrapper.vm.$nextTick();
@@ -410,6 +421,26 @@ describe('calendar workflow', () => {
     resolveLoad({ contributions: {} });
     await flushPromises();
     expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(false);
+
+    const mountedView = wrapper.get('[data-testid="matrix-view"]').element as HTMLElement;
+    mountedView.scrollTop = 150;
+    mountedView.scrollLeft = 40;
+    calendarStore.refresh();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="matrix-view"]').element).toBe(mountedView);
+    expect([mountedView.scrollTop, mountedView.scrollLeft]).toEqual([150, 40]);
+
+    resolveLoad({ contributions: {} });
+    await flushPromises();
+    expect(wrapper.get('[data-testid="matrix-view"]').element).toBe(mountedView);
+
+    calendarStore.refresh();
+    await wrapper.vm.$nextTick();
+    rejectLoad(new Error('Request failed'));
+    await flushPromises();
+    expect(wrapper.get('[data-testid="matrix-view"]').element).toBe(mountedView);
+    expect(wrapper.text()).toContain('Failed to retrieve calendar data.');
 
     wrapper.unmount();
   });

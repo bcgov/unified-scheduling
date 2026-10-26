@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import UaBtn from '@/shared/components/UaBtn.vue';
+import UaPromptedButton from '@/shared/components/UaPromptedButton.vue';
 import CalendarMatrixSidePanelItem from './CalendarMatrixSidePanelItem.vue';
 import type {
   CalendarMatrixDragPayload,
@@ -22,15 +22,16 @@ const emit = defineEmits<{
   <aside class="calendar-matrix-side-panel" :aria-label="panel.label">
     <header class="calendar-matrix-side-panel__header">
       <h2 class="calendar-matrix-side-panel__title">{{ panel.label }}</h2>
-      <UaBtn
+      <UaPromptedButton
         v-if="panel.actionLabel"
         variant="outlined"
         size="small"
+        :prompt="panel.actionPrompt"
         :aria-label="panel.actionLabel"
         @click="emit('action')"
       >
         {{ panel.actionLabel }}
-      </UaBtn>
+      </UaPromptedButton>
     </header>
 
     <div v-if="panel.items.length" class="calendar-matrix-side-panel__list" role="list">
