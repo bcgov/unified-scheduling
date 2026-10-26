@@ -1494,6 +1494,38 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAssignmentEntryAsync_WhenLinkedSeriesOccurrenceTitleChanges_PreservesLinkAndUsers()
+    {
+        var (shiftSeries, assignmentSeries) = await CreateLinkedSeriesAsync();
+        var assignmentEntryId = Assert.Single(assignmentSeries.AssignmentEntryIds);
+        var shiftEntryId = Assert.Single(shiftSeries.ShiftEntryIds);
+
+        _db.ChangeTracker.Clear();
+
+        var updated = await _assignmentService.UpdateAssignmentEntryAsync(
+            assignmentEntryId,
+            CreateAssignmentEntryUpdateRequest() with
+            {
+                Title = "Updated assignment occurrence",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.Equal("Updated assignment occurrence", updated.Title);
+        Assert.Equal([shiftEntryId], updated.LinkedShiftEntryIds);
+        Assert.Equal([UserA], updated.AssignedUserIds);
+        var storedLink = Assert.Single(
+            await _db
+                .ShiftAssignmentEntries.Include(link => link.Users)
+                .Where(link => link.AssignmentEntryId == assignmentEntryId)
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(shiftEntryId, storedLink.ShiftEntryId);
+        Assert.Equal([UserA], storedLink.Users.Select(user => user.UserId));
+    }
+
+    [Fact]
     public async Task CreateShiftEntryAsync_WithAssignmentEntryLinks_CreatesLinksAtomically()
     {
         var assignment = await _assignmentService.CreateAssignmentEntryAsync(
