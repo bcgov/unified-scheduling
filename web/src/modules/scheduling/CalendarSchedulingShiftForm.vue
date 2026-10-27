@@ -29,6 +29,7 @@ const props = withDefaults(
     assignmentWarning?: string;
     isLoadingAssignments?: boolean;
     showSeriesAssignment?: boolean;
+    showAssignmentLinks?: boolean;
     idPrefix?: string;
   }>(),
   {
@@ -44,6 +45,7 @@ const props = withDefaults(
     assignmentWarning: '',
     isLoadingAssignments: false,
     showSeriesAssignment: false,
+    showAssignmentLinks: true,
     idPrefix: 'shift-form',
   },
 );
@@ -71,7 +73,7 @@ watch(
   { immediate: true },
 );
 
-const showAssignmentEntryLinks = computed(() => !props.showSeriesAssignment);
+const showAssignmentEntryLinks = computed(() => props.showAssignmentLinks && !props.showSeriesAssignment);
 const selectedAssignmentEntryIds = computed(
   () =>
     new Set(
@@ -496,7 +498,7 @@ function handleRecurrenceChange(value: string | null) {
       </template>
     </template>
 
-    <template v-if="showSeriesAssignment">
+    <template v-if="showAssignmentLinks && showSeriesAssignment">
       <label class="shift-form__label" :for="`${idPrefix}-series-assignment`">Series Assignments</label>
       <div class="shift-form__assignment-field">
         <UaSelect
@@ -518,7 +520,7 @@ function handleRecurrenceChange(value: string | null) {
       </div>
     </template>
 
-    <template v-if="showSeriesAssignment">
+    <template v-if="showAssignmentLinks && showSeriesAssignment">
       <template v-if="(formData.assignmentSeriesLinks ?? []).length">
         <span aria-hidden="true"></span>
         <h3 class="shift-form__section-heading">Linked recurring assignments</h3>
@@ -563,7 +565,7 @@ function handleRecurrenceChange(value: string | null) {
       </template>
     </template>
 
-    <template v-if="assignmentWarning">
+    <template v-if="showAssignmentLinks && assignmentWarning">
       <span aria-hidden="true"></span>
       <p class="shift-form__warning-text">
         {{ assignmentWarning }}
