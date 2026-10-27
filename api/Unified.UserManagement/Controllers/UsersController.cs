@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization.Claims;
 using Unified.Common.Filters;
 using Unified.Common.ImageFormat;
 using Unified.UserManagement.Models;
@@ -18,7 +19,8 @@ public class UsersController(
     IUserService userService,
     UserRequestValidator userRequestValidator,
     AssignUserRoleRequestValidator assignUserRoleRequestValidator,
-    ExpireUserRoleRequestValidator expireUserRoleRequestValidator
+    ExpireUserRoleRequestValidator expireUserRoleRequestValidator,
+    IAuthorizationService authorizationService
 ) : ControllerBase
 {
     /// <summary>
@@ -46,11 +48,22 @@ public class UsersController(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The requested user if found.</returns>
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = UserManagementPolicies.UsersViewOtherProfiles)]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<UserResponse>> GetById(Guid id, CancellationToken cancellationToken)
     {
+        if (id != User.TryGetCurrentUserId())
+        {
+            var result = await authorizationService.AuthorizeAsync(
+                User,
+                UserManagementPolicies.UsersViewOtherProfiles
+            );
+            if (!result.Succeeded)
+            {
+                return Forbid();
+            }
+        }
+
         var user = await userService.GetByIdAsync(id, cancellationToken);
         if (user is null)
         {
