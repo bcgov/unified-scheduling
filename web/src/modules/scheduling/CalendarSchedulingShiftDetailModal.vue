@@ -53,6 +53,7 @@ const hasShiftEditPermission = computed(() => accessControl.hasPermission(Permis
 const canPublishShift = computed(() => accessControl.hasPermission(Permissions.SchedulePublish));
 const hasShiftDeletePermission = computed(() => accessControl.hasPermission(Permissions.ShiftsDelete));
 const hasShiftExpirePermission = computed(() => accessControl.hasPermission(Permissions.ShiftsExpire));
+const canViewAssignments = computed(() => accessControl.hasPermission(Permissions.AssignmentsView));
 
 const activeTab = ref<ShiftDetailTabId>('details');
 const selectedOpenScope = ref<ShiftOpenScope | null>(getInitialOpenScope());
@@ -159,6 +160,7 @@ const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLo
     activeLocationId,
     activeTimeZoneId,
     isSeriesScope,
+    enabled: canViewAssignments,
     onError: (message) => {
       apiError.value = message;
     },
@@ -172,6 +174,7 @@ const { detailRows } = useSchedulingShiftDetailRows({
   assignmentEntryOptions,
   assignmentSeriesOptions,
   locationOptions,
+  showAssignmentDetails: canViewAssignments,
 });
 
 watch(
@@ -750,6 +753,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
           :assignment-warning="assignmentWarning"
           :is-loading-assignments="isLoadingAssignments"
           :show-series-assignment="isSeriesScope"
+          :show-assignment-links="canViewAssignments"
           @recurrence-change="handleRecurrenceChange"
           @recurrence-invalid="handleRecurrenceInvalid"
         />

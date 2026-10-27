@@ -1,7 +1,12 @@
 import { getApiUsersUserIdActingPositions } from '@/api-access/generated/acting-positions/acting-positions';
 import { postApiSchedulingCalendarEvents } from '@/api-access/generated/scheduling-calendar/scheduling-calendar';
-import type { ActingPositionResponseDto, SchedulingCalendarRequest, UserResponse } from '@/api-access/generated/models';
-import type { CalendarResourceBase } from '@/modules/calendar/calendarTypes';
+import {
+  Permissions,
+  type ActingPositionResponseDto,
+  type SchedulingCalendarRequest,
+  type UserResponse,
+} from '@/api-access/generated/models';
+import type { CalendarResourceBase, CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
 import { CalendarContributionId, CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
 import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
@@ -13,11 +18,13 @@ import {
 } from '../calendarSchedulingData';
 import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
 import { canViewAssignments, canViewShifts, canViewLeave } from '../calendarSchedulingPermissions';
+import { isSchedulingPublished } from '../schedulingLifecycle';
 import { useUsersStore } from '@/stores/Users';
 import { useLookupStore } from '@/stores/LookupStore';
 import { LookupCodeTypes } from '@/api-access/generated/models';
 import { sortSchedulingUsers } from '../sortSchedulingUsers';
 import { formatUserName } from '@/utils/user';
+import { addDays, toApiDateString } from '@/utils/date';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
@@ -46,24 +53,27 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
   onDeactivate() {
     actingPositionsByUserIdCache.clear();
   },
-  async load(context, options) {
+  async load(context, options, runtimeContext) {
     const userIds = extractUserIds(context.filters);
 
     const [data, resourceData] = await Promise.all([
       loadSchedulingCalendarData(
         {
-          startDate: context.startDate,
-          endDate: context.endDate,
+          startDate: toApiDateString(context.startDate),
+          // Calendar ranges end exclusively; the scheduling API accepts an inclusive end date.
+          endDate: toApiDateString(addDays(context.endDate, -1)),
           timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
           locationId: context.locationId,
           userIds,
         },
         options?.signal,
       ),
-      loadSchedulingResourceData(context.locationId, options?.signal),
+      loadSchedulingResourceData(context.locationId, runtimeContext, options?.signal),
     ]);
 
-    const events = data.events ?? [];
+    const events = (data.events ?? []).filter(
+      (event) => runtimeContext?.presentationMode !== 'print' || isSchedulingPublished(event.statusTypeCode),
+    );
     const resourceUsers = filterResourceUsers(resourceData.users, userIds);
 
     return {
@@ -279,9 +289,11 @@ async function loadSchedulingCalendarData(request: SchedulingCalendarRequest, si
 
 async function loadSchedulingResourceData(
   locationId?: number,
+  runtimeContext?: CalendarRuntimeContext,
   signal?: AbortSignal,
 ): Promise<CalendarSchedulingResourceData> {
-  if (!locationId) {
+  const isUserManagementEnabled = runtimeContext?.featureFlags.UserManagement?.enabled ?? true;
+  if (!locationId || !isUserManagementEnabled) {
     return {
       users: [],
       getUserById: () => undefined,
@@ -301,7 +313,10 @@ async function loadSchedulingResourceData(
   if (!positions) {
     throw new Error('Position type display order is unavailable.');
   }
-  const actingPositionsByUserId = await loadActingPositionsByUser(users, signal);
+  const canViewActingPositions = runtimeContext?.permissions?.includes(Permissions.ActingPositionsView) ?? false;
+  const actingPositionsByUserId = canViewActingPositions
+    ? await loadActingPositionsByUser(users, signal)
+    : new Map<string, ActingPositionResponseDto[]>();
 
   return {
     users: sortSchedulingUsers(users, positions),
