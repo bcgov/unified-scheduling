@@ -1,10 +1,8 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace Unified.Infrastructure.Pdf;
 
-public sealed class ScheduleDistributionRenderingOptionsValidator(IHostEnvironment environment)
-    : IValidateOptions<ScheduleDistributionRenderingOptions>
+public sealed class ScheduleDistributionRenderingOptionsValidator : IValidateOptions<ScheduleDistributionRenderingOptions>
 {
     public ValidateOptionsResult Validate(string? name, ScheduleDistributionRenderingOptions options)
     {
@@ -20,12 +18,6 @@ public sealed class ScheduleDistributionRenderingOptionsValidator(IHostEnvironme
         {
             failures.Add(
                 $"{ScheduleDistributionRenderingOptions.SectionName}:{nameof(options.FrontendBaseUrl)} must be an absolute HTTP(S) URL without credentials, a query, or a fragment."
-            );
-        }
-        else if (!IsLocalEnvironment(environment) && frontendBaseUri.Scheme != Uri.UriSchemeHttps)
-        {
-            failures.Add(
-                $"{ScheduleDistributionRenderingOptions.SectionName}:{nameof(options.FrontendBaseUrl)} must use HTTPS outside local development."
             );
         }
 
@@ -48,9 +40,6 @@ public sealed class ScheduleDistributionRenderingOptionsValidator(IHostEnvironme
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
-
-    private static bool IsLocalEnvironment(IHostEnvironment environment) =>
-        environment.IsDevelopment() || environment.IsEnvironment("Local") || environment.IsEnvironment("Test");
 
     private static void ValidateRange(List<string> failures, string propertyName, int value, int minimum, int maximum)
     {

@@ -85,7 +85,9 @@ Additional approved attachment types use matching zero-based .NET configuration 
 
 ## Schedule PDF rendering
 
-Schedule distribution uses server-side Playwright against the application's canonical frontend route. Set `ScheduleDistributionFrontendBaseUrl` to the externally addressed frontend URL that is also valid for the application's authentication cookie. The API validates this setting at startup when the Scheduling module is enabled and requires HTTPS outside local/test environments.
+Schedule distribution uses server-side Playwright against the application's frontend route. Set
+`ScheduleDistributionFrontendBaseUrl` to an absolute HTTP or HTTPS frontend URL reachable from the API container,
+including the application's base path. The URL must not contain credentials, a query, or a fragment.
 
 ```text
 ScheduleDistributionFrontendBaseUrl=https://example.gov.bc.ca/unified-scheduling/
@@ -93,6 +95,11 @@ ScheduleDistributionDefaultViewportWidth=1440
 ScheduleDistributionDefaultViewportHeight=1000
 ScheduleDistributionRenderTimeoutSeconds=45
 ```
+
+For internal OpenShift service routing, set the API's `ScheduleDistribution__FrontendBaseUrl` configuration to
+the frontend service address, for example `http://web:8080/unified-scheduling/` (adjust the service name, port,
+and base path to match the deployment). HTTP is supported in every environment. Playwright forwards the
+authenticated session cookie to this configured origin, so HTTP targets must be trusted internal services.
 
 For local Docker Compose development, `ScheduleDistributionFrontendBaseUrl` defaults to
 `http://web:8080/`, which is the frontend service address reachable from the API container.
