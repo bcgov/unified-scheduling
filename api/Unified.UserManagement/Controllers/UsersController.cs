@@ -54,10 +54,7 @@ public class UsersController(
     {
         if (id != User.TryGetCurrentUserId())
         {
-            var result = await authorizationService.AuthorizeAsync(
-                User,
-                UserManagementPolicies.UsersViewOtherProfiles
-            );
+            var result = await authorizationService.AuthorizeAsync(User, UserManagementPolicies.UsersViewOtherProfiles);
             if (!result.Succeeded)
             {
                 return Forbid();
