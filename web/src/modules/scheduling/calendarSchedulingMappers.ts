@@ -47,10 +47,7 @@ import {
   type CalendarAssignmentPartialCoverageShift,
   type CalendarSchedulingEvent,
 } from './calendarSchedulingData';
-import type {
-  CalendarSchedulingEventsData,
-  CalendarSchedulingUserResource,
-} from './contributions/calendarSchedulingEventsContribution';
+import type { CalendarSchedulingUserResource } from './contributions/calendarSchedulingEventsContribution';
 import { schedulingLoanOutContributionId } from './contributions/calendarSchedulingLoanOutContribution';
 import { canViewLeave } from './calendarSchedulingPermissions';
 import {
@@ -64,6 +61,7 @@ import {
   isTrainingCalendarEvent,
   trainingCalendarContributionId,
   type TrainingCalendarEvent,
+  type TrainingCalendarEventsData,
 } from '@/modules/training/contributions/calendarTrainingEventsContribution';
 import { calendarMatrixColorMap } from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
@@ -737,14 +735,14 @@ function buildUserSidePanelItems(
   context: CalendarQueryContext,
   runtimeContext?: CalendarRuntimeContext,
 ): CalendarMatrixSidePanelItem[] {
-  const contribution = selectContribution(response, schedulingShiftContributionId);
-  const data = contribution?.data as CalendarSchedulingEventsData | undefined;
+  const trainingData = selectContribution(response, trainingCalendarContributionId)?.data as
+    TrainingCalendarEventsData | undefined;
   const rangeStart = DateTime.fromISO(days[0]!.date, { zone: timeZone });
   const rangeEnd = DateTime.fromISO(days[days.length - 1]!.date, { zone: timeZone }).plus({ days: 1 });
   const leaveEvents =
     runtimeContext && canViewLeave(runtimeContext)
       ? selectSidebarWarningEvents(
-          (data?.allLocationLeaveEvents ?? selectSchedulingShiftEvents(response)).filter(isLeaveEvent),
+          selectSchedulingShiftEvents(response).filter(isLeaveEvent),
           rangeStart,
           rangeEnd,
           timeZone,
@@ -755,9 +753,7 @@ function buildUserSidePanelItems(
     context.locationId != null &&
     calendarTrainingEventsContribution.isAvailable?.(runtimeContext, context)
       ? selectSidebarWarningEvents(
-          (selectContribution(response, trainingCalendarContributionId)?.events ?? [])
-            .filter(isTrainingCalendarEvent)
-            .filter((event) => event.locationId === context.locationId),
+          (trainingData?.warningEvents ?? []).filter(isTrainingCalendarEvent),
           rangeStart,
           rangeEnd,
           timeZone,
