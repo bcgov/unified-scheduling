@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import type { Component } from 'vue';
 import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { CalendarEventStatus, CalendarEventType } from '@/api-access/generated/models';
@@ -68,19 +69,16 @@ const iconStub = {
   template: '<i class="icon-stub">{{ icon }}</i>',
 };
 
-async function mountWithApp(component: unknown, options: Record<string, unknown> = {}) {
+async function mountWithApp<T extends Component>(component: T, options: Record<string, unknown> = {}) {
   const { mountPlugins } = await createTestApp({ loadConfig: false });
 
-  return mount(
-    component as never,
-    {
-      ...options,
-      global: {
-        ...(options.global as Record<string, unknown> | undefined),
-        plugins: mountPlugins,
-      },
-    } as never,
-  );
+  return mount(component, {
+    ...options,
+    global: {
+      ...(options.global as Record<string, unknown> | undefined),
+      plugins: mountPlugins,
+    },
+  } as never);
 }
 
 afterEach(() => {
