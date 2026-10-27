@@ -40,6 +40,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 8080,
+    // The API container renders the print route through the Docker Compose web service.
+    allowedHosts: ['web'],
     proxy: {
       '^/api': {
         target: 'http://api:5000',

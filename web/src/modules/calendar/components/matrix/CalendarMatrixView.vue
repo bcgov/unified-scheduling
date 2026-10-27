@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, provide, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, provide, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { calendarActionRegistry } from '../../registry/calendarActionRegistry';
 import { useCalendarStore } from '../../calendarStore';
@@ -22,6 +22,7 @@ const props = withDefaults(
   defineProps<{
     model: CalendarMatrixViewModel;
     runtimeContext?: CalendarRuntimeContext;
+    renderToken?: string;
   }>(),
   {
     runtimeContext: () => ({ featureFlags: {} }),
@@ -38,11 +39,15 @@ const emit = defineEmits<{
   (event: 'sidePanelItemClick', payload: CalendarMatrixSidePanelItem): void;
   (event: 'dragStart', payload: CalendarMatrixDragPayload): void;
   (event: 'resourceAdd', payload: CalendarMatrixResourceAddEvent): void;
+  (event: 'renderComplete', renderToken?: string): void;
 }>();
 
 const calendarStore = useCalendarStore();
 const { selectedEventId, selectedResourceId } = storeToRefs(calendarStore);
 const activeDragPayload = ref<CalendarMatrixDragPayload>();
+const showSidePanel = computed(
+  () => Boolean(props.model.sidePanel) && props.runtimeContext.presentationMode !== 'print',
+);
 
 type MatrixActionExecutionOptions<TAction> = {
   actions: TAction[];
@@ -70,6 +75,11 @@ provide(calendarMatrixContextKey, {
 onMounted(() => {
   window.addEventListener('dragend', clearActiveDrag, true);
   window.addEventListener('drop', clearActiveDrag, true);
+  void signalRenderComplete();
+});
+
+onUpdated(() => {
+  void signalRenderComplete();
 });
 
 onBeforeUnmount(() => {
@@ -79,6 +89,15 @@ onBeforeUnmount(() => {
 
 function clearActiveDrag() {
   activeDragPayload.value = undefined;
+}
+
+let lastCompletedRenderToken: string | undefined;
+async function signalRenderComplete() {
+  await nextTick();
+  if (props.renderToken && props.renderToken !== lastCompletedRenderToken) {
+    lastCompletedRenderToken = props.renderToken;
+    emit('renderComplete', props.renderToken);
+  }
 }
 
 function handleEventClick(event: CalendarEventBase) {
@@ -208,7 +227,7 @@ async function handleEventAction(payload: CalendarMatrixEventBlockActionEvent) {
 </script>
 
 <template>
-  <section class="calendar-matrix-view" :class="{ 'has-side-panel': !!model.sidePanel }">
+  <section class="calendar-matrix-view" :class="{ 'has-side-panel': showSidePanel }">
     <CalendarMatrixGrid
       v-if="!model.unsupportedMessage"
       :model="model"
@@ -240,7 +259,7 @@ async function handleEventAction(payload: CalendarMatrixEventBlockActionEvent) {
       {{ model.unsupportedMessage }}
     </div>
     <CalendarMatrixSidePanel
-      v-if="!model.unsupportedMessage && model.sidePanel"
+      v-if="!model.unsupportedMessage && model.sidePanel && showSidePanel"
       :panel="model.sidePanel"
       @action="handleSidePanelAction"
       @item-click="emit('sidePanelItemClick', $event)"
