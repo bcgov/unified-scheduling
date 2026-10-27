@@ -326,7 +326,7 @@ const assignmentDetailRows = computed<AssignmentDetailRow[]>(() => {
       value: formatLocation(formData.value.locationId),
     },
     {
-      label: 'Assignment Type',
+      label: 'Assignment Template',
       value: selectedAssignmentDefinition.value?.name || formData.value.title || 'None',
     },
     { label: 'Capacity', value: String(formData.value.capacity ?? 'None') },
@@ -1811,7 +1811,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
         </p>
       </div>
 
-      <label class="assignment-modal__label" for="assignment-modal-assignment">Assignment Type</label>
+      <label class="assignment-modal__label" for="assignment-modal-assignment">Assignment Template</label>
       <div class="assignment-modal__field">
         <div class="assignment-modal__assignment-input">
           <UaSelect
@@ -1828,7 +1828,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
             class="assignment-modal__add-type-button"
             variant="flat"
             :disabled="fieldsDisabled"
-            aria-label="Add Assignment Type"
+            aria-label="Add Assignment Template"
             @click="openAssignmentDefinitionModal"
           >
             <v-icon :icon="mdiPlus" size="18" />

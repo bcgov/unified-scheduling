@@ -172,6 +172,10 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingPublishRequest.value).toBeUndefined();
   });
 
+  it('uses assignment template terminology for the drop action', () => {
+    expect(calendarDropAction.label).toBe('Drop assignment template');
+  });
+
   it('opens the add assignment modal on the first date in the displayed range', async () => {
     await calendarAddAssignmentAction.execute(
       {
