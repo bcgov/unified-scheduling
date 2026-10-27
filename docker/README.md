@@ -83,6 +83,38 @@ ChesMaxRecipientsPerMessage=500
 
 Additional approved attachment types use matching zero-based .NET configuration indexes. For example, add both `Ches__AllowedAttachmentTypes__1__Extension` and `Ches__AllowedAttachmentTypes__1__ContentType` mappings to `docker-compose.yaml`, backed by corresponding Docker Compose interpolation variables. Both values must be supplied as one approved pair.
 
+## Schedule PDF rendering
+
+Schedule distribution uses server-side Playwright against the application's frontend route. Set
+`ScheduleDistributionFrontendBaseUrl` to an absolute HTTP or HTTPS frontend URL reachable from the API container,
+including the application's base path. The URL must not contain credentials, a query, or a fragment.
+
+```text
+ScheduleDistributionFrontendBaseUrl=https://example.gov.bc.ca/unified-scheduling/
+ScheduleDistributionDefaultViewportWidth=1440
+ScheduleDistributionDefaultViewportHeight=1000
+ScheduleDistributionRenderTimeoutSeconds=45
+```
+
+The frontend sends its current browser viewport in CSS pixels as optional `context.viewportWidth` and
+`context.viewportHeight` values when distributing a schedule. Both dimensions must be supplied and fall within
+1280–3840 pixels wide and 720–2160 pixels high (720p through 4K). Otherwise, rendering uses both configured
+default dimensions. Configured defaults must also fall within these bounds.
+
+For internal OpenShift service routing, set the API's `ScheduleDistribution__FrontendBaseUrl` configuration to
+the frontend service address, for example `http://web:8080/unified-scheduling/` (adjust the service name, port,
+and base path to match the deployment). HTTP is supported in every environment. Playwright forwards the
+authenticated session cookie to this configured origin, so HTTP targets must be trusted internal services.
+
+For local Docker Compose development, `ScheduleDistributionFrontendBaseUrl` defaults to
+`http://web:8080/`, which is the frontend service address reachable from the API container.
+Running the API directly in the Development environment continues to use
+`http://localhost:8080/` from `appsettings.Development.json`.
+
+The API development and release images contain the Chromium build matching the pinned Microsoft.Playwright package. After changing the Playwright package or image version, rebuild the API image with `./manage build api` before starting it. Each render uses a new, non-persistent browser context; only the Chromium process is reused.
+
+For OpenShift, build the API with Docker strategy using `docker/api/Dockerfile.release` (with the repository root as build context), rather than the development/S2I image. The release image provides Chromium at `/ms-playwright` and sets `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`; do not mount a volume over that directory. It also supports OpenShift's arbitrary non-root runtime UID. Keep the `mcr.microsoft.com/playwright/dotnet` image tag equal to the `Microsoft.Playwright` package version.
+
 ### Stop services
 
 ```bash
