@@ -368,12 +368,18 @@ describe('CalendarMatrixSidePanelItem', () => {
           ...sidePanelItem,
           warningGroups: [
             { id: 'empty', heading: 'Empty', warnings: [] },
-            { id: 'leave', heading: 'Leave', warnings: [
-              { id: 'leave-1', title: 'Vacation', start: '2025-01-13', end: '2025-01-15', allDay: true },
-            ] },
-            { id: 'training', heading: 'Training', warnings: [
-              { id: 'training-1', title: 'Session', start: '2025-01-14T07:00:00Z', end: '2025-01-14T09:00:00Z' },
-            ] },
+            {
+              id: 'leave',
+              heading: 'Leave',
+              warnings: [{ id: 'leave-1', title: 'Vacation', start: '2025-01-13', end: '2025-01-15', allDay: true }],
+            },
+            {
+              id: 'training',
+              heading: 'Training',
+              warnings: [
+                { id: 'training-1', title: 'Session', start: '2025-01-14T07:00:00Z', end: '2025-01-14T09:00:00Z' },
+              ],
+            },
           ],
         },
       },
@@ -407,7 +413,9 @@ describe('CalendarMatrixSidePanelItem', () => {
     expect(wrapper.emitted('dragStart')).toBeUndefined();
     expect(matrixContext.startDrag).not.toHaveBeenCalled();
 
-    await wrapper.setProps({ item: { ...sidePanelItem, warningGroups: [{ id: 'empty', heading: 'Empty', warnings: [] }] } });
+    await wrapper.setProps({
+      item: { ...sidePanelItem, warningGroups: [{ id: 'empty', heading: 'Empty', warnings: [] }] },
+    });
     expect(wrapper.find('button').exists()).toBe(false);
     expect(wrapper.classes()).not.toContain('has-warnings');
   });
