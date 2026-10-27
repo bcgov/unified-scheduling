@@ -3,10 +3,10 @@ namespace Unified.Infrastructure.Pdf;
 public sealed class ScheduleDistributionRenderingOptions
 {
     public const string SectionName = "ScheduleDistribution";
-    public const int MinimumViewportWidth = 800;
-    public const int MaximumViewportWidth = 2400;
-    public const int MinimumViewportHeight = 600;
-    public const int MaximumViewportHeight = 2000;
+    public const int MinimumViewportWidth = 1280;
+    public const int MaximumViewportWidth = 3840;
+    public const int MinimumViewportHeight = 720;
+    public const int MaximumViewportHeight = 2160;
 
     public string FrontendBaseUrl { get; set; } = string.Empty;
 
@@ -17,4 +17,6 @@ public sealed class ScheduleDistributionRenderingOptions
     public int RenderTimeoutSeconds { get; set; } = 45;
 
     public int MaximumConcurrentRenders { get; set; } = 2;
+
+    public bool VerboseDiagnosticsEnabled { get; set; }
 }

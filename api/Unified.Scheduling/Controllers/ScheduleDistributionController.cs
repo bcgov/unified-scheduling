@@ -53,9 +53,8 @@ public sealed class ScheduleDistributionController(
         catch (PdfRenderingException exception)
         {
             logger.LogError(
-                exception,
-                "Schedule PDF rendering failed before email submission. Failure message: {FailureMessage}",
-                exception.Message
+                "Schedule PDF rendering failed before email submission. Failure category: {FailureCategory}",
+                exception.IsServiceUnavailable ? "unavailable" : "rendering-failed"
             );
             return Problem(
                 statusCode: exception.IsServiceUnavailable

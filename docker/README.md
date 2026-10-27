@@ -96,6 +96,11 @@ ScheduleDistributionDefaultViewportHeight=1000
 ScheduleDistributionRenderTimeoutSeconds=45
 ```
 
+The frontend sends its current browser viewport in CSS pixels as optional `context.viewportWidth` and
+`context.viewportHeight` values when distributing a schedule. Both dimensions must be supplied and fall within
+1280–3840 pixels wide and 720–2160 pixels high (720p through 4K). Otherwise, rendering uses both configured
+default dimensions. Configured defaults must also fall within these bounds.
+
 For internal OpenShift service routing, set the API's `ScheduleDistribution__FrontendBaseUrl` configuration to
 the frontend service address, for example `http://web:8080/unified-scheduling/` (adjust the service name, port,
 and base path to match the deployment). HTTP is supported in every environment. Playwright forwards the
