@@ -50,6 +50,9 @@ excluded from Git.
 
 Do not use `./manage down` before upgrading because that command removes project volumes.
 
+The `./manage upgrade-db-16-18` command and its `upgrade-postgres-16-to-18.sh` script can be removed once all
+developers have upgraded their local databases to PostgreSQL 18.
+
 ### Start in debug mode (with hot reload)
 
 ```bash

@@ -107,13 +107,20 @@ if [ -z "$NEW_DB_CONTAINER_ID" ]; then
   exit 1
 fi
 
-echo "Waiting for PostgreSQL 18 to become healthy ..."
+echo "Waiting for PostgreSQL 18 to become healthy and accept TCP connections ..."
 DB_HEALTH=""
+DB_READY=false
 for _ in $(seq 1 60); do
   DB_HEALTH="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$NEW_DB_CONTAINER_ID")"
   case "$DB_HEALTH" in
     healthy)
-      break
+      # The image's temporary initialization server only accepts Unix-socket connections.
+      if "${COMPOSE[@]}" exec -T db sh -ec '
+        pg_isready --host 127.0.0.1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB"
+      ' >/dev/null 2>&1; then
+        DB_READY=true
+        break
+      fi
       ;;
     unhealthy|exited|dead)
       echo "PostgreSQL 18 entered state '$DB_HEALTH'. The backup is available at $BACKUP_PATH." >&2
@@ -123,8 +130,8 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
-if [ "$DB_HEALTH" != "healthy" ]; then
-  echo "PostgreSQL 18 did not become healthy in time. The backup is available at $BACKUP_PATH." >&2
+if [ "$DB_READY" != "true" ]; then
+  echo "PostgreSQL 18 did not become healthy and TCP-ready in time. The backup is available at $BACKUP_PATH." >&2
   exit 1
 fi
 
