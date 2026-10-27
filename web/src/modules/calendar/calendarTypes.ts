@@ -44,6 +44,7 @@ export interface CalendarResourceBase {
 }
 
 export interface CalendarQueryContext {
+  activeViewId?: string;
   startDate: string;
   endDate: string;
   locationId?: number;
