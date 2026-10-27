@@ -68,6 +68,7 @@ const canCreateLoanOut = computed(
     (accessControl.featureFlags.value?.LoanOut?.enabled ?? false) &&
     accessControl.hasPermission(Permissions.LoanOutCreateAndAssign),
 );
+const canViewAssignments = computed(() => accessControl.hasPermission(Permissions.AssignmentsView));
 
 const isSaving = ref(false);
 const activeTab = ref<'schedule' | 'leave' | 'loanout'>('schedule');
@@ -126,6 +127,7 @@ const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLo
     activeLocationId,
     activeTimeZoneId: timeZoneId,
     isSeriesScope,
+    enabled: canViewAssignments,
     onError: (message) => {
       apiError.value = message;
     },
@@ -550,6 +552,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :assignment-warning="assignmentWarning"
             :is-loading-assignments="isLoadingAssignments"
             :show-series-assignment="isSeriesScope"
+            :show-assignment-links="canViewAssignments"
             @recurrence-change="handleRecurrenceChange"
             @recurrence-invalid="handleRecurrenceInvalid"
           />

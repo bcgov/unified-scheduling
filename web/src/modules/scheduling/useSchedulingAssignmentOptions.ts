@@ -17,6 +17,7 @@ export function useSchedulingAssignmentOptions(options: {
   activeLocationId: ComputedRef<number | null>;
   activeTimeZoneId: ComputedRef<string>;
   isSeriesScope: ComputedRef<boolean>;
+  enabled?: ComputedRef<boolean>;
   onError: (message: string) => void;
 }) {
   const assignmentEntries = ref<AssignmentEntryResponse[]>([]);
@@ -49,6 +50,7 @@ export function useSchedulingAssignmentOptions(options: {
       () => options.activeLocationId.value,
       () => options.activeTimeZoneId.value,
       () => options.isSeriesScope.value,
+      () => options.enabled?.value ?? true,
     ],
     () => {
       void loadOptions();
@@ -67,7 +69,7 @@ export function useSchedulingAssignmentOptions(options: {
     assignmentSeries.value = [];
     assignmentWarning.value = '';
 
-    if (!locationId || occurrences.length === 0) {
+    if (!(options.enabled?.value ?? true) || !locationId || occurrences.length === 0) {
       isLoadingAssignments.value = false;
       return;
     }

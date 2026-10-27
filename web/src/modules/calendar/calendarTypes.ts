@@ -54,6 +54,7 @@ export interface CalendarQueryContext {
 export interface CalendarRuntimeContext {
   featureFlags: FeatureFlagsResponse;
   permissions?: readonly Permissions[];
+  presentationMode?: 'interactive' | 'print';
 }
 
 export interface CalendarContributionData<

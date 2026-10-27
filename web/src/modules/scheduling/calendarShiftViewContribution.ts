@@ -1,7 +1,7 @@
 import { defineAsyncComponent } from 'vue';
 import type { CalendarViewDefinition } from '@/modules/calendar/registry/calendarRegistryTypes';
 import { buildCalendarSchedulingViewModel } from './calendarSchedulingMappers.ts';
-import { canViewShifts, canViewLeave, canViewLoanOut } from './calendarSchedulingPermissions';
+import { canViewAssignments, canViewShifts, canViewLeave, canViewLoanOut } from './calendarSchedulingPermissions';
 
 export const calendarShiftViewContribution: CalendarViewDefinition = {
   id: 'calendar.matrix-schedule',
@@ -14,6 +14,6 @@ export const calendarShiftViewContribution: CalendarViewDefinition = {
   loadingVariant: 'matrix',
   fillAvailableHeight: true,
   isAvailable: (context) => canViewShifts(context) || canViewLeave(context) || canViewLoanOut(context),
-  buildModel: (data, queryContext, _runtimeContext, period) =>
-    buildCalendarSchedulingViewModel(data, queryContext, period),
+  buildModel: (data, queryContext, runtimeContext, period) =>
+    buildCalendarSchedulingViewModel(data, queryContext, period, canViewAssignments(runtimeContext)),
 };

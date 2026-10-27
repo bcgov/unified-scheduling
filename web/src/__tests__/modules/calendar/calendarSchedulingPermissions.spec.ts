@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Permissions } from '@/api-access/generated/models';
 import {
   canCreateAssignments,
+  canDistributeSchedule,
   canEditAssignments,
   canEditShifts,
   canPublishSchedule,
@@ -22,7 +23,10 @@ describe('calendar scheduling permissions', () => {
   });
 
   it('keeps schedule publishing distinct from ordinary edit permissions', () => {
-    const publishContext = { featureFlags: {}, permissions: [Permissions.SchedulePublish] };
+    const publishContext = {
+      featureFlags: {},
+      permissions: [Permissions.SchedulePublish, Permissions.ShiftsView],
+    };
     expect(canPublishSchedule(publishContext)).toBe(true);
     expect(canEditAssignments(publishContext)).toBe(false);
     expect(canEditShifts(publishContext)).toBe(false);
@@ -32,5 +36,23 @@ describe('calendar scheduling permissions', () => {
       permissions: [Permissions.AssignmentsEdit, Permissions.ShiftsEdit],
     };
     expect(canPublishSchedule(editContext)).toBe(false);
+    expect(canPublishSchedule({ featureFlags: {}, permissions: [Permissions.SchedulePublish] })).toBe(false);
+  });
+
+  it('requires distribution permission and the requested schedule view permission', () => {
+    const shiftContext = {
+      featureFlags: {},
+      permissions: [Permissions.ScheduleViewDistribute, Permissions.ShiftsView],
+    };
+    const assignmentContext = {
+      featureFlags: {},
+      permissions: [Permissions.ScheduleViewDistribute, Permissions.AssignmentsView],
+    };
+
+    expect(canDistributeSchedule(shiftContext, 'schedule')).toBe(true);
+    expect(canDistributeSchedule(shiftContext, 'assignments')).toBe(false);
+    expect(canDistributeSchedule(assignmentContext, 'schedule')).toBe(false);
+    expect(canDistributeSchedule(assignmentContext, 'assignments')).toBe(true);
+    expect(canDistributeSchedule({ featureFlags: {}, permissions: [Permissions.ShiftsView] }, 'schedule')).toBe(false);
   });
 });
