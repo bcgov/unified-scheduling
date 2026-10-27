@@ -4,8 +4,105 @@ namespace Unified.Stats.Seeders;
 
 public static class BiOracleStatMappingSeedData
 {
+    public static readonly DateOnly ExpandedMappingsEffectiveDate = new(2026, 11, 1);
+
     public static IReadOnlyList<BiOracleStatMappingSetSeedDefinition> Definitions { get; } =
-    [new() { Id = 1, Mappings = CreateMappings() }];
+    [
+        new()
+        {
+            Id = 1,
+            ExpiryDate = ExpandedMappingsEffectiveDate.AddDays(-1),
+            Mappings = CreateMappings(),
+        },
+        new()
+        {
+            Id = 2,
+            EffectiveDate = ExpandedMappingsEffectiveDate,
+            Mappings = CreateExpandedMappings(),
+        },
+    ];
+
+    private static IReadOnlyList<BiOracleStatMappingSeedDefinition> CreateExpandedMappings()
+    {
+        // Set 1 and its mapping IDs remain untouched. Each set owns distinct historical keys.
+        var mappings = CreateMappings().Select(mapping => mapping with { Id = mapping.Id + 516 }).ToList();
+        var nextId = 1033;
+        void Add(int scmId, string column, string table = BiOracleTargetTable.SheriffServices) =>
+            AddMappings(mappings, table, column, (nextId++, scmId));
+
+        // BCSS_Table_Mapping: twelve independent holding cells, including Federal SEG.
+        string[] holdingColumns =
+        [
+            "HLD_AMAL_CNT",
+            "SEG_AMAL_CNT",
+            "FED_AMAL_CNT",
+            "FED_SEG_AMAL_CNT",
+            "HLD_YMAL_CNT",
+            "SEG_YMAL_CNT",
+            "HLD_AFEM_CNT",
+            "SEG_AFEM_CNT",
+            "FED_AFEM_CNT",
+            "FED_SEG_AFEM_CNT",
+            "HLD_YFEM_CNT",
+            "SEG_YFEM_CNT",
+        ];
+        for (var index = 0; index < holdingColumns.Length; index++)
+            Add(449 + index, holdingColumns[index]);
+
+        string[] demographicCodes = ["AMAL", "FMAL", "YMAL", "AFEM", "FFEM", "YFEM"];
+        string[] classifications = ["L1", "L2", "L3", "SEG_PC"];
+        string[] modes = ["AIR", "GRD"];
+        for (var mode = 0; mode < modes.Length; mode++)
+        {
+            for (var demographic = 0; demographic < demographicCodes.Length; demographic++)
+            {
+                for (var classification = 0; classification < classifications.Length; classification++)
+                {
+                    var scmId = 461 + mode * 24 + demographic * 4 + classification;
+                    var code = demographicCodes[demographic];
+                    Add(scmId, $"{modes[mode]}_{code}_CNT_{classifications[classification]}");
+
+                    // Workbook Auto Sum formulas include Provincial adults and youth only.
+                    // Federal cells have detailed targets but contribute to neither aggregate.
+                    if (demographic is 1 or 4)
+                        continue;
+                    Add(scmId, $"{modes[mode]}_{code}_CNT");
+                    if (classification < 2)
+                        Add(scmId, $"{modes[mode]}_LVL{classification + 1}_CNT");
+                }
+            }
+        }
+
+        // Workbook staff-hour Auto Sums: L1 + L2 + L3, regular and overtime.
+        foreach (var scmId in new[] { 112, 113, 114, 115, 116, 117, 316, 317, 318, 319, 320, 321 })
+            Add(scmId, "AIR_SHRF_HRS");
+        foreach (var scmId in new[] { 124, 125, 126, 127, 128, 129, 325, 326, 327, 328, 329, 330 })
+            Add(scmId, "GRD_SHRF_HRS");
+
+        Add(LegacyBiOracleStatsSeedData.CircuitTripsId, "CCRT_TRIPS_CNT");
+        Add(LegacyBiOracleStatsSeedData.SupervisionRegularId, "SUP_DUTIES_N_FRONT_LINE");
+        Add(LegacyBiOracleStatsSeedData.SupervisionOvertimeId, "SUP_DUTIES_N_FRONT_LINE");
+        Add(
+            LegacyBiOracleStatsSeedData.SupervisionRegularId,
+            "SUP_DUTIES_N_FRONT_LINE_REG",
+            BiOracleTargetTable.SheriffServicesHours
+        );
+        Add(
+            LegacyBiOracleStatsSeedData.SupervisionOvertimeId,
+            "SUP_DUTIES_N_FRONT_LINE_OT",
+            BiOracleTargetTable.SheriffServicesHours
+        );
+
+        Add(435, "CVF_DOCS_RCVD");
+        Add(436, "CVF_DOCS_CONC");
+        Add(437, "CVF_OTHR_RCVD");
+        Add(438, "CVF_OTHR_CONC");
+        Add(443, "CRIM_DOCS_RCVD");
+        Add(444, "CRIM_DOCS_CONC");
+        Add(445, "CRIM_OTHR_RCVD");
+        Add(446, "CRIM_OTHR_CONC");
+        return mappings;
+    }
 
     private static IReadOnlyList<BiOracleStatMappingSeedDefinition> CreateMappings()
     {
@@ -687,7 +784,7 @@ public static class BiOracleStatMappingSeedData
         AddMappings(mappings, BiOracleTargetTable.SheriffServices, "CRIM_WARR_RCVD", (515, 447));
         AddMappings(mappings, BiOracleTargetTable.SheriffServices, "CRIM_WARR_CONC", (516, 448));
 
-        // SCMs 435/436/443/444 need a business decision: legacy *_DOCS_*, *_OTHR_*, or both.
+        // Original set 1 is immutable. The workbook-confirmed Documents/Others mappings live in set 2.
 
         return mappings;
     }

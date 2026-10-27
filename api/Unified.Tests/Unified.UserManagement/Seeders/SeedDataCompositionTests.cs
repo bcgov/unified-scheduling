@@ -32,7 +32,9 @@ public sealed class SeedDataCompositionTests
         var statMappings = Assert.Single(provider.GetServices<BiOracleStatMappingSeedConfiguration>());
         var locationMappings = Assert.Single(provider.GetServices<BiOracleLocationMappingSeedConfiguration>());
 
-        Assert.Equal(516, Assert.Single(statMappings.Definitions).Mappings.Count);
+        Assert.Equal(2, statMappings.Definitions.Count);
+        Assert.Equal(516, Assert.Single(statMappings.Definitions, definition => definition.Id == 1).Mappings.Count);
+        Assert.Equal(661, Assert.Single(statMappings.Definitions, definition => definition.Id == 2).Mappings.Count);
         Assert.Equal(119, locationMappings.Definitions.Count);
     }
 

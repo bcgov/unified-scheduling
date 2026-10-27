@@ -68,6 +68,7 @@ public sealed class BiOracleStatMappingSeeder(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await StatsSeedIdentitySequence.AdvanceAsync(dbContext, "etl", "BiOracleStatMappings", cancellationToken);
     }
 
     private async Task<BiOracleStatMappingSetSeedDefinition[]> ResolveEffectiveDatesAsync(
@@ -91,7 +92,12 @@ public sealed class BiOracleStatMappingSeeder(
                     ? mappingSet
                     : mappingSet with
                     {
-                        EffectiveDate = existingEffectiveDates.GetValueOrDefault(mappingSet.Id, seedDate),
+                        // Fresh installs after a cutover still need a valid historical set.
+                        // A persisted set always retains its original effective date.
+                        EffectiveDate = existingEffectiveDates.GetValueOrDefault(
+                            mappingSet.Id,
+                            mappingSet.ExpiryDate is { } expiryDate && seedDate > expiryDate ? expiryDate : seedDate
+                        ),
                     }
             )
             .ToArray();

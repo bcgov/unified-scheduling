@@ -13,7 +13,7 @@ public sealed class BiOracleStatMappingSeedTests
     [Fact]
     public void ProductionData_HasExpectedMappingsAndCorrectedOthersTaxonomy()
     {
-        var mappingSet = Assert.Single(BiOracleStatMappingSeedData.Definitions);
+        var mappingSet = Assert.Single(BiOracleStatMappingSeedData.Definitions, definition => definition.Id == 1);
 
         Assert.Null(mappingSet.EffectiveDate);
         Assert.Equal(516, mappingSet.Mappings.Count);
@@ -43,7 +43,9 @@ public sealed class BiOracleStatMappingSeedTests
     [Fact]
     public void ProductionData_HasApprovedLocationLevelMappingsOnly()
     {
-        var mappings = Assert.Single(BiOracleStatMappingSeedData.Definitions).Mappings;
+        var mappings = Assert
+            .Single(BiOracleStatMappingSeedData.Definitions, definition => definition.Id == 1)
+            .Mappings;
         (int SubCategoryMetricId, string TargetColumn)[] expectedMappings =
         [
             (366, "CCRT_KMS"),
@@ -256,6 +258,7 @@ public sealed class BiOracleStatMappingSeedTests
     [InlineData("UNKNOWN", "GRD_ESC_HRS_L1")]
     [InlineData(BiOracleTargetTable.SheriffServices, "")]
     [InlineData(BiOracleTargetTable.SheriffServices, "CRT_LOC_ID")]
+    [InlineData(BiOracleTargetTable.SheriffServices, "NIL_REPORT")]
     public void Validate_InvalidOrControlTarget_Throws(string targetTable, string targetColumn)
     {
         var mappingSet = MappingSet(Mapping(1, 100, targetTable, targetColumn));

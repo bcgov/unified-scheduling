@@ -72,13 +72,59 @@ the purge remains an operational follow-up. The cleanup should delete runs with
 `StartedAt` older than the approved three-month cutoff; stage rows cascade. It
 must never delete mapping sets or mappings.
 
-The `BiOracleMappingsDataSet` contains the approved 516-row
-`SubCategoryMetricId` mapping and 119 location mappings (118 legacy mappings plus
+The `BiOracleMappingsDataSet` retains the original 516-row mapping set 1 and adds
+661-row mapping set 2, covering all 296 active statistic columns in the
+`BCSS_Table_Mapping` worksheet of
+`BCSS Tables and Fields (Historic Mapping) CURRENT_20260916.xlsx`. It also contains
+119 location mappings (118 legacy mappings plus
 Ahousaht Provincial Court) from JUSTIN location codes to CORIN location IDs. The
 initial stat mapping effective date is the UTC calendar date when mapping set 1 is first
-seeded. Later seed runs retain the stored date. Deployments that require the BI
+seeded, capped at its expiry on fresh installations after the cutover. Later seed runs
+retain the stored date. Set 1 expires on 2026-10-31; set 2 starts on the reporting-month
+boundary 2026-11-01. Persisted mappings remain immutable. Deployments that require the BI
 Oracle mappings select this data set through the central `SeedData:DataSets`
 mechanism.
+
+### Expanded legacy statistics
+
+Holding area/cellblock (Location Level category 29) retains SCM 407 / Metric 14
+under Hours. Its six demographic subcategories use only Metrics 33 and 34.
+Transports Air (27) and Transports Ground (28) each retain their existing trip and
+kilometre SCMs under Trips and Trips & Kilometres, respectively. Six demographic
+subcategories in each expose the four existing transport classification metrics.
+SCMs 449-508 represent these 60 independent demographic/classification cells;
+subcategories 117-134 hold them. SCM 509 adds Circuit Court trips (Metric 29).
+Supervision category 37 / subcategory 135 records non-frontline supervisory duties
+using SCMs 510-511 (regular and overtime hours). Documents and Others use the
+existing, distinct Received/Concluded SCMs 435-438 and 443-446.
+
+Set 2 copies the original mappings under new IDs and adds the missing targets and
+Auto Sum contributions. The workbook explicitly excludes Federal transport counts
+from the Provincial adult/youth demographic totals and the Level 1/2 totals.
+Federal cells map only to their own detailed columns. Air and Ground staff-hour
+totals sum the existing L1/L2/L3 regular and overtime SCMs. No duplicate total entry
+fields are introduced. Archived legacy columns and audit/control fields, including
+NIL_REPORT, are excluded. There is no checked-in ETL aggregation/loader implementation
+in this repository; the effective-dated mapping rows define those source contributions.
+
+The new entry taxonomy is intended for the November 2026 reporting cutover. Do not
+enter the new SCMs for pre-cutover reporting dates: set 1 intentionally has no
+mapping for them. No historical coarse counts are split or inferred.
+SCMs 408-413 and 418-427, and the Location Level male/female transport entry paths,
+are archived, never deleted or reassigned. The normal entry form uses active
+metadata only. Weekly reconstruction skips records absent from that metadata;
+`SaveDayAsync` preserves omitted records whose SCM, subcategory, or category is
+archived, including when signed-off override is available. Historical records remain
+available through record/search APIs; active records on the same day remain editable.
+Retained archived records follow the day's Draft/Submitted status transition using
+the existing signed-off override rule, without changing their values or associations.
+
+No schema or EF migration is required. New category/subcategory IDs stay below
+their generated-ID boundary of 200. SCM IDs 449-511 and mapping IDs 517-1177 cross
+the original sequence starts, so seeders advance the existing PostgreSQL identity
+sequences to at least the table maximum without rewinding them. An existing SCM
+with a conflicting new seed ID causes seeding to fail rather than repurposing it;
+mapping primary keys likewise cannot overwrite unrelated historical rows.
 
 Both location-code values are unique in the seeded mappings. ETL location selection
 uses `PerformedAtLocationId ?? LocationId` to find the `Locations` row in that
@@ -109,7 +155,7 @@ Seeders live in `Unified.Stats/Seeders/`, extend `SeederBase<UnifiedDbContext>`,
 | 13    | `StatMetricSeeder`              | 49                  | Deduplicated metrics                        |
 | 14    | `SubCategoryMetricSeeder`       | Configured taxonomy | Sub-category/metric leaf mappings           |
 | 15    | `BiOracleLocationMappingSeeder` | 119                 | JUSTIN-to-Oracle location mappings          |
-| 16    | `BiOracleStatMappingSeeder`     | 516                 | Effective-dated Oracle destination mappings |
+| 16    | `BiOracleStatMappingSeeder`     | 516 + 661           | Original and expanded Oracle mapping sets   |
 
 Stats seeders run after the core UserManagement seeders (User=0, Region=1, Location=2).
 
@@ -176,9 +222,12 @@ Categories with no natural sub-division use a `General` placeholder (ids 18, 19,
 Seeded rows use explicit IDs starting at 1. To prevent the PostgreSQL identity sequence from colliding with seeded IDs on subsequent inserts, these tables reserve generated IDs above their seeded ranges:
 
 - `StatGroups`, `StatCategories`, `SubCategories`, `StatMetrics`, `etl.BiOracleLocationMapping`, and `etl.BiOracleStatMappingSets` start at 200.
-- `etl.BiOracleStatMappings` starts at 1000 (seeded IDs 1-516).
+- `SubCategoryMetrics` originally starts at 500 (seeded IDs through 511).
+- `etl.BiOracleStatMappings` originally starts at 1000 (seeded IDs 1-1177).
 
 This is configured in the EF entity configurations via `HasIdentityOptions(startValue: ...)` and reflected in the migration's `Npgsql:IdentitySequenceOptions` annotations.
+The two expanded ranges are handled by advancing the existing sequences during
+seeding as described above; the model and migration annotations remain unchanged.
 
 ### Adding or Changing Reference Data
 

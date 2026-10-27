@@ -9,7 +9,7 @@ namespace Unified.Stats.Seeders;
 /// <summary>
 /// Seeds SubCategoryMetric rows, linking each SubCategory to its applicable metrics.
 /// IDs 1-365 are reserved for seeded data (NS + SUP); IDs 366+ are Location Level (GroupId 3).
-/// The identity sequence starts at 500.
+/// The identity sequence originally starts at 500 and is advanced past explicit seed IDs.
 ///
 /// Metric IDs reference:
 ///   Hours   1-23  | Count  24-42  | km  43-46  | $  47  | received/concluded  48-49
@@ -38,6 +38,23 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
     /// </summary>
     private static readonly HashSet<int> ArchivedIds =
     [
+        // Superseded coarse location-level counts; retain their historical records.
+        408,
+        409,
+        410,
+        411,
+        412,
+        413,
+        418,
+        419,
+        420,
+        421,
+        422,
+        423,
+        424,
+        425,
+        426,
+        427,
         // Circuit travel NS (SubCat 18) → km Travelled
         71,
         // Coroner Jury Admin NS (SubCat 19) → Jurors Summonsed, Panels Created
@@ -2214,6 +2231,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         ); // Staff Hours
         // IDs 404-406
 
+        list.AddRange(LegacyBiOracleStatsSeedData.CreateMetrics());
         return [.. list];
     }
 
@@ -2234,16 +2252,37 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
             if (existing is null)
             {
                 Logger.LogInformation("SubCategoryMetric with Id {Id} does not exist, adding it...", seed.Id);
-                await dbContext.SubCategoryMetrics.AddAsync(seed, cancellationToken);
+                await dbContext.SubCategoryMetrics.AddAsync(
+                    new SubCategoryMetric
+                    {
+                        Id = seed.Id,
+                        SubCategoryId = seed.SubCategoryId,
+                        MetricId = seed.MetricId,
+                        DisplayOrder = seed.DisplayOrder,
+                        IsRequired = seed.IsRequired,
+                        IsArchived = ArchivedIds.Contains(seed.Id),
+                    },
+                    cancellationToken
+                );
                 createdCount++;
                 continue;
+            }
+
+            if (
+                seed.Id >= LegacyBiOracleStatsSeedData.FirstMetricId
+                && (existing.SubCategoryId != seed.SubCategoryId || existing.MetricId != seed.MetricId)
+            )
+            {
+                throw new InvalidOperationException(
+                    $"SubCategoryMetric seed ID {seed.Id} collides with an existing definition."
+                );
             }
 
             Logger.LogInformation("Updating fields for SubCategoryMetric with Id {Id}...", seed.Id);
             existing.SubCategoryId = seed.SubCategoryId;
             existing.MetricId = seed.MetricId;
             existing.DisplayOrder = seed.DisplayOrder;
-            existing.IsArchived = false;
+            existing.IsArchived = ArchivedIds.Contains(seed.Id);
             updatedCount++;
         }
 
@@ -2265,6 +2304,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         Logger.LogInformation("Archived {ArchivedCount} SubCategoryMetric entries.", archivedCount);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await StatsSeedIdentitySequence.AdvanceAsync(dbContext, "public", "SubCategoryMetrics", cancellationToken);
         Logger.LogInformation(
             "SubCategoryMetric seeding complete. Created {CreatedCount}, updated {UpdatedCount}.",
             createdCount,
