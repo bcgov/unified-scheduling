@@ -1,7 +1,15 @@
 #!/usr/bin/env sh
+# Runs checks only for areas changed by the pushed commits. Lint runs on the
+# changed files; formatting checks run across the whole changed area.
 set -eu
 
+remote_name="${1:-origin}"
 repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+changed_files="$(mktemp)"
+lint_files="$(mktemp)"
+trap 'rm -f "$changed_files" "$lint_files"' EXIT
 
 resolve_dotnet_cmd() {
 	if command -v dotnet >/dev/null 2>&1; then
@@ -22,15 +30,93 @@ resolve_dotnet_cmd() {
 	printf '%s' ""
 }
 
-cd "$repo_root/web"
-npm run pre:check
+is_zero_sha() {
+	case "$1" in
+	*[!0]*) return 1 ;;
+	*) return 0 ;;
+	esac
+}
 
-cd "$repo_root"
-dotnet_cmd="$(resolve_dotnet_cmd)"
-if [ -z "$dotnet_cmd" ]; then
-	echo "dotnet executable not found on PATH for this shell" >&2
-	exit 1
+pushed_shas=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+	# Branch or tag deletion: nothing to check.
+	if is_zero_sha "$local_sha"; then
+		continue
+	fi
+	pushed_shas="$pushed_shas $local_sha"
+
+	if ! is_zero_sha "$remote_sha" && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+		git diff --name-only --diff-filter=ACMR "$remote_sha" "$local_sha" >>"$changed_files"
+	else
+		# New branch, or remote tip not fetched: use commits not on the remote.
+		git log --format= --name-only --diff-filter=ACMR "$local_sha" --not --remotes="$remote_name" >>"$changed_files"
+	fi
+done
+
+if [ -z "$pushed_shas" ]; then
+	exit 0
 fi
 
-"$dotnet_cmd" tool restore
-"$dotnet_cmd" tool run csharpier check ./api ./db
+sort -u "$changed_files" -o "$changed_files"
+
+web_changed=false
+dotnet_changed=false
+areas=""
+if grep -q '^web/' "$changed_files"; then
+	web_changed=true
+	areas="$areas web"
+fi
+if grep -Eq '^(api|db)/|^\.config/dotnet-tools\.json$' "$changed_files"; then
+	dotnet_changed=true
+	areas="$areas api db .config"
+fi
+
+if [ -z "$areas" ]; then
+	echo "pre-push: no web, api, or db changes; skipping checks"
+	exit 0
+fi
+
+# Checks read the working tree, so it must match the commit being pushed.
+for sha in $pushed_shas; do
+	# shellcheck disable=SC2086
+	if ! git diff --quiet "$sha" -- $areas || [ -n "$(git ls-files --others --exclude-standard -- $areas)" ]; then
+		echo "pre-push: uncommitted changes in:$areas differ from pushed commit $sha." >&2
+		echo "Commit or stash them (git stash -u), then push again." >&2
+		exit 1
+	fi
+done
+
+if $web_changed; then
+	cd "$repo_root/web"
+
+	if grep -Eq '^web/(package(-lock)?\.json|eslint\.config\.[^/]+|\.oxlintrc[^/]*|tsconfig[^/]*\.json)$' "$changed_files"; then
+		echo "pre-push: web lint configuration changed; linting all web files"
+		npm run lint:check
+	else
+		sed -n 's#^web/##p' "$changed_files" | grep -E '\.(vue|[cm]?[jt]sx?)$' | while IFS= read -r file; do
+			if [ -f "$file" ]; then
+				printf '%s\0' "$file"
+			fi
+		done >"$lint_files" || true
+
+		if [ -s "$lint_files" ]; then
+			echo "pre-push: linting changed web files"
+			xargs -0 npx --no-install oxlint <"$lint_files"
+			xargs -0 npx --no-install eslint --cache --no-warn-ignored <"$lint_files"
+		fi
+	fi
+
+	npm run prettier:check
+	cd "$repo_root"
+fi
+
+if $dotnet_changed; then
+	dotnet_cmd="$(resolve_dotnet_cmd)"
+	if [ -z "$dotnet_cmd" ]; then
+		echo "dotnet executable not found on PATH for this shell" >&2
+		exit 1
+	fi
+
+	"$dotnet_cmd" tool restore
+	"$dotnet_cmd" tool run csharpier check ./api ./db
+fi

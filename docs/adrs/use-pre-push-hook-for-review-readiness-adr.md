@@ -17,9 +17,10 @@ quickly, and apply the same rules to people and agents.
 ## Decision
 
 We will use the committed `.githooks/pre-push` hook to run lightweight frontend
-checks (`npm run pre:check`) and CSharpier checks for `api` and `db` before
-every push. The Copilot instructions direct agents to enable and follow it.
-Build and test runs remain in CI.
+lint and Prettier checks and CSharpier checks for `api` and `db` before every
+push. Checks are scoped to the areas changed by the pushed commits, so
+docs-only pushes skip them. The Copilot instructions direct agents to enable
+and follow it. Build and test runs remain in CI.
 
 ## Alternatives
 
@@ -34,6 +35,8 @@ Build and test runs remain in CI.
   get faster turnaround.
 - Trade-off: Each clone must run `git config core.hooksPath .githooks`, and
   `--no-verify` can bypass the hook.
+- Trade-off: The working tree must match the pushed commit, so one push of
+  several refs with differing content (e.g. `git push --all`) is blocked.
 - Mitigation: CI workflows remain the authoritative build and test gate.
 
 ## Follow-up
