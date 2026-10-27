@@ -8,6 +8,7 @@ import {
   calendarDropUserOnAssignmentResourceAction,
   calendarScheduleStaffAction,
   calendarSchedulingCreateShiftAction,
+  calendarSchedulingDistributionAction,
   calendarSchedulingEventDetailAction,
   calendarSchedulingPublishAction,
   calendarSchedulingHeaderDetailAction,
@@ -36,7 +37,12 @@ export function registerCalendarSchedulingModule() {
 
   calendarActionRegistry.registerCreateAction(calendarSchedulingCreateShiftAction);
   calendarActionRegistry.registerToolbarAction(calendarShiftViewContribution.id, calendarSchedulingPublishAction);
+  calendarActionRegistry.registerToolbarAction(calendarShiftViewContribution.id, calendarSchedulingDistributionAction);
   calendarActionRegistry.registerToolbarAction(calendarAssignmentViewContribution.id, calendarSchedulingPublishAction);
+  calendarActionRegistry.registerToolbarAction(
+    calendarAssignmentViewContribution.id,
+    calendarSchedulingDistributionAction,
+  );
   calendarActionRegistry.registerDropAction(calendarDropAction);
   calendarActionRegistry.registerDropAction(calendarDropUserOnAssignmentResourceAction);
   calendarActionRegistry.registerMatrixSidePanelAction(calendarAddAssignmentAction);

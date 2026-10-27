@@ -98,6 +98,7 @@ const canAssignAssignment = computed(() => accessControl.hasPermission(Permissio
 const canDeleteAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsDelete));
 const canExpireAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsExpire));
 const canOverrideConflicts = computed(() => accessControl.hasPermission(Permissions.CalendarConflictsOverride));
+const canViewShifts = computed(() => accessControl.hasPermission(Permissions.ShiftsView));
 
 type AssignmentDetailTabId = 'details' | 'edit' | 'delete';
 type AssignmentOpenScope = 'event' | 'series';
@@ -163,6 +164,7 @@ const assignmentShiftOptions = useSchedulingAssignmentShiftOptions({
   locationId: activeLocationId,
   date: computed(() => formData.value.date || props.initialDate),
   timeZoneId,
+  enabled: canViewShifts,
   onError: (message) => {
     apiError.value = message;
   },
@@ -260,8 +262,8 @@ const locationOptionsWithSelected = computed(() => {
   return [{ code: locationId, description: 'Unknown location' }, ...locationsStore.selectOptions];
 });
 const hasAssignmentRecurrence = computed(() => isSeriesScope.value || formData.value.repeatMode === 'custom');
-const shouldShowSingleShiftLinks = computed(() => !hasAssignmentRecurrence.value);
-const shouldShowRecurringShiftLinks = computed(() => hasAssignmentRecurrence.value);
+const shouldShowSingleShiftLinks = computed(() => canViewShifts.value && !hasAssignmentRecurrence.value);
+const shouldShowRecurringShiftLinks = computed(() => canViewShifts.value && hasAssignmentRecurrence.value);
 const targetDateStart = computed(() => {
   const targetDate = formData.value.date || props.initialDate;
   const parsedTargetDate = targetDate ? DateTime.fromISO(targetDate, { zone: timeZoneId.value }).startOf('day') : null;
