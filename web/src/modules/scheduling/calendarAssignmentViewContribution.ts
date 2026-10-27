@@ -11,6 +11,6 @@ export const calendarAssignmentViewContribution: CalendarViewDefinition = {
   component: defineAsyncComponent(() => import('./CalendarAssignmentView.vue')),
   loadingVariant: 'matrix',
   isAvailable: canViewAssignments,
-  buildModel: (data, queryContext, _runtimeContext, period) =>
-    buildCalendarAssignmentViewModel(data, queryContext, period),
+  buildModel: (data, queryContext, runtimeContext, period) =>
+    buildCalendarAssignmentViewModel(data, queryContext, period, runtimeContext),
 };

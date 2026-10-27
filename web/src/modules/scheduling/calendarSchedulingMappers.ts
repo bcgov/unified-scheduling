@@ -23,6 +23,7 @@ import type {
   CalendarDataResponse,
   CalendarEventBase,
   CalendarQueryContext,
+  CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
 import {
   CalendarMatrixActionType,
@@ -44,13 +45,23 @@ import {
   type CalendarAssignmentPartialCoverageShift,
   type CalendarSchedulingEvent,
 } from './calendarSchedulingData';
-import type { CalendarSchedulingUserResource } from './contributions/calendarSchedulingEventsContribution';
+import type {
+  CalendarSchedulingEventsData,
+  CalendarSchedulingUserResource,
+} from './contributions/calendarSchedulingEventsContribution';
+import { canViewLeave } from './calendarSchedulingPermissions';
 import {
   schedulingAssignmentResourcesContributionId,
   type CalendarSchedulingAssignmentResource,
 } from './contributions/calendarSchedulingAssignmentResourcesContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import { trainingCalendarDetailActionId } from '@/modules/training/calendarTrainingIdentifiers';
+import {
+  calendarTrainingEventsContribution,
+  isTrainingCalendarEvent,
+  trainingCalendarContributionId,
+  type TrainingCalendarEvent,
+} from '@/modules/training/contributions/calendarTrainingEventsContribution';
 import { calendarMatrixColorMap } from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 import { DateTime } from 'luxon';
@@ -222,6 +233,7 @@ export function buildCalendarAssignmentViewModel(
   response: CalendarDataResponse,
   context: CalendarQueryContext,
   period: CalendarPeriod,
+  runtimeContext?: CalendarRuntimeContext,
 ): CalendarMatrixViewModel {
   const timeZone = resolveMatrixTimeZone(context);
   if (period === 'month') {
@@ -290,7 +302,7 @@ export function buildCalendarAssignmentViewModel(
       label: 'TEAM',
       actionId: calendarSchedulingActionIds.scheduleStaff,
       actionLabel: 'Schedule staff',
-      items: buildUserSidePanelItems(response),
+      items: buildUserSidePanelItems(response, days, timeZone, context, runtimeContext),
     },
   };
 }
@@ -653,7 +665,40 @@ function buildAssignmentSidePanelItems(response: CalendarDataResponse): Calendar
   }));
 }
 
-function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrixSidePanelItem[] {
+function buildUserSidePanelItems(
+  response: CalendarDataResponse,
+  days: CalendarMatrixDay[],
+  timeZone: string,
+  context: CalendarQueryContext,
+  runtimeContext?: CalendarRuntimeContext,
+): CalendarMatrixSidePanelItem[] {
+  const contribution = selectContribution(response, schedulingShiftContributionId);
+  const data = contribution?.data as CalendarSchedulingEventsData | undefined;
+  const rangeStart = DateTime.fromISO(days[0]!.date, { zone: timeZone });
+  const rangeEnd = DateTime.fromISO(days[days.length - 1]!.date, { zone: timeZone }).plus({ days: 1 });
+  const leaveEvents =
+    runtimeContext && canViewLeave(runtimeContext)
+      ? selectSidebarWarningEvents(
+          (data?.allLocationLeaveEvents ?? selectSchedulingShiftEvents(response)).filter(isLeaveEvent),
+          rangeStart,
+          rangeEnd,
+          timeZone,
+        )
+      : [];
+  const trainingEvents =
+    runtimeContext &&
+    context.locationId != null &&
+    calendarTrainingEventsContribution.isAvailable?.(runtimeContext, context)
+      ? selectSidebarWarningEvents(
+          (selectContribution(response, trainingCalendarContributionId)?.events ?? [])
+            .filter(isTrainingCalendarEvent)
+            .filter((event) => event.locationId === context.locationId),
+          rangeStart,
+          rangeEnd,
+          timeZone,
+        )
+      : [];
+
   return selectSchedulingUserResources(response).map((user) => ({
     id: user.id,
     type: user.type,
@@ -662,11 +707,84 @@ function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrix
     meta: user.meta,
     avatarText: user.avatarText,
     draggable: true,
+    warningGroups: buildUserWarningGroups(leaveEvents, trainingEvents, user.id, timeZone),
     payload: {
       userId: user.id,
       title: user.title,
     },
   }));
+}
+
+function selectSidebarWarningEvents<T extends CalendarEventBase>(
+  events: T[],
+  rangeStart: DateTime,
+  rangeEnd: DateTime,
+  timeZone: string,
+): T[] {
+  return events
+    .filter((event) => {
+      if (isSchedulingCancelled(event.statusTypeCode) || event.cancelledAt) {
+        return false;
+      }
+
+      const start = DateTime.fromISO(event.start, { zone: timeZone });
+      const end = event.end
+        ? DateTime.fromISO(event.end, { zone: timeZone })
+        : event.allDay
+          ? start.plus({ days: 1 })
+          : start;
+      // Calendar periods and event ends are exclusive; events without duration are instants.
+      return (
+        start.isValid &&
+        end.isValid &&
+        start < rangeEnd &&
+        (end > rangeStart || (end.toMillis() === start.toMillis() && start >= rangeStart))
+      );
+    })
+    .sort(
+      (left, right) =>
+        DateTime.fromISO(left.start, { zone: timeZone }).toMillis() -
+          DateTime.fromISO(right.start, { zone: timeZone }).toMillis() || left.id.localeCompare(right.id),
+    );
+}
+
+function buildUserWarningGroups(
+  leaveEvents: CalendarSchedulingEvent[],
+  trainingEvents: TrainingCalendarEvent[],
+  userId: string,
+  timeZone: string,
+) {
+  const groups = [
+    {
+      id: 'leave',
+      heading: 'Leave',
+      events: leaveEvents.filter(
+        (event) => event.metadata.userIds?.includes(userId) || event.resourceIds?.includes(userId),
+      ),
+    },
+    {
+      id: 'training',
+      heading: 'Training',
+      events: trainingEvents.filter((event) => event.userId === userId),
+    },
+  ]
+    .filter((group) => group.events.length > 0)
+    .map((group) => ({
+      id: group.id,
+      heading: group.heading,
+      warnings: group.events.map((event) => ({
+        id: event.id,
+        title:
+          group.id === 'leave' && isCalendarSchedulingEvent(event)
+            ? event.metadata.leaveTypeName || 'Leave'
+            : event.title.replace(/^Training:\s*/i, ''),
+        start: event.allDay ? getCalendarEventDateKey(event.start, timeZone)! : event.start,
+        end: event.allDay ? getCalendarEventDateKey(event.end, timeZone) : event.end,
+        allDay: event.allDay,
+      })),
+    }));
+
+  return groups.length ? groups : undefined;
 }
 
 function buildCellHeader(

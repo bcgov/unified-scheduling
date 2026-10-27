@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { CalendarEventStatus, CalendarEventType } from '@/api-access/generated/models';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
@@ -359,6 +360,66 @@ describe('CalendarMatrixResourceRow', () => {
 });
 
 describe('CalendarMatrixSidePanelItem', () => {
+  it('renders generic warning groups and isolates the focusable icon from item clicks and dragging', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixSidePanelItem, {
+      props: {
+        timeZone: 'America/Vancouver',
+        item: {
+          ...sidePanelItem,
+          warningGroups: [
+            { id: 'empty', heading: 'Empty', warnings: [] },
+            {
+              id: 'leave',
+              heading: 'Leave',
+              warnings: [{ id: 'leave-1', title: 'Vacation', start: '2025-01-13', end: '2025-01-15', allDay: true }],
+            },
+            {
+              id: 'training',
+              heading: 'Training',
+              warnings: [
+                { id: 'training-1', title: 'Session', start: '2025-01-14T07:00:00Z', end: '2025-01-14T09:00:00Z' },
+              ],
+            },
+          ],
+        },
+      },
+      global: {
+        provide: { [calendarMatrixContextKey as symbol]: matrixContext },
+        stubs: {
+          VTooltip: {
+            name: 'WarningTooltipStub',
+            props: { openOnFocus: Boolean },
+            template: '<div><slot name="activator" :props="{}" /><slot /></div>',
+          },
+        },
+      },
+    });
+
+    const button = wrapper.get('button');
+    expect(button.attributes('aria-label')).toBe('Event warnings for Ada Lovelace');
+    expect(button.attributes('draggable')).toBe('false');
+    expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnFocus')).toBe(true);
+    expect(wrapper.findAll('strong').map((heading) => heading.text())).toEqual(['Leave', 'Training']);
+    expect(wrapper.text()).toContain(`January 13, 2025 - January 14, 2025, ${CALENDAR_ALL_DAY_LABEL}`);
+    expect(wrapper.text().toUpperCase()).toContain('JANUARY 13, 2025, 11:00 PM - JANUARY 14, 2025, 1:00 AM');
+
+    const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    button.element.dispatchEvent(mousedown);
+    expect(mousedown.defaultPrevented).toBe(true);
+    await button.trigger('focus');
+    await button.trigger('click');
+    await button.trigger('dragstart');
+    expect(wrapper.emitted('itemClick')).toBeUndefined();
+    expect(wrapper.emitted('dragStart')).toBeUndefined();
+    expect(matrixContext.startDrag).not.toHaveBeenCalled();
+
+    await wrapper.setProps({
+      item: { ...sidePanelItem, warningGroups: [{ id: 'empty', heading: 'Empty', warnings: [] }] },
+    });
+    expect(wrapper.find('button').exists()).toBe(false);
+    expect(wrapper.classes()).not.toContain('has-warnings');
+  });
+
   it('renders the item content and emits dragStart for draggable items', async () => {
     const dataTransfer = {
       setData: vi.fn(),
