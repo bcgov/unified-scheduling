@@ -25,6 +25,7 @@ export interface CalendarViewDefinition<TModel = unknown> {
   order?: number;
   component: Component;
   loadingVariant?: 'default' | 'matrix';
+  fillAvailableHeight?: boolean;
   supportedPeriods?: readonly CalendarPeriod[];
   buildModel: (
     data: CalendarDataResponse,
