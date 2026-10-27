@@ -145,6 +145,7 @@ function handleActionClick() {
   inline-size: 100%;
   line-height: 1.2;
   min-block-size: 1.75rem;
+  min-inline-size: 0;
   padding: 0.25rem 0.5rem;
   position: relative;
   text-align: start;
@@ -271,9 +272,10 @@ button.calendar-matrix-cell-header__action {
 }
 
 .calendar-matrix-cell-header__text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .calendar-matrix-cell-header__subtitle {

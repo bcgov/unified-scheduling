@@ -34,6 +34,10 @@ export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   loanOutMetaData?: LoanOutMetaData[];
 }
 
+export interface CalendarSchedulingEventsData {
+  allLocationLeaveEvents: CalendarSchedulingEvent[];
+}
+
 interface CalendarSchedulingResourceData {
   users: UserResponse[];
   getUserById(userId: string): UserResponse | undefined;
@@ -66,7 +70,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
           startDate: context.startDate,
           endDate: context.endDate,
           timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
-          locationId: context.locationId,
+          // Leave warnings span locations. Keep the regular events location-filtered below.
           userIds,
         },
         options?.signal,
@@ -77,10 +81,15 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
     const events = data.events ?? [];
     const resourceUsers = filterResourceUsers(resourceData.users, userIds);
 
+    const mappedEvents = events.map((event) => mapSchedulingCalendarEvent(event, resourceData.getUserById));
+
     return {
       moduleId: CalendarModuleId.Scheduling,
       contributionId: CalendarContributionId.SchedulingEvents,
-      events: events.map((event) => mapSchedulingCalendarEvent(event, resourceData.getUserById)),
+      events: mappedEvents.filter(
+        (event) => !context.locationId || event.locationId == null || event.locationId === context.locationId,
+      ),
+      data: { allLocationLeaveEvents: mappedEvents.filter(isLeaveEvent) } satisfies CalendarSchedulingEventsData,
       resources: resourceUsers.map<CalendarSchedulingUserResource>((user) =>
         mapUserToCalendarSchedulingResource(user, resourceData.actingPositionsByUserId.get(user.id) ?? []),
       ),
