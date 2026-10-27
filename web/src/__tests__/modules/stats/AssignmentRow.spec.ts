@@ -13,11 +13,20 @@ describe('AssignmentRow flat demographic subcategories', () => {
   ])('selects a $name demographic and renders only its configured metrics', async (area) => {
     const app = await createTestApp({ loadConfig: false });
     const model: AssignmentData = {
-      id: 'entry', groupId: 3, categoryId: null, subCategoryId: null, metricValues: {}, comment: '', performedAtLocationId: null,
+      id: 'entry',
+      groupId: 3,
+      categoryId: null,
+      subCategoryId: null,
+      metricValues: {},
+      comment: '',
+      performedAtLocationId: null,
     };
     const wrapper = mount(AssignmentRow, {
       props: {
-        modelValue: model, fixedGroupId: 3, index: 0, errors: {},
+        modelValue: model,
+        fixedGroupId: 3,
+        index: 0,
+        errors: {},
         groups: [{ id: 3, name: 'Location Level' }],
         categories: [{ id: area.categoryId, groupId: 3, name: area.name }],
         subCategories: [
@@ -26,21 +35,29 @@ describe('AssignmentRow flat demographic subcategories', () => {
         ],
         subCategoryMetrics: [
           { id: 407, subCategoryId: area.subCategoryId - 1, metricId: 14 },
-          ...area.metricIds.map((metricId, index) => ({ id: area.firstScmId + index, subCategoryId: area.subCategoryId, metricId })),
+          ...area.metricIds.map((metricId, index) => ({
+            id: area.firstScmId + index,
+            subCategoryId: area.subCategoryId,
+            metricId,
+          })),
         ],
         metrics: [
           { id: 14, name: 'Cell Block Hours', unitOfMeasure: 'hours' },
-          ...area.metricIds.map(id => ({ id, name: `Metric ${id}`, unitOfMeasure: 'count' })),
+          ...area.metricIds.map((id) => ({ id, name: `Metric ${id}`, unitOfMeasure: 'count' })),
         ],
       },
       global: { plugins: app.mountPlugins },
     });
     try {
-      wrapper.findAllComponents(UaSelect).find(s => s.vm.$attrs.label === 'Select Work Area')!
+      wrapper
+        .findAllComponents(UaSelect)
+        .find((s) => s.vm.$attrs.label === 'Select Work Area')!
         .vm.$emit('update:modelValue', area.categoryId);
       await wrapper.setProps({ modelValue: wrapper.emitted('update:modelValue')!.at(-1)![0] as AssignmentData });
       expect(wrapper.findAll('input[type="number"]')).toHaveLength(0);
-      wrapper.findAllComponents(UaSelect).find(s => s.vm.$attrs.label === 'Select Subcategory')!
+      wrapper
+        .findAllComponents(UaSelect)
+        .find((s) => s.vm.$attrs.label === 'Select Subcategory')!
         .vm.$emit('update:modelValue', area.subCategoryId);
       await wrapper.setProps({ modelValue: wrapper.emitted('update:modelValue')!.at(-1)![0] as AssignmentData });
       const inputs = wrapper.findAll('input[type="number"]');
