@@ -182,7 +182,8 @@ const isReadOnly = computed(
   () =>
     modalMode.value === 'view' ||
     (modalMode.value === 'create' && !canCreateAssignment.value) ||
-    (modalMode.value === 'edit' && !canEditAssignment.value),
+    (modalMode.value === 'edit' &&
+      (!canEditAssignment.value || assignmentLoadState.value !== 'loaded' || !assignmentLifecycle.value.canEdit)),
 );
 const isEditMode = computed(() => modalMode.value === 'edit');
 const shouldShowReadOnlyDetails = computed(
@@ -623,7 +624,14 @@ function updateAssignmentDefinition(value: SelectValue | undefined) {
 }
 
 function applyInitialSelections() {
-  if (props.initialAssignmentDefinitionId && !hasAppliedInitialAssignmentDefinitionSelection.value) {
+  if (modalMode.value !== 'create' && (assignmentLoadState.value !== 'loaded' || isReadOnly.value)) {
+    return;
+  }
+  if (
+    modalMode.value === 'create' &&
+    props.initialAssignmentDefinitionId &&
+    !hasAppliedInitialAssignmentDefinitionSelection.value
+  ) {
     if (
       !assignmentDefinitionOptions.value.some(
         (candidate) => Number(candidate.code) === props.initialAssignmentDefinitionId,
@@ -1630,12 +1638,16 @@ async function loadInitialAssignment() {
       formData.value = createFormDataFromAssignmentEntry(assignment as AssignmentEntryResponse);
       existingShiftEntryLinks.value = (formData.value.shiftEntryLinks ?? []).map((link) => ({ ...link }));
     }
-    applyScopeRestrictions();
-    if (props.initialShiftEntryIds !== undefined) {
-      hasAppliedInitialShiftEntrySelection.value = false;
-      applyInitialSelections();
+    if (!assignmentLifecycle.value.canEdit) {
+      modalMode.value = 'view';
+      activeTab.value = 'details';
     }
+    applyScopeRestrictions();
   });
+  if (assignmentLoadState.value === 'loaded' && props.initialShiftEntryIds !== undefined) {
+    hasAppliedInitialShiftEntrySelection.value = false;
+    applyInitialSelections();
+  }
 }
 
 function applyScopeRestrictions() {

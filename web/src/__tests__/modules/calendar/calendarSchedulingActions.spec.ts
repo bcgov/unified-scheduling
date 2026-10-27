@@ -7,6 +7,7 @@ import { calendarActionRegistry } from '@/modules/calendar/registry/calendarActi
 import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { Permissions } from '@/api-access/generated/models';
+import { getAssignmentSchedulingPrompt } from '@/modules/scheduling/assignmentSchedulingPrompt';
 import { calendarSchedulingActionIds } from '@/modules/scheduling/calendarSchedulingActionIds';
 import { calendarAssignmentViewContribution } from '@/modules/scheduling/calendarAssignmentViewContribution';
 import { calendarShiftViewContribution } from '@/modules/scheduling/calendarShiftViewContribution';
@@ -943,6 +944,7 @@ describe('calendarSchedulingActions', () => {
       type: 'scheduling.assignment',
       sourceModule: 'scheduling',
       title: 'Yellow Assignment',
+      statusTypeCode: 'draft',
       start: '2026-07-13T16:00:00Z',
       end: '2026-07-14T00:00:00Z',
       metadata: {
@@ -1065,6 +1067,7 @@ describe('calendarSchedulingActions', () => {
 
     expect(calendarSchedulingAssignmentModalMode.value).toBe('edit');
     expect(calendarSchedulingAssignmentModalEntryId.value).toBe(257);
+    expect(calendarSchedulingAssignmentModalAssignmentDefinitionId.value).toBeUndefined();
     expect(calendarSchedulingAssignmentModalSeriesId.value).toBe(211);
     expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
     expect(calendarSchedulingAssignmentModalDraggedUserOnly.value).toBe(true);
@@ -1099,6 +1102,100 @@ describe('calendarSchedulingActions', () => {
 
     expect(calendarSchedulingAssignmentModalEntryId.value).toBeUndefined();
     expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toBeUndefined();
+    expect(useCalendarAlertStore().alerts).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        message: 'Multiple assignments exist on this day. Select the intended assignment manually.',
+      }),
+    );
+
+    useCalendarAlertStore().clearAllAlerts();
+    calendarDropUserOnAssignmentResourceAction.execute(context, { featureFlags: {}, permissions: [] });
+    expect(useCalendarAlertStore().alerts).toEqual([]);
+  });
+
+  it.each([{ shifts: [] }, { shifts: [shiftEvent()] }])(
+    'opens published assignment details without adding drag selections: %o',
+    ({ shifts }) => {
+      const published = { ...assignmentEvent(257, 20), statusTypeCode: 'published' };
+      calendarDropUserOnAssignmentResourceAction.execute(
+        userDropContext('assignment', shifts, [published]),
+        writableRuntimeContext,
+      );
+      expect(calendarSchedulingAssignmentModalMode.value).toBe('view');
+      expect(calendarSchedulingAssignmentModalEntryId.value).toBe(257);
+      expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toBeUndefined();
+      expect(calendarSchedulingAssignmentModalAssignedUserId.value).toBeUndefined();
+      expect(calendarSchedulingResourceActionDate.value).toBeUndefined();
+    },
+  );
+
+  it('clears only the missing-shift alert after shift creation and a valid assignment retry', async () => {
+    const alerts = useCalendarAlertStore();
+    alerts.setAlert({ id: 'unrelated', message: 'Keep this error', severity: 'error' });
+    const missing = userDropContext('user');
+    missing.drag = {
+      source: 'side-panel',
+      itemType: 'assignment',
+      itemId: 'assignment-definition-20',
+      payload: { assignmentDefinitionId: 20 },
+    };
+    await calendarDropAction.execute(missing, writableRuntimeContext);
+    expect(alerts.alerts.map((alert) => alert.id)).toContain('scheduling.assignment.shift-required');
+
+    calendarDropUserOnAssignmentResourceAction.execute(
+      userDropContext('assignment', [], [assignmentEvent(257, 20)]),
+      writableRuntimeContext,
+    );
+    expect(calendarSchedulingResourceActionAssignmentEntryId.value).toBe(257);
+    expect(calendarSchedulingResourceActionResource.value?.id).toBe('user-1');
+    closeCalendarSchedulingResourceActionModal();
+
+    // The shift creation payload is covered by CalendarSchedulingAddResourceModal.spec.ts.
+    calendarDropUserOnAssignmentResourceAction.execute(
+      userDropContext('assignment', [shiftEvent()], [assignmentEvent(257, 20)]),
+      writableRuntimeContext,
+    );
+    expect(calendarSchedulingAssignmentModalEntryId.value).toBe(257);
+    expect(alerts.alerts).toEqual([{ id: 'unrelated', message: 'Keep this error', severity: 'error' }]);
+
+    // A valid assignment-type drop clears the same alert as well.
+    alerts.setAlert({ id: 'scheduling.assignment.shift-required', message: 'Missing shift', severity: 'error' });
+    const retry = userDropContext('user', [shiftEvent()]);
+    retry.drag = missing.drag;
+    await calendarDropAction.execute(retry, writableRuntimeContext);
+    expect(alerts.alerts.map((alert) => alert.id)).toEqual(['unrelated']);
+  });
+
+  it('shows the assignment onboarding prompt when only cancelled assignments accompany an active shift', () => {
+    const resource = {
+      id: 'assignment-definition-20',
+      type: 'assignment',
+      sourceModule: 'scheduling',
+      label: 'Assignment',
+      locationId: 12,
+    };
+    const prompt = getAssignmentSchedulingPrompt(
+      {
+        contributions: {
+          'scheduling.assignment-resources': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.assignment-resources',
+            events: [],
+            resources: [resource],
+          },
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            events: [shiftEvent(), { ...assignmentEvent(257, 20), statusTypeCode: 'cancelled' }],
+          },
+        },
+      },
+      { startDate: '2026-07-13', endDate: '2026-07-14', locationId: 12, filters: { timeZoneId: 'America/Vancouver' } },
+    );
+    expect(prompt).toBe(
+      'Schedule an assignment by dragging an assignment type onto a day cell for the row of a desired team member.',
+    );
   });
 
   it('ignores cancelled shifts and refuses unauthorized user drops', () => {

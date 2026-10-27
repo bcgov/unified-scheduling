@@ -32,7 +32,7 @@ import { getMissingAssignmentTypePrompt } from './assignmentDefinitionPrompt';
 import { getShiftSetupPrompt } from './shiftSetupPrompt';
 import { isLeaveEvent } from './calendarSchedulingData';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
-import { isSchedulingCancelled } from './schedulingLifecycle';
+import { getSchedulingLifecycleCapabilities, isSchedulingCancelled } from './schedulingLifecycle';
 import {
   defaultSchedulingTimeZoneId,
   resolveSchedulingTimeZoneFromFilters,
@@ -185,6 +185,7 @@ export const calendarDropAction: CalendarDropAction = {
       });
       return;
     }
+    useCalendarAlertStore().clearAlert(assignmentShiftRequiredAlertId);
     showCalendarSchedulingAssignmentModal(
       context.drop.date,
       assignmentEntryId
@@ -219,7 +220,6 @@ export const calendarDropUserOnAssignmentResourceAction: CalendarDropAction = {
     if (context.drop.resourceType !== 'assignment') return false;
     if (!resolveTargetAssignmentDefinitionId(context)) return false;
     const assignmentEvents = resolveAssignmentEvents(context);
-    if (assignmentEvents.length > 1) return false;
     const existingShift = resolveExistingShiftForDroppedUser(context);
     if (!existingShift) return canCreateShifts(runtimeContext);
     return (
@@ -240,9 +240,27 @@ export const calendarDropUserOnAssignmentResourceAction: CalendarDropAction = {
       return;
     }
     const assignmentEvents = resolveAssignmentEvents(context);
-    if (assignmentEvents.length > 1) return;
+    if (assignmentEvents.length > 1) {
+      useCalendarAlertStore().setAlert({
+        id: 'scheduling.assignment.ambiguous-drop',
+        message: 'Multiple assignments exist on this day. Select the intended assignment manually.',
+        severity: 'warning',
+        source: CalendarModuleId.SchedulingUi,
+      });
+      return;
+    }
     const assignmentEvent = assignmentEvents[0];
     const assignmentEntryId = assignmentEvent ? resolveAssignmentEntryId(assignmentEvent) : undefined;
+    if (assignmentEvent && !getSchedulingLifecycleCapabilities(assignmentEvent.statusTypeCode).canEdit) {
+      if (assignmentEntryId && canViewAssignments(runtimeContext)) {
+        showCalendarSchedulingAssignmentModal(context.drop.date, {
+          mode: 'view',
+          assignmentEntryId,
+          assignmentSeriesId: resolveAssignmentSeriesId(assignmentEvent) ?? undefined,
+        });
+      }
+      return;
+    }
     if (!existingShift) {
       showCalendarSchedulingResourceActionModal(resource, context.drop.date, {
         assignmentEntryId: assignmentEntryId ?? undefined,
@@ -253,12 +271,13 @@ export const calendarDropUserOnAssignmentResourceAction: CalendarDropAction = {
     }
     const shiftEntryId = resolveShiftEntryId(existingShift);
     if (!shiftEntryId || (assignmentEvent && !assignmentEntryId)) return;
+    useCalendarAlertStore().clearAlert(assignmentShiftRequiredAlertId);
     showCalendarSchedulingAssignmentModal(context.drop.date, {
       mode: assignmentEvent ? 'edit' : 'create',
       editScope: assignmentEvent ? 'event' : undefined,
       assignmentEntryId: assignmentEntryId ?? undefined,
       assignmentSeriesId: assignmentEvent ? (resolveAssignmentSeriesId(assignmentEvent) ?? undefined) : undefined,
-      assignmentDefinitionId: resolveTargetAssignmentDefinitionId(context),
+      ...(assignmentEvent ? {} : { assignmentDefinitionId: resolveTargetAssignmentDefinitionId(context) }),
       shiftEntryIds: [shiftEntryId],
       assignedUserId: context.drag.itemId,
       draggedUserOnly: true,

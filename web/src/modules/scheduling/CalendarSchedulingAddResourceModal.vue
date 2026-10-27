@@ -454,7 +454,8 @@ function applyServerValidationErrors(rawError: unknown) {
   <UaModal :title="modalTitle" width="900" :loading="isSaving" @close="handleClose">
     <template #alerts>
       <UaAlert v-if="missingShiftWarning && activeTab === 'schedule'" type="warning" :closable="false">
-        Unable to link user to assignment, user does not have a shift on this day. Create a shift here and try again.
+        This user does not have a shift on this day. Creating a shift here will also link the user to the selected
+        assignment.
       </UaAlert>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
