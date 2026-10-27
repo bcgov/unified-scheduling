@@ -11,9 +11,7 @@ namespace Unified.Tests.Infrastructure.Pdf;
 
 public sealed class ScheduleDistributionRenderingOptionsValidatorTests
 {
-    private readonly ScheduleDistributionRenderingOptionsValidator _validator = new(
-        new TestHostEnvironment { EnvironmentName = Environments.Development }
-    );
+    private readonly ScheduleDistributionRenderingOptionsValidator _validator = new();
 
     [Fact]
     public void Validate_WhenFrontendBaseUrlIsMissing_FailsWithoutThrowing()
@@ -60,29 +58,47 @@ public sealed class ScheduleDistributionRenderingOptionsValidatorTests
     }
 
     [Theory]
-    [InlineData("http://localhost:5173/calendar", "Development", true)]
-    [InlineData("https://example.test/app/", "Production", true)]
-    [InlineData("http://example.test", "Production", false)]
-    [InlineData("ftp://example.test", "Development", false)]
-    [InlineData("https://user@example.test", "Production", false)]
-    [InlineData("https://example.test?query=1", "Production", false)]
-    [InlineData("https://example.test#fragment", "Production", false)]
-    public void Validate_FrontendUrl_EnforcesTrustedEnvironmentAppropriateUrl(
-        string frontendBaseUrl,
-        string environmentName,
-        bool expectedSuccess
-    )
+    [InlineData("http://localhost:5173/calendar", true)]
+    [InlineData("https://example.test/app/", true)]
+    [InlineData("http://example.test", true)]
+    [InlineData("http://web:8080/unified-scheduling/", true)]
+    [InlineData("ftp://example.test", false)]
+    [InlineData("https://user@example.test", false)]
+    [InlineData("http://user@example.test", false)]
+    [InlineData("https://example.test?query=1", false)]
+    [InlineData("http://web:8080/?query=1", false)]
+    [InlineData("https://example.test#fragment", false)]
+    [InlineData("http://web:8080/#fragment", false)]
+    public void Validate_FrontendUrl_RequiresAbsoluteHttpOrHttpsUrl(string frontendBaseUrl, bool expectedSuccess)
     {
-        var validator = new ScheduleDistributionRenderingOptionsValidator(
-            new TestHostEnvironment { EnvironmentName = environmentName }
-        );
-
-        var result = validator.Validate(
+        var result = _validator.Validate(
             null,
             new ScheduleDistributionRenderingOptions { FrontendBaseUrl = frontendBaseUrl }
         );
 
         Assert.Equal(expectedSuccess, result.Succeeded);
+    }
+
+    [Fact]
+    public void Configuration_WithInternalHttpFrontendInProduction_ResolvesRenderingOptions()
+    {
+        const string frontendBaseUrl = "http://web:8080/unified-scheduling/";
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    [$"{ScheduleDistributionRenderingOptions.SectionName}:FrontendBaseUrl"] = frontendBaseUrl,
+                }
+            )
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment { EnvironmentName = Environments.Production });
+        services.AddPlaywrightPdfRendering(configuration);
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<IOptions<ScheduleDistributionRenderingOptions>>().Value;
+
+        Assert.Equal(frontendBaseUrl, options.FrontendBaseUrl);
     }
 
     [Fact]
