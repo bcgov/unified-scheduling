@@ -36,7 +36,9 @@ const toErrorCodeList = (value: unknown): string[] => {
 };
 
 export const getValidationMessageFromCode = (errorCode: string): string => {
-  return validationCodeToMessage[errorCode] ?? (errorCode.endsWith('Validator') ? validationMessages.invalid : errorCode);
+  return (
+    validationCodeToMessage[errorCode] ?? (errorCode.endsWith('Validator') ? validationMessages.invalid : errorCode)
+  );
 };
 
 export const mapToValidationErrors = (rawError: unknown): Record<string, string> | null => {
