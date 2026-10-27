@@ -23,6 +23,10 @@ export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   avatarText?: string;
 }
 
+export interface CalendarSchedulingEventsData {
+  allLocationLeaveEvents: CalendarSchedulingEvent[];
+}
+
 interface CalendarSchedulingResourceData {
   users: UserResponse[];
   getUserById(userId: string): UserResponse | undefined;
@@ -52,7 +56,7 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
           startDate: context.startDate,
           endDate: context.endDate,
           timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
-          locationId: context.locationId,
+          // Leave warnings span locations. Keep the regular events location-filtered below.
           userIds,
         },
         options?.signal,
@@ -63,59 +67,64 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
     const events = data.events ?? [];
     const resourceUsers = filterResourceUsers(resourceData.users, userIds);
 
+    const mappedEvents = events.map<CalendarSchedulingEvent>((event) => {
+      const assignedUserIds = event.assignedUserIds ?? [];
+      const leaveFields = resolveLeaveFields(event);
+
+      return {
+        id: event.id,
+        type: event.type,
+        sourceModule: event.sourceModule,
+        title: event.title,
+        description: event.description ?? undefined,
+        notes: event.notes ?? undefined,
+        color: event.color ?? (isLeaveEvent(event) ? leaveEventColor : undefined),
+        start: event.start,
+        end: event.end ?? undefined,
+        seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
+        seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
+        allDay: event.allDay ?? false,
+        isException: event.isException ?? false,
+        eventTypeCode: event.eventTypeCode,
+        statusTypeCode: event.statusTypeCode,
+        cancelledAt: event.cancelledAt ?? undefined,
+        cancelledByUserId: event.cancelledByUserId ?? undefined,
+        cancellationReason: event.cancellationReason ?? undefined,
+        timeZoneId: event.timeZoneId ?? undefined,
+        locationId: event.locationId ?? undefined,
+        resourceIds: event.resourceIds ?? [],
+        metadata: {
+          shiftEntryId: event.shiftEntryId == null ? undefined : String(event.shiftEntryId),
+          shiftSeriesId: event.shiftSeriesId ?? undefined,
+          assignmentEntryId: event.assignmentEntryId == null ? undefined : String(event.assignmentEntryId),
+          assignmentSeriesId: event.assignmentSeriesId == null ? undefined : String(event.assignmentSeriesId),
+          assignmentDefinitionId: resolveAssignmentDefinitionId(event),
+          userIds: event.userIds ?? [],
+          eventId: event.eventId,
+          capacity: event.capacity ?? undefined,
+          assignedCount: event.assignedUserCount ?? assignedUserIds.length,
+          assignedShiftIds: (event.linkedShiftEntryIds ?? []).map(String),
+          assignedUserIds,
+          assignedUsers: assignedUserIds.flatMap((userId) => {
+            const user = resourceData.getUserById(userId);
+            return user ? [mapUserToCalendarUser(user)] : [];
+          }),
+          categoryId: event.categoryId ?? undefined,
+          categoryName: event.categoryName ?? undefined,
+          subCategoryId: event.subCategoryId ?? undefined,
+          subCategoryName: event.subCategoryName ?? undefined,
+          ...leaveFields,
+        },
+      };
+    });
+
     return {
       moduleId: CalendarModuleId.Scheduling,
       contributionId: CalendarContributionId.SchedulingEvents,
-      events: events.map<CalendarSchedulingEvent>((event) => {
-        const assignedUserIds = event.assignedUserIds ?? [];
-        const leaveFields = resolveLeaveFields(event);
-
-        return {
-          id: event.id,
-          type: event.type,
-          sourceModule: event.sourceModule,
-          title: event.title,
-          description: event.description ?? undefined,
-          notes: event.notes ?? undefined,
-          color: event.color ?? (isLeaveEvent(event) ? leaveEventColor : undefined),
-          start: event.start,
-          end: event.end ?? undefined,
-          seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
-          seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
-          allDay: event.allDay ?? false,
-          isException: event.isException ?? false,
-          eventTypeCode: event.eventTypeCode,
-          statusTypeCode: event.statusTypeCode,
-          cancelledAt: event.cancelledAt ?? undefined,
-          cancelledByUserId: event.cancelledByUserId ?? undefined,
-          cancellationReason: event.cancellationReason ?? undefined,
-          timeZoneId: event.timeZoneId ?? undefined,
-          locationId: event.locationId ?? undefined,
-          resourceIds: event.resourceIds ?? [],
-          metadata: {
-            shiftEntryId: event.shiftEntryId == null ? undefined : String(event.shiftEntryId),
-            shiftSeriesId: event.shiftSeriesId ?? undefined,
-            assignmentEntryId: event.assignmentEntryId == null ? undefined : String(event.assignmentEntryId),
-            assignmentSeriesId: event.assignmentSeriesId == null ? undefined : String(event.assignmentSeriesId),
-            assignmentDefinitionId: resolveAssignmentDefinitionId(event),
-            userIds: event.userIds ?? [],
-            eventId: event.eventId,
-            capacity: event.capacity ?? undefined,
-            assignedCount: event.assignedUserCount ?? assignedUserIds.length,
-            assignedShiftIds: (event.linkedShiftEntryIds ?? []).map(String),
-            assignedUserIds,
-            assignedUsers: assignedUserIds.flatMap((userId) => {
-              const user = resourceData.getUserById(userId);
-              return user ? [mapUserToCalendarUser(user)] : [];
-            }),
-            categoryId: event.categoryId ?? undefined,
-            categoryName: event.categoryName ?? undefined,
-            subCategoryId: event.subCategoryId ?? undefined,
-            subCategoryName: event.subCategoryName ?? undefined,
-            ...leaveFields,
-          },
-        };
-      }),
+      events: mappedEvents.filter(
+        (event) => !context.locationId || event.locationId == null || event.locationId === context.locationId,
+      ),
+      data: { allLocationLeaveEvents: mappedEvents.filter(isLeaveEvent) } satisfies CalendarSchedulingEventsData,
       resources: resourceUsers.map<CalendarSchedulingUserResource>((user) =>
         mapUserToCalendarSchedulingResource(user, resourceData.actingPositionsByUserId.get(user.id) ?? []),
       ),

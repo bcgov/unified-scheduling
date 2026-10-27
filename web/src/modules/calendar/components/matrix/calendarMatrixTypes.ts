@@ -153,7 +153,22 @@ export interface CalendarMatrixSidePanelItem {
   meta?: CalendarMatrixMetaItem[];
   avatarText?: string;
   draggable?: boolean;
+  warningGroups?: CalendarSidebarWarningGroup[];
   payload?: unknown;
+}
+
+export interface CalendarSidebarWarning {
+  id: string;
+  title: string;
+  start: string;
+  end?: string;
+  allDay?: boolean;
+}
+
+export interface CalendarSidebarWarningGroup {
+  id: string;
+  heading: string;
+  warnings: CalendarSidebarWarning[];
 }
 
 export interface CalendarMatrixViewModel {

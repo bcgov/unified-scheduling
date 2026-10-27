@@ -9,6 +9,7 @@ import type {
 
 defineProps<{
   panel: CalendarMatrixSidePanel;
+  timeZone?: string;
 }>();
 
 const emit = defineEmits<{
@@ -38,6 +39,7 @@ const emit = defineEmits<{
         v-for="item in panel.items"
         :key="item.id"
         :item="item"
+        :time-zone="timeZone"
         @item-click="emit('itemClick', $event)"
         @drag-start="emit('itemDragStart', $event)"
       >

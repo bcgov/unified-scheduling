@@ -242,6 +242,7 @@ async function handleEventAction(payload: CalendarMatrixEventBlockActionEvent) {
     <CalendarMatrixSidePanel
       v-if="!model.unsupportedMessage && model.sidePanel"
       :panel="model.sidePanel"
+      :time-zone="model.timeZone"
       @action="handleSidePanelAction"
       @item-click="emit('sidePanelItemClick', $event)"
       @item-drag-start="emit('dragStart', $event)"
