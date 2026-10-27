@@ -1408,6 +1408,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createAwaitGuardedFetchResult(
           {
             id: 257,
+            statusTypeCode: 'Draft',
             assignmentSeriesId: 211,
             assignmentDefinitionId: 7,
             title: 'Court coverage',
@@ -1972,6 +1973,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            statusTypeCode: 'Draft',
             assignmentDefinitionId: 8,
             title: 'August assignment',
             startAtUtc: '2026-08-10T16:00:00Z',
@@ -2106,6 +2108,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            statusTypeCode: 'Draft',
             assignmentDefinitionId: 7,
             title: 'Court Room Monitor',
             color: 'pink',
@@ -2244,6 +2247,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            statusTypeCode: 'Draft',
             assignmentDefinitionId: 7,
             title: 'Court Room Monitor',
             color: 'pink',
