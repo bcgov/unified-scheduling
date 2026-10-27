@@ -2,7 +2,8 @@ using Microsoft.Extensions.Options;
 
 namespace Unified.Infrastructure.Pdf;
 
-public sealed class ScheduleDistributionRenderingOptionsValidator : IValidateOptions<ScheduleDistributionRenderingOptions>
+public sealed class ScheduleDistributionRenderingOptionsValidator
+    : IValidateOptions<ScheduleDistributionRenderingOptions>
 {
     public ValidateOptionsResult Validate(string? name, ScheduleDistributionRenderingOptions options)
     {
