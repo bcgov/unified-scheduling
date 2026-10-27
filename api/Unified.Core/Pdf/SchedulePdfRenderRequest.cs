@@ -25,4 +25,10 @@ public sealed record SchedulePdfRenderRequest
     public required DateOnly EndDate { get; init; }
 
     public required SchedulePdfPeriod Period { get; init; }
+
+    public bool IncludeAssignmentTimes { get; init; } = true;
+
+    public int? ViewportWidth { get; init; }
+
+    public int? ViewportHeight { get; init; }
 }

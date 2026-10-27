@@ -43,7 +43,6 @@ public sealed class PlaywrightSchedulePdfRenderer(
         catch (OptionsValidationException exception)
         {
             logger.LogError(
-                exception,
                 "Schedule distribution rendering configuration is invalid. Invalid fields: {InvalidFields}",
                 string.Join(", ", exception.Failures.Select(GetConfigurationField))
             );
@@ -54,6 +53,19 @@ public sealed class PlaywrightSchedulePdfRenderer(
             );
         }
 
+        var viewportWidth = request.ViewportWidth.GetValueOrDefault();
+        var viewportHeight = request.ViewportHeight.GetValueOrDefault();
+        if (
+            viewportWidth < ScheduleDistributionRenderingOptions.MinimumViewportWidth
+            || viewportWidth > ScheduleDistributionRenderingOptions.MaximumViewportWidth
+            || viewportHeight < ScheduleDistributionRenderingOptions.MinimumViewportHeight
+            || viewportHeight > ScheduleDistributionRenderingOptions.MaximumViewportHeight
+        )
+        {
+            viewportWidth = options.DefaultViewportWidth;
+            viewportHeight = options.DefaultViewportHeight;
+        }
+
         using var timeoutCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(options.RenderTimeoutSeconds));
         using var renderCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
@@ -62,26 +74,32 @@ public sealed class PlaywrightSchedulePdfRenderer(
         );
         var renderToken = renderCancellation.Token;
         var targetUri = BuildTrustedTargetUri(options.FrontendBaseUrl, request);
-        var authenticationCookies = GetAuthenticationCookies(targetUri);
+        using var diagnostics = new SchedulePdfDiagnostics(
+            logger,
+            new Uri(options.FrontendBaseUrl),
+            options.VerboseDiagnosticsEnabled
+        );
+        diagnostics.RequestedUrl(targetUri);
         var renderSemaphore = GetRenderSemaphore(options.MaximumConcurrentRenders);
         var permitAcquired = false;
         IBrowserContext? browserContext = null;
 
         try
         {
+            var authenticationCookies = GetAuthenticationCookies(targetUri);
+            diagnostics.Stage("semaphore-wait");
             await renderSemaphore.WaitAsync(renderToken);
             permitAcquired = true;
+            diagnostics.Stage("semaphore-acquired");
 
             ObjectDisposedException.ThrowIf(_disposed, this);
+            diagnostics.Stage("browser-launch-or-reuse");
             var browser = await GetBrowserAsync(renderToken);
+            diagnostics.Stage("context-creation");
             var contextTask = browser.NewContextAsync(
                 new BrowserNewContextOptions
                 {
-                    ViewportSize = new ViewportSize
-                    {
-                        Width = options.DefaultViewportWidth,
-                        Height = options.DefaultViewportHeight,
-                    },
+                    ViewportSize = new ViewportSize { Width = viewportWidth, Height = viewportHeight },
                     DeviceScaleFactor = 1,
                     ColorScheme = ColorScheme.Light,
                     AcceptDownloads = false,
@@ -97,21 +115,27 @@ public sealed class PlaywrightSchedulePdfRenderer(
                 throw;
             }
 
+            diagnostics.Stage("authentication-context");
             await browserContext.AddCookiesAsync(authenticationCookies).WaitAsync(renderToken);
 
+            diagnostics.Stage("page-creation");
             var page = await browserContext.NewPageAsync().WaitAsync(renderToken);
+            diagnostics.Attach(page);
             page.SetDefaultTimeout(options.RenderTimeoutSeconds * 1000);
             page.SetDefaultNavigationTimeout(options.RenderTimeoutSeconds * 1000);
 
+            diagnostics.Stage("navigation");
             var response = await page.GotoAsync(
                     targetUri.AbsoluteUri,
                     new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded }
                 )
                 .WaitAsync(renderToken);
+            diagnostics.Navigation(targetUri, response);
 
             if (response is null || !response.Ok)
                 throw new PdfRenderingException("The calendar print view could not be loaded.");
 
+            diagnostics.Stage("render-state-wait");
             var renderRoot = page.Locator(RenderRootSelector);
             await page.Locator(
                     $"{RenderRootSelector}[data-render-state='complete'], {RenderRootSelector}[data-render-state='error']"
@@ -121,14 +145,17 @@ public sealed class PlaywrightSchedulePdfRenderer(
             if (await renderRoot.GetAttributeAsync("data-render-state").WaitAsync(renderToken) == "error")
                 throw new PdfRenderingException("The calendar print view reported a rendering error.");
 
+            diagnostics.Stage("fonts-and-animation-frames");
             await page.EvaluateAsync(
                     "async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); }"
                 )
                 .WaitAsync(renderToken);
 
+            diagnostics.Stage("print-media");
             await page.EmulateMediaAsync(new PageEmulateMediaOptions { Media = Media.Print }).WaitAsync(renderToken);
 
-            return await page.PdfAsync(
+            diagnostics.Stage("pdf-generation");
+            var pdf = await page.PdfAsync(
                     new PagePdfOptions
                     {
                         Format = "Letter",
@@ -146,25 +173,37 @@ public sealed class PlaywrightSchedulePdfRenderer(
                     }
                 )
                 .WaitAsync(renderToken);
+            diagnostics.Stage("complete");
+            return pdf;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            await diagnostics.FailureAsync("request-cancelled");
             throw;
         }
         catch (OperationCanceledException exception) when (timeoutCancellation.IsCancellationRequested)
         {
+            await diagnostics.FailureAsync("render-budget-exhausted");
             throw new PdfRenderingException("The calendar PDF rendering operation timed out.", exception);
         }
         catch (OperationCanceledException) when (_disposeCancellation.IsCancellationRequested)
         {
+            await diagnostics.FailureAsync("renderer-disposed");
             throw new ObjectDisposedException(nameof(PlaywrightSchedulePdfRenderer));
         }
         catch (PlaywrightException exception)
         {
+            await diagnostics.FailureAsync("playwright-failure");
             throw new PdfRenderingException("The calendar PDF could not be generated.", exception);
+        }
+        catch
+        {
+            await diagnostics.FailureAsync("render-failure");
+            throw;
         }
         finally
         {
+            diagnostics.Dispose();
             if (browserContext is not null)
                 await CloseBrowserContextAsync(browserContext);
 
@@ -190,9 +229,9 @@ public sealed class PlaywrightSchedulePdfRenderer(
                     await _renderSemaphore.WaitAsync(renderDrainTimeout.Token);
             }
         }
-        catch (OperationCanceledException exception)
+        catch (OperationCanceledException)
         {
-            logger.LogWarning(exception, "Timed out while waiting for active schedule PDF renders to stop.");
+            logger.LogWarning("Timed out while waiting for active schedule PDF renders to stop.");
         }
 
         using var browserDisposalTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -213,9 +252,9 @@ public sealed class PlaywrightSchedulePdfRenderer(
                 _browserLaunchLock.Release();
             }
         }
-        catch (OperationCanceledException exception)
+        catch (OperationCanceledException)
         {
-            logger.LogWarning(exception, "Timed out while closing the schedule PDF browser.");
+            logger.LogWarning("Timed out while closing the schedule PDF browser.");
         }
         finally
         {
@@ -243,10 +282,9 @@ public sealed class PlaywrightSchedulePdfRenderer(
         {
             await CloseBrowserContextAsync(await contextTask);
         }
-        catch (Exception exception)
+        catch (Exception)
         {
             logger.LogWarning(
-                exception,
                 "Playwright could not finish creating an isolated PDF browser context after rendering stopped."
             );
         }
@@ -258,13 +296,13 @@ public sealed class PlaywrightSchedulePdfRenderer(
         {
             await browserContext.CloseAsync().WaitAsync(CleanupTimeout, CancellationToken.None);
         }
-        catch (TimeoutException exception)
+        catch (TimeoutException)
         {
-            logger.LogWarning(exception, "Timed out while closing an isolated PDF browser context.");
+            logger.LogWarning("Timed out while closing an isolated PDF browser context.");
         }
-        catch (PlaywrightException exception)
+        catch (PlaywrightException)
         {
-            logger.LogWarning(exception, "Playwright could not close an isolated PDF browser context cleanly.");
+            logger.LogWarning("Playwright could not close an isolated PDF browser context cleanly.");
         }
     }
 
@@ -370,7 +408,7 @@ public sealed class PlaywrightSchedulePdfRenderer(
             _ => throw new PdfRenderingException("The calendar print period is invalid."),
         };
         var relativeTarget = FormattableString.Invariant(
-            $"calendar?view={view}&mode=print&locationId={request.LocationId}&startDate={request.StartDate:yyyy-MM-dd}&endDate={request.EndDate:yyyy-MM-dd}&period={period}"
+            $"calendar?view={view}&mode=print&locationId={request.LocationId}&startDate={request.StartDate:yyyy-MM-dd}&endDate={request.EndDate:yyyy-MM-dd}&period={period}&includeAssignmentTimes={request.IncludeAssignmentTimes.ToString().ToLowerInvariant()}"
         );
 
         return new Uri(baseUri, relativeTarget);
