@@ -79,6 +79,7 @@ const trainingRuntime: CalendarRuntimeContext = {
 function response(
   events: CalendarSchedulingEvent[],
   trainingEvents: TrainingCalendarEvent[] = [],
+  query = context,
 ): CalendarDataResponse {
   const resources: CalendarSchedulingUserResource[] = ['user-1', 'user-2'].map((id) => ({
     id,
@@ -92,25 +93,25 @@ function response(
       'scheduling.events': {
         moduleId: 'scheduling',
         contributionId: 'scheduling.events',
-        events: events.filter((event) => event.locationId == null || event.locationId === context.locationId),
+        events: events.filter((event) => event.locationId == null || event.locationId === query.locationId),
         resources,
-        data: { allLocationLeaveEvents: events },
       },
       'training.events': {
         moduleId: 'training',
         contributionId: 'training.events',
-        events: trainingEvents,
+        events: [],
+        data: { warningEvents: trainingEvents },
       },
     },
   };
 }
 
 function items(events: CalendarSchedulingEvent[], query = context, permissions = runtime) {
-  return buildCalendarAssignmentViewModel(response(events), query, 'day', permissions).sidePanel!.items;
+  return buildCalendarAssignmentViewModel(response(events, [], query), query, 'day', permissions).sidePanel!.items;
 }
 
 describe('assignment sidebar warnings', () => {
-  it('groups the existing training contribution with leave and filters training by user, location, period, and cancellation', () => {
+  it('groups warning-only training across locations with leave and filters by user, period, and cancellation', () => {
     const data = response(
       [leave('leave', '2025-03-09T17:00:00Z')],
       [
@@ -135,12 +136,12 @@ describe('assignment sidebar warnings', () => {
         warnings: [
           expect.objectContaining({ id: 'crosses-start', start: '2025-03-08', end: '2025-03-10', allDay: true }),
           expect.objectContaining({ id: 'later' }),
+          expect.objectContaining({ id: 'no-location' }),
+          expect.objectContaining({ id: 'other-location' }),
         ],
       },
     ]);
-    expect(groups({ ...context, locationId: 2 })![1]!.warnings.map((warning) => warning.id)).toEqual([
-      'other-location',
-    ]);
+    expect(groups({ ...context, locationId: 2 })![1]).toEqual(groups()![1]);
     expect(groups({ ...context, startDate: '2025-03-12', endDate: '2025-03-13' })).toBeUndefined();
     expect(groups(context, { ...trainingRuntime, permissions: [Permissions.UserTrainingsView] })).toEqual([
       expect.objectContaining({ heading: 'Training' }),
@@ -155,6 +156,14 @@ describe('assignment sidebar warnings', () => {
     ).toBeUndefined();
   });
 
+  it('keeps normal training calendar events separate from warning-only results', () => {
+    const data = response([]);
+    data.contributions['training.events']!.events = [training('normal-event', '2025-03-09', '2025-03-10')];
+    expect(
+      buildCalendarAssignmentViewModel(data, context, 'day', trainingRuntime).sidePanel!.items[0]!.warningGroups,
+    ).toBeUndefined();
+  });
+
   it.each([
     { ...trainingRuntime, permissions: [Permissions.LeaveView] },
     { ...trainingRuntime, featureFlags: { Calendar: { enabled: true }, Training: { enabled: false } } },
@@ -166,20 +175,25 @@ describe('assignment sidebar warnings', () => {
     ).toBeUndefined();
   });
 
-  it('loads leave across locations in one existing bulk request while preserving regular event location filtering', async () => {
+  it('retains the selected location in scheduling requests and uses the scoped leave response', async () => {
     setActivePinia(createPinia());
     const requests: Record<string, unknown>[] = [];
     server.use(
       http.get('*/api/users', () => HttpResponse.json([])),
       http.post('*/api/scheduling/calendar/events', async ({ request }) => {
-        requests.push((await request.json()) as Record<string, unknown>);
+        const body = (await request.json()) as Record<string, unknown>;
+        requests.push(body);
         const events = [
           leave('local', '2025-03-09T17:00:00Z', undefined, { locationId: 1 }),
           leave('remote', '2025-03-09T18:00:00Z', undefined, { locationId: 2 }),
           leave('global', '2025-03-09T19:00:00Z'),
           leave('remote-shift', '2025-03-09T20:00:00Z', undefined, { locationId: 2, type: 'scheduling.shift' }),
         ];
-        return HttpResponse.json({ events });
+        return HttpResponse.json({
+          events: events
+            .filter((event) => event.locationId == null || event.locationId === body.locationId)
+            .map((event) => ({ ...event, userIds: ['user-1'] })),
+        });
       }),
     );
     const result = await calendarSchedulingEventsContribution.load({
@@ -187,23 +201,29 @@ describe('assignment sidebar warnings', () => {
       filters: { ...context.filters, userIds: ['user-1'] },
     });
     expect(requests).toHaveLength(1);
-    expect(requests[0]).not.toHaveProperty('locationId');
+    expect(requests[0]).toHaveProperty('locationId', context.locationId);
     expect(requests[0]).toMatchObject({
       timeZoneId: 'America/Vancouver',
       startDate: context.startDate,
       userIds: ['user-1'],
     });
     expect(result.events.map((event) => event.id)).toEqual(['local', 'global']);
-    expect(result.data).toMatchObject({
-      allLocationLeaveEvents: [
-        expect.objectContaining({ id: 'local' }),
-        expect.objectContaining({ id: 'remote' }),
-        expect.objectContaining({ id: 'global' }),
-      ],
-    });
+    expect(result.data).toBeUndefined();
+    expect(
+      buildCalendarAssignmentViewModel(
+        {
+          contributions: {
+            'scheduling.events': { ...result, resources: response([]).contributions['scheduling.events']!.resources },
+          },
+        },
+        context,
+        'day',
+        runtime,
+      ).sidePanel!.items[0]!.warningGroups?.[0]?.warnings.map((warning) => warning.id),
+    ).toEqual(['local', 'global']);
   });
 
-  it('groups overlapping leave chronologically across locations using the calendar timezone and DST boundaries', () => {
+  it('groups location-scoped overlapping leave chronologically using the calendar timezone and DST boundaries', () => {
     const events = [
       leave('overlap', '2025-03-09T18:00:00Z', '2025-03-09T20:00:00Z'),
       leave('other-location', '2025-03-09T17:00:00Z', '2025-03-09T21:00:00Z', { locationId: 2 }),
@@ -221,15 +241,13 @@ describe('assignment sidebar warnings', () => {
       {
         id: 'leave',
         heading: 'Leave',
-        warnings: [
-          expect.objectContaining({ id: 'crosses-start' }),
-          expect.objectContaining({ id: 'other-location' }),
-          expect.objectContaining({ id: 'overlap' }),
-        ],
+        warnings: [expect.objectContaining({ id: 'crosses-start' }), expect.objectContaining({ id: 'overlap' })],
       },
     ]);
     expect(emptyUser!.warningGroups).toBeUndefined();
-    expect(items(events, { ...context, locationId: 2 })[0]!.warningGroups).toEqual(user!.warningGroups);
+    expect(
+      items(events, { ...context, locationId: 2 })[0]!.warningGroups?.[0]?.warnings.map((warning) => warning.id),
+    ).toEqual(['crosses-start', 'other-location', 'overlap']);
     expect(
       items(events, { ...context, startDate: '2025-03-12', endDate: '2025-03-13' })[0]!.warningGroups,
     ).toBeUndefined();

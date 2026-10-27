@@ -3,6 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
 import { DateTime } from 'luxon';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import type { CalendarDataResponse } from '@/modules/calendar/calendarTypes';
 import type { CalendarFeatureFlags } from '@/api-access/generated/models';
 
 describe('calendar workflow', () => {
@@ -143,7 +144,7 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
+        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, activeViewId: 'workflow-view', filters: {} },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -157,7 +158,13 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: previousRange.startDate, endDate: previousRange.endDate, locationId: 12, filters: {} },
+        {
+          startDate: previousRange.startDate,
+          endDate: previousRange.endDate,
+          locationId: 12,
+          activeViewId: 'workflow-view',
+          filters: {},
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -169,7 +176,7 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, filters: {} },
+        { startDate: '2025-04-07', endDate: '2025-04-14', locationId: 12, activeViewId: 'workflow-view', filters: {} },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -182,7 +189,13 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: todayRange.startDate, endDate: todayRange.endDate, locationId: 12, filters: {} },
+        {
+          startDate: todayRange.startDate,
+          endDate: todayRange.endDate,
+          locationId: 12,
+          activeViewId: 'workflow-view',
+          filters: {},
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -204,7 +217,7 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-14', endDate: '2025-04-21', locationId: 12, filters: {} },
+        { startDate: '2025-04-14', endDate: '2025-04-21', locationId: 12, activeViewId: 'workflow-view', filters: {} },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -217,7 +230,7 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-16', endDate: '2025-04-17', locationId: 12, filters: {} },
+        { startDate: '2025-04-16', endDate: '2025-04-17', locationId: 12, activeViewId: 'workflow-view', filters: {} },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -229,7 +242,7 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: '2025-04-14', endDate: '2025-04-19', locationId: 12, filters: {} },
+        { startDate: '2025-04-14', endDate: '2025-04-19', locationId: 12, activeViewId: 'workflow-view', filters: {} },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
 
@@ -316,7 +329,13 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: expectedRange.startDate, endDate: expectedRange.endDate, locationId: 12, filters: {} },
+        {
+          startDate: expectedRange.startDate,
+          endDate: expectedRange.endDate,
+          locationId: 12,
+          activeViewId: 'period-view',
+          filters: {},
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
     } finally {
@@ -324,12 +343,12 @@ describe('calendar workflow', () => {
     }
   });
 
-  it('renders a matrix skeleton while a matrix view is loading', async () => {
-    let resolveLoad: (value: { contributions: Record<string, never> }) => void = () => undefined;
+  it('reloads on view, location and period changes and ignores stale warning responses', async () => {
+    const pending: ((value: CalendarDataResponse) => void)[] = [];
     const loadData = vi.fn(
       () =>
-        new Promise<{ contributions: Record<string, never> }>((resolve) => {
-          resolveLoad = resolve;
+        new Promise<CalendarDataResponse>((resolve) => {
+          pending.push(resolve);
         }),
     );
 
@@ -350,20 +369,35 @@ describe('calendar workflow', () => {
             id: 'matrix-view',
             label: 'Matrix View',
             loadingVariant: 'matrix',
-            component: defineComponent({ template: '<div data-testid="matrix-view" />' }),
-            buildModel: () => ({
+            component: defineComponent({
+              props: ['model'],
+              template: '<div data-testid="matrix-view">{{ model.warning }}</div>',
+            }),
+            buildModel: (data: CalendarDataResponse) => ({
+              warning: data.contributions['training.events']?.data,
               days: [{ date: '2025-04-07', label: 'Mon' }],
               primaryColumn: { label: 'TEAM', resources: [] },
               cells: [],
             }),
           },
+          {
+            id: 'calendar.matrix-assignment',
+            label: 'Assignment View',
+            loadingVariant: 'matrix',
+            component: defineComponent({
+              props: ['model'],
+              template: '<div data-testid="matrix-view">{{ model.warning }}</div>',
+            }),
+            buildModel: (data: CalendarDataResponse) => ({ warning: data.contributions['training.events']?.data }),
+          },
         ]),
       },
     }));
 
-    const [{ default: Calendar }, { useLocationsStore }] = await Promise.all([
+    const [{ default: Calendar }, { useLocationsStore }, { useCalendarStore }] = await Promise.all([
       import('@/modules/calendar/Calendar.vue'),
       import('@/stores/LocationsStore'),
+      import('@/modules/calendar/calendarStore'),
     ]);
     const { mountPlugins, pinia } = await createTestApp({ loadConfig: false });
     useLocationsStore(pinia).setSelectedLocationId(12);
@@ -372,10 +406,50 @@ describe('calendar workflow', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(true);
 
-    resolveLoad({ contributions: {} });
-    await flushPromises();
-    expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(false);
+    const store = useCalendarStore(pinia);
+    store.setActiveView('calendar.matrix-assignment');
+    await wrapper.vm.$nextTick();
+    expect(loadData).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ activeViewId: 'calendar.matrix-assignment', locationId: 12 }),
+      expect.anything(),
+    );
 
+    const response = (warning: string): CalendarDataResponse => ({
+      contributions: {
+        'training.events': { moduleId: 'training', contributionId: 'training.events', events: [], data: warning },
+      },
+    });
+    pending[1]!(response('current warning'));
+    await flushPromises();
+    expect(wrapper.get('[data-testid="matrix-view"]').text()).toBe('current warning');
+    pending[0]!(response('stale warning'));
+    await flushPromises();
+    expect(wrapper.get('[data-testid="matrix-view"]').text()).toBe('current warning');
+
+    useLocationsStore(pinia).setSelectedLocationId(13);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(true);
+    expect(loadData).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ locationId: 13 }),
+      expect.anything(),
+    );
+    pending[2]!(response('new location warning'));
+    await flushPromises();
+    expect(wrapper.get('[data-testid="matrix-view"]').text()).toBe('new location warning');
+
+    store.setPeriod('day');
+    await wrapper.vm.$nextTick();
+    expect(loadData).toHaveBeenCalledTimes(4);
+    expect(loadData).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ startDate: store.dateRange.startDate, endDate: store.dateRange.endDate }),
+      expect.anything(),
+    );
+    pending[3]!(response('new period warning'));
+    await flushPromises();
+    expect(wrapper.get('[data-testid="matrix-view"]').text()).toBe('new period warning');
     wrapper.unmount();
   });
 });

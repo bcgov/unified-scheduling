@@ -95,6 +95,7 @@ const queryContext = computed<CalendarQueryContext>(() => {
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
     locationId: activeLocationId.value,
+    activeViewId: activeView.value?.id,
     filters: { ...filters.value },
   };
 });
@@ -157,6 +158,7 @@ const reloadKey = computed(() =>
     startDate: dateRange.value.startDate,
     endDate: dateRange.value.endDate,
     period: period.value,
+    activeViewId: activeView.value?.id,
     locationId: activeLocationId.value ?? null,
     filters: filters.value,
     refreshNonce: refreshNonce.value,
@@ -180,13 +182,17 @@ const loadData = async () => {
   errorMessage.value = '';
 
   try {
-    dataResponse.value = await calendarDataService.loadData(runtimeContext.value, queryContext.value, calendarRegistry);
+    const response = await calendarDataService.loadData(runtimeContext.value, queryContext.value, calendarRegistry);
+    if (requestId === latestRequestId) {
+      dataResponse.value = response;
+    }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return;
     }
 
     if (requestId === latestRequestId) {
+      dataResponse.value = { contributions: {} };
       errorMessage.value = 'Failed to retrieve calendar data.';
     }
   } finally {
