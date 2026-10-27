@@ -741,9 +741,10 @@ function selectSidebarWarningEvents<T extends CalendarEventBase>(
         (end > rangeStart || (end.toMillis() === start.toMillis() && start >= rangeStart))
       );
     })
-    .sort((left, right) =>
-      DateTime.fromISO(left.start, { zone: timeZone }).toMillis() -
-        DateTime.fromISO(right.start, { zone: timeZone }).toMillis() || left.id.localeCompare(right.id),
+    .sort(
+      (left, right) =>
+        DateTime.fromISO(left.start, { zone: timeZone }).toMillis() -
+          DateTime.fromISO(right.start, { zone: timeZone }).toMillis() || left.id.localeCompare(right.id),
     );
 }
 
@@ -773,9 +774,10 @@ function buildUserWarningGroups(
       heading: group.heading,
       warnings: group.events.map((event) => ({
         id: event.id,
-        title: group.id === 'leave' && isCalendarSchedulingEvent(event)
-          ? event.metadata.leaveTypeName || 'Leave'
-          : event.title.replace(/^Training:\s*/i, ''),
+        title:
+          group.id === 'leave' && isCalendarSchedulingEvent(event)
+            ? event.metadata.leaveTypeName || 'Leave'
+            : event.title.replace(/^Training:\s*/i, ''),
         start: event.allDay ? getCalendarEventDateKey(event.start, timeZone)! : event.start,
         end: event.allDay ? getCalendarEventDateKey(event.end, timeZone) : event.end,
         allDay: event.allDay,

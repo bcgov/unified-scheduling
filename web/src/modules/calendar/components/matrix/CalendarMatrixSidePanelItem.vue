@@ -2,11 +2,7 @@
 import { computed, inject } from 'vue';
 import { mdiAlert } from '@mdi/js';
 import { DateTime } from 'luxon';
-import {
-  formatCalendarDateTimeRange,
-  formatCalendarEventDate,
-  formatCalendarEventTimeRange,
-} from '@/utils/date';
+import { formatCalendarDateTimeRange, formatCalendarEventDate, formatCalendarEventTimeRange } from '@/utils/date';
 import { calendarMatrixContextKey } from './calendarMatrixContext';
 import type {
   CalendarMatrixDragPayload,
@@ -41,9 +37,7 @@ function formatWarning(warning: CalendarSidebarWarning) {
       ? DateTime.fromISO(warning.end, { zone: timeZone }).minus({ days: 1 }).toISODate()
       : undefined;
   const dates =
-    lastDate && lastDate > warning.start
-      ? `${startDate} - ${formatCalendarEventDate(lastDate, options)}`
-      : startDate;
+    lastDate && lastDate > warning.start ? `${startDate} - ${formatCalendarEventDate(lastDate, options)}` : startDate;
   return `${dates}, ${formatCalendarEventTimeRange(warning.start, warning.end, options)}`;
 }
 
