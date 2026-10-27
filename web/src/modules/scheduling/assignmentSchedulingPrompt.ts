@@ -38,6 +38,7 @@ export function getAssignmentSchedulingPrompt(
     (event) =>
       event.locationId === locationId &&
       (event.type === 'scheduling.assignment' || event.eventTypeCode === 'assignment') &&
+      !isSchedulingCancelled(event.statusTypeCode) &&
       eventStartsInCalendarContext(event, context),
   );
 

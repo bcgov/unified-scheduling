@@ -1010,6 +1010,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
     const wrapper = mount(CalendarSchedulingAddResourceModal, {
       props: {
         initialAssignmentEntryId: 251,
+        missingShiftWarning: true,
         resource: {
           id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
           type: 'user',
@@ -1022,6 +1023,10 @@ describe('CalendarSchedulingAddResourceModal', () => {
     });
 
     await flushPromises();
+    expect(document.body.textContent).toContain(
+      'Creating a shift here will also link the user to the selected assignment.',
+    );
+    expect(document.body.textContent).not.toContain('try again');
 
     const vm = wrapper.vm as unknown as {
       formData: {
@@ -1047,6 +1052,15 @@ describe('CalendarSchedulingAddResourceModal', () => {
       }),
       expect.objectContaining({ options: { immediate: false } }),
     );
+    expect(postEntry).toHaveBeenCalledTimes(1);
+    const body = postEntry.mock.calls[0]?.[0];
+    expect(body.userIds).toEqual(['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62']);
+    expect(body.assignmentEntryLinks).toEqual([
+      {
+        assignmentEntryId: 251,
+        assignedUserIds: ['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62'],
+      },
+    ]);
     expect(postEntryExecute).toHaveBeenCalled();
 
     wrapper.unmount();
