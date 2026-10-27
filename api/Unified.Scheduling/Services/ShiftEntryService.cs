@@ -128,10 +128,9 @@ public sealed class ShiftEntryService(
             ? await GetValidatedShiftSeriesAsync(request.ShiftSeriesId.Value, cancellationToken)
             : null;
 
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
         var entity = await calendarEventEntryService.BuildEventAsync(
             request with
             {
@@ -150,7 +149,8 @@ public sealed class ShiftEntryService(
             request.AssignmentEntryLinks ?? [],
             cancellationToken
         );
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Created shift entry {ShiftEntryId}.", entity.Id);
         return ShiftResponseMapper.ToShiftEntryResponse(entity);
     }

@@ -164,5 +164,29 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
             Id = nameof(Permissions.AwayLocationsExpire),
             Description = "Expire away locations",
         },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersLoanOutView),
+            Description = "View loan out for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersLoanOutCreate),
+            Description = "Create loan out for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersLoanOutEdit),
+            Description = "Edit loan out for users",
+        },
+        new()
+        {
+            Group = PermissionGroupUsers,
+            Id = nameof(Permissions.UsersLoanOutDelete),
+            Description = "Delete loan out for users",
+        },
     ];
 }

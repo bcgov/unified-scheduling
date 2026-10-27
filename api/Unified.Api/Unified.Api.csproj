@@ -19,6 +19,7 @@
     <ProjectReference Include="..\Unified.Common\Unified.Common.csproj" />
     <ProjectReference Include="..\Unified.Calendar\Unified.Calendar.csproj" />
     <ProjectReference Include="..\Unified.Leave\Unified.Leave.csproj" />
+    <ProjectReference Include="..\Unified.LoanOut\Unified.LoanOut.csproj" />
     <ProjectReference Include="..\Unified.UserManagement\Unified.UserManagement.csproj" />
     <ProjectReference Include="..\Unified.Core\Unified.Core.csproj" />
     <ProjectReference Include="..\Unified.Hangfire\Unified.Hangfire.csproj" />

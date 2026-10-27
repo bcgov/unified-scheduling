@@ -24,6 +24,8 @@ using Unified.Infrastructure.Options;
 using Unified.JCInterface;
 using Unified.Leave;
 using Unified.Leave.Controllers;
+using Unified.LoanOut;
+using Unified.LoanOut.Controllers;
 using Unified.Reporting;
 using Unified.Reporting.Controllers;
 using Unified.Scheduling;
@@ -109,8 +111,9 @@ var hangfireOptions =
                 .Concat(AuditSeedDataSets.All)
         )
         .AddJCInterfaceModule(builder.Configuration)
-        .AddInterceptors();
-    builder.Services.AddLeaveModule(builder.Configuration);
+        .AddInterceptors()
+        .AddLeaveModule(builder.Configuration)
+        .AddLoanOutModule(builder.Configuration);
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddChesTestController(builder.Environment, builder.Configuration);
@@ -123,6 +126,7 @@ var hangfireOptions =
     mvcBuilder.AddConditionalApplicationPart<SchedulingLeaveController>(
         LeaveModule.IsModuleEnabled(builder.Configuration)
     );
+    mvcBuilder.AddConditionalApplicationPart<LoanOutController>(LoanOutModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<StatGroupsController>(StatsModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<UserTrainingController>(
         TrainingModule.IsModuleEnabled(builder.Configuration)

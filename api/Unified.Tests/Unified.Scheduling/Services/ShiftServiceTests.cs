@@ -18,6 +18,7 @@ using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.UserManagement;
 using Unified.Scheduling;
 using Unified.Scheduling.Factories;
+using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
@@ -64,6 +65,16 @@ public class ShiftServiceTests : IAsyncLifetime
             [new SchedulingConflictParticipantProvider(_dbContext)],
             _dbContext
         );
+        var schedulingLoanOutService = new SchedulingLoanOutService(
+            NullLogger<SchedulingLoanOutService>.Instance,
+            _dbContext,
+            new SchedulingLoanOutEventMapper(),
+            () => throw new NotSupportedException(),
+            () => throw new NotSupportedException(),
+            () => throw new NotSupportedException(),
+            timeZoneResolver,
+            timeZoneService
+        );
 
         _service = CreateShift(
             _dbContext,
@@ -73,7 +84,8 @@ public class ShiftServiceTests : IAsyncLifetime
                 NullLogger<ShiftAssignmentService>.Instance,
                 _dbContext,
                 timeZoneService,
-                conflictService
+                conflictService,
+                schedulingLoanOutService
             ),
             timeZoneService,
             TimeProvider.System,
@@ -124,6 +136,23 @@ public class ShiftServiceTests : IAsyncLifetime
         Assert.Equal([UserA, UserB], shiftEntry.Users.Select(x => x.UserId).Order().ToArray());
         Assert.Equal([eventEntity.Id], result.EventIds);
         Assert.Equal([shiftEntry.Id], result.ShiftEntryIds);
+    }
+
+    [Fact]
+    public async Task CreateShiftSeriesAsync_WhenAmbientTransactionExists_UsesAmbientTransaction()
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(result);
+        Assert.NotNull(_dbContext.Database.CurrentTransaction);
+        Assert.Single(await _dbContext.ShiftSeries.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -267,7 +296,6 @@ public class ShiftServiceTests : IAsyncLifetime
             request with
             {
                 Title = "Other",
-                LocationId = 9,
                 StartAtUtc = request.StartAtUtc.AddDays(1),
                 EndAtUtc = request.EndAtUtc!.Value.AddDays(1),
             },
@@ -279,6 +307,7 @@ public class ShiftServiceTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(result);
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, result.StatusTypeCode);
     }
 
     [Fact]

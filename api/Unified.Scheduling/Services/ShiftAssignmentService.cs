@@ -16,7 +16,8 @@ public sealed class ShiftAssignmentService(
     ILogger<ShiftAssignmentService> logger,
     UnifiedDbContext db,
     ITimeZoneService timeZoneService,
-    ICalendarConflictService calendarConflictService
+    ICalendarConflictService calendarConflictService,
+    ISchedulingLoanOutService schedulingLoanOutService
 ) : IShiftAssignmentService
 {
     public async Task<ShiftAssignmentEntryResponse> LinkShiftEntryAsync(
@@ -313,16 +314,46 @@ public sealed class ShiftAssignmentService(
                 "Selected users must belong to every matching shift entry."
             );
 
-        var shiftEntryIds = intersections.Select(pair => pair.shiftEntry.Id).Distinct().ToList();
-        var assignmentEntryIds = intersections.Select(pair => pair.assignmentEntry.Id).Distinct().ToList();
-        var existingLinks = await db
-            .ShiftAssignmentEntries.Include(link => link.Users)
-            .Include(link => link.ShiftAssignmentSeriesLink)
-                .ThenInclude(link => link!.Users)
-            .Where(link =>
-                shiftEntryIds.Contains(link.ShiftEntryId) && assignmentEntryIds.Contains(link.AssignmentEntryId)
+        var loanOutUsersByIntersection = await schedulingLoanOutService.FilterLoanedOutUsersAsync(
+            selectedUserIds,
+            intersections
+                .Select(pair => new ShiftAssignmentLoanOutContext(
+                    pair.assignmentEntry.Event!.StartAtUtc,
+                    pair.assignmentEntry.Event.EndAtUtc
+                ))
+                .ToList(),
+            intersections[0].assignmentEntry.Event!.LocationId,
+            intersections[0].assignmentEntry.Event!.TimeZoneId,
+            cancellationToken
+        );
+
+        var assignableIntersections = intersections
+            .Select(
+                (pair, index) =>
+                {
+                    return (
+                        pair.shiftEntry,
+                        pair.assignmentEntry,
+                        assignedUserIds: loanOutUsersByIntersection[index].ToList()
+                    );
+                }
             )
-            .ToListAsync(cancellationToken);
+            .Where(pair => pair.assignedUserIds.Count > 0)
+            .ToList();
+
+        var shiftEntryIds = assignableIntersections.Select(pair => pair.shiftEntry.Id).Distinct().ToList();
+        var assignmentEntryIds = assignableIntersections.Select(pair => pair.assignmentEntry.Id).Distinct().ToList();
+        var existingLinks =
+            assignableIntersections.Count == 0
+                ? []
+                : await db
+                    .ShiftAssignmentEntries.Include(link => link.Users)
+                    .Include(link => link.ShiftAssignmentSeriesLink)
+                        .ThenInclude(link => link!.Users)
+                    .Where(link =>
+                        shiftEntryIds.Contains(link.ShiftEntryId) && assignmentEntryIds.Contains(link.AssignmentEntryId)
+                    )
+                    .ToListAsync(cancellationToken);
 
         var seriesLink = await db
             .ShiftAssignmentSeriesLinks.Include(link => link.Users)
@@ -384,13 +415,15 @@ public sealed class ShiftAssignmentService(
         db.ShiftAssignmentSeriesLinkUsers.RemoveRange(seriesLink.Users);
         ShiftAssignmentUserSync.ReplaceSeriesUsers(seriesLink, selectedUserIds);
 
-        var intersectionKeys = intersections.Select(pair => (pair.shiftEntry.Id, pair.assignmentEntry.Id)).ToHashSet();
+        var intersectionKeys = assignableIntersections
+            .Select(pair => (pair.shiftEntry.Id, pair.assignmentEntry.Id))
+            .ToHashSet();
         var existingLinksByPair = existingLinks.ToDictionary(
             link => (link.ShiftEntryId, link.AssignmentEntryId),
             link => link
         );
         var syncedLinks = new List<ShiftAssignmentEntry>();
-        foreach (var (shiftEntry, assignmentEntry) in intersections)
+        foreach (var (shiftEntry, assignmentEntry, assignedUserIds) in assignableIntersections)
         {
             if (existingLinksByPair.TryGetValue((shiftEntry.Id, assignmentEntry.Id), out var existingLink))
             {
@@ -399,7 +432,7 @@ public sealed class ShiftAssignmentService(
                     if (!existingLink.IsException)
                     {
                         db.ShiftAssignmentEntryUsers.RemoveRange(existingLink.Users);
-                        ShiftAssignmentUserSync.ReplaceEntryUsers(existingLink, selectedUserIds);
+                        ShiftAssignmentUserSync.ReplaceEntryUsers(existingLink, assignedUserIds);
                     }
                 }
                 syncedLinks.Add(existingLink);
@@ -409,7 +442,7 @@ public sealed class ShiftAssignmentService(
             var link = ShiftAssignmentUserSync.CreateEntryLink(
                 shiftEntry.Id,
                 assignmentEntry.Id,
-                selectedUserIds,
+                assignedUserIds,
                 seriesLink,
                 isException: false
             );

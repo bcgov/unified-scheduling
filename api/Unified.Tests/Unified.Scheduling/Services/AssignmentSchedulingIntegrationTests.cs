@@ -17,12 +17,15 @@ using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
+using Unified.LoanOut.Constants;
 using Unified.Scheduling;
 using Unified.Scheduling.Factories;
+using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
@@ -90,11 +93,22 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _db,
             timeProvider
         );
+        var schedulingLoanOutService = new SchedulingLoanOutService(
+            NullLogger<SchedulingLoanOutService>.Instance,
+            _db,
+            new SchedulingLoanOutEventMapper(),
+            () => throw new NotSupportedException(),
+            () => throw new NotSupportedException(),
+            () => throw new NotSupportedException(),
+            timeZoneResolver,
+            timeZoneService
+        );
         _linkService = new ShiftAssignmentService(
             NullLogger<ShiftAssignmentService>.Instance,
             _db,
             timeZoneService,
-            _conflictService
+            _conflictService,
+            schedulingLoanOutService
         );
         _assignmentService = CreateAssignment(
             _db,
@@ -1526,6 +1540,179 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LinkShiftSeriesAsync_SkipsOnlyLoanedOutUsersOnLoanOutDates()
+    {
+        var shiftSeries = await _shiftService.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=3",
+                UserIds = [UserA, UserB],
+            },
+            TestContext.Current.CancellationToken
+        );
+        var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
+            CreateAssignmentSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=3",
+            },
+            TestContext.Current.CancellationToken
+        );
+        _db.LoanOutEntries.Add(
+            new LoanOutEntry
+            {
+                LoanOutLocationId = 9,
+                Event = new Event
+                {
+                    Title = "User A loan-out",
+                    StartAtUtc = AtDay(2, 8),
+                    EndAtUtc = AtDay(2, 23),
+                    TimeZoneId = "UTC",
+                    LocationId = 5,
+                    SourceModule = LoanOutConstants.SourceModule,
+                    EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                    StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+                },
+                Users = [new LoanOutEntryUser { UserId = UserA }],
+            }
+        );
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var loanOutService = new SchedulingLoanOutService(
+            NullLogger<SchedulingLoanOutService>.Instance,
+            _db,
+            new SchedulingLoanOutEventMapper(),
+            () => throw new NotSupportedException(),
+            () => throw new NotSupportedException(),
+            () => throw new NotSupportedException(),
+            new CalendarTimeZoneResolver(
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+                new TimeZoneService()
+            ),
+            new TimeZoneService()
+        );
+        var loanOutResults = await loanOutService.FilterLoanedOutUsersAsync(
+            [UserA],
+            [new ShiftAssignmentLoanOutContext(AtDay(1, 10), AtDay(2, 12))],
+            null,
+            "UTC",
+            TestContext.Current.CancellationToken
+        );
+        Assert.Empty(Assert.Single(loanOutResults));
+        var linkService = new ShiftAssignmentService(
+            NullLogger<ShiftAssignmentService>.Instance,
+            _db,
+            new TimeZoneService(),
+            _conflictService,
+            loanOutService
+        );
+        await linkService.LinkShiftSeriesAsync(
+            new ShiftAssignmentSeriesRequest
+            {
+                ShiftSeriesId = shiftSeries.Id,
+                AssignmentSeriesId = assignmentSeries.Id,
+                AssignedUserIds = [UserA, UserB],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var links = await _db
+            .ShiftAssignmentEntries.Include(link => link.Users)
+            .Include(link => link.ShiftEntry!)
+                .ThenInclude(entry => entry.Event)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(3, links.Count);
+        var loanOutDayLink = Assert.Single(links, link => link.ShiftEntry!.Event!.StartAtUtc == AtDay(2, 9));
+        Assert.Equal([UserB], loanOutDayLink.Users.Select(user => user.UserId));
+        Assert.All(
+            links.Where(link => link.ShiftEntry!.Event!.StartAtUtc != AtDay(2, 9)),
+            link => Assert.Equal([UserA, UserB], link.Users.Select(user => user.UserId).Order().ToArray())
+        );
+    }
+
+    [Fact]
+    public async Task TransferLoanedOutUserShift_Series_CreatesOneCopiedSeriesForAllLoanOutEntries()
+    {
+        await _shiftService.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest() with
+            {
+                StartAtUtc = AtDay(1, 9),
+                EndAtUtc = AtDay(1, 17),
+                RecurrenceRule = "FREQ=DAILY;COUNT=5",
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+        var loanOutSeries = new LoanOutSeries
+        {
+            LoanOutLocationId = 9,
+            EventSeries = new EventSeries
+            {
+                Title = "Loan-out series",
+                StartAtUtc = AtDay(2, 10),
+                EndAtUtc = AtDay(2, 11),
+                TimeZoneId = "UTC",
+                RecurrenceRule = "FREQ=DAILY;COUNT=3",
+                LocationId = 5,
+                EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+            },
+            LoanOutEntries = [CreateLoanOutEntry(AtDay(2, 10)), CreateLoanOutEntry(AtDay(4, 10))],
+        };
+        _db.LoanOutSeries.Add(loanOutSeries);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var loanOutService = new SchedulingLoanOutService(
+            NullLogger<SchedulingLoanOutService>.Instance,
+            _db,
+            new SchedulingLoanOutEventMapper(),
+            () => _shiftService,
+            () => throw new NotSupportedException(),
+            () => throw new NotSupportedException(),
+            new CalendarTimeZoneResolver(
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+                new TimeZoneService()
+            ),
+            new TimeZoneService()
+        );
+
+        await loanOutService.TransferLoanedOutUserShift(
+            loanOutSeries,
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        var copiedSeries = await _db
+            .ShiftSeries.Include(series => series.EventSeries)
+            .Include(series => series.ShiftEntries)
+                .ThenInclude(entry => entry.Event)
+            .Where(series => series.EventSeries!.LocationId == 9)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        var copied = Assert.Single(copiedSeries);
+        Assert.Equal("FREQ=DAILY;UNTIL=20260604T090000Z", copied.EventSeries!.RecurrenceRule);
+        Assert.Equal(3, copied.ShiftEntries.Count);
+        Assert.All(copied.ShiftEntries, entry => Assert.Equal(copied.Id, entry.ShiftSeriesId));
+        Assert.All(copied.ShiftEntries, entry => Assert.Equal(9, entry.Event!.LocationId));
+    }
+
+    private static LoanOutEntry CreateLoanOutEntry(DateTimeOffset startAtUtc) =>
+        new()
+        {
+            LoanOutLocationId = 9,
+            Event = new Event
+            {
+                Title = "Loan out",
+                StartAtUtc = startAtUtc,
+                EndAtUtc = startAtUtc.AddHours(1),
+                TimeZoneId = "UTC",
+                LocationId = 5,
+                SourceModule = LoanOutConstants.SourceModule,
+                EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+            },
+            Users = [new LoanOutEntryUser { UserId = UserA }],
+        };
+
+    [Fact]
     public async Task CreateAssignmentSeriesAsync_WithShiftSeriesLinks_CreatesLinksAtomically()
     {
         var shiftSeries = await _shiftService.CreateShiftSeriesAsync(
@@ -2371,7 +2558,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     {
         _db.EventTypes.AddRange(
             CreateEventType(SchedulingConstants.ShiftEventTypeCode),
-            CreateEventType(SchedulingConstants.AssignmentEventTypeCode)
+            CreateEventType(SchedulingConstants.AssignmentEventTypeCode),
+            CreateEventType(LoanOutConstants.LoanOutEventTypeCode)
         );
         _db.EventStatusTypes.AddRange(
             CreateStatusType(CalendarEventStatusTypeCodes.Draft),

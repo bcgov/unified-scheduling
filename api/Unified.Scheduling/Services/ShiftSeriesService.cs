@@ -132,10 +132,9 @@ internal sealed class ShiftSeriesService(
             string.Join(",", userIds),
             request.StartAtUtc
         );
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
         var entity = await calendarEventSeriesService.BuildEventAsync(
             request with
             {
@@ -164,7 +163,8 @@ internal sealed class ShiftSeriesService(
             request.AssignmentSeriesLinks,
             cancellationToken
         );
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Created shift series {ShiftSeriesId}.", entity.Id);
         return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
     }
@@ -277,7 +277,9 @@ internal sealed class ShiftSeriesService(
     {
         foreach (
             var entry in shiftSeries.ShiftEntries.Where(entry =>
-                entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                entry.Event is not null
+                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                && entry.Event.LocationId == oldValues.LocationId
             )
         )
         {
@@ -420,6 +422,10 @@ internal sealed class ShiftSeriesService(
             .ToList();
         var draftEventIds = draftEvents.Select(eventEntity => eventEntity.Id).ToHashSet();
         var draftEntries = entries.Where(entry => draftEventIds.Contains(entry.EventId)).ToList();
+        var preservedDraftEntries = draftEntries
+            .Where(entry => entry.Event!.LocationId != eventSeries.LocationId)
+            .ToList();
+        draftEntries = draftEntries.Except(preservedDraftEntries).ToList();
         var draftEntryIds = draftEntries.Select(entry => entry.Id).ToHashSet();
         var draftLinks = await db
             .ShiftAssignmentEntries.Include(link => link.Users)
