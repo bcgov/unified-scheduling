@@ -8,10 +8,12 @@ import LuxonAdapter from '@date-io/luxon';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { useAuthStore } from '@/stores/auth';
+import { useConfigStore } from '@/stores/config';
 import { Permissions } from '@/api-access/generated/models';
 
 function createModalTestApp(permissions = Object.values(Permissions)) {
   const pinia = createPinia();
+  useConfigStore(pinia).config = { featureFlags: { Scheduling: { enabled: true } } };
   useAuthStore(pinia).setUserInfo({
     isAuthenticated: true,
     isRegistered: true,
@@ -313,15 +315,16 @@ describe('CalendarSchedulingAddResourceModal', () => {
     });
 
     await flushPromises();
-    const vm = wrapper.vm as unknown as { handleSave: () => Promise<void> };
+    const vm = wrapper.vm as unknown as {
+      handleSave: () => Promise<void>;
+      formData: { publish: 'yes' | 'no' };
+    };
+    vm.formData.publish = 'yes';
     await vm.handleSave();
+    await flushPromises();
 
-    expect(document.body.textContent).toContain(
-      'One or more selected employees already have a shift at this location on the selected date.',
-    );
-    expect(document.body.textContent).toContain(
-      'One or more selected employees already have a shift at this location on the selected date.',
-    );
+    const employeeField = document.querySelector('.shift-form__employee-field');
+    expect(employeeField?.textContent).toContain('Alex Alpha already has a shift at this location.');
     expect(wrapper.emitted('close')).toBeUndefined();
     expect(postEntryPublish).not.toHaveBeenCalled();
     expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.includes('Save'))).toBe(

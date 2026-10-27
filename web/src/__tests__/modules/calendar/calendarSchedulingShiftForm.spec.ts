@@ -36,6 +36,7 @@ describe('calendarSchedulingShiftForm', () => {
         title: 'Registry shift',
         startAtUtc: '2026-06-29T16:00:00Z',
         endAtUtc: '2026-06-30T00:00:00Z',
+        userIds: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
         assignmentLinks: [
           {
             assignmentEntryId: 251,
@@ -55,6 +56,7 @@ describe('calendarSchedulingShiftForm', () => {
     );
 
     expect(formData.assignmentEntryIds).toEqual([251]);
+    expect(formData.userIds).toEqual(['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002']);
     expect(formData.assignmentEntryLinks).toEqual([
       {
         assignmentEntryId: 251,

@@ -8,7 +8,12 @@ import type {
   CalendarMatrixViewModel,
   CalendarMatrixActionType,
 } from '../components/matrix/calendarMatrixTypes';
-import type { CalendarQueryContext, CalendarRuntimeContext, CalendarEventBase } from '../calendarTypes';
+import type {
+  CalendarDataResponse,
+  CalendarQueryContext,
+  CalendarRuntimeContext,
+  CalendarEventBase,
+} from '../calendarTypes';
 
 export interface CalendarCreateContext {
   startDate: string;
@@ -25,6 +30,11 @@ export interface CalendarCreateAction {
   disabled?: boolean;
   run?: (context: CalendarCreateContext, runtimeContext: CalendarRuntimeContext) => void | Promise<void>;
   isAvailable?: (createContext: CalendarCreateContext, runtimeContext: CalendarRuntimeContext) => boolean;
+  getPrompt?: (
+    data: CalendarDataResponse,
+    context: CalendarCreateContext,
+    runtimeContext: CalendarRuntimeContext,
+  ) => string | undefined;
 }
 
 export interface CalendarToolbarAction {
@@ -41,6 +51,7 @@ export interface CalendarToolbarButton {
   label: string;
   disabled?: boolean;
   variant?: 'text' | 'outlined' | 'flat';
+  prompt?: string;
 }
 
 export interface CalendarViewDetailActionContext {

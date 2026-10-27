@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import type { CalendarMatrixDropActionContext } from '@/modules/calendar/registry/calendarActionRegistryTypes';
+import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
+import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSchedulingData';
 import { calendarActionRegistry } from '@/modules/calendar/registry/calendarActionRegistry';
 import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
@@ -26,6 +28,7 @@ import {
 import {
   calendarSchedulingAssignmentModalAssignmentDefinitionId,
   calendarSchedulingAssignmentModalAssignedUserId,
+  calendarSchedulingAssignmentModalDraggedUserOnly,
   calendarSchedulingAssignmentModalDate,
   calendarSchedulingAssignmentModalEntryId,
   calendarSchedulingAssignmentModalMode,
@@ -34,12 +37,15 @@ import {
   calendarSchedulingConflictEventId,
   calendarSchedulingConflictHeaderId,
   calendarSchedulingDetailEvent,
+  calendarSchedulingDetailInitialOpenScope,
+  calendarSchedulingDetailInitialTab,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionAssignmentEntryId,
   calendarSchedulingResourceActionAssignmentEvents,
   calendarSchedulingResourceActionResource,
   calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
+  closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   getCalendarSchedulingHeaderConflictKey,
@@ -54,6 +60,7 @@ describe('calendarSchedulingActions', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     closeCalendarSchedulingAssignmentModal();
+    closeCalendarSchedulingEventDetail();
     closeCalendarSchedulingPublishModal();
     closeCalendarSchedulingResourceActionModal();
   });
@@ -940,6 +947,7 @@ describe('calendarSchedulingActions', () => {
       end: '2026-07-14T00:00:00Z',
       metadata: {
         assignmentEntryId: '257',
+        assignmentDefinitionId: 20,
       },
     };
 
@@ -997,6 +1005,117 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingResourceActionAssignmentEvents.value).toEqual([assignmentEvent]);
   });
 
+  it('creates a shift for a user dropped on their own Schedule View date without an existing shift', () => {
+    const context = userDropContext('user');
+    expect(
+      calendarDropUserOnAssignmentResourceAction.isAvailable?.(context, {
+        featureFlags: {},
+        permissions: [Permissions.ShiftsCreateAndAssign],
+      }),
+    ).toBe(true);
+
+    calendarDropUserOnAssignmentResourceAction.execute(context, {
+      featureFlags: {},
+      permissions: [Permissions.ShiftsCreateAndAssign],
+    });
+
+    expect(calendarSchedulingResourceActionDate.value).toBe('2026-07-13');
+    expect(calendarSchedulingResourceActionResource.value?.id).toBe('user-1');
+  });
+
+  it('opens the shared shift for direct occurrence editing on the Schedule View', () => {
+    const shift = shiftEvent();
+    const context = userDropContext('user', [shift]);
+    calendarDropUserOnAssignmentResourceAction.execute(context, {
+      featureFlags: {},
+      permissions: [Permissions.ShiftsEdit],
+    });
+
+    expect(calendarSchedulingDetailEvent.value).toEqual(shift);
+    expect(calendarSchedulingDetailInitialOpenScope.value).toBe('event');
+    expect(calendarSchedulingDetailInitialTab.value).toBe('edit');
+    expect(calendarSchedulingResourceActionDate.value).toBeUndefined();
+  });
+
+  it('creates an assignment with only the dragged user selected from a shared shift', () => {
+    const context = userDropContext('assignment', [shiftEvent()]);
+    calendarDropUserOnAssignmentResourceAction.execute(context, {
+      featureFlags: {},
+      permissions: [Permissions.AssignmentsCreate, Permissions.AssignmentsAssign],
+    });
+
+    expect(calendarSchedulingAssignmentModalMode.value).toBe('create');
+    expect(calendarSchedulingAssignmentModalAssignmentDefinitionId.value).toBe(20);
+    expect(calendarSchedulingAssignmentModalDate.value).toBe('2026-07-13');
+    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
+    expect(calendarSchedulingAssignmentModalAssignedUserId.value).toBe('user-1');
+    expect(calendarSchedulingAssignmentModalDraggedUserOnly.value).toBe(true);
+  });
+
+  it('edits only the matching assignment occurrence when the user already has a shift', () => {
+    const context = userDropContext(
+      'assignment',
+      [shiftEvent()],
+      [assignmentEvent(257, 20, 211), assignmentEvent(258, 21)],
+    );
+    calendarDropUserOnAssignmentResourceAction.execute(context, {
+      featureFlags: {},
+      permissions: [Permissions.AssignmentsEdit, Permissions.AssignmentsAssign],
+    });
+
+    expect(calendarSchedulingAssignmentModalMode.value).toBe('edit');
+    expect(calendarSchedulingAssignmentModalEntryId.value).toBe(257);
+    expect(calendarSchedulingAssignmentModalSeriesId.value).toBe(211);
+    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
+    expect(calendarSchedulingAssignmentModalDraggedUserOnly.value).toBe(true);
+  });
+
+  it('finds a shared shift in another assignment cell without selecting an unrelated definition', () => {
+    const context = userDropContext('assignment', [], [assignmentEvent(258, 21)]);
+    context.model.cells.push({
+      resourceId: 'assignment-definition-21',
+      date: '2026-07-13',
+      payload: { shiftEvents: [shiftEvent()] },
+      groups: [],
+    });
+
+    calendarDropUserOnAssignmentResourceAction.execute(context, {
+      featureFlags: {},
+      permissions: [Permissions.AssignmentsCreate, Permissions.AssignmentsAssign],
+    });
+
+    expect(calendarSchedulingAssignmentModalMode.value).toBe('create');
+    expect(calendarSchedulingAssignmentModalAssignmentDefinitionId.value).toBe(20);
+    expect(calendarSchedulingAssignmentModalEntryId.value).toBeUndefined();
+    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toEqual([44]);
+  });
+
+  it('does not select an arbitrary assignment if duplicate entries appear in calendar data', () => {
+    const context = userDropContext('assignment', [shiftEvent()], [assignmentEvent(257, 20), assignmentEvent(258, 20)]);
+    calendarDropUserOnAssignmentResourceAction.execute(context, {
+      featureFlags: {},
+      permissions: [Permissions.AssignmentsEdit, Permissions.AssignmentsAssign],
+    });
+
+    expect(calendarSchedulingAssignmentModalEntryId.value).toBeUndefined();
+    expect(calendarSchedulingAssignmentModalShiftEntryIds.value).toBeUndefined();
+  });
+
+  it('ignores cancelled shifts and refuses unauthorized user drops', () => {
+    const cancelledShift = { ...shiftEvent(), statusTypeCode: 'cancelled' };
+    const context = userDropContext('assignment', [cancelledShift]);
+    const readOnly = { featureFlags: {}, permissions: [Permissions.AssignmentsView] };
+    expect(calendarDropUserOnAssignmentResourceAction.isAvailable?.(context, readOnly)).toBe(false);
+    calendarDropUserOnAssignmentResourceAction.execute(context, readOnly);
+    expect(calendarSchedulingResourceActionDate.value).toBeUndefined();
+
+    calendarDropUserOnAssignmentResourceAction.execute(context, {
+      featureFlags: {},
+      permissions: [Permissions.ShiftsCreateAndAssign],
+    });
+    expect(calendarSchedulingResourceActionDate.value).toBe('2026-07-13');
+  });
+
   it('opens the shift modal from the assignment view schedule staff action', async () => {
     await calendarScheduleStaffAction.execute(
       {
@@ -1047,3 +1166,78 @@ describe('calendarSchedulingActions', () => {
     expect(calendarSchedulingAssignmentModalDate.value).toBeUndefined();
   });
 });
+
+function shiftEvent(): CalendarSchedulingEvent {
+  return {
+    id: 'scheduling.shift-entry.44',
+    type: 'scheduling.shift',
+    sourceModule: 'scheduling',
+    title: 'Shared shift',
+    start: '2026-07-13T16:00:00Z',
+    end: '2026-07-14T00:00:00Z',
+    locationId: 12,
+    statusTypeCode: 'draft',
+    resourceIds: ['user-1', 'user-2'],
+    metadata: { shiftEntryId: '44', userIds: ['user-1', 'user-2'] },
+  };
+}
+
+function assignmentEvent(entryId: number, definitionId: number, seriesId?: number): CalendarSchedulingEvent {
+  return {
+    id: `scheduling.assignment-entry.${entryId}`,
+    type: 'scheduling.assignment',
+    sourceModule: 'scheduling',
+    title: `Assignment ${entryId}`,
+    start: '2026-07-13T16:00:00Z',
+    end: '2026-07-14T00:00:00Z',
+    locationId: 12,
+    statusTypeCode: 'draft',
+    metadata: {
+      assignmentEntryId: String(entryId),
+      assignmentDefinitionId: String(definitionId),
+      assignmentSeriesId: seriesId === undefined ? undefined : String(seriesId),
+    },
+  };
+}
+
+function userDropContext(
+  target: 'user' | 'assignment',
+  shifts: CalendarEventBase[] = [],
+  assignments: CalendarEventBase[] = [],
+): CalendarMatrixDropActionContext {
+  const isAssignment = target === 'assignment';
+  const resourceId = isAssignment ? 'assignment-definition-20' : 'user-1';
+  return {
+    drag: {
+      source: isAssignment ? 'side-panel' : 'resource-row',
+      itemId: 'user-1',
+      itemType: 'user',
+      payload: { title: 'Alex Alpha' },
+    },
+    drop: { resourceId, resourceType: target, date: '2026-07-13' },
+    model: {
+      timeZone: 'America/Vancouver',
+      days: [{ date: '2026-07-13', label: 'Mon, Jul 13' }],
+      primaryColumn: {
+        label: isAssignment ? 'ASSIGNMENTS' : 'TEAM',
+        resources: [
+          {
+            id: resourceId,
+            type: target,
+            title: 'Target',
+            ...(isAssignment ? { assignmentDefinitionId: 20, locationId: 12 } : {}),
+          },
+        ],
+      },
+      cells: [
+        {
+          resourceId,
+          date: '2026-07-13',
+          headers: isAssignment ? [] : shifts.map((event) => ({ text: 'Shift', payload: event })),
+          payload: isAssignment ? { shiftEvents: shifts } : undefined,
+          groups: [{ id: 'assignments', events: assignments.map((event) => ({ event })) }],
+        },
+      ],
+    },
+  };
+}

@@ -17,8 +17,8 @@ import type {
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import {
   closeCalendarSchedulingConflict,
+  showCalendarSchedulingAssignmentTypeCreateModal,
   showCalendarSchedulingAssignmentModal,
-  showCalendarSchedulingExistingShiftChoice,
   showCalendarSchedulingEventDetail,
   showCalendarSchedulingPublishModal,
   showCalendarSchedulingResourceActionModal,
@@ -27,6 +27,9 @@ import {
   toggleCalendarSchedulingHeaderConflict,
 } from './calendarSchedulingState';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
+import { calendarAssignmentViewContribution } from './calendarAssignmentViewContribution';
+import { getMissingAssignmentTypePrompt } from './assignmentDefinitionPrompt';
+import { getShiftSetupPrompt } from './shiftSetupPrompt';
 import { isLeaveEvent } from './calendarSchedulingData';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { isSchedulingCancelled } from './schedulingLifecycle';
@@ -41,6 +44,7 @@ import {
   canCreateShifts,
   canCreateLeave,
   canEditAssignments,
+  canEditShifts,
   canPublishSchedule,
   canViewAssignments,
   canViewShifts,
@@ -57,9 +61,29 @@ export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
   isAvailable: (context, runtimeContext) =>
     context.activeViewId === calendarShiftViewContribution.id &&
     (canCreateShifts(runtimeContext) || canCreateLeave(runtimeContext)),
+  getPrompt: (data, context) => getShiftSetupPrompt(data, context),
   run: (context, runtimeContext) => {
     if (!canCreateShifts(runtimeContext) && !canCreateLeave(runtimeContext)) return;
     showCalendarSchedulingResourceActionModal(undefined, context.startDate);
+  },
+};
+
+export const calendarSchedulingCreateAssignmentTypeAction: CalendarCreateAction = {
+  id: calendarSchedulingActionIds.createAssignmentType,
+  moduleId: CalendarModuleId.SchedulingUi,
+  label: '+ Create Assignment Type',
+  isAvailable: (context, runtimeContext) =>
+    context.activeViewId === calendarAssignmentViewContribution.id && canCreateAssignments(runtimeContext),
+  getPrompt: (data, context) =>
+    getMissingAssignmentTypePrompt(
+      data,
+      context.locationId,
+      context.startDate,
+      resolveSchedulingTimeZoneFromFilters(context.filters),
+    ),
+  run: (context, runtimeContext) => {
+    if (!canCreateAssignments(runtimeContext)) return;
+    showCalendarSchedulingAssignmentTypeCreateModal(context.locationId, context.startDate);
   },
 };
 
@@ -184,31 +208,61 @@ export const calendarDropUserOnAssignmentResourceAction: CalendarDropAction = {
   moduleId: CalendarModuleId.SchedulingUi,
   label: 'Drop user on assignment resource',
   order: 20,
-  isAvailable: (context, runtimeContext) =>
-    context.drag.itemType === 'user' &&
-    context.drop.resourceType === 'assignment' &&
-    Boolean(context.drop.date) &&
-    canCreateShifts(runtimeContext),
-  execute: async (context, runtimeContext) => {
-    if (!canCreateShifts(runtimeContext)) return;
+  isAvailable: (context, runtimeContext) => {
+    if (context.drag.itemType !== 'user' || !context.drop.date) return false;
+    if (context.drop.resourceType === 'user') {
+      if (context.drop.resourceId !== context.drag.itemId) return false;
+      return resolveExistingShiftForDroppedUser(context)
+        ? canEditShifts(runtimeContext)
+        : canCreateShifts(runtimeContext);
+    }
+    if (context.drop.resourceType !== 'assignment') return false;
+    if (!resolveTargetAssignmentDefinitionId(context)) return false;
     const assignmentEvents = resolveAssignmentEvents(context);
-    const resource = resolveUserResource(context);
-    const assignmentEntryId =
-      assignmentEvents.length === 1 ? (resolveAssignmentEntryId(assignmentEvents[0]) ?? undefined) : undefined;
+    if (assignmentEvents.length > 1) return false;
     const existingShift = resolveExistingShiftForDroppedUser(context);
-
-    if (existingShift) {
-      showCalendarSchedulingExistingShiftChoice({
-        shiftEvent: existingShift,
-        resource,
-        date: context.drop.date,
-        assignmentEntryId,
+    if (!existingShift) return canCreateShifts(runtimeContext);
+    return (
+      canAssignAssignments(runtimeContext) &&
+      (assignmentEvents.length ? canEditAssignments(runtimeContext) : canCreateAssignments(runtimeContext))
+    );
+  },
+  execute: (context, runtimeContext) => {
+    if (!calendarDropUserOnAssignmentResourceAction.isAvailable?.(context, runtimeContext)) return;
+    const resource = resolveUserResource(context);
+    const existingShift = resolveExistingShiftForDroppedUser(context);
+    if (context.drop.resourceType === 'user') {
+      if (existingShift) {
+        showCalendarSchedulingEventDetail(existingShift, { initialOpenScope: 'event', initialTab: 'edit' });
+      } else {
+        showCalendarSchedulingResourceActionModal(resource, context.drop.date);
+      }
+      return;
+    }
+    const assignmentEvents = resolveAssignmentEvents(context);
+    if (assignmentEvents.length > 1) return;
+    const assignmentEvent = assignmentEvents[0];
+    const assignmentEntryId = assignmentEvent ? resolveAssignmentEntryId(assignmentEvent) : undefined;
+    if (!existingShift) {
+      showCalendarSchedulingResourceActionModal(resource, context.drop.date, {
+        assignmentEntryId: assignmentEntryId ?? undefined,
         assignmentEvents,
+        missingShiftWarning: true,
       });
       return;
     }
-
-    showCalendarSchedulingResourceActionModal(resource, context.drop.date, { assignmentEntryId, assignmentEvents });
+    const shiftEntryId = resolveShiftEntryId(existingShift);
+    if (!shiftEntryId || (assignmentEvent && !assignmentEntryId)) return;
+    showCalendarSchedulingAssignmentModal(context.drop.date, {
+      mode: assignmentEvent ? 'edit' : 'create',
+      editScope: assignmentEvent ? 'event' : undefined,
+      assignmentEntryId: assignmentEntryId ?? undefined,
+      assignmentSeriesId: assignmentEvent ? (resolveAssignmentSeriesId(assignmentEvent) ?? undefined) : undefined,
+      assignmentDefinitionId: resolveTargetAssignmentDefinitionId(context),
+      shiftEntryIds: [shiftEntryId],
+      assignedUserId: context.drag.itemId,
+      draggedUserOnly: true,
+    });
   },
 };
 
@@ -475,26 +529,50 @@ function resolveUserResource(context: CalendarMatrixDropActionContext) {
 }
 
 function resolveAssignmentEvents(context: CalendarMatrixDropActionContext) {
+  const definitionId = resolveTargetAssignmentDefinitionId(context);
+  if (!definitionId) return [];
+  const targetResource = context.model.primaryColumn.resources.find(
+    (resource) => resource.id === context.drop.resourceId,
+  );
+  const locationId = parsePositiveInteger((targetResource as { locationId?: unknown } | undefined)?.locationId);
   const cell = context.model.cells.find(
     (candidate) => candidate.resourceId === context.drop.resourceId && candidate.date === context.drop.date,
   );
-  return cell?.groups.flatMap((group) => group.events.map((item) => item.event)).filter(isAssignmentEvent) ?? [];
+  const events = cell?.groups.flatMap((group) => group.events.map((item) => item.event)) ?? [];
+  return [
+    ...new Map(
+      events
+        .filter(
+          (event) =>
+            isAssignmentEvent(event) &&
+            !isSchedulingCancelled(event.statusTypeCode) &&
+            resolveEventAssignmentDefinitionId(event) === definitionId &&
+            assignmentEntryMatchesDate(event, context.drop.date, context.model.timeZone) &&
+            (!locationId || event.locationId == null || event.locationId === locationId),
+        )
+        .map((event) => [resolveAssignmentEntryId(event) ?? event.id, event]),
+    ).values(),
+  ];
+}
+
+function resolveTargetAssignmentDefinitionId(context: CalendarMatrixDropActionContext) {
+  const resource = context.model.primaryColumn.resources.find((candidate) => candidate.id === context.drop.resourceId);
+  return resolveResourceAssignmentDefinitionId(resource ?? { id: context.drop.resourceId }) ?? undefined;
 }
 
 function resolveExistingShiftForDroppedUser(context: CalendarMatrixDropActionContext) {
-  const cell = context.model.cells.find(
-    (candidate) => candidate.resourceId === context.drop.resourceId && candidate.date === context.drop.date,
-  );
   const targetResource = context.model.primaryColumn.resources.find(
     (resource) => resource.id === context.drop.resourceId,
   );
   const assignmentLocationId = parsePositiveInteger(
     (targetResource as { locationId?: unknown } | undefined)?.locationId,
   );
-  const shiftEvents = [
-    ...getPayloadShiftEvents(cell?.payload),
-    ...(cell?.headers?.map((header) => header.payload).filter(isCalendarEventBase) ?? []),
-  ];
+  const shiftEvents = context.model.cells
+    .filter((cell) => cell.date === context.drop.date)
+    .flatMap((cell) => [
+      ...getPayloadShiftEvents(cell.payload),
+      ...(cell.headers?.map((header) => header.payload).filter(isCalendarEventBase) ?? []),
+    ]);
 
   return shiftEvents.find(
     (event) =>
