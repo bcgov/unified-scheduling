@@ -36,12 +36,14 @@ export function buildLeaveRequest(
   }
 
   const startAtUtc = toUtcIso(form.date, form.startTime || defaultStartTime, options.timeZoneId);
-  const endAtUtc = toUtcIso(form.date, form.endTime || defaultEndTime, options.timeZoneId);
-  if (!startAtUtc || !endAtUtc) {
+  // Preserve explicit absence on entries; uninitialized creation values still use the default.
+  const endTime = form.endTime === null ? null : form.endTime || defaultEndTime;
+  const endAtUtc = endTime === null ? null : toUtcIso(form.date, endTime, options.timeZoneId);
+  if (!startAtUtc || (endTime !== null && !endAtUtc) || (form.repeatMode === 'custom' && !endAtUtc)) {
     return { error: 'Select a valid date and time.' };
   }
 
-  if (endAtUtc <= startAtUtc) {
+  if (endAtUtc && endAtUtc <= startAtUtc) {
     return { error: 'End time must be after start time.' };
   }
 

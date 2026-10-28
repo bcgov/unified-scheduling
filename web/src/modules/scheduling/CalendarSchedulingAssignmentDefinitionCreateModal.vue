@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import UaRequiredIndicator from '@/shared/components/UaRequiredIndicator.vue';
 import {
   getApiSchedulingAssignmentDefinitionsId,
   postApiSchedulingAssignmentDefinitions,
   putApiSchedulingAssignmentDefinitionsId,
 } from '@/api-access/generated/assignment-definition/assignment-definition';
-import { mdiPencil } from '@mdi/js';
+import { mdiClose, mdiPencil } from '@mdi/js';
 import { PostApiSchedulingAssignmentDefinitionsBody } from '@/api-access/generated/assignment-definition/assignment-definition.zod';
 import { getApiStatsCategories } from '@/api-access/generated/stat-categories/stat-categories';
 import { getApiStatsGroups } from '@/api-access/generated/stat-groups/stat-groups';
@@ -84,8 +85,6 @@ const assignmentDefinitionCreateSchema = PostApiSchedulingAssignmentDefinitionsB
   subCategoryId: zod.number().min(1, validationMessages.required),
   color: zod.string().optional(),
   defaultCapacity: zod.number().min(1),
-  defaultStartTime: zod.string().min(1, validationMessages.required),
-  defaultEndTime: zod.string().min(1, validationMessages.required),
   effectiveDateUtc: zod.string().min(1, validationMessages.required),
 }).superRefine((data, ctx) => {
   if (data.defaultStartTime && data.defaultEndTime && data.defaultEndTime <= data.defaultStartTime) {
@@ -335,6 +334,8 @@ function validateForm() {
     categoryId: normalizeNumber(formData.value.categoryId),
     subCategoryId: normalizeNumber(formData.value.subCategoryId),
     defaultCapacity: Number(formData.value.defaultCapacity),
+    defaultStartTime: formData.value.defaultStartTime || null,
+    defaultEndTime: formData.value.defaultEndTime || null,
     effectiveDateUtc: fromUtcBusinessDateInput(formData.value.effectiveDateUtc),
     expiryDateUtc: formData.value.expiryDateUtc ? fromUtcBusinessDateInput(formData.value.expiryDateUtc) : null,
   };
@@ -524,8 +525,8 @@ function mapAssignmentDefinitionToFormData(
     subCategoryId: assignmentDefinition.subCategoryId,
     color: assignmentDefinition.color ?? undefined,
     defaultCapacity: assignmentDefinition.defaultCapacity ?? 1,
-    defaultStartTime: normalizeTimeOptionValue(assignmentDefinition.defaultStartTime ?? defaultStartTime),
-    defaultEndTime: normalizeTimeOptionValue(assignmentDefinition.defaultEndTime ?? defaultEndTime),
+    defaultStartTime: normalizeTimeOptionValue(assignmentDefinition.defaultStartTime ?? undefined) ?? null,
+    defaultEndTime: normalizeTimeOptionValue(assignmentDefinition.defaultEndTime ?? undefined) ?? null,
     effectiveDateUtc: toUtcBusinessDateInput(assignmentDefinition.effectiveDateUtc) || getTodayDateInputValue(),
     expiryDateUtc: toUtcBusinessDateInput(assignmentDefinition.expiryDateUtc) || null,
   };
@@ -565,6 +566,7 @@ function mapAssignmentDefinitionToFormData(
       <UaTextField
         id="assignment-definition-modal-name"
         label="Name"
+        required
         :model-value="formData.name"
         :error-messages="formErrors.name"
         :disabled="isSaving || isLoading"
@@ -580,10 +582,13 @@ function mapAssignmentDefinitionToFormData(
         @update:model-value="(value: string | null) => (formData.description = value ?? '')"
       />
 
-      <label class="assignment-definition-modal__label" for="assignment-definition-modal-location">Location</label>
+      <label class="assignment-definition-modal__label" for="assignment-definition-modal-location">
+        Location<UaRequiredIndicator />
+      </label>
       <div class="assignment-definition-modal__field">
         <UaSelect
           id="assignment-definition-modal-location"
+          aria-required="true"
           :model-value="formData.locationId"
           :items="locationOptions"
           :error="Boolean(formErrors.locationId)"
@@ -595,9 +600,12 @@ function mapAssignmentDefinitionToFormData(
         </p>
       </div>
 
-      <label class="assignment-definition-modal__label" for="assignment-definition-modal-group">Group</label>
+      <label class="assignment-definition-modal__label" for="assignment-definition-modal-group">
+        Group<UaRequiredIndicator />
+      </label>
       <UaSelect
         id="assignment-definition-modal-group"
+        aria-required="true"
         :model-value="selectedAssignmentGroupId"
         :items="assignmentGroupOptions"
         :disabled="isSaving || isLoading"
@@ -605,9 +613,12 @@ function mapAssignmentDefinitionToFormData(
         @update:model-value="updateAssignmentGroup"
       />
 
-      <label class="assignment-definition-modal__label" for="assignment-definition-modal-category">Work Area</label>
+      <label class="assignment-definition-modal__label" for="assignment-definition-modal-category">
+        Work Area<UaRequiredIndicator />
+      </label>
       <UaSelect
         id="assignment-definition-modal-category"
+        aria-required="true"
         :model-value="formData.categoryId"
         :items="assignmentCategoryOptions"
         :error="Boolean(formErrors.categoryId)"
@@ -616,11 +627,12 @@ function mapAssignmentDefinitionToFormData(
         @update:model-value="updateAssignmentCategory"
       />
 
-      <label class="assignment-definition-modal__label" for="assignment-definition-modal-subcategory"
-        >Subcategory</label
-      >
+      <label class="assignment-definition-modal__label" for="assignment-definition-modal-subcategory">
+        Subcategory<UaRequiredIndicator />
+      </label>
       <UaSelect
         id="assignment-definition-modal-subcategory"
+        aria-required="true"
         :model-value="formData.subCategoryId"
         :items="assignmentSubCategoryOptions"
         :error="Boolean(formErrors.subCategoryId)"
@@ -641,6 +653,7 @@ function mapAssignmentDefinitionToFormData(
       <UaTextField
         id="assignment-definition-modal-capacity"
         label="Capacity"
+        required
         type="number"
         :model-value="String(formData.defaultCapacity ?? '')"
         :error-messages="formErrors.defaultCapacity"
@@ -654,6 +667,9 @@ function mapAssignmentDefinitionToFormData(
       <UaSelect
         id="assignment-definition-modal-default-start"
         :model-value="formData.defaultStartTime"
+        clearable
+        persistent-clear
+        :clear-icon="mdiClose"
         :items="timeOptions"
         :error="Boolean(formErrors.defaultStartTime)"
         :disabled="isSaving || isLoading"
@@ -666,6 +682,9 @@ function mapAssignmentDefinitionToFormData(
       <UaSelect
         id="assignment-definition-modal-default-end"
         :model-value="formData.defaultEndTime"
+        clearable
+        persistent-clear
+        :clear-icon="mdiClose"
         :items="timeOptions"
         :error="Boolean(formErrors.defaultEndTime)"
         :disabled="isSaving || isLoading"
@@ -675,6 +694,7 @@ function mapAssignmentDefinitionToFormData(
       <UaTextField
         id="assignment-definition-modal-effective-date"
         label="Effective Date"
+        required
         type="date"
         :model-value="formData.effectiveDateUtc"
         :error-messages="formErrors.effectiveDateUtc"
