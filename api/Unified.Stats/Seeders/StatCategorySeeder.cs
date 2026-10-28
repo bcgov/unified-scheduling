@@ -255,6 +255,7 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
             Id = 32,
             GroupId = 3,
             Name = "Transports Females",
+            IsArchived = true,
             DisplayOrder = 8,
         },
         new()
@@ -269,7 +270,15 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
             Id = 33,
             GroupId = 3,
             Name = "Transports Males",
+            IsArchived = true,
             DisplayOrder = 10,
+        },
+        new()
+        {
+            Id = LegacyBiOracleStatsSeedData.SupervisionCategoryId,
+            GroupId = 2,
+            Name = "Supervisory Duties (Non-frontline)",
+            DisplayOrder = 13,
         },
     ];
 
@@ -287,7 +296,19 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
             if (existing is null)
             {
                 Logger.LogInformation("StatCategory with Id {Id} does not exist, adding it...", seed.Id);
-                await dbContext.StatCategories.AddAsync(seed, cancellationToken);
+                // Keep seed definitions separate from EF-tracked mutable entities.
+                await dbContext.StatCategories.AddAsync(
+                    new StatCategory
+                    {
+                        Id = seed.Id,
+                        GroupId = seed.GroupId,
+                        Name = seed.Name,
+                        IsArchived = seed.IsArchived,
+                        IsHighSecurity = seed.IsHighSecurity,
+                        DisplayOrder = seed.DisplayOrder,
+                    },
+                    cancellationToken
+                );
                 createdCount++;
                 continue;
             }
@@ -295,6 +316,7 @@ public class StatCategorySeeder(ILogger<StatCategorySeeder> logger) : SeederBase
             Logger.LogInformation("Updating fields for StatCategory with Id {Id}...", seed.Id);
             existing.GroupId = seed.GroupId;
             existing.Name = seed.Name;
+            existing.IsArchived = seed.IsArchived;
             existing.DisplayOrder = seed.DisplayOrder;
             updatedCount++;
         }

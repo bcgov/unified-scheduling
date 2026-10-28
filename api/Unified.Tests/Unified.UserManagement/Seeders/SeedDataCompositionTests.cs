@@ -32,7 +32,11 @@ public sealed class SeedDataCompositionTests
         var statMappings = Assert.Single(provider.GetServices<BiOracleStatMappingSeedConfiguration>());
         var locationMappings = Assert.Single(provider.GetServices<BiOracleLocationMappingSeedConfiguration>());
 
-        Assert.Equal(516, Assert.Single(statMappings.Definitions).Mappings.Count);
+        var mappingSet = Assert.Single(statMappings.Definitions);
+        Assert.Equal(1, mappingSet.Id);
+        Assert.Equal(new DateOnly(2026, 11, 1), mappingSet.EffectiveDate);
+        Assert.Null(mappingSet.ExpiryDate);
+        Assert.Equal(661, mappingSet.Mappings.Count);
         Assert.Equal(119, locationMappings.Definitions.Count);
     }
 
