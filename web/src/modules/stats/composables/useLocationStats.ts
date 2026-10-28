@@ -46,6 +46,7 @@ export function useLocationStats() {
 
   // ── Reference data ────────────────────────────────────────────────────────
   const isLoadingReference = ref(true);
+  const isReferenceDataReady = ref(false);
   const groups = ref<StatGroupResponse[]>([]);
   const categories = ref<StatCategoryResponse[]>([]);
   const subCategories = ref<SubCategoryResponse[]>([]);
@@ -89,6 +90,7 @@ export function useLocationStats() {
     categories,
     subCategoryMetrics,
     metrics,
+    isReferenceDataReady,
   );
 
   // ── Selected day ──────────────────────────────────────────────────────────
@@ -210,26 +212,38 @@ export function useLocationStats() {
 
   // ── Mount ─────────────────────────────────────────────────────────────────
   onMounted(async () => {
-    const [groupsRes, catsRes, subCatsRes, metricsRes, scmRes] = await Promise.all([
-      getApiStatsGroups(),
-      getApiStatsCategories(),
-      getApiStatsSubCategories(),
-      getApiStatsMetrics(),
-      getApiStatsSubCategoryMetrics(),
-    ]);
-    groups.value = groupsRes.data.value ?? [];
-    categories.value = catsRes.data.value ?? [];
-    subCategories.value = subCatsRes.data.value ?? [];
-    metrics.value = metricsRes.data.value ?? [];
-    subCategoryMetrics.value = scmRes.data.value ?? [];
-
-    isLoadingReference.value = false;
-
-    if (selectedLocationId.value) {
-      await loadWeek();
-      if (seedDate) {
-        onSelectDay(seedDate);
+    try {
+      const [groupsRes, catsRes, subCatsRes, metricsRes, scmRes] = await Promise.all([
+        getApiStatsGroups(),
+        getApiStatsCategories(),
+        getApiStatsSubCategories(),
+        getApiStatsMetrics(),
+        getApiStatsSubCategoryMetrics(),
+      ]);
+      for (const result of [groupsRes, catsRes, subCatsRes, metricsRes, scmRes]) {
+        if (result.error.value || !Array.isArray(result.data.value)) {
+          throw new Error(result.error.value?.message ?? 'Failed to load reference data.');
+        }
       }
+      groups.value = groupsRes.data.value!;
+      categories.value = catsRes.data.value!;
+      subCategories.value = subCatsRes.data.value!;
+      metrics.value = metricsRes.data.value!;
+      subCategoryMetrics.value = scmRes.data.value!;
+
+      isReferenceDataReady.value = true;
+      isLoadingReference.value = false;
+
+      if (selectedLocationId.value) {
+        await loadWeek();
+        if (seedDate) {
+          onSelectDay(seedDate);
+        }
+      }
+    } catch (e) {
+      loadError.value = e instanceof Error ? e.message : 'Failed to load reference data.';
+    } finally {
+      isLoadingReference.value = false;
     }
   });
 
