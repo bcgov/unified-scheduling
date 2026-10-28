@@ -21,7 +21,7 @@ public sealed class AssignmentSeriesRequestValidator : AbstractValidator<Assignm
         RuleFor(request => request.LocationId).NotEmpty().GreaterThan(0);
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
-        RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
+        RuleFor(request => request.Capacity).GreaterThanOrEqualTo(0);
         RuleFor(request => request.RecurrenceRule).NotEmpty();
         RuleForEach(request => request.ShiftSeriesLinks).SetValidator(new ShiftSeriesLinkRequestValidator());
         RuleFor(request => request.ShiftSeriesLinks)
@@ -51,7 +51,7 @@ public sealed class AssignmentEntryRequestValidator : AbstractValidator<Assignme
         RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
-        RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
+        RuleFor(request => request.Capacity).GreaterThanOrEqualTo(0);
         this.AddShiftEntryLinkRules(request => request.ShiftEntryLinks);
     }
 }
@@ -71,7 +71,7 @@ public sealed class AssignmentEntryUpdateRequestValidator : AbstractValidator<As
         RuleFor(request => request.LocationId).NotNull().GreaterThan(0);
         RuleFor(request => request.CategoryId).GreaterThan(0);
         RuleFor(request => request.SubCategoryId).GreaterThan(0);
-        RuleFor(request => request.Capacity).GreaterThanOrEqualTo(1);
+        RuleFor(request => request.Capacity).GreaterThanOrEqualTo(0);
         this.AddShiftEntryLinkRules(request => request.ShiftEntryLinks);
         RuleForEach(request => request.ConflictOverrides).SetValidator(new CalendarConflictAcknowledgementValidator());
     }

@@ -6,6 +6,30 @@ namespace Unified.Tests.Scheduling.Validators;
 public sealed class AssignmentDefinitionRequestValidatorTests
 {
     [Fact]
+    public async Task Zero_default_capacity_is_rejected()
+    {
+        var request = new AssignmentDefinitionRequest
+        {
+            LocationId = 1,
+            Name = "Template",
+            CategoryId = 2,
+            SubCategoryId = 3,
+            DefaultCapacity = 0,
+            EffectiveDateUtc = DateTimeOffset.Parse("2026-01-01T00:00:00Z"),
+        };
+
+        var result = await new AssignmentDefinitionRequestValidator().ValidateAsync(
+            request,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Contains(
+            result.Errors,
+            error => error.PropertyName == nameof(AssignmentDefinitionRequest.DefaultCapacity)
+        );
+    }
+
+    [Fact]
     public async Task Category_and_subcategory_are_required()
     {
         var result = await new AssignmentDefinitionRequestValidator().ValidateAsync(
