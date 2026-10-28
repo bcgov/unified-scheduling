@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import {
   buildDateRangeForPeriod,
   getTodayDateOnly,
@@ -10,12 +11,14 @@ import {
 export type CalendarPeriod = 'day' | 'week' | 'work-week' | 'month';
 
 export const useCalendarStore = defineStore('calendar', () => {
+  const locationsStore = useLocationsStore();
   const activeViewId = ref('');
   const anchorDate = ref(getTodayDateOnly());
   const period = ref<CalendarPeriod>('week');
   const dateRange = computed(() => buildDateRangeForPeriod(anchorDate.value, period.value));
   const locationId = ref<number>();
   const filters = ref<Record<string, unknown>>({});
+  const sidePanelSearchByView = ref<Record<string, string>>({});
   const refreshNonce = ref(0);
   const selectedEventId = ref<string>();
   const selectedResourceId = ref<string>();
@@ -61,6 +64,14 @@ export const useCalendarStore = defineStore('calendar', () => {
     selectedEventId.value = eventId;
   };
 
+  const setSidePanelSearch = (viewId: string, query: string) => {
+    sidePanelSearchByView.value[viewId] = query;
+  };
+
+  const clearSidePanelSearches = () => {
+    sidePanelSearchByView.value = {};
+  };
+
   const clearSelectedEvent = () => {
     selectedEventId.value = undefined;
   };
@@ -78,6 +89,9 @@ export const useCalendarStore = defineStore('calendar', () => {
     refreshNonce.value += 1;
   };
 
+  // Keep observing while Calendar is unmounted, including multiple selections in one tick.
+  watch(() => locationsStore.selectedLocationId, clearSidePanelSearches, { flush: 'sync' });
+
   return {
     activeViewId,
     dateRange,
@@ -85,6 +99,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     period,
     locationId,
     filters,
+    sidePanelSearchByView,
     refreshNonce,
     selectedEventId,
     selectedResourceId,
@@ -96,6 +111,8 @@ export const useCalendarStore = defineStore('calendar', () => {
     setLocationId,
     setFilter,
     clearFilter,
+    setSidePanelSearch,
+    clearSidePanelSearches,
     setSelectedEvent,
     clearSelectedEvent,
     setSelectedResource,
