@@ -27,9 +27,11 @@ public sealed class LeaveCalendarDataProvider(UnifiedDbContext db, SchedulingLea
                 entry.Event!.StartAtUtc == null
                 || (
                     entry.Event.StartAtUtc < queryContext.EndAtUtc
-                    && (entry.Event.EndAtUtc == null
-                        ? entry.Event.StartAtUtc >= queryContext.StartAtUtc
-                        : entry.Event.EndAtUtc > queryContext.StartAtUtc)
+                    && (
+                        entry.Event.EndAtUtc == null
+                            ? entry.Event.StartAtUtc >= queryContext.StartAtUtc
+                            : entry.Event.EndAtUtc > queryContext.StartAtUtc
+                    )
                 )
             );
         if (queryContext.LocationId.HasValue)
