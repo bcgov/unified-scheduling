@@ -297,6 +297,7 @@ function updateNthWeekdayPosition(setPosition: NthWeekdayPosition) {
       <div
         v-if="model.frequency === 'WEEKLY'"
         class="rrule-editor__weekdays"
+        role="group"
         :aria-labelledby="`${idPrefix}-weekdays-label`"
       >
         <v-btn-toggle
