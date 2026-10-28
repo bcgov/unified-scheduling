@@ -2304,7 +2304,7 @@ public class SubCategoryMetricSeeder(ILogger<SubCategoryMetricSeeder> logger) : 
         Logger.LogInformation("Archived {ArchivedCount} SubCategoryMetric entries.", archivedCount);
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await StatsSeedIdentitySequence.AdvanceAsync(dbContext, "public", "SubCategoryMetrics", cancellationToken);
+        await StatsSeedIdentitySequence.AdvanceAsync(dbContext, cancellationToken);
         Logger.LogInformation(
             "SubCategoryMetric seeding complete. Created {CreatedCount}, updated {UpdatedCount}.",
             createdCount,
