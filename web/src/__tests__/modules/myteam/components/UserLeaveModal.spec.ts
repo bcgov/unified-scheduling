@@ -38,7 +38,10 @@ const entry = {
   leaveSeriesId: 77,
 };
 
-async function mountModal(scope?: 'event' | 'series', selectedEntry: Omit<typeof entry, 'endAtUtc'> & { endAtUtc: string | null } | null = entry) {
+async function mountModal(
+  scope?: 'event' | 'series',
+  selectedEntry: (Omit<typeof entry, 'endAtUtc'> & { endAtUtc: string | null }) | null = entry,
+) {
   const app = await createTestApp({ loadConfig: false });
   return mount(UserLeaveModal, {
     props: {
@@ -89,7 +92,11 @@ describe('UserLeaveModal', () => {
         .trigger('click');
       await vi.waitFor(() =>
         expect(saved).toMatchObject({
-          notes: 'Edited unrelated notes', leaveTypeId: 9, leaveSeriesId: 77, startAtUtc, endAtUtc,
+          notes: 'Edited unrelated notes',
+          leaveTypeId: 9,
+          leaveSeriesId: 77,
+          startAtUtc,
+          endAtUtc,
         }),
       );
       await vi.waitFor(() => expect(wrapper.emitted('save')).toHaveLength(1));
