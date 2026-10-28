@@ -11,6 +11,11 @@ public class LoanOutEntryConfiguration : BaseEntityConfiguration<LoanOutEntry>
         builder.Property(entity => entity.Id).HasIdentityOptions(startValue: 200);
 
         builder
+            .HasOne(entity => entity.LoanOutSeries)
+            .WithMany(series => series.LoanOutEntries)
+            .HasForeignKey(entity => entity.LoanOutSeriesId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder
             .HasOne(entity => entity.Event)
             .WithMany()
             .HasForeignKey(entity => entity.EventId)
