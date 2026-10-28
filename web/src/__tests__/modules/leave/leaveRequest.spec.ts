@@ -50,25 +50,49 @@ describe('leaveRequest', () => {
     { endTime: '18:00', error: 'End time must be after start time.' },
     { endTime: '19:00', error: 'End time must be after start time.' },
   ])('requires a valid ordered end for recurring leave ($endTime)', ({ endTime, error }) => {
-    expect(buildLeaveRequest({
-      ...entryForm, endTime, repeatMode: 'custom', recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
-    }, requestOptions)).toEqual({ error });
+    expect(
+      buildLeaveRequest(
+        {
+          ...entryForm,
+          endTime,
+          repeatMode: 'custom',
+          recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
+        },
+        requestOptions,
+      ),
+    ).toEqual({ error });
   });
 
   it('accepts recurring leave with an explicitly supplied end', () => {
-    expect(buildLeaveRequest({
-      ...entryForm, endTime: '20:00', repeatMode: 'custom', recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
-    }, requestOptions)).toMatchObject({
+    expect(
+      buildLeaveRequest(
+        {
+          ...entryForm,
+          endTime: '20:00',
+          repeatMode: 'custom',
+          recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
+        },
+        requestOptions,
+      ),
+    ).toMatchObject({
       kind: 'series',
       request: { endAtUtc: '2026-06-11T03:00:00Z', recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2' },
     });
   });
 
   it('retains creation defaults when creating recurring leave', () => {
-    expect(buildLeaveRequest({
-      ...entryForm, startTime: undefined, endTime: undefined,
-      repeatMode: 'custom', recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
-    }, requestOptions)).toMatchObject({
+    expect(
+      buildLeaveRequest(
+        {
+          ...entryForm,
+          startTime: undefined,
+          endTime: undefined,
+          repeatMode: 'custom',
+          recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=2',
+        },
+        requestOptions,
+      ),
+    ).toMatchObject({
       kind: 'series',
       request: { startAtUtc: '2026-06-10T16:00:00Z', endAtUtc: '2026-06-11T00:00:00Z' },
     });
