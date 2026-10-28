@@ -94,8 +94,14 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     if (!loaded) event.metadata = { ...event.metadata, leaveSeriesId: undefined };
     mocks.getLeaveEntry.mockResolvedValue({
       data: ref({
-        id: 42, leaveSeriesId: 77, userIds: event.resourceIds, leaveTypeId: 9,
-        startAtUtc: event.start, endAtUtc, timeZoneId: 'America/Vancouver', locationId: 3,
+        id: 42,
+        leaveSeriesId: 77,
+        userIds: event.resourceIds,
+        leaveTypeId: 9,
+        startAtUtc: event.start,
+        endAtUtc,
+        timeZoneId: 'America/Vancouver',
+        locationId: 3,
       }),
       error: ref(null),
     });
@@ -135,9 +141,14 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
       expect((wrapper.get('input[aria-label="End Time"]').element as HTMLInputElement).value).toBe('');
       await wrapper.get('textarea#user-leave-notes').setValue('Updated notes');
       await vm.handleSave();
-      expect(mocks.updateLeaveEntry).toHaveBeenCalledWith(42, expect.objectContaining({
-        startAtUtc: '2026-06-11T02:00:00Z', endAtUtc: null, notes: 'Updated notes',
-      }));
+      expect(mocks.updateLeaveEntry).toHaveBeenCalledWith(
+        42,
+        expect.objectContaining({
+          startAtUtc: '2026-06-11T02:00:00Z',
+          endAtUtc: null,
+          notes: 'Updated notes',
+        }),
+      );
     } finally {
       wrapper.unmount();
     }
@@ -146,33 +157,43 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
   it.each([true, false])('persists an end selected on an entry that had no end (loaded entry: %s)', async (loaded) => {
     const { wrapper, vm } = await mountEntryEditor(loaded, null);
     try {
-      const endSelect = wrapper.findAllComponents({ name: 'UaSelect' })
+      const endSelect = wrapper
+        .findAllComponents({ name: 'UaSelect' })
         .find((select) => select.find('input[aria-label="End Time"]').exists())!;
       endSelect.vm.$emit('update:modelValue', '20:00');
       await flushPromises();
       expect(vm.editFormData.endTime).toBe('20:00');
       await vm.handleSave();
-      expect(mocks.updateLeaveEntry).toHaveBeenCalledWith(42, expect.objectContaining({
-        endAtUtc: '2026-06-11T03:00:00Z',
-      }));
+      expect(mocks.updateLeaveEntry).toHaveBeenCalledWith(
+        42,
+        expect.objectContaining({
+          endAtUtc: '2026-06-11T03:00:00Z',
+        }),
+      );
     } finally {
       wrapper.unmount();
     }
   });
 
-  it.each([true, false])('preserves an existing end time when saved without changes (loaded entry: %s)', async (loaded) => {
-    const { wrapper, vm } = await mountEntryEditor(loaded, '2026-06-11T03:00:00Z');
-    try {
-      expect(vm.editFormData.endTime).toBe('20:00');
-      expect((wrapper.get('input[aria-label="End Time"]').element as HTMLInputElement).value).toBe('8:00 PM');
-      await vm.handleSave();
-      expect(mocks.updateLeaveEntry).toHaveBeenCalledWith(42, expect.objectContaining({
-        endAtUtc: '2026-06-11T03:00:00Z',
-      }));
-    } finally {
-      wrapper.unmount();
-    }
-  });
+  it.each([true, false])(
+    'preserves an existing end time when saved without changes (loaded entry: %s)',
+    async (loaded) => {
+      const { wrapper, vm } = await mountEntryEditor(loaded, '2026-06-11T03:00:00Z');
+      try {
+        expect(vm.editFormData.endTime).toBe('20:00');
+        expect((wrapper.get('input[aria-label="End Time"]').element as HTMLInputElement).value).toBe('8:00 PM');
+        await vm.handleSave();
+        expect(mocks.updateLeaveEntry).toHaveBeenCalledWith(
+          42,
+          expect.objectContaining({
+            endAtUtc: '2026-06-11T03:00:00Z',
+          }),
+        );
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
 
   it('retains the default end-time display for an uninitialized creation form', async () => {
     const { default: LeaveForm } = await import('@/modules/leave/components/LeaveForm.vue');
