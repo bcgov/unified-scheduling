@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Calendar.Factories;
 using Unified.Calendar.Mappings;
 using Unified.Calendar.Services;
+using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
@@ -15,6 +16,7 @@ using Unified.LoanOut.Factories;
 using Unified.LoanOut.Mappers;
 using Unified.LoanOut.Models;
 using Unified.LoanOut.Services;
+using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.LoanOut.Services;
@@ -27,6 +29,7 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _db = null!;
     private LoanOutSeriesService _service = null!;
+    private readonly FakeSchedulingLoanOutService _schedulingLoanOutService = new();
 
     public async ValueTask InitializeAsync()
     {
@@ -104,7 +107,8 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             new LoanOutEventMapper(eventMapper),
             calendarSeriesService,
             new FakeMaterializationService(),
-            new LoanOutSeriesMaterializationHandler(_db)
+            new LoanOutSeriesMaterializationHandler(_db),
+            _schedulingLoanOutService
         );
     }
 
@@ -128,6 +132,9 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
         Assert.Equal(10, response.LoanOutLocationId);
         Assert.Equal(2, response.LoanOutEntryIds.Count);
         Assert.Equal(2, _db.Events.Count());
+        Assert.True(response.AllDay);
+        Assert.True(series.EventSeries!.AllDay);
+        Assert.All(_db.Events, eventEntity => Assert.True(eventEntity.AllDay));
         Assert.Equal(LoanOutConstants.SourceModule, series.EventSeries!.Events.First().SourceModule);
         Assert.Equal(UserA, Assert.Single(series.Users).UserId);
         Assert.All(
@@ -161,11 +168,52 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateLoanOutSeriesAsync_AlwaysPersistsSeriesAndEventsAsAllDay()
+    {
+        var created = await _service.CreateLoanOutSeriesAsync(CreateRequest(), TestContext.Current.CancellationToken);
+        var series = await _db
+            .LoanOutSeries.Include(item => item.EventSeries!)
+                .ThenInclude(eventSeries => eventSeries.Events)
+            .Include(item => item.LoanOutEntries)
+                .ThenInclude(entry => entry.Event)
+            .SingleAsync();
+        series.EventSeries!.AllDay = false;
+        foreach (var eventEntity in _db.Events)
+            eventEntity.AllDay = false;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var response = await _service.UpdateLoanOutSeriesAsync(
+            created.Id,
+            CreateRequest(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(response);
+        Assert.True(response.AllDay);
+        Assert.True(series.EventSeries.AllDay);
+        Assert.All(_db.Events, eventEntity => Assert.True(eventEntity.AllDay));
+    }
+
+    [Fact]
     public async Task DeleteLoanOutSeriesAsync_WhenMissing_ReturnsFalse()
     {
         var deleted = await _service.DeleteLoanOutSeriesAsync(123, TestContext.Current.CancellationToken);
 
         Assert.False(deleted);
+    }
+
+    [Fact]
+    public async Task UpdateAndDeleteLoanOutSeriesAsync_WhenShiftExistsAtLoanOutLocation_ThrowsConflict()
+    {
+        var created = await _service.CreateLoanOutSeriesAsync(CreateRequest(), TestContext.Current.CancellationToken);
+        _schedulingLoanOutService.HasShiftConflict = true;
+
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.UpdateLoanOutSeriesAsync(created.Id, CreateRequest(), TestContext.Current.CancellationToken)
+        );
+        await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.DeleteLoanOutSeriesAsync(created.Id, TestContext.Current.CancellationToken)
+        );
     }
 
     private static LoanOutSeriesRequest CreateRequest() =>
@@ -206,6 +254,7 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
                     EndAtUtc = start.Add(eventSeries.EndAtUtc!.Value - eventSeries.StartAtUtc),
                     SeriesStartAtUtc = start,
                     SeriesEndAtUtc = start.Add(eventSeries.EndAtUtc.Value - eventSeries.StartAtUtc),
+                    AllDay = eventSeries.AllDay,
                     TimeZoneId = eventSeries.TimeZoneId,
                     LocationId = eventSeries.LocationId,
                     SourceModule = LoanOutConstants.SourceModule,
@@ -231,5 +280,45 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             CancellationToken cancellationToken
         )
             where TContext : notnull => throw new NotSupportedException();
+    }
+
+    private sealed class FakeSchedulingLoanOutService : ISchedulingLoanOutService
+    {
+        public bool HasShiftConflict { get; set; }
+
+        public Task<IReadOnlyList<IReadOnlyCollection<Guid>>> FilterLoanedOutUserAssignmentsAsync(
+            IReadOnlyCollection<Guid> userIds,
+            IReadOnlyCollection<ShiftAssignmentLoanOutContext> assignments,
+            int? locationId,
+            string? timeZoneId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<IReadOnlyList<IReadOnlyCollection<Guid>>>([]);
+
+        public Task EnsureNoShiftAtLoanOutLocationAsync(
+            IEnumerable<LoanOutEntry> loanOutEntries,
+            int loanOutLocationId,
+            CancellationToken cancellationToken = default
+        ) => ThrowIfConflict();
+
+        public Task<bool> TransferLoanedOutUserShift(
+            LoanOutEntry entry,
+            bool deleteAssignments = false,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(false);
+
+        public Task<bool> TransferLoanedOutUserShift(
+            LoanOutSeries series,
+            bool deleteAssignments = false,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(false);
+
+        private Task ThrowIfConflict()
+        {
+            if (HasShiftConflict)
+                throw new ConflictValidationException(
+                    new Dictionary<string, string[]> { ["LoanOut"] = ["A shift exists at the loan-out location."] }
+                );
+            return Task.CompletedTask;
+        }
     }
 }

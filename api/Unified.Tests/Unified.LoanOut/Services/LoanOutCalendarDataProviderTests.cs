@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Unified.Common.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
@@ -77,6 +78,17 @@ public sealed class LoanOutCalendarDataProviderTests : IAsyncLifetime
     {
         await _db.DisposeAsync();
         await _connection.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task GetDataAsync_IncludesLoanOutLocationName()
+    {
+        await AddEntryAsync(RangeStart);
+        var result = await _provider.GetDataAsync(
+            new SchedulingCalendarEventQueryContext { StartAtUtc = RangeStart, EndAtUtc = RangeStart.AddDays(1) },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal("Location 5", Assert.Single(result).LoanOutLocationName);
     }
 
     [Fact]

@@ -80,6 +80,7 @@ public sealed class LoanOutController(
     [Authorize(Policy = LoanOutPolicies.LoanOutEditOrUser)]
     [ProducesResponseType(typeof(LoanOutSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<LoanOutSeriesResponse>> UpdateLoanOutSeries(
         int id,
@@ -100,6 +101,7 @@ public sealed class LoanOutController(
     [Authorize(Policy = LoanOutPolicies.LoanOutDeleteOrUser)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteLoanOutSeries(int id, CancellationToken cancellationToken) =>
         await loanoutService.DeleteLoanOutSeriesAsync(id, cancellationToken) ? NoContent() : NotFound();
@@ -144,6 +146,7 @@ public sealed class LoanOutController(
     [Authorize(Policy = LoanOutPolicies.LoanOutEditOrUser)]
     [ProducesResponseType(typeof(LoanOutEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<LoanOutEntryResponse>> UpdateLoanOutEntry(
         int id,
@@ -164,6 +167,7 @@ public sealed class LoanOutController(
     [Authorize(Policy = LoanOutPolicies.LoanOutDeleteOrUser)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteLoanOutEntry(int id, CancellationToken cancellationToken) =>
         await loanoutService.DeleteLoanOutEntryAsync(id, cancellationToken) ? NoContent() : NotFound();

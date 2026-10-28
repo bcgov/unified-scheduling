@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Services;
+using Unified.Common.Scheduling;
+using Unified.Common.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -16,7 +18,8 @@ public sealed class SchedulingCalendarService(
     UnifiedDbContext db,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
-    ILeaveCalendarDataProvider? leaveCalendarDataProvider = null
+    ILeaveCalendarDataProvider? leaveCalendarDataProvider = null,
+    ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse> schedulingCalendarDataProvider = null
 ) : ISchedulingCalendarService
 {
     public async Task<SchedulingCalendarDataResponse> GetDataAsync(
@@ -24,6 +27,7 @@ public sealed class SchedulingCalendarService(
         bool includeShifts,
         bool includeAssignments,
         bool includeLeave,
+        bool includeLoanOut,
         CancellationToken cancellationToken = default
     )
     {
@@ -110,6 +114,23 @@ public sealed class SchedulingCalendarService(
                     cancellationToken
                 );
                 events.AddRange(leaveEvents.Select(SchedulingCalendarEventMapper.ToResponse));
+            }
+        }
+        if (includeLoanOut)
+        {
+            if (schedulingCalendarDataProvider is not null)
+            {
+                var loanOutEvents = await schedulingCalendarDataProvider.GetDataAsync(
+                    new SchedulingCalendarEventQueryContext
+                    {
+                        StartAtUtc = range.StartAtUtc,
+                        EndAtUtc = range.EndAtUtc,
+                        LocationId = request.LocationId,
+                        UserIds = request.UserIds ?? [],
+                    },
+                    cancellationToken
+                );
+                events.AddRange(loanOutEvents);
             }
         }
 

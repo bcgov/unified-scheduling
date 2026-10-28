@@ -1,6 +1,6 @@
-namespace Unified.LoanOut.Models.Calendar;
+namespace Unified.Common.Scheduling.Models;
 
-public sealed record LoanOutCalendarEventQueryContext
+public record SchedulingCalendarEventQueryContext
 {
     public required DateTimeOffset StartAtUtc { get; init; }
 

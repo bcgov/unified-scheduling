@@ -48,6 +48,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     private ShiftAssignmentService _linkService = null!;
     private CalendarConflictService _conflictService = null!;
     private SchedulingCalendarService _calendarService = null!;
+    private SchedulingLoanOutService _schedulingLoanOutService = null!;
     private ProposedShiftAssignmentOptionsService _assignmentOptionsService = null!;
     private readonly TransactionIsolationRecorder _transactionIsolationRecorder = new();
 
@@ -93,11 +94,11 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _db,
             timeProvider
         );
-        var schedulingLoanOutService = new SchedulingLoanOutService(
+        _schedulingLoanOutService = new SchedulingLoanOutService(
             NullLogger<SchedulingLoanOutService>.Instance,
             _db,
             new SchedulingLoanOutEventMapper(),
-            () => throw new NotSupportedException(),
+            () => _shiftService,
             () => throw new NotSupportedException(),
             () => throw new NotSupportedException(),
             timeZoneResolver,
@@ -108,7 +109,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _db,
             timeZoneService,
             _conflictService,
-            schedulingLoanOutService
+            _schedulingLoanOutService
         );
         _assignmentService = CreateAssignment(
             _db,
@@ -1265,6 +1266,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             includeShifts: true,
             includeAssignments: false,
             includeLeave: false,
+            includeLoanOut: false,
             TestContext.Current.CancellationToken
         );
         var preview = await CreateSchedulePublishService()
@@ -1590,7 +1592,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             ),
             new TimeZoneService()
         );
-        var loanOutResults = await loanOutService.FilterLoanedOutUsersAsync(
+        var loanOutResults = await loanOutService.FilterLoanedOutUserAssignmentsAsync(
             [UserA],
             [new ShiftAssignmentLoanOutContext(AtDay(1, 10), AtDay(2, 12))],
             null,
@@ -1626,6 +1628,59 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.All(
             links.Where(link => link.ShiftEntry!.Event!.StartAtUtc != AtDay(2, 9)),
             link => Assert.Equal([UserA, UserB], link.Users.Select(user => user.UserId).Order().ToArray())
+        );
+    }
+
+    [Fact]
+    public async Task TransferLoanedOutUserShift_SingleOccurrence_CreatesStandaloneShift()
+    {
+        await _shiftService.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest() with
+            {
+                StartAtUtc = AtDay(1, 9),
+                EndAtUtc = AtDay(1, 17),
+                RecurrenceRule = "FREQ=DAILY;COUNT=5",
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var transferred = await _schedulingLoanOutService.TransferLoanedOutUserShift(
+            CreateLoanOutEntry(AtDay(2, 10)),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(transferred);
+        var copied = Assert.Single(
+            await _db
+                .ShiftEntries.AsNoTracking()
+                .Include(entry => entry.Event)
+                .Include(entry => entry.Users)
+                .Where(entry => entry.Event!.LocationId == 9)
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+        Assert.Null(copied.ShiftSeriesId);
+        Assert.Null(copied.Event!.EventSeriesId);
+        Assert.Equal(AtDay(2, 9), copied.Event.StartAtUtc);
+        Assert.Equal(AtDay(2, 17), copied.Event.EndAtUtc);
+        Assert.Equal([UserA], copied.Users.Select(user => user.UserId));
+        Assert.False(
+            await _db.ShiftSeries.AnyAsync(
+                series => series.EventSeries!.LocationId == 9,
+                TestContext.Current.CancellationToken
+            )
+        );
+        var sourceEvents = await _db
+            .ShiftEntries.AsNoTracking()
+            .Where(entry => entry.Event!.LocationId == 5)
+            .Select(entry => entry.Event!)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        var source = Assert.Single(sourceEvents, eventEntity => eventEntity.StartAtUtc == AtDay(2, 9));
+        Assert.True(source.IsException);
+        Assert.Equal("IsAway", source.ExceptionReason);
+        Assert.All(
+            sourceEvents.Where(eventEntity => eventEntity.Id != source.Id),
+            eventEntity => Assert.False(eventEntity.IsException)
         );
     }
 
@@ -1692,6 +1747,63 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.Equal(3, copied.ShiftEntries.Count);
         Assert.All(copied.ShiftEntries, entry => Assert.Equal(copied.Id, entry.ShiftSeriesId));
         Assert.All(copied.ShiftEntries, entry => Assert.Equal(9, entry.Event!.LocationId));
+    }
+
+    [Fact]
+    public async Task EnsureNoShiftAtLoanOutLocationAsync_EntryWithMatchingShift_ThrowsConflict()
+    {
+        await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(AtDay(2, 14), AtDay(2, 16)) with
+            {
+                LocationId = 9,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var exception = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _schedulingLoanOutService.EnsureNoShiftAtLoanOutLocationAsync(
+                [CreateLoanOutEntry(AtDay(2, 10))],
+                9,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(
+            "A shift exists at the loan-out location, so the loan-out cannot be updated or removed.",
+            exception.Message
+        );
+    }
+
+    [Fact]
+    public async Task EnsureNoShiftAtLoanOutLocationAsync_SeriesWithMatchingShift_ThrowsConflict()
+    {
+        await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(AtDay(4, 14), AtDay(4, 16)) with
+            {
+                LocationId = 9,
+                UserIds = [UserA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var series = new LoanOutSeries
+        {
+            LoanOutLocationId = 9,
+            LoanOutEntries = [CreateLoanOutEntry(AtDay(2, 10)), CreateLoanOutEntry(AtDay(4, 10))],
+        };
+        var exception = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _schedulingLoanOutService.EnsureNoShiftAtLoanOutLocationAsync(
+                series.LoanOutEntries,
+                series.LoanOutLocationId,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(
+            "A shift exists at the loan-out location, so the loan-out cannot be updated or removed.",
+            exception.Message
+        );
     }
 
     private static LoanOutEntry CreateLoanOutEntry(DateTimeOffset startAtUtc) =>
@@ -2534,6 +2646,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             includeShifts,
             includeAssignments,
             includeLeave: false,
+            includeLoanOut: false,
             TestContext.Current.CancellationToken
         );
 

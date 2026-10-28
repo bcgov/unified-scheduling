@@ -12,6 +12,10 @@ public sealed record SchedulingCalendarEventResponse
     public int? LeaveSeriesId { get; init; }
     public int? LeaveTypeId { get; init; }
     public string? LeaveTypeName { get; init; }
+    public int? LoanOutEntryId { get; init; }
+    public int? LoanOutSeriesId { get; init; }
+    public int? LoanOutLocationId { get; init; }
+    public string? LoanOutLocationName { get; init; }
     public int EventId { get; init; }
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
     public required string Type { get; init; }
@@ -27,6 +31,7 @@ public sealed record SchedulingCalendarEventResponse
     public string? TimeZoneId { get; init; }
     public bool AllDay { get; init; }
     public bool IsException { get; init; }
+    public string? ExceptionReason { get; init; }
     public required string EventTypeCode { get; init; }
     public required string StatusTypeCode { get; init; }
     public DateTimeOffset? CancelledAt { get; init; }

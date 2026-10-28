@@ -100,6 +100,7 @@ internal static class ShiftResponseMapper
             TimeZoneId = eventEntity.TimeZoneId,
             AllDay = eventEntity.AllDay,
             IsException = eventEntity.IsException,
+            ExceptionReason = eventEntity.ExceptionReason,
             EventTypeCode = SchedulingConstants.ShiftEventTypeCode,
             StatusTypeCode = eventEntity.StatusTypeCode,
             CancelledAt = eventEntity.CancelledAt,

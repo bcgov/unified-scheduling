@@ -12,6 +12,7 @@ using Unified.Calendar;
 using Unified.Calendar.Controllers;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Mvc;
+using Unified.Common.Scheduling;
 using Unified.Common.Time;
 using Unified.Core;
 using Unified.Db;
@@ -26,10 +27,12 @@ using Unified.Leave;
 using Unified.Leave.Controllers;
 using Unified.LoanOut;
 using Unified.LoanOut.Controllers;
+using Unified.LoanOut.Services;
 using Unified.Reporting;
 using Unified.Reporting.Controllers;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
+using Unified.Scheduling.Models;
 using Unified.Stats;
 using Unified.Stats.Controllers;
 using Unified.Training;
@@ -114,6 +117,12 @@ var hangfireOptions =
         .AddInterceptors()
         .AddLeaveModule(builder.Configuration)
         .AddLoanOutModule(builder.Configuration);
+    if (LoanOutModule.IsModuleEnabled(builder.Configuration))
+    {
+        builder.Services.AddScoped<ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>>(sp =>
+            sp.GetRequiredService<ILoanOutCalendarDataProvider>()
+        );
+    }
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddChesTestController(builder.Environment, builder.Configuration);

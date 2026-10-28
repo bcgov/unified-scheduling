@@ -2,6 +2,8 @@ using Unified.Db.Models.Calendar;
 using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.UserManagement;
 using Unified.LoanOut.Mappers;
+using Unified.LoanOut.Models.Calendar;
+using Unified.Scheduling.Models;
 
 namespace Unified.Tests.LoanOut.Mappers;
 
@@ -93,6 +95,38 @@ public sealed class LoanOutCalendarMapperTests
                 Assert.Equal("FREQ=WEEKLY", second.RecurrenceRule);
             }
         );
+    }
+
+    [Fact]
+    public void ToResponse_MapsCalendarEventFields()
+    {
+        var start = DateTimeOffset.Parse("2026-06-01T16:00:00Z");
+        var eventData = new LoanOutCalendarEvent
+        {
+            Id = "scheduling.LoanOut-entry.12",
+            EventId = 30,
+            UserIds = [UserA],
+            Type = "scheduling.LoanOut",
+            SourceModule = "scheduling",
+            Title = "Loan out",
+            Start = start,
+            End = start.AddHours(2),
+            EventTypeCode = "LOAN_OUT",
+            StatusTypeCode = "ACTIVE",
+        };
+
+        var result = LoanOutCalendarMapper.ToResponse(eventData);
+
+        Assert.Equal(eventData.Id, result.Id);
+        Assert.Equal(eventData.EventId, result.EventId);
+        Assert.Equal(eventData.UserIds, result.UserIds);
+        Assert.Equal(eventData.Type, result.Type);
+        Assert.Equal(eventData.SourceModule, result.SourceModule);
+        Assert.Equal(eventData.Title, result.Title);
+        Assert.Equal(eventData.Start, result.Start);
+        Assert.Equal(eventData.End, result.End);
+        Assert.Equal(eventData.EventTypeCode, result.EventTypeCode);
+        Assert.Equal(eventData.StatusTypeCode, result.StatusTypeCode);
     }
 
     private static LoanOutEntry CreateEntry(int id, DateTimeOffset start, int locationId, string? recurrenceRule)

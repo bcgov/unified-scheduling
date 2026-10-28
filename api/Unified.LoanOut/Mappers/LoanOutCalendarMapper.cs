@@ -3,6 +3,7 @@ using Unified.Db.Models.Calendar;
 using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.UserManagement;
 using Unified.LoanOut.Models.Calendar;
+using Unified.Scheduling.Models;
 
 namespace Unified.LoanOut.Mappers;
 
@@ -27,6 +28,7 @@ public sealed class LoanOutCalendarMapper
             LoanOutEntryId = entry.Id,
             LoanOutSeriesId = entry.LoanOutSeriesId,
             LoanOutLocationId = entry.LoanOutLocationId,
+            LoanOutLocationName = entry.LoanOutLocation?.Name,
             EventId = entry.EventId,
             UserIds = entry.Users.Select(user => user.UserId).Distinct().ToList(),
             Type = "scheduling.LoanOut",
@@ -76,8 +78,12 @@ public sealed class LoanOutCalendarMapper
             .NewConfig<Event, LoanOutMetaData>()
             .Map(dest => dest.RecurrenceRule, src => src.EventSeries == null ? null : src.EventSeries.RecurrenceRule);
 
+        config.NewConfig<LoanOutCalendarEvent, SchedulingCalendarEventResponse>();
         config.NewConfig<User, LoanOutCalendarUser>();
 
         return config;
     }
+
+    public static SchedulingCalendarEventResponse ToResponse(LoanOutCalendarEvent eventData) =>
+        eventData.Adapt<SchedulingCalendarEventResponse>(LoanOutCalendarMappingConfig);
 }

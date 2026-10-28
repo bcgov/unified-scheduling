@@ -314,7 +314,7 @@ public sealed class ShiftAssignmentService(
                 "Selected users must belong to every matching shift entry."
             );
 
-        var loanOutUsersByIntersection = await schedulingLoanOutService.FilterLoanedOutUsersAsync(
+        var loanOutUsersByIntersection = await schedulingLoanOutService.FilterLoanedOutUserAssignmentsAsync(
             selectedUserIds,
             intersections
                 .Select(pair => new ShiftAssignmentLoanOutContext(

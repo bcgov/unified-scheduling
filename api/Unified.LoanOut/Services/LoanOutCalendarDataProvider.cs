@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Unified.Common.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -6,6 +7,7 @@ using Unified.LoanOut.Constants;
 using Unified.LoanOut.Mappers;
 using Unified.LoanOut.Models;
 using Unified.LoanOut.Models.Calendar;
+using Unified.Scheduling.Models;
 
 namespace Unified.LoanOut.Services;
 
@@ -15,14 +17,15 @@ public sealed class LoanOutCalendarDataProvider(
     ITimeZoneService timeZoneService
 ) : ILoanOutCalendarDataProvider
 {
-    public async Task<IReadOnlyCollection<LoanOutCalendarEvent>> GetEventsAsync(
-        LoanOutCalendarEventQueryContext queryContext,
+    public async Task<IReadOnlyCollection<SchedulingCalendarEventResponse>> GetDataAsync(
+        SchedulingCalendarEventQueryContext queryContext,
         CancellationToken cancellationToken = default
     )
     {
         var query = db
             .LoanOutEntries.AsNoTracking()
             .Include(entry => entry.Event)
+            .Include(entry => entry.LoanOutLocation)
             .Include(entry => entry.Users)
             .Where(entry => entry.Event != null && entry.Event.SourceModule == LoanOutConstants.SourceModule)
             .Where(entry => entry.Event!.EventTypeCode == LoanOutConstants.LoanOutEventTypeCode)
@@ -40,7 +43,7 @@ public sealed class LoanOutCalendarDataProvider(
 
         var entries = await query.ToListAsync(cancellationToken);
 
-        return entries.Select(mapper.ToLoanOutCalendarEvent).ToList();
+        return entries.Select(mapper.ToLoanOutCalendarEvent).Select(LoanOutCalendarMapper.ToResponse).ToList();
     }
 
     public async Task<IReadOnlyCollection<LoanOutCalendarUser>> GetUsersAsync(

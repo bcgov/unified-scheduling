@@ -16,7 +16,7 @@ public sealed class LoanOutEntryService(
     UnifiedDbContext db,
     LoanOutEventMapper loanOutEventMapper,
     CalendarEventEntryService<LoanOutEntryRequest, LoanOutEntry> calendarEventEntryService,
-    ISchedulingLoanOutService? schedulingLoanOutService = null
+    ISchedulingLoanOutService schedulingLoanOutService
 ) : ILoanOutEntryService
 {
     public async Task<LoanOutEntryResponse> CreateLoanOutEntryAsync(
@@ -28,8 +28,9 @@ public sealed class LoanOutEntryService(
             IsolationLevel.Serializable,
             cancellationToken
         );
+        var allDayRequest = request with { AllDay = true };
         var entity = await calendarEventEntryService.BuildEventAsync(
-            request,
+            allDayRequest,
             LoanOutConstants.SourceModule,
             LoanOutConstants.LoanOutEventTypeCode,
             cancellationToken: cancellationToken
@@ -80,8 +81,14 @@ public sealed class LoanOutEntryService(
         if (entity is null)
             return null;
 
+        await schedulingLoanOutService.EnsureNoShiftAtLoanOutLocationAsync(
+            [entity],
+            entity.LoanOutLocationId,
+            cancellationToken
+        );
+        var allDayRequest = request with { AllDay = true };
         var updated = await calendarEventEntryService.UpdateEventAsync(
-            request,
+            allDayRequest,
             entity,
             LoanOutConstants.SourceModule,
             LoanOutConstants.LoanOutEventTypeCode,
@@ -99,9 +106,18 @@ public sealed class LoanOutEntryService(
     public async Task<bool> DeleteLoanOutEntryAsync(int id, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Deleting loan out entry {LoanOutEntryId}.", id);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
         var entity = await LoadLoanOutEntryAsync(id, tracked: true, cancellationToken);
         if (entity is null)
             return false;
+        await schedulingLoanOutService.EnsureNoShiftAtLoanOutLocationAsync(
+            [entity],
+            entity.LoanOutLocationId,
+            cancellationToken
+        );
         if (
             !calendarEventEntryService.IsDeletable(
                 entity,
@@ -114,6 +130,7 @@ public sealed class LoanOutEntryService(
         db.LoanOutEntries.Remove(entity);
         db.Events.Remove(entity.Event!);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Deleted loan out entry {LoanOutEntryId}.", id);
         return true;
     }
@@ -133,7 +150,7 @@ public sealed class LoanOutEntryService(
         CancellationToken cancellationToken = default
     )
     {
-        if (schedulingLoanOutService is null || entity.Event is null)
+        if (entity.Event is null)
             return Task.CompletedTask;
 
         return schedulingLoanOutService.TransferLoanedOutUserShift(entity, deleteAssignments, cancellationToken);
