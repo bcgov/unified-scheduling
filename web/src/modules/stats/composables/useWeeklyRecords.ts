@@ -127,6 +127,10 @@ export function useWeeklyRecords(
 
     for (const r of sorted) {
       const scm = subCategoryMetrics.value.find((s) => s.id === r.subCategoryMetricId);
+      // Retired metadata is absent from the active entry form. SaveDayAsync preserves
+      // these historical records; do not turn them into invalid empty assignments.
+      const subCategory = subCategories.value.find((s) => s.id === scm?.subCategoryId);
+      if (!scm || !subCategory || !categories.value.some((c) => c.id === subCategory.categoryId)) continue;
       const subCatId = scm?.subCategoryId ?? 0;
       const comment = r.comment ?? '';
       const scmId = r.subCategoryMetricId ?? -1;

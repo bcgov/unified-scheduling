@@ -9,6 +9,7 @@ public static class BiOracleStatMappingSeedValidator
         "CRT_LOC_ID",
         "MONTH",
         "SUPERVISOR_YN",
+        "NIL_REPORT",
         "CREATE_DATE",
         "CREATED_BY",
         "UPDATE_DATE",

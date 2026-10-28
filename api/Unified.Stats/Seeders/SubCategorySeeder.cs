@@ -711,7 +711,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
         {
             Id = 93,
             CategoryId = 27,
-            Name = "General",
+            Name = "Trips",
             DisplayOrder = 1,
         },
         // Transports Ground - Trips-Kilometres (CategoryId = 28), ID 94
@@ -719,7 +719,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
         {
             Id = 94,
             CategoryId = 28,
-            Name = "General",
+            Name = "Trips & Kilometres",
             DisplayOrder = 1,
         },
         // Holding area/cellblock (CategoryId = 29)
@@ -784,7 +784,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
         {
             Id = 105,
             CategoryId = 29,
-            Name = "General",
+            Name = "Hours",
             DisplayOrder = 1,
         },
         // Coroner Jury Administration (CategoryId = 30), ID 102
@@ -875,6 +875,7 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 106,
             CategoryId = 32,
             Name = "General",
+            IsArchived = true,
             DisplayOrder = 1,
         },
         // Transports Males LL (CategoryId = 33), ID 107
@@ -883,8 +884,10 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             Id = 107,
             CategoryId = 33,
             Name = "General",
+            IsArchived = true,
             DisplayOrder = 1,
         },
+        .. LegacyBiOracleStatsSeedData.CreateSubCategories(),
     ];
 
     protected override async Task ExecuteAsync(UnifiedDbContext dbContext, CancellationToken cancellationToken)
@@ -901,7 +904,18 @@ public class SubCategorySeeder(ILogger<SubCategorySeeder> logger) : SeederBase<U
             if (existing is null)
             {
                 Logger.LogInformation("SubCategory with Id {Id} does not exist, adding it...", seed.Id);
-                await dbContext.SubCategories.AddAsync(seed, cancellationToken);
+                // Keep seed definitions separate from EF-tracked mutable entities.
+                await dbContext.SubCategories.AddAsync(
+                    new SubCategory
+                    {
+                        Id = seed.Id,
+                        CategoryId = seed.CategoryId,
+                        Name = seed.Name,
+                        IsArchived = seed.IsArchived,
+                        DisplayOrder = seed.DisplayOrder,
+                    },
+                    cancellationToken
+                );
                 createdCount++;
                 continue;
             }
