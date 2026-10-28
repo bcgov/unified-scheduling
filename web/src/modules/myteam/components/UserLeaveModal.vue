@@ -76,7 +76,7 @@ const buildInitialFormData = (series?: LeaveSeriesResponse): LeaveFormData => {
     leaveType: series?.leaveTypeId ?? entry.leaveTypeId ?? null,
     date: start?.date ?? '',
     startTime: start?.time ?? defaultStartTime,
-    endTime: end?.time ?? defaultEndTime,
+    endTime: end?.time ?? (isSeriesEdit.value ? defaultEndTime : null),
     repeatMode: isSeriesEdit.value
       ? (series?.recurrenceRule ?? entrySeries?.recurrenceRule)
         ? 'custom'

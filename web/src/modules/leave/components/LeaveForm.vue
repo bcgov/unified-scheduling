@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UaRequiredIndicator from '@/shared/components/UaRequiredIndicator.vue';
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
@@ -19,7 +20,8 @@ export type LeaveFormData = {
   leaveType?: string | number | null;
   date?: string;
   startTime?: string;
-  endTime?: string;
+  /** Null preserves an intentionally absent entry end; undefined uses the creation default. */
+  endTime?: string | null;
   repeatMode?: RepeatMode;
   recurrenceRule?: string | null;
   notes?: string | null;
@@ -39,6 +41,7 @@ const props = defineProps<
     modelValue: LeaveFormData;
     disabled?: boolean;
     showEmployees?: boolean;
+    showRequired?: boolean;
     showRepeat?: boolean;
     timeZoneId?: string;
   } & EmployeeProps &
@@ -115,7 +118,8 @@ const updateField = (field: keyof LeaveFormData, value: string | string[] | numb
 };
 
 const updateSelectField = (field: 'startTime' | 'endTime', value: SelectValue | undefined) => {
-  updateField(field, typeof value === 'string' ? value : undefined);
+  const time = typeof value === 'string' ? value : undefined;
+  updateField(field, field === 'endTime' && value === null ? null : time);
 };
 
 const updateRepeatMode = (value: SelectValue | undefined) => {
@@ -148,12 +152,15 @@ const updateEmployees = (value: SelectValue | undefined) => {
 
 <template>
   <UaFormGrid>
-    <label v-if="showEmployees" class="user-leave__label" for="user-leave-employee">Employee(s)</label>
+    <label v-if="showEmployees" class="user-leave__label" for="user-leave-employee">
+      Employee(s)<UaRequiredIndicator v-if="showRequired" />
+    </label>
     <div v-if="showEmployees" class="user-leave__field">
       <UaSelect
         id="user-leave-employee"
         :model-value="modelValue.userIds"
         aria-label="Employee(s)"
+        :aria-required="showRequired || undefined"
         :items="employeeOptions ?? []"
         :error="Boolean(formErrors.userIds)"
         :disabled="disabled || loadingEmployees"
@@ -167,7 +174,9 @@ const updateEmployees = (value: SelectValue | undefined) => {
       <p v-if="formErrors.userIds" class="user-leave__field-error">{{ formErrors.userIds }}</p>
     </div>
 
-    <label class="user-leave__label" for="user-leave-type">Leave Type</label>
+    <label class="user-leave__label" for="user-leave-type">
+      Leave Type<UaRequiredIndicator v-if="showRequired" />
+    </label>
     <div class="user-leave__field">
       <UaSelect
         id="user-leave-type"
@@ -178,6 +187,7 @@ const updateEmployees = (value: SelectValue | undefined) => {
         :disabled="disabled || isLoadingLeaveTypes"
         placeholder="Select a leave type"
         aria-label="Leave Type"
+        :aria-required="showRequired || undefined"
         @update:model-value="
           (value: SelectValue | undefined) =>
             updateField('leaveType', typeof value === 'string' || typeof value === 'number' ? value : null)
@@ -190,10 +200,11 @@ const updateEmployees = (value: SelectValue | undefined) => {
       </p>
     </div>
 
-    <label class="user-leave__label" for="user-leave-date">Date</label>
+    <label class="user-leave__label" for="user-leave-date">Date<UaRequiredIndicator v-if="showRequired" /></label>
     <UaTextField
       id="user-leave-date"
       label=""
+      :required="showRequired"
       type="date"
       :model-value="modelValue.date"
       :error-messages="formErrors.date"
@@ -218,6 +229,7 @@ const updateEmployees = (value: SelectValue | undefined) => {
         :model-value="modelValue.recurrenceRule ?? null"
         :start-date="modelValue.date ?? null"
         :disabled="disabled"
+        :show-required="showRequired"
         use-parent-grid
         @update:model-value="updateRecurrenceRule"
       />
@@ -230,10 +242,11 @@ const updateEmployees = (value: SelectValue | undefined) => {
     <span id="user-leave-time-label" class="user-leave__label">Time</span>
     <div class="user-leave__time-fields" aria-labelledby="user-leave-time-label">
       <div class="user-leave__field">
-        <span class="user-leave__time-caption">Start</span>
+        <span class="user-leave__time-caption">Start<UaRequiredIndicator v-if="showRequired" /></span>
         <UaSelect
           :model-value="modelValue.startTime ?? defaultStartTime"
           aria-label="Start Time"
+          :aria-required="showRequired || undefined"
           :items="timeOptions"
           :error="Boolean(formErrors.startTime)"
           :disabled="disabled"
@@ -242,10 +255,14 @@ const updateEmployees = (value: SelectValue | undefined) => {
         <p v-if="formErrors.startTime" class="user-leave__field-error">{{ formErrors.startTime }}</p>
       </div>
       <div class="user-leave__field">
-        <span class="user-leave__time-caption">End</span>
+        <!-- The API allows a nullable entry end time, but requires it for a series. -->
+        <span class="user-leave__time-caption">
+          End<UaRequiredIndicator v-if="showRequired && modelValue.repeatMode === 'custom'" />
+        </span>
         <UaSelect
-          :model-value="modelValue.endTime ?? defaultEndTime"
+          :model-value="modelValue.endTime === undefined ? defaultEndTime : modelValue.endTime"
           aria-label="End Time"
+          :aria-required="(showRequired && modelValue.repeatMode === 'custom') || undefined"
           :items="timeOptions"
           :error="Boolean(formErrors.endTime)"
           :disabled="disabled"

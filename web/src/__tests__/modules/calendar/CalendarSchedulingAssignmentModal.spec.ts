@@ -476,8 +476,10 @@ describe('CalendarSchedulingAssignmentModal', () => {
       assignmentDefinitionOptions: Array<{ code: number; description: string }>;
     };
     expect(initialVm.assignmentDefinitionOptions.map((option) => option.code)).toEqual([7]);
-    expect(document.querySelector('label[for="assignment-modal-assignment"]')?.textContent?.trim()).toBe(
-      'Assignment Template',
+    const assignmentTemplateLabel = document.querySelector('label[for="assignment-modal-assignment"]');
+    expect(assignmentTemplateLabel?.textContent).toContain('Assignment Template');
+    expect(assignmentTemplateLabel?.querySelector('.ua-required-indicator__text')?.textContent?.trim()).toBe(
+      '(required)',
     );
 
     const openAssignmentTypeButton = document.querySelector('button[aria-label="Add Assignment Template"]');
@@ -1631,6 +1633,17 @@ describe('CalendarSchedulingAssignmentModal', () => {
     expect(document.body.textContent).toContain('At least one user is required.');
     expect(document.body.textContent).toContain('Invalid start');
     expect(document.body.textContent).toContain('Invalid end');
+    for (const id of ['location', 'assignment', 'capacity', 'date']) {
+      expect(document.querySelector(`label[for="assignment-modal-${id}"]`)?.textContent).toContain('(required)');
+      expect(document.querySelector(`input#assignment-modal-${id}`)?.getAttribute('aria-required')).toBe('true');
+    }
+    for (const label of ['Start Time', 'End Time']) {
+      expect(document.querySelector(`input[aria-label="${label}"]`)?.getAttribute('aria-required')).toBe('true');
+    }
+    const linkedUsers = document.querySelector('.assignment-modal__link-section');
+    expect(linkedUsers?.querySelector('label')?.textContent).toContain('(required)');
+    expect(linkedUsers?.querySelector('input[role="combobox"]')?.getAttribute('aria-required')).toBe('true');
+    expect(document.querySelector('label[for="assignment-modal-notes"]')?.textContent).not.toContain('(required)');
 
     wrapper.unmount();
   });
@@ -1647,6 +1660,17 @@ describe('CalendarSchedulingAssignmentModal', () => {
       'shiftSeriesLinks.0.assignedUserIds': 'Required',
     });
     expect(document.body.textContent).toContain('At least one user is required.');
+
+    const linkedUsers = document.querySelector('.assignment-modal__link-section');
+    expect(linkedUsers?.querySelector('label')?.textContent).toContain('(required)');
+    expect(linkedUsers?.querySelector('input[role="combobox"]')?.getAttribute('aria-required')).toBe('true');
+
+    expect(document.querySelector('label[for="assignment-modal-recurrence-frequency"]')?.textContent).toContain(
+      '(required)',
+    );
+    expect(document.querySelector('label[for="assignment-modal-shift-series"]')?.textContent).not.toContain(
+      '(required)',
+    );
 
     wrapper.unmount();
   });

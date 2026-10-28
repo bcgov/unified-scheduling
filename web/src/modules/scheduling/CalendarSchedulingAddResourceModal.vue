@@ -490,6 +490,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :employee-options="employeeOptions"
             :loading-employees="isLoadingUsers"
             :time-zone-id="timeZoneId"
+            show-required
             show-employees
             show-repeat
             @validation-change="leaveHasValidationError = $event"
