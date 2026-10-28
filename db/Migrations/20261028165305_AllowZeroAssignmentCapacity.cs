@@ -12,21 +12,25 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropCheckConstraint(
                 name: "CK_AssignmentSeries_CapacityAtLeastOne",
-                table: "AssignmentSeries");
+                table: "AssignmentSeries"
+            );
 
             migrationBuilder.DropCheckConstraint(
                 name: "CK_AssignmentEntries_CapacityAtLeastOne",
-                table: "AssignmentEntries");
+                table: "AssignmentEntries"
+            );
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_AssignmentSeries_CapacityNonNegative",
                 table: "AssignmentSeries",
-                sql: "\"Capacity\" >= 0");
+                sql: "\"Capacity\" >= 0"
+            );
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_AssignmentEntries_CapacityNonNegative",
                 table: "AssignmentEntries",
-                sql: "\"Capacity\" >= 0");
+                sql: "\"Capacity\" >= 0"
+            );
         }
 
         /// <inheritdoc />
@@ -34,21 +38,25 @@ namespace Unified.Db.Migrations
         {
             migrationBuilder.DropCheckConstraint(
                 name: "CK_AssignmentSeries_CapacityNonNegative",
-                table: "AssignmentSeries");
+                table: "AssignmentSeries"
+            );
 
             migrationBuilder.DropCheckConstraint(
                 name: "CK_AssignmentEntries_CapacityNonNegative",
-                table: "AssignmentEntries");
+                table: "AssignmentEntries"
+            );
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_AssignmentSeries_CapacityAtLeastOne",
                 table: "AssignmentSeries",
-                sql: "\"Capacity\" >= 1");
+                sql: "\"Capacity\" >= 1"
+            );
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_AssignmentEntries_CapacityAtLeastOne",
                 table: "AssignmentEntries",
-                sql: "\"Capacity\" >= 1");
+                sql: "\"Capacity\" >= 1"
+            );
         }
     }
 }
