@@ -169,7 +169,7 @@ public sealed class LegacyBiOracleStatsSeedTests
         ];
         for (var i = 0; i < expected.Length; i++)
         {
-            var mapping = Assert.Single(MappingSet.Mappings.Where(m => m.SubCategoryMetricId == 449 + i));
+            var mapping = Assert.Single(MappingSet.Mappings, m => m.SubCategoryMetricId == 449 + i);
             Assert.Equal(BiOracleTargetTable.SheriffServices, mapping.TargetTable);
             Assert.Equal(expected[i], mapping.TargetColumn);
         }
@@ -229,7 +229,7 @@ public sealed class LegacyBiOracleStatsSeedTests
         ];
         foreach (var document in documents)
         {
-            var mapping = Assert.Single(MappingSet.Mappings.Where(m => m.SubCategoryMetricId == document.Id));
+            var mapping = Assert.Single(MappingSet.Mappings, m => m.SubCategoryMetricId == document.Id);
             Assert.Equal(document.Column, mapping.TargetColumn);
             Assert.Equal(BiOracleTargetTable.SheriffServices, mapping.TargetTable);
         }
