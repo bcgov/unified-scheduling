@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Unified.Common.ImageFormat;
@@ -25,8 +27,12 @@ public class UsersControllerTests
             fakeService,
             new UserRequestValidator(featureFlagsMonitor),
             new AssignUserRoleRequestValidator(),
-            new ExpireUserRoleRequestValidator()
-        );
+            new ExpireUserRoleRequestValidator(),
+            new FakeAuthorizationService()
+        )
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+        };
     }
 
     [Fact]
@@ -425,6 +431,18 @@ public class UsersControllerTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             controller.UploadPhoto(Guid.NewGuid(), formFile, TestContext.Current.CancellationToken)
         );
+    }
+
+    private sealed class FakeAuthorizationService : IAuthorizationService
+    {
+        public Task<AuthorizationResult> AuthorizeAsync(
+            ClaimsPrincipal user,
+            object? resource,
+            IEnumerable<IAuthorizationRequirement> requirements
+        ) => Task.FromResult(AuthorizationResult.Success());
+
+        public Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, object? resource, string policyName) =>
+            Task.FromResult(AuthorizationResult.Success());
     }
 
     private sealed class FakeUserService : IUserService

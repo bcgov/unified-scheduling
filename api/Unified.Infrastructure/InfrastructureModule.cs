@@ -69,9 +69,13 @@ public static class InfrastructureModule
             .AddOptions<KeycloakOptions>()
             .BindConfiguration(KeycloakOptions.SectionName)
             .ValidateDataAnnotations()
+            .Validate(
+                options => options.TokenRefreshThreshold > TimeSpan.Zero,
+                "TokenRefreshThreshold must be greater than zero"
+            )
             .ValidateOnStart();
 
-        services.AddHttpClient("TokenRefresh");
+        services.AddHttpClient("TokenRefresh", client => client.Timeout = TimeSpan.FromSeconds(10));
         services.AddHttpContextAccessor();
 
         var sp = services.BuildServiceProvider();
