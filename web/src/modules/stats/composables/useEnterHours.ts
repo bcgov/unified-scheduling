@@ -54,6 +54,7 @@ export function useEnterHours(groupId: number) {
 
   // ── Reference data ────────────────────────────────────────────────────────
   const isLoadingReference = ref(true);
+  const isReferenceDataReady = ref(false);
   const groups = ref<StatGroupResponse[]>([]);
   const categories = ref<StatCategoryResponse[]>([]);
   const subCategories = ref<SubCategoryResponse[]>([]);
@@ -130,6 +131,7 @@ export function useEnterHours(groupId: number) {
     categories,
     subCategoryMetrics,
     metrics,
+    isReferenceDataReady,
   );
 
   // ── Selected day ──────────────────────────────────────────────────────────
@@ -321,46 +323,58 @@ export function useEnterHours(groupId: number) {
 
   // ── Mount ─────────────────────────────────────────────────────────────────
   onMounted(async () => {
-    const [groupsRes, catsRes, subCatsRes, metricsRes, scmRes] = await Promise.all([
-      getApiStatsGroups(),
-      getApiStatsCategories(),
-      getApiStatsSubCategories(),
-      getApiStatsMetrics(),
-      getApiStatsSubCategoryMetrics(),
-    ]);
-    groups.value = groupsRes.data.value ?? [];
-    categories.value = catsRes.data.value ?? [];
-    subCategories.value = subCatsRes.data.value ?? [];
-    metrics.value = metricsRes.data.value ?? [];
-    subCategoryMetrics.value = scmRes.data.value ?? [];
+    try {
+      const [groupsRes, catsRes, subCatsRes, metricsRes, scmRes] = await Promise.all([
+        getApiStatsGroups(),
+        getApiStatsCategories(),
+        getApiStatsSubCategories(),
+        getApiStatsMetrics(),
+        getApiStatsSubCategoryMetrics(),
+      ]);
+      for (const result of [groupsRes, catsRes, subCatsRes, metricsRes, scmRes]) {
+        if (result.error.value || !Array.isArray(result.data.value)) {
+          throw new Error(result.error.value?.message ?? 'Failed to load reference data.');
+        }
+      }
+      groups.value = groupsRes.data.value!;
+      categories.value = catsRes.data.value!;
+      subCategories.value = subCatsRes.data.value!;
+      metrics.value = metricsRes.data.value!;
+      subCategoryMetrics.value = scmRes.data.value!;
 
-    const initialLocationId = seedLocationId ?? authStore.homeLocationId;
-    if (initialLocationId) {
-      const { data } = await getApiUsers({ LocationId: initialLocationId, IsEnabled: true });
-      locationUsers.value = data.value ?? [];
+      const initialLocationId = seedLocationId ?? authStore.homeLocationId;
+      if (initialLocationId) {
+        const { data } = await getApiUsers({ LocationId: initialLocationId, IsEnabled: true });
+        locationUsers.value = data.value ?? [];
 
-      // If the seeded user isn't in this location's list, inject them so the dropdown shows their name.
-      if (seedUserId && seedEmployeeName && !locationUsers.value.some((u) => u.id === seedUserId)) {
-        const [firstName, ...rest] = seedEmployeeName.split(' ');
-        locationUsers.value = [
-          { id: seedUserId, firstName: firstName ?? '', lastName: rest.join(' ') } as UserResponse,
-          ...locationUsers.value,
-        ];
+        // If the seeded user isn't in this location's list, inject them so the dropdown shows their name.
+        if (seedUserId && seedEmployeeName && !locationUsers.value.some((u) => u.id === seedUserId)) {
+          const [firstName, ...rest] = seedEmployeeName.split(' ');
+          locationUsers.value = [
+            { id: seedUserId, firstName: firstName ?? '', lastName: rest.join(' ') } as UserResponse,
+            ...locationUsers.value,
+          ];
+        }
+
+        // Default the selected user to the current user if they belong to this location
+        if (!seedUserId && !canEnterForOthers.value) {
+          selectedUserId.value = authStore.currentUserId;
+        }
       }
 
-      // Default the selected user to the current user if they belong to this location
-      if (!seedUserId && !canEnterForOthers.value) {
-        selectedUserId.value = authStore.currentUserId;
+      isReferenceDataReady.value = true;
+      isLoadingReference.value = false;
+
+      if (seedDate && seedLocationId && seedUserId) {
+        await loadWeek();
+        onSelectDay(seedDate);
+      } else if (initialLocationId && selectedUserId.value) {
+        await loadWeek();
       }
-    }
-
-    isLoadingReference.value = false;
-
-    if (seedDate && seedLocationId && seedUserId) {
-      await loadWeek();
-      onSelectDay(seedDate);
-    } else if (initialLocationId && selectedUserId.value) {
-      await loadWeek();
+    } catch (e) {
+      loadError.value = e instanceof Error ? e.message : 'Failed to load reference data.';
+    } finally {
+      isLoadingReference.value = false;
     }
   });
 

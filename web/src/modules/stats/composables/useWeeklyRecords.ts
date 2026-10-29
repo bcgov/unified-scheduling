@@ -35,6 +35,8 @@ export function useWeeklyRecords(
   categories: Ref<StatCategoryResponse[]>,
   subCategoryMetrics: Ref<SubCategoryMetricResponse[]>,
   metrics: Ref<StatMetricResponse[]>,
+  // Callers loading metadata asynchronously must pass its readiness state.
+  referenceDataReady: Ref<boolean> = ref(true),
 ) {
   // nextId scoped per composable instance to avoid cross-instance leaks
   let nextId = 1;
@@ -127,6 +129,10 @@ export function useWeeklyRecords(
 
     for (const r of sorted) {
       const scm = subCategoryMetrics.value.find((s) => s.id === r.subCategoryMetricId);
+      // Retired metadata is absent from the active entry form. SaveDayAsync preserves
+      // these historical records; do not turn them into invalid empty assignments.
+      const subCategory = subCategories.value.find((s) => s.id === scm?.subCategoryId);
+      if (!scm || !subCategory || !categories.value.some((c) => c.id === subCategory.categoryId)) continue;
       const subCatId = scm?.subCategoryId ?? 0;
       const comment = r.comment ?? '';
       const scmId = r.subCategoryMetricId ?? -1;
@@ -179,6 +185,7 @@ export function useWeeklyRecords(
   }
 
   async function loadWeek(): Promise<void> {
+    if (!referenceDataReady.value) return;
     if (!locationId.value) return;
     // Location-level records don't require a userId; employee forms do.
     if (!userId.value && groupId !== LOCATION_LEVEL_GROUP_ID) return;
@@ -251,6 +258,7 @@ export function useWeeklyRecords(
     status: string,
     groupId: number,
   ): Promise<string | null> {
+    if (!referenceDataReady.value) return 'Reference data is unavailable. Reload the page before saving.';
     if (!locationId.value) return 'Missing location.';
     if (!userId.value && groupId !== LOCATION_LEVEL_GROUP_ID) return 'Missing user.';
 

@@ -233,13 +233,37 @@ public sealed class StatRecordService(UnifiedDbContext db, ILogger<StatRecordSer
 
         // Delete records no longer present in the incoming set; signed-off records are immutable
         // unless the caller has the override permission.
+        // Active reference endpoints omit retired metadata. A day save cannot express
+        // those records, so absence must never delete them, even with signoff override.
+        var archivedRecordIds = await existingQuery
+            .Where(r =>
+                r.SubCategoryMetric!.IsArchived
+                || r.SubCategoryMetric.SubCategory!.IsArchived
+                || r.SubCategoryMetric.SubCategory.Category!.IsArchived
+            )
+            .Select(r => r.Id)
+            .ToListAsync(cancellationToken);
+        var retainedArchivedRecords = existingRecords
+            .Where(r => !incomingIds.Contains(r.Id) && archivedRecordIds.Contains(r.Id))
+            .ToList();
+        foreach (var record in retainedArchivedRecords)
+        {
+            // Preserve the whole day's submit/draft behavior without changing retired
+            // values. Signed-off records obey the same override rule as active records.
+            if (canOverrideSignedOff || record.Status != StatRecordStatus.SignedOff)
+                record.Status = request.Status;
+        }
         var toDelete = existingRecords
-            .Where(r => !incomingIds.Contains(r.Id) && (canOverrideSignedOff || r.Status != StatRecordStatus.SignedOff))
+            .Where(r =>
+                !incomingIds.Contains(r.Id)
+                && !archivedRecordIds.Contains(r.Id)
+                && (canOverrideSignedOff || r.Status != StatRecordStatus.SignedOff)
+            )
             .ToList();
         db.StatRecords.RemoveRange(toDelete);
         logger.LogDebug("Deleting {RecordCount} stale stat records while saving day", toDelete.Count);
 
-        var results = new List<StatRecord>();
+        var results = new List<StatRecord>(retainedArchivedRecords);
 
         foreach (var item in request.Records)
         {
