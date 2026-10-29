@@ -25,8 +25,9 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                 participant.ShiftAssignmentEntry!.AssignmentEntry!.EventId == eventId
                 && participant.UserId == resourceId
             );
-        var assignmentParticipant = (await ProjectParticipantsAsync(assignmentParticipants, cancellationToken))
-            .SingleOrDefault();
+        var assignmentParticipant = (
+            await ProjectParticipantsAsync(assignmentParticipants, cancellationToken)
+        ).SingleOrDefault();
         if (assignmentParticipant is not null)
             return assignmentParticipant;
 
@@ -191,9 +192,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                 != CalendarEventStatusTypeCodes.Draft
             );
 
-    private static IQueryable<Unified.Db.Models.Scheduling.ShiftEntryUser> ShiftParticipantQuery(
-        UnifiedDbContext db
-    ) =>
+    private static IQueryable<Unified.Db.Models.Scheduling.ShiftEntryUser> ShiftParticipantQuery(UnifiedDbContext db) =>
         db
             .ShiftEntryUsers.AsNoTracking()
             .Where(participant =>
@@ -228,7 +227,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
     )
     {
         var participants = (
-                await query
+            await query
                 .Select(participant => new CalendarConflictParticipant(
                     participant.ShiftAssignmentEntry!.AssignmentEntry!.EventId.ToString(),
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.SourceModule,
@@ -238,7 +237,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.Title,
                     participant.ShiftAssignmentEntry.AssignmentEntryId,
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location != null
-                        && participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location.Timezone.Trim() != ""
+                    && participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location.Timezone.Trim() != ""
                         ? participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location.Timezone
                         : participant.ShiftAssignmentEntry.AssignmentEntry.Event.TimeZoneId,
                     false,
@@ -261,7 +260,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
     )
     {
         var participants = (
-                await query
+            await query
                 .Select(participant => new CalendarConflictParticipant(
                     participant.ShiftEntry!.EventId.ToString(),
                     participant.ShiftEntry.Event!.SourceModule,
@@ -271,7 +270,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     participant.ShiftEntry.Event.Title,
                     participant.ShiftEntryId,
                     participant.ShiftEntry.Event.Location != null
-                        && participant.ShiftEntry.Event.Location.Timezone.Trim() != ""
+                    && participant.ShiftEntry.Event.Location.Timezone.Trim() != ""
                         ? participant.ShiftEntry.Event.Location.Timezone
                         : participant.ShiftEntry.Event.TimeZoneId,
                     false,

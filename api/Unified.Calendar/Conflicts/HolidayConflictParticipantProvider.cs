@@ -31,10 +31,9 @@ public sealed class HolidayConflictParticipantProvider(
         )
             return null;
 
-        var userIsEnabled = await db.Users.AsNoTracking().AnyAsync(
-            user => user.Id == resourceId && user.IsEnabled,
-            cancellationToken
-        );
+        var userIsEnabled = await db
+            .Users.AsNoTracking()
+            .AnyAsync(user => user.Id == resourceId && user.IsEnabled, cancellationToken);
         if (!userIsEnabled)
             return null;
 
@@ -61,11 +60,7 @@ public sealed class HolidayConflictParticipantProvider(
         var holidaysByTimeZone = contexts
             .Select(context => context.TimeZone)
             .DistinctBy(timeZone => timeZone.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(timeZone => new
-            {
-                TimeZone = timeZone,
-                Events = GetOverlappingHolidayEvents(query, timeZone),
-            })
+            .Select(timeZone => new { TimeZone = timeZone, Events = GetOverlappingHolidayEvents(query, timeZone) })
             .Where(item => item.Events.Count > 0)
             .ToDictionary(item => item.TimeZone.Id, item => item.Events, StringComparer.OrdinalIgnoreCase);
         if (holidaysByTimeZone.Count == 0)
@@ -111,9 +106,7 @@ public sealed class HolidayConflictParticipantProvider(
             }
         }
 
-        return participants
-            .DistinctBy(participant => (participant.EventId, participant.ResourceId))
-            .ToList();
+        return participants.DistinctBy(participant => (participant.EventId, participant.ResourceId)).ToList();
     }
 
     private IReadOnlyCollection<HolidayContext> ResolveContexts(CalendarConflictQuery query)
@@ -128,13 +121,8 @@ public sealed class HolidayConflictParticipantProvider(
                 .ResourceTimeZones.Where(context =>
                     allowedResourceIds is not { Count: > 0 } || allowedResourceIds.Contains(context.ResourceId)
                 )
-                .Select(context => new HolidayContext(
-                    context.ResourceId,
-                    timeZoneResolver.Resolve(context.TimeZoneId)
-                ))
-                .DistinctBy(
-                    context => (context.ResourceId, context.TimeZone.Id.ToUpperInvariant())
-                )
+                .Select(context => new HolidayContext(context.ResourceId, timeZoneResolver.Resolve(context.TimeZoneId)))
+                .DistinctBy(context => (context.ResourceId, context.TimeZone.Id.ToUpperInvariant()))
                 .ToList();
         }
 

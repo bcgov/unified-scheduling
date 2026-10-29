@@ -336,7 +336,10 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
                     .Where(participant =>
                         participant.Start < query.EndAtUtc
                         && participant.End > query.StartAtUtc
-                        && (query.ResourceIds is not { Count: > 0 } || query.ResourceIds.Contains(participant.ResourceId))
+                        && (
+                            query.ResourceIds is not { Count: > 0 }
+                            || query.ResourceIds.Contains(participant.ResourceId)
+                        )
                     )
                     .ToList()
             );
