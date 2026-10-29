@@ -1,4 +1,3 @@
-import type { WorkingHoursResult } from '@/api-access/generated/models';
 import type { CalendarDataResponse } from '@/modules/calendar/calendarTypes';
 import { selectContribution } from '@/modules/calendar/calendarSelectors';
 import {
