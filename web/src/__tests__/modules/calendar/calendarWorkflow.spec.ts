@@ -280,6 +280,142 @@ describe('calendar workflow', () => {
   });
 
   it.each([
+    { scenario: 'unchanged location', locationChanges: [12], clearsSearches: false },
+    { scenario: 'different location', locationChanges: [13], clearsSearches: true },
+    { scenario: 'location round trip', locationChanges: [13, 12], clearsSearches: true },
+  ])(
+    'keeps sidebar search lifecycle correct across Calendar unmount/remount: $scenario',
+    async ({ locationChanges, clearsSearches }) => {
+      const loadData = vi.fn().mockResolvedValue({ contributions: {} });
+      vi.doMock('@/modules/calendar/calendarDataService', () => ({
+        calendarDataService: { loadData, cancel: vi.fn(), endSession: vi.fn() },
+      }));
+      vi.doMock('@/modules/calendar/registry/calendarActionRegistry', () => ({
+        calendarActionRegistry: {
+          getCreateActions: vi.fn(() => []),
+          getToolbarActionsForView: vi.fn(() => []),
+          getViewDetailActions: vi.fn(() => []),
+        },
+      }));
+
+      const { default: SidePanel } = await import('@/modules/calendar/components/matrix/CalendarMatrixSidePanel.vue');
+      const TestView = defineComponent({
+        components: { SidePanel },
+        props: ['model'],
+        template: '<SidePanel :panel="model.sidePanel" />',
+      });
+      vi.doMock('@/modules/calendar/registry/calendarRegistry', () => ({
+        calendarRegistry: {
+          getAvailableViews: vi.fn(() =>
+            ['schedule', 'assignment'].map((id) => ({
+              id,
+              label: id,
+              component: TestView,
+              buildModel: () => ({
+                sidePanel: {
+                  label: 'Items',
+                  search: {},
+                  items: [
+                    { id: 'court', type: 'assignment', title: 'Court' },
+                    { id: 'ada', type: 'user', title: 'Ada' },
+                  ],
+                },
+              }),
+            })),
+          ),
+        },
+      }));
+
+      const [{ default: Calendar }, { useCalendarStore }, { useLocationsStore }] = await Promise.all([
+        import('@/modules/calendar/Calendar.vue'),
+        import('@/modules/calendar/calendarStore'),
+        import('@/stores/LocationsStore'),
+      ]);
+      const { mountPlugins, pinia } = await createTestApp({ loadConfig: false });
+      const locationsStore = useLocationsStore(pinia);
+      locationsStore.setSelectedLocationId(12);
+      const calendarStore = useCalendarStore(pinia);
+      calendarStore.setActiveView('schedule');
+      calendarStore.setSidePanelSearch('schedule', 'court');
+      calendarStore.setSidePanelSearch('assignment', 'ada');
+      let wrapper = mount(Calendar, { global: { plugins: mountPlugins } });
+
+      try {
+        await flushPromises();
+        expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('court');
+        const initialCalls = loadData.mock.calls.length;
+        await wrapper.get('input[aria-label="Search items"]').setValue('COURT');
+        await flushPromises();
+        expect(loadData).toHaveBeenCalledTimes(initialCalls);
+        expect(calendarStore.filters).toEqual({});
+
+        await wrapper.findAll('[role="tab"]')[1]!.trigger('click');
+        await flushPromises();
+        expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('ada');
+        await wrapper.findAll('[role="tab"]')[0]!.trigger('click');
+        await flushPromises();
+        expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
+        expect(loadData).toHaveBeenCalledTimes(initialCalls);
+
+        calendarStore.setAnchorDate('2025-04-16');
+        calendarStore.setPeriod('day');
+        await flushPromises();
+        expect(loadData).toHaveBeenCalledTimes(initialCalls + 1);
+        expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
+
+        let finishRefresh = () => {};
+        loadData.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishRefresh = () => resolve({ contributions: {} });
+            }),
+        );
+        calendarStore.refresh();
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('input[aria-label="Search items"]').exists()).toBe(false);
+        finishRefresh();
+        await flushPromises();
+        expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
+        expect(calendarStore.sidePanelSearchByView).toEqual({ schedule: 'COURT', assignment: 'ada' });
+
+        wrapper.unmount();
+        const callsWhileUnmounted = loadData.mock.calls.length;
+        const filtersBeforeLocationChange = calendarStore.filters;
+        // Use the same authoritative property bound by the global Appbar, without yielding between selections.
+        for (const locationId of locationChanges) {
+          locationsStore.selectedLocationId = locationId;
+        }
+        await flushPromises();
+        const expectedSearches = clearsSearches ? {} : { schedule: 'COURT', assignment: 'ada' };
+        expect(calendarStore.sidePanelSearchByView).toEqual(expectedSearches);
+        expect(calendarStore.filters).toBe(filtersBeforeLocationChange);
+        expect(loadData).toHaveBeenCalledTimes(callsWhileUnmounted);
+
+        wrapper = mount(Calendar, { global: { plugins: mountPlugins } });
+        await flushPromises();
+        expect(useCalendarStore(pinia)).toBe(calendarStore);
+        expect(calendarStore.sidePanelSearchByView).toEqual(expectedSearches);
+        expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe(
+          clearsSearches ? '' : 'COURT',
+        );
+
+        calendarStore.setSidePanelSearch('schedule', 'court');
+        calendarStore.setSidePanelSearch('assignment', 'ada');
+        locationsStore.setSelectedLocationId(14);
+        await flushPromises();
+        expect(calendarStore.sidePanelSearchByView).toEqual({});
+        expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('');
+        await wrapper.get('input[aria-label="Search items"]').setValue('ada');
+        locationsStore.setSelectedLocationId('');
+        await flushPromises();
+        expect(calendarStore.sidePanelSearchByView).toEqual({});
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
+
+  it.each([
     [undefined, 'week'],
     [['week', 'day', 'work-week', 'month'] as const, 'month'],
   ] as const)('uses month only when the active view supports it', async (supportedPeriods, expectedPeriod) => {

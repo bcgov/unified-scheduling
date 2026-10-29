@@ -203,6 +203,27 @@ describe('calendar registries and store', () => {
     expect(store.locationId).toBeUndefined();
   });
 
+  it('keeps sidebar searches per view across navigation and refresh, separately from data filters', () => {
+    const store = useCalendarStore();
+    store.setSidePanelSearch('schedule', 'court');
+    store.setSidePanelSearch('assignment', 'ada');
+    store.setActiveView('schedule');
+    store.setAnchorDate('2025-04-16');
+    store.setPeriod('day');
+    store.shiftPeriod('next');
+    store.refresh();
+    store.setActiveView('assignment');
+
+    expect(store.sidePanelSearchByView).toEqual({ schedule: 'court', assignment: 'ada' });
+    expect(store.filters).toEqual({});
+    expect(store.refreshNonce).toBe(1);
+
+    store.setSidePanelSearch('assignment', '');
+    expect(store.sidePanelSearchByView).toEqual({ schedule: 'court', assignment: '' });
+    store.clearSidePanelSearches();
+    expect(store.sidePanelSearchByView).toEqual({});
+  });
+
   it('derives ranges from the anchor and period navigation state', () => {
     const store = useCalendarStore();
 
