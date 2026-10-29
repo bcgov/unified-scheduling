@@ -277,8 +277,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
     {
         var conflictProvider = new TrackingConflictParticipantProvider();
         var timeZoneService = new TimeZoneService();
-        var service = new CalendarEventService(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarEventService>.Instance,
+        var service = new CalendarQueryService(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarQueryService>.Instance,
             _dbContext,
             new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
             CreateCalendarTimeZoneResolver(),

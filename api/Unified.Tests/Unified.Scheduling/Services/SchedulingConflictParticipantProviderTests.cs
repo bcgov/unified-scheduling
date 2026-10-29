@@ -61,7 +61,14 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
                 ShiftAssignmentEntry = link,
             }
         );
-        _db.ShiftEntryUsers.Add(new ShiftEntryUser { Id = 61, UserId = UserId, ShiftEntry = link.ShiftEntry });
+        _db.ShiftEntryUsers.Add(
+            new ShiftEntryUser
+            {
+                Id = 61,
+                UserId = UserId,
+                ShiftEntry = link.ShiftEntry,
+            }
+        );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
@@ -154,7 +161,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with { LocationId = vancouver.Id },
+            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            {
+                LocationId = vancouver.Id,
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -190,7 +200,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with { LocationId = vancouver.Id },
+            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            {
+                LocationId = vancouver.Id,
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -227,7 +240,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.ShiftsView)]) with { LocationId = vancouver.Id },
+            CreateQuery([nameof(Permissions.ShiftsView)]) with
+            {
+                LocationId = vancouver.Id,
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -280,7 +296,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with { ResourceIds = [MultiLocationUserId] },
+            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            {
+                ResourceIds = [MultiLocationUserId],
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -304,7 +323,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with { ResourceIds = [MultiLocationUserId] },
+            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            {
+                ResourceIds = [MultiLocationUserId],
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -359,7 +381,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             {
                 Id = id,
                 ShiftEntryId = id,
-                ShiftEntry = new ShiftEntry { Id = id, EventId = shiftEvent.Id, Event = shiftEvent },
+                ShiftEntry = new ShiftEntry
+                {
+                    Id = id,
+                    EventId = shiftEvent.Id,
+                    Event = shiftEvent,
+                },
                 AssignmentEntryId = id,
                 AssignmentEntry = new AssignmentEntry
                 {
@@ -388,7 +415,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         {
             Id = eventId,
             UserId = userId,
-            ShiftEntry = new ShiftEntry { Id = eventId, EventId = shiftEvent.Id, Event = shiftEvent },
+            ShiftEntry = new ShiftEntry
+            {
+                Id = eventId,
+                EventId = shiftEvent.Id,
+                Event = shiftEvent,
+            },
         };
     }
 }

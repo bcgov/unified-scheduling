@@ -72,10 +72,7 @@ public static class CalendarConflictDetector
             )
         );
 
-    private static bool HaveCompatibleTimeZones(
-        CalendarConflictParticipant left,
-        CalendarConflictParticipant right
-    ) =>
+    private static bool HaveCompatibleTimeZones(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
         (!left.RequiresMatchingTimeZone && !right.RequiresMatchingTimeZone) || HasSameTimeZone(left, right);
 
     private static bool HasSameTimeZone(CalendarConflictParticipant left, CalendarConflictParticipant right) =>

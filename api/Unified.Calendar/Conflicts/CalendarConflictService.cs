@@ -310,7 +310,11 @@ public sealed class CalendarConflictService(
     )
     {
         var participants = new List<CalendarConflictParticipant>();
-        foreach (var provider in _participantProviders.Where(provider => provider is not IContextualCalendarConflictParticipantProvider))
+        foreach (
+            var provider in _participantProviders.Where(provider =>
+                provider is not IContextualCalendarConflictParticipantProvider
+            )
+        )
             participants.AddRange(
                 (await provider.GetParticipantsAsync(query, cancellationToken)).Select(NormalizeParticipantTimeZone)
             );
@@ -329,9 +333,11 @@ public sealed class CalendarConflictService(
         return participants;
     }
 
-    private static CalendarConflictParticipant NormalizeParticipantTimeZone(
-        CalendarConflictParticipant participant
-    ) => participant with { TimeZoneId = TimeZoneService.NormalizeOptionalTimeZoneId(participant.TimeZoneId) };
+    private static CalendarConflictParticipant NormalizeParticipantTimeZone(CalendarConflictParticipant participant) =>
+        participant with
+        {
+            TimeZoneId = TimeZoneService.NormalizeOptionalTimeZoneId(participant.TimeZoneId),
+        };
 
     private static IReadOnlyCollection<CalendarConflictResourceTimeZone> ResolveResourceTimeZones(
         IEnumerable<CalendarConflictParticipant> participants
@@ -342,9 +348,7 @@ public sealed class CalendarConflictService(
                 participant.ResourceId,
                 participant.TimeZoneId!.Trim()
             ))
-            .DistinctBy(
-                context => (context.ResourceId, context.TimeZoneId.ToUpperInvariant())
-            )
+            .DistinctBy(context => (context.ResourceId, context.TimeZoneId.ToUpperInvariant()))
             .ToList();
 
     private static IReadOnlyDictionary<CalendarConflictKey, CalendarConflictAcknowledgement> NormalizeAcknowledgements(

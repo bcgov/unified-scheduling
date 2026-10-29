@@ -351,7 +351,7 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     const headerClose = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Close',
     );
-    expect(headerClose).toBeDisabled();
+    expect(headerClose?.disabled).toBe(true);
     expect(wrapper.emitted('close')).toBeUndefined();
 
     resolveUpdate?.({ data: { value: { id: 42 } }, error: { value: null } });

@@ -84,12 +84,16 @@ public sealed class BiOracleModelTests
         var run = Entity<BiOracleEtlRun>();
         var stage = Entity<BiOracleStatStage>();
         var errorMessage = run.FindProperty(nameof(BiOracleEtlRun.ErrorMessage));
+        var runLoadId = run.FindProperty(nameof(BiOracleEtlRun.LoadId));
+        var stageLoadId = stage.FindProperty(nameof(BiOracleStatStage.LoadId));
 
-        Assert.Equal("uuid", run.FindProperty(nameof(BiOracleEtlRun.LoadId)).GetColumnType());
+        Assert.NotNull(runLoadId);
+        Assert.Equal("uuid", runLoadId.GetColumnType());
         Assert.NotNull(errorMessage);
         Assert.True(errorMessage.IsNullable);
         Assert.Equal("text", errorMessage.GetColumnType());
-        Assert.Equal("uuid", stage.FindProperty(nameof(BiOracleStatStage.LoadId)).GetColumnType());
+        Assert.NotNull(stageLoadId);
+        Assert.Equal("uuid", stageLoadId.GetColumnType());
         Assert.Contains(
             run.GetKeys(),
             key =>
@@ -125,10 +129,16 @@ public sealed class BiOracleModelTests
         var sourceValue = Entity<StatRecord>().FindProperty(nameof(StatRecord.Value));
         var stage = Entity<BiOracleStatStage>();
         var stageValue = stage.FindProperty(nameof(BiOracleStatStage.StatValue));
+        var isLocationLevel = stage.FindProperty(nameof(BiOracleStatStage.IsLocationLevel));
+        var isSupervisor = stage.FindProperty(nameof(BiOracleStatStage.IsSupervisor));
 
+        Assert.NotNull(sourceValue);
+        Assert.NotNull(stageValue);
         Assert.Equal(sourceValue.GetColumnType(), stageValue.GetColumnType());
-        Assert.Equal(typeof(bool), stage.FindProperty(nameof(BiOracleStatStage.IsLocationLevel)).ClrType);
-        Assert.Equal(typeof(bool), stage.FindProperty(nameof(BiOracleStatStage.IsSupervisor)).ClrType);
+        Assert.NotNull(isLocationLevel);
+        Assert.Equal(typeof(bool), isLocationLevel.ClrType);
+        Assert.NotNull(isSupervisor);
+        Assert.Equal(typeof(bool), isSupervisor.ClrType);
         Assert.False(typeof(BaseEntity).IsAssignableFrom(typeof(BiOracleStatStage)));
         Assert.DoesNotContain(
             stage.GetProperties(),

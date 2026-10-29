@@ -1045,6 +1045,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         var published = await _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken);
 
+        Assert.NotNull(published);
         Assert.Equal(CalendarEventStatusTypeCodes.Active, published.StatusTypeCode);
         _db.ChangeTracker.Clear();
         var assignmentStatus = await _db
