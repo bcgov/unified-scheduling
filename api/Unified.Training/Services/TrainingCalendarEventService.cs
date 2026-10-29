@@ -22,11 +22,10 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
                 ut.AwardedOn < exclusiveEnd && (ut.EndingOn == minimum ? ut.AwardedOn >= start : ut.EndingOn >= start)
             );
 
-        if (request.LocationId.HasValue)
-            query = query.Where(ut => ut.User.HomeLocationId == request.LocationId.Value);
-
         if (request.UserIds is { Count: > 0 })
             query = query.Where(ut => request.UserIds.Contains(ut.UserId));
+        else if (request.LocationId.HasValue)
+            query = query.Where(ut => ut.User.HomeLocationId == request.LocationId.Value);
 
         var records = await query
             .OrderBy(ut => ut.AwardedOn)

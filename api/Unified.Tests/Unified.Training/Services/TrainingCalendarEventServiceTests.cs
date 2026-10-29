@@ -13,6 +13,7 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
 {
     private readonly Guid _userA = Guid.NewGuid();
     private readonly Guid _userB = Guid.NewGuid();
+    private readonly Guid _userC = Guid.NewGuid();
     private UnifiedDbContext _db = null!;
     private TrainingCalendarEventService _service = null!;
 
@@ -50,6 +51,12 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
             {
                 Id = _userB,
                 IdirName = "training-b",
+                HomeLocationId = 2,
+            },
+            new User
+            {
+                Id = _userC,
+                IdirName = "training-c",
                 HomeLocationId = 2,
             }
         );
@@ -126,31 +133,78 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetEventsAsync_LocationAndUserFilters_AreCombined()
+    public async Task GetEventsAsync_ExplicitUserFromAnotherLocation_IsIncludedWithoutLocationPeers()
     {
         var included = await AddAsync(_userA, 1, 2026, 1, 5, 2026, 1, 5);
         await AddAsync(_userB, 1, 2026, 1, 5, 2026, 1, 5);
+        await AddAsync(_userC, 1, 2026, 1, 5, 2026, 1, 5);
 
         var result = await _service.GetEventsAsync(
             Request(5, 5) with
             {
-                LocationId = 1,
+                LocationId = 2,
+                UserIds = [_userA],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var item = Assert.Single(result);
+        Assert.Equal(included.Id, item.UserTrainingId);
+        Assert.Equal(1, item.LocationId);
+    }
+
+    [Fact]
+    public async Task GetEventsAsync_ExplicitUsersFromDifferentLocations_ExcludesUnselectedLocationPeers()
+    {
+        var first = await AddAsync(_userA, 1, 2026, 1, 5, 2026, 1, 5);
+        var second = await AddAsync(_userB, 1, 2026, 1, 5, 2026, 1, 5);
+        await AddAsync(_userC, 1, 2026, 1, 5, 2026, 1, 5);
+
+        var result = await _service.GetEventsAsync(
+            Request(5, 5) with
+            {
+                LocationId = 2,
                 UserIds = [_userA, _userB],
             },
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(included.Id, Assert.Single(result).UserTrainingId);
-        Assert.Empty(
-            await _service.GetEventsAsync(
-                Request(5, 5) with
-                {
-                    LocationId = 2,
-                    UserIds = [_userA],
-                },
-                TestContext.Current.CancellationToken
-            )
+        Assert.Equal([first.Id, second.Id], result.Select(item => item.UserTrainingId));
+        Assert.Equal([1, 2], result.Select(item => item.LocationId));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetEventsAsync_NullOrEmptyUsers_FiltersByHomeLocation(bool emptyUsers)
+    {
+        await AddAsync(_userA, 1, 2026, 1, 5, 2026, 1, 5);
+        var first = await AddAsync(_userB, 1, 2026, 1, 5, 2026, 1, 5);
+        var second = await AddAsync(_userC, 1, 2026, 1, 5, 2026, 1, 5);
+
+        var result = await _service.GetEventsAsync(
+            Request(5, 5) with
+            {
+                LocationId = 2,
+                UserIds = emptyUsers ? [] : null,
+            },
+            TestContext.Current.CancellationToken
         );
+
+        Assert.Equal([first.Id, second.Id], result.Select(item => item.UserTrainingId));
+        Assert.All(result, item => Assert.Equal(2, item.LocationId));
+    }
+
+    [Fact]
+    public async Task GetEventsAsync_NoUserOrLocationFilter_ReturnsAllUsers()
+    {
+        var first = await AddAsync(_userA, 1, 2026, 1, 5, 2026, 1, 5);
+        var second = await AddAsync(_userB, 1, 2026, 1, 5, 2026, 1, 5);
+        var third = await AddAsync(_userC, 1, 2026, 1, 5, 2026, 1, 5);
+
+        var result = await _service.GetEventsAsync(Request(5, 5), TestContext.Current.CancellationToken);
+
+        Assert.Equal([first.Id, second.Id, third.Id], result.Select(item => item.UserTrainingId));
     }
 
     private async Task<UserTraining> AddAsync(
