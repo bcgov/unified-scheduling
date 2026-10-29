@@ -12,6 +12,7 @@ import CalendarSchedulingAssignmentDefinitionCreateModal from './CalendarSchedul
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
 import CalendarSchedulingDistributionModal from './CalendarSchedulingDistributionModal.vue';
 import CalendarSchedulingPublishModal from './CalendarSchedulingPublishModal.vue';
+import CalendarSchedulingWorkingHoursModal from './CalendarSchedulingWorkingHoursModal.vue';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
@@ -66,11 +67,13 @@ import {
   calendarSchedulingLeaveDetailEvent,
   calendarSchedulingLoanOutDetailEvent,
   calendarSchedulingPublishRequest,
+  calendarSchedulingWorkingHoursSelection,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingAssignmentTypeCreateModal,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingPublishModal,
+  closeCalendarSchedulingWorkingHours,
   closeCalendarSchedulingResourceActionModal,
   closeCalendarSchedulingLeaveDetail,
   closeCalendarSchedulingLoanOutDetail,
@@ -409,6 +412,13 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :mode="assignmentDefinitionId ? 'view' : 'create'"
     @close="handleAssignmentDefinitionClose"
     @saved="handleAssignmentDefinitionSaved"
+  />
+
+  <CalendarSchedulingWorkingHoursModal
+    v-if="calendarSchedulingWorkingHoursSelection"
+    :result="calendarSchedulingWorkingHoursSelection.result"
+    :user-name="calendarSchedulingWorkingHoursSelection.userName"
+    @close="closeCalendarSchedulingWorkingHours"
   />
 
   <CalendarSchedulingPublishModal

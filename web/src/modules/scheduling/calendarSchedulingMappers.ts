@@ -1,3 +1,4 @@
+import type { WorkingHoursResult } from '@/api-access/generated/models';
 import {
   addDays,
   CALENDAR_ALL_DAY_LABEL,
@@ -75,7 +76,9 @@ import {
   calendarNonSchedulingEventColors,
   resolveSchedulingEventBorderStyle,
 } from './calendarSchedulingColors';
-import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
+import { mdiAlertCircle, mdiCalendarSync, mdiClockOutline, mdiDotsVertical } from '@mdi/js';
+import { resolveShiftEntryId } from './calendarSchedulingShiftIds';
+import { createWorkingHoursLookup, formatWorkingHoursMinutes } from './calendarSchedulingWorkingHours';
 import { DateTime } from 'luxon';
 import { defaultSchedulingTimeZoneId, resolveSchedulingTimeZoneFromFilters } from './schedulingTimeZone';
 import { isSchedulingCancelled } from './schedulingLifecycle';
@@ -173,6 +176,7 @@ export function buildCalendarSchedulingViewModel(
       ? getAssignmentSchedulingPrompt(response, context)
       : undefined;
   const resources = buildUserResourceRows(userResources, shiftPrompt);
+  const workingHours = createWorkingHoursLookup(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
     : resources;
@@ -267,7 +271,12 @@ export function buildCalendarSchedulingViewModel(
             };
           }),
           ...userShiftEvents.map((event) =>
-            buildCellHeader(event, timeZone, getConflictsForShift(event, assignmentEvents, user.id, conflicts)),
+            buildCellHeader(
+              event,
+              timeZone,
+              getConflictsForShift(event, assignmentEvents, user.id, conflicts),
+              getOvertimeResult(event, user.id, workingHours),
+            ),
           ),
         ],
         groups: [
@@ -1108,6 +1117,7 @@ function buildCellHeader(
   event: CalendarEventBase,
   timeZone = defaultSchedulingTimeZoneId,
   conflicts: CalendarMatrixConflictItem[] = [],
+  overtime?: WorkingHoursResult,
 ): CalendarMatrixCellHeader {
   return {
     id: event.id,
@@ -1131,7 +1141,14 @@ function buildCellHeader(
         }
       : undefined,
     actionId: calendarSchedulingActionIds.viewHeaderDetails,
-    action: conflicts.length > 0 ? buildPulldownAction() : undefined,
+    action:
+      conflicts.length > 0
+        ? overtime?.overtimeMinutes
+          ? buildCombinedHeaderAction(overtime)
+          : buildPulldownAction()
+        : overtime?.overtimeMinutes
+          ? buildOvertimeAction(overtime)
+          : undefined,
     conflicts,
     payload: event,
   };
@@ -1173,6 +1190,38 @@ function buildPulldownAction(): CalendarMatrixActionDisplay {
     ariaLabel: 'Show Conflict Details',
     type: CalendarMatrixActionType.Button,
   };
+}
+
+function buildOvertimeAction(result: WorkingHoursResult): CalendarMatrixActionDisplay {
+  return {
+    actionId: calendarSchedulingActionIds.showOvertime,
+    icon: mdiClockOutline,
+    ariaLabel: `Projected overtime: ${formatWorkingHoursMinutes(result.overtimeMinutes)}`,
+    type: CalendarMatrixActionType.Button,
+    payload: result,
+  };
+}
+
+function buildCombinedHeaderAction(result: WorkingHoursResult): CalendarMatrixActionDisplay {
+  return {
+    actionId: 'scheduling.header-actions',
+    icon: mdiDotsVertical,
+    ariaLabel: 'View conflicts and potential overtime',
+    type: CalendarMatrixActionType.Menu,
+    menuItems: [
+      { actionId: calendarSchedulingActionIds.showConflict, label: 'View conflicts' },
+      { actionId: calendarSchedulingActionIds.showOvertime, label: 'View potential overtime', payload: result },
+    ],
+  };
+}
+
+function getOvertimeResult(
+  event: CalendarEventBase,
+  userId: string,
+  workingHours: ReturnType<typeof createWorkingHoursLookup>,
+) {
+  const shiftEntryId = resolveShiftEntryId(event);
+  return shiftEntryId == null ? undefined : workingHours.get(shiftEntryId, userId);
 }
 
 function buildDays(startDate: string, period: CalendarPeriod, timeZone: string): CalendarMatrixDay[] {

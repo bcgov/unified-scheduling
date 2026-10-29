@@ -47,6 +47,8 @@ describe('useSchedulingShiftDetailRows', () => {
       'Shift Employee(s)',
       'Date',
       'Time',
+      'Lunch Break',
+      'Worked Lunch',
       'Assignment(s)',
       'Training',
       'Publish',
@@ -56,9 +58,50 @@ describe('useSchedulingShiftDetailRows', () => {
     expect(detailRows.value.find((row) => row.label === 'Shift Employee(s)')?.value).toBe('Developer User');
     expect(detailRows.value.find((row) => row.label === 'Date')?.value).toBe('July 13, 2026');
     expect(detailRows.value.find((row) => row.label === 'Time')?.value).toBe('9:00 AM - 5:00 PM');
+    expect(detailRows.value.find((row) => row.label === 'Lunch Break')?.value).toBe('1 hour');
+    expect(detailRows.value.find((row) => row.label === 'Worked Lunch')?.value).toBe('0 min');
     expect(detailRows.value.find((row) => row.label === 'Assignment(s)')?.value).toBe(
       'Yellow Assignment (9:00 AM - 5:00 PM) — Users: Developer User',
     );
     expect(detailRows.value.find((row) => row.label === 'Publish')?.value).toBe('Yes');
+  });
+
+  it('displays series lunch values', () => {
+    const event = computed<CalendarEventBase>(() => ({
+      id: 'scheduling.shift-entry.200',
+      type: 'scheduling.shift',
+      sourceModule: 'scheduling',
+      title: 'Developer User shift',
+      start: '2026-07-13T16:00:00Z',
+      end: '2026-07-14T00:00:00Z',
+      statusTypeCode: 'draft',
+    }));
+    const formData = ref({
+      ...createInitialShiftFormDataForCreateAction(1),
+      date: '2026-07-13',
+      lunchAvailableMinutes: 45,
+      workedLunchMinutes: 30,
+      repeatMode: 'custom' as const,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;COUNT=2',
+    });
+
+    const { detailRows } = useSchedulingShiftDetailRows({
+      event,
+      selectedOpenScope: ref('series'),
+      selectedSeries: ref({
+        id: 20,
+        startAtUtc: '2026-07-13T16:00:00Z',
+        lunchAvailableMinutes: 45,
+        workedLunchMinutes: 30,
+      }),
+      formData,
+      employeeOptions: computed(() => []),
+      assignmentEntryOptions: computed(() => []),
+      assignmentSeriesOptions: computed(() => []),
+      locationOptions: computed(() => [{ code: 1, description: 'HQ' }]),
+    });
+
+    expect(detailRows.value.find((row) => row.label === 'Lunch Break')?.value).toBe('45 min');
+    expect(detailRows.value.find((row) => row.label === 'Worked Lunch')?.value).toBe('30 min');
   });
 });
