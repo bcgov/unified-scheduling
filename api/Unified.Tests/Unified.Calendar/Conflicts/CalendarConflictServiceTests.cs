@@ -121,9 +121,18 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
             Participants =
             [
                 CreateParticipant(1, 8, 10),
-                CreateParticipant(2, 9, 11) with { IsInQueryScope = false },
-                CreateParticipant(3, 12, 14) with { IsInQueryScope = false },
-                CreateParticipant(4, 13, 15) with { IsInQueryScope = false },
+                CreateParticipant(2, 9, 11) with
+                {
+                    IsInQueryScope = false,
+                },
+                CreateParticipant(3, 12, 14) with
+                {
+                    IsInQueryScope = false,
+                },
+                CreateParticipant(4, 13, 15) with
+                {
+                    IsInQueryScope = false,
+                },
             ],
         };
         var service = new CalendarConflictService([provider], _db);
@@ -209,7 +218,10 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         );
         assignmentProvider.Participants =
         [
-            assignmentProvider.Participants.Single() with { TimeZoneId = "America/Toronto" },
+            assignmentProvider.Participants.Single() with
+            {
+                TimeZoneId = "America/Toronto",
+            },
         ];
 
         await service.InvalidateResolvedOverridesAsync(
@@ -222,7 +234,10 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
 
         assignmentProvider.Participants =
         [
-            assignmentProvider.Participants.Single() with { TimeZoneId = "America/Vancouver" },
+            assignmentProvider.Participants.Single() with
+            {
+                TimeZoneId = "America/Vancouver",
+            },
         ];
         var conflictAfterReturningToVancouver = Assert.Single(
             await service.GetConflictsAsync(
@@ -397,8 +412,14 @@ public sealed class CalendarConflictServiceTests : IAsyncLifetime
         var service = new CalendarConflictService([provider], _db);
         var candidates = new[]
         {
-            CreateParticipant(1, 8, 10) with { TimeZoneId = "America/Toronto" },
-            CreateParticipant(2, 9, 11) with { TimeZoneId = "America/Toronto" },
+            CreateParticipant(1, 8, 10) with
+            {
+                TimeZoneId = "America/Toronto",
+            },
+            CreateParticipant(2, 9, 11) with
+            {
+                TimeZoneId = "America/Toronto",
+            },
         };
 
         await service.GetConflictsForCandidatesAsync(candidates, TestContext.Current.CancellationToken);

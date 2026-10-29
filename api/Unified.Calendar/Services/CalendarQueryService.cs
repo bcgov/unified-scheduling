@@ -92,10 +92,7 @@ public sealed class CalendarQueryService(
                 utcRange.StartAtUtc,
                 utcRange.EndAtUtc,
                 ViewerPermissions: viewerPermissions,
-                TimeZoneIds:
-                [
-                    timeZone.Id,
-                ],
+                TimeZoneIds: [timeZone.Id],
                 LocationId: request.LocationId
             ),
             cancellationToken
