@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { resolveMatrixStatusClass, toRgba } from './calendarMatrixDisplayUtils';
 import { CalendarMatrixActionType } from './calendarMatrixTypes';
 import type {
@@ -24,11 +24,15 @@ defineSlots<{
 }>();
 
 const isClickable = computed(() => Boolean(props.header.actionId));
+const menuOpen = ref(false);
 const infoIcons = computed(() => props.header.info?.icons ?? []);
 const hasInfoIcons = computed(() => infoIcons.value.length > 0);
 const hasActionDisplay = computed(() => !!props.header.action?.icon || !!props.header.action?.text);
 const isActionClickable = computed(
-  () => hasActionDisplay.value && props.header.action?.type !== CalendarMatrixActionType.Custom,
+  () => hasActionDisplay.value && props.header.action?.type === CalendarMatrixActionType.Button,
+);
+const hasMenu = computed(
+  () => props.header.action?.type === CalendarMatrixActionType.Menu && !!props.header.action.menuItems?.length,
 );
 
 const statusClass = computed(() => resolveMatrixStatusClass(props.header.status));
@@ -65,6 +69,18 @@ function handleActionClick() {
     header: props.header,
     actionId: action.actionId,
     actionType: action.type,
+    payload: action.payload,
+  });
+}
+
+function handleMenuItemClick(item: { actionId: string; payload?: unknown }) {
+  menuOpen.value = false;
+  emit('action', {
+    cell: props.cell,
+    header: props.header,
+    actionId: item.actionId,
+    actionType: CalendarMatrixActionType.Button,
+    payload: item.payload,
   });
 }
 </script>
@@ -112,8 +128,33 @@ function handleActionClick() {
       </span>
     </span>
 
+    <v-menu v-if="hasMenu" v-model="menuOpen" location="bottom end">
+      <template #activator="{ props: menuProps }">
+        <button
+          v-bind="menuProps"
+          class="calendar-matrix-cell-header__action"
+          type="button"
+          :aria-label="header.action?.ariaLabel ?? 'Header actions'"
+          @click.stop
+          @keydown.enter.stop.prevent="menuOpen = !menuOpen"
+          @keydown.space.stop.prevent="menuOpen = !menuOpen"
+        >
+          <v-icon v-if="header.action?.icon" :icon="header.action.icon" size="16" />
+          <span v-else>{{ header.action?.text }}</span>
+        </button>
+      </template>
+      <v-list aria-label="Header actions" @click.stop>
+        <v-list-item
+          v-for="item in header.action?.menuItems"
+          :key="item.actionId"
+          :title="item.label"
+          :aria-label="item.label"
+          @click.stop="handleMenuItemClick(item)"
+        />
+      </v-list>
+    </v-menu>
     <button
-      v-if="isActionClickable"
+      v-else-if="isActionClickable"
       class="calendar-matrix-cell-header__action"
       type="button"
       :aria-label="header.action?.ariaLabel ?? header.action?.text ?? 'Header action'"

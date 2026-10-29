@@ -235,6 +235,8 @@ internal sealed class ShiftSeriesService(
         }
         var eventSeries = entity.EventSeries!;
         var oldValues = ShiftSeriesUpdatePlanner.CaptureCopiedValues(eventSeries);
+        var oldLunchAvailableMinutes = entity.LunchAvailableMinutes;
+        var oldWorkedLunchMinutes = entity.WorkedLunchMinutes;
         var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
         var recurrenceChanged = calendarEventSeriesService.HasRecurrenceChanged(entity, request);
         var newUserIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
@@ -249,6 +251,28 @@ internal sealed class ShiftSeriesService(
                 {
                     if (string.IsNullOrWhiteSpace(input.RecurrenceRule))
                         throw new ArgumentException("A recurring shift series cannot be converted to a single shift.");
+
+                    var lunchAvailableMinutes = input.LunchAvailableMinutes ?? oldLunchAvailableMinutes;
+                    var workedLunchMinutes = input.WorkedLunchMinutes ?? oldWorkedLunchMinutes;
+                    ShiftEventFactory.ValidateLunchMinutes(lunchAvailableMinutes, workedLunchMinutes);
+                    if (!recurrenceChanged)
+                    {
+                        foreach (
+                            var entry in entity.ShiftEntries.Where(entry =>
+                                entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                            )
+                        )
+                        {
+                            ShiftEventFactory.ValidateLunchMinutes(
+                                entry.LunchAvailableMinutes == oldLunchAvailableMinutes
+                                    ? lunchAvailableMinutes
+                                    : entry.LunchAvailableMinutes,
+                                entry.WorkedLunchMinutes == oldWorkedLunchMinutes
+                                    ? workedLunchMinutes
+                                    : entry.WorkedLunchMinutes
+                            );
+                        }
+                    }
 
                     return Task.CompletedTask;
                 },
@@ -276,7 +300,14 @@ internal sealed class ShiftSeriesService(
         }
         else
         {
-            ApplySeriesNonRecurrenceUpdatesToChildren(entity, oldValues, oldUserIds, newUserIds);
+            ApplySeriesNonRecurrenceUpdatesToChildren(
+                entity,
+                oldValues,
+                oldLunchAvailableMinutes,
+                oldWorkedLunchMinutes,
+                oldUserIds,
+                newUserIds
+            );
         }
         var currentEntries = entity.ShiftEntries.Where(entry => db.Entry(entry).State != EntityState.Deleted).ToList();
         await LoanOutUserShiftGuard.EnsureEntriesCanScheduleAsync(
@@ -315,6 +346,8 @@ internal sealed class ShiftSeriesService(
     private void ApplySeriesNonRecurrenceUpdatesToChildren(
         ShiftSeries shiftSeries,
         EventSeriesCopiedValues oldValues,
+        int? oldLunchAvailableMinutes,
+        int? oldWorkedLunchMinutes,
         IReadOnlyCollection<Guid> oldUserIds,
         IReadOnlyCollection<Guid> newUserIds
     )
@@ -332,6 +365,10 @@ internal sealed class ShiftSeriesService(
                 oldValues,
                 shiftSeries.EventSeries!
             );
+            if (entry.LunchAvailableMinutes == oldLunchAvailableMinutes)
+                entry.LunchAvailableMinutes = shiftSeries.LunchAvailableMinutes;
+            if (entry.WorkedLunchMinutes == oldWorkedLunchMinutes)
+                entry.WorkedLunchMinutes = shiftSeries.WorkedLunchMinutes;
             if (ShiftUserSync.UserSetsEqual(entry.Users.Select(user => user.UserId), oldUserIds))
                 ShiftUserSync.SyncEntryUsers(db, entry, newUserIds);
         }
