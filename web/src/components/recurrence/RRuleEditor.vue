@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UaRequiredIndicator from '@/shared/components/UaRequiredIndicator.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import { computed, ref, watch } from 'vue';
@@ -29,6 +30,7 @@ const props = withDefaults(
     disabled?: boolean;
     readOnly?: boolean;
     useParentGrid?: boolean;
+    showRequired?: boolean;
     idPrefix?: string;
     labelWidth?: string;
   }>(),
@@ -260,17 +262,22 @@ function updateNthWeekdayPosition(setPosition: NthWeekdayPosition) {
     </UaAlert>
 
     <template v-else>
-      <label class="rrule-editor__label" :for="`${idPrefix}-frequency`">Frequency</label>
+      <label class="rrule-editor__label" :for="`${idPrefix}-frequency`">
+        Frequency<UaRequiredIndicator v-if="showRequired" />
+      </label>
       <v-select
         :id="`${idPrefix}-frequency`"
         v-model="model.frequency"
         :items="frequencyOptions"
         aria-label="Frequency"
+        :aria-required="showRequired || undefined"
         :disabled="disabled"
         hide-details="auto"
       />
 
-      <label class="rrule-editor__label" :for="`${idPrefix}-interval`">Repeats every</label>
+      <label class="rrule-editor__label" :for="`${idPrefix}-interval`">
+        Repeats every<UaRequiredIndicator v-if="showRequired" />
+      </label>
       <v-text-field
         :id="`${idPrefix}-interval`"
         v-model.number="model.interval"
@@ -279,16 +286,18 @@ function updateNthWeekdayPosition(setPosition: NthWeekdayPosition) {
         step="1"
         :suffix="intervalUnit"
         aria-label="Repeats every"
+        :aria-required="showRequired || undefined"
         :disabled="disabled"
         hide-details="auto"
       />
 
       <span v-if="model.frequency === 'WEEKLY'" :id="`${idPrefix}-weekdays-label`" class="rrule-editor__label">
-        Days
+        Days<UaRequiredIndicator v-if="showRequired" />
       </span>
       <div
         v-if="model.frequency === 'WEEKLY'"
         class="rrule-editor__weekdays"
+        role="group"
         :aria-labelledby="`${idPrefix}-weekdays-label`"
       >
         <v-btn-toggle
@@ -334,7 +343,9 @@ function updateNthWeekdayPosition(setPosition: NthWeekdayPosition) {
       </div>
 
       <template v-if="model.frequency === 'MONTHLY' && model.monthlyMode === 'monthday'">
-        <label class="rrule-editor__label" :for="`${idPrefix}-month-day`">Day of month</label>
+        <label class="rrule-editor__label" :for="`${idPrefix}-month-day`">
+          Day of month<UaRequiredIndicator v-if="showRequired" />
+        </label>
         <v-text-field
           :id="`${idPrefix}-month-day`"
           v-model.number="model.monthDay"
@@ -343,29 +354,36 @@ function updateNthWeekdayPosition(setPosition: NthWeekdayPosition) {
           max="31"
           step="1"
           aria-label="Day of month"
+          :aria-required="showRequired || undefined"
           :disabled="disabled"
           hide-details="auto"
         />
       </template>
 
       <template v-if="model.frequency === 'MONTHLY' && model.monthlyMode === 'nth-weekday'">
-        <label class="rrule-editor__label" :for="`${idPrefix}-nth-position`">Position</label>
+        <label class="rrule-editor__label" :for="`${idPrefix}-nth-position`">
+          Position<UaRequiredIndicator v-if="showRequired" />
+        </label>
         <v-select
           :id="`${idPrefix}-nth-position`"
           :model-value="model.nthWeekday?.setPosition"
           :items="nthPositionOptions"
           aria-label="Position"
+          :aria-required="showRequired || undefined"
           :disabled="disabled"
           hide-details="auto"
           @update:model-value="updateNthWeekdayPosition"
         />
 
-        <label class="rrule-editor__label" :for="`${idPrefix}-nth-weekday`">Weekday</label>
+        <label class="rrule-editor__label" :for="`${idPrefix}-nth-weekday`">
+          Weekday<UaRequiredIndicator v-if="showRequired" />
+        </label>
         <v-select
           :id="`${idPrefix}-nth-weekday`"
           :model-value="model.nthWeekday?.weekday"
           :items="weekdayOptions"
           aria-label="Weekday"
+          :aria-required="showRequired || undefined"
           :disabled="disabled"
           hide-details="auto"
           @update:model-value="updateNthWeekdayWeekday"
@@ -394,19 +412,24 @@ function updateNthWeekdayPosition(setPosition: NthWeekdayPosition) {
       </div>
 
       <template v-if="model.endMode === 'until'">
-        <label class="rrule-editor__label" :for="`${idPrefix}-until`">End date</label>
+        <label class="rrule-editor__label" :for="`${idPrefix}-until`">
+          End date<UaRequiredIndicator v-if="showRequired" />
+        </label>
         <v-text-field
           :id="`${idPrefix}-until`"
           v-model="untilDateText"
           type="date"
           aria-label="End date"
+          :aria-required="showRequired || undefined"
           :disabled="disabled"
           hide-details="auto"
         />
       </template>
 
       <template v-if="model.endMode === 'count'">
-        <label class="rrule-editor__label" :for="`${idPrefix}-count`">Recurrences</label>
+        <label class="rrule-editor__label" :for="`${idPrefix}-count`">
+          Recurrences<UaRequiredIndicator v-if="showRequired" />
+        </label>
         <v-text-field
           :id="`${idPrefix}-count`"
           v-model.number="model.count"
@@ -414,6 +437,7 @@ function updateNthWeekdayPosition(setPosition: NthWeekdayPosition) {
           min="1"
           step="1"
           aria-label="Recurrences"
+          :aria-required="showRequired || undefined"
           :disabled="disabled"
           hide-details="auto"
         />

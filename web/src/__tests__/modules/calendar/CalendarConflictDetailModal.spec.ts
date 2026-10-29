@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { getGetApiUsersIdMockHandler, getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
+import UaTextarea from '@/shared/components/UaTextarea.vue';
 import type { CalendarConflict } from '@/modules/calendar/calendarTypes';
 import { server } from '@/__tests__/mocks/server';
 
@@ -31,6 +32,7 @@ describe('CalendarConflictDetailModal', () => {
 
     expect(overrideButton.attributes('data-color')).toBe('primary');
     expect(wrapper.find('textarea').exists()).toBe(true);
+    expect(wrapper.getComponent(UaTextarea).props('required')).toBe(true);
     expect(overrideButton.attributes('disabled')).toBeDefined();
     await wrapper.get('textarea').setValue('Approved coverage overlap');
     expect(overrideButton.attributes('disabled')).toBeUndefined();
@@ -98,6 +100,7 @@ describe('CalendarConflictDetailModal', () => {
 
     expect(wrapper.find('.calendar-conflict-detail__edit').exists()).toBe(false);
     expect(wrapper.find('[data-test="ua-button"]').exists()).toBe(false);
+    expect(wrapper.getComponent(UaTextarea).props('required')).toBe(false);
   });
 });
 
@@ -127,7 +130,7 @@ function mountModal(conflict: CalendarConflict, canEdit = true) {
             '<button data-test="ua-button" :data-color="color" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
         UaTextarea: {
-          props: ['modelValue', 'disabled'],
+          props: ['modelValue', 'disabled', 'required'],
           emits: ['update:modelValue'],
           template:
             '<textarea :value="modelValue" :disabled="disabled" @input="$emit(\'update:modelValue\', $event.target.value)" />',

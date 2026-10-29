@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UaRequiredIndicator from '@/shared/components/UaRequiredIndicator.vue';
 import { mdiDelete, mdiPlus } from '@mdi/js';
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
 import type { AssignmentDefinitionResponse } from '@/api-access/generated/models/assignmentDefinitionResponse';
@@ -1796,10 +1797,11 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
     />
 
     <UaFormGrid v-else-if="!isDeleteTab" label-width="150px">
-      <label class="assignment-modal__label" for="assignment-modal-location">Location</label>
+      <label class="assignment-modal__label" for="assignment-modal-location">Location<UaRequiredIndicator /></label>
       <div class="assignment-modal__field">
         <UaSelect
           id="assignment-modal-location"
+          aria-required="true"
           :model-value="formData.locationId"
           :items="locationOptionsWithSelected"
           :error="Boolean(formErrors.locationId)"
@@ -1811,11 +1813,14 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
         </p>
       </div>
 
-      <label class="assignment-modal__label" for="assignment-modal-assignment">Assignment Template</label>
+      <label class="assignment-modal__label" for="assignment-modal-assignment">
+        Assignment Template<UaRequiredIndicator />
+      </label>
       <div class="assignment-modal__field">
         <div class="assignment-modal__assignment-input">
           <UaSelect
             id="assignment-modal-assignment"
+            aria-required="true"
             :model-value="formData.assignmentDefinitionId ?? null"
             :items="assignmentDefinitionOptions"
             :error="Boolean(formErrors.assignmentDefinitionId)"
@@ -1847,6 +1852,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       <UaTextField
         id="assignment-modal-capacity"
         label="Capacity"
+        required
         type="number"
         min="0"
         :model-value="String(formData.capacity ?? '')"
@@ -1858,6 +1864,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       <UaTextField
         id="assignment-modal-date"
         label="Date"
+        required
         type="date"
         :model-value="formData.date"
         :error-messages="formErrors.date"
@@ -1868,10 +1875,11 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       <span id="assignment-modal-time-label" class="assignment-modal__label">Time</span>
       <div class="assignment-modal__time-fields" aria-labelledby="assignment-modal-time-label">
         <div class="assignment-modal__field">
-          <span class="assignment-modal__time-caption">Start</span>
+          <span class="assignment-modal__time-caption">Start<UaRequiredIndicator /></span>
           <UaSelect
             :model-value="formData.startTime"
             aria-label="Start Time"
+            aria-required="true"
             :items="timeOptions"
             :error="Boolean(formErrors.startTime)"
             :disabled="fieldsDisabled"
@@ -1882,10 +1890,11 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
           </p>
         </div>
         <div class="assignment-modal__field">
-          <span class="assignment-modal__time-caption">End</span>
+          <span class="assignment-modal__time-caption">End<UaRequiredIndicator /></span>
           <UaSelect
             :model-value="formData.endTime"
             aria-label="End Time"
+            aria-required="true"
             :items="timeOptions"
             :error="Boolean(formErrors.endTime)"
             :disabled="fieldsDisabled"
@@ -1920,6 +1929,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
           :model-value="formData.recurrenceRule ?? null"
           :start-date="formData.date ?? null"
           :disabled="fieldsDisabled"
+          show-required
           use-parent-grid
           @update:model-value="handleRecurrenceChange"
           @change="handleRecurrenceChange"
@@ -1994,6 +2004,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               item-title="description"
               item-value="code"
               label="Users"
+              aria-required="true"
               multiple
               chips
               closable-chips
@@ -2001,7 +2012,9 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               :error="Boolean(getLinkUserError('shiftSeriesLinks', index))"
               :disabled="fieldsDisabled || !canAssignAssignment"
               @update:model-value="(value: SelectValue | undefined) => updateShiftSeriesLinkUsers(index, value)"
-            />
+            >
+              <template #label>Users<UaRequiredIndicator /></template>
+            </v-select>
             <p v-if="getLinkUserError('shiftSeriesLinks', index)" class="assignment-modal__field-error">
               At least one user is required.
             </p>
@@ -2064,6 +2077,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               item-title="description"
               item-value="code"
               label="Assigned Shift Users"
+              aria-required="true"
               multiple
               chips
               closable-chips
@@ -2071,7 +2085,9 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               :error="Boolean(getLinkUserError('shiftEntryLinks', index))"
               :disabled="fieldsDisabled || !canAssignAssignment"
               @update:model-value="(value: SelectValue | undefined) => updateShiftEntryLinkUsers(index, value)"
-            />
+            >
+              <template #label>Assigned Shift Users<UaRequiredIndicator /></template>
+            </v-select>
             <p v-if="getLinkUserError('shiftEntryLinks', index)" class="assignment-modal__field-error">
               At least one user is required.
             </p>
