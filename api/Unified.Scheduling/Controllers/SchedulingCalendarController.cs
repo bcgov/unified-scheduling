@@ -31,7 +31,8 @@ public sealed class SchedulingCalendarController(
         var canViewShifts = User.HasClaim(UnifiedClaimTypes.Permission, Permissions.ShiftsView.ToString());
         var canViewAssignments = User.HasClaim(UnifiedClaimTypes.Permission, Permissions.AssignmentsView.ToString());
         var canViewLeave = User.HasClaim(UnifiedClaimTypes.Permission, Permissions.LeaveView.ToString());
-        if (!canViewShifts && !canViewAssignments && !canViewLeave)
+        var canViewLoanOut = User.HasClaim(UnifiedClaimTypes.Permission, Permissions.LoanOutView.ToString());
+        if (!canViewShifts && !canViewAssignments && !canViewLeave && !canViewLoanOut)
             return Forbid();
         return Ok(
             await schedulingCalendarService.GetDataAsync(
@@ -39,6 +40,7 @@ public sealed class SchedulingCalendarController(
                 canViewShifts,
                 canViewAssignments,
                 canViewLeave,
+                canViewLoanOut,
                 cancellationToken
             )
         );

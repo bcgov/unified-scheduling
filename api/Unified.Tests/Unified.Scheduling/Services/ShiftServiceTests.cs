@@ -13,11 +13,18 @@ using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.UserManagement;
+using Unified.LoanOut.Constants;
+using Unified.LoanOut.Factories;
+using Unified.LoanOut.Mappers;
+using Unified.LoanOut.Models;
+using Unified.LoanOut.Services;
 using Unified.Scheduling;
 using Unified.Scheduling.Factories;
+using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
@@ -64,6 +71,15 @@ public class ShiftServiceTests : IAsyncLifetime
             [new SchedulingConflictParticipantProvider(_dbContext)],
             _dbContext
         );
+        var schedulingLoanOutService = SchedulingLoanOutTestServices.Create(
+            _dbContext,
+            new SchedulingLoanOutEventMapper(CreateCalendarTimeZoneResolver(), new TimeZoneService()),
+            () => throw new NotSupportedException(),
+            () => throw new NotSupportedException(),
+            timeZoneResolver,
+            timeZoneService,
+            recurrenceExpander
+        );
 
         _service = CreateShift(
             _dbContext,
@@ -73,7 +89,9 @@ public class ShiftServiceTests : IAsyncLifetime
                 NullLogger<ShiftAssignmentService>.Instance,
                 _dbContext,
                 timeZoneService,
-                conflictService
+                conflictService,
+                schedulingLoanOutService,
+                SchedulingLoanOutTestServices.CreateAvailability(_dbContext, timeZoneService)
             ),
             timeZoneService,
             TimeProvider.System,
@@ -124,6 +142,23 @@ public class ShiftServiceTests : IAsyncLifetime
         Assert.Equal([UserA, UserB], shiftEntry.Users.Select(x => x.UserId).Order().ToArray());
         Assert.Equal([eventEntity.Id], result.EventIds);
         Assert.Equal([shiftEntry.Id], result.ShiftEntryIds);
+    }
+
+    [Fact]
+    public async Task CreateShiftSeriesAsync_WhenAmbientTransactionExists_UsesAmbientTransaction()
+    {
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(
+            TestContext.Current.CancellationToken
+        );
+
+        var result = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(result);
+        Assert.NotNull(_dbContext.Database.CurrentTransaction);
+        Assert.Single(await _dbContext.ShiftSeries.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -267,7 +302,6 @@ public class ShiftServiceTests : IAsyncLifetime
             request with
             {
                 Title = "Other",
-                LocationId = 9,
                 StartAtUtc = request.StartAtUtc.AddDays(1),
                 EndAtUtc = request.EndAtUtc!.Value.AddDays(1),
             },
@@ -279,6 +313,7 @@ public class ShiftServiceTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(result);
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, result.StatusTypeCode);
     }
 
     [Fact]
@@ -1881,6 +1916,459 @@ public class ShiftServiceTests : IAsyncLifetime
         Assert.False(result);
     }
 
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    public async Task TransferLoanedOutUserShift_WhenLoanOutOverlaps_CreatesSeriesOnlyForMatchedDates(
+        bool hasGaps,
+        bool singleDateRange,
+        bool overrideFirstTime
+    )
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var start = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
+        var source = await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3"),
+            cancellationToken
+        );
+        if (overrideFirstTime)
+        {
+            var first = await _dbContext
+                .ShiftEntries.Include(entry => entry.Event)
+                .SingleAsync(
+                    entry => entry.ShiftSeriesId == source.Id && entry.Event!.StartAtUtc == start,
+                    cancellationToken
+                );
+            first.Event!.StartAtUtc = first.Event.StartAtUtc.AddHours(1);
+            first.Event.EndAtUtc = first.Event.EndAtUtc!.Value.AddHours(1);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        if (singleDateRange)
+            await _service.CreateShiftEntryAsync(
+                new ShiftEntryRequest
+                {
+                    Title = "Standalone",
+                    StartAtUtc = start.AddHours(8),
+                    EndAtUtc = start.AddHours(9),
+                    TimeZoneId = "America/Vancouver",
+                    LocationId = 5,
+                    UserIds = [UserA],
+                },
+                cancellationToken
+            );
+        var loanOut = new LoanOutSeries
+        {
+            LoanOutLocationId = 9,
+            EventSeries = new EventSeries
+            {
+                StartAtUtc = start.AddHours(-9),
+                EndAtUtc = start.AddHours(15),
+                TimeZoneId = "America/Vancouver",
+                RecurrenceRule = hasGaps ? "FREQ=DAILY;INTERVAL=2;COUNT=2" : "FREQ=DAILY;COUNT=2",
+            },
+            LoanOutEntries = (hasGaps ? new[] { 0, 2 } : new[] { 0, 1 })
+                .Select(day => new LoanOutEntry
+                {
+                    LoanOutLocationId = 9,
+                    Event = new Event
+                    {
+                        StartAtUtc = start.AddDays(day).AddHours(-9),
+                        EndAtUtc = start.AddDays(day).AddHours(15),
+                        AllDay = true,
+                    },
+                    Users = [new LoanOutEntryUser { UserId = UserA }],
+                })
+                .ToList(),
+        };
+        var schedulingLoanOutService = SchedulingLoanOutTestServices.Create(
+            _dbContext,
+            new SchedulingLoanOutEventMapper(CreateCalendarTimeZoneResolver(), new TimeZoneService()),
+            () => _service,
+            () => throw new NotSupportedException(),
+            CreateCalendarTimeZoneResolver(),
+            new TimeZoneService(),
+            new IcalNetRecurrenceExpander(new TimeZoneService(), CreateCalendarTimeZoneResolver())
+        );
+
+        var transferred = singleDateRange
+            ? await schedulingLoanOutService.TransferLoanedOutUserShift(
+                new LoanOutEntry
+                {
+                    LoanOutLocationId = 9,
+                    Event = new Event
+                    {
+                        StartAtUtc = start.AddHours(-9),
+                        EndAtUtc = start.AddDays(1).AddHours(15),
+                        AllDay = true,
+                    },
+                    Users = [new LoanOutEntryUser { UserId = UserA }],
+                },
+                cancellationToken: cancellationToken
+            )
+            : await schedulingLoanOutService.TransferLoanedOutUserShift(loanOut, cancellationToken: cancellationToken);
+
+        _dbContext.ChangeTracker.Clear();
+        var copied = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .Include(entry => entry.Users)
+            .Where(entry => entry.Event!.LocationId == 9)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .ToListAsync(cancellationToken);
+        Assert.True(transferred);
+        if (singleDateRange)
+        {
+            var standalone = Assert.Single(copied, entry => entry.Event!.Title == "Standalone");
+            Assert.Null(standalone.ShiftSeriesId);
+            Assert.Equal(start.AddHours(8), standalone.Event!.StartAtUtc);
+            Assert.Equal(start.AddHours(9), standalone.Event.EndAtUtc);
+            copied.Remove(standalone);
+        }
+        Assert.Equal(
+            new[] { start.AddHours(overrideFirstTime ? 1 : 0), start.AddDays(hasGaps ? 2 : 1) },
+            copied.Select(entry => entry.Event!.StartAtUtc)
+        );
+        Assert.Equal(overrideFirstTime ? 2 : 1, copied.Select(entry => entry.ShiftSeriesId).Distinct().Count());
+        Assert.All(
+            copied,
+            entry =>
+            {
+                if (singleDateRange)
+                {
+                    Assert.Null(entry.ShiftSeriesId);
+                    Assert.Null(entry.Event!.EventSeriesId);
+                }
+                else
+                    Assert.NotNull(entry.ShiftSeriesId);
+                Assert.Equal(entry.Event!.StartAtUtc.AddHours(7), entry.Event.EndAtUtc);
+                Assert.Equal(UserA, Assert.Single(entry.Users).UserId);
+            }
+        );
+        var originals = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .Where(entry => entry.ShiftSeriesId == source.Id)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .ToListAsync(cancellationToken);
+        Assert.Equal(3, originals.Count);
+        Assert.True(originals[0].Event!.IsException);
+        Assert.Equal(!hasGaps, originals[1].Event!.IsException);
+        Assert.Equal(hasGaps, originals[2].Event!.IsException);
+    }
+
+    [Theory]
+    [InlineData("FREQ=DAILY;COUNT=29", false)]
+    [InlineData("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;COUNT=21", false)]
+    [InlineData("FREQ=WEEKLY;BYDAY=TU,FR;COUNT=10", false)]
+    [InlineData("FREQ=DAILY;COUNT=2", true)]
+    public async Task TransferLoanedOutUserShift_TuesdayFridayLoanOut_CreatesOneRecurringShiftSeries(
+        string sourceRule,
+        bool singleOverlap
+    )
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var start = new DateTimeOffset(2026, 11, 2, 17, 0, 0, TimeSpan.Zero);
+        var loanOutDays = new[] { 1, 4, 8, 11, 15, 18, 22, 25 };
+        await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(recurrenceRule: sourceRule) with
+            {
+                StartAtUtc = start,
+                EndAtUtc = start.AddHours(7),
+            },
+            cancellationToken
+        );
+        var loanOut = new LoanOutSeries
+        {
+            LoanOutLocationId = 9,
+            EventSeries = new EventSeries
+            {
+                StartAtUtc = start.AddHours(-9),
+                EndAtUtc = start.AddHours(15),
+                TimeZoneId = "America/Vancouver",
+                RecurrenceRule = "FREQ=WEEKLY;BYDAY=TU,FR;COUNT=8",
+            },
+            LoanOutEntries = loanOutDays
+                .Select(day => new LoanOutEntry
+                {
+                    LoanOutLocationId = 9,
+                    Event = new Event
+                    {
+                        StartAtUtc = start.AddDays(day).AddHours(-9),
+                        EndAtUtc = start.AddDays(day).AddHours(15),
+                        AllDay = true,
+                    },
+                    Users = [new LoanOutEntryUser { UserId = UserA }],
+                })
+                .ToList(),
+        };
+        var service = SchedulingLoanOutTestServices.Create(
+            _dbContext,
+            new SchedulingLoanOutEventMapper(CreateCalendarTimeZoneResolver(), new TimeZoneService()),
+            () => _service,
+            () => throw new NotSupportedException(),
+            CreateCalendarTimeZoneResolver(),
+            new TimeZoneService(),
+            new IcalNetRecurrenceExpander(new TimeZoneService(), CreateCalendarTimeZoneResolver())
+        );
+
+        Assert.True(await service.TransferLoanedOutUserShift(loanOut, cancellationToken: cancellationToken));
+
+        _dbContext.ChangeTracker.Clear();
+        var copiedSeries = Assert.Single(
+            await _dbContext
+                .ShiftSeries.Include(series => series.EventSeries)
+                .Include(series => series.ShiftEntries)
+                    .ThenInclude(entry => entry.Event)
+                .Where(series => series.EventSeries!.LocationId == 9)
+                .ToListAsync(cancellationToken)
+        );
+        Assert.Equal(
+            singleOverlap ? "FREQ=WEEKLY;BYDAY=TU,FR;COUNT=1" : "FREQ=WEEKLY;BYDAY=TU,FR;COUNT=8",
+            copiedSeries.EventSeries!.RecurrenceRule
+        );
+        var expectedDays = singleOverlap ? loanOutDays.Take(1) : loanOutDays;
+        Assert.Equal(
+            expectedDays.Select(day => start.AddDays(day)),
+            copiedSeries.ShiftEntries.Select(entry => entry.Event!.StartAtUtc).Order()
+        );
+        Assert.Equal(
+            singleOverlap ? 1 : 8,
+            await _dbContext.ShiftEntries.CountAsync(entry => entry.Event!.LocationId == 9, cancellationToken)
+        );
+    }
+
+    [Theory]
+    [InlineData(false, "TU,FR", false, false)]
+    [InlineData(true, "TU,FR", false, false)]
+    [InlineData(false, "TU,TH", false, false)]
+    [InlineData(true, "TU,TH", false, false)]
+    [InlineData(false, "MO,TU,WE,TH,FR", true, false)]
+    [InlineData(true, "MO,TU,WE,TH,FR", true, false)]
+    [InlineData(false, "TU,WE,MO,TH,FR", false, true)]
+    [InlineData(true, "TU,WE,MO,TH,FR", false, true)]
+    public async Task CreateLoanOutSeries_WeeklyInNovember_ReturnsDestinationShiftsInOneSeries(
+        bool sourceCrossesDst,
+        string weekdays,
+        bool dateRangeEntry,
+        bool reportedPayload
+    )
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var destinationLocationId = reportedPayload ? 10 : 9;
+        if (reportedPayload)
+            _dbContext.Locations.Add(
+                new Location
+                {
+                    Id = 10,
+                    AgencyId = "A10",
+                    Name = "Location 10",
+                    Timezone = "America/Vancouver",
+                }
+            );
+        _dbContext.EventTypes.Add(CreateEventType(LoanOutConstants.LoanOutEventTypeCode));
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _service.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest(recurrenceRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;COUNT=21") with
+            {
+                StartAtUtc = sourceCrossesDst
+                    ? new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero)
+                    : new DateTimeOffset(2026, 11, 1, 17, 0, 0, TimeSpan.Zero),
+                EndAtUtc = sourceCrossesDst
+                    ? new DateTimeOffset(2026, 11, 1, 16, 0, 0, TimeSpan.Zero)
+                    : new DateTimeOffset(2026, 11, 2, 0, 0, 0, TimeSpan.Zero),
+            },
+            cancellationToken
+        );
+        var timeZoneService = new TimeZoneService();
+        var resolver = CreateCalendarTimeZoneResolver();
+        var expander = new IcalNetRecurrenceExpander(timeZoneService, resolver);
+        var transferExpander = new CountingRecurrenceExpander(expander);
+        var calendarMapper = new CalendarEventMapper();
+        var schedulingLoanOutService = SchedulingLoanOutTestServices.Create(
+            _dbContext,
+            new SchedulingLoanOutEventMapper(CreateCalendarTimeZoneResolver(), new TimeZoneService()),
+            () => _service,
+            () => throw new NotSupportedException(),
+            resolver,
+            timeZoneService,
+            transferExpander
+        );
+        var loanOutService = new LoanOutSeriesService(
+            NullLogger<LoanOutSeriesService>.Instance,
+            _dbContext,
+            new LoanOutEventMapper(calendarMapper),
+            new CalendarEventSeriesService<LoanOutSeriesRequest, LoanOutSeries>(
+                new LoanOutEventFactory(),
+                calendarMapper,
+                new CalendarLifecycleService()
+            ),
+            new EventSeriesMaterializationService(
+                _dbContext,
+                new IcalNetRecurrenceRuleValidator(expander, timeZoneService, resolver),
+                expander
+            ),
+            new LoanOutSeriesMaterializationHandler(_dbContext),
+            schedulingLoanOutService
+        );
+
+        if (dateRangeEntry)
+        {
+            var entryService = new LoanOutEntryService(
+                NullLogger<LoanOutEntryService>.Instance,
+                _dbContext,
+                new LoanOutEventMapper(calendarMapper),
+                new CalendarEventEntryService<LoanOutEntryRequest, LoanOutEntry>(
+                    NullLogger<CalendarEventEntryService<LoanOutEntryRequest, LoanOutEntry>>.Instance,
+                    new LoanOutEventFactory(),
+                    new CalendarLifecycleService(),
+                    calendarMapper
+                ),
+                schedulingLoanOutService
+            );
+            await entryService.CreateLoanOutEntryAsync(
+                new LoanOutEntryRequest
+                {
+                    Title = "November 1â€“15 loan-out",
+                    StartAtUtc = new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero),
+                    EndAtUtc = new DateTimeOffset(2026, 11, 16, 8, 0, 0, TimeSpan.Zero),
+                    TimeZoneId = "America/Vancouver",
+                    LocationId = 5,
+                    LoanOutLocationId = 9,
+                    UserIds = [UserA],
+                },
+                cancellationToken
+            );
+        }
+        else
+            await loanOutService.CreateLoanOutSeriesAsync(
+                new LoanOutSeriesRequest
+                {
+                    Title = "Weekly loan-out",
+                    StartAtUtc = new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero),
+                    EndAtUtc = new DateTimeOffset(2026, 11, 2, reportedPayload ? 7 : 8, 0, 0, TimeSpan.Zero),
+                    TimeZoneId = "America/Vancouver",
+                    RecurrenceRule = reportedPayload
+                        ? "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=TU,WE,MO,TH,FR;UNTIL=20261106T235959Z"
+                        : $"FREQ=WEEKLY;BYDAY={weekdays};UNTIL=20261201T075959Z",
+                    LocationId = 5,
+                    LoanOutLocationId = destinationLocationId,
+                    UserIds = [UserA],
+                },
+                cancellationToken
+            );
+
+        _dbContext.ChangeTracker.Clear();
+        var destinationShifts = await _service.GetShiftEntriesAsync(
+            new ShiftEntryQueryParams { LocationId = destinationLocationId },
+            cancellationToken
+        );
+        var expectedCount =
+            reportedPayload ? 5
+            : dateRangeEntry ? 10
+            : 8;
+        Assert.Equal(expectedCount, destinationShifts.Count);
+        // One expansion for the loan-out range, then one per candidate rule.
+        Assert.Equal(dateRangeEntry ? 0 : 3, transferExpander.BoundedExpansionCount);
+        int? seriesId = null;
+        if (dateRangeEntry)
+            Assert.All(destinationShifts, shift => Assert.Null(shift.ShiftSeriesId));
+        else
+        {
+            Assert.All(destinationShifts, shift => Assert.NotNull(shift.ShiftSeriesId));
+            seriesId = Assert.Single(destinationShifts.Select(shift => shift.ShiftSeriesId!.Value).Distinct());
+            var series = await _service.GetShiftSeriesByIdAsync(seriesId.Value, cancellationToken);
+            Assert.NotNull(series);
+            var interval = reportedPayload ? "INTERVAL=1;" : "";
+            Assert.Equal($"FREQ=WEEKLY;{interval}BYDAY={weekdays};COUNT={expectedCount}", series.RecurrenceRule);
+            Assert.Equal(expectedCount, series.ShiftEntryIds.Count);
+        }
+        var shiftHour = sourceCrossesDst ? 8 : 17;
+        var expectedDays =
+            reportedPayload ? new[] { 2, 3, 4, 5, 6 }
+            : dateRangeEntry ? new[] { 2, 3, 4, 5, 6, 9, 10, 11, 12, 13 }
+            : weekdays == "TU,TH" ? new[] { 3, 5, 10, 12, 17, 19, 24, 26 }
+            : new[] { 3, 6, 10, 13, 17, 20, 24, 27 };
+        Assert.Equal(
+            expectedDays.Select(day => new DateTimeOffset(2026, 11, day, shiftHour, 0, 0, TimeSpan.Zero)),
+            destinationShifts.Select(shift => shift.StartAtUtc).Order()
+        );
+        var calendarEvents = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .Include(entry => entry.Users)
+            .Where(entry => entry.Event!.LocationId == destinationLocationId)
+            .ToListAsync(cancellationToken);
+        Assert.All(
+            calendarEvents,
+            entry => Assert.Equal(seriesId, ShiftResponseMapper.ToCalendarEventResponse(entry).ShiftSeriesId)
+        );
+    }
+
+    [Theory]
+    [InlineData("America/Vancouver")]
+    [InlineData("America/Edmonton")]
+    [InlineData("UTC")]
+    public async Task CreateShiftSeries_NovemberWeekdaysForMultipleEmployees_CreatesAllOccurrences(string timeZoneId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var time = new TimeZoneService();
+        var zone = time.ResolveRequired(timeZoneId);
+        var request = CreateShiftSeriesRequest(
+            recurrenceRule: "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR;UNTIL=20261130T235959Z",
+            userIds: [UserA, UserB, UserC]
+        ) with
+        {
+            StartAtUtc = time.ToUtcInstant(new DateTime(2026, 11, 1, 9, 0, 0), zone),
+            EndAtUtc = time.ToUtcInstant(new DateTime(2026, 11, 1, 17, 0, 0), zone),
+            TimeZoneId = timeZoneId,
+        };
+
+        var result = await _service.CreateShiftSeriesAsync(request, cancellationToken);
+
+        var shifts = await _service.GetShiftEntriesAsync(
+            new ShiftEntryQueryParams { ShiftSeriesId = result.Id },
+            cancellationToken
+        );
+        Assert.Equal(21, shifts.Count);
+        Assert.All(
+            shifts,
+            shift =>
+            {
+                Assert.Equal(new[] { UserA, UserB, UserC }, shift.UserIds.Order());
+                var localStart = time.ToLocalUnspecified(shift.StartAtUtc, zone);
+                Assert.Equal(9, localStart.Hour);
+                Assert.DoesNotContain(localStart.DayOfWeek, new[] { DayOfWeek.Saturday, DayOfWeek.Sunday });
+            }
+        );
+        Assert.Equal(
+            new DateTime(2026, 11, 2, 9, 0, 0),
+            time.ToLocalUnspecified(shifts.Min(shift => shift.StartAtUtc), zone)
+        );
+        Assert.Equal(
+            new DateTime(2026, 11, 30, 9, 0, 0),
+            time.ToLocalUnspecified(shifts.Max(shift => shift.StartAtUtc), zone)
+        );
+    }
+
+    private sealed class CountingRecurrenceExpander(IRecurrenceExpander inner) : IRecurrenceExpander
+    {
+        public int BoundedExpansionCount { get; private set; }
+
+        public IReadOnlyCollection<SeriesEntry> ExpandAllBounded(EventSeries series, int maximumOccurrences)
+        {
+            BoundedExpansionCount++;
+            return inner.ExpandAllBounded(series, maximumOccurrences);
+        }
+
+        public IReadOnlyCollection<SeriesEntry> ExpandWithin(
+            EventSeries series,
+            DateTimeOffset start,
+            DateTimeOffset end
+        ) => inner.ExpandWithin(series, start, end);
+
+        public int CountWithin(EventSeries series, DateTimeOffset start, DateTimeOffset end, int stopAfter) =>
+            inner.CountWithin(series, start, end, stopAfter);
+    }
+
     private async Task SeedBaseDataAsync()
     {
         _dbContext.EventTypes.AddRange(
@@ -2097,7 +2585,11 @@ public class ShiftServiceTests : IAsyncLifetime
     {
         var factory = new ShiftEventFactory();
         var lifecycle = new CalendarLifecycleService();
-        var shiftConflicts = new ShiftConflictService(db, zones);
+        var shiftConflicts = new ShiftConflictService(
+            db,
+            zones,
+            SchedulingLoanOutTestServices.CreateAvailability(db, zones)
+        );
         var series = new ShiftSeriesService(
             NullLogger<ShiftSeriesService>.Instance,
             db,
@@ -2114,7 +2606,8 @@ public class ShiftServiceTests : IAsyncLifetime
             zones,
             time,
             conflicts,
-            shiftConflicts
+            shiftConflicts,
+            SchedulingLoanOutTestServices.CreateMarker(db, zones)
         );
         var entries = new ShiftEntryService(
             NullLogger<ShiftEntryService>.Instance,

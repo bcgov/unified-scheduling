@@ -47,6 +47,13 @@ public enum CalendarEventStatusTypeCode
     Cancelled,
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CalendarEventExceptionReasonCode
+{
+    None,
+    IsAway,
+}
+
 public static class CalendarCodeMappings
 {
     public static string ToDbCode(CalendarEventTypeCode code) =>

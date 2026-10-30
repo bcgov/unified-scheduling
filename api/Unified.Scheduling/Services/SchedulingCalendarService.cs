@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Services;
+using Unified.Common.Scheduling;
+using Unified.Common.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -16,7 +18,9 @@ public sealed class SchedulingCalendarService(
     UnifiedDbContext db,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
-    ILeaveCalendarDataProvider? leaveCalendarDataProvider = null
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
+    ILeaveCalendarDataProvider? leaveCalendarDataProvider = null,
+    ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse> schedulingCalendarDataProvider = null
 ) : ISchedulingCalendarService
 {
     public async Task<SchedulingCalendarDataResponse> GetDataAsync(
@@ -24,6 +28,7 @@ public sealed class SchedulingCalendarService(
         bool includeShifts,
         bool includeAssignments,
         bool includeLeave,
+        bool includeLoanOut,
         CancellationToken cancellationToken = default
     )
     {
@@ -59,8 +64,17 @@ public sealed class SchedulingCalendarService(
                 );
             if (request.UserIds is { Count: > 0 })
                 query = query.Where(entry => entry.Users.Any(user => request.UserIds.Contains(user.UserId)));
+            var shifts = await query.ToListAsync(cancellationToken);
+            var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync(shifts, cancellationToken);
             events.AddRange(
-                (await query.ToListAsync(cancellationToken)).Select(ShiftResponseMapper.ToCalendarEventResponse)
+                shifts
+                    .Select(shift =>
+                        ShiftResponseMapper.ToCalendarEventResponse(shift, awayUsers.GetValueOrDefault(shift))
+                    )
+                    .Where(response =>
+                        request.UserIds is not { Count: > 0 }
+                        || response.ResourceIds.Any(id => request.UserIds.Any(userId => userId.ToString() == id))
+                    )
             );
         }
 
@@ -110,6 +124,23 @@ public sealed class SchedulingCalendarService(
                     cancellationToken
                 );
                 events.AddRange(leaveEvents.Select(SchedulingCalendarEventMapper.ToResponse));
+            }
+        }
+        if (includeLoanOut)
+        {
+            if (schedulingCalendarDataProvider is not null)
+            {
+                var loanOutEvents = await schedulingCalendarDataProvider.GetDataAsync(
+                    new SchedulingCalendarEventQueryContext
+                    {
+                        StartAtUtc = range.StartAtUtc,
+                        EndAtUtc = range.EndAtUtc,
+                        LocationId = request.LocationId,
+                        UserIds = request.UserIds ?? [],
+                    },
+                    cancellationToken
+                );
+                events.AddRange(loanOutEvents);
             }
         }
 

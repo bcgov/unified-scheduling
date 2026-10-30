@@ -226,6 +226,9 @@ namespace Unified.Db.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("general");
 
+                    b.Property<string>("ExceptionReason")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsException")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -3700,7 +3703,8 @@ namespace Unified.Db.Migrations
 
                     b.HasOne("Unified.Db.Models.LoanOut.LoanOutSeries", "LoanOutSeries")
                         .WithMany("LoanOutEntries")
-                        .HasForeignKey("LoanOutSeriesId");
+                        .HasForeignKey("LoanOutSeriesId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
                         .WithMany()

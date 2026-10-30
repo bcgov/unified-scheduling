@@ -143,7 +143,12 @@ public static class UserManagementModule
             .AddPermissionPolicy(Permissions.UsersLeaveCreate)
             .AddPermissionPolicy(Permissions.UsersLeaveEdit)
             .AddPermissionPolicy(Permissions.UsersLeaveDelete)
-            .AddPermissionPolicy(Permissions.UsersLeaveView);
+            .AddPermissionPolicy(Permissions.UsersLeaveView)
+            // Loan Out
+            .AddPermissionPolicy(Permissions.UsersLoanOutView)
+            .AddPermissionPolicy(Permissions.UsersLoanOutCreate)
+            .AddPermissionPolicy(Permissions.UsersLoanOutEdit)
+            .AddPermissionPolicy(Permissions.UsersLoanOutDelete);
 
         return services;
     }

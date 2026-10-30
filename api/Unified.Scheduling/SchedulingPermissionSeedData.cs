@@ -113,6 +113,30 @@ public static class SchedulingPermissionSeedData
                     Id = nameof(Permissions.LeaveDelete),
                     Description = "Delete leave",
                 },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.LoanOutView),
+                    Description = "View loan outs",
+                },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.LoanOutCreateAndAssign),
+                    Description = "Create and assign loan outs",
+                },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.LoanOutEdit),
+                    Description = "Edit loan outs",
+                },
+                new()
+                {
+                    Group = PermissionGroupScheduling,
+                    Id = nameof(Permissions.LoanOutDelete),
+                    Description = "Delete loan outs",
+                },
             ],
         };
 }

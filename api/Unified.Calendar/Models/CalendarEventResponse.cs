@@ -32,6 +32,7 @@ public sealed class CalendarEventResponse
 
     public bool IsException { get; init; }
 
+    public string? ExceptionReason { get; init; }
     public CalendarEventType Type { get; init; } = CalendarEventType.CalendarEvent;
 
     public CalendarEventStatus Status { get; init; } = CalendarEventStatus.Active;

@@ -36,6 +36,7 @@ public class Event : BaseEntity
 
     public bool IsException { get; set; }
 
+    public string? ExceptionReason { get; set; }
     public string EventTypeCode { get; set; } = CalendarEventTypeCodes.General;
 
     public EventType? EventType { get; set; }
