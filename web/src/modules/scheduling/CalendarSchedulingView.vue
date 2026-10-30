@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { mdiRepeat } from '@mdi/js';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
 import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
+import CalendarSchedulingLoanOutDetailModal from './CalendarSchedulingLoanOutDetailModal.vue';
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
@@ -58,6 +59,7 @@ import {
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
   calendarSchedulingLeaveDetailEvent,
+  calendarSchedulingLoanOutDetailEvent,
   calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
@@ -65,6 +67,7 @@ import {
   closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   closeCalendarSchedulingLeaveDetail,
+  closeCalendarSchedulingLoanOutDetail,
   getCalendarSchedulingHeaderConflictKey,
   isCalendarSchedulingAssignmentModalOpen,
   isCalendarSchedulingResourceActionModalOpen,
@@ -398,6 +401,12 @@ function isAssignmentEvent(event: CalendarEventBase) {
     @close="closeCalendarSchedulingLeaveDetail"
   />
 
+  <CalendarSchedulingLoanOutDetailModal
+    v-if="calendarSchedulingLoanOutDetailEvent"
+    :key="calendarSchedulingLoanOutDetailEvent.id"
+    :event="calendarSchedulingLoanOutDetailEvent"
+    @close="closeCalendarSchedulingLoanOutDetail"
+  />
   <CalendarSchedulingAssignmentDefinitionCreateModal
     v-if="assignmentDefinitionId"
     :assignment-definition-id="assignmentDefinitionId"

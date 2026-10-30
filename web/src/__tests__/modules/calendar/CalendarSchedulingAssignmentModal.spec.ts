@@ -7,7 +7,8 @@ import { useLocationsStore } from '@/stores/LocationsStore';
 import { DateTime } from 'luxon';
 
 const hasPermission = vi.hoisted(() => vi.fn(() => true));
-vi.mock('@/composables/useAccessControl', () => ({ useAccessControl: () => ({ hasPermission }) }));
+const featureFlags = vi.hoisted(() => ({ value: { LoanOut: { enabled: false } } }));
+vi.mock('@/composables/useAccessControl', () => ({ useAccessControl: () => ({ hasPermission, featureFlags }) }));
 
 function createAwaitGuardedFetchResult<T>(value: T, execute = vi.fn().mockResolvedValue(undefined)) {
   const result = {
@@ -54,7 +55,7 @@ function createValidationError(errors: Record<string, string[]>) {
 
 async function mountAssignmentCreateModalWithSaveError(
   error: unknown,
-  options: { recurring?: boolean; savedId?: number } = {},
+  options: { recurring?: boolean; savedId?: number; loanedUser?: boolean } = {},
 ) {
   const saveExecute = vi.fn().mockResolvedValue(undefined);
   const response = options.savedId ? { id: options.savedId } : null;
@@ -125,13 +126,15 @@ async function mountAssignmentCreateModalWithSaveError(
   vi.doMock('@/api-access/generated/users/users', () => ({
     getApiUsers: vi.fn().mockReturnValue(
       createFetchResult({
-        value: [
-          {
-            id: 'feaa2a73-6898-48ae-9c32-9633b1ec5538',
-            firstName: 'Alex',
-            lastName: 'Alpha',
-          },
-        ],
+        value: options.loanedUser
+          ? []
+          : [
+              {
+                id: 'feaa2a73-6898-48ae-9c32-9633b1ec5538',
+                firstName: 'Alex',
+                lastName: 'Alpha',
+              },
+            ],
       }),
     ),
   }));
@@ -212,10 +215,49 @@ describe('CalendarSchedulingAssignmentModal', () => {
   beforeEach(() => {
     vi.resetModules();
     hasPermission.mockReturnValue(true);
+    featureFlags.value.LoanOut.enabled = false;
   });
 
   afterEach(() => {
+    vi.doUnmock('@/modules/loanout/api/loanOutApi');
     document.body.innerHTML = '';
+  });
+
+  it('labels loaned users by name in Link Shift and reloads them when the date changes', async () => {
+    featureFlags.value.LoanOut.enabled = true;
+    const loadLoanOutUsers = vi.fn().mockReturnValue(
+      createFetchResult({
+        value: [{ id: 'feaa2a73-6898-48ae-9c32-9633b1ec5538', firstName: 'Alex', lastName: 'Alpha' }],
+      }),
+    );
+    vi.doMock('@/modules/loanout/api/loanOutApi', () => ({ useLoanOutSchedulingUsers: loadLoanOutUsers }));
+    const { wrapper } = await mountAssignmentCreateModalWithSaveError(null, { loanedUser: true });
+    const vm = wrapper.vm as unknown as {
+      shiftEntryOptions: Array<{ description: string }>;
+      formData: { date: string; shiftEntryLinks: unknown[] };
+    };
+
+    vm.formData.shiftEntryLinks = [];
+    await flushPromises();
+    expect(vm.shiftEntryOptions[0]?.description).toContain('Alex Alpha');
+    expect(vm.shiftEntryOptions[0]?.description).not.toContain('feaa2a73');
+    expect(loadLoanOutUsers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locationId: 12,
+        startDate: '2026-07-13',
+        endDate: '2026-07-13',
+      }),
+    );
+
+    vm.formData.date = '2026-07-14';
+    await flushPromises();
+    expect(loadLoanOutUsers).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        startDate: '2026-07-14',
+        endDate: '2026-07-14',
+      }),
+    );
+    wrapper.unmount();
   });
 
   it('promotes a dragged shift entry to its series in the assignment series create request', async () => {

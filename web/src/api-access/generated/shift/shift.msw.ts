@@ -623,6 +623,8 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -667,6 +669,8 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -711,6 +715,8 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -761,6 +767,8 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -806,6 +814,8 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -851,6 +861,8 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -902,6 +914,8 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -947,6 +961,8 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -992,6 +1008,8 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1043,6 +1061,8 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1088,6 +1108,8 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1133,6 +1155,8 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1184,6 +1208,8 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1229,6 +1255,8 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1274,6 +1302,8 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1325,6 +1355,8 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1370,6 +1402,8 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1415,6 +1449,8 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
     {
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
+      isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+      exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       assignmentLinks: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
           id: faker.helpers.arrayElement([faker.number.int(), undefined]),

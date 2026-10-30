@@ -35,6 +35,9 @@ import type { SelectOption } from '@/types/select';
 import { useAccessControl } from '@/composables/useAccessControl';
 import LeaveForm, { type LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import CalendarSchedulingResourceTabs from './CalendarSchedulingResourceTabs.vue';
+import LoanOutForm, { type LoanOutFormData } from '@/modules/loanout/components/LoanOutForm.vue';
+import { buildLoanOutRequest } from '@/modules/loanout/loanOutRequest';
+import { createLoanOutEntry, createLoanOutSeries } from '@/modules/loanout/api/loanOutApi';
 
 const props = defineProps<{
   initialDate?: string;
@@ -51,6 +54,8 @@ const emit = defineEmits<{
 const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
 const accessControl = useAccessControl();
+const allowLeaveTab = computed(() => props.resource?.sourceModule !== 'loanout');
+const allowLoanOutTab = computed(() => props.resource?.sourceModule !== 'loanout');
 const canCreateShift = computed(() => accessControl.hasPermission(Permissions.ShiftsCreateAndAssign));
 const canCreateLeave = computed(
   () =>
@@ -58,9 +63,25 @@ const canCreateLeave = computed(
     accessControl.hasPermission(Permissions.LeaveCreateAndAssign),
 );
 const canPublishShift = computed(() => accessControl.hasPermission(Permissions.SchedulePublish));
+const canCreateLoanOut = computed(
+  () =>
+    (accessControl.featureFlags.value?.LoanOut?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.LoanOutCreateAndAssign),
+);
 
 const isSaving = ref(false);
-const activeTab = ref<'schedule' | 'leave'>('schedule');
+const activeTab = ref<'schedule' | 'leave' | 'loanout'>('schedule');
+const loanOutHasValidationError = ref(false);
+const loanOutFormErrors = ref<Record<string, string>>({});
+const loanOutFormData = ref<LoanOutFormData>({
+  userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
+  date: props.initialDate ?? '',
+  startTime: defaultStartTime,
+  endTime: defaultEndTime,
+  repeatMode: 'never',
+  loanOutLocationId: null,
+  notes: '',
+});
 const leaveHasValidationError = ref(false);
 const leaveFormData = ref<LeaveFormData>({
   userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
@@ -142,6 +163,16 @@ watch(
       endTime: '',
       notes: '',
     };
+    loanOutFormData.value = {
+      userIds: resource?.type === 'user' ? [resource.id] : [],
+      date: initialDate ?? '',
+      startTime: defaultStartTime,
+      endTime: defaultEndTime,
+      repeatMode: 'never',
+      loanOutLocationId: null,
+      notes: '',
+    };
+    loanOutFormErrors.value = {};
     createdShiftId.value = null;
     apiError.value = '';
     recurrenceError.value = '';
@@ -299,6 +330,7 @@ async function handleSave() {
     return;
   }
 
+  apiError.value = '';
   const validated = validateForm();
   if (!validated) {
     apiError.value = 'Could not save the shift. Check the highlighted fields.';
@@ -402,6 +434,41 @@ async function handleSaveLeave() {
   }
 }
 
+async function handleSaveLoanOut() {
+  apiError.value = '';
+  loanOutFormErrors.value = {};
+  if (!canCreateLoanOut.value) {
+    apiError.value = 'You do not have permission to create loan-out.';
+    return;
+  }
+  if (loanOutHasValidationError.value) return;
+  const built = buildLoanOutRequest(loanOutFormData.value, {
+    locationId: activeLocationId.value,
+    timeZoneId: timeZoneId.value,
+    employeeOptions: employeeOptions.value,
+  });
+  if (built.error !== undefined) {
+    apiError.value = built.error;
+    loanOutFormErrors.value = built.fieldErrors ?? {};
+    return;
+  }
+  isSaving.value = true;
+  try {
+    const result =
+      built.kind === 'series' ? await createLoanOutSeries(built.request) : await createLoanOutEntry(built.request);
+    if (result.error.value) {
+      loanOutFormErrors.value = mapToValidationErrors(result.error.value.data) ?? {};
+      apiError.value = result.error.value.message || 'Failed to create loan-out.';
+      return;
+    }
+    calendarStore.refresh();
+    emit('close');
+  } catch (error: unknown) {
+    apiError.value = error instanceof Error ? error.message : 'Failed to create loan-out.';
+  } finally {
+    isSaving.value = false;
+  }
+}
 function handlePublicationFailure() {
   calendarStore.refresh();
   apiError.value =
@@ -445,7 +512,9 @@ function applyServerValidationErrors(rawError: unknown) {
   }
 
   formErrors.value = mapped;
-  if (mapped.userIds) {
+  if (mapped.loanOut) {
+    apiError.value = mapped.loanOut;
+  } else if (mapped.userIds) {
     apiError.value = 'One or more selected employees already have a shift at this location on the selected date.';
   }
   return true;
@@ -459,7 +528,11 @@ function applyServerValidationErrors(rawError: unknown) {
       </UaAlert>
     </template>
 
-    <CalendarSchedulingResourceTabs @update:active-tab="activeTab = $event">
+    <CalendarSchedulingResourceTabs
+      :allow-leave="allowLeaveTab"
+      :allow-loan-out="allowLoanOutTab"
+      @update:active-tab="activeTab = $event"
+    >
       <template #schedule>
         <section class="resource-shift-modal__panel">
           <CalendarSchedulingShiftForm
@@ -496,6 +569,22 @@ function applyServerValidationErrors(rawError: unknown) {
           />
         </section>
       </template>
+      <template #loanout>
+        <section class="resource-shift-modal__panel">
+          <LoanOutForm
+            v-model="loanOutFormData"
+            :home-location-id="activeLocationId"
+            :disabled="isSaving || !canCreateLoanOut"
+            :employee-options="employeeOptions"
+            :loading-employees="isLoadingUsers"
+            :form-errors="loanOutFormErrors"
+            :time-zone-id="timeZoneId"
+            show-employees
+            show-repeat
+            @validation-change="loanOutHasValidationError = $event"
+          />
+        </section>
+      </template>
     </CalendarSchedulingResourceTabs>
 
     <template #actions>
@@ -521,6 +610,15 @@ function applyServerValidationErrors(rawError: unknown) {
       >
         Save
       </UaBtn>
+      <UaBtn
+        v-if="activeTab === 'loanout' && canCreateLoanOut"
+        color="primary"
+        variant="flat"
+        :loading="isSaving"
+        :disabled="loanOutHasValidationError"
+        @click="handleSaveLoanOut"
+        >Save</UaBtn
+      >
     </template>
   </UaModal>
 </template>

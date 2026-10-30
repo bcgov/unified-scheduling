@@ -35,6 +35,7 @@ export const getPostApiCalendarEventsResponseMock = (
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
           status: faker.helpers.arrayElement([
             faker.helpers.arrayElement(Object.values(CalendarEventStatus)),
@@ -122,6 +123,7 @@ export const getPostApiCalendarEventsResponseMock = (
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
           status: faker.helpers.arrayElement([
             faker.helpers.arrayElement(Object.values(CalendarEventStatus)),
@@ -209,6 +211,7 @@ export const getPostApiCalendarEventsResponseMock = (
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           type: faker.helpers.arrayElement([faker.helpers.arrayElement(Object.values(CalendarEventType)), undefined]),
           status: faker.helpers.arrayElement([
             faker.helpers.arrayElement(Object.values(CalendarEventStatus)),

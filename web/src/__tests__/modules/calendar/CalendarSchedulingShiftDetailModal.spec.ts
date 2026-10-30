@@ -322,6 +322,39 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     wrapper.unmount();
   });
 
+  it('shows the validation reason when publishing an edited shift fails', async () => {
+    const wrapper = await mountShiftDetailModal('Draft');
+    const shiftApi = await import('@/modules/scheduling/calendarSchedulingShiftApi');
+    const message = 'Alex Alpha already has a shift at this location on this shift start date.';
+    vi.mocked(shiftApi.updateShiftEntry).mockResolvedValue({
+      data: { value: { id: 42 } },
+      error: { value: null },
+    } as never);
+    vi.mocked(shiftApi.publishShiftEntry).mockResolvedValue({
+      data: { value: { title: 'Conflict.', status: 409, errors: { UserIds: [message] } } },
+      error: { value: new Error('Conflict.') },
+    } as never);
+    const vm = wrapper.vm as unknown as {
+      activeTab: string;
+      apiError: string;
+      editFormData: { publish: 'yes' | 'no' };
+      selectTab: (tabId: 'edit') => void;
+      handleSaveEdit: () => Promise<void>;
+    };
+
+    vm.selectTab('edit');
+    vm.editFormData.publish = 'yes';
+    await vm.handleSaveEdit();
+    await flushPromises();
+
+    expect(shiftApi.publishShiftEntry).toHaveBeenCalledWith(42);
+    expect(vm.apiError).toBe(message);
+    expect(document.body.textContent).toContain(message);
+    expect(vm.activeTab).toBe('edit');
+    expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   it('preserves linked assignments when opening one shift entry from a series', async () => {
     const wrapper = await mountShiftDetailModal('Draft', true);
 

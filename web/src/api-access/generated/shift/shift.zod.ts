@@ -238,6 +238,8 @@ export const GetApiSchedulingShiftsEntriesQueryParams = zod.strictObject({
 export const GetApiSchedulingShiftsEntriesResponseItem = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
+  isException: zod.boolean().optional(),
+  exceptionReason: zod.string().nullish(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -301,6 +303,8 @@ export const PostApiSchedulingShiftsEntriesBody = zod.strictObject({
 export const PostApiSchedulingShiftsEntriesResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
+  isException: zod.boolean().optional(),
+  exceptionReason: zod.string().nullish(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -343,6 +347,8 @@ export const GetApiSchedulingShiftsEntriesIdParams = zod.strictObject({
 export const GetApiSchedulingShiftsEntriesIdResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
+  isException: zod.boolean().optional(),
+  exceptionReason: zod.string().nullish(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -421,6 +427,8 @@ export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
 export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
+  isException: zod.boolean().optional(),
+  exceptionReason: zod.string().nullish(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -469,6 +477,8 @@ export const PostApiSchedulingShiftsEntriesIdPublishParams = zod.strictObject({
 export const PostApiSchedulingShiftsEntriesIdPublishResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
+  isException: zod.boolean().optional(),
+  exceptionReason: zod.string().nullish(),
   assignmentLinks: zod
     .array(
       zod.object({
@@ -518,6 +528,8 @@ export const PostApiSchedulingShiftsEntriesIdExpireBody = zod.union([
 export const PostApiSchedulingShiftsEntriesIdExpireResponse = zod.object({
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
+  isException: zod.boolean().optional(),
+  exceptionReason: zod.string().nullish(),
   assignmentLinks: zod
     .array(
       zod.object({

@@ -6,6 +6,7 @@
  */
 import type { CalendarFeatureFlags } from './calendarFeatureFlags.ts';
 import type { LeaveFeatureFlags } from './leaveFeatureFlags.ts';
+import type { LoanOutFeatureFlags } from './loanOutFeatureFlags.ts';
 import type { ReportingFeatureFlags } from './reportingFeatureFlags.ts';
 import type { SchedulingFeatureFlags } from './schedulingFeatureFlags.ts';
 import type { StatsFeatureFlags } from './statsFeatureFlags.ts';
@@ -20,4 +21,5 @@ export interface FeatureFlagsResponse {
   Training?: TrainingFeatureFlags;
   Reporting?: ReportingFeatureFlags;
   Leave?: LeaveFeatureFlags;
+  LoanOut?: LoanOutFeatureFlags;
 }

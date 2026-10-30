@@ -34,6 +34,7 @@ export const PostApiCalendarEventsResponse = zod.object({
         allDay: zod.boolean().optional(),
         isReadOnly: zod.boolean().optional(),
         isException: zod.boolean().optional(),
+        exceptionReason: zod.string().nullish(),
         type: zod.enum(['calendar.event']).optional(),
         status: zod.enum(['Active', 'Draft', 'Draft Item', 'Cancelled']).optional(),
         holidayType: zod
