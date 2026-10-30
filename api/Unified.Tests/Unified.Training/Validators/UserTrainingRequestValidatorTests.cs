@@ -25,6 +25,27 @@ public class UserTrainingRequestValidatorTests
         Assert.True(result.IsValid);
     }
 
+    [Theory]
+    [InlineData(15, 18, true)]
+    [InlineData(18, 15, false)]
+    [InlineData(15, 15, true)]
+    public async Task Validate_WhenTrainingIsOnSameDay_ValidatesTimeRange(
+        int startHour,
+        int endHour,
+        bool expectedValid
+    )
+    {
+        var request = ValidRequest() with
+        {
+            AwardedOn = new DateTimeOffset(2026, 7, 20, startHour, 0, 0, TimeSpan.FromHours(-7)),
+            EndingOn = new DateTimeOffset(2026, 7, 20, endHour, 0, 0, TimeSpan.FromHours(-7)),
+        };
+
+        var result = await _validator.ValidateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expectedValid, result.IsValid);
+    }
+
     [Fact]
     public async Task Validate_WhenUserIdIsEmpty_FailsValidation()
     {

@@ -213,7 +213,57 @@ public class UserTrainingServiceTests : IAsyncLifetime
         );
 
         Assert.NotNull(result.ExpiryDate);
-        Assert.Equal(new DateTimeOffset(Today.Year, 12, 31, 23, 59, 59, TimeSpan.Zero), result.ExpiryDate!.Value);
+        Assert.Equal(new DateTimeOffset(Tomorrow.Year, 12, 31, 23, 59, 59, TimeSpan.Zero), result.ExpiryDate!.Value);
+    }
+
+    [Theory]
+    [InlineData(false, 30)]
+    [InlineData(true, 30)]
+    [InlineData(false, 365)]
+    [InlineData(true, 365)]
+    public async Task Save_WhenExpiryIsAutomatic_CalculatesFromEndingOn(bool isUpdate, int validityDays)
+    {
+        var training = await _db.Trainings.SingleAsync(
+            item => item.Id == TrainingWithValidityId,
+            TestContext.Current.CancellationToken
+        );
+        training.ValidityDays = validityDays;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingWithValidityId,
+            AwardedOn = new DateTimeOffset(2025, 12, 30, 15, 0, 0, TimeSpan.FromHours(-8)),
+            EndingOn = new DateTimeOffset(2026, 1, 2, 18, 0, 0, TimeSpan.FromHours(-8)),
+        };
+
+        UserTrainingResponse? result;
+        if (isUpdate)
+        {
+            var existing = await SeedUserTrainingAsync(
+                CallerId,
+                TrainingWithValidityId,
+                request.AwardedOn.ToUniversalTime(),
+                expiryDate: null
+            );
+            result = await _service.UpdateAsync(existing.Id, request, TestContext.Current.CancellationToken);
+        }
+        else
+        {
+            result = await _service.CreateAsync(request, TestContext.Current.CancellationToken);
+        }
+
+        var expectedExpiry =
+            validityDays == 365
+                ? new DateTimeOffset(2026, 12, 31, 23, 59, 59, TimeSpan.Zero)
+                : new DateTimeOffset(2026, 2, 2, 2, 0, 0, TimeSpan.Zero);
+        Assert.NotNull(result);
+        Assert.Equal(expectedExpiry, result.ExpiryDate);
+        var persisted = await _db
+            .UserTrainings.AsNoTracking()
+            .SingleAsync(item => item.Id == result.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(expectedExpiry, persisted.ExpiryDate);
     }
 
     [Fact]

@@ -110,7 +110,7 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
         var validityDays = trainingRules.ValidityDays;
         var expiryDate =
             normalizedRequest.ExpiryDate
-            ?? UserTrainingHelper.CalculateExpiryDate(normalizedRequest.AwardedOn, validityDays);
+            ?? UserTrainingHelper.CalculateExpiryDate(normalizedRequest.EndingOn, validityDays);
 
         EnsureExpiryIsAfterPreviousVersion(expiryDate, latestVersion?.ExpiryDate);
 
@@ -145,7 +145,7 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
         var validityDays = trainingRules.ValidityDays;
         var expiryDate =
             normalizedRequest.ExpiryDate
-            ?? UserTrainingHelper.CalculateExpiryDate(normalizedRequest.AwardedOn, validityDays);
+            ?? UserTrainingHelper.CalculateExpiryDate(normalizedRequest.EndingOn, validityDays);
 
         var previousVersionExpiryDate = await db
             .UserTrainings.Where(ut =>
