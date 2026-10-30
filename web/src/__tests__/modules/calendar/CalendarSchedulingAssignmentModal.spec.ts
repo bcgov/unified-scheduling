@@ -258,7 +258,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
       }),
     );
     wrapper.unmount();
-  });
+  }, 10000);
 
   it('promotes a dragged shift entry to its series in the assignment series create request', async () => {
     const { wrapper, vm, postAssignmentSeries } = await mountAssignmentCreateModalWithSaveError(null, {

@@ -21,7 +21,7 @@ import {
   updateLoanOutEntry,
   updateLoanOutSeries,
 } from '@/modules/loanout/api/loanOutApi';
-import { buildLoanOutRequest } from '@/modules/loanout/loanOutRequest';
+import { buildLoanOutRequest, resolveLoanOutSaveError } from '@/modules/loanout/loanOutRequest';
 import LoanOutForm, { type LoanOutFormData } from '@/modules/loanout/components/LoanOutForm.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useUsersStore } from '@/stores/Users';
@@ -167,7 +167,9 @@ async function handleSave() {
           ? await updateLoanOutEntry(props.entry.id, built.request)
           : await createLoanOutEntry(built.request);
     if (result.error.value) {
-      apiError.value = result.error.value.message || 'Failed to save loan-out.';
+      const resolved = resolveLoanOutSaveError(result.data.value, result.error.value);
+      apiError.value = resolved.message;
+      formErrors.value = resolved.fieldErrors;
       return;
     }
     emit('save');

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Permissions, type LoanOutEntryResponse } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { deleteLoanOutEntry, deleteLoanOutSeries } from '@/modules/loanout/api/loanOutApi';
+import { resolveLoanOutSaveError } from '@/modules/loanout/loanOutRequest';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
@@ -39,11 +40,11 @@ async function handleDelete() {
   isDeleting.value = true;
   apiError.value = '';
   try {
-    const { error } = await (props.scope === 'series'
+    const { data, error } = await (props.scope === 'series'
       ? deleteLoanOutSeries(targetId.value)
       : deleteLoanOutEntry(targetId.value));
     if (error.value) {
-      apiError.value = error.value.message || 'Failed to delete loan-out.';
+      apiError.value = resolveLoanOutSaveError(data.value, error.value, 'Failed to delete loan-out.').message;
       return;
     }
     emit('deleted');

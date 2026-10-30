@@ -14,11 +14,10 @@ import {
   updateLoanOutSeries,
 } from '@/modules/loanout/api/loanOutApi';
 import LoanOutForm, { type LoanOutFormData } from '@/modules/loanout/components/LoanOutForm.vue';
-import { buildLoanOutRequest } from '@/modules/loanout/loanOutRequest';
+import { buildLoanOutRequest, resolveLoanOutSaveError } from '@/modules/loanout/loanOutRequest';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
-import { mapToValidationErrors } from '@/shared/validation/validationErrors';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useUsersStore } from '@/stores/Users';
 import CalendarSchedulingShiftDetailsPanel from './CalendarSchedulingShiftDetailsPanel.vue';
@@ -195,10 +194,9 @@ async function save() {
         ? await updateLoanOutSeries(seriesId.value, built.request)
         : await updateLoanOutEntry(entryId.value, built.request);
     if (result.error.value) {
-      const validationErrors = mapToValidationErrors(result.error.value.data);
-      formErrors.value = validationErrors ?? {};
-      apiError.value =
-        Object.values(validationErrors ?? {})[0] || result.error.value.message || 'Failed to save loan-out.';
+      const resolved = resolveLoanOutSaveError(result.data.value, result.error.value);
+      formErrors.value = resolved.fieldErrors;
+      apiError.value = resolved.message;
       return;
     }
     calendarStore.refresh();
@@ -218,9 +216,11 @@ async function remove() {
     const result =
       scope.value === 'series' ? await deleteLoanOutSeries(seriesId.value) : await deleteLoanOutEntry(entryId.value);
     if (result.error.value) {
-      const validationErrors = mapToValidationErrors(result.error.value.data);
-      apiError.value =
-        Object.values(validationErrors ?? {})[0] || result.error.value.message || 'Failed to delete loan-out.';
+      apiError.value = resolveLoanOutSaveError(
+        result.data.value,
+        result.error.value,
+        'Failed to delete loan-out.',
+      ).message;
       return;
     }
     calendarStore.refresh();

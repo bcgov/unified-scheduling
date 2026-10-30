@@ -8,6 +8,16 @@ import type { SelectOption } from '@/types/select';
 import type { LoanOutFormData } from './components/LoanOutForm.vue';
 import { RRule } from 'rrule';
 import { DateTime } from 'luxon';
+import { mapToValidationErrors } from '@/shared/validation/validationErrors';
+
+export function resolveLoanOutSaveError(data: unknown, error: unknown, fallback = 'Failed to save loan-out.') {
+  const mapped = mapToValidationErrors(data);
+  if (mapped) {
+    return { message: [...new Set(Object.values(mapped))].join(' '), fieldErrors: mapped };
+  }
+  const message = error && typeof error === 'object' ? (error as { message?: unknown }).message : undefined;
+  return { message: typeof message === 'string' && message ? message : fallback, fieldErrors: {} };
+}
 
 const constraints = {
   loanOutLocationId:
