@@ -113,10 +113,6 @@ public sealed class LoanOutShiftTransferService(
                 shift.Event != null
                 && shift.Users.Any(user => userIds.Contains(user.UserId))
                 && shift.Event.StatusTypeCode == CalendarEventStatusTypeCodes.Draft
-                && !(
-                    shift.Event.IsException
-                    && shift.Event.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway)
-                )
                 && shift.Event.LocationId != loanOutLocationId
                 && (
                     shift.Event.EndAtUtc.HasValue
@@ -155,9 +151,13 @@ public sealed class LoanOutShiftTransferService(
             {
                 var eventEntity = shift.Event!;
                 var copiedUsers = destinationUsers.GetValueOrDefault((eventEntity.StartAtUtc, eventEntity.EndAtUtc));
+                var isAway =
+                    eventEntity.IsException
+                    && eventEntity.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway);
                 var shiftUserIds = shift
                     .Users.Where(user => copiedUsers?.Contains(user.UserId) != true)
                     .Select(user => user.UserId)
+                    .Where(userId => !isAway || !(previousAwayUsers.GetValueOrDefault(shift) ?? []).Contains(userId))
                     .ToHashSet();
                 var matchingUserIds = entries
                     .Where(entry =>

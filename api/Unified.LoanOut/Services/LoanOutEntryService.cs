@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Services;
 using Unified.Db;
-using Unified.Db.Models.Calendar;
 using Unified.Db.Models.LoanOut;
 using Unified.LoanOut.Constants;
 using Unified.LoanOut.Guards;
@@ -88,19 +87,7 @@ public sealed class LoanOutEntryService(
         if (entity is null)
             return null;
 
-        var previousEntry = new LoanOutEntry
-        {
-            Id = entity.Id,
-            LoanOutLocationId = entity.LoanOutLocationId,
-            Event = new Event
-            {
-                Title = entity.Event!.Title,
-                StartAtUtc = entity.Event.StartAtUtc,
-                EndAtUtc = entity.Event.EndAtUtc,
-                LocationId = entity.Event.LocationId,
-            },
-            Users = entity.Users.Select(user => new LoanOutEntryUser { UserId = user.UserId }).ToList(),
-        };
+        var previousEntries = ShiftOverlapGuard.Snapshot([entity]);
         var allDayRequest = request with { AllDay = true };
         var updated = await calendarEventEntryService.UpdateEventAsync(
             allDayRequest,
@@ -111,19 +98,18 @@ public sealed class LoanOutEntryService(
             [
                 (input, token) => LocationGuard.EnsureValidAsync(db, input.LocationId, input.LoanOutLocationId, token),
                 (input, token) => UserGuard.EnsureValidAsync(db, input.UserIds, token),
-                (_, token) =>
-                    ShiftOverlapGuard.EnsureNoShiftAtLoanOutLocationAsync(
-                        schedulingLoanOutService,
-                        [entity],
-                        entity.LoanOutLocationId,
-                        token
-                    ),
             ],
             cancellationToken: cancellationToken
         );
         if (updated is null)
             return null;
-        await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync([previousEntry], cancellationToken);
+        var withdrawnEntries = await ShiftOverlapGuard.EnsureCanUpdateAsync(
+            schedulingLoanOutService,
+            previousEntries,
+            [updated],
+            cancellationToken
+        );
+        await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync(withdrawnEntries, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await schedulingLoanOutService.TransferLoanedOutUserShift(entity, cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);

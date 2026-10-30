@@ -120,6 +120,7 @@ public sealed class LoanOutSeriesService(
         }
         var eventSeries = entity.EventSeries!;
         var existingEntries = entity.LoanOutEntries.ToList();
+        var previousEntries = ShiftOverlapGuard.Snapshot(existingEntries);
         var oldValues = CaptureCopiedValues(eventSeries);
         var oldLoanOutLocationId = entity.LoanOutLocationId;
         var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
@@ -137,19 +138,11 @@ public sealed class LoanOutSeriesService(
             [
                 (input, token) => LocationGuard.EnsureValidAsync(db, input.LocationId, input.LoanOutLocationId, token),
                 (input, token) => UserGuard.EnsureValidAsync(db, input.UserIds, token),
-                (_, token) =>
-                    ShiftOverlapGuard.EnsureNoShiftAtLoanOutLocationAsync(
-                        schedulingLoanOutService,
-                        entity.LoanOutEntries,
-                        entity.LoanOutLocationId,
-                        token
-                    ),
             ],
             cancellationToken: cancellationToken
         );
         if (updated is null)
             throw new InvalidOperationException("Failed to update loan out series.");
-        await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync(existingEntries, cancellationToken);
         db.Set<LoanOutSeriesUser>().RemoveRange(removedSeriesUsers);
         var newValues = CaptureCopiedValues(eventSeries);
         if (recurrenceChanged)
@@ -179,6 +172,13 @@ public sealed class LoanOutSeriesService(
             }
         }
         ValidatePropagatedEntries(entity, GetCurrentEntries(entity.LoanOutEntries));
+        var withdrawnEntries = await ShiftOverlapGuard.EnsureCanUpdateAsync(
+            schedulingLoanOutService,
+            previousEntries,
+            GetCurrentEntries(entity.LoanOutEntries),
+            cancellationToken
+        );
+        await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync(withdrawnEntries, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         await schedulingLoanOutService.TransferLoanedOutUserShift(entity, cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -1,9 +1,12 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Unified.Calendar.Factories;
 using Unified.Calendar.Mappings;
+using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models;
@@ -101,12 +104,22 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             eventMapper,
             new CalendarLifecycleService()
         );
+        var timeZoneService = new TimeZoneService();
+        var resolver = new CalendarTimeZoneResolver(
+            Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+            timeZoneService
+        );
+        var expander = new IcalNetRecurrenceExpander(timeZoneService, resolver);
         _service = new LoanOutSeriesService(
             NullLogger<LoanOutSeriesService>.Instance,
             _db,
             new LoanOutEventMapper(eventMapper),
             calendarSeriesService,
-            new FakeMaterializationService(),
+            new EventSeriesMaterializationService(
+                _db,
+                new IcalNetRecurrenceRuleValidator(expander, timeZoneService, resolver),
+                expander
+            ),
             new LoanOutSeriesMaterializationHandler(_db),
             _schedulingLoanOutService
         );
@@ -253,6 +266,59 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(30, 19, 22, true)]
+    [InlineData(30, 19, 10, false)]
+    [InlineData(19, 30, 22, false)]
+    [InlineData(30, 30, 10, false)]
+    public async Task UpdateLoanOutSeriesAsync_OnlyWithdrawnCoverageBlocksTheUpdate(
+        int originalEndDay,
+        int newEndDay,
+        int shiftDay,
+        bool shouldConflict
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var request = CreateRequest() with
+        {
+            StartAtUtc = new DateTimeOffset(2026, 12, 1, 0, 0, 0, TimeSpan.Zero),
+            EndAtUtc = new DateTimeOffset(2026, 12, 2, 0, 0, 0, TimeSpan.Zero),
+            TimeZoneId = "UTC",
+            RecurrenceRule = $"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=202612{originalEndDay:00}T235959Z",
+        };
+        var created = await _service.CreateLoanOutSeriesAsync(request, ct);
+        var shiftDate = new DateTimeOffset(2026, 12, shiftDay, 12, 0, 0, TimeSpan.Zero);
+        _schedulingLoanOutService.ConflictingShiftAtUtc = shiftDate;
+        var updatedRequest = request with
+        {
+            RecurrenceRule = $"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=202612{newEndDay:00}T235959Z",
+        };
+
+        if (shouldConflict)
+            await Assert.ThrowsAsync<ConflictValidationException>(() =>
+                _service.UpdateLoanOutSeriesAsync(created.Id, updatedRequest, ct)
+            );
+        else
+        {
+            var result = await _service.UpdateLoanOutSeriesAsync(created.Id, updatedRequest, ct);
+            Assert.NotNull(result);
+            Assert.All(
+                await _db.LoanOutEntries.Include(entry => entry.Event).ToListAsync(ct),
+                entry => Assert.True(entry.Event!.StartAtUtc.Day <= newEndDay)
+            );
+            if (newEndDay < originalEndDay)
+            {
+                Assert.NotEmpty(_schedulingLoanOutService.RestoredEntries);
+                Assert.All(
+                    _schedulingLoanOutService.RestoredEntries,
+                    entry => Assert.True(entry.Event!.StartAtUtc.Day > newEndDay)
+                );
+            }
+            else
+                Assert.Empty(_schedulingLoanOutService.RestoredEntries);
+        }
+    }
+
+    [Theory]
     [InlineData(false, true, 999)]
     [InlineData(true, true, 999)]
     [InlineData(false, false, 999)]
@@ -369,67 +435,21 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             UserIds = [UserA],
         };
 
-    private sealed class FakeMaterializationService : IEventSeriesMaterializationService
-    {
-        public async Task MaterializeAsync<TContext>(
-            EventSeries eventSeries,
-            RecurrenceValidationOptions options,
-            IEventSeriesMaterializationHandler<TContext> handler,
-            TContext context,
-            CancellationToken cancellationToken
-        )
-            where TContext : notnull
-        {
-            for (var occurrence = 0; occurrence < 2; occurrence++)
-            {
-                var start = eventSeries.StartAtUtc.AddDays(occurrence);
-                var eventEntity = new Event
-                {
-                    EventSeries = eventSeries,
-                    Title = eventSeries.Title,
-                    Description = eventSeries.Description,
-                    Notes = eventSeries.Notes,
-                    Color = eventSeries.Color,
-                    StartAtUtc = start,
-                    EndAtUtc = start.Add(eventSeries.EndAtUtc!.Value - eventSeries.StartAtUtc),
-                    SeriesStartAtUtc = start,
-                    SeriesEndAtUtc = start.Add(eventSeries.EndAtUtc.Value - eventSeries.StartAtUtc),
-                    AllDay = eventSeries.AllDay,
-                    TimeZoneId = eventSeries.TimeZoneId,
-                    LocationId = eventSeries.LocationId,
-                    SourceModule = LoanOutConstants.SourceModule,
-                    EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
-                    StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
-                };
-                eventSeries.Events.Add(eventEntity);
-                await handler.OnMaterializedEventCreatedAsync(
-                    eventSeries,
-                    eventEntity,
-                    new SeriesEntry { StartAtUtc = start, EndAtUtc = eventEntity.EndAtUtc },
-                    context,
-                    cancellationToken
-                );
-            }
-        }
-
-        public Task RegenerateDraftSeriesAsync<TContext>(
-            EventSeries eventSeries,
-            RecurrenceValidationOptions options,
-            IEventSeriesMaterializationHandler<TContext> handler,
-            TContext context,
-            CancellationToken cancellationToken
-        )
-            where TContext : notnull => throw new NotSupportedException();
-    }
-
     private sealed class FakeSchedulingLoanOutService : ISchedulingLoanOutService
     {
+        public IReadOnlyCollection<LoanOutEntry> RestoredEntries { get; private set; } = [];
+
         public Task RestoreHomeLocationUserShiftsAsync(
             IReadOnlyCollection<LoanOutEntry> removedEntries,
             CancellationToken cancellationToken = default
-        ) => Task.CompletedTask;
+        )
+        {
+            RestoredEntries = removedEntries;
+            return Task.CompletedTask;
+        }
 
         public bool HasShiftConflict { get; set; }
+        public DateTimeOffset? ConflictingShiftAtUtc { get; set; }
         public int? LastCheckedLocationId { get; private set; }
 
         public Task<IReadOnlyList<IReadOnlyCollection<Guid>>> GetAssignableUserIdsByOccurrenceAsync(
@@ -447,7 +467,15 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
         )
         {
             LastCheckedLocationId = loanOutLocationId;
-            return Task.FromResult(HasShiftConflict);
+            return Task.FromResult(
+                HasShiftConflict
+                    || (
+                        ConflictingShiftAtUtc is { } shiftAt
+                        && loanOutEntries.Any(entry =>
+                            entry.Event!.StartAtUtc <= shiftAt && entry.Event.EndAtUtc > shiftAt
+                        )
+                    )
+            );
         }
 
         public Task<bool> TransferLoanedOutUserShift(
