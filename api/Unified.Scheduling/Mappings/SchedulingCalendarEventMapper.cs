@@ -13,6 +13,7 @@ internal static class SchedulingCalendarEventMapper
             LeaveSeriesId = eventData.LeaveSeriesId,
             LeaveTypeId = eventData.LeaveTypeId,
             LeaveTypeName = eventData.LeaveTypeName,
+            LeaveDate = eventData.LeaveDate,
             EventId = eventData.EventId,
             UserIds = eventData.UserIds,
             Type = eventData.Type,

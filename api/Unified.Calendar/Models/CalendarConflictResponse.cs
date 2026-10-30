@@ -10,7 +10,9 @@ public sealed record CalendarConflictEventResponse(
     DateTimeOffset Start,
     DateTimeOffset End,
     int? SourceEntityId,
-    string? TimeZoneId
+    string? TimeZoneId,
+    string? CanonicalEventId = null,
+    bool AllDay = false
 );
 
 public sealed record CalendarConflictResponse(
@@ -52,7 +54,9 @@ public sealed record CalendarConflictResponse(
             participant.Start,
             participant.End,
             participant.SourceEntityId,
-            participant.TimeZoneId
+            participant.TimeZoneId,
+            participant.CanonicalEventId,
+            participant.AllDay
         );
 }
 

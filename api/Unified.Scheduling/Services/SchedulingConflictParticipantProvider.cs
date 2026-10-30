@@ -114,6 +114,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
             participants = participants.Where(participant => resourceIds.Contains(participant.UserId));
         }
 
+        var shifts = await GetShiftParticipantsAsync(query, cancellationToken);
         if (query.LocationId.HasValue)
         {
             var locationId = query.LocationId.Value;
@@ -126,12 +127,13 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                 .Distinct()
                 .ToListAsync(cancellationToken);
             if (scopedResourceIds.Count == 0)
-                return [];
+                return shifts.Select(ForLeaveConflicts).ToList();
 
             participants = participants.Where(participant => scopedResourceIds.Contains(participant.UserId));
         }
 
-        return await ProjectParticipantsAsync(participants, cancellationToken, query.LocationId);
+        var assignments = await ProjectParticipantsAsync(participants, cancellationToken, query.LocationId);
+        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
     }
 
     public static Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForAssignmentSeriesAsync(
@@ -162,22 +164,31 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         return ProjectParticipantsAsync(participants, cancellationToken);
     }
 
-    public static Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForShiftEntriesAsync(
+    public static async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForShiftEntriesAsync(
         UnifiedDbContext db,
         IReadOnlyCollection<int> shiftEntryIds,
         CancellationToken cancellationToken = default
     )
     {
         if (shiftEntryIds.Count == 0)
-            return Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([]);
+            return [];
 
         var ids = shiftEntryIds.Distinct().ToList();
         var participants = PublishedAssignmentParticipantQuery(db)
             .Where(participant => ids.Contains(participant.ShiftAssignmentEntry!.ShiftEntryId));
-        return ProjectParticipantsAsync(participants, cancellationToken);
+        var assignments = await ProjectParticipantsAsync(participants, cancellationToken);
+        var shifts = await ProjectShiftParticipantsAsync(
+            ActiveShiftParticipantQuery(db)
+                .Where(user =>
+                    ids.Contains(user.ShiftEntryId)
+                    && user.ShiftEntry!.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Draft
+                ),
+            cancellationToken
+        );
+        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
     }
 
-    public static Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForPublicationAsync(
+    public static async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForPublicationAsync(
         UnifiedDbContext db,
         IReadOnlyCollection<int> shiftEntryIds,
         IReadOnlyCollection<int> assignmentEntryIds,
@@ -185,7 +196,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
     )
     {
         if (shiftEntryIds.Count == 0 && assignmentEntryIds.Count == 0)
-            return Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([]);
+            return [];
 
         var shiftIds = shiftEntryIds.Distinct().ToList();
         var assignmentIds = assignmentEntryIds.Distinct().ToList();
@@ -198,7 +209,62 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                         != CalendarEventStatusTypeCodes.Draft
                 )
             );
-        return ProjectParticipantsAsync(participants, cancellationToken);
+        var assignments = await ProjectParticipantsAsync(participants, cancellationToken);
+        var shifts = await ProjectShiftParticipantsAsync(
+            ActiveShiftParticipantQuery(db).Where(user => shiftIds.Contains(user.ShiftEntryId)),
+            cancellationToken
+        );
+        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
+    }
+
+    // Supplemental shift intervals cover leave outside linked assignment hours without changing other conflict pairs.
+    private static CalendarConflictParticipant ForLeaveConflicts(CalendarConflictParticipant shift) =>
+        shift with
+        {
+            Title = "Shift",
+            ConflictsWithSourceModule = "leave",
+        };
+
+    private async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetShiftParticipantsAsync(
+        CalendarConflictQuery query,
+        CancellationToken cancellationToken
+    )
+    {
+        var participants = ActiveShiftParticipantQuery(db)
+            .Where(participant =>
+                participant.ShiftEntry!.Event!.StartAtUtc < query.EndAtUtc
+                && participant.ShiftEntry.Event.EndAtUtc!.Value > query.StartAtUtc
+            );
+
+        if (!query.IncludeDraftParticipants)
+            participants = participants.Where(participant =>
+                participant.ShiftEntry!.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Draft
+            );
+
+        if (query.ResourceIds is { Count: > 0 })
+        {
+            var resourceIds = query.ResourceIds.Distinct().ToList();
+            participants = participants.Where(participant => resourceIds.Contains(participant.UserId));
+        }
+
+        if (query.LocationId.HasValue)
+        {
+            var locationId = query.LocationId.Value;
+            var scopedResourceIds = await participants
+                .Where(participant =>
+                    participant.ShiftEntry!.Event!.LocationId == null
+                    || participant.ShiftEntry.Event.LocationId == locationId
+                )
+                .Select(participant => participant.UserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            if (scopedResourceIds.Count == 0)
+                return [];
+
+            participants = participants.Where(participant => scopedResourceIds.Contains(participant.UserId));
+        }
+
+        return await ProjectShiftParticipantsAsync(participants, cancellationToken, query.LocationId);
     }
 
     private static IQueryable<Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser> ParticipantQuery(

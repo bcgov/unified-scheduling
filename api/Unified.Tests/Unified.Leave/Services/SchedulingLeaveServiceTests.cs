@@ -1,18 +1,24 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Mappings;
+using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
 using Unified.Db.Models.Lookup;
+using Unified.Leave.Conflicts;
 using Unified.Leave.Constants;
 using Unified.Leave.Factories;
 using Unified.Leave.Mappings;
 using Unified.Leave.Models.Scheduling;
 using Unified.Leave.Services;
+using Unified.Leave.Validators;
 
 namespace Unified.Tests.Leave.Services;
 
@@ -25,6 +31,8 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     private SchedulingLeaveService _service = null!;
     private LeaveType _vacation = null!;
     private LeaveType _sick = null!;
+    private CalendarConflictService _conflicts = null!;
+    private readonly SchedulingParticipantProvider _schedulingParticipants = new();
 
     public async ValueTask InitializeAsync()
     {
@@ -57,16 +65,27 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         var materialization = new EventSeriesMaterializationService(db, validator, expander);
         var calendarLifecycleService = new CalendarLifecycleService();
         var calendarEventMapper = new CalendarEventMapper();
-        var schedulingLeaveEventMapper = new SchedulingLeaveEventMapper(calendarEventMapper);
+        var schedulingLeaveEventMapper = new SchedulingLeaveEventMapper(calendarEventMapper, timeZoneService);
+        var normalizer = new LeaveRequestNormalizer(
+            db,
+            timeZoneService,
+            new SchedulingLeaveRequestValidator(),
+            new SchedulingLeaveSeriesRequestValidator(validator),
+            validator
+        );
+        _conflicts = new CalendarConflictService(
+            [new LeaveConflictParticipantProvider(db), _schedulingParticipants],
+            db
+        );
         var eventFactory = new LeaveEventFactory();
 
-        var entryService = new CalendarEventEntryService<SchedulingLeaveEntryRequest, LeaveEntry>(
-            NullLogger<CalendarEventEntryService<SchedulingLeaveEntryRequest, LeaveEntry>>.Instance,
+        var entryService = new CalendarEventEntryService<NormalizedLeaveEntryRequest, LeaveEntry>(
+            NullLogger<CalendarEventEntryService<NormalizedLeaveEntryRequest, LeaveEntry>>.Instance,
             eventFactory,
             calendarLifecycleService,
             calendarEventMapper
         );
-        var seriesService = new CalendarEventSeriesService<SchedulingLeaveSeriesRequest, LeaveSeries>(
+        var seriesService = new CalendarEventSeriesService<NormalizedLeaveSeriesRequest, LeaveSeries>(
             eventFactory,
             calendarEventMapper,
             calendarLifecycleService
@@ -76,7 +95,9 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
                 NullLogger<SchedulingLeaveEntryService>.Instance,
                 db,
                 schedulingLeaveEventMapper,
-                entryService
+                entryService,
+                normalizer,
+                _conflicts
             ),
             new SchedulingLeaveSeriesService(
                 NullLogger<SchedulingLeaveSeriesService>.Instance,
@@ -84,7 +105,9 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
                 schedulingLeaveEventMapper,
                 seriesService,
                 materialization,
-                new LeaveSeriesMaterializationHandler(db)
+                new LeaveSeriesMaterializationHandler(db),
+                normalizer,
+                _conflicts
             )
         );
     }
@@ -93,11 +116,458 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
 
     // ---- Entries ----
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("0001-01-01")]
+    [InlineData("9999-12-31")]
+    public async Task CreateLeaveEntryAsync_WhenAllDayDateIsMissingOrUnsupported_RejectsWithoutPersistence(string? date)
+    {
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.CreateLeaveEntryAsync(
+                CreateEntryRequest() with
+                {
+                    AllDay = true,
+                    LeaveDate = date is null ? null : DateOnly.Parse(date),
+                    StartAtUtc = null,
+                    EndAtUtc = null,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Empty(await _database.Db.Events.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    [InlineData(999)]
+    public async Task CreateLeaveEntryAsync_WhenAllDayLocationIsMissingOrUnknown_RejectsWithoutPersistence(
+        int? locationId
+    )
+    {
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.CreateLeaveEntryAsync(
+                CreateEntryRequest() with
+                {
+                    AllDay = true,
+                    LeaveDate = new(2026, 6, 1),
+                    StartAtUtc = null,
+                    EndAtUtc = null,
+                    LocationId = locationId,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Empty(await _database.Db.Events.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("FREQ=HOURLY;COUNT=2")]
+    [InlineData("RRULE:FREQ=HOURLY;COUNT=2")]
+    [InlineData("FREQ=DAILY;COUNT=2;BYHOUR=9")]
+    public async Task CreateLeaveSeriesAsync_WhenAllDayRuleSpecifiesTimes_RejectsWithoutPersistence(string rule)
+    {
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.CreateLeaveSeriesAsync(
+                CreateSeriesRequest(recurrenceRule: rule) with
+                {
+                    AllDay = true,
+                    LeaveDate = new(2026, 6, 1),
+                    StartAtUtc = null,
+                    EndAtUtc = null,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Empty(await _database.Db.Events.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("date")]
+    [InlineData("time")]
+    [InlineData("users")]
+    [InlineData("delete")]
+    public async Task UpdateOrDeleteLeaveEntryAsync_WhenConflictResolves_InvalidatesOverride(string change)
+    {
+        var request = CreateEntryRequest();
+        var created = await _service.CreateLeaveEntryAsync(request, TestContext.Current.CancellationToken);
+        await AddOverrideAsync(created.Id);
+        if (change == "delete")
+            await _service.DeleteLeaveEntryAsync(created.Id, TestContext.Current.CancellationToken);
+        else
+            await _service.UpdateLeaveEntryAsync(
+                created.Id,
+                change switch
+                {
+                    "date" => request with { StartAtUtc = Start.AddDays(1), EndAtUtc = End.AddDays(1) },
+                    "time" => request with { StartAtUtc = End.AddHours(1), EndAtUtc = End.AddHours(2) },
+                    _ => request with { UserIds = [LeaveTestDatabase.UserB] },
+                },
+                TestContext.Current.CancellationToken
+            );
+        Assert.NotNull(
+            (
+                await _database.Db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)
+            ).InvalidatedOn
+        );
+    }
+
     [Fact]
-    public async Task CreateLeaveEntryAsync_WhenRequestHasDuplicateUsers_PersistsDraftEntryWithDistinctUsers()
+    public async Task UpdateLeaveEntryAsync_WhenConflictStillOverlaps_PreservesAcknowledgement()
+    {
+        var request = CreateEntryRequest();
+        var created = await _service.CreateLeaveEntryAsync(request, TestContext.Current.CancellationToken);
+        await AddOverrideAsync(created.Id);
+        await _service.UpdateLeaveEntryAsync(
+            created.Id,
+            request with
+            {
+                StartAtUtc = Start.AddMinutes(15),
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Null(
+            (
+                await _database.Db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)
+            ).InvalidatedOn
+        );
+    }
+
+    [Fact]
+    public async Task UpdateLeaveEntryAsync_WhenInvalidationFails_RollsBackLeaveAndOverride()
+    {
+        var request = CreateEntryRequest();
+        var created = await _service.CreateLeaveEntryAsync(request, TestContext.Current.CancellationToken);
+        await AddOverrideAsync(created.Id);
+        _schedulingParticipants.ThrowOnRead = true;
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.UpdateLeaveEntryAsync(
+                created.Id,
+                request with
+                {
+                    StartAtUtc = Start.AddMinutes(15),
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        _database.Db.ChangeTracker.Clear();
+        var reloaded = await _service.GetLeaveEntryByIdAsync(created.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(Start, reloaded!.StartAtUtc);
+        Assert.Null(
+            (
+                await _database.Db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)
+            ).InvalidatedOn
+        );
+    }
+
+    [Theory]
+    [InlineData("regenerate")]
+    [InlineData("users")]
+    [InlineData("delete")]
+    public async Task UpdateOrDeleteLeaveSeriesAsync_WhenOccurrencesChange_InvalidatesOverrides(string change)
+    {
+        var request = CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2");
+        var created = await _service.CreateLeaveSeriesAsync(request, TestContext.Current.CancellationToken);
+        await AddOverrideAsync(created.LeaveEntryIds.First());
+        if (change == "delete")
+            await _service.DeleteLeaveSeriesAsync(created.Id, TestContext.Current.CancellationToken);
+        else
+            await _service.UpdateLeaveSeriesAsync(
+                created.Id,
+                change == "regenerate"
+                    ? request with
+                    {
+                        AllDay = true,
+                        LeaveDate = new(2026, 6, 1),
+                        StartAtUtc = null,
+                        EndAtUtc = null,
+                    }
+                    : request with
+                    {
+                        UserIds = [LeaveTestDatabase.UserB],
+                    },
+                TestContext.Current.CancellationToken
+            );
+        Assert.NotNull(
+            (
+                await _database.Db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)
+            ).InvalidatedOn
+        );
+    }
+
+    private async Task AddOverrideAsync(int leaveId)
+    {
+        var leave = await _database
+            .Db.LeaveEntries.Include(entry => entry.Event)
+            .SingleAsync(entry => entry.Id == leaveId, TestContext.Current.CancellationToken);
+        var schedule = new Event
+        {
+            SourceModule = "scheduling",
+            EventTypeCode = CalendarEventTypeCodes.General,
+            StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+            Title = "Schedule",
+            StartAtUtc = leave.Event!.StartAtUtc,
+            EndAtUtc = leave.Event.EndAtUtc,
+            TimeZoneId = "America/Vancouver",
+        };
+        _database.Db.Events.Add(schedule);
+        await _database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        _schedulingParticipants.Participants.Add(
+            new(
+                schedule.Id.ToString(),
+                "scheduling",
+                LeaveTestDatabase.UserA,
+                schedule.StartAtUtc,
+                schedule.EndAtUtc!.Value,
+                "Schedule",
+                TimeZoneId: schedule.TimeZoneId
+            )
+        );
+        await _conflicts.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = "scheduling",
+                FirstEventId = schedule.Id.ToString(),
+                SecondSourceModule = "leave",
+                SecondEventId = leave.EventId.ToString(),
+                ResourceId = LeaveTestDatabase.UserA,
+                Note = "Approved scheduling exception",
+            },
+            LeaveTestDatabase.UserA,
+            TestContext.Current.CancellationToken
+        );
+    }
+
+    private sealed class SchedulingParticipantProvider : ICalendarConflictParticipantProvider
+    {
+        public List<CalendarConflictParticipant> Participants { get; } = [];
+        public bool ThrowOnRead { get; set; }
+
+        public Task<CalendarConflictParticipant?> GetParticipantAsync(
+            CalendarConflictEventIdentity identity,
+            Guid resourceId,
+            CancellationToken cancellationToken = default
+        )
+        {
+            if (ThrowOnRead)
+                throw new InvalidOperationException("Simulated provider failure.");
+            return Task.FromResult(
+                Participants.SingleOrDefault(participant =>
+                    participant.Identity == identity && participant.ResourceId == resourceId
+                )
+            );
+        }
+
+        public Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
+            CalendarConflictQuery query,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>(
+                Participants
+                    .Where(participant =>
+                        participant.Start < query.EndAtUtc
+                        && participant.End > query.StartAtUtc
+                        && (
+                            query.ResourceIds is not { Count: > 0 }
+                            || query.ResourceIds.Contains(participant.ResourceId)
+                        )
+                    )
+                    .ToList()
+            );
+    }
+
+    [Theory]
+    [InlineData("America/Vancouver", "2026-03-08", "2026-03-08T08:00:00Z", "2026-03-09T07:00:00Z")]
+    [InlineData("America/Vancouver", "2026-11-01", "2026-11-01T07:00:00Z", "2026-11-02T08:00:00Z")]
+    [InlineData("Asia/Tokyo", "2026-06-01", "2026-05-31T15:00:00Z", "2026-06-01T15:00:00Z")]
+    public async Task CreateLeaveEntryAsync_WhenAllDay_UsesLocationDateAndIndependentMidnights(
+        string zone,
+        string date,
+        string expectedStart,
+        string expectedEnd
+    )
+    {
+        var location = await _database.Db.Locations.FindAsync([5], TestContext.Current.CancellationToken);
+        location!.Timezone = zone;
+        await _database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var request = CreateEntryRequest() with
+        {
+            AllDay = true,
+            LeaveDate = DateOnly.Parse(date),
+            StartAtUtc = null,
+            EndAtUtc = null,
+            TimeZoneId = "UTC", // The caller's time zone cannot redefine the operational day.
+        };
+
+        var result = await _service.CreateLeaveEntryAsync(request, TestContext.Current.CancellationToken);
+        var reloaded = await _service.GetLeaveEntryByIdAsync(result.Id, TestContext.Current.CancellationToken);
+
+        Assert.True(result.AllDay);
+        Assert.Equal(DateTimeOffset.Parse(expectedStart), result.StartAtUtc);
+        Assert.Equal(DateTimeOffset.Parse(expectedEnd), result.EndAtUtc);
+        Assert.Equal(zone, result.TimeZoneId);
+        Assert.Equal(request.LeaveDate, reloaded!.LeaveDate);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public async Task CreateLeaveEntryAsync_WhenDateAndTimeModesAreMixed_RejectsWithoutPersistence(
+        bool allDay,
+        bool hasDate
+    )
+    {
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.CreateLeaveEntryAsync(
+                CreateEntryRequest() with
+                {
+                    AllDay = allDay,
+                    LeaveDate = hasDate ? new DateOnly(2026, 6, 1) : null,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Empty(await _database.Db.Events.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await _database.Db.LeaveEntries.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Invalid/Zone")]
+    public async Task CreateLeaveEntryAsync_WhenOperationalTimeZoneIsInvalid_RejectsWithoutPersistence(string zone)
+    {
+        var location = await _database.Db.Locations.FindAsync([5], TestContext.Current.CancellationToken);
+        location!.Timezone = zone;
+        await _database.Db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.CreateLeaveEntryAsync(
+                CreateEntryRequest() with
+                {
+                    AllDay = true,
+                    LeaveDate = new(2026, 6, 1),
+                    StartAtUtc = null,
+                    EndAtUtc = null,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Empty(await _database.Db.Events.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task UpdateLeaveEntryAsync_WhenSwitchingModes_RoundTripsDateAndTimedInterval()
+    {
+        var timed = CreateEntryRequest();
+        var entry = await _service.CreateLeaveEntryAsync(timed, TestContext.Current.CancellationToken);
+        var allDay = await _service.UpdateLeaveEntryAsync(
+            entry.Id,
+            timed with
+            {
+                AllDay = true,
+                LeaveDate = new(2026, 6, 2),
+                StartAtUtc = null,
+                EndAtUtc = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.True(allDay!.AllDay);
+        Assert.Equal(new DateOnly(2026, 6, 2), allDay.LeaveDate);
+        var restored = await _service.UpdateLeaveEntryAsync(entry.Id, timed, TestContext.Current.CancellationToken);
+        Assert.False(restored!.AllDay);
+        Assert.Null(restored.LeaveDate);
+        Assert.Equal(Start, restored.StartAtUtc);
+        Assert.Equal(End, restored.EndAtUtc);
+    }
+
+    [Theory]
+    [InlineData("2026-03-07", 23)]
+    [InlineData("2026-10-31", 25)]
+    public async Task CreateLeaveSeriesAsync_WhenAllDayAcrossDst_MaterializesWholeLocalDays(
+        string firstDate,
+        int transitionHours
+    )
+    {
+        var first = DateOnly.Parse(firstDate);
+        var series = await _service.CreateLeaveSeriesAsync(
+            CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3") with
+            {
+                AllDay = true,
+                LeaveDate = first,
+                StartAtUtc = null,
+                EndAtUtc = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        var entries = (
+            await _service.GetLeaveEntriesByUserAsync(LeaveTestDatabase.UserA, TestContext.Current.CancellationToken)
+        )
+            .OrderBy(entry => entry.StartAtUtc)
+            .ToList();
+        Assert.Equal(3, entries.Count);
+        Assert.Equal(first, series.LeaveDate);
+        for (var index = 0; index < entries.Count; index++)
+        {
+            Assert.True(entries[index].AllDay);
+            Assert.Equal(first.AddDays(index), entries[index].LeaveDate);
+            Assert.Equal(
+                index == 1 ? transitionHours : 24,
+                (entries[index].EndAtUtc!.Value - entries[index].StartAtUtc).TotalHours
+            );
+        }
+        var edited = await _service.UpdateLeaveEntryAsync(
+            entries[1].Id,
+            CreateEntryRequest(leaveSeriesId: series.Id) with
+            {
+                AllDay = true,
+                LeaveDate = first.AddDays(4),
+                StartAtUtc = null,
+                EndAtUtc = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        var editedEvent = await _database
+            .Db.LeaveEntries.Include(entry => entry.Event)
+            .SingleAsync(entry => entry.Id == edited!.Id, TestContext.Current.CancellationToken);
+        Assert.True(editedEvent.Event!.IsException);
+        Assert.Equal(first.AddDays(4), edited.LeaveDate);
+    }
+
+    [Fact]
+    public async Task UpdateLeaveSeriesAsync_WhenSwitchingModes_RegeneratesOccurrences()
+    {
+        var timed = CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2");
+        var series = await _service.CreateLeaveSeriesAsync(timed, TestContext.Current.CancellationToken);
+        var allDay = await _service.UpdateLeaveSeriesAsync(
+            series.Id,
+            timed with
+            {
+                AllDay = true,
+                LeaveDate = new(2026, 6, 1),
+                StartAtUtc = null,
+                EndAtUtc = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.True(allDay!.AllDay);
+        Assert.DoesNotContain(allDay.EventIds, id => series.EventIds.Contains(id));
+        Assert.All(
+            await _service.GetLeaveEntriesByUserAsync(LeaveTestDatabase.UserA, TestContext.Current.CancellationToken),
+            entry => Assert.True(entry.AllDay)
+        );
+        var restored = await _service.UpdateLeaveSeriesAsync(series.Id, timed, TestContext.Current.CancellationToken);
+        Assert.False(restored!.AllDay);
+        Assert.All(
+            await _service.GetLeaveEntriesByUserAsync(LeaveTestDatabase.UserA, TestContext.Current.CancellationToken),
+            entry => Assert.False(entry.AllDay)
+        );
+    }
+
+    [Fact]
+    public async Task CreateLeaveEntryAsync_WhenRequestIsValid_PersistsDraftEntryWithUsers()
     {
         var result = await _service.CreateLeaveEntryAsync(
-            CreateEntryRequest(userIds: [LeaveTestDatabase.UserA, LeaveTestDatabase.UserB, LeaveTestDatabase.UserA]),
+            CreateEntryRequest(userIds: [LeaveTestDatabase.UserA, LeaveTestDatabase.UserB]),
             TestContext.Current.CancellationToken
         );
 
@@ -344,7 +814,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         var result = await _service.CreateLeaveSeriesAsync(
             CreateSeriesRequest(
                 recurrenceRule: "FREQ=DAILY;COUNT=3",
-                userIds: [LeaveTestDatabase.UserA, LeaveTestDatabase.UserA, LeaveTestDatabase.UserB]
+                userIds: [LeaveTestDatabase.UserA, LeaveTestDatabase.UserB]
             ),
             TestContext.Current.CancellationToken
         );
@@ -374,7 +844,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     [Fact]
     public async Task CreateLeaveSeriesAsync_WhenRuleIsUnbounded_ThrowsAndPersistsNothing()
     {
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<ValidationException>(() =>
             _service.CreateLeaveSeriesAsync(
                 CreateSeriesRequest(recurrenceRule: "FREQ=DAILY"),
                 TestContext.Current.CancellationToken
@@ -639,7 +1109,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<ValidationException>(() =>
             _service.UpdateLeaveSeriesAsync(
                 created.Id,
                 CreateSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=2", userIds: []),

@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Leave;
+using Unified.Leave.Conflicts;
 using Unified.Leave.Models;
 using Unified.Leave.Services;
 
@@ -35,6 +37,7 @@ public sealed class LeaveModuleTests
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(ILeaveTypeService));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(ILeaveCalendarDataProvider));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(LeaveSeriesMaterializationHandler));
+        Assert.DoesNotContain(services, d => d.ServiceType == typeof(ICalendarConflictParticipantProvider));
     }
 
     [Theory]
@@ -62,6 +65,7 @@ public sealed class LeaveModuleTests
         AssertScoped<ISchedulingLeaveService, SchedulingLeaveService>(services);
         AssertScoped<ILeaveTypeService, LeaveTypeService>(services);
         AssertScoped<ILeaveCalendarDataProvider, LeaveCalendarDataProvider>(services);
+        AssertScoped<ICalendarConflictParticipantProvider, LeaveConflictParticipantProvider>(services);
     }
 
     [Fact]

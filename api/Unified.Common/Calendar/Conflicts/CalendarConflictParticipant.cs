@@ -11,7 +11,10 @@ public sealed record CalendarConflictParticipant(
     string? TimeZoneId = null,
     // Synthetic all-day holidays require matching operational zones; ordinary events use UTC overlap.
     bool RequiresMatchingTimeZone = false,
-    bool IsInQueryScope = true
+    bool IsInQueryScope = true,
+    string? CanonicalEventId = null,
+    bool AllDay = false,
+    string? ConflictsWithSourceModule = null
 )
 {
     public CalendarConflictEventIdentity Identity => CalendarConflictEventIdentity.Create(SourceModule, EventId);

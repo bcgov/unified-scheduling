@@ -1,10 +1,12 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Factories;
 using Unified.Calendar.Services;
 using Unified.Db;
 using Unified.Db.Models.Leave;
+using Unified.Leave.Conflicts;
 using Unified.Leave.Constants;
 using Unified.Leave.Mappings;
 using Unified.Leave.Models.Scheduling;
@@ -15,22 +17,24 @@ public sealed class SchedulingLeaveEntryService(
     ILogger<SchedulingLeaveEntryService> logger,
     UnifiedDbContext db,
     SchedulingLeaveEventMapper schedulingLeaveEventMapper,
-    CalendarEventEntryService<SchedulingLeaveEntryRequest, LeaveEntry> calendarEventEntryService
+    CalendarEventEntryService<NormalizedLeaveEntryRequest, LeaveEntry> calendarEventEntryService,
+    LeaveRequestNormalizer requestNormalizer,
+    ICalendarConflictService conflictService
 ) : ISchedulingLeaveEntryService
 {
     public async Task<SchedulingLeaveEntryResponse> CreateLeaveEntryAsync(
-        SchedulingLeaveEntryRequest request,
+        SchedulingLeaveEntryRequest input,
         CancellationToken cancellationToken = default
     )
     {
-        var leaveSeries = request.LeaveSeriesId.HasValue
-            ? await GetValidatedLeaveSeriesAsync(request.LeaveSeriesId.Value, cancellationToken)
-            : null;
-
         await using var transaction = await db.Database.BeginTransactionAsync(
             IsolationLevel.Serializable,
             cancellationToken
         );
+        var request = await requestNormalizer.NormalizeAsync(input, cancellationToken);
+        var leaveSeries = request.LeaveSeriesId.HasValue
+            ? await GetValidatedLeaveSeriesAsync(request.LeaveSeriesId.Value, cancellationToken)
+            : null;
         var entity = await calendarEventEntryService.BuildEventAsync(
             request,
             LeaveConstants.SourceModule,
@@ -72,7 +76,7 @@ public sealed class SchedulingLeaveEntryService(
 
     public async Task<SchedulingLeaveEntryResponse?> UpdateLeaveEntryAsync(
         int id,
-        SchedulingLeaveEntryRequest request,
+        SchedulingLeaveEntryRequest input,
         CancellationToken cancellationToken = default
     )
     {
@@ -84,6 +88,7 @@ public sealed class SchedulingLeaveEntryService(
         if (entity is null)
             return null;
 
+        var request = await requestNormalizer.NormalizeAsync(input, cancellationToken);
         var leaveSeries = request.LeaveSeriesId.HasValue
             ? await GetValidatedLeaveSeriesAsync(request.LeaveSeriesId.Value, cancellationToken)
             : null;
@@ -104,6 +109,10 @@ public sealed class SchedulingLeaveEntryService(
         if (updated is null)
             return null;
         await db.SaveChangesAsync(cancellationToken);
+        await conflictService.InvalidateResolvedOverridesAsync(
+            [LeaveConflictParticipantProvider.IdentityFor(entity.EventId)],
+            cancellationToken: cancellationToken
+        );
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Updated leave entry {LeaveEntryId}.", id);
         return schedulingLeaveEventMapper.ToSchedulingLeaveEntryResponse(updated);
@@ -112,6 +121,10 @@ public sealed class SchedulingLeaveEntryService(
     public async Task<bool> DeleteLeaveEntryAsync(int id, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Deleting leave entry {LeaveEntryId}.", id);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
         var entity = await LoadLeaveEntryAsync(id, tracked: true, cancellationToken);
         if (entity is null)
             return false;
@@ -127,6 +140,11 @@ public sealed class SchedulingLeaveEntryService(
         db.LeaveEntries.Remove(entity);
         db.Events.Remove(entity.Event!);
         await db.SaveChangesAsync(cancellationToken);
+        await conflictService.InvalidateResolvedOverridesAsync(
+            [LeaveConflictParticipantProvider.IdentityFor(entity.EventId)],
+            cancellationToken: cancellationToken
+        );
+        await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Deleted leave entry {LeaveEntryId}.", id);
         return true;
     }
