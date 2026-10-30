@@ -23,11 +23,12 @@ import {
   showCalendarSchedulingPublishModal,
   showCalendarSchedulingResourceActionModal,
   showCalendarSchedulingLeaveDetail,
+  showCalendarSchedulingLoanOutDetail,
   toggleCalendarSchedulingConflict,
   toggleCalendarSchedulingHeaderConflict,
 } from './calendarSchedulingState';
 import { calendarShiftViewContribution } from './calendarShiftViewContribution';
-import { isLeaveEvent } from './calendarSchedulingData';
+import { isLeaveEvent, isLoanOutEvent } from './calendarSchedulingData';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { isSchedulingCancelled } from './schedulingLifecycle';
 import {
@@ -40,11 +41,13 @@ import {
   canCreateAssignments,
   canCreateShifts,
   canCreateLeave,
+  canCreateLoanOut,
   canEditAssignments,
   canPublishSchedule,
   canViewAssignments,
   canViewShifts,
   canViewLeave,
+  canViewLoanOut,
 } from './calendarSchedulingPermissions';
 
 const assignmentShiftRequiredAlertId = 'scheduling.assignment.shift-required';
@@ -56,9 +59,10 @@ export const calendarSchedulingCreateShiftAction: CalendarCreateAction = {
   label: '+ Create Shift',
   isAvailable: (context, runtimeContext) =>
     context.activeViewId === calendarShiftViewContribution.id &&
-    (canCreateShifts(runtimeContext) || canCreateLeave(runtimeContext)),
+    (canCreateShifts(runtimeContext) || canCreateLeave(runtimeContext) || canCreateLoanOut(runtimeContext)),
   run: (context, runtimeContext) => {
-    if (!canCreateShifts(runtimeContext) && !canCreateLeave(runtimeContext)) return;
+    if (!canCreateShifts(runtimeContext) && !canCreateLeave(runtimeContext) && !canCreateLoanOut(runtimeContext))
+      return;
     showCalendarSchedulingResourceActionModal(undefined, context.startDate);
   },
 };
@@ -108,9 +112,10 @@ export const calendarAddResourceAction: CalendarMatrixResourceAction = {
   order: 10,
   isAvailable: (context, runtimeContext) =>
     context.actionId === calendarSchedulingActionIds.addResource &&
-    (canCreateShifts(runtimeContext) || canCreateLeave(runtimeContext)),
+    (canCreateShifts(runtimeContext) || canCreateLeave(runtimeContext) || canCreateLoanOut(runtimeContext)),
   execute: (context, runtimeContext) => {
-    if (!canCreateShifts(runtimeContext) && !canCreateLeave(runtimeContext)) return;
+    if (!canCreateShifts(runtimeContext) && !canCreateLeave(runtimeContext) && !canCreateLoanOut(runtimeContext))
+      return;
     showCalendarSchedulingResourceActionModal(context.resource, context.cell?.date);
   },
 };
@@ -240,15 +245,21 @@ export const calendarSchedulingEventDetailAction: CalendarViewDetailAction = {
   id: 'calendar-scheduling.event-detail.modal',
   moduleId: CalendarModuleId.SchedulingUi,
   isAvailable: (context) =>
-    isLeaveEvent(context.event)
-      ? canViewLeave(context.runtimeContext)
-      : (context.event.sourceModule === CalendarModuleId.SchedulingUi ||
-          context.event.sourceModule === CalendarModuleId.Scheduling ||
-          isAssignmentEvent(context.event)) &&
-        (isAssignmentEvent(context.event)
-          ? canViewAssignments(context.runtimeContext)
-          : canViewShifts(context.runtimeContext)),
+    isLoanOutEvent(context.event)
+      ? canViewLoanOut(context.runtimeContext)
+      : isLeaveEvent(context.event)
+        ? canViewLeave(context.runtimeContext)
+        : (context.event.sourceModule === CalendarModuleId.SchedulingUi ||
+            context.event.sourceModule === CalendarModuleId.Scheduling ||
+            isAssignmentEvent(context.event)) &&
+          (isAssignmentEvent(context.event)
+            ? canViewAssignments(context.runtimeContext)
+            : canViewShifts(context.runtimeContext)),
   run: (context) => {
+    if (isLoanOutEvent(context.event)) {
+      if (canViewLoanOut(context.runtimeContext)) showCalendarSchedulingLoanOutDetail(context.event);
+      return;
+    }
     if (isLeaveEvent(context.event)) {
       if (canViewLeave(context.runtimeContext)) {
         showCalendarSchedulingLeaveDetail(context.event);
@@ -303,6 +314,21 @@ export const calendarSchedulingHeaderDetailAction: CalendarMatrixCellHeaderActio
   execute: (context, runtimeContext) => {
     if (canViewShifts(runtimeContext) && isCalendarEventBase(context.header.payload)) {
       showCalendarSchedulingEventDetail(context.header.payload);
+    }
+  },
+};
+export const calendarSchedulingHeaderLoanOutDetailAction: CalendarMatrixCellHeaderAction = {
+  id: calendarSchedulingActionIds.viewLoanOutDetails,
+  moduleId: CalendarModuleId.SchedulingUi,
+  label: 'View loan-out details',
+  order: 10,
+  isAvailable: (context, runtimeContext) =>
+    context.actionId === calendarSchedulingActionIds.viewLoanOutDetails &&
+    isCalendarEventBase(context.header.payload) &&
+    canViewLoanOut(runtimeContext),
+  execute: (context, runtimeContext) => {
+    if (canViewLoanOut(runtimeContext) && isCalendarEventBase(context.header.payload)) {
+      showCalendarSchedulingLoanOutDetail(context.header.payload);
     }
   },
 };
@@ -463,6 +489,10 @@ function resolveAssignmentLocationId(context: CalendarMatrixDropActionContext) {
 }
 
 function resolveUserResource(context: CalendarMatrixDropActionContext) {
+  const payload =
+    typeof context.drag.payload === 'object' && context.drag.payload !== null
+      ? (context.drag.payload as { loanOutMetaData?: unknown; sourceModule?: unknown })
+      : undefined;
   const title =
     typeof context.drag.payload === 'object' && context.drag.payload !== null
       ? (context.drag.payload as { title?: unknown }).title
@@ -470,7 +500,9 @@ function resolveUserResource(context: CalendarMatrixDropActionContext) {
   return {
     id: context.drag.itemId,
     type: 'user',
+    sourceModule: typeof payload?.sourceModule === 'string' ? payload.sourceModule : 'scheduling',
     title: typeof title === 'string' && title.trim() ? title : context.drag.itemId,
+    loanOutMetaData: Array.isArray(payload?.loanOutMetaData) ? payload.loanOutMetaData : undefined,
   };
 }
 

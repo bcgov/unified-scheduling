@@ -25,6 +25,14 @@ export interface SchedulingCalendarEventResponse {
   leaveTypeId?: number | null;
   /** @nullable */
   leaveTypeName?: string | null;
+  /** @nullable */
+  loanOutEntryId?: number | null;
+  /** @nullable */
+  loanOutSeriesId?: number | null;
+  /** @nullable */
+  loanOutLocationId?: number | null;
+  /** @nullable */
+  loanOutLocationName?: string | null;
   eventId?: number;
   userIds?: string[];
   type: string;
@@ -47,6 +55,8 @@ export interface SchedulingCalendarEventResponse {
   timeZoneId?: string | null;
   allDay?: boolean;
   isException?: boolean;
+  /** @nullable */
+  exceptionReason?: string | null;
   eventTypeCode: string;
   statusTypeCode: string;
   /** @nullable */

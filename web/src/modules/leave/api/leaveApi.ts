@@ -3,11 +3,41 @@ import type {
   SchedulingLeaveEntryResponse as LeaveEntryResponse,
   SchedulingLeaveSeriesRequest as LeaveSeriesRequest,
   SchedulingLeaveSeriesResponse as LeaveSeriesResponse,
+  SchedulingCalendarEventResponse,
 } from '@/api-access/generated/models';
 import { useFetchAPI } from '@/api-access/useFetchAPI';
 
 const leaveEntryUrl = (id: number) => `/api/scheduling/leave/entries/${id}`;
 const leaveSeriesUrl = (id: number) => `/api/scheduling/leave/series/${id}`;
+// Calendar fields are returned by the Leave module's own mapper.
+export type LeaveCalendarEvent = Omit<SchedulingCalendarEventResponse, 'resourceIds'>;
+export async function getLeaveCalendarEvents(
+  request: { startAtUtc: string; endAtUtc: string; userIds: string[] },
+  signal?: AbortSignal,
+) {
+  const result = useFetchAPI<LeaveCalendarEvent[]>(
+    {
+      url: '/api/leave/calendar/events',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: request,
+    },
+    {
+      options: {
+        immediate: false,
+        beforeFetch({ options }) {
+          if (signal) options.signal = options.signal ? AbortSignal.any([options.signal, signal]) : signal;
+          return { options };
+        },
+      },
+    },
+  );
+  await result.execute();
+  if (signal?.aborted) throw new DOMException('Leave request was aborted.', 'AbortError');
+  if (result.error.value) throw result.error.value;
+  if (!result.data.value) throw new Error('Failed to load leave events.');
+  return result.data.value;
+}
 
 // Read: Leave Entry and Series API functions
 

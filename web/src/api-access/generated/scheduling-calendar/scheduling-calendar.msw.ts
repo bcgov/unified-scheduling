@@ -30,6 +30,10 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          loanOutEntryId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutLocationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           userIds: faker.helpers.arrayElement([
             Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
@@ -50,6 +54,7 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -100,6 +105,10 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          loanOutEntryId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutLocationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           userIds: faker.helpers.arrayElement([
             Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
@@ -120,6 +129,7 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
@@ -170,6 +180,10 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          loanOutEntryId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutLocationId: faker.helpers.arrayElement([faker.number.int(), null]),
+          loanOutLocationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
           userIds: faker.helpers.arrayElement([
             Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
@@ -190,6 +204,7 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
           isException: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+          exceptionReason: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           eventTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           statusTypeCode: faker.string.alpha({ length: { min: 10, max: 20 } }),
           cancelledAt: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),

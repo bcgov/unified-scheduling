@@ -33,6 +33,8 @@ export interface CalendarEventResponse {
   allDay?: boolean;
   isReadOnly?: boolean;
   isException?: boolean;
+  /** @nullable */
+  exceptionReason?: string | null;
   type?: CalendarEventType;
   status?: CalendarEventStatus;
   holidayType?: null | StatutoryHolidayType;

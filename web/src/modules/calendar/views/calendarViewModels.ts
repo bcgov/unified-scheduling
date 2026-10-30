@@ -46,7 +46,9 @@ export const buildCalendarDefaultViewModel = (
   return {
     view: display.view,
     initialDate: context.startDate,
-    events: selectCalendarEvents(response),
+    events: selectCalendarEvents(response).filter(
+      (event) => !(event.isException && event.exceptionReason === 'IsAway'),
+    ),
     weekends: display.weekends,
   };
 };

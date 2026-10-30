@@ -77,6 +77,14 @@ const myTeamRoutes: RouteRecordRaw[] = [
               title: 'Leave',
             },
           },
+          {
+            path: 'loan-out',
+            name: 'UserLoanOut',
+            component: () => import('./views/UserLoanOut.vue'),
+            meta: {
+              title: 'Loan-out',
+            },
+          },
         ],
       },
     ],

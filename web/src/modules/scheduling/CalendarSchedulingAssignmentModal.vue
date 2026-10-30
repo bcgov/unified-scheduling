@@ -7,6 +7,7 @@ import type { AssignmentSeriesResponse } from '@/api-access/generated/models/ass
 import type { ShiftEntryResponse } from '@/api-access/generated/models/shiftEntryResponse';
 import type { ShiftSeriesResponse } from '@/api-access/generated/models/shiftSeriesResponse';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
+import { useLoanOutSchedulingUsers, type LoanOutCalendarUser } from '@/modules/loanout/api/loanOutApi';
 import type { CalendarConflictAcknowledgement } from '@/api-access/generated/models/calendarConflictAcknowledgement';
 import type { CalendarConflictResponse } from '@/api-access/generated/models/calendarConflictResponse';
 import type { CalendarConflictRejectionResponse } from '@/api-access/generated/models/calendarConflictRejectionResponse';
@@ -131,6 +132,12 @@ const conflictRetryError = ref('');
 const existingShiftEntryLinks = ref<ShiftEntryLinkFormData[]>([]);
 const existingShiftSeriesLinks = ref<ShiftSeriesLinkFormData[]>([]);
 const users = ref<UserResponse[]>([]);
+const loanOutUsers = ref<LoanOutCalendarUser[]>([]);
+const canLoadLoanOutUsers = computed(
+  () =>
+    (accessControl.featureFlags?.value?.LoanOut?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.LoanOutView),
+);
 const allUsers = ref<UserResponse[]>([]);
 const usersRequestGuard = createLatestRequestGuard();
 const hasAppliedInitialShiftEntrySelection = ref(false);
@@ -273,7 +280,9 @@ const futureShiftEntries = computed(() =>
     .filter((entry) => isSchedulingLinkable(entry.statusTypeCode))
     .filter((entry) => shiftEntryDaysOverlapAssignment(entry)),
 );
-const allUsersById = computed(() => new Map([...users.value, ...allUsers.value].map((user) => [user.id, user])));
+const allUsersById = computed(
+  () => new Map([...loanOutUsers.value, ...users.value, ...allUsers.value].map((user) => [user.id, user])),
+);
 const selectedShiftSeriesIds = computed(
   () => new Set((formData.value.shiftSeriesLinks ?? []).map((link) => link.shiftSeriesId)),
 );
@@ -409,7 +418,11 @@ watch(
 );
 
 watch(activeLocationId, () => {
-  void Promise.all([loadAssignmentDefinitions(), loadUsers()]);
+  void loadAssignmentDefinitions();
+});
+
+watch([activeLocationId, () => formData.value.date, timeZoneId, canLoadLoanOutUsers], () => {
+  void loadUsers();
 });
 
 watch(
@@ -477,6 +490,8 @@ async function loadShiftOptions() {
 async function loadUsers() {
   const requestId = usersRequestGuard.begin();
   const locationId = activeLocationId.value;
+  const date = formData.value.date || props.initialDate;
+  loanOutUsers.value = [];
   if (!locationId) {
     users.value = [];
     allUsers.value = [];
@@ -484,9 +499,23 @@ async function loadUsers() {
   }
 
   const loadAllUsers = Boolean(props.assignmentEntryId || props.assignmentSeriesId);
-  const [locationResult, allUsersResult] = await Promise.allSettled([
+  const loadLoanOutUsers = async () => {
+    if (!date || !canLoadLoanOutUsers.value) return [];
+    const result = useLoanOutSchedulingUsers({
+      startDate: date,
+      endDate: date,
+      locationId,
+      timeZoneId: timeZoneId.value,
+    });
+    await result.execute();
+    if (result.error.value) throw result.error.value;
+    if (!result.data.value) throw new Error('Failed to load loan-out employees.');
+    return result.data.value;
+  };
+  const [locationResult, allUsersResult, loanOutResult] = await Promise.allSettled([
     usersStore.ensureUsersForLocation(locationId),
     loadAllUsers ? usersStore.ensureAllUsers() : Promise.resolve([]),
+    loadLoanOutUsers(),
   ]);
 
   if (!usersRequestGuard.isCurrent(requestId)) {
@@ -495,9 +524,14 @@ async function loadUsers() {
 
   users.value = locationResult.status === 'fulfilled' ? locationResult.value : [];
   allUsers.value = allUsersResult.status === 'fulfilled' ? allUsersResult.value : [];
+  loanOutUsers.value = loanOutResult.status === 'fulfilled' ? loanOutResult.value : [];
 
   if (locationResult.status === 'rejected' && !isRequestAbortError(locationResult.reason)) {
     apiError.value = locationResult.reason instanceof Error ? locationResult.reason.message : 'Failed to load users.';
+  }
+  if (loanOutResult.status === 'rejected' && !isRequestAbortError(loanOutResult.reason)) {
+    apiError.value =
+      loanOutResult.reason instanceof Error ? loanOutResult.reason.message : 'Failed to load loan-out employees.';
   }
 }
 
