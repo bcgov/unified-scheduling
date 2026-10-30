@@ -18,9 +18,11 @@ public class UserTraining : BaseEntity
     [Required]
     public int Version { get; set; } = 1;
 
+    // todo: rename 'From'
     [Required]
     public DateTimeOffset AwardedOn { get; set; }
 
+    // todo: rename 'To'
     [Required]
     public DateTimeOffset EndingOn { get; set; }
 
