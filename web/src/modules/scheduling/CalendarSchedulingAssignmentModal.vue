@@ -120,6 +120,7 @@ const publishedShiftLinkMessage =
 const isSaving = ref(false);
 const isAssignmentDefinitionModalOpen = ref(false);
 const apiError = ref('');
+const apiInformation = ref('');
 const assignmentLoad = useSchedulingAssignmentLoad();
 const assignmentLoadError = assignmentLoad.error;
 const assignmentLoadState = assignmentLoad.state;
@@ -416,6 +417,7 @@ watch(
     hasAppliedInitialAssignmentDefinitionSelection.value = false;
     applyInitialSelections();
     apiError.value = '';
+    apiInformation.value = '';
     recurrenceError.value = '';
     formErrors.value = {};
     if (!shouldShowOpenScopeChoice.value) {
@@ -449,6 +451,7 @@ async function selectOpenScope(scope: AssignmentOpenScope) {
   activeTab.value = 'details';
   formData.value = createInitialFormData(props.initialDate);
   apiError.value = '';
+  apiInformation.value = '';
   formErrors.value = {};
   await loadInitialAssignment();
 }
@@ -869,6 +872,7 @@ function selectTab(tabId: AssignmentDetailTabId) {
   activeTab.value = tabId;
   modalMode.value = tabId === 'edit' ? 'edit' : 'view';
   apiError.value = '';
+  apiInformation.value = '';
   formErrors.value = {};
   applyScopeRestrictions();
 }
@@ -1314,6 +1318,7 @@ function validateForm(): AssignmentFormData | null {
 }
 
 async function handleSave() {
+  apiInformation.value = '';
   const hasMutationPermission = isEditMode.value ? canEditAssignment.value : canCreateAssignment.value;
   if (isReadOnly.value || !hasMutationPermission) {
     apiError.value = 'You do not have permission to save assignments.';
@@ -1367,6 +1372,9 @@ async function handleSave() {
     const saveResult = await assignmentMutation.save(saveOptions);
 
     if (saveResult.error.value) {
+      if (applyInformationMessage(saveResult.data.value, saveResult.error.value)) {
+        return;
+      }
       const conflictRejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
       if (isEditMode.value && !isSeriesScope.value && conflictRejection?.conflicts[0]) {
         pendingSaveOptions.value = saveOptions;
@@ -1431,6 +1439,10 @@ async function handleConflictOverride(note: string) {
       conflictOverrides: conflictOverrides.value,
     });
     if (saveResult.error.value) {
+      if (applyInformationMessage(saveResult.data.value, saveResult.error.value)) {
+        clearPendingConflict();
+        return;
+      }
       const rejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
       if (rejection?.conflicts[0]) {
         pendingConflict.value = rejection.conflicts[0];
@@ -1509,6 +1521,24 @@ const pendingConflictCurrentEventId = computed(() => {
   return Number(currentEvent?.eventId ?? conflict.entry.eventId);
 });
 
+function applyInformationMessage(data: unknown, error: unknown) {
+  const errorData = error && typeof error === 'object' ? (error as { data?: unknown }).data : undefined;
+  for (const candidate of [data, errorData]) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+
+    const response = candidate as { severity?: unknown; detail?: unknown };
+    if (response.severity === 'info' && typeof response.detail === 'string') {
+      apiError.value = '';
+      apiInformation.value = response.detail;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function applyServerValidationErrors(rawError: unknown) {
   const mapped = mapToValidationErrors(rawError);
   if (!mapped) {
@@ -1525,7 +1555,7 @@ function resolveAssignmentSaveError(error: unknown, fallback: string) {
     (value): value is string => typeof value === 'string' && Boolean(value.trim()),
   );
   if (messages.some((message) => /^A record with the same value already exists\.?$/i.test(message.trim()))) {
-    return 'An assignment of this type already exists for the selected location and date.';
+    return 'An assignment of this type already exists for a selected user at the selected location and date.';
   }
 
   return messages[0] ?? fallback;
@@ -1781,6 +1811,9 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       </UaAlert>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
+      </UaAlert>
+      <UaAlert v-if="apiInformation" type="info" @close="apiInformation = ''">
+        {{ apiInformation }}
       </UaAlert>
       <UaAlert v-if="assignmentLifecycle.status === 'published'" type="info">
         {{ publishedAssignmentMessage }}
