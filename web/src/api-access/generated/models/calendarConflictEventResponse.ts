@@ -17,4 +17,5 @@ export interface CalendarConflictEventResponse {
   timeZoneId: string | null;
   /** @nullable */
   canonicalEventId?: string | null;
+  allDay?: boolean;
 }

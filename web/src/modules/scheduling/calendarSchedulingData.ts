@@ -46,6 +46,7 @@ export interface CalendarEventMetadata {
   leaveSeriesId?: string;
   leaveTypeId?: number;
   leaveTypeName?: string;
+  leaveDate?: string;
 }
 
 export const leaveEventType = 'scheduling.leave';

@@ -6,9 +6,9 @@
  */
 
 export interface SchedulingLeaveSeriesRequest {
-  leaveTypeId?: number;
   /** @nullable */
   recurrenceRule?: string | null;
+  leaveTypeId?: number;
   title?: string;
   /** @nullable */
   description?: string | null;
@@ -16,9 +16,12 @@ export interface SchedulingLeaveSeriesRequest {
   notes?: string | null;
   /** @nullable */
   color?: string | null;
-  startAtUtc?: string;
+  /** @nullable */
+  startAtUtc?: string | null;
   /** @nullable */
   endAtUtc?: string | null;
+  /** @nullable */
+  leaveDate?: string | null;
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;

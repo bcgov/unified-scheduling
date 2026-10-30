@@ -27,7 +27,7 @@ import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useUsersStore } from '@/stores/Users';
 import type { SelectOption } from '@/types/select';
-import { formatCalendarDateTimeDate, formatCalendarEventTimeRange } from '@/utils/date';
+import { formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarEventTimeRange } from '@/utils/date';
 import { DateTime } from 'luxon';
 import { RRule } from 'rrule';
 import { isCalendarSchedulingEvent } from './calendarSchedulingData';
@@ -199,7 +199,10 @@ const detailRows = computed<ShiftDetailRow[]>(() => [
   {
     label: 'Time',
     value: formatCalendarEventTimeRange(props.event.start, props.event.end, {
-      allDay: props.event.allDay,
+      allDay:
+        selectedOpenScope.value === 'series'
+          ? (selectedSeries.value?.allDay ?? props.event.allDay)
+          : (selectedEntry.value?.allDay ?? props.event.allDay),
       timeZone: timeZoneId.value,
     }),
   },
@@ -220,9 +223,10 @@ function buildEditFormData(): LeaveFormData {
     return {
       userIds: selectedSeries.value.userIds,
       leaveType: selectedSeries.value.leaveTypeId,
-      date: start?.date ?? '',
-      startTime: start?.time ?? defaultStartTime,
-      endTime: end?.time ?? defaultEndTime,
+      date: selectedSeries.value.leaveDate ?? start?.date ?? '',
+      allDay: selectedSeries.value.allDay ?? false,
+      startTime: selectedSeries.value.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
+      endTime: selectedSeries.value.allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
       repeatMode: 'custom',
       recurrenceRule: selectedSeries.value.recurrenceRule ?? null,
       notes: selectedSeries.value.notes ?? '',
@@ -235,9 +239,10 @@ function buildEditFormData(): LeaveFormData {
     return {
       userIds: selectedEntry.value.userIds,
       leaveType: selectedEntry.value.leaveTypeId,
-      date: start?.date ?? '',
-      startTime: start?.time ?? defaultStartTime,
-      endTime: end?.time ?? defaultEndTime,
+      date: selectedEntry.value.leaveDate ?? start?.date ?? '',
+      allDay: selectedEntry.value.allDay ?? false,
+      startTime: selectedEntry.value.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
+      endTime: selectedEntry.value.allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
       repeatMode: 'never',
       recurrenceRule: null,
       notes: selectedEntry.value.notes ?? '',
@@ -250,9 +255,10 @@ function buildEditFormData(): LeaveFormData {
   return {
     userIds: resolveCalendarEventUserIds(props.event),
     leaveType: schedulingMetadata.value?.leaveTypeId ?? null,
-    date: start?.date ?? '',
-    startTime: start?.time ?? defaultStartTime,
-    endTime: end?.time ?? defaultEndTime,
+    date: schedulingMetadata.value?.leaveDate ?? start?.date ?? '',
+    allDay: props.event.allDay ?? false,
+    startTime: props.event.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
+    endTime: props.event.allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
     repeatMode: 'never',
     recurrenceRule: null,
     notes: props.event.notes ?? '',
@@ -402,6 +408,14 @@ function formatLocation(locationId?: number) {
 }
 
 function formatDateRange() {
+  if (props.event.allDay) {
+    return formatCalendarDateOnly(
+      selectedEntry.value?.leaveDate ??
+        schedulingMetadata.value?.leaveDate ??
+        parseFormDateTime(props.event.start, timeZoneId.value)?.date ??
+        '',
+    );
+  }
   const startDate = formatCalendarDateTimeDate(props.event.start, timeZoneId.value) || 'Unknown';
   if (!props.event.end) {
     return startDate;

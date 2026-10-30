@@ -14,6 +14,9 @@ export const PostApiCalendarEventsBody = zod.strictObject({
   filters: zod.record(zod.string(), zod.string()).nullish(),
 });
 
+export const postApiCalendarEventsResponseConflictsItemEntryAllDayDefault = false;
+export const postApiCalendarEventsResponseConflictsItemOverlapsAllDayDefault = false;
+
 export const PostApiCalendarEventsResponse = zod.object({
   moduleId: zod.string().optional(),
   contributionId: zod.string().optional(),
@@ -79,6 +82,8 @@ export const PostApiCalendarEventsResponse = zod.object({
           end: zod.iso.datetime({ offset: true }),
           sourceEntityId: zod.int().nullable(),
           timeZoneId: zod.string().nullable(),
+          canonicalEventId: zod.string().nullish(),
+          allDay: zod.boolean().default(postApiCalendarEventsResponseConflictsItemEntryAllDayDefault),
         }),
         overlaps: zod.object({
           eventId: zod.string(),
@@ -88,6 +93,8 @@ export const PostApiCalendarEventsResponse = zod.object({
           end: zod.iso.datetime({ offset: true }),
           sourceEntityId: zod.int().nullable(),
           timeZoneId: zod.string().nullable(),
+          canonicalEventId: zod.string().nullish(),
+          allDay: zod.boolean().default(postApiCalendarEventsResponseConflictsItemOverlapsAllDayDefault),
         }),
         resourceId: zod.uuid(),
         overlapStart: zod.iso.datetime({ offset: true }),

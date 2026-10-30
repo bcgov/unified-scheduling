@@ -8,11 +8,11 @@
 export interface SchedulingLeaveEntryRequest {
   /** @nullable */
   leaveSeriesId?: number | null;
-  leaveTypeId?: number;
   /** @nullable */
   seriesStartAtUtc?: string | null;
   /** @nullable */
   seriesEndAtUtc?: string | null;
+  leaveTypeId?: number;
   title?: string;
   /** @nullable */
   description?: string | null;
@@ -20,9 +20,12 @@ export interface SchedulingLeaveEntryRequest {
   notes?: string | null;
   /** @nullable */
   color?: string | null;
-  startAtUtc?: string;
+  /** @nullable */
+  startAtUtc?: string | null;
   /** @nullable */
   endAtUtc?: string | null;
+  /** @nullable */
+  leaveDate?: string | null;
   /** @nullable */
   timeZoneId?: string | null;
   allDay?: boolean;

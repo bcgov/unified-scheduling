@@ -25,6 +25,7 @@ import { LookupCodeTypes } from '@/api-access/generated/models';
 import { sortSchedulingUsers } from '../sortSchedulingUsers';
 import { formatUserName } from '@/utils/user';
 import { addDays, toApiDateString } from '@/utils/date';
+import { DateTime } from 'luxon';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
@@ -82,6 +83,13 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
       events: events.map<CalendarSchedulingEvent>((event) => {
         const assignedUserIds = event.assignedUserIds ?? [];
         const leaveFields = resolveLeaveFields(event);
+        const leaveDate =
+          isLeaveEvent(event) && event.allDay
+            ? (leaveFields.leaveDate ??
+              DateTime.fromISO(event.start, {
+                zone: event.timeZoneId || resolveSchedulingTimeZoneFromFilters(context.filters),
+              }).toISODate())
+            : undefined;
 
         return {
           id: event.id,
@@ -91,8 +99,8 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
           description: event.description ?? undefined,
           notes: event.notes ?? undefined,
           color: event.color ?? (isLeaveEvent(event) ? leaveEventColor : undefined),
-          start: event.start,
-          end: event.end ?? undefined,
+          start: leaveDate ?? event.start,
+          end: leaveDate ? addDays(leaveDate, 1) : (event.end ?? undefined),
           seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
           seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
           allDay: event.allDay ?? false,
@@ -143,6 +151,7 @@ function resolveLeaveFields(event: object & { id?: unknown }) {
     leaveSeriesId?: unknown;
     leaveTypeId?: unknown;
     leaveTypeName?: unknown;
+    leaveDate?: unknown;
   };
   const parsedEntryId = Number(source.leaveEntryId);
   const entryIdMatch = typeof source.id === 'string' ? /^scheduling\.leave-entry\.(\d+)$/.exec(source.id) : null;
@@ -158,6 +167,7 @@ function resolveLeaveFields(event: object & { id?: unknown }) {
     leaveSeriesId: Number.isInteger(leaveSeriesId) && leaveSeriesId > 0 ? String(leaveSeriesId) : undefined,
     leaveTypeId: Number.isInteger(leaveTypeId) && leaveTypeId > 0 ? leaveTypeId : undefined,
     leaveTypeName: typeof source.leaveTypeName === 'string' ? source.leaveTypeName : undefined,
+    leaveDate: typeof source.leaveDate === 'string' ? source.leaveDate : undefined,
   };
 }
 

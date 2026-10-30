@@ -8,6 +8,7 @@ public sealed class SchedulingLeaveRequestValidator : AbstractValidator<Scheduli
 {
     public SchedulingLeaveRequestValidator()
     {
+        Include(new SchedulingLeaveDateValidator<SchedulingLeaveEntryRequest>());
         RuleFor(request => request.LeaveSeriesId).GreaterThan(0).When(request => request.LeaveSeriesId.HasValue);
         RuleFor(request => request.LeaveTypeId).NotEmpty().GreaterThan(0);
         RuleFor(request => request.Title).NotEmpty().MaximumLength(200);
@@ -15,13 +16,9 @@ public sealed class SchedulingLeaveRequestValidator : AbstractValidator<Scheduli
         RuleFor(request => request.Notes).MaximumLength(4000);
         RuleFor(request => request.Color).MaximumLength(100);
         RuleFor(request => request.TimeZoneId).MaximumLength(100).Must(TimeZoneService.IsValidTimeZoneId);
-        RuleFor(request => request.StartAtUtc).NotEqual(default(DateTimeOffset));
-        RuleFor(request => request.StartAtUtc).NotEmpty().WithMessage("Start date is required.");
-        RuleFor(request => request.StartAtUtc)
-            .LessThan(request => request.EndAtUtc!.Value)
-            .When(request => request.EndAtUtc.HasValue);
         RuleFor(request => request.LocationId).GreaterThan(0);
         RuleFor(request => request.UserIds)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
             .Must(userIds => userIds.Distinct().Count() == userIds.Count)
             .WithMessage("Users must be unique.");

@@ -10,7 +10,7 @@ public sealed class LeaveEventFactoryTests
 {
     private static readonly DateTimeOffset Start = new(2025, 3, 3, 9, 0, 0, TimeSpan.Zero);
 
-    private readonly ICalendarEventSeriesFactory<SchedulingLeaveSeriesRequest, LeaveSeries> _factory =
+    private readonly ICalendarEventSeriesFactory<NormalizedLeaveSeriesRequest, LeaveSeries> _factory =
         new LeaveEventFactory();
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class LeaveEventFactoryTests
             TimeZoneId = "UTC",
         };
 
-    private static SchedulingLeaveSeriesRequest CreateRequest(string recurrenceRule) =>
+    private static NormalizedLeaveSeriesRequest CreateRequest(string recurrenceRule) =>
         new()
         {
             Title = "T",

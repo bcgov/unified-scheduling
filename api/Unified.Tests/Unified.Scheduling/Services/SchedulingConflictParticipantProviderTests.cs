@@ -87,7 +87,11 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var participant = Assert.Single(participants);
+        var participant = Assert.Single(participants.Where(item => item.ConflictsWithSourceModule is null));
+        Assert.All(
+            participants.Where(item => item.ConflictsWithSourceModule is not null),
+            item => Assert.Equal("Shift", item.Title)
+        );
         Assert.Equal(expectedEventId, participant.EventId);
         Assert.Equal(expectedTitle, participant.Title);
     }
@@ -116,7 +120,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal("20", Assert.Single(participants).EventId);
+        Assert.Equal("20", Assert.Single(participants.Where(item => item.ConflictsWithSourceModule is null)).EventId);
     }
 
     [Theory]
@@ -263,16 +267,21 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var participant = Assert.Single(participants);
+        var participant = Assert.Single(participants.Where(item => item.ConflictsWithSourceModule is null));
         Assert.Equal("20", participant.EventId);
         Assert.Equal(UserId, participant.ResourceId);
     }
 
-    [Fact]
-    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasNoAssignmentLinks_ReturnsNoCandidates()
+    [Theory]
+    [InlineData(CalendarEventStatusTypeCodes.Active, true)]
+    [InlineData(CalendarEventStatusTypeCodes.Draft, false)]
+    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasNoAssignmentLinks_ReturnsPublishedLeaveOnlyCandidate(
+        string status,
+        bool expected
+    )
     {
         var draftParticipant = CreateShiftParticipant(1300, MultiLocationUserId, null);
-        draftParticipant.ShiftEntry!.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Draft;
+        draftParticipant.ShiftEntry!.Event!.StatusTypeCode = status;
         _db.ShiftEntryUsers.Add(draftParticipant);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -282,7 +291,14 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        Assert.Empty(participants);
+        if (expected)
+        {
+            var participant = Assert.Single(participants);
+            Assert.Equal("leave", participant.ConflictsWithSourceModule);
+            Assert.Equal("1300", participant.EventId);
+        }
+        else
+            Assert.Empty(participants);
     }
 
     [Fact]

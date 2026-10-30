@@ -30,6 +30,7 @@ export const PostApiSchedulingCalendarEventsResponse = zod.object({
         leaveSeriesId: zod.int().nullish(),
         leaveTypeId: zod.int().nullish(),
         leaveTypeName: zod.string().nullish(),
+        leaveDate: zod.iso.date().nullish(),
         eventId: zod.int().optional(),
         userIds: zod.array(zod.uuid()).optional(),
         type: zod.string(),

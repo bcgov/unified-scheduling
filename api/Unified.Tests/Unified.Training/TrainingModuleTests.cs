@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Unified.Calendar;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Contracts;
 using Unified.Common.Events;
 using Unified.Common.Jobs;
@@ -59,7 +61,15 @@ public sealed class TrainingModuleTests
         AssertContainsScopedRegistration<ITrainingLookupStrategy, TrainingLookupStrategy>(services);
         AssertContainsScopedSelfRegistration<TrainingLookupRequestValidator>(services);
         AssertContainsScopedSelfRegistration<UserTrainingRequestValidator>(services);
+        AssertContainsScopedSelfRegistration<TrainingCalendarEventsRequestValidator>(services);
+        AssertContainsScopedSelfRegistration<TrainingCalendarEventService>(services);
         Assert.Contains("api/training/user-trainings", userTrainingRoutes);
+        Assert.Contains(
+            actionProvider.ActionDescriptors.Items.OfType<ControllerActionDescriptor>(),
+            action =>
+                action.ControllerTypeInfo.AsType() == typeof(TrainingCalendarController)
+                && action.AttributeRouteInfo?.Template?.TrimStart('/') == "api/training/calendar/events"
+        );
     }
 
     [Fact]
@@ -90,6 +100,66 @@ public sealed class TrainingModuleTests
             descriptor => descriptor.ServiceType == typeof(AssignMandatoryTrainingOnUserCreationHandler)
         );
         Assert.Empty(userTrainingActions);
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(TrainingCalendarEventService));
+        Assert.DoesNotContain(
+            services,
+            descriptor => descriptor.ServiceType == typeof(TrainingCalendarEventsRequestValidator)
+        );
+        Assert.DoesNotContain(
+            actionProvider.ActionDescriptors.Items.OfType<ControllerActionDescriptor>(),
+            action => action.ControllerTypeInfo.AsType() == typeof(TrainingCalendarController)
+        );
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    public void ConflictProviderRegistration_FollowsTrainingAndCalendarFlags(
+        bool trainingEnabled,
+        bool calendarEnabled,
+        bool expectedProvider
+    )
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:Training:Enabled"] = trainingEnabled.ToString(),
+                    ["FeatureFlags:Calendar:Enabled"] = calendarEnabled.ToString(),
+                    ["CalendarDateTime:DefaultTimeZoneId"] = "America/Vancouver",
+                }
+            )
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddCalendarModule(configuration);
+        services.AddTrainingModule(configuration);
+        services.AddScoped<UnifiedDbContext>(_ => new SqliteTestUnifiedDbContext(
+            new DbContextOptionsBuilder<UnifiedDbContext>().UseSqlite("Data Source=:memory:").Options
+        ));
+
+        Assert.Equal(
+            expectedProvider,
+            services.Any(descriptor =>
+                descriptor.ServiceType == typeof(ICalendarConflictParticipantProvider)
+                && descriptor.ImplementationType == typeof(TrainingConflictParticipantProvider)
+            )
+        );
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        if (trainingEnabled)
+            Assert.IsType<UserTrainingService>(scope.ServiceProvider.GetRequiredService<IUserTrainingService>());
+        if (expectedProvider)
+            Assert.IsType<TrainingConflictParticipantProvider>(
+                Assert.Single(
+                    scope
+                        .ServiceProvider.GetServices<ICalendarConflictParticipantProvider>()
+                        .OfType<TrainingConflictParticipantProvider>()
+                )
+            );
     }
 
     private static void AssertContainsScopedRegistration<TService, TImplementation>(IServiceCollection services)

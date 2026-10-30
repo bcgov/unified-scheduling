@@ -54,6 +54,7 @@ const buildInitialFormData = (series?: LeaveSeriesResponse): LeaveFormData => {
       userIds: [props.user.id],
       leaveType: null,
       date: '',
+      allDay: false,
       startTime: defaultStartTime,
       endTime: defaultEndTime,
       repeatMode: 'never',
@@ -69,14 +70,17 @@ const buildInitialFormData = (series?: LeaveSeriesResponse): LeaveFormData => {
   const endAtUtc = series?.endAtUtc ?? (isSeriesEdit.value ? entrySeries?.endAtUtc : null) ?? entry.endAtUtc;
   const start = startAtUtc ? parseFormDateTime(startAtUtc, zone) : null;
   const end = endAtUtc ? parseFormDateTime(endAtUtc, zone) : null;
+  const allDay = series?.allDay ?? (isSeriesEdit.value ? entrySeries?.allDay : null) ?? entry.allDay ?? false;
   return {
     userIds: [series?.userIds, isSeriesEdit.value ? entrySeries?.userIds : null, entry.userIds].find(
       (ids) => ids && ids.length > 0,
     ) ?? [props.user.id],
     leaveType: series?.leaveTypeId ?? entry.leaveTypeId ?? null,
-    date: start?.date ?? '',
-    startTime: start?.time ?? defaultStartTime,
-    endTime: end?.time ?? defaultEndTime,
+    date:
+      series?.leaveDate ?? (isSeriesEdit.value ? entrySeries?.leaveDate : null) ?? entry.leaveDate ?? start?.date ?? '',
+    allDay,
+    startTime: allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
+    endTime: allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
     repeatMode: isSeriesEdit.value
       ? (series?.recurrenceRule ?? entrySeries?.recurrenceRule)
         ? 'custom'

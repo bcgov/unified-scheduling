@@ -9,6 +9,8 @@ export interface SchedulingLeaveEntryResponse {
   /** @nullable */
   leaveSeriesId?: number | null;
   leaveTypeId?: number;
+  /** @nullable */
+  leaveDate?: string | null;
   id?: number;
   /** @nullable */
   eventSeriesId?: number | null;

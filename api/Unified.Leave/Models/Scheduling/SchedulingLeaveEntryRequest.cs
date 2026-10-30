@@ -1,13 +1,11 @@
-using Unified.Common.Calendar.Scheduling.Models;
-
 namespace Unified.Leave.Models.Scheduling;
 
 /// <summary>
-/// Leave entry create request built directly on the common <see cref="CalendarEventEntryRequest"/>
-/// contract so it can be built through <see cref="Unified.Calendar.Services.CalendarEventEntryService{TRequest,TEntity}"/>.
+/// Leave entry input, normalized by Leave before entering the shared Calendar pipeline.
 /// </summary>
-public sealed record SchedulingLeaveEntryRequest : CalendarEventEntryRequest
+public sealed record SchedulingLeaveEntryRequest : SchedulingLeaveRequest
 {
     public int? LeaveSeriesId { get; init; }
-    public int LeaveTypeId { get; init; }
+    public DateTimeOffset? SeriesStartAtUtc { get; init; }
+    public DateTimeOffset? SeriesEndAtUtc { get; init; }
 }

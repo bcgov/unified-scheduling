@@ -24,7 +24,7 @@ public sealed class LeaveCalendarDataProviderTests : IAsyncLifetime
         _database = await LeaveTestDatabase.CreateAsync();
         _provider = new LeaveCalendarDataProvider(
             _database.Db,
-            new SchedulingLeaveEventMapper(new CalendarEventMapper())
+            new SchedulingLeaveEventMapper(new CalendarEventMapper(), new global::Unified.Common.Time.TimeZoneService())
         );
 
         _leaveType = new LeaveType

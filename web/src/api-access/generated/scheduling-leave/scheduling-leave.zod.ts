@@ -13,6 +13,7 @@ export const GetApiSchedulingLeaveUsersUserIdEntriesParams = zod.strictObject({
 export const GetApiSchedulingLeaveUsersUserIdEntriesResponseItem = zod.object({
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
   eventTypeCode: zod.string().nullish(),
@@ -43,6 +44,7 @@ export const GetApiSchedulingLeaveUsersUserIdSeriesParams = zod.strictObject({
 
 export const GetApiSchedulingLeaveUsersUserIdSeriesResponseItem = zod.object({
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   leaveEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -74,6 +76,7 @@ export const GetApiSchedulingLeaveSeriesIdParams = zod.strictObject({
 
 export const GetApiSchedulingLeaveSeriesIdResponse = zod.object({
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   leaveEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -101,14 +104,15 @@ export const PutApiSchedulingLeaveSeriesIdParams = zod.strictObject({
 });
 
 export const PutApiSchedulingLeaveSeriesIdBody = zod.strictObject({
-  leaveTypeId: zod.int().optional(),
   recurrenceRule: zod.string().nullish(),
+  leaveTypeId: zod.int().optional(),
   title: zod.string().optional(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
   color: zod.string().nullish(),
-  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  leaveDate: zod.iso.date().nullish(),
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
@@ -117,6 +121,7 @@ export const PutApiSchedulingLeaveSeriesIdBody = zod.strictObject({
 
 export const PutApiSchedulingLeaveSeriesIdResponse = zod.object({
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   leaveEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -146,14 +151,15 @@ export const DeleteApiSchedulingLeaveSeriesIdParams = zod.strictObject({
 export const DeleteApiSchedulingLeaveSeriesIdResponse = zod.void();
 
 export const PostApiSchedulingLeaveSeriesBody = zod.strictObject({
-  leaveTypeId: zod.int().optional(),
   recurrenceRule: zod.string().nullish(),
+  leaveTypeId: zod.int().optional(),
   title: zod.string().optional(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
   color: zod.string().nullish(),
-  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  leaveDate: zod.iso.date().nullish(),
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
@@ -162,6 +168,7 @@ export const PostApiSchedulingLeaveSeriesBody = zod.strictObject({
 
 export const PostApiSchedulingLeaveSeriesResponse = zod.object({
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   leaveEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -191,6 +198,7 @@ export const GetApiSchedulingLeaveEntriesIdParams = zod.strictObject({
 export const GetApiSchedulingLeaveEntriesIdResponse = zod.object({
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
   eventTypeCode: zod.string().nullish(),
@@ -218,15 +226,16 @@ export const PutApiSchedulingLeaveEntriesIdParams = zod.strictObject({
 
 export const PutApiSchedulingLeaveEntriesIdBody = zod.strictObject({
   leaveSeriesId: zod.int().nullish(),
-  leaveTypeId: zod.int().optional(),
   seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  leaveTypeId: zod.int().optional(),
   title: zod.string().optional(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
   color: zod.string().nullish(),
-  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  leaveDate: zod.iso.date().nullish(),
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
@@ -236,6 +245,7 @@ export const PutApiSchedulingLeaveEntriesIdBody = zod.strictObject({
 export const PutApiSchedulingLeaveEntriesIdResponse = zod.object({
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
   eventTypeCode: zod.string().nullish(),
@@ -265,15 +275,16 @@ export const DeleteApiSchedulingLeaveEntriesIdResponse = zod.void();
 
 export const PostApiSchedulingLeaveEntriesBody = zod.strictObject({
   leaveSeriesId: zod.int().nullish(),
-  leaveTypeId: zod.int().optional(),
   seriesStartAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   seriesEndAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  leaveTypeId: zod.int().optional(),
   title: zod.string().optional(),
   description: zod.string().nullish(),
   notes: zod.string().nullish(),
   color: zod.string().nullish(),
-  startAtUtc: zod.iso.datetime({ offset: true }).optional(),
+  startAtUtc: zod.iso.datetime({ offset: true }).nullish(),
   endAtUtc: zod.iso.datetime({ offset: true }).nullish(),
+  leaveDate: zod.iso.date().nullish(),
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
@@ -283,6 +294,7 @@ export const PostApiSchedulingLeaveEntriesBody = zod.strictObject({
 export const PostApiSchedulingLeaveEntriesResponse = zod.object({
   leaveSeriesId: zod.int().nullish(),
   leaveTypeId: zod.int().optional(),
+  leaveDate: zod.iso.date().nullish(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().nullish(),
   eventTypeCode: zod.string().nullish(),

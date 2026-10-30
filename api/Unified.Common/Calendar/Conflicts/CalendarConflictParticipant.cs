@@ -11,7 +11,9 @@ public sealed record CalendarConflictParticipant(
     string? TimeZoneId = null,
     bool RequiresMatchingTimeZone = false,
     bool IsInQueryScope = true,
-    string? CanonicalEventId = null
+    string? CanonicalEventId = null,
+    bool AllDay = false,
+    string? ConflictsWithSourceModule = null
 )
 {
     public CalendarConflictEventIdentity Identity => CalendarConflictEventIdentity.Create(SourceModule, EventId);

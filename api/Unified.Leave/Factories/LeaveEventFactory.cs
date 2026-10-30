@@ -7,10 +7,10 @@ using Unified.Leave.Models.Scheduling;
 namespace Unified.Leave.Factories;
 
 public sealed class LeaveEventFactory
-    : ICalendarEventEntryFactory<SchedulingLeaveEntryRequest, LeaveEntry>,
-        ICalendarEventSeriesFactory<SchedulingLeaveSeriesRequest, LeaveSeries>
+    : ICalendarEventEntryFactory<NormalizedLeaveEntryRequest, LeaveEntry>,
+        ICalendarEventSeriesFactory<NormalizedLeaveSeriesRequest, LeaveSeries>
 {
-    public LeaveEntry CreateEntry(SchedulingLeaveEntryRequest request, Event eventEntity) =>
+    public LeaveEntry CreateEntry(NormalizedLeaveEntryRequest request, Event eventEntity) =>
         new()
         {
             Event = eventEntity,
@@ -22,7 +22,7 @@ public sealed class LeaveEventFactory
     public Event GetEvent(LeaveEntry entity) =>
         entity.Event ?? throw new InvalidOperationException($"Leave entry {entity.Id} has no associated event.");
 
-    public LeaveEntry UpdateEntry(SchedulingLeaveEntryRequest request, LeaveEntry existing)
+    public LeaveEntry UpdateEntry(NormalizedLeaveEntryRequest request, LeaveEntry existing)
     {
         existing.LeaveSeriesId = request.LeaveSeriesId;
         existing.LeaveTypeId = request.LeaveTypeId;
@@ -40,7 +40,7 @@ public sealed class LeaveEventFactory
             entity.Users.Add(new LeaveEntryUser { UserId = userId });
     }
 
-    public LeaveSeries CreateSeries(SchedulingLeaveSeriesRequest request, EventSeries eventSeries) =>
+    public LeaveSeries CreateSeries(NormalizedLeaveSeriesRequest request, EventSeries eventSeries) =>
         new()
         {
             EventSeries = eventSeries,
@@ -52,7 +52,7 @@ public sealed class LeaveEventFactory
         entity.EventSeries
         ?? throw new InvalidOperationException($"Leave series {entity.Id} has no associated event series.");
 
-    public LeaveSeries UpdateSeries(SchedulingLeaveSeriesRequest request, LeaveSeries existing)
+    public LeaveSeries UpdateSeries(NormalizedLeaveSeriesRequest request, LeaveSeries existing)
     {
         existing.LeaveTypeId = request.LeaveTypeId;
         SyncSeriesUsers(existing, request.UserIds);

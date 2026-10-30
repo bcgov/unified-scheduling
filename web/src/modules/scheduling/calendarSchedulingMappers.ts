@@ -1,5 +1,6 @@
 import {
   addDays,
+  CALENDAR_ALL_DAY_LABEL,
   DATE_FORMAT,
   formatCalendarEventTimeRange,
   hasExplicitTimeZoneOffset,
@@ -49,6 +50,7 @@ import {
   type CalendarSchedulingAssignmentResource,
 } from './contributions/calendarSchedulingAssignmentResourcesContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
+import { trainingCalendarDetailActionId } from '@/modules/training/calendarTrainingIdentifiers';
 import { calendarMatrixColorMap } from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 import { DateTime } from 'luxon';
@@ -102,6 +104,7 @@ export function buildCalendarSchedulingViewModel(
   );
   const conflicts = selectCalendarConflicts(response);
   const leaveEvents = schedulingEvents.filter(isLeaveEvent);
+  const trainingEvents = selectContribution(response, 'training.events')?.events ?? [];
   const resources = buildUserResourceRows(response);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
@@ -133,9 +136,16 @@ export function buildCalendarSchedulingViewModel(
               event.metadata.userIds?.includes(user.id) &&
               isEventOnMatrixDate(event, day.date, timeZone),
           );
+      const userTrainingEvents = isUnassignedRow
+        ? []
+        : trainingEvents.filter(
+            (event) =>
+              event.resourceIds?.includes(user.id) && event.start <= day.date && day.date < (event.end ?? event.start),
+          );
       cells.push({
         resourceId: user.id,
         date: day.date,
+        showResourceAdd: userShiftEvents.length === 0,
         headers: [
           ...(isUnassignedRow
             ? []
@@ -149,14 +159,19 @@ export function buildCalendarSchedulingViewModel(
                   actionId: CalendarActionId.EventDetail,
                   payload: event,
                 }))),
-          ...userShiftEvents.map((event) =>
-            buildCellHeader(
-              event,
-              timeZone,
-              getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
-            ),
-          ),
           ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
+          ...userTrainingEvents.map((event) => ({
+            id: event.id,
+            text: event.title,
+            subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
+            title: event.title,
+            color: 'rgb(var(--v-theme-accent))',
+            actionId: trainingCalendarDetailActionId,
+            payload: event,
+          })),
+          ...userShiftEvents.map((event) =>
+            buildCellHeader(event, timeZone, getConflictsForShift(event, assignmentEvents, user.id, conflicts)),
+          ),
         ],
         groups: [
           {
@@ -498,18 +513,24 @@ function resolveLinkedShiftsForAssignment(assignmentEvent: CalendarEventBase, us
   );
 }
 
-function getConflictsForLinkedAssignments(
+function getConflictsForShift(
   shiftEvent: CalendarEventBase,
   assignmentEvents: ReadonlyArray<CalendarEventBase>,
   resourceId: string,
   conflicts: ReadonlyArray<CalendarConflict>,
 ) {
+  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
+  const shiftEventId = resolveCalendarEventId(shiftEvent);
+  if (shiftEventId != null) {
+    for (const conflict of getCalendarConflictsForEventAndResource(shiftEventId, resourceId, conflicts)) {
+      conflictsById.set(conflict.id, { conflict, currentEventId: shiftEventId });
+    }
+  }
   if (!isCalendarSchedulingEvent(shiftEvent) || shiftEvent.metadata.shiftEntryId == null) {
-    return [];
+    return [...conflictsById.values()];
   }
 
   const shiftEntryId = String(shiftEvent.metadata.shiftEntryId);
-  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
   for (const event of assignmentEvents) {
     if (!isCalendarSchedulingEvent(event) || event.metadata.assignedShiftIds?.includes(shiftEntryId) !== true) {
       continue;
@@ -696,10 +717,10 @@ function buildCellHeader(
 ): CalendarMatrixCellHeader {
   return {
     id: event.id,
-    text: formatCalendarEventTimeRange(event.start, event.end, {
-      allDay: event.allDay,
-      timeZone: event.timeZoneId ?? timeZone,
-    }),
+    text: event.allDay
+      ? event.title
+      : formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone }),
+    subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: event.title,
     status: event.statusTypeCode,
     color: resolveCalendarSchedulingColor(event.color),
@@ -987,6 +1008,7 @@ function buildLeaveCellHeader(
     text: event.allDay
       ? label
       : `${label} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
+    subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: `Leave: ${label}`,
     status: event.statusTypeCode,
     color: resolveCalendarSchedulingColor(event.color ?? leaveEventColor),

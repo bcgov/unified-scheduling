@@ -42,7 +42,9 @@ const isDropTarget = ref(false);
 const headers = computed(() => props.cell.headers ?? []);
 const hasEvents = computed(() => props.cell.groups.some((group) => group.events.length > 0));
 const hasContent = computed(() => headers.value.length > 0 || hasEvents.value);
-const canAddEmptyCellResource = computed(() => !hasContent.value && !!props.resource?.action);
+const canAddCellResource = computed(
+  () => (props.cell.showResourceAdd ?? !hasContent.value) && !!props.resource?.action,
+);
 const cellAriaLabel = computed(() => {
   const resourceTitle = props.resource?.title ?? props.cell.resourceId;
   const eventCount = props.cell.groups.reduce((total, group) => total + group.events.length, 0);
@@ -244,7 +246,7 @@ function handleEmptyCellAdd() {
         </div>
       </template>
       <button
-        v-if="canAddEmptyCellResource && resource"
+        v-if="canAddCellResource && resource"
         class="calendar-matrix-cell__empty-add"
         type="button"
         :aria-label="resource.action?.ariaLabel"

@@ -12,6 +12,7 @@ public sealed record SchedulingCalendarEventResponse
     public int? LeaveSeriesId { get; init; }
     public int? LeaveTypeId { get; init; }
     public string? LeaveTypeName { get; init; }
+    public DateOnly? LeaveDate { get; init; }
     public int EventId { get; init; }
     public IReadOnlyCollection<Guid> UserIds { get; init; } = [];
     public required string Type { get; init; }

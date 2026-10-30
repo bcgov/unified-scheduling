@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
+using Unified.Calendar;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Contracts;
 using Unified.Common.Events;
 using Unified.Common.FeatureFlags;
@@ -64,6 +66,9 @@ public static class TrainingModule
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IEntitySideEffect<UserCreatedSignal>, AssignMandatoryTrainingOnUserCreationHandler>();
         services.AddScoped<IUserTrainingService, UserTrainingService>();
+        services.AddScoped<TrainingCalendarEventService>();
+        if (CalendarModule.IsModuleEnabled(config))
+            services.AddScoped<ICalendarConflictParticipantProvider, TrainingConflictParticipantProvider>();
         services.AddScoped<ITrainingProfileTypeService, TrainingProfileTypeService>();
         services.AddScoped<IUserTrainingExpiryNotificationService, UserTrainingExpiryNotificationService>();
         services.AddScoped<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>();
@@ -77,6 +82,7 @@ public static class TrainingModule
 
         services.AddScoped<TrainingLookupRequestValidator>();
         services.AddScoped<UserTrainingRequestValidator>();
+        services.AddScoped<TrainingCalendarEventsRequestValidator>();
 
         services
             .AddAuthorizationBuilder()

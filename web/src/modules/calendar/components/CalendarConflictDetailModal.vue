@@ -7,7 +7,11 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import { formatCalendarDateTimeRange } from '@/utils/date';
-import { getCalendarConflictEventTimeZoneLabel, resolveCalendarConflictSides } from '../calendarConflictFormatting';
+import {
+  formatCalendarConflictEventRange,
+  getCalendarConflictEventTimeZoneLabel,
+  resolveCalendarConflictSides,
+} from '../calendarConflictFormatting';
 import type { CalendarConflict, CalendarConflictEvent } from '../calendarTypes';
 
 const props = defineProps<{
@@ -16,7 +20,7 @@ const props = defineProps<{
   timeZone: string;
   loading?: boolean;
   errorMessage?: string;
-  canEditEvent?: boolean;
+  canEditEvent?: boolean | ((event: CalendarConflictEvent) => boolean);
   canOverride?: boolean;
 }>();
 
@@ -45,7 +49,7 @@ watch(
 );
 
 function eventLabel(event: CalendarConflictEvent) {
-  return `${event.title} · ${formatCalendarDateTimeRange(event.start, event.end, props.timeZone)}`;
+  return `${event.title} · ${formatCalendarConflictEventRange(event, props.timeZone)}`;
 }
 
 function overlapTimeLabel() {
@@ -56,6 +60,10 @@ const overrideLabel = computed(() => (props.conflict.isOverridden ? 'Update over
 
 function editEvent(event: CalendarConflictEvent) {
   emit('editEvent', event);
+}
+
+function isEventEditable(event: CalendarConflictEvent) {
+  return typeof props.canEditEvent === 'function' ? props.canEditEvent(event) : props.canEditEvent;
 }
 </script>
 
@@ -75,7 +83,7 @@ function editEvent(event: CalendarConflictEvent) {
             </small>
           </span>
           <button
-            v-if="canEditEvent"
+            v-if="isEventEditable(conflictSection.entry)"
             type="button"
             class="calendar-conflict-detail__edit"
             :aria-label="`Edit ${conflictSection.entry.title}`"
@@ -94,7 +102,7 @@ function editEvent(event: CalendarConflictEvent) {
             </small>
           </span>
           <button
-            v-if="canEditEvent"
+            v-if="isEventEditable(conflictSection.overlaps)"
             type="button"
             class="calendar-conflict-detail__edit"
             :aria-label="`Edit ${conflictSection.overlaps.title}`"

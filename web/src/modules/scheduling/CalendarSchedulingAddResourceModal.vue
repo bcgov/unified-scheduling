@@ -64,6 +64,7 @@ const isSaving = ref(false);
 const activeTab = ref<'schedule' | 'leave'>('schedule');
 const leaveHasValidationError = ref(false);
 const leaveFormData = ref<LeaveFormData>({
+  allDay: false,
   userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
   date: props.initialDate ?? '',
   startTime: defaultStartTime,
@@ -139,6 +140,7 @@ watch(
   ([resource, initialDate]) => {
     formData.value = createInitialFormData(resource, initialDate);
     leaveFormData.value = {
+      allDay: false,
       userIds: resource?.type === 'user' ? [resource.id] : [],
       date: initialDate ?? '',
       startTime: '',

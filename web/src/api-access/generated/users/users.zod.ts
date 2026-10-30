@@ -191,7 +191,7 @@ export const PostApiUsersIdUploadPhotoParams = zod.strictObject({
 });
 
 export const PostApiUsersIdUploadPhotoBody = zod.strictObject({
-  photo: zod.instanceof(Blob).optional(),
+  photo: zod.instanceof(File).optional(),
 });
 
 export const PostApiUsersIdUploadPhotoResponse = zod.object({

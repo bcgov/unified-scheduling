@@ -40,6 +40,15 @@ public sealed class CalendarController(
         await calendarDataRequestValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var response = await calendarQueryService.GetCalendarDataAsync(request, cancellationToken);
+        if (HttpContext?.User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.UserTrainingsView)) != true)
+            response = response with
+            {
+                Conflicts = response
+                    .Conflicts.Where(conflict =>
+                        conflict.Entry.SourceModule != "training" && conflict.Overlaps.SourceModule != "training"
+                    )
+                    .ToList(),
+            };
 
         logger.LogInformation(
             "Calendar events response completed for range {StartDate} to {EndDate} with {EventCount} events.",

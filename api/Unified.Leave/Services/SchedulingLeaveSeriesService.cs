@@ -1,10 +1,12 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
+using Unified.Leave.Conflicts;
 using Unified.Leave.Constants;
 using Unified.Leave.Factories;
 using Unified.Leave.Mappings;
@@ -17,9 +19,11 @@ public sealed class SchedulingLeaveSeriesService(
     ILogger<SchedulingLeaveSeriesService> logger,
     UnifiedDbContext db,
     SchedulingLeaveEventMapper schedulingLeaveEventMapper,
-    ICalendarEventSeriesService<SchedulingLeaveSeriesRequest, LeaveSeries> calendarEventSeriesService,
+    ICalendarEventSeriesService<NormalizedLeaveSeriesRequest, LeaveSeries> calendarEventSeriesService,
     IEventSeriesMaterializationService materializer,
-    LeaveSeriesMaterializationHandler materializationHandler
+    LeaveSeriesMaterializationHandler materializationHandler,
+    LeaveRequestNormalizer requestNormalizer,
+    ICalendarConflictService conflictService
 ) : ISchedulingLeaveSeriesService
 {
     private static readonly RecurrenceValidationOptions RecurrenceOptions = new()
@@ -30,7 +34,7 @@ public sealed class SchedulingLeaveSeriesService(
     };
 
     public async Task<SchedulingLeaveSeriesResponse> CreateLeaveSeriesAsync(
-        SchedulingLeaveSeriesRequest request,
+        SchedulingLeaveSeriesRequest input,
         CancellationToken cancellationToken = default
     )
     {
@@ -38,6 +42,7 @@ public sealed class SchedulingLeaveSeriesService(
             IsolationLevel.Serializable,
             cancellationToken
         );
+        var request = await requestNormalizer.NormalizeAsync(input, cancellationToken);
         var entity = await calendarEventSeriesService.BuildEventAsync(
             request,
             LeaveConstants.SourceModule,
@@ -96,7 +101,7 @@ public sealed class SchedulingLeaveSeriesService(
 
     public async Task<SchedulingLeaveSeriesResponse?> UpdateLeaveSeriesAsync(
         int id,
-        SchedulingLeaveSeriesRequest request,
+        SchedulingLeaveSeriesRequest input,
         CancellationToken cancellationToken = default
     )
     {
@@ -111,6 +116,7 @@ public sealed class SchedulingLeaveSeriesService(
             logger.LogInformation("Leave series {LeaveSeriesId} was not found for update.", id);
             return null;
         }
+        var request = await requestNormalizer.NormalizeAsync(input, cancellationToken);
         var eventSeries = entity.EventSeries!;
         var existingEntries = entity.LeaveEntries.ToList();
         var oldValues = CaptureCopiedValues(eventSeries);
@@ -159,6 +165,10 @@ public sealed class SchedulingLeaveSeriesService(
         }
         ValidatePropagatedEntries(entity, GetCurrentEntries(entity.LeaveEntries));
         await db.SaveChangesAsync(cancellationToken);
+        await conflictService.InvalidateResolvedOverridesAsync(
+            existingEntries.Select(entry => LeaveConflictParticipantProvider.IdentityFor(entry.EventId)).ToList(),
+            cancellationToken: cancellationToken
+        );
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Updated leave series {LeaveSeriesId}.", id);
         return await MapLeaveSeriesResponseAsync(updated, cancellationToken);
@@ -167,6 +177,10 @@ public sealed class SchedulingLeaveSeriesService(
     public async Task<bool> DeleteLeaveSeriesAsync(int id, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Deleting leave series {LeaveSeriesId}.", id);
+        await using var transaction = await db.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken
+        );
         var entity = await LoadLeaveSeriesAsync(id, tracked: true, cancellationToken);
         if (entity is null)
         {
@@ -192,6 +206,11 @@ public sealed class SchedulingLeaveSeriesService(
         db.LeaveSeries.Remove(entity);
         db.EventSeries.Remove(eventSeries);
         await db.SaveChangesAsync(cancellationToken);
+        await conflictService.InvalidateResolvedOverridesAsync(
+            events.Select(eventEntity => LeaveConflictParticipantProvider.IdentityFor(eventEntity.Id)).ToList(),
+            cancellationToken: cancellationToken
+        );
+        await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Deleted leave series {LeaveSeriesId}.", id);
         return true;
     }

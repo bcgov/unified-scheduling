@@ -135,6 +135,8 @@ export * from './subCategoryMetricResponse.ts';
 export * from './subCategoryResponse.ts';
 export * from './testEmailRequest.ts';
 export * from './testEmailResponse.ts';
+export * from './trainingCalendarEvent.ts';
+export * from './trainingCalendarEventsRequest.ts';
 export * from './trainingDetailResponse.ts';
 export * from './trainingFeatureFlags.ts';
 export * from './trainingLookupMoveOrderRequest.ts';

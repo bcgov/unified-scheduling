@@ -1,4 +1,5 @@
 using Unified.Calendar.Mappings;
+using Unified.Common.Time;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
 using Unified.Leave.Constants;
@@ -13,7 +14,7 @@ public sealed class SchedulingLeaveMapperTests
     private static readonly Guid CancelledBy = new("44444444-4444-4444-4444-444444444444");
     private static readonly DateTimeOffset Start = new(2025, 3, 3, 9, 0, 0, TimeSpan.Zero);
 
-    private readonly SchedulingLeaveEventMapper _mapper = new(new CalendarEventMapper());
+    private readonly SchedulingLeaveEventMapper _mapper = new(new CalendarEventMapper(), new TimeZoneService());
 
     [Fact]
     public void ToSchedulingLeaveEntryResponse_MapsEventSeriesAndUsers()

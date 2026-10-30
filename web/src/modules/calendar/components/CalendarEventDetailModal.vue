@@ -4,7 +4,13 @@ import UaDisplayField from '@/shared/components/UaDisplayField.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { addDays, formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarTime } from '@/utils/date';
+import {
+  addDays,
+  CALENDAR_ALL_DAY_LABEL,
+  formatCalendarDateOnly,
+  formatCalendarDateTimeDate,
+  formatCalendarTime,
+} from '@/utils/date';
 import type { CalendarEventBase } from '../calendarTypes';
 
 const props = defineProps<{
@@ -41,7 +47,7 @@ const startDate = computed(() => formatEventDate(props.event.start));
 const endDate = computed(() => formatEventDate(displayedEnd.value));
 const timeDisplay = computed(() => {
   if (props.event.allDay) {
-    return 'All day';
+    return CALENDAR_ALL_DAY_LABEL;
   }
 
   const start = formatTime(props.event.start);

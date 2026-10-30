@@ -25,6 +25,8 @@ export interface SchedulingCalendarEventResponse {
   leaveTypeId?: number | null;
   /** @nullable */
   leaveTypeName?: string | null;
+  /** @nullable */
+  leaveDate?: string | null;
   eventId?: number;
   userIds?: string[];
   type: string;

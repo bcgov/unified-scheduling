@@ -276,6 +276,11 @@ const selectedDetailEvent = computed(() => {
 
   return calendarEvents.value.find((event) => event.id === selectedEventId.value);
 });
+const selectedDetailComponent = computed(() =>
+  selectedDetailEvent.value
+    ? (calendarRegistry.getEventDetailComponent(selectedDetailEvent.value.sourceModule) ?? CalendarEventDetailModal)
+    : CalendarEventDetailModal,
+);
 
 const registeredToolbarActions = computed(() => {
   if (!activeView.value) {
@@ -595,8 +600,10 @@ function waitForAnimationFrame() {
       <div v-else class="calendar-page__state">No calendar views are registered.</div>
     </UaCard>
 
-    <CalendarEventDetailModal
+    <component
       v-if="!isPrintMode && selectedDetailEvent"
+      :is="selectedDetailComponent"
+      :key="selectedDetailEvent.id"
       :event="selectedDetailEvent"
       @close="calendarStore.clearSelectedEvent()"
     />

@@ -11,4 +11,5 @@ public sealed record SchedulingLeaveEntryResponse : CalendarEventEntryResponse
 {
     public int? LeaveSeriesId { get; init; }
     public int LeaveTypeId { get; init; }
+    public DateOnly? LeaveDate { get; init; }
 }
