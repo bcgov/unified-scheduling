@@ -27,7 +27,9 @@ public sealed record CalendarConflictResponse(
     Guid? CreatedById,
     DateTimeOffset? CreatedOn,
     Guid? UpdatedById,
-    DateTimeOffset? UpdatedOn
+    DateTimeOffset? UpdatedOn,
+    bool ReportOnEntry,
+    bool ReportOnOverlaps
 )
 {
     public static CalendarConflictResponse FromConflict(CalendarConflict conflict) =>
@@ -43,7 +45,9 @@ public sealed record CalendarConflictResponse(
             conflict.CreatedById,
             conflict.CreatedOn,
             conflict.UpdatedById,
-            conflict.UpdatedOn
+            conflict.UpdatedOn,
+            conflict.ReportOnEntry,
+            conflict.ReportOnOverlaps
         );
 
     private static CalendarConflictEventResponse MapEvent(CalendarConflictParticipant participant) =>
