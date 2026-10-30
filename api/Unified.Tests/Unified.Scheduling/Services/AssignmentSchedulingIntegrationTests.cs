@@ -104,6 +104,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             [new SchedulingConflictParticipantProvider(_db)],
             _db,
             CalendarConflictTestContext.Projection(UserA),
+            CalendarConflictTestRules.Scheduling,
             timeProvider
         );
 
@@ -334,11 +335,20 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     public async Task ConflictQuery_WithAnotherProvider_UsesAssignmentIntervals(int start, int end, int expectedCount)
     {
         await CreateDraftConflictAsync();
-        var course = new CalendarConflictParticipant("course-42", "training", UserA, At(start), At(end), "Course");
+        var course = new CalendarConflictParticipant(
+            "course-42",
+            "training",
+            UserA,
+            At(start),
+            At(end),
+            "Course",
+            EventTypeCode: "training"
+        );
         var service = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_db), new ExternalConflictProvider(course)],
             _db,
-            new CalendarConflictProjection([])
+            new CalendarConflictProjection([]),
+            CalendarConflictTestRules.Scheduling
         );
         var conflicts = (await service.GetConflictsAsync(ConflictQuery(), TestContext.Current.CancellationToken))
             .Where(conflict =>
@@ -4883,11 +4893,12 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var provider = new SchedulingConflictParticipantProvider(_db);
 
         var participant = Assert.Single(
-            await provider.GetParticipantsAsync(
-                new CalendarConflictQuery(At(9), At(17)),
-                TestContext.Current.CancellationToken
-            ),
-            item => item.ConflictsWithSourceModule is null
+            (
+                await provider.GetParticipantsAsync(
+                    new CalendarConflictQuery(At(9), At(17)),
+                    TestContext.Current.CancellationToken
+                )
+            ).Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
         );
 
         Assert.Equal(assignment.EventId.ToString(), participant.EventId);

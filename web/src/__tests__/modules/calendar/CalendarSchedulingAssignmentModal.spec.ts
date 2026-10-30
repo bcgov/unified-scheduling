@@ -2282,6 +2282,8 @@ describe('CalendarSchedulingAssignmentModal', () => {
         overlapStart: '2026-08-25T17:00:00Z',
         overlapEnd: '2026-08-25T18:00:00Z',
         isOverridden: false,
+        reportOnEntry: true,
+        reportOnOverlaps: true,
         overrideNote: null,
         createdById: null,
         createdOn: null,

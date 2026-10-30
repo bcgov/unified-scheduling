@@ -22,6 +22,8 @@ describe('all-day leave calendar presentation', () => {
       id: 'leave-shift',
       resourceId: userId,
       isOverridden: false,
+      reportOnEntry: false,
+      reportOnOverlaps: true,
       overrideNote: null,
       overlapStart: '2026-06-01T16:00:00Z',
       overlapEnd: '2026-06-01T17:00:00Z',

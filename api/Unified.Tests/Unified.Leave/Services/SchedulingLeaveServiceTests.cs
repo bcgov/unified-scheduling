@@ -39,6 +39,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     {
         _database = await LeaveTestDatabase.CreateAsync();
         var db = _database.Db;
+        db.EventTypes.Add(new EventType { Code = "assignment", Description = "Assignment" });
 
         var effective = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
         _vacation = new LeaveType
@@ -77,7 +78,8 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         _conflicts = new CalendarConflictService(
             [new LeaveConflictParticipantProvider(db), _schedulingParticipants],
             db,
-            CalendarConflictTestContext.Projection(LeaveTestDatabase.UserA)
+            CalendarConflictTestContext.Projection(LeaveTestDatabase.UserA),
+            CalendarConflictTestRules.Scheduling
         );
         var eventFactory = new LeaveEventFactory();
 
@@ -305,7 +307,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         var schedule = new Event
         {
             SourceModule = "scheduling",
-            EventTypeCode = CalendarEventTypeCodes.General,
+            EventTypeCode = "assignment",
             StatusTypeCode = CalendarEventStatusTypeCodes.Active,
             Title = "Schedule",
             StartAtUtc = leave.Event!.StartAtUtc,
@@ -322,7 +324,8 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
                 schedule.StartAtUtc,
                 schedule.EndAtUtc!.Value,
                 "Schedule",
-                TimeZoneId: schedule.TimeZoneId
+                TimeZoneId: schedule.TimeZoneId,
+                EventTypeCode: schedule.EventTypeCode
             )
         );
         await _conflicts.CreateOverrideAsync(

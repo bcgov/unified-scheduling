@@ -112,7 +112,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             shifts ? nameof(Permissions.ShiftsView) : ""
         );
         var projection = new CalendarConflictProjection([_provider, trainingProvider], accessor);
-        var service = new CalendarConflictService([_provider, trainingProvider], _db, projection);
+        var service = new CalendarConflictService([_provider, trainingProvider], _db, projection, CalendarConflictTestRules.Scheduling);
         var time = new TimeZoneService();
         var query = new CalendarQueryService(
             NullLogger<CalendarQueryService>.Instance,
@@ -170,7 +170,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             nameof(Permissions.AssignmentsView)
         );
         var projection = new CalendarConflictProjection([_provider, training], accessor);
-        var service = new CalendarConflictService([_provider, training], _db, projection);
+        var service = new CalendarConflictService([_provider, training], _db, projection, CalendarConflictTestRules.Scheduling);
         var request = new CalendarConflictAcknowledgement
         {
             FirstSourceModule = "scheduling",
@@ -217,7 +217,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         var training = await SeedTrainingAsync();
         var accessor = CalendarConflictTestContext.Accessor(UserId);
         var projection = new CalendarConflictProjection([_provider, training], accessor);
-        var service = new CalendarConflictService([_provider, training], _db, projection);
+        var service = new CalendarConflictService([_provider, training], _db, projection, CalendarConflictTestRules.Scheduling);
         await service.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
@@ -313,7 +313,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         var accessor = CalendarConflictTestContext.Accessor(UserId);
         accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(UserId, nameof(Permissions.AssignmentsView));
         var projection = new CalendarConflictProjection([_provider, training], accessor);
-        var service = new CalendarConflictService([_provider, training], _db, projection);
+        var service = new CalendarConflictService([_provider, training], _db, projection, CalendarConflictTestRules.Scheduling);
         var candidates = await _provider.GetParticipantsAsync(
             new(AssignmentStart, AssignmentEnd),
             TestContext.Current.CancellationToken
@@ -339,7 +339,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         var participants = await _provider.GetParticipantsAsync(CreateQuery(), TestContext.Current.CancellationToken);
 
         Assert.Equal(2, participants.Count);
-        var participant = Assert.Single(participants, item => item.ConflictsWithSourceModule is null);
+        var participant = Assert.Single(
+            participants,
+            item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode
+        );
         Assert.Equal("20", participant.EventId);
         Assert.Equal("Restricted assignment", participant.Title);
         Assert.Equal(AssignmentStart, participant.Start);
@@ -348,8 +351,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         Assert.Equal(50, participant.SourceEntityId);
         Assert.Equal("scheduling", participant.SourceModule);
         Assert.Equal("America/Vancouver", participant.TimeZoneId);
-        var leaveConflictShift = Assert.Single(participants, item => item.ConflictsWithSourceModule == "leave");
+        var leaveConflictShift = Assert.Single(
+            participants,
+            item => item.EventTypeCode == SchedulingConstants.ShiftEventTypeCode
+        );
         Assert.Equal("10", leaveConflictShift.EventId);
+        Assert.Equal("Shift", leaveConflictShift.Title);
         Assert.Equal(
             await _provider.GetParticipantsAsync(CreateQuery(), TestContext.Current.CancellationToken),
             participants
@@ -381,10 +388,13 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             },
             TestContext.Current.CancellationToken
         );
-        Assert.Equal(expectedCount, participants.Count(item => item.ConflictsWithSourceModule is null));
+        Assert.Equal(
+            expectedCount,
+            participants.Count(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
+        );
         Assert.Equal(
             expectedLeaveConflictShiftCount,
-            participants.Count(item => item.ConflictsWithSourceModule == "leave")
+            participants.Count(item => item.EventTypeCode == SchedulingConstants.ShiftEventTypeCode)
         );
     }
 
@@ -400,7 +410,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
                 },
                 TestContext.Current.CancellationToken
             ),
-            item => item.ConflictsWithSourceModule is null
+            item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode
         );
         Assert.Empty(
             await _provider.GetParticipantsAsync(
@@ -419,7 +429,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
                 },
                 TestContext.Current.CancellationToken
             ),
-            item => item.ConflictsWithSourceModule is null
+            item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode
         );
         Assert.DoesNotContain(
             await _provider.GetParticipantsAsync(
@@ -429,7 +439,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
                 },
                 TestContext.Current.CancellationToken
             ),
-            item => item.ConflictsWithSourceModule is null
+            item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode
         );
     }
 
@@ -446,7 +456,36 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         Assert.NotNull(participant);
         Assert.Equal(eventId, participant.EventId);
+        Assert.Equal(
+            eventId == "10" ? SchedulingConstants.ShiftEventTypeCode : SchedulingConstants.AssignmentEventTypeCode,
+            participant.EventTypeCode
+        );
         Assert.Equal(UserId, participant.ResourceId);
+    }
+
+    [Fact]
+    public async Task GetParticipantsForPublicationAsync_ShiftAndAssignment_KeepDistinctTypes()
+    {
+        var participants = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
+            _db,
+            [40],
+            [50],
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, participants.Count);
+        Assert.All(
+            participants,
+            participant => Assert.Equal(SchedulingConstants.SourceModule, participant.SourceModule)
+        );
+        Assert.Equal(
+            SchedulingConstants.ShiftEventTypeCode,
+            participants.Single(participant => participant.EventId == "10").EventTypeCode
+        );
+        Assert.Equal(
+            SchedulingConstants.AssignmentEventTypeCode,
+            participants.Single(participant => participant.EventId == "20").EventTypeCode
+        );
     }
 
     [Fact]
@@ -485,7 +524,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         Assert.Equal(
             new[] { "101", "201", "301" },
-            participants.Where(item => item.ConflictsWithSourceModule is null).Select(item => item.EventId).Order()
+            participants.Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode).Select(item => item.EventId).Order()
         );
         Assert.True(participants.Single(participant => participant.EventId == "101").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "201").IsInQueryScope);
@@ -531,11 +570,11 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         Assert.Equal(
             new[] { "501", "601", "701" },
-            participants.Where(item => item.ConflictsWithSourceModule is null).Select(item => item.EventId).Order()
+            participants.Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode).Select(item => item.EventId).Order()
         );
         Assert.True(participants.Single(participant => participant.EventId == "501").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "601").IsInQueryScope);
-        var service = new CalendarConflictService([_provider], _db, new CalendarConflictProjection([_provider]));
+        var service = new CalendarConflictService([_provider], _db, new CalendarConflictProjection([_provider]), CalendarConflictTestRules.Scheduling);
         Assert.Single(
             await service.GetConflictsAsync(
                 CreateQuery() with
@@ -553,7 +592,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetParticipantsAsync_WithLocationScope_ReturnsLeaveOnlyShiftsAcrossLocations()
+    public async Task GetParticipantsAsync_WithLocationScope_ReturnsSupplementalShiftsAcrossLocations()
     {
         var vancouver = new Location
         {
@@ -587,7 +626,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         );
 
         Assert.Equal(new[] { "1000", "1100", "1200" }, participants.Select(participant => participant.EventId).Order());
-        Assert.All(participants, participant => Assert.Equal("leave", participant.ConflictsWithSourceModule));
+        Assert.All(participants, participant => Assert.Equal(SchedulingConstants.ShiftEventTypeCode, participant.EventTypeCode));
         Assert.True(participants.Single(participant => participant.EventId == "1000").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "1100").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "1200").IsInQueryScope);
@@ -602,7 +641,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var participant = Assert.Single(participants, item => item.ConflictsWithSourceModule is null);
+        var participant = Assert.Single(participants, item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode);
         Assert.Equal("20", participant.EventId);
         Assert.Equal(UserId, participant.ResourceId);
     }
@@ -610,7 +649,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     [Theory]
     [InlineData(CalendarEventStatusTypeCodes.Active, true)]
     [InlineData(CalendarEventStatusTypeCodes.Draft, false)]
-    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasNoAssignmentLinks_ReturnsPublishedLeaveOnlyCandidate(
+    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasNoAssignmentLinks_ReturnsPublishedShiftCandidate(
         string status,
         bool expected
     )
@@ -629,7 +668,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         if (expected)
         {
             var participant = Assert.Single(participants);
-            Assert.Equal("leave", participant.ConflictsWithSourceModule);
+            Assert.Equal(SchedulingConstants.ShiftEventTypeCode, participant.EventTypeCode);
             Assert.Equal("1300", participant.EventId);
         }
         else
@@ -654,10 +693,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var assignments = participants.Where(item => item.ConflictsWithSourceModule is null).ToList();
+        var assignments = participants
+            .Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
+            .ToList();
         Assert.Equal(2, assignments.Count);
         Assert.All(assignments, participant => Assert.Null(participant.TimeZoneId));
-        Assert.Single(CalendarConflictDetector.Detect(participants));
+        Assert.Single(CalendarConflictDetector.Detect(assignments));
     }
 
     [Fact]
@@ -684,7 +725,9 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         Assert.Equal(
             "America/Vancouver",
-            Assert.Single(participants, item => item.ConflictsWithSourceModule is null).TimeZoneId
+            Assert
+                .Single(participants, item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
+                .TimeZoneId
         );
     }
 

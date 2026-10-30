@@ -59,7 +59,9 @@ export const getCalendarConflictsForEvent = (
 
   const conflictEventId = String(eventId);
   return conflicts.filter(
-    (conflict) => conflict.entry.eventId === conflictEventId || conflict.overlaps.eventId === conflictEventId,
+    (conflict) =>
+      (conflict.entry.eventId === conflictEventId && conflict.reportOnEntry) ||
+      (conflict.overlaps.eventId === conflictEventId && conflict.reportOnOverlaps),
   );
 };
 
