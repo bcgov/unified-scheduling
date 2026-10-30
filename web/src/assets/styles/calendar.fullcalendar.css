@@ -29,14 +29,19 @@
 
 .ua-calendar .fc-event {
   background: #fff;
-  border: 1px dashed var(--fc-event-border-color);
-  border-left-style: solid;
-  border-left-width: 4px;
+  border: var(--bcds-layout-border-width-small) solid var(--fc-event-border-color);
+  border-left-width: var(--bcds-layout-border-width-large);
   border-radius: var(--ua-border-radius);
   box-shadow: none;
   color: var(--ua-text-primary);
   cursor: pointer;
   padding: 1px;
+}
+
+.ua-calendar .ua-calendar__event--dotted {
+  border-style: dotted;
+  border-width: var(--bcds-layout-border-width-medium);
+  border-left-width: var(--bcds-layout-border-width-large);
 }
 
 .ua-calendar .fc-event-time,

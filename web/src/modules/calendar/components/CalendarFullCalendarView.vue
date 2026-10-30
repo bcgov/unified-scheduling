@@ -28,6 +28,7 @@ const events = computed<EventInput[]>(() =>
       description: event.description,
       eventTypeCode: event.eventTypeCode,
       statusTypeCode: event.statusTypeCode,
+      borderStyle: event.borderStyle ?? 'solid',
       isReadOnly: event.isReadOnly,
       holidayType: event.holidayType,
     },

@@ -33,6 +33,7 @@ import {
 } from '../schedulingTimeZone';
 import { canViewAssignments, canViewShifts, canViewLeave, canViewLoanOut } from '../calendarSchedulingPermissions';
 import { isSchedulingPublished } from '../schedulingLifecycle';
+import { resolveSchedulingEventBorderStyle } from '../calendarSchedulingColors';
 import { useUsersStore } from '@/stores/Users';
 import { useLookupStore } from '@/stores/LookupStore';
 import { LookupCodeTypes } from '@/api-access/generated/models';
@@ -185,6 +186,7 @@ export function mapSchedulingCalendarEvent(
     description: event.description ?? undefined,
     notes: event.notes ?? undefined,
     color: event.color ?? (isLeaveEvent(event) ? leaveEventColor : undefined),
+    borderStyle: resolveSchedulingEventBorderStyle(event),
     start: leaveDate ?? event.start,
     end: leaveDate ? addDays(leaveDate, 1) : (event.end ?? undefined),
     seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,

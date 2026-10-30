@@ -40,7 +40,6 @@ import {
 import {
   isLeaveEvent,
   isLoanOutEvent,
-  leaveEventColor,
   isCalendarSchedulingEvent,
   type CalendarAssignmentCapacitySlotState,
   type CalendarAssignmentPartialCoverageShift,
@@ -71,7 +70,11 @@ import { getAssignmentSchedulingPrompt } from './assignmentSchedulingPrompt';
 import { getShiftSetupPrompt } from './shiftSetupPrompt';
 import { getCalendarEventDateKey } from './calendarSchedulingDate';
 import { canAssignAssignments, canCreateAssignments } from './calendarSchedulingPermissions';
-import { calendarMatrixColorMap } from './calendarSchedulingColors';
+import {
+  calendarMatrixColorMap,
+  calendarNonSchedulingEventColors,
+  resolveSchedulingEventBorderStyle,
+} from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { defaultSchedulingTimeZoneId, resolveSchedulingTimeZoneFromFilters } from './schedulingTimeZone';
@@ -228,18 +231,24 @@ export function buildCalendarSchedulingViewModel(
                 .map<CalendarMatrixCellHeader>((event) => ({
                   id: event.id,
                   text: event.title,
+                  allDay: event.allDay,
+                  collapsible: true,
+                  variant: 'outlined',
                   title: event.title,
-                  color: 'var(--calendar-event-holiday-color)',
+                  color: calendarNonSchedulingEventColors.holiday,
                   actionId: CalendarActionId.EventDetail,
                   payload: event,
                 }))),
           ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
-          ...userTrainingEvents.map((event) => ({
+          ...userTrainingEvents.map<CalendarMatrixCellHeader>((event) => ({
             id: event.id,
             text: event.title,
+            allDay: event.allDay,
+            collapsible: true,
+            variant: 'outlined',
             subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
             title: event.title,
-            color: 'rgb(var(--v-theme-accent))',
+            color: calendarNonSchedulingEventColors.training,
             actionId: trainingCalendarDetailActionId,
             payload: event,
           })),
@@ -1088,6 +1097,7 @@ function buildCellHeader(
     subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: event.title,
     status: event.statusTypeCode,
+    borderStyle: resolveSchedulingEventBorderStyle(event),
     color: resolveCalendarSchedulingColor(event.color),
     info: eventBelongsToSeries(event)
       ? {
@@ -1188,7 +1198,7 @@ function toScheduleMatrixEventItems(
   conflicts: ReadonlyArray<CalendarConflict>,
   resourceId?: string,
 ): CalendarMatrixEventItem[] {
-  return events.flatMap((event) => {
+  return events.flatMap<CalendarMatrixEventItem>((event) => {
     const linkedShifts = resolveLinkedShiftsForAssignment(event, [...userShiftEvents]);
     const activeLinkedShifts = linkedShifts.filter((shift) => !isSchedulingCancelled(shift.statusTypeCode));
     const displayLinkedShifts = activeLinkedShifts.length > 0 ? activeLinkedShifts : linkedShifts;
@@ -1210,6 +1220,7 @@ function toScheduleMatrixEventItems(
         event: displayEvent,
         display: {
           color: resolveCalendarSchedulingColor(event.color),
+          borderStyle: resolveSchedulingEventBorderStyle(event),
           status: event.statusTypeCode,
           draggable: false,
           action:
@@ -1358,6 +1369,9 @@ function buildLeaveCellHeader(
 
   return {
     id: event.id,
+    allDay: event.allDay,
+    collapsible: true,
+    variant: 'outlined',
     text: loanOut
       ? `Loan Out: ${label}`
       : event.allDay
@@ -1366,7 +1380,7 @@ function buildLeaveCellHeader(
     subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: `${loanOut ? 'Loan Out' : 'Leave'}: ${label}`,
     status: event.statusTypeCode,
-    color: resolveCalendarSchedulingColor(event.color ?? leaveEventColor),
+    color: calendarNonSchedulingEventColors.leave,
     payload: event,
     actionId: loanOut ? calendarSchedulingActionIds.viewLoanOutDetails : calendarSchedulingActionIds.viewLeaveDetails,
     action: {
