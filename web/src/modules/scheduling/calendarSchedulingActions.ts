@@ -35,7 +35,11 @@ import type { CalendarSchedulingMatrixPayload } from './calendarSchedulingMapper
 import { getMissingAssignmentTypePrompt } from './assignmentDefinitionPrompt';
 import { getShiftSetupPrompt } from './shiftSetupPrompt';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
-import { getSchedulingLifecycleCapabilities, isSchedulingCancelled } from './schedulingLifecycle';
+import {
+  getSchedulingLifecycleCapabilities,
+  isSchedulingCancelled,
+  isSchedulingPublished,
+} from './schedulingLifecycle';
 import {
   defaultSchedulingTimeZoneId,
   resolveSchedulingTimeZoneFromFilters,
@@ -540,6 +544,7 @@ function resolveExistingAssignmentEntryId(context: CalendarMatrixDropActionConte
     (event) =>
       isAssignmentEvent(event) &&
       !isSchedulingCancelled(event.statusTypeCode) &&
+      !isSchedulingPublished(event.statusTypeCode) &&
       (!definitionId || resolveEventAssignmentDefinitionId(event) === definitionId) &&
       assignmentEntryMatchesDate(event, context.drop.date, context.model.timeZone),
   );

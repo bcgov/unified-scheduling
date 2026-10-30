@@ -95,6 +95,25 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
+    public async Task TryHandleAsync_InformationValidationException_Returns400WithInformationalMessage()
+    {
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = new InformationValidationException("An assignment already exists for a selected user.");
+
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal("Information.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal(exception.Message, body.RootElement.GetProperty("detail").GetString());
+        Assert.Equal("info", body.RootElement.GetProperty("severity").GetString());
+        Assert.True(body.RootElement.TryGetProperty("traceId", out _));
+    }
+
+    [Fact]
     public async Task TryHandleAsync_Should_Map_Unknown_Exception_To_500_Without_Leaking_Message()
     {
         // Arrange
