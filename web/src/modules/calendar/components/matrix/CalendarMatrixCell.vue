@@ -40,6 +40,12 @@ const matrixContext = inject(calendarMatrixContextKey, undefined);
 const isDropTarget = ref(false);
 
 const headers = computed(() => props.cell.headers ?? []);
+const collapsibleHeaders = computed(() =>
+  headers.value
+    .filter((header) => header.collapsible)
+    .sort((left, right) => Number(Boolean(right.allDay)) - Number(Boolean(left.allDay))),
+);
+const regularHeaders = computed(() => headers.value.filter((header) => !header.collapsible));
 const hasEvents = computed(() => props.cell.groups.some((group) => group.events.length > 0));
 const hasContent = computed(() => headers.value.length > 0 || hasEvents.value);
 const canAddCellResource = computed(
@@ -66,6 +72,7 @@ function resolveEventDisplay(
 ): CalendarMatrixEventDisplay {
   return {
     color: eventItem.display?.color ?? group.color,
+    borderStyle: eventItem.display?.borderStyle ?? eventItem.event.borderStyle,
     status: eventItem.display?.status,
     draggable: eventItem.display?.draggable,
     action: eventItem.display?.action ?? group.action,
@@ -213,7 +220,28 @@ function handleEmptyCellAdd() {
     @drop="handleDrop"
   >
     <slot name="cell" :cell="cell" :resource="resource" :is-today="isToday">
-      <template v-for="header in headers" :key="header.id ?? `${header.text}-${header.title ?? ''}`">
+      <details v-if="collapsibleHeaders.length" class="calendar-matrix-cell__collapsible" open>
+        <summary class="calendar-matrix-cell__summary">Events ({{ collapsibleHeaders.length }})</summary>
+        <div class="calendar-matrix-cell__group">
+          <template v-for="header in collapsibleHeaders" :key="header.id ?? `${header.text}-${header.title ?? ''}`">
+            <slot
+              name="cell-header"
+              :cell="cell"
+              :header="header"
+              :on-header-action="handleHeaderAction"
+              :on-header-click="handleHeaderClick"
+            >
+              <CalendarMatrixCellHeader
+                :cell="cell"
+                :header="header"
+                @action="handleHeaderAction"
+                @click="handleHeaderClick"
+              />
+            </slot>
+          </template>
+        </div>
+      </details>
+      <template v-for="header in regularHeaders" :key="header.id ?? `${header.text}-${header.title ?? ''}`">
         <slot
           name="cell-header"
           :cell="cell"
@@ -272,16 +300,22 @@ function handleEmptyCellAdd() {
 </template>
 
 <style scoped>
-.calendar-matrix-cell {
-  background: rgb(var(--v-theme-surface));
-  border-inline-start: 1px solid var(--ua-border-color);
-  border-top: 1px solid var(--ua-border-color);
-  color: var(--ua-text-primary);
+.calendar-matrix-cell,
+.calendar-matrix-cell__group {
   align-content: start;
   align-items: start;
   display: grid;
   gap: 1px;
   grid-auto-rows: max-content;
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.calendar-matrix-cell {
+  background: rgb(var(--v-theme-surface));
+  border-inline-start: 1px solid var(--ua-border-color);
+  border-top: 1px solid var(--ua-border-color);
+  color: var(--ua-text-primary);
   padding: var(--ua-spacing-sm);
   position: relative;
   isolation: isolate;
@@ -315,12 +349,28 @@ function handleEmptyCellAdd() {
   outline-offset: -4px;
 }
 
-.calendar-matrix-cell__group {
-  align-content: start;
-  align-items: start;
-  display: grid;
-  gap: 1px;
-  grid-auto-rows: max-content;
+.calendar-matrix-cell__collapsible {
+  background: var(--bcds-surface-color-background-light-blue);
+  border: 0;
+  border-radius: 0;
+  margin-block-end: var(--ua-spacing-xs);
+  margin-block-start: calc(var(--ua-spacing-sm) * -1);
+  margin-inline: calc(var(--ua-spacing-sm) * -1);
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.calendar-matrix-cell__summary {
+  color: var(--ua-text-primary);
+  cursor: pointer;
+  font-size: var(--ua-font-size-xs);
+  font-weight: var(--ua-font-weight-bold);
+  padding: var(--ua-spacing-xs);
+}
+
+.calendar-matrix-cell__summary:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
 }
 
 .calendar-matrix-cell-header + .calendar-matrix-cell__group {
