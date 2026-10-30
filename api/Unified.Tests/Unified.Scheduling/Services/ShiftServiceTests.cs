@@ -62,7 +62,8 @@ public class ShiftServiceTests : IAsyncLifetime
         var materializationHandler = new ShiftSeriesMaterializationHandler(_dbContext);
         var conflictService = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_dbContext)],
-            _dbContext
+            _dbContext,
+            CalendarConflictTestRules.Scheduling
         );
 
         _service = CreateShift(

@@ -182,7 +182,8 @@ public sealed class HolidayConflictParticipantProvider(
             TimeZoneId: timeZoneId,
             RequiresMatchingTimeZone: true,
             IsInQueryScope: false,
-            CanonicalEventId: holidayEvent.Id
+            CanonicalEventId: holidayEvent.Id,
+            EventTypeCode: CalendarEventTypeCodes.Holiday
         );
 
     // The time zone is part of the synthetic identity so overrides can reconstruct the

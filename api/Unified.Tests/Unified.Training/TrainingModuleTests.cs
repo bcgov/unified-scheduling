@@ -129,6 +129,7 @@ public sealed class TrainingModuleTests
                     ["FeatureFlags:Training:Enabled"] = trainingEnabled.ToString(),
                     ["FeatureFlags:Calendar:Enabled"] = calendarEnabled.ToString(),
                     ["CalendarDateTime:DefaultTimeZoneId"] = "America/Vancouver",
+                    ["CalendarConflicts:Rules:assignment:0"] = "holiday",
                 }
             )
             .Build();
@@ -152,14 +153,13 @@ public sealed class TrainingModuleTests
         using var scope = provider.CreateScope();
         if (trainingEnabled)
             Assert.IsType<UserTrainingService>(scope.ServiceProvider.GetRequiredService<IUserTrainingService>());
+        var trainingProviders = scope
+            .ServiceProvider.GetServices<ICalendarConflictParticipantProvider>()
+            .OfType<TrainingConflictParticipantProvider>();
         if (expectedProvider)
-            Assert.IsType<TrainingConflictParticipantProvider>(
-                Assert.Single(
-                    scope
-                        .ServiceProvider.GetServices<ICalendarConflictParticipantProvider>()
-                        .OfType<TrainingConflictParticipantProvider>()
-                )
-            );
+            Assert.IsType<TrainingConflictParticipantProvider>(Assert.Single(trainingProviders));
+        else
+            Assert.Empty(trainingProviders);
     }
 
     private static void AssertContainsScopedRegistration<TService, TImplementation>(IServiceCollection services)

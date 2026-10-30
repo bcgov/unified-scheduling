@@ -24,16 +24,16 @@ public sealed class CalendarConflictDetectorTests
     }
 
     [Theory]
-    [InlineData("leave", true)]
-    [InlineData("training", false)]
-    [InlineData("calendar", false)]
-    [InlineData("scheduling", false)]
-    public void Detect_WhenShiftSupplementIsRestrictedToLeave_PreservesOtherPairs(string partnerModule, bool expected)
+    [InlineData("leave")]
+    [InlineData("training")]
+    [InlineData("calendar")]
+    [InlineData("scheduling")]
+    public void Detect_WhenLegacyPolicyMetadataExists_StillDetectsPhysicalOverlap(string partnerModule)
     {
         var shift = Participant(1, ResourceA, 0, 60) with { ConflictsWithSourceModule = "leave" };
         var other = Participant(2, ResourceA, 30, 90) with { SourceModule = partnerModule };
-        Assert.Equal(expected ? 1 : 0, CalendarConflictDetector.Detect([shift, other]).Count);
-        Assert.Equal(expected ? 1 : 0, CalendarConflictDetector.Detect([other, shift]).Count);
+        Assert.Single(CalendarConflictDetector.Detect([shift, other]));
+        Assert.Single(CalendarConflictDetector.Detect([other, shift]));
     }
 
     [Fact]

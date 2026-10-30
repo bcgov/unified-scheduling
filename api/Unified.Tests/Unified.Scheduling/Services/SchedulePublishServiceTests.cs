@@ -52,8 +52,12 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         await _connection.DisposeAsync();
     }
 
-    [Fact]
-    public async Task PublishAsync_WhenStandaloneShiftOverlapsCrossLocationDraftLeave_BlocksAndHonorsOverride()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PublishAsync_WhenStandaloneShiftOverlapsCrossLocationDraftLeave_UsesCandidateDirection(
+        bool reportOnShift
+    )
     {
         _db.Users.Add(
             new User
@@ -91,10 +95,22 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var conflictService = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_db), new LeaveConflictParticipantProvider(_db)],
-            _db
+            _db,
+            CalendarConflictTestRules.Create(
+                ("shift", reportOnShift ? ["leave"] : []),
+                ("leave", reportOnShift ? [] : ["shift"])
+            )
         );
         var service = CreateService([], conflictService: conflictService);
         var preview = await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken);
+        if (!reportOnShift)
+        {
+            Assert.True(preview.CanPublish);
+            Assert.Empty(preview.Blockers.Conflicts);
+            await service.PublishAsync(CreateRequest(), null, TestContext.Current.CancellationToken);
+            Assert.Equal(CalendarEventStatusTypeCodes.Active, shift.Event!.StatusTypeCode);
+            return;
+        }
         Assert.False(preview.CanPublish);
         Assert.Single(preview.Blockers.Conflicts);
         await Assert.ThrowsAsync<SchedulePublishBlockedException>(() =>
@@ -123,14 +139,23 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
     {
         await SeedDraftShiftAsync();
         var conflict = new CalendarConflict(
-            new CalendarConflictParticipant("course-41", "training", ResourceId, ShiftStart, ShiftEnd, "Training"),
+            new CalendarConflictParticipant(
+                "course-41",
+                "training",
+                ResourceId,
+                ShiftStart,
+                ShiftEnd,
+                "Training",
+                EventTypeCode: "training"
+            ),
             new CalendarConflictParticipant(
                 "course-42",
                 "training",
                 ResourceId,
                 ShiftStart.AddHours(1),
                 ShiftEnd,
-                "Training"
+                "Training",
+                EventTypeCode: "training"
             ),
             ResourceId,
             ShiftStart.AddHours(1),
@@ -289,8 +314,10 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         Assert.Equal(CalendarEventStatusTypeCodes.Draft, eventEntity.StatusTypeCode);
     }
 
-    [Fact]
-    public async Task PublishAsync_RechecksTrainingConflictAndHonorsOverride()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PublishAsync_RechecksTrainingConflictAndHonorsOverride(bool reportOnAssignment)
     {
         var assignment = await SeedLinkedDraftAssignmentAsync();
         var timeZoneService = new TimeZoneService();
@@ -303,7 +330,11 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
                 new SchedulingConflictParticipantProvider(_db),
                 new TrainingConflictParticipantProvider(_db, timeZoneResolver, timeZoneService),
             ],
-            _db
+            _db,
+            CalendarConflictTestRules.Create(
+                ("assignment", reportOnAssignment ? ["training"] : []),
+                ("training", reportOnAssignment ? [] : ["assignment"])
+            )
         );
         var service = CreateService([], conflictService: conflictService);
         Assert.True((await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken)).CanPublish);
@@ -317,6 +348,15 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         };
         _db.UserTrainings.Add(training);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        if (!reportOnAssignment)
+        {
+            var preview = await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken);
+            Assert.True(preview.CanPublish);
+            Assert.Empty(preview.Blockers.Conflicts);
+            await service.PublishAsync(CreateRequest(), null, TestContext.Current.CancellationToken);
+            return;
+        }
 
         var blocked = await Assert.ThrowsAsync<SchedulePublishBlockedException>(() =>
             service.PublishAsync(CreateRequest(), null, TestContext.Current.CancellationToken)

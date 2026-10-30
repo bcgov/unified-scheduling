@@ -13,7 +13,9 @@ public sealed record CalendarConflictParticipant(
     bool IsInQueryScope = true,
     string? CanonicalEventId = null,
     bool AllDay = false,
-    string? ConflictsWithSourceModule = null
+    // Retained for constructor compatibility; event-type rules now determine reporting.
+    string? ConflictsWithSourceModule = null,
+    string EventTypeCode = ""
 )
 {
     public CalendarConflictEventIdentity Identity => CalendarConflictEventIdentity.Create(SourceModule, EventId);

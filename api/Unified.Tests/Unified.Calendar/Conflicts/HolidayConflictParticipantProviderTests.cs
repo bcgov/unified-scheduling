@@ -88,6 +88,7 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             {
                 Assert.Equal("stat-holiday:CanadaDay:2026-07-01:America/Toronto", participant.EventId);
                 Assert.Equal("calendar", participant.SourceModule);
+                Assert.Equal("holiday", participant.EventTypeCode);
                 Assert.Equal("Canada Day", participant.Title);
                 Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), participant.Start);
                 Assert.Equal(new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero), participant.End);
@@ -136,9 +137,14 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             new DateTimeOffset(2026, 7, 1, 13, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 7, 1, 14, 0, 0, TimeSpan.Zero),
             "Court Room Monitor",
-            TimeZoneId: "America/Toronto"
+            TimeZoneId: "America/Toronto",
+            EventTypeCode: "assignment"
         );
-        var service = new CalendarConflictService([_provider, new FixedParticipantProvider(assignment)], _db);
+        var service = new CalendarConflictService(
+            [_provider, new FixedParticipantProvider(assignment)],
+            _db,
+            CalendarConflictTestRules.Scheduling
+        );
 
         var conflict = Assert.Single(
             await service.GetConflictsAsync(
@@ -170,7 +176,8 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             new DateTimeOffset(2026, 7, 2, 4, 30, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 7, 2, 6, 0, 0, TimeSpan.Zero),
             "Toronto assignment",
-            TimeZoneId: "America/Toronto"
+            TimeZoneId: "America/Toronto",
+            EventTypeCode: "assignment"
         );
         var vancouverAssignment = new CalendarConflictParticipant(
             "43",
@@ -179,9 +186,10 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             new DateTimeOffset(2026, 7, 2, 8, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero),
             "Vancouver assignment",
-            TimeZoneId: "America/Vancouver"
+            TimeZoneId: "America/Vancouver",
+            EventTypeCode: "assignment"
         );
-        var service = new CalendarConflictService([_provider], _db);
+        var service = new CalendarConflictService([_provider], _db, CalendarConflictTestRules.Scheduling);
 
         var conflicts = await service.GetConflictsForCandidatesAsync(
             [torontoAssignment, vancouverAssignment],
@@ -219,7 +227,8 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             new DateTimeOffset(2026, 7, 2, 4, 30, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 7, 2, 6, 0, 0, TimeSpan.Zero),
             "Toronto assignment",
-            TimeZoneId: "America/Toronto"
+            TimeZoneId: "America/Toronto",
+            EventTypeCode: "assignment"
         );
         var vancouverAssignment = new CalendarConflictParticipant(
             "43",
@@ -228,9 +237,10 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             new DateTimeOffset(2026, 7, 1, 18, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 7, 1, 19, 0, 0, TimeSpan.Zero),
             "Vancouver assignment",
-            TimeZoneId: "America/Vancouver"
+            TimeZoneId: "America/Vancouver",
+            EventTypeCode: "assignment"
         );
-        var service = new CalendarConflictService([_provider], _db);
+        var service = new CalendarConflictService([_provider], _db, CalendarConflictTestRules.Scheduling);
 
         var conflicts = await service.GetConflictsForCandidatesAsync(
             [torontoAssignment, vancouverAssignment],

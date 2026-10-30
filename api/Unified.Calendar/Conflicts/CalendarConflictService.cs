@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Unified.Calendar.Models;
+using Unified.Calendar.Options;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db;
@@ -10,12 +12,14 @@ namespace Unified.Calendar.Conflicts;
 public sealed class CalendarConflictService(
     IEnumerable<ICalendarConflictParticipantProvider> participantProviders,
     UnifiedDbContext db,
+    IOptions<CalendarConflictRulesOptions> rulesOptions,
     TimeProvider? timeProvider = null
 ) : ICalendarConflictService
 {
     private readonly IReadOnlyCollection<ICalendarConflictParticipantProvider> _participantProviders =
         participantProviders.ToList();
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly CalendarConflictRulesOptions _rules = rulesOptions.Value;
 
     public async Task<IReadOnlyCollection<CalendarConflict>> GetConflictsAsync(
         CalendarConflictQuery query,
@@ -23,11 +27,14 @@ public sealed class CalendarConflictService(
     )
     {
         var participants = await LoadParticipantsAsync(query, cancellationToken);
-        var conflicts = CalendarConflictDetector.Detect(participants);
+        var conflicts = DetectReportableConflicts(participants);
         if (query.LocationId.HasValue)
         {
             conflicts = conflicts
-                .Where(conflict => conflict.Entry.IsInQueryScope || conflict.Overlaps.IsInQueryScope)
+                .Where(conflict =>
+                    (conflict.ReportOnEntry && conflict.Entry.IsInQueryScope)
+                    || (conflict.ReportOnOverlaps && conflict.Overlaps.IsInQueryScope)
+                )
                 .ToList();
         }
 
@@ -64,11 +71,16 @@ public sealed class CalendarConflictService(
             .GroupBy(CalendarConflictParticipantIdentity.Create)
             .Select(group => group.Last())
             .ToList();
-        var conflicts = CalendarConflictDetector
-            .Detect(allParticipants)
+        var conflicts = DetectReportableConflicts(allParticipants)
             .Where(conflict =>
-                candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(conflict.Entry))
-                || candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(conflict.Overlaps))
+                (
+                    conflict.ReportOnEntry
+                    && candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(conflict.Entry))
+                )
+                || (
+                    conflict.ReportOnOverlaps
+                    && candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(conflict.Overlaps))
+                )
             )
             .ToList();
 
@@ -138,8 +150,7 @@ public sealed class CalendarConflictService(
             ),
             cancellationToken
         );
-        var conflict = CalendarConflictDetector
-            .Detect(participants)
+        var conflict = DetectReportableConflicts(participants)
             .FirstOrDefault(candidate => CalendarConflictKey.Create(candidate) == key);
         if (conflict is null)
             throw new InvalidOperationException("The selected events do not currently constitute an active conflict.");
@@ -147,6 +158,24 @@ public sealed class CalendarConflictService(
         await UpsertOverrideAsync(key, acknowledgement.Note, createdById, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    private IReadOnlyCollection<CalendarConflict> DetectReportableConflicts(
+        IReadOnlyCollection<CalendarConflictParticipant> participants
+    ) =>
+        CalendarConflictDetector
+            .Detect(participants)
+            .Select(conflict =>
+                conflict with
+                {
+                    ReportOnEntry = _rules.ShouldReport(conflict.Entry.EventTypeCode, conflict.Overlaps.EventTypeCode),
+                    ReportOnOverlaps = _rules.ShouldReport(
+                        conflict.Overlaps.EventTypeCode,
+                        conflict.Entry.EventTypeCode
+                    ),
+                }
+            )
+            .Where(conflict => conflict.ReportOnEntry || conflict.ReportOnOverlaps)
+            .ToList();
 
     private async Task<CalendarConflictOverride> UpsertOverrideAsync(
         CalendarConflictKey key,
@@ -267,6 +296,7 @@ public sealed class CalendarConflictService(
             ),
             cancellationToken
         );
+        // Override validity follows the physical pair, even while its reporting rules are disabled.
         return CalendarConflictDetector.Detect(participants).Select(CalendarConflictKey.Create).Contains(key);
     }
 

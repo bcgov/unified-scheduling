@@ -83,6 +83,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         _conflictService = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_db)],
             _db,
+            CalendarConflictTestRules.Scheduling,
             timeProvider
         );
 
@@ -1674,7 +1675,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                     new CalendarConflictQuery(At(9), At(17)),
                     TestContext.Current.CancellationToken
                 )
-            ).Where(item => item.ConflictsWithSourceModule is null)
+            ).Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
         );
 
         Assert.Equal(assignment.EventId.ToString(), participant.EventId);

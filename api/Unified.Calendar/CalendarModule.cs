@@ -60,6 +60,12 @@ public static class CalendarModule
             .Validate(BeValidDefaultTimeZoneId, "CalendarDateTime:DefaultTimeZoneId must be a valid system time zone.")
             .ValidateOnStart();
 
+        services
+            .AddOptions<CalendarConflictRulesOptions>()
+            .BindConfiguration(CalendarConflictRulesOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddSingleton<IStatutoryHolidayCalculator, BcStatutoryHolidayCalculator>();
         services.AddSingleton<StatutoryHolidayCalendarDataProvider>();
         services.AddScoped<ICalendarQueryService, CalendarQueryService>();

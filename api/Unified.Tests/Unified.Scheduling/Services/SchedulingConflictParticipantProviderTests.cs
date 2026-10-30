@@ -87,9 +87,9 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var participant = Assert.Single(participants.Where(item => item.ConflictsWithSourceModule is null));
+        var participant = Assert.Single(participants.Where(item => item.EventId == expectedEventId));
         Assert.All(
-            participants.Where(item => item.ConflictsWithSourceModule is not null),
+            participants.Where(item => item.EventId != expectedEventId),
             item => Assert.Equal("Shift", item.Title)
         );
         Assert.Equal(expectedEventId, participant.EventId);
@@ -120,7 +120,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal("20", Assert.Single(participants.Where(item => item.ConflictsWithSourceModule is null)).EventId);
+        Assert.Equal(
+            "20",
+            Assert
+                .Single(participants.Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode))
+                .EventId
+        );
     }
 
     [Theory]
@@ -136,7 +141,36 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         Assert.NotNull(participant);
         Assert.Equal(eventId, participant.EventId);
+        Assert.Equal(
+            eventId == "10" ? SchedulingConstants.ShiftEventTypeCode : SchedulingConstants.AssignmentEventTypeCode,
+            participant.EventTypeCode
+        );
         Assert.Equal(UserId, participant.ResourceId);
+    }
+
+    [Fact]
+    public async Task GetParticipantsForPublicationAsync_ShiftAndAssignment_KeepDistinctTypes()
+    {
+        var participants = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
+            _db,
+            [40],
+            [50],
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, participants.Count);
+        Assert.All(
+            participants,
+            participant => Assert.Equal(SchedulingConstants.SourceModule, participant.SourceModule)
+        );
+        Assert.Equal(
+            SchedulingConstants.ShiftEventTypeCode,
+            participants.Single(participant => participant.EventId == "10").EventTypeCode
+        );
+        Assert.Equal(
+            SchedulingConstants.AssignmentEventTypeCode,
+            participants.Single(participant => participant.EventId == "20").EventTypeCode
+        );
     }
 
     [Fact]
@@ -267,7 +301,9 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var participant = Assert.Single(participants.Where(item => item.ConflictsWithSourceModule is null));
+        var participant = Assert.Single(
+            participants.Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
+        );
         Assert.Equal("20", participant.EventId);
         Assert.Equal(UserId, participant.ResourceId);
     }
@@ -275,7 +311,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     [Theory]
     [InlineData(CalendarEventStatusTypeCodes.Active, true)]
     [InlineData(CalendarEventStatusTypeCodes.Draft, false)]
-    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasNoAssignmentLinks_ReturnsPublishedLeaveOnlyCandidate(
+    public async Task GetParticipantsForShiftEntriesAsync_WhenShiftHasNoAssignmentLinks_ReturnsPublishedShiftCandidate(
         string status,
         bool expected
     )
@@ -294,7 +330,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         if (expected)
         {
             var participant = Assert.Single(participants);
-            Assert.Equal("leave", participant.ConflictsWithSourceModule);
+            Assert.Equal(SchedulingConstants.ShiftEventTypeCode, participant.EventTypeCode);
             Assert.Equal("1300", participant.EventId);
         }
         else

@@ -134,6 +134,8 @@ export const getPostApiCalendarEventsResponseMock = (
           createdOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
           updatedById: faker.helpers.arrayElement([faker.string.uuid(), null]),
           updatedOn: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
+          reportOnEntry: faker.datatype.boolean(),
+          reportOnOverlaps: faker.datatype.boolean(),
         })),
         undefined,
       ]),

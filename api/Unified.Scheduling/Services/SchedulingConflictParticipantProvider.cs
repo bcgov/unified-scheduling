@@ -84,13 +84,13 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                 .Distinct()
                 .ToListAsync(cancellationToken);
             if (scopedResourceIds.Count == 0)
-                return shifts.Select(ForLeaveConflicts).ToList();
+                return shifts.Select(AsSupplementalShift).ToList();
 
             participants = participants.Where(participant => scopedResourceIds.Contains(participant.UserId));
         }
 
         var assignments = await ProjectParticipantsAsync(participants, cancellationToken, query.LocationId);
-        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
+        return assignments.Concat(shifts.Select(AsSupplementalShift)).ToList();
     }
 
     public static Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForAssignmentSeriesAsync(
@@ -142,7 +142,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                 ),
             cancellationToken
         );
-        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
+        return assignments.Concat(shifts.Select(AsSupplementalShift)).ToList();
     }
 
     public static async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForPublicationAsync(
@@ -171,15 +171,14 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
             ActiveShiftParticipantQuery(db).Where(user => shiftIds.Contains(user.ShiftEntryId)),
             cancellationToken
         );
-        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
+        return assignments.Concat(shifts.Select(AsSupplementalShift)).ToList();
     }
 
-    // Supplemental shift intervals cover leave outside linked assignment hours without changing other conflict pairs.
-    private static CalendarConflictParticipant ForLeaveConflicts(CalendarConflictParticipant shift) =>
+    // Keep supplemental shift titles generic for viewers who can only view assignments.
+    private static CalendarConflictParticipant AsSupplementalShift(CalendarConflictParticipant shift) =>
         shift with
         {
             Title = "Shift",
-            ConflictsWithSourceModule = "leave",
         };
 
     private static IQueryable<Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser> ParticipantQuery(
@@ -272,7 +271,10 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     !scopeLocationId.HasValue
                         || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == null
                         || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == scopeLocationId,
-                    null
+                    null,
+                    false,
+                    null,
+                    participant.ShiftAssignmentEntry.AssignmentEntry.Event.EventTypeCode
                 ))
                 .ToListAsync(cancellationToken)
         )
@@ -305,7 +307,10 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     !scopeLocationId.HasValue
                         || participant.ShiftEntry.Event.LocationId == null
                         || participant.ShiftEntry.Event.LocationId == scopeLocationId,
-                    null
+                    null,
+                    false,
+                    null,
+                    participant.ShiftEntry.Event.EventTypeCode
                 ))
                 .ToListAsync(cancellationToken)
         )

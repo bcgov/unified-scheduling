@@ -105,6 +105,8 @@ export const PostApiCalendarEventsResponse = zod.object({
         createdOn: zod.iso.datetime({ offset: true }).nullable(),
         updatedById: zod.uuid().nullable(),
         updatedOn: zod.iso.datetime({ offset: true }).nullable(),
+        reportOnEntry: zod.boolean(),
+        reportOnOverlaps: zod.boolean(),
       }),
     )
     .optional(),

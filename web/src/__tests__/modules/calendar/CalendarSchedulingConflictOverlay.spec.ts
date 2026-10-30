@@ -111,6 +111,8 @@ function createConflict(
     overlapStart: '2025-01-13T11:00:00Z',
     overlapEnd: '2025-01-13T12:00:00Z',
     isOverridden: false,
+    reportOnEntry: true,
+    reportOnOverlaps: true,
     overrideNote: null,
     createdById: null,
     createdOn: null,

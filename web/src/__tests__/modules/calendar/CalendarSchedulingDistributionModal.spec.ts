@@ -314,6 +314,8 @@ function createConflict(id: string, isOverridden: boolean): CalendarConflict {
     overlapStart: '2026-08-24T17:00:00Z',
     overlapEnd: '2026-08-24T18:00:00Z',
     isOverridden,
+    reportOnEntry: true,
+    reportOnOverlaps: true,
     overrideNote: isOverridden ? 'Approved' : null,
     createdById: null,
     createdOn: null,

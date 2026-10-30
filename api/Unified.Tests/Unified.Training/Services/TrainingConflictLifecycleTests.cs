@@ -27,6 +27,7 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
     private CalendarConflictService _conflicts = null!;
     private UserTrainingService _service = null!;
     private AssignmentProvider _assignmentProvider = null!;
+    private TrainingConflictParticipantProvider _trainingProvider = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -64,7 +65,7 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var timeZoneService = new TimeZoneService();
-        var trainingProvider = new TrainingConflictParticipantProvider(
+        _trainingProvider = new TrainingConflictParticipantProvider(
             _db,
             new CalendarTimeZoneResolver(
                 Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
@@ -73,7 +74,11 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
             timeZoneService
         );
         _assignmentProvider = new AssignmentProvider();
-        _conflicts = new CalendarConflictService([trainingProvider, _assignmentProvider], _db);
+        _conflicts = new CalendarConflictService(
+            [_trainingProvider, _assignmentProvider],
+            _db,
+            CalendarConflictTestRules.Scheduling
+        );
         _service = new UserTrainingService(_db, _conflicts);
     }
 
@@ -287,6 +292,55 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
         );
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task TrainingConflicts_ConfiguredDirections_ReportAndBlockOnlyConfiguredSide(
+        bool reportOnAssignment,
+        bool reportOnTraining
+    )
+    {
+        var record = await _service.CreateAsync(Request(Day(2026, 10, 22)), TestContext.Current.CancellationToken);
+        var query = new CalendarConflictQuery(Day(2026, 10, 22), Day(2026, 10, 23), [UserId]);
+        var assignment = Assert.Single(
+            await _assignmentProvider.GetParticipantsAsync(query, TestContext.Current.CancellationToken)
+        );
+        var training = await _trainingProvider.GetParticipantAsync(
+            TrainingConflictParticipantProvider.IdentityFor(record.Id),
+            UserId,
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(training);
+        var service = new CalendarConflictService(
+            [_trainingProvider, _assignmentProvider],
+            _db,
+            CalendarConflictTestRules.Create(
+                ("assignment", reportOnAssignment ? ["training"] : []),
+                ("training", reportOnTraining ? ["assignment"] : [])
+            )
+        );
+
+        var conflicts = await service.GetConflictsAsync(query, TestContext.Current.CancellationToken);
+        Assert.Equal(reportOnAssignment || reportOnTraining ? 1 : 0, conflicts.Count);
+        if (conflicts.Count > 0)
+        {
+            var conflict = Assert.Single(conflicts);
+            Assert.Equal(training, conflict.Entry);
+            Assert.Equal(reportOnTraining, conflict.ReportOnEntry);
+            Assert.Equal(reportOnAssignment, conflict.ReportOnOverlaps);
+        }
+        Assert.Equal(
+            reportOnAssignment ? 1 : 0,
+            (await service.GetConflictsForCandidatesAsync([assignment], TestContext.Current.CancellationToken)).Count
+        );
+        Assert.Equal(
+            reportOnTraining ? 1 : 0,
+            (await service.GetConflictsForCandidatesAsync([training], TestContext.Current.CancellationToken)).Count
+        );
+    }
+
     private async Task<UserTrainingResponse> CreateOverriddenTrainingAsync()
     {
         var record = await _service.CreateAsync(Request(Day(2026, 10, 22)), TestContext.Current.CancellationToken);
@@ -331,7 +385,8 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
             UserId,
             AssignmentStart,
             AssignmentEnd,
-            "Assignment"
+            "Assignment",
+            EventTypeCode: "assignment"
         );
 
         public bool ThrowOnLookup { get; set; }
