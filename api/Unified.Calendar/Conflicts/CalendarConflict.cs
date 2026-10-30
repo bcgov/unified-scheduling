@@ -13,7 +13,9 @@ public sealed record CalendarConflict(
     Guid? CreatedById = null,
     DateTimeOffset? CreatedOn = null,
     Guid? UpdatedById = null,
-    DateTimeOffset? UpdatedOn = null
+    DateTimeOffset? UpdatedOn = null,
+    bool ReportOnEntry = false,
+    bool ReportOnOverlaps = false
 )
 {
     public string Id

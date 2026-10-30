@@ -143,7 +143,8 @@ public sealed class TrainingConflictParticipantProvider(
             range.EndAtUtc,
             $"Training: {record.Code}",
             record.Id,
-            timeZone.Id
+            timeZone.Id,
+            EventTypeCode: "training"
         );
     }
 

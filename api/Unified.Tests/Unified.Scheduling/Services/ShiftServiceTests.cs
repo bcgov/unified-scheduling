@@ -70,7 +70,8 @@ public class ShiftServiceTests : IAsyncLifetime
         var conflictService = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_dbContext)],
             _dbContext,
-            new CalendarConflictProjection([])
+            new CalendarConflictProjection([]),
+            CalendarConflictTestRules.Scheduling
         );
         var schedulingLoanOutService = SchedulingLoanOutTestServices.Create(
             _dbContext,

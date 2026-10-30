@@ -96,7 +96,8 @@ public sealed class LeaveConflictParticipantProvider(UnifiedDbContext db) : ICal
                         || user.LeaveEntry.Event.LocationId == locationId,
                     null,
                     user.LeaveEntry.Event.AllDay,
-                    null
+                    null,
+                    user.LeaveEntry.Event.EventTypeCode
                 ))
                 .ToListAsync(cancellationToken)
         ).DistinctBy(participant => (participant.Identity, participant.ResourceId)).ToList();
