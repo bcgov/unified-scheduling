@@ -45,6 +45,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             EmailValidationException ex => HandleEmailValidationException(ex, httpContext),
             EmailDeliveryStateUnknownException ex => HandleEmailDeliveryStateUnknownException(ex, httpContext),
             EmailDeliveryException ex => HandleEmailDeliveryException(ex, httpContext),
+            InformationValidationException ex => HandleInformationValidationException(ex, httpContext),
             ConflictValidationException ex => HandleConflictValidationException(ex, httpContext),
             ForbiddenException ex => HandleForbiddenException(ex, httpContext),
             KeyNotFoundException ex => HandleKeyNotFoundException(ex, httpContext),
@@ -136,6 +137,23 @@ public class GlobalExceptionHandler : IExceptionHandler
             Title = "Email submission outcome unknown.",
             Detail = "The email provider did not confirm whether the submission was accepted.",
             Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+        };
+    }
+
+    private ProblemDetails HandleInformationValidationException(
+        InformationValidationException ex,
+        HttpContext httpContext
+    )
+    {
+        _logger.LogInformation("Request stopped by informational validation.");
+        httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+
+        return new ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Information.",
+            Detail = ex.Message,
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier, ["severity"] = "info" },
         };
     }
 

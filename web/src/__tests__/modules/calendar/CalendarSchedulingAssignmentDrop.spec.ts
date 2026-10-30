@@ -137,7 +137,9 @@ describe('assignment drop editing', () => {
         if (statusTypeCode === 'Published') {
           expect(document.body.textContent).toContain('Assignment Details');
           expect(
-            Array.from(document.body.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Save'),
+            Array.from(document.body.querySelectorAll('button')).some(
+              (button) => button.textContent?.trim() === 'Save',
+            ),
           ).toBe(false);
           expect(updates).toEqual([]);
         } else {

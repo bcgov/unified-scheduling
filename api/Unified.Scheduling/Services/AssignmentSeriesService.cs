@@ -123,12 +123,12 @@ public sealed class AssignmentSeriesService(
             cancellationToken
         );
         await db.SaveChangesAsync(cancellationToken);
-        await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
         await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
             assignmentSeries.Id,
             request.ShiftSeriesLinks,
             cancellationToken
         );
+        await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Created assignment series {AssignmentSeriesId}.", assignmentSeries.Id);
         return await MapToAssignmentSeriesResponseAsync(assignmentSeries, cancellationToken);
@@ -195,12 +195,12 @@ public sealed class AssignmentSeriesService(
         else if (updatePlan.PropagateSeriesChanges)
             PropagateSeriesChangesToEntries(assignmentSeries, request, updatePlan);
         await db.SaveChangesAsync(cancellationToken);
-        await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
         await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
             assignmentSeries.Id,
             request.ShiftSeriesLinks,
             cancellationToken
         );
+        await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
         var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
             db,
             id,
@@ -365,21 +365,15 @@ public sealed class AssignmentSeriesService(
         CancellationToken cancellationToken
     )
     {
-        var entries = await db
+        var entryIds = await db
             .AssignmentEntries.AsNoTracking()
-            .Include(entry => entry.Event)
             .Where(entry => entry.AssignmentSeriesId == assignmentSeriesId)
-            .Where(entry => entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
+            .Select(entry => entry.Id)
             .ToListAsync(cancellationToken);
         await AssignmentUniquenessValidator.EnsureAssignmentsAreUniqueAsync(
             db,
             timeZoneService,
-            entries
-                .Select(entry =>
-                    AssignmentUniquenessValidator.CreateCandidate(entry.AssignmentDefinitionId, entry.Event!)
-                )
-                .ToList(),
-            entries.Select(entry => entry.Id).ToList(),
+            entryIds,
             cancellationToken
         );
     }

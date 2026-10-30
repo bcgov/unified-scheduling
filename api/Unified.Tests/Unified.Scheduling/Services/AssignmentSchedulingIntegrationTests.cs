@@ -766,30 +766,95 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task CreateAssignmentEntryAsync_WhenUniquenessConflicts_RollsBackSerializedWrite()
     {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(8), At(17)),
+            TestContext.Current.CancellationToken
+        );
         _transactionIsolationRecorder.StartedIsolationLevels.Clear();
         await _assignmentService.CreateAssignmentEntryAsync(
-            CreateAssignmentEntryRequest(At(8), At(10)),
+            CreateAssignmentEntryRequest(At(8), At(10)) with
+            {
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
             TestContext.Current.CancellationToken
         );
         var eventCount = await _db.Events.CountAsync(TestContext.Current.CancellationToken);
 
-        var exception = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+        var exception = await Assert.ThrowsAsync<InformationValidationException>(() =>
             _assignmentService.CreateAssignmentEntryAsync(
-                CreateAssignmentEntryRequest(At(14), At(16)),
+                CreateAssignmentEntryRequest(At(14), At(16)) with
+                {
+                    ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+                },
                 TestContext.Current.CancellationToken
             )
         );
 
+        Assert.Contains("selected user", exception.Message);
         Assert.Contains("location Five", exception.Message);
         Assert.Contains("assignment definition Definition", exception.Message);
-        Assert.Contains("2026-06-01", Assert.Single(exception.Errors["AssignmentDefinitionId"]));
+        Assert.Contains("2026-06-01", exception.Message);
+        _db.ChangeTracker.Clear();
         Assert.Equal(1, await _db.AssignmentEntries.CountAsync(TestContext.Current.CancellationToken));
         Assert.Equal(eventCount, await _db.Events.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _db.ShiftAssignmentEntries.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _db.ShiftAssignmentEntryUsers.CountAsync(TestContext.Current.CancellationToken));
         Assert.All(
             _transactionIsolationRecorder.StartedIsolationLevels,
             isolationLevel => Assert.Equal(IsolationLevel.Serializable, isolationLevel)
         );
         Assert.Equal(2, _transactionIsolationRecorder.StartedIsolationLevels.Count);
+    }
+
+    [Fact]
+    public async Task CreateAssignmentEntryAsync_WhenSameDefinitionAndDateHaveDifferentUsers_AllowsBothAssignments()
+    {
+        var shift = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(At(9), At(17)) with
+            {
+                UserIds = [UserA, UserB],
+            },
+            TestContext.Current.CancellationToken
+        );
+        var first = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest() with
+            {
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var second = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest() with
+            {
+                ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserB] }],
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotEqual(first.Id, second.Id);
+        Assert.Equal(UserA, Assert.Single(first.AssignedUserIds));
+        Assert.Equal(UserB, Assert.Single(second.AssignedUserIds));
+        Assert.Equal(2, await _db.AssignmentEntries.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CreateAssignmentEntryAsync_WhenSameDefinitionAndDateHaveNoUsers_AllowsBothAssignments()
+    {
+        var first = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(),
+            TestContext.Current.CancellationToken
+        );
+
+        var second = await _assignmentService.CreateAssignmentEntryAsync(
+            CreateAssignmentEntryRequest(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotEqual(first.Id, second.Id);
+        Assert.Empty(first.AssignedUserIds);
+        Assert.Empty(second.AssignedUserIds);
+        Assert.Equal(2, await _db.AssignmentEntries.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
