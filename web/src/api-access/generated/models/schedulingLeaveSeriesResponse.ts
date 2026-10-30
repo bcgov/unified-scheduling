@@ -7,6 +7,8 @@
 
 export interface SchedulingLeaveSeriesResponse {
   leaveTypeId?: number;
+  /** @nullable */
+  leaveDate?: string | null;
   leaveEntryIds?: number[];
   id?: number;
   eventSeriesId?: number;

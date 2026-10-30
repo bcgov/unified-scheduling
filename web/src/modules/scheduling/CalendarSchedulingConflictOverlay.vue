@@ -5,8 +5,10 @@ import type {
   CalendarRestrictedConflictWarning,
 } from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixConflictItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
-import { resolveCalendarConflictSides } from '@/modules/calendar/calendarConflictFormatting';
-import { formatCalendarDateTimeRange } from '@/utils/date';
+import {
+  formatCalendarConflictEventRange,
+  resolveCalendarConflictSides,
+} from '@/modules/calendar/calendarConflictFormatting';
 
 const props = defineProps<{
   conflicts: CalendarMatrixConflictItem[];
@@ -24,7 +26,7 @@ function conflictingEvent(item: CalendarMatrixConflictItem) {
 }
 
 function timeLabel(event: CalendarConflictEvent) {
-  return formatCalendarDateTimeRange(event.start, event.end, props.timeZone);
+  return formatCalendarConflictEventRange(event, props.timeZone);
 }
 
 function resolveLabel(conflict: CalendarConflict) {
