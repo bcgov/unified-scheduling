@@ -10,6 +10,7 @@ namespace Unified.Leave.Models.Scheduling;
 public sealed record SchedulingLeaveSeriesResponse : CalendarEventSeriesResponse
 {
     public int LeaveTypeId { get; init; }
+    public DateOnly? LeaveDate { get; init; }
 
     public IReadOnlyCollection<int> LeaveEntryIds { get; init; } = [];
 }

@@ -15,9 +15,9 @@ namespace Unified.Leave.Services;
 /// </summary>
 public sealed class LeaveServiceProvider(
     CalendarEventServiceProvider<
-        SchedulingLeaveEntryRequest,
+        NormalizedLeaveEntryRequest,
         LeaveEntry,
-        SchedulingLeaveSeriesRequest,
+        NormalizedLeaveSeriesRequest,
         LeaveSeries
     > calendarServices
 )
@@ -26,16 +26,16 @@ public sealed class LeaveServiceProvider(
 
     public bool SupportsSeries => calendarServices.SupportsSeries;
 
-    public ICalendarEventService<SchedulingLeaveEntryRequest, LeaveEntry, Event> EntryService =>
+    public ICalendarEventService<NormalizedLeaveEntryRequest, LeaveEntry, Event> EntryService =>
         calendarServices.EntryService;
 
-    public ICalendarEventSeriesService<SchedulingLeaveSeriesRequest, LeaveSeries> SeriesService =>
+    public ICalendarEventSeriesService<NormalizedLeaveSeriesRequest, LeaveSeries> SeriesService =>
         calendarServices.SeriesService;
 
     public static IServiceCollection Register(IServiceCollection services)
     {
-        services.AddCalendarEventEntry<SchedulingLeaveEntryRequest, LeaveEntry, LeaveEventFactory>();
-        services.AddCalendarEventSeries<SchedulingLeaveSeriesRequest, LeaveSeries, LeaveEventFactory>();
+        services.AddCalendarEventEntry<NormalizedLeaveEntryRequest, LeaveEntry, LeaveEventFactory>();
+        services.AddCalendarEventSeries<NormalizedLeaveSeriesRequest, LeaveSeries, LeaveEventFactory>();
         services.TryAddScoped<LeaveServiceProvider>();
 
         return services;

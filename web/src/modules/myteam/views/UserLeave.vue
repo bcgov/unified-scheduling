@@ -15,6 +15,7 @@ import UaModal from '@/shared/components/UaModal.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
 import { mdiChevronDown, mdiChevronUp, mdiDelete, mdiPencil, mdiPlus, mdiRepeat } from '@mdi/js';
 import { DateTime } from 'luxon';
+import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 import { RRule } from 'rrule';
 import { computed, ref } from 'vue';
 import { useUsersStore } from '@/stores/Users';
@@ -109,9 +110,13 @@ const rows = computed(() =>
       rowId: `entry-${entry.id}`,
       rowType: 'entry' as const,
       leaveTypeName: leaveTypeNames.value.get(entry.leaveTypeId ?? -1) ?? `Leave type ${entry.leaveTypeId}`,
-      date: start?.toFormat('yyyy-MM-dd') ?? '-',
+      date: entry.leaveDate ?? start?.toFormat('yyyy-MM-dd') ?? '-',
       recurrence: series?.recurrenceRule ?? '',
-      time: start && end ? `${start.toFormat('h:mm a')} - ${end.toFormat('h:mm a')}` : '-',
+      time: entry.allDay
+        ? CALENDAR_ALL_DAY_LABEL
+        : start && end
+          ? `${start.toFormat('h:mm a')} - ${end.toFormat('h:mm a')}`
+          : '-',
     };
   }),
 );
@@ -128,8 +133,12 @@ const tableRows = computed(() => [
       leaveSeriesId: series.id,
       statusTypeCode: series.statusTypeCode,
       leaveTypeName: leaveTypeNames.value.get(series.leaveTypeId ?? -1) ?? `Leave type ${series.leaveTypeId}`,
-      date: start?.toFormat('yyyy-MM-dd') ?? '-',
-      time: start && end ? `${start.toFormat('h:mm a')} - ${end.toFormat('h:mm a')}` : '-',
+      date: series.leaveDate ?? start?.toFormat('yyyy-MM-dd') ?? '-',
+      time: series.allDay
+        ? CALENDAR_ALL_DAY_LABEL
+        : start && end
+          ? `${start.toFormat('h:mm a')} - ${end.toFormat('h:mm a')}`
+          : '-',
       notes: series.notes,
       recurrence: series.recurrenceRule ?? '',
       assignedUserIds: series.userIds,

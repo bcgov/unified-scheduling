@@ -26,6 +26,8 @@ export interface SchedulingCalendarEventResponse {
   /** @nullable */
   leaveTypeName?: string | null;
   /** @nullable */
+  leaveDate?: string | null;
+  /** @nullable */
   loanOutEntryId?: number | null;
   /** @nullable */
   loanOutSeriesId?: number | null;

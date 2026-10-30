@@ -30,6 +30,10 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
           leaveSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeId: faker.helpers.arrayElement([faker.number.int(), null]),
           leaveTypeName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+          leaveDate: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().split('T')[0], null]),
+            undefined,
+          ]),
           loanOutEntryId: faker.helpers.arrayElement([faker.number.int(), null]),
           loanOutSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
           loanOutLocationId: faker.helpers.arrayElement([faker.number.int(), null]),

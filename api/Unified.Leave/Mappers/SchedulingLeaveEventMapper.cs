@@ -1,6 +1,6 @@
-using System.ComponentModel;
 using Mapster;
 using Unified.Calendar.Mappings;
+using Unified.Common.Time;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
 using Unified.Leave.Models.Calendar;
@@ -15,7 +15,10 @@ namespace Unified.Leave.Mappings;
 /// specific properties (<c>Id</c>, <c>LeaveTypeId</c>, <c>LeaveSeriesId</c>/<c>LeaveEntryIds</c>) on
 /// top. "/>.
 /// </summary>
-public sealed class SchedulingLeaveEventMapper(CalendarEventMapper calendarEventMapper)
+public sealed class SchedulingLeaveEventMapper(
+    CalendarEventMapper calendarEventMapper,
+    ITimeZoneService timeZoneService
+)
 {
     private static readonly TypeAdapterConfig LeaveCalendarEventMappingConfig = BuildLeaveCalendarEventMappingConfig();
 
@@ -38,6 +41,7 @@ public sealed class SchedulingLeaveEventMapper(CalendarEventMapper calendarEvent
             LeaveEntryId = entry.Id,
             LeaveSeriesId = entry.LeaveSeriesId,
             LeaveTypeId = entry.LeaveTypeId,
+            LeaveDate = GetLeaveDate(eventEntity.AllDay, eventEntity.StartAtUtc, eventEntity.TimeZoneId),
             LeaveTypeName = entry.LeaveType?.Code,
             Description = entry.LeaveType?.Description,
             EventId = entry.EventId,
@@ -60,6 +64,7 @@ public sealed class SchedulingLeaveEventMapper(CalendarEventMapper calendarEvent
             Id = leaveEntry.Id,
             LeaveTypeId = leaveEntry.LeaveTypeId,
             LeaveSeriesId = leaveEntry.LeaveSeriesId,
+            LeaveDate = GetLeaveDate(response.AllDay, response.StartAtUtc, response.TimeZoneId),
         };
     }
 
@@ -81,9 +86,17 @@ public sealed class SchedulingLeaveEventMapper(CalendarEventMapper calendarEvent
         {
             Id = series.Id,
             LeaveTypeId = series.LeaveTypeId,
+            LeaveDate = GetLeaveDate(response.AllDay, response.StartAtUtc, response.TimeZoneId),
             LeaveEntryIds = leaveEntryIds,
         };
     }
+
+    private DateOnly? GetLeaveDate(bool allDay, DateTimeOffset startAtUtc, string? timeZoneId) =>
+        allDay
+            ? DateOnly.FromDateTime(
+                timeZoneService.ToLocalUnspecified(startAtUtc, timeZoneService.ResolveRequired(timeZoneId!))
+            )
+            : null;
 
     private static TypeAdapterConfig BuildLeaveCalendarEventMappingConfig()
     {
