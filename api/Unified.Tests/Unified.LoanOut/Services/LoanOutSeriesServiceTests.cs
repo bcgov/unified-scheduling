@@ -148,6 +148,27 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetLoanOutSeriesByUserAsync_AfterReload_PreservesRecurrenceAndOccurrenceIdentifiers()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var created = await _service.CreateLoanOutSeriesAsync(CreateRequest(), ct);
+        _db.ChangeTracker.Clear();
+
+        var response = Assert.Single(await _service.GetLoanOutSeriesByUserAsync(UserA, ct));
+
+        Assert.Equal(created.Id, response.Id);
+        Assert.Equal(created.EventSeriesId, response.EventSeriesId);
+        Assert.Equal(created.StartAtUtc, response.StartAtUtc);
+        Assert.Equal(created.EndAtUtc, response.EndAtUtc);
+        Assert.Equal(created.RecurrenceRule, response.RecurrenceRule);
+        Assert.Equal(created.LoanOutLocationId, response.LoanOutLocationId);
+        Assert.Equal([UserA], response.UserIds);
+        Assert.Equal(created.EventIds.Order(), response.EventIds.Order());
+        Assert.Equal(created.LoanOutEntryIds.Order(), response.LoanOutEntryIds.Order());
+        Assert.Empty(await _service.GetLoanOutSeriesByUserAsync(Guid.Empty, ct));
+    }
+
+    [Fact]
     public async Task GetLoanOutSeriesByIdAsync_WhenMissing_ReturnsNull()
     {
         var response = await _service.GetLoanOutSeriesByIdAsync(123, TestContext.Current.CancellationToken);
@@ -209,11 +230,130 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
         _schedulingLoanOutService.HasShiftConflict = true;
 
         await Assert.ThrowsAsync<ConflictValidationException>(() =>
-            _service.UpdateLoanOutSeriesAsync(created.Id, CreateRequest(), TestContext.Current.CancellationToken)
+            _service.UpdateLoanOutSeriesAsync(
+                created.Id,
+                CreateRequest() with
+                {
+                    LoanOutLocationId = 5,
+                    Title = "Blocked update",
+                },
+                TestContext.Current.CancellationToken
+            )
         );
+        Assert.Equal(10, _schedulingLoanOutService.LastCheckedLocationId);
+        _db.ChangeTracker.Clear();
+        var retained = await _db
+            .LoanOutSeries.Include(series => series.EventSeries)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(10, retained.LoanOutLocationId);
+        Assert.Equal("Loan out series", retained.EventSeries!.Title);
         await Assert.ThrowsAsync<ConflictValidationException>(() =>
             _service.DeleteLoanOutSeriesAsync(created.Id, TestContext.Current.CancellationToken)
         );
+    }
+
+    [Theory]
+    [InlineData(false, true, 999)]
+    [InlineData(true, true, 999)]
+    [InlineData(false, false, 999)]
+    [InlineData(true, false, 999)]
+    [InlineData(false, true, 0)]
+    [InlineData(true, true, -1)]
+    [InlineData(false, false, 0)]
+    [InlineData(true, false, -1)]
+    public async Task LocationGuard_InvalidLocation_RejectsWithoutSaving(bool update, bool source, int locationId)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var original = update ? await _service.CreateLoanOutSeriesAsync(CreateRequest(), ct) : null;
+        var request = source
+            ? CreateRequest() with
+            {
+                LocationId = locationId,
+                Title = "Rejected",
+            }
+            : CreateRequest() with
+            {
+                LoanOutLocationId = locationId,
+                Title = "Rejected",
+            };
+        var beforeSeries = await _db.LoanOutSeries.CountAsync(ct);
+        var beforeEntries = await _db.LoanOutEntries.CountAsync(ct);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            if (update)
+                await _service.UpdateLoanOutSeriesAsync(original!.Id, request, ct);
+            else
+                await _service.CreateLoanOutSeriesAsync(request, ct);
+        });
+        Assert.Contains(
+            source ? "home location" : "loan-out location",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase
+        );
+        _db.ChangeTracker.Clear();
+        Assert.Equal(beforeSeries, await _db.LoanOutSeries.CountAsync(ct));
+        Assert.Equal(beforeEntries, await _db.LoanOutEntries.CountAsync(ct));
+        Assert.False(await _db.EventSeries.AnyAsync(item => item.Title == "Rejected", ct));
+    }
+
+    [Fact]
+    public async Task LocationGuard_OptionalSource_AllowsMissingSource()
+    {
+        var result = await _service.CreateLoanOutSeriesAsync(
+            CreateRequest() with
+            {
+                LocationId = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(result);
+    }
+
+    [Theory]
+    [InlineData(false, "missing")]
+    [InlineData(true, "missing")]
+    [InlineData(false, "mixed")]
+    [InlineData(true, "mixed")]
+    [InlineData(false, "empty")]
+    [InlineData(true, "empty")]
+    [InlineData(false, "empty-id")]
+    [InlineData(true, "empty-id")]
+    [InlineData(false, "duplicate")]
+    [InlineData(true, "duplicate")]
+    public async Task UserGuard_InvalidUsers_RejectsWithoutSaving(bool update, string scenario)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var original = update ? await _service.CreateLoanOutSeriesAsync(CreateRequest(), ct) : null;
+        var missing = new Guid("99999999-9999-9999-9999-999999999999");
+        Guid[] users = scenario switch
+        {
+            "empty" => [],
+            "empty-id" => [Guid.Empty],
+            "duplicate" => [UserA, UserA],
+            "mixed" => [UserA, missing],
+            _ => [missing],
+        };
+        var request = CreateRequest() with { UserIds = users, Title = "Rejected users" };
+        var beforeSeries = await _db.LoanOutSeries.CountAsync(ct);
+        var beforeEntries = await _db.LoanOutEntries.CountAsync(ct);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            if (update)
+                await _service.UpdateLoanOutSeriesAsync(original!.Id, request, ct);
+            else
+                await _service.CreateLoanOutSeriesAsync(request, ct);
+        });
+        if (scenario is "missing" or "mixed")
+            Assert.Equal("One or more selected users were not found.", exception.Message);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(beforeSeries, await _db.LoanOutSeries.CountAsync(ct));
+        Assert.Equal(beforeEntries, await _db.LoanOutEntries.CountAsync(ct));
+        Assert.False(await _db.EventSeries.AnyAsync(item => item.Title == "Rejected users", ct));
+        if (update)
+        {
+            var saved = await _db.LoanOutSeries.Include(series => series.Users).SingleAsync(ct);
+            Assert.Equal(UserA, Assert.Single(saved.Users).UserId);
+        }
     }
 
     private static LoanOutSeriesRequest CreateRequest() =>
@@ -284,21 +424,31 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
 
     private sealed class FakeSchedulingLoanOutService : ISchedulingLoanOutService
     {
-        public bool HasShiftConflict { get; set; }
+        public Task RestoreHomeLocationUserShiftsAsync(
+            IReadOnlyCollection<LoanOutEntry> removedEntries,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
 
-        public Task<IReadOnlyList<IReadOnlyCollection<Guid>>> FilterLoanedOutUserAssignmentsAsync(
+        public bool HasShiftConflict { get; set; }
+        public int? LastCheckedLocationId { get; private set; }
+
+        public Task<IReadOnlyList<IReadOnlyCollection<Guid>>> GetAssignableUserIdsByOccurrenceAsync(
             IReadOnlyCollection<Guid> userIds,
-            IReadOnlyCollection<ShiftAssignmentLoanOutContext> assignments,
+            IReadOnlyCollection<ShiftAssignmentLoanOutContext> assignmentOccurrences,
             int? locationId,
             string? timeZoneId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult<IReadOnlyList<IReadOnlyCollection<Guid>>>([]);
 
-        public Task EnsureNoShiftAtLoanOutLocationAsync(
+        public Task<bool> HasShiftAtLoanOutLocationAsync(
             IEnumerable<LoanOutEntry> loanOutEntries,
             int loanOutLocationId,
             CancellationToken cancellationToken = default
-        ) => ThrowIfConflict();
+        )
+        {
+            LastCheckedLocationId = loanOutLocationId;
+            return Task.FromResult(HasShiftConflict);
+        }
 
         public Task<bool> TransferLoanedOutUserShift(
             LoanOutEntry entry,
@@ -311,14 +461,5 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             bool deleteAssignments = false,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(false);
-
-        private Task ThrowIfConflict()
-        {
-            if (HasShiftConflict)
-                throw new ConflictValidationException(
-                    new Dictionary<string, string[]> { ["LoanOut"] = ["A shift exists at the loan-out location."] }
-                );
-            return Task.CompletedTask;
-        }
     }
 }

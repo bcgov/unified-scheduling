@@ -1,11 +1,17 @@
 using System.Globalization;
 using Mapster;
+using Unified.Calendar.Extensions;
+using Unified.Calendar.Services;
+using Unified.Common.Time;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Mappings;
 
-public sealed class SchedulingLoanOutEventMapper
+public sealed class SchedulingLoanOutEventMapper(
+    ICalendarTimeZoneResolver timeZoneResolver,
+    ITimeZoneService timeZoneService
+)
 {
     private static readonly TypeAdapterConfig MappingConfig = BuildMappingConfig();
 
@@ -18,6 +24,9 @@ public sealed class SchedulingLoanOutEventMapper
         {
             LocationId = locationId,
             UserIds = userIds,
+            ShiftSeriesId = null,
+            SeriesStartAtUtc = null,
+            SeriesEndAtUtc = null,
         };
     }
 
@@ -25,7 +34,8 @@ public sealed class SchedulingLoanOutEventMapper
         ShiftSeries source,
         IReadOnlyCollection<ShiftEntry> occurrences,
         int locationId,
-        IReadOnlyCollection<Guid> userIds
+        IReadOnlyCollection<Guid> userIds,
+        string? recurrenceRuleOverride = null
     )
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -39,8 +49,10 @@ public sealed class SchedulingLoanOutEventMapper
         if (orderedOccurrences.Any(occurrence => occurrence.Event is null))
             throw new ArgumentException("Shift occurrences must have associated events.", nameof(occurrences));
         var firstOccurrence = orderedOccurrences[0];
-        var duration = sourceSeries.EndAtUtc - sourceSeries.StartAtUtc;
-        var recurrenceRule = sourceSeries.RecurrenceRule;
+        var timeZone = timeZoneResolver.Resolve(sourceSeries.TimeZoneId);
+        var localRange = sourceSeries.ToLocalTimeRange(timeZoneService, timeZone);
+        var firstOccurrenceLocalStart = timeZoneService.ToLocalUnspecified(firstOccurrence.Event!.StartAtUtc, timeZone);
+        var recurrenceRule = recurrenceRuleOverride ?? sourceSeries.RecurrenceRule;
         if (string.IsNullOrWhiteSpace(recurrenceRule))
             throw new ArgumentException("A recurring shift series must have a recurrence rule.", nameof(source));
 
@@ -51,16 +63,18 @@ public sealed class SchedulingLoanOutEventMapper
             Notes = sourceSeries.Notes,
             Color = sourceSeries.Color,
             StartAtUtc = firstOccurrence.Event!.StartAtUtc,
-            EndAtUtc = duration.HasValue ? firstOccurrence.Event.StartAtUtc + duration.Value : null,
+            EndAtUtc = localRange.Duration.HasValue
+                ? timeZoneService.ToUtcInstant(firstOccurrenceLocalStart + localRange.Duration.Value, timeZone)
+                : null,
             TimeZoneId = sourceSeries.TimeZoneId,
             AllDay = sourceSeries.AllDay,
             LocationId = locationId,
             UserIds = userIds,
-            RecurrenceRule = LimitRecurrenceRule(recurrenceRule, orderedOccurrences[^1].Event!.StartAtUtc),
+            RecurrenceRule = LimitRecurrenceRule(recurrenceRule, orderedOccurrences.Count),
         };
     }
 
-    private static string LimitRecurrenceRule(string recurrenceRule, DateTimeOffset lastOccurrenceAtUtc)
+    private static string LimitRecurrenceRule(string recurrenceRule, int occurrenceCount)
     {
         var normalizedRule = recurrenceRule.Trim();
         if (normalizedRule.StartsWith("RRULE:", StringComparison.OrdinalIgnoreCase))
@@ -73,9 +87,8 @@ public sealed class SchedulingLoanOutEventMapper
                 && !part.StartsWith("UNTIL=", StringComparison.OrdinalIgnoreCase)
             )
             .ToList();
-        parts.Add(
-            $"UNTIL={lastOccurrenceAtUtc.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture)}"
-        );
+        // COUNT avoids translating the final occurrence through iCal.NET's
+        parts.Add($"COUNT={occurrenceCount.ToString(CultureInfo.InvariantCulture)}");
         return string.Join(';', parts);
     }
 
@@ -90,8 +103,8 @@ public sealed class SchedulingLoanOutEventMapper
             .Map(destination => destination.Color, source => source.Event!.Color)
             .Map(destination => destination.StartAtUtc, source => source.Event!.StartAtUtc)
             .Map(destination => destination.EndAtUtc, source => source.Event!.EndAtUtc)
-            .Map(destination => destination.SeriesStartAtUtc, source => source.Event!.SeriesStartAtUtc)
-            .Map(destination => destination.SeriesEndAtUtc, source => source.Event!.SeriesEndAtUtc)
+            .Ignore(destination => destination.SeriesStartAtUtc)
+            .Ignore(destination => destination.SeriesEndAtUtc)
             .Map(destination => destination.TimeZoneId, source => source.Event!.TimeZoneId)
             .Map(destination => destination.AllDay, source => source.Event!.AllDay)
             .Ignore(destination => destination.ShiftSeriesId)

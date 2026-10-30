@@ -132,6 +132,9 @@ var hangfireOptions =
         SchedulingModule.IsModuleEnabled(builder.Configuration)
     );
     mvcBuilder.AddConditionalApplicationPart<LeaveTypeController>(LeaveModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<LeaveCalendarController>(
+        LeaveModule.IsModuleEnabled(builder.Configuration)
+    );
     mvcBuilder.AddConditionalApplicationPart<SchedulingLeaveController>(
         LeaveModule.IsModuleEnabled(builder.Configuration)
     );

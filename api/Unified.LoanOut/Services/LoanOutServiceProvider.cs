@@ -1,15 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
 using Unified.Calendar;
 using Unified.Calendar.Services;
-using Unified.Common.Time;
-using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.LoanOut;
 using Unified.LoanOut.Factories;
 using Unified.LoanOut.Models;
-using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Services;
 
 namespace Unified.LoanOut.Services;
@@ -43,17 +39,13 @@ public sealed class LoanOutServiceProvider(
         services.AddCalendarEventSeries<LoanOutSeriesRequest, LoanOutSeries, LoanOutEventFactory>();
         services.AddScoped<ILoanOutEntryService, LoanOutEntryService>();
         services.AddScoped<ILoanOutSeriesService, LoanOutSeriesService>();
-        services.AddScoped<SchedulingLoanOutEventMapper>();
-        services.AddScoped<ISchedulingLoanOutService>(serviceProvider => new SchedulingLoanOutService(
-            serviceProvider.GetRequiredService<ILogger<SchedulingLoanOutService>>(),
-            serviceProvider.GetRequiredService<UnifiedDbContext>(),
-            serviceProvider.GetRequiredService<SchedulingLoanOutEventMapper>(),
-            () => serviceProvider.GetRequiredService<IShiftService>(),
-            () => serviceProvider.GetRequiredService<IAssignmentEntryService>(),
-            () => serviceProvider.GetRequiredService<IShiftAssignmentService>(),
-            serviceProvider.GetRequiredService<ICalendarTimeZoneResolver>(),
-            serviceProvider.GetRequiredService<ITimeZoneService>()
-        ));
+        services.Replace(
+            ServiceDescriptor.Scoped<ISchedulingLoanOutService>(serviceProvider =>
+                serviceProvider.GetService<SchedulingLoanOutService>() is { } schedulingService
+                    ? schedulingService
+                    : new NoOpSchedulingLoanOutService()
+            )
+        );
         services.TryAddScoped<LoanOutServiceProvider>();
 
         return services;

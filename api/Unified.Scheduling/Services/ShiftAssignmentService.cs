@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
 using Unified.Common.Calendar.Conflicts;
@@ -17,7 +18,8 @@ public sealed class ShiftAssignmentService(
     UnifiedDbContext db,
     ITimeZoneService timeZoneService,
     ICalendarConflictService calendarConflictService,
-    ISchedulingLoanOutService schedulingLoanOutService
+    ISchedulingLoanOutService schedulingLoanOutService,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService
 ) : IShiftAssignmentService
 {
     public async Task<ShiftAssignmentEntryResponse> LinkShiftEntryAsync(
@@ -280,6 +282,12 @@ public sealed class ShiftAssignmentService(
             .ShiftEntries.Include(entry => entry.Event)
             .Include(entry => entry.Users)
             .Where(entry => entry.ShiftSeriesId == request.ShiftSeriesId)
+            .Where(entry =>
+                !(
+                    entry.Event!.IsException
+                    && entry.Event.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway)
+                )
+            )
             .Where(entry => entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .ToListAsync(cancellationToken);
         var assignmentEntries = await db
@@ -314,7 +322,7 @@ public sealed class ShiftAssignmentService(
                 "Selected users must belong to every matching shift entry."
             );
 
-        var loanOutUsersByIntersection = await schedulingLoanOutService.FilterLoanedOutUserAssignmentsAsync(
+        var assignableUserIdsByOccurrence = await schedulingLoanOutService.GetAssignableUserIdsByOccurrenceAsync(
             selectedUserIds,
             intersections
                 .Select(pair => new ShiftAssignmentLoanOutContext(
@@ -330,13 +338,7 @@ public sealed class ShiftAssignmentService(
         var assignableIntersections = intersections
             .Select(
                 (pair, index) =>
-                {
-                    return (
-                        pair.shiftEntry,
-                        pair.assignmentEntry,
-                        assignedUserIds: loanOutUsersByIntersection[index].ToList()
-                    );
-                }
+                    (pair.shiftEntry, pair.assignmentEntry, assignedUserIds: assignableUserIdsByOccurrence[index])
             )
             .Where(pair => pair.assignedUserIds.Count > 0)
             .ToList();
@@ -651,7 +653,14 @@ public sealed class ShiftAssignmentService(
         var shiftEntry = await LoadShiftEntryAsync(shiftEntryId, cancellationToken);
         var assignmentEntry = await LoadAssignmentEntryAsync(assignmentEntryId, cancellationToken);
 
-        ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, selectedUserIds, timeZoneService);
+        var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync([shiftEntry], cancellationToken);
+        ShiftAssignmentGuards.EnsureCanLink(
+            shiftEntry,
+            assignmentEntry,
+            selectedUserIds,
+            timeZoneService,
+            awayUsers.GetValueOrDefault(shiftEntry)
+        );
 
         var link = await db
             .ShiftAssignmentEntries.Include(existingLink => existingLink.Users)

@@ -4,11 +4,13 @@ using Microsoft.Extensions.Logging;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Common.Scheduling;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Scheduling.Guards;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 
@@ -24,7 +26,8 @@ public sealed class ShiftEntryService(
     ITimeZoneService timeZoneService,
     TimeProvider timeProvider,
     ICalendarConflictService calendarConflictService,
-    ShiftConflictService shiftConflictService
+    ShiftConflictService shiftConflictService,
+    ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>? schedulingCalendarDataProvider = null
 ) : IShiftEntryService, IShiftPublicationService
 {
     public async Task<IReadOnlyCollection<ShiftEntryResponse>> GetShiftEntriesAsync(
@@ -139,6 +142,31 @@ public sealed class ShiftEntryService(
             SchedulingConstants.SourceModule,
             SchedulingConstants.ShiftEventTypeCode,
             shiftSeries?.EventSeriesId,
+            validators:
+            [
+                (input, token) =>
+                    ShiftLoanOutGuard.EnsureCanCreateAsync(
+                        db,
+                        timeZoneService,
+                        schedulingCalendarDataProvider,
+                        input.LocationId,
+                        input.UserIds,
+                        input.StartAtUtc,
+                        input.EndAtUtc,
+                        token
+                    ),
+                (input, token) =>
+                    LoanOutUserShiftGuard.EnsureCanScheduleAsync(
+                        db,
+                        timeZoneService,
+                        schedulingCalendarDataProvider,
+                        input.LocationId,
+                        input.UserIds,
+                        input.StartAtUtc,
+                        input.EndAtUtc,
+                        token
+                    ),
+            ],
             cancellationToken: cancellationToken
         );
         entity.ShiftSeries = shiftSeries;
@@ -196,6 +224,17 @@ public sealed class ShiftEntryService(
                     );
                     return Task.CompletedTask;
                 },
+                (input, token) =>
+                    LoanOutUserShiftGuard.EnsureCanScheduleAsync(
+                        db,
+                        timeZoneService,
+                        schedulingCalendarDataProvider,
+                        input.LocationId,
+                        input.UserIds,
+                        input.StartAtUtc,
+                        input.EndAtUtc,
+                        token
+                    ),
             ],
             additionalGuards: input =>
             {

@@ -3,8 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Unified.Calendar.Services;
 using Unified.Db;
+using Unified.Db.Models.Calendar;
 using Unified.Db.Models.LoanOut;
 using Unified.LoanOut.Constants;
+using Unified.LoanOut.Guards;
 using Unified.LoanOut.Mappers;
 using Unified.LoanOut.Models;
 using Unified.Scheduling.Services;
@@ -33,11 +35,16 @@ public sealed class LoanOutEntryService(
             allDayRequest,
             LoanOutConstants.SourceModule,
             LoanOutConstants.LoanOutEventTypeCode,
+            validators:
+            [
+                (input, token) => LocationGuard.EnsureValidAsync(db, input.LocationId, input.LoanOutLocationId, token),
+                (input, token) => UserGuard.EnsureValidAsync(db, input.UserIds, token),
+            ],
             cancellationToken: cancellationToken
         );
         db.LoanOutEntries.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
-        await TransferRelatedShiftsAsync(entity, cancellationToken: cancellationToken);
+        await schedulingLoanOutService.TransferLoanedOutUserShift(entity, cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Created loan out entry {LoanOutEntryId}.", entity.Id);
         return loanOutEventMapper.ToLoanOutEntryResponse(entity);
@@ -81,23 +88,44 @@ public sealed class LoanOutEntryService(
         if (entity is null)
             return null;
 
-        await schedulingLoanOutService.EnsureNoShiftAtLoanOutLocationAsync(
-            [entity],
-            entity.LoanOutLocationId,
-            cancellationToken
-        );
+        var previousEntry = new LoanOutEntry
+        {
+            Id = entity.Id,
+            LoanOutLocationId = entity.LoanOutLocationId,
+            Event = new Event
+            {
+                Title = entity.Event!.Title,
+                StartAtUtc = entity.Event.StartAtUtc,
+                EndAtUtc = entity.Event.EndAtUtc,
+                LocationId = entity.Event.LocationId,
+            },
+            Users = entity.Users.Select(user => new LoanOutEntryUser { UserId = user.UserId }).ToList(),
+        };
         var allDayRequest = request with { AllDay = true };
         var updated = await calendarEventEntryService.UpdateEventAsync(
             allDayRequest,
             entity,
             LoanOutConstants.SourceModule,
             LoanOutConstants.LoanOutEventTypeCode,
+            validators:
+            [
+                (input, token) => LocationGuard.EnsureValidAsync(db, input.LocationId, input.LoanOutLocationId, token),
+                (input, token) => UserGuard.EnsureValidAsync(db, input.UserIds, token),
+                (_, token) =>
+                    ShiftOverlapGuard.EnsureNoShiftAtLoanOutLocationAsync(
+                        schedulingLoanOutService,
+                        [entity],
+                        entity.LoanOutLocationId,
+                        token
+                    ),
+            ],
             cancellationToken: cancellationToken
         );
         if (updated is null)
             return null;
+        await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync([previousEntry], cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        await TransferRelatedShiftsAsync(entity, deleteAssignments: false, cancellationToken: cancellationToken);
+        await schedulingLoanOutService.TransferLoanedOutUserShift(entity, cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Updated loan out entry {LoanOutEntryId}.", id);
         return loanOutEventMapper.ToLoanOutEntryResponse(updated);
@@ -113,7 +141,8 @@ public sealed class LoanOutEntryService(
         var entity = await LoadLoanOutEntryAsync(id, tracked: true, cancellationToken);
         if (entity is null)
             return false;
-        await schedulingLoanOutService.EnsureNoShiftAtLoanOutLocationAsync(
+        await ShiftOverlapGuard.EnsureNoShiftAtLoanOutLocationAsync(
+            schedulingLoanOutService,
             [entity],
             entity.LoanOutLocationId,
             cancellationToken
@@ -126,6 +155,7 @@ public sealed class LoanOutEntryService(
             )
         )
             return false;
+        await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync([entity], cancellationToken);
         db.Set<LoanOutEntryUser>().RemoveRange(entity.Users);
         db.LoanOutEntries.Remove(entity);
         db.Events.Remove(entity.Event!);
@@ -142,17 +172,5 @@ public sealed class LoanOutEntryService(
             .Include(entry => entry.Event)
             .Include(entry => entry.Users)
             .FirstOrDefaultAsync(entry => entry.Id == id, cancellationToken);
-    }
-
-    private Task TransferRelatedShiftsAsync(
-        LoanOutEntry entity,
-        bool deleteAssignments = false,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (entity.Event is null)
-            return Task.CompletedTask;
-
-        return schedulingLoanOutService.TransferLoanedOutUserShift(entity, deleteAssignments, cancellationToken);
     }
 }

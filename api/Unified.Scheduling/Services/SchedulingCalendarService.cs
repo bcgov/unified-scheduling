@@ -18,6 +18,7 @@ public sealed class SchedulingCalendarService(
     UnifiedDbContext db,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
     ILeaveCalendarDataProvider? leaveCalendarDataProvider = null,
     ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse> schedulingCalendarDataProvider = null
 ) : ISchedulingCalendarService
@@ -63,8 +64,17 @@ public sealed class SchedulingCalendarService(
                 );
             if (request.UserIds is { Count: > 0 })
                 query = query.Where(entry => entry.Users.Any(user => request.UserIds.Contains(user.UserId)));
+            var shifts = await query.ToListAsync(cancellationToken);
+            var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync(shifts, cancellationToken);
             events.AddRange(
-                (await query.ToListAsync(cancellationToken)).Select(ShiftResponseMapper.ToCalendarEventResponse)
+                shifts
+                    .Select(shift =>
+                        ShiftResponseMapper.ToCalendarEventResponse(shift, awayUsers.GetValueOrDefault(shift))
+                    )
+                    .Where(response =>
+                        request.UserIds is not { Count: > 0 }
+                        || response.ResourceIds.Any(id => request.UserIds.Any(userId => userId.ToString() == id))
+                    )
             );
         }
 

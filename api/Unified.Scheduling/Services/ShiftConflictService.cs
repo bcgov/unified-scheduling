@@ -7,7 +7,11 @@ using Unified.Db.Models.Scheduling;
 
 namespace Unified.Scheduling.Services;
 
-public sealed class ShiftConflictService(UnifiedDbContext db, ITimeZoneService timeZoneService)
+public sealed class ShiftConflictService(
+    UnifiedDbContext db,
+    ITimeZoneService timeZoneService,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService
+)
 {
     private static readonly TimeSpan LocalStartDateConflictQueryBuffer = TimeSpan.FromDays(2);
 
@@ -17,7 +21,8 @@ public sealed class ShiftConflictService(UnifiedDbContext db, ITimeZoneService t
         CancellationToken cancellationToken
     )
     {
-        var candidates = CreateCandidates(entries);
+        var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync(entries, cancellationToken);
+        var candidates = CreateCandidates(entries, awayUsers);
         if (candidates.Count == 0)
             return;
 
@@ -85,21 +90,27 @@ public sealed class ShiftConflictService(UnifiedDbContext db, ITimeZoneService t
             query = query.Where(entry => entry.Event != null && entry.Event.StartAtUtc < latest);
         }
         var entries = await query.ToListAsync(cancellationToken);
-        return CreateCandidates(entries);
+        var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync(entries, cancellationToken);
+        return CreateCandidates(entries, awayUsers);
     }
 
-    private static List<ShiftConflictCandidate> CreateCandidates(IEnumerable<ShiftEntry> entries) =>
+    private static List<ShiftConflictCandidate> CreateCandidates(
+        IEnumerable<ShiftEntry> entries,
+        IReadOnlyDictionary<ShiftEntry, IReadOnlyCollection<Guid>> awayUsers
+    ) =>
         entries
             .Where(entry => entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .SelectMany(entry =>
-                entry.Users.Select(user => new ShiftConflictCandidate(
-                    entry.Id,
-                    user.UserId,
-                    entry.Event!.LocationId,
-                    entry.Event.StartAtUtc,
-                    entry.Event.EndAtUtc,
-                    entry.Event.TimeZoneId
-                ))
+                entry
+                    .Users.Where(user => !(awayUsers.GetValueOrDefault(entry) ?? []).Contains(user.UserId))
+                    .Select(user => new ShiftConflictCandidate(
+                        entry.Id,
+                        user.UserId,
+                        entry.Event!.LocationId,
+                        entry.Event.StartAtUtc,
+                        entry.Event.EndAtUtc,
+                        entry.Event.TimeZoneId
+                    ))
             )
             .ToList();
 

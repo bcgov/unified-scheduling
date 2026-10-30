@@ -46,6 +46,8 @@ internal static class ShiftResponseMapper
             Id = shiftEntry.Id,
             ShiftSeriesId = shiftEntry.ShiftSeriesId,
             EventId = shiftEntry.EventId,
+            IsException = shiftEntry.Event!.IsException,
+            ExceptionReason = shiftEntry.Event.ExceptionReason,
             AssignmentLinks = assignmentLinks ?? [],
         };
     }
@@ -75,7 +77,10 @@ internal static class ShiftResponseMapper
             })
             .ToList();
 
-    public static SchedulingCalendarEventResponse ToCalendarEventResponse(ShiftEntry shiftEntry)
+    public static SchedulingCalendarEventResponse ToCalendarEventResponse(
+        ShiftEntry shiftEntry,
+        IReadOnlyCollection<Guid>? awayUserIds = null
+    )
     {
         var eventEntity = shiftEntry.Event!;
         var userIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList();
@@ -107,7 +112,10 @@ internal static class ShiftResponseMapper
             CancelledByUserId = eventEntity.CancelledByUserId,
             CancellationReason = eventEntity.CancellationReason,
             LocationId = eventEntity.LocationId,
-            ResourceIds = userIds.Select(userId => userId.ToString()).ToList(),
+            ResourceIds = shiftEntry
+                .Users.Where(user => awayUserIds?.Contains(user.UserId) != true)
+                .Select(user => user.UserId.ToString())
+                .ToList(),
         };
     }
 }

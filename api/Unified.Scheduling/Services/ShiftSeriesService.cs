@@ -4,11 +4,14 @@ using Microsoft.Extensions.Logging;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Common.Scheduling;
 using Unified.Common.Time;
+using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Factories;
+using Unified.Scheduling.Guards;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
 
@@ -26,7 +29,9 @@ internal sealed class ShiftSeriesService(
     ITimeZoneService timeZoneService,
     TimeProvider timeProvider,
     ICalendarConflictService calendarConflictService,
-    ShiftConflictService shiftConflictService
+    ShiftConflictService shiftConflictService,
+    ShiftLoanOutExceptionMarkerService loanOutMarkerService,
+    ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>? schedulingCalendarDataProvider = null
 ) : IShiftSeriesService
 {
     private static readonly RecurrenceValidationOptions ShiftRecurrenceValidationOptions = new()
@@ -142,6 +147,23 @@ internal sealed class ShiftSeriesService(
             },
             SchedulingConstants.SourceModule,
             SchedulingConstants.ShiftEventTypeCode,
+            validators:
+            [
+                (input, token) =>
+                    ShiftLoanOutGuard.EnsureSeriesCanCreateAsync(
+                        db,
+                        timeZoneService,
+                        schedulingCalendarDataProvider,
+                        input.LocationId,
+                        input.UserIds,
+                        input.StartAtUtc,
+                        input.EndAtUtc,
+                        input.TimeZoneId,
+                        input.RecurrenceRule,
+                        recurrenceExpander,
+                        token
+                    ),
+            ],
             cancellationToken: cancellationToken
         );
         var eventSeries =
@@ -155,6 +177,13 @@ internal sealed class ShiftSeriesService(
             ShiftRecurrenceValidationOptions,
             shiftSeriesMaterializationHandler,
             new ShiftSeriesMaterializationContext { ShiftSeries = entity, UserIds = userIds },
+            cancellationToken
+        );
+        await LoanOutUserShiftGuard.EnsureEntriesCanScheduleAsync(
+            db,
+            timeZoneService,
+            schedulingCalendarDataProvider,
+            entity.ShiftEntries.ToList(),
             cancellationToken
         );
         await db.SaveChangesAsync(cancellationToken);
@@ -250,6 +279,21 @@ internal sealed class ShiftSeriesService(
             ApplySeriesNonRecurrenceUpdatesToChildren(entity, oldValues, oldUserIds, newUserIds);
         }
         var currentEntries = entity.ShiftEntries.Where(entry => db.Entry(entry).State != EntityState.Deleted).ToList();
+        await LoanOutUserShiftGuard.EnsureEntriesCanScheduleAsync(
+            db,
+            timeZoneService,
+            schedulingCalendarDataProvider,
+            currentEntries,
+            cancellationToken
+        );
+        var awayUsers = await loanOutMarkerService.ApplyToSeriesAsync(currentEntries, cancellationToken);
+        foreach (var entry in currentEntries)
+            await LoanOutShiftTransferService.DelinkAssignmentUsersAsync(
+                entry,
+                awayUsers.GetValueOrDefault(entry) ?? [],
+                () => shiftAssignmentService,
+                cancellationToken
+            );
         ValidatePropagatedShiftEntries(entity, currentEntries);
         await db.SaveChangesAsync(cancellationToken);
         await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(

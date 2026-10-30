@@ -56,6 +56,7 @@ public static class LeaveModule
         services.AddScoped<SchedulingLeaveSeriesRequestValidator>();
         services.AddScoped<LeaveTypeRequestValidator>();
         services.AddScoped<ILeaveCalendarDataProvider, LeaveCalendarDataProvider>();
+        services.AddScoped<LeaveCalendarQueryValidator>();
         services.AddScoped<ILeaveTypeService, LeaveTypeService>();
         services.AddSeeder<UnifiedDbContext, LeaveTypeSeeder>();
         services.AddSeeder<UnifiedDbContext, SchedulingLeaveEventTypeSeeder>();
