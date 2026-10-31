@@ -1,10 +1,12 @@
 import '@bcgov/design-tokens/css-prefixed/variables.css';
+import '@/assets/styles/fonts.css';
 
 import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 
 import { setupMockServiceWorker } from '@/mocks';
-import vuetify from '@/plugins/vuetify';
+import { createAppVuetify } from '@/plugins/vuetify';
+import { resolveBrandingConfig } from '@/branding/brandingConfig';
 import { initializeRouter } from '@/router';
 import { useConfigStore } from '@/stores/config';
 import { redirectToLogin } from '@/utils/authNavigation';
@@ -65,7 +67,7 @@ const bootstrap = async () => {
   }
 
   // vuetify
-  app.use(vuetify);
+  app.use(createAppVuetify(resolveBrandingConfig(configStore.selectedBrand, configStore.config?.brandingOptions)));
 
   await router.isReady();
   app.mount('#app');

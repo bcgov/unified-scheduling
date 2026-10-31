@@ -61,4 +61,38 @@ export const GetApiConfigResponse = zod.object({
     .optional(),
   supportEmail: zod.string().nullish(),
   applicationName: zod.string().nullish(),
+  selectedBrand: zod.string().nullish(),
+  brandingOptions: zod
+    .record(
+      zod.string(),
+      zod.object({
+        primaryColor: zod.string().nullish(),
+        backgroundColor: zod.string().nullish(),
+        navigationSelectedColor: zod.string().nullish(),
+        primaryLogoEnabled: zod.boolean().nullish(),
+        primaryLogoUrl: zod.string().nullish(),
+        primaryLogoAlt: zod.string().nullish(),
+        quickLinks: zod.array(zod.string()).nullish(),
+        dashboardMessage: zod.string().nullish(),
+        secondaryLogoUrl: zod.string().nullish(),
+        secondaryLogoAlt: zod.string().nullish(),
+        backgroundImageEnabled: zod.boolean().nullish(),
+        backgroundImageUrl: zod.string().nullish(),
+        applicationName: zod.string().nullish(),
+        header: zod
+          .union([
+            zod.null(),
+            zod.object({
+              title: zod.string().nullish(),
+              subtitle: zod.string().nullish(),
+              poweredByText: zod.string().nullish(),
+              imageUrl: zod.string().nullish(),
+              logoUrl: zod.string().nullish(),
+              logoAlt: zod.string().nullish(),
+            }),
+          ])
+          .optional(),
+      }),
+    )
+    .optional(),
 });

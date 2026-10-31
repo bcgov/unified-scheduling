@@ -11,7 +11,8 @@ export interface AssignmentSeriesRequest {
   categoryId?: number;
   subCategoryId?: number;
   capacity?: number;
-  shiftSeriesLinks?: ShiftSeriesLinkRequest[];
+  /** @nullable */
+  shiftSeriesLinks?: ShiftSeriesLinkRequest[] | null;
   /** @nullable */
   recurrenceRule?: string | null;
   title?: string;

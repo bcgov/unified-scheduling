@@ -15,6 +15,11 @@
  */
 
 :root {
+  /* Primary and active colours are supplied by App.vue from brandingConfig.ts.
+     These remaining tokens define fixed accents and typography. */
+  --ua-brand-gold: #e3a82b;
+  --ua-brand-muted: #606c9a;
+  --ua-brand-font: 'BC Sans', 'Myriad Pro', Arial, sans-serif;
   /* ── Spacing ─────────────────────────────────────────────────── */
   --ua-spacing-xs: var(--bcds-layout-padding-xsmall); /* 0.25rem */
   --ua-spacing-sm: var(--bcds-layout-padding-small); /* 0.5rem  */
@@ -36,9 +41,9 @@
   --ua-font-weight-bold: var(--bcds-typography-font-weights-bold); /* 700 */
 
   /* ── Layout ──────────────────────────────────────────────────── */
-  --ua-page-padding-x: var(--bcds-layout-padding-xlarge); /* 2rem   */
+  --ua-page-padding-x: clamp(24px, 4vw, 72px);
   --ua-page-padding-y: var(--bcds-layout-padding-large); /* 1.5rem */
-  --ua-appbar-height: 52px; /* project-specific */
+  --ua-appbar-height: 84px; /* 80px toolbar + 4px gold border */
   --ua-content-max-width: 1200px; /* project-specific */
   --ua-form-label-width: 210px; /* project-specific */
   --ua-border-radius: 8px; /* project-specific — no token (medium=4px, large=6px) */
