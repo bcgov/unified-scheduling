@@ -1,24 +1,35 @@
+export type DashboardTileId = 'myTeam' | 'stats' | 'schedule' | 'admin' | 'myProfile' | 'reporting' | 'training';
+export interface DashboardBanner {
+  title: string;
+  subtitle: string;
+  tagline: string;
+  /** Optional decorative image URL. An empty value displays the gradient placeholder. */
+  imageUrl: string;
+  /** Optional foreground logo, displayed without cropping. */
+  logoUrl?: string;
+  logoAlt?: string;
+}
 /** A single named brand's full configuration. */
 export interface BrandDefinition {
-  /** Unique key used to select this brand via VITE_BRANDING_BRAND. */
+  /** Unique key selected by the /api/config selectedBrand value. */
   key: string;
-  /** Whether the custom primary header logo is enabled. When false, the default B.C. Government logo is always shown. */
-  primaryLogoEnabled: boolean;
-  /** Secondary logo shown in the app bar once the user is authenticated. */
-  primaryLogoUrl: string;
-  /** Alt text for the header logo. */
-  primaryLogoAlt: string;
+  /** Primary UI colour, expressed as a CSS hex colour. */
+  primaryColor: string;
+  /** Main application background colour, expressed as a CSS hex colour. */
+  backgroundColor: string;
+  /** Highlight colour for active navigation, tabs and selected list options. */
+  activeColor: string;
+  /** Ordered list of dashboard tile IDs allowed for this brand. */
+  dashboardTiles?: DashboardTileId[];
+  dashboardBanner?: DashboardBanner;
+  dashboardMessage: string;
 
-  /** Whether the custom header logo is enabled. When false, the default B.C. Government logo is always shown. */
-  secondaryLogoEnabled: boolean;
   /** Secondary logo shown in the app bar once the user is authenticated. */
   secondaryLogoUrl: string;
   /** Alt text for the header logo. */
   secondaryLogoAlt: string;
 
-  /** Whether the background overlay image is enabled. When false, no overlay is rendered. */
-  backgroundImageEnabled: boolean;
-  /** Background overlay image shown behind page content once the user is authenticated. */
+  /** Optional background overlay image shown behind authenticated page content when a URL is provided. */
   backgroundImageUrl: string;
 
   /** Application name used in branded headings (e.g. dashboard welcome banner). */

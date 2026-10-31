@@ -1,7 +1,7 @@
 import type { NavigationLink } from '@/stores/NavigationStore';
 
 export const calendarNavLink: NavigationLink = {
-  name: 'Calendar',
+  name: 'Schedule',
   path: '/calendar',
   class: 'router-link--border',
 };

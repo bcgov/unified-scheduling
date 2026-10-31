@@ -35,6 +35,7 @@ public class ConfigController(
             SupportEmail = applicationOptions.Value.SupportEmail,
             ApplicationName = applicationOptions.Value.Name,
             SelectedBrand = brandingOptions.Value.SelectedBrand,
+            BrandingOptions = brandingOptions.Value.Brands,
         };
 
         logger.LogDebug(

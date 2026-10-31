@@ -1,118 +1,87 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { DateTime } from 'luxon';
+import { useNavigationStore } from '@/stores/NavigationStore';
 import { useAuthStore } from '@/stores/auth';
 import { useAccessControl } from '@/composables/useAccessControl';
 import { useBranding } from '@/composables/useBranding';
-import { dashboardTiles, mySpaceTiles, myScheduleCard } from '@/modules/dashboard/dashboardTiles.js';
+import { getDashboardTiles, type DashboardTile } from '@/modules/dashboard/dashboardTiles.js';
 import DefaultDashboardLayout from './template/defaultDashboardLayout.vue';
+import DefaultDashboardBanner from './template/defaultDashboardBanner.vue';
 
 const authStore = useAuthStore();
 const accessControl = useAccessControl();
 const branding = useBranding();
+const navigationStore = useNavigationStore();
 
 const greeting = computed(() => (authStore.userName ? `Hello, ${authStore.userName}` : 'Welcome'));
 
-const availableTiles = computed(() =>
-  dashboardTiles.filter((tile) => accessControl.featureFlags.value[tile.featureFlagKey]?.enabled),
-);
-
-const availableMySpaceTiles = computed(() =>
-  mySpaceTiles
-    .filter((tile) => accessControl.featureFlags.value[tile.featureFlagKey]?.enabled)
-    .map((tile) => ({
-      ...tile,
-      path: tile.path.replace(':userId', authStore.currentUserId ?? ''),
-    })),
-);
-
-// Placeholder week-at-a-glance data (Mon-Sun) until the schedule is wired to
-// the Calendar/Scheduling API for the signed-in user.
-const weekSchedule = computed(() => {
-  const startOfWeek = DateTime.now().startOf('week');
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = startOfWeek.plus({ days: i });
-    return {
-      date: date.toISODate() ?? '',
-      dayLabel: date.toFormat('ccc'),
-      dateLabel: date.toFormat('LLL d'),
-      isToday: date.hasSame(DateTime.now(), 'day'),
-      events: [] as string[],
-    };
+function availableDestinations(tiles: DashboardTile[]): DashboardTile[] {
+  return tiles.flatMap((tile) => {
+    if (tile.id === 'admin') {
+      const destination = navigationStore.adminLinks[0];
+      return destination ? [{ ...tile, path: destination.path }] : [];
+    }
+    if (!accessControl.featureFlags.value[tile.featureFlagKey]?.enabled) return [];
+    if (tile.requiredPermission && !accessControl.hasPermission(tile.requiredPermission)) return [];
+    if (
+      tile.path.includes(':userId') &&
+      (!authStore.currentUserId || !accessControl.featureFlags.value.UserManagement?.enabled)
+    )
+      return [];
+    return [{ ...tile, path: tile.path.replace(':userId', authStore.currentUserId ?? '') }];
   });
-});
+}
 
-const weekRangeLabel = computed(() => {
-  const startOfWeek = DateTime.now().startOf('week');
-  const endOfWeek = startOfWeek.endOf('week');
-  const sameMonth = startOfWeek.hasSame(endOfWeek, 'month');
-  const start = startOfWeek.toFormat(sameMonth ? 'LLL d' : 'LLL d');
-  const end = endOfWeek.toFormat(sameMonth ? 'd' : 'LLL d');
-  return `${start} – ${end}`;
-});
+const availableTiles = computed(() => availableDestinations(getDashboardTiles(branding.dashboardTiles.value)));
 </script>
 
 <template>
   <div class="dashboard">
+    <DefaultDashboardBanner v-if="branding.dashboardBanner.value" :banner="branding.dashboardBanner.value" />
     <section class="dashboard-hero">
       <div class="dashboard-hero__text">
-        <h1 class="dashboard-hero__title">Welcome to the {{ branding.applicationName.value }}</h1>
-        <p class="dashboard-hero__subtitle">{{ greeting }}</p>
+        <h1 class="dashboard-hero__title">{{ greeting }}</h1>
         <p class="dashboard-hero__guidance">
-          Use the navigation bar above to jump into a module, or select one of the tiles below to get started.
+          {{ branding.dashboardMessage.value }}
         </p>
       </div>
     </section>
-    <div class="dashboard-hero__accent" />
 
-    <DefaultDashboardLayout
-      :tiles="availableTiles"
-      :my-space-tiles="availableMySpaceTiles"
-      :my-schedule-card="myScheduleCard"
-      :week-schedule="weekSchedule"
-      :week-range-label="weekRangeLabel"
-    />
+    <DefaultDashboardLayout :tiles="availableTiles" />
   </div>
 </template>
 
 <style scoped>
 .dashboard {
+  font-family: var(--ua-brand-font);
+  color: var(--ua-brand-blue);
   display: flex;
   flex-direction: column;
-  gap: var(--ua-spacing-xl);
+  gap: 24px;
+  padding-bottom: 24px;
 }
 
 .dashboard-hero {
   display: flex;
   align-items: center;
-  gap: var(--ua-spacing-xl);
   background-color: transparent;
-  color: rgb(var(--v-theme-on-background));
-  padding: var(--ua-spacing-xl);
-  padding-bottom: 0;
-  border-radius: var(--ua-card-border-radius);
+  padding: 0;
 }
 
 .dashboard-hero__title {
-  font-size: var(--ua-font-size-xl);
-  font-weight: var(--ua-font-weight-bold);
-  margin-bottom: 0;
-}
+  margin: 0 0 4px;
 
-.dashboard-hero__subtitle {
-  font-weight: var(--ua-font-weight-semibold);
-  color: rgb(var(--v-theme-primary));
-  margin-bottom: 0;
+  color: var(--ua-brand-blue);
+  font-size: clamp(26px, 2.5vw, 34px);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .dashboard-hero__guidance {
-  color: var(--ua-text-muted);
-}
+  margin: 0;
+  color: var(--ua-brand-muted);
+  font-size: clamp(17px, 1.7vw, 22px);
 
-.dashboard-hero__accent {
-  height: 4px;
-  background-color: rgb(var(--v-theme-primary));
-  border-radius: var(--ua-card-border-radius);
-  margin-top: calc(var(--ua-spacing-xl) * -1 + var(--ua-spacing-xs));
+  line-height: 1.5;
 }
 </style>

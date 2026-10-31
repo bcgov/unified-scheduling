@@ -66,7 +66,7 @@ export const PostApiSchedulingAssignmentsSeriesBody = zod.strictObject({
         assignedUserIds: zod.array(zod.uuid()).optional(),
       }),
     )
-    .optional(),
+    .nullish(),
   recurrenceRule: zod.string().nullish(),
   title: zod.string().optional(),
   description: zod.string().nullish(),
@@ -178,7 +178,7 @@ export const PutApiSchedulingAssignmentsSeriesIdBody = zod.strictObject({
         assignedUserIds: zod.array(zod.uuid()).optional(),
       }),
     )
-    .optional(),
+    .nullish(),
   recurrenceRule: zod.string().nullish(),
   title: zod.string().optional(),
   description: zod.string().nullish(),
