@@ -12,10 +12,12 @@ describe('scheduling concurrency errors', () => {
     { status: 400, body: { code: 'concurrency_conflict' }, expected: false },
   ])('identifies only version conflicts: $status $body', async ({ status, body, expected }) => {
     let writes = 0;
-    server.use(http.put('*/api/scheduling/assignments/entries/41', () => {
-      writes++;
-      return HttpResponse.json(body, { status });
-    }));
+    server.use(
+      http.put('*/api/scheduling/assignments/entries/41', () => {
+        writes++;
+        return HttpResponse.json(body, { status });
+      }),
+    );
 
     const result = await updateAssignmentEntry(41, { concurrencyToken: 7 });
 

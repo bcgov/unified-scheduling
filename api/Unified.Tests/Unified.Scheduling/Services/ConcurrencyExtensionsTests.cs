@@ -38,7 +38,12 @@ public sealed class ConcurrencyExtensionsTests
     public async Task RequireVersion_WhenOnlyRootTouchIsNeeded_ParticipatesInSyncAndAsyncSaves(bool asyncSave)
     {
         await using var db = CreateContext();
-        var entity = new ShiftEntry { Id = 1, EventId = 2, ConcurrencyToken = 7 };
+        var entity = new ShiftEntry
+        {
+            Id = 1,
+            EventId = 2,
+            ConcurrencyToken = 7,
+        };
         db.Add(entity);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 

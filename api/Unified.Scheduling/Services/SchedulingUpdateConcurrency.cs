@@ -17,9 +17,8 @@ internal static class SchedulingUpdateConcurrency
         {
             throw new DbUpdateConcurrencyException("The scheduling update overlapped another transaction.", ex);
         }
-        catch (DbUpdateException ex) when (
-            ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure }
-        )
+        catch (DbUpdateException ex)
+            when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure })
         {
             throw new DbUpdateConcurrencyException("The scheduling update overlapped another transaction.", ex);
         }

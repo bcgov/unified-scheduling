@@ -32,9 +32,15 @@ public sealed class CalendarEventMapperTests
         var entity = new EventSeries { ConcurrencyToken = 92, Title = "Original" };
 
         if (assignment)
-            mapper.ApplyToEventSeries(entity, new AssignmentSeriesUpdateRequest { ConcurrencyToken = 7, Title = " Updated " });
+            mapper.ApplyToEventSeries(
+                entity,
+                new AssignmentSeriesUpdateRequest { ConcurrencyToken = 7, Title = " Updated " }
+            );
         else
-            mapper.ApplyToEventSeries(entity, new ShiftSeriesUpdateRequest { ConcurrencyToken = 7, Title = " Updated " });
+            mapper.ApplyToEventSeries(
+                entity,
+                new ShiftSeriesUpdateRequest { ConcurrencyToken = 7, Title = " Updated " }
+            );
 
         Assert.Equal(92u, entity.ConcurrencyToken);
         Assert.Equal("Updated", entity.Title);

@@ -15,7 +15,9 @@ public static class ConcurrencyExtensions
     {
         var entry = db.Entry(entity);
         if (entry.State is not (EntityState.Unchanged or EntityState.Modified))
-            throw new InvalidOperationException("Version checks require an existing tracked entity.");
+            throw new InvalidOperationException(
+                "Version checks require an existing tracked entity."
+            );
 
         if (entity.ConcurrencyToken != expectedVersion)
             throw new DbUpdateConcurrencyException("The supplied record version is stale.");

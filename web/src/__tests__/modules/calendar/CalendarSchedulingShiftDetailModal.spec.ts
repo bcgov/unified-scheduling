@@ -41,7 +41,7 @@ async function mountShiftDetailModal(
       data: {
         value: {
           id: 42,
-            concurrencyToken: 7,
+          concurrencyToken: 7,
           title: `${statusTypeCode} shift`,
           startAtUtc: '2026-07-13T16:00:00Z',
           endAtUtc: '2026-07-14T00:00:00Z',

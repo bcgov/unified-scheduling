@@ -255,6 +255,7 @@ export function createShiftFormDataFromEntry(
   const event = {
     ...fallbackEvent,
     title: entry.title ?? fallbackEvent.title,
+    notes: entry.notes ?? '',
     start: entry.startAtUtc ?? fallbackEvent.start,
     end: entry.endAtUtc ?? fallbackEvent.end,
     timeZoneId: entry.timeZoneId ?? fallbackEvent.timeZoneId,
