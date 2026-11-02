@@ -211,7 +211,9 @@ public sealed class AssignmentEntryService(
                         retainedShiftEntryIds =
                             requestedShiftEntryLinks?.Select(link => link.ShiftEntryId).ToList()
                             ?? assignmentEntry
-                                .ShiftAssignmentEntries.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
+                                .ShiftAssignmentEntries.Where(link =>
+                                    !invalidatedShiftEntryIds.Contains(link.ShiftEntryId)
+                                )
                                 .Select(link => link.ShiftEntryId)
                                 .ToList();
                         ShiftAssignmentGuards.EnsureAssignmentEntryUpdatePreservesLinks(
@@ -252,11 +254,12 @@ public sealed class AssignmentEntryService(
                 requestedShiftEntryLinks,
                 cancellationToken
             );
-            var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
-                db,
-                [assignmentEntry.Id],
-                cancellationToken
-            );
+            var updatedConflictState =
+                await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+                    db,
+                    [assignmentEntry.Id],
+                    cancellationToken
+                );
             await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
                 updatedConflictState,
                 request.ConflictOverrides,
@@ -264,7 +267,12 @@ public sealed class AssignmentEntryService(
                 cancellationToken
             );
             await calendarConflictService.InvalidateResolvedOverridesAsync(
-                [new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, assignmentEntry.EventId.ToString())],
+                [
+                    new CalendarConflictEventIdentity(
+                        SchedulingConstants.SourceModule,
+                        assignmentEntry.EventId.ToString()
+                    ),
+                ],
                 cancellationToken: cancellationToken
             );
 

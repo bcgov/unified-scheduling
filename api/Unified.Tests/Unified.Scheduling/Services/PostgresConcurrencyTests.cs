@@ -11,7 +11,10 @@ public sealed class PostgresConcurrencyTests
     public static bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("UNIFIED_TEST_POSTGRES_CONNECTION_STRING"));
 
-    [Fact(Skip = "Set UNIFIED_TEST_POSTGRES_CONNECTION_STRING to run against PostgreSQL.", SkipUnless = nameof(IsConfigured))]
+    [Fact(
+        Skip = "Set UNIFIED_TEST_POSTGRES_CONNECTION_STRING to run against PostgreSQL.",
+        SkipUnless = nameof(IsConfigured)
+    )]
     public async Task RequireVersion_WithPostgresXmin_RejectsStaleWriterAndAdvancesRootForRelationshipEdit()
     {
         var token = TestContext.Current.CancellationToken;
@@ -24,7 +27,8 @@ public sealed class PostgresConcurrencyTests
         // Temporary tables live only on this connection. Two independent change trackers
         // share it sequentially; no application tables, schema or migrations are changed.
         await first.Database.ExecuteSqlRawAsync(
-            first.Database.GenerateCreateScript().Replace("CREATE TABLE", "CREATE TEMP TABLE"), token
+            first.Database.GenerateCreateScript().Replace("CREATE TABLE", "CREATE TEMP TABLE"),
+            token
         );
         var root = new ShiftSeries();
         first.Add(root);
@@ -52,8 +56,14 @@ public sealed class PostgresConcurrencyTests
         first.RequireVersion(current, updatedVersion);
         await first.SaveChangesAsync(token);
         Assert.NotEqual(updatedVersion, current.ConcurrencyToken);
-        Assert.Equal(current.ConcurrencyToken, first.Entry(current).Property(item => item.ConcurrencyToken).OriginalValue);
-        Assert.Equal(current.ConcurrencyToken, (await second.ShiftSeries.AsNoTracking().SingleAsync(token)).ConcurrencyToken);
+        Assert.Equal(
+            current.ConcurrencyToken,
+            first.Entry(current).Property(item => item.ConcurrencyToken).OriginalValue
+        );
+        Assert.Equal(
+            current.ConcurrencyToken,
+            (await second.ShiftSeries.AsNoTracking().SingleAsync(token)).ConcurrencyToken
+        );
         Assert.Equal(2, await first.ShiftSeriesUsers.CountAsync(token));
     }
 
@@ -69,7 +79,10 @@ public sealed class PostgresConcurrencyTests
 
             modelBuilder.Entity<ShiftSeries>().Ignore(item => item.EventSeries).Ignore(item => item.ShiftEntries);
             modelBuilder.Entity<ShiftSeries>().Ignore(item => item.ShiftAssignmentSeriesLinks);
-            modelBuilder.Entity<ShiftSeries>().HasMany(item => item.Users).WithOne(item => item.ShiftSeries)
+            modelBuilder
+                .Entity<ShiftSeries>()
+                .HasMany(item => item.Users)
+                .WithOne(item => item.ShiftSeries)
                 .HasForeignKey(item => item.ShiftSeriesId);
         }
     }

@@ -429,7 +429,9 @@ async function handleSaveEdit() {
     }
 
     const saved =
-      payload.kind === 'series' ? await updateShiftSeries(payload.body, revision) : await updateShiftEntry(payload.body, revision);
+      payload.kind === 'series'
+        ? await updateShiftSeries(payload.body, revision)
+        : await updateShiftEntry(payload.body, revision);
     if (!saved) {
       return;
     }
@@ -620,7 +622,8 @@ async function publishShiftSeries(id: number | null, shouldPublish: boolean, rev
   const publishResult = await shiftApi.publishShiftSeries(id);
 
   if (publishResult.error.value) {
-    if (isCurrentResource(revision)) apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
+    if (isCurrentResource(revision))
+      apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
     return false;
   }
 
@@ -635,7 +638,8 @@ async function publishShiftEntry(id: number | null, shouldPublish: boolean, revi
   const publishResult = await shiftApi.publishShiftEntry(id);
 
   if (publishResult.error.value) {
-    if (isCurrentResource(revision)) apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
+    if (isCurrentResource(revision))
+      apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
     return false;
   }
 
@@ -667,7 +671,8 @@ async function cancelShiftSeries(id: number | null, shouldCancel: boolean, revis
   const cancelResult = await shiftApi.cancelShiftSeries(id);
 
   if (cancelResult.error.value) {
-    if (isCurrentResource(revision)) apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
+    if (isCurrentResource(revision))
+      apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
     return false;
   }
 
@@ -682,7 +687,8 @@ async function cancelShiftEntry(id: number | null, shouldCancel: boolean, revisi
   const cancelResult = await shiftApi.cancelShiftEntry(id);
 
   if (cancelResult.error.value) {
-    if (isCurrentResource(revision)) apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
+    if (isCurrentResource(revision))
+      apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
     return false;
   }
 

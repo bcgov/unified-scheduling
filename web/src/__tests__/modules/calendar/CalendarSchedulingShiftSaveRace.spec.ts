@@ -11,20 +11,37 @@ import ShiftModal from '@/modules/scheduling/CalendarSchedulingShiftDetailModal.
 const userId = '11111111-1111-4111-8111-111111111111';
 const wrappers: VueWrapper[] = [];
 const resource = (id = 41, concurrencyToken = 7) => ({
-  id, concurrencyToken, title: `Resource ${id}`, statusTypeCode: 'Draft',
-  startAtUtc: '2026-07-13T09:00:00Z', endAtUtc: '2026-07-13T17:00:00Z',
-  timeZoneId: 'UTC', locationId: 1, userIds: [userId], recurrenceRule: 'FREQ=DAILY;COUNT=2',
+  id,
+  concurrencyToken,
+  title: `Resource ${id}`,
+  statusTypeCode: 'Draft',
+  startAtUtc: '2026-07-13T09:00:00Z',
+  endAtUtc: '2026-07-13T17:00:00Z',
+  timeZoneId: 'UTC',
+  locationId: 1,
+  userIds: [userId],
+  recurrenceRule: 'FREQ=DAILY;COUNT=2',
 });
-const event = (id = 41) => ({
-  id: `shift-${id}`, type: 'scheduling.shift', sourceModule: 'scheduling', title: 'Shift',
-  start: '2026-07-13T09:00:00Z', end: '2026-07-13T17:00:00Z', timeZoneId: 'UTC',
-  locationId: 1, statusTypeCode: 'Draft', resourceIds: [userId],
-  metadata: { shiftEntryId: String(id), shiftSeriesId: '42', userIds: [userId] },
-}) as CalendarEventBase;
+const event = (id = 41) =>
+  ({
+    id: `shift-${id}`,
+    type: 'scheduling.shift',
+    sourceModule: 'scheduling',
+    title: 'Shift',
+    start: '2026-07-13T09:00:00Z',
+    end: '2026-07-13T17:00:00Z',
+    timeZoneId: 'UTC',
+    locationId: 1,
+    statusTypeCode: 'Draft',
+    resourceIds: [userId],
+    metadata: { shiftEntryId: String(id), shiftSeriesId: '42', userIds: [userId] },
+  }) as CalendarEventBase;
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((complete) => { resolve = complete; });
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
   return { promise, resolve };
 }
 
@@ -35,15 +52,21 @@ async function setup(scope: 'entry' | 'series' = 'entry') {
   server.use(
     http.get('*/api/*', ({ request }) => {
       const pathname = new URL(request.url).pathname;
-      return HttpResponse.json(pathname === path ? resource() : pathname.endsWith('/entries/43') ? resource(43, 11) : []);
+      return HttpResponse.json(
+        pathname === path ? resource() : pathname.endsWith('/entries/43') ? resource(43, 11) : [],
+      );
     }),
-    http.put(`*${path}`, async () => { saveStarted.resolve(); return saveResponse.promise; }),
+    http.put(`*${path}`, async () => {
+      saveStarted.resolve();
+      return saveResponse.promise;
+    }),
   );
   const app = await createTestApp({ loadConfig: false, permissions: [Permissions.ShiftsEdit] });
   const refresh = vi.spyOn(useCalendarStore(app.pinia), 'refresh');
   const wrapper = mount(ShiftModal, {
     props: { event: event(), initialOpenScope: scope === 'entry' ? 'event' : 'series' },
-    global: { plugins: app.mountPlugins }, attachTo: document.body,
+    global: { plugins: app.mountPlugins },
+    attachTo: document.body,
   });
   wrappers.push(wrapper);
   const vm = wrapper.vm as unknown as {
@@ -74,7 +97,12 @@ describe('shift save response ownership', () => {
     await saveStarted.promise;
     const getStarted = deferred<void>();
     const getResponse = deferred<Response>();
-    server.use(http.get(`*${path}`, async () => { getStarted.resolve(); return getResponse.promise; }));
+    server.use(
+      http.get(`*${path}`, async () => {
+        getStarted.resolve();
+        return getResponse.promise;
+      }),
+    );
     const loading = scope === 'entry' ? vm.loadSelectedEntry() : vm.loadSelectedSeries();
     await getStarted.promise;
 
