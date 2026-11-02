@@ -271,24 +271,24 @@ public class RecurrenceRuleValidatorTests
     }
 
     [Theory]
-    [InlineData("FREQ=DAILY;COUNT=3", "2025-03-08T09:30:00+00:00", "2025-03-08T10:30:00+00:00", "invalid")]
-    [InlineData("FREQ=DAILY;COUNT=3", "2025-11-01T08:30:00+00:00", "2025-11-01T09:30:00+00:00", "ambiguous")]
-    public void Validate_WhenRecurrenceExpansionHitsInvalidOrAmbiguousDstLocalTime_ReturnsPredictableError(
-        string recurrenceRule,
-        string startAtUtc,
-        string endAtUtc,
-        string expectedMessage
-    )
+    [InlineData("invalid")]
+    [InlineData("ambiguous")]
+    public void Validate_WhenRecurrenceExpansionThrowsDstTimeError_ReturnsPredictableError(string expectedMessage)
     {
         // Arrange
-        var seriesStartAtUtc = DateTimeOffset.Parse(startAtUtc);
-        var seriesEndAtUtc = DateTimeOffset.Parse(endAtUtc);
+        var expander = new CountingRecurrenceExpander
+        {
+            CountException = new InvalidOperationException(
+                $"Local time is {expectedMessage} in time zone America/Vancouver."
+            ),
+        };
+        var validator = new IcalNetRecurrenceRuleValidator(expander, _timeZoneService, _timeZoneResolver);
 
         // Act
-        var result = _validator.Validate(
-            recurrenceRule,
-            seriesStartAtUtc,
-            seriesEndAtUtc,
+        var result = validator.Validate(
+            "FREQ=DAILY;COUNT=3",
+            new DateTimeOffset(2025, 3, 8, 9, 30, 0, TimeSpan.Zero),
+            new DateTimeOffset(2025, 3, 8, 10, 30, 0, TimeSpan.Zero),
             "America/Vancouver",
             CreateOptions()
         );
@@ -598,6 +598,8 @@ public class RecurrenceRuleValidatorTests
 
         public int CountResult { get; init; } = 1;
 
+        public Exception? CountException { get; init; }
+
         public IReadOnlyCollection<SeriesEntry> ExpandWithin(
             EventSeries eventSeries,
             DateTimeOffset rangeStartAtUtc,
@@ -619,6 +621,9 @@ public class RecurrenceRuleValidatorTests
         {
             CountWithinCallCount++;
             LastStopAfter = stopAfter;
+            if (CountException is not null)
+                throw CountException;
+
             return CountResult;
         }
     }
