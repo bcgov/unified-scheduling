@@ -15,7 +15,7 @@ import UaTextarea from '@/shared/components/UaTextarea.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import { getTodayDateInputValue, toDateInputValue, toDateTime, toOffsetDateTimeString } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
-import { mdiRefresh } from '@mdi/js';
+import { mdiClose, mdiRefresh } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { computed, ref, watch } from 'vue';
 import * as zod from 'zod';
@@ -336,37 +336,57 @@ const handleSave = async () => {
         disabled
       />
 
-      <UaTextField
-        id="user-training-awarded-on"
-        v-model="formData.awardedOn"
-        type="date"
-        label="From"
-        :error-messages="formErrors.awardedOn"
-      />
+      <label class="ua-form-label" for="user-training-awarded-on">From</label>
+      <div class="user-training-modal__date-time-row">
+        <UaTextField
+          id="user-training-awarded-on"
+          v-model="formData.awardedOn"
+          type="date"
+          label=""
+          :error-messages="formErrors.awardedOn"
+        />
+        <UaTextField
+          id="user-training-awarded-time"
+          :model-value="formData.awardedTime"
+          type="time"
+          label=""
+          aria-label="From time (optional)"
+          title="From time (optional)"
+          hint="Optional"
+          persistent-hint
+          clearable
+          persistent-clear
+          :clear-icon="mdiClose"
+          :error-messages="formErrors.awardedTime"
+          @update:model-value="formData.awardedTime = $event ?? ''"
+        />
+      </div>
 
-      <UaTextField
-        id="user-training-awarded-time"
-        v-model="formData.awardedTime"
-        type="time"
-        label="From Time (optional)"
-        :error-messages="formErrors.awardedTime"
-      />
-
-      <UaTextField
-        id="user-training-ending-on"
-        v-model="formData.endingOn"
-        type="date"
-        label="To"
-        :error-messages="formErrors.endingOn"
-      />
-
-      <UaTextField
-        id="user-training-ending-time"
-        v-model="formData.endingTime"
-        type="time"
-        label="To Time (optional)"
-        :error-messages="formErrors.endingTime"
-      />
+      <label class="ua-form-label" for="user-training-ending-on">To</label>
+      <div class="user-training-modal__date-time-row">
+        <UaTextField
+          id="user-training-ending-on"
+          v-model="formData.endingOn"
+          type="date"
+          label=""
+          :error-messages="formErrors.endingOn"
+        />
+        <UaTextField
+          id="user-training-ending-time"
+          :model-value="formData.endingTime"
+          type="time"
+          label=""
+          aria-label="To time (optional)"
+          title="To time (optional)"
+          hint="Optional"
+          persistent-hint
+          clearable
+          persistent-clear
+          :clear-icon="mdiClose"
+          :error-messages="formErrors.endingTime"
+          @update:model-value="formData.endingTime = $event ?? ''"
+        />
+      </div>
 
       <label class="ua-form-label" for="user-training-expiry-date">Expiry Date</label>
       <div class="user-training-modal__expiry-row">
@@ -403,6 +423,18 @@ const handleSave = async () => {
 </template>
 
 <style scoped>
+.user-training-modal__date-time-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ua-spacing-sm);
+  min-width: 0;
+}
+
+.user-training-modal__date-time-row :deep(.v-input) {
+  min-width: 0;
+}
+
 .user-training-modal__expiry-row {
   display: flex;
   align-items: center;
@@ -428,6 +460,12 @@ const handleSave = async () => {
   .user-training-modal__generate-expiry-btn {
     align-self: flex-start;
     margin-top: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .user-training-modal__date-time-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>
