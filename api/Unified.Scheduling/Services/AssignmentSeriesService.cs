@@ -150,7 +150,9 @@ public sealed class AssignmentSeriesService(
         return await SchedulingUpdateConcurrency.ExecuteAsync<AssignmentSeriesResponse?>(async () =>
         {
             if (string.IsNullOrWhiteSpace(request.RecurrenceRule))
-                throw new ArgumentException("A recurring assignment series cannot be converted to a single assignment.");
+                throw new ArgumentException(
+                    "A recurring assignment series cannot be converted to a single assignment."
+                );
             await ValidateAssignmentSeriesRequest(request, cancellationToken);
             logger.LogInformation("Updating assignment series {AssignmentSeriesId}.", id);
             await using var transaction = await db.Database.BeginTransactionAsync(
@@ -196,7 +198,11 @@ public sealed class AssignmentSeriesService(
 
             if (updatePlan.RegenerateEntries)
             {
-                await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(assignmentSeries.Id, [], cancellationToken);
+                await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
+                    assignmentSeries.Id,
+                    [],
+                    cancellationToken
+                );
                 await eventSeriesMaterializationService.RegenerateDraftSeriesAsync(
                     assignmentSeries.EventSeries!,
                     AssignmentRecurrenceValidationOptions,
@@ -220,11 +226,12 @@ public sealed class AssignmentSeriesService(
                     linksToApply,
                     cancellationToken
                 );
-            var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
-                db,
-                id,
-                cancellationToken
-            );
+            var updatedConflictState =
+                await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
+                    db,
+                    id,
+                    cancellationToken
+                );
             await calendarConflictService.EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
             var affectedEventIds = await db
                 .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == id)

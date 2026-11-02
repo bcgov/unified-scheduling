@@ -15,9 +15,14 @@ describe('useSchedulingAssignmentMutation', () => {
   });
 
   it.each(['entry', 'series'] as const)('requires a loaded version when editing an %s', (kind) => {
-    expect(() => useSchedulingAssignmentMutation().save({
-      payload: { kind, body: {} }, isEdit: true, assignmentEntryId: 41, assignmentSeriesId: 42,
-    })).toThrow('Reload the assignment before saving. Its version is missing.');
+    expect(() =>
+      useSchedulingAssignmentMutation().save({
+        payload: { kind, body: {} },
+        isEdit: true,
+        assignmentEntryId: 41,
+        assignmentSeriesId: 42,
+      }),
+    ).toThrow('Reload the assignment before saving. Its version is missing.');
   });
 
   it.each([
@@ -27,22 +32,29 @@ describe('useSchedulingAssignmentMutation', () => {
     { kind: 'series' as const, isEdit: true },
   ])('sends the correct contract for $kind when isEdit is $isEdit', async ({ kind, isEdit }) => {
     const requests: Array<{ method: string; path: string; body: unknown }> = [];
-    server.use(http.all('*/api/scheduling/assignments/*', async ({ request }) => {
-      requests.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() });
-      return HttpResponse.json({ id: 41, concurrencyToken: 8 });
-    }));
+    server.use(
+      http.all('*/api/scheduling/assignments/*', async ({ request }) => {
+        requests.push({ method: request.method, path: new URL(request.url).pathname, body: await request.json() });
+        return HttpResponse.json({ id: 41, concurrencyToken: 8 });
+      }),
+    );
 
     const result = await useSchedulingAssignmentMutation().save({
       payload: { kind, body: { title: 'Court coverage' } },
-      isEdit, concurrencyToken: 7, assignmentEntryId: 41, assignmentSeriesId: 42,
+      isEdit,
+      concurrencyToken: 7,
+      assignmentEntryId: 41,
+      assignmentSeriesId: 42,
     });
 
     const scope = kind === 'entry' ? 'entries' : 'series';
-    expect(requests).toEqual([{
-      method: isEdit ? 'PUT' : 'POST',
-      path: `/api/scheduling/assignments/${scope}${isEdit ? (kind === 'entry' ? '/41' : '/42') : ''}`,
-      body: isEdit ? { title: 'Court coverage', concurrencyToken: 7 } : { title: 'Court coverage' },
-    }]);
+    expect(requests).toEqual([
+      {
+        method: isEdit ? 'PUT' : 'POST',
+        path: `/api/scheduling/assignments/${scope}${isEdit ? (kind === 'entry' ? '/41' : '/42') : ''}`,
+        body: isEdit ? { title: 'Court coverage', concurrencyToken: 7 } : { title: 'Court coverage' },
+      },
+    ]);
     expect(result.error.value).toBeNull();
     expect(result.data.value?.concurrencyToken).toBe(8);
   });

@@ -167,9 +167,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var isSeries = scope.EndsWith("series");
-        var (shiftId, assignmentId) = isSeries
-            ? await CreateSeriesIdsAsync()
-            : await CreateEntryIdsAsync();
+        var (shiftId, assignmentId) = isSeries ? await CreateSeriesIdsAsync() : await CreateEntryIdsAsync();
         var before = await CaptureSchedulingStateAsync();
         _db.ChangeTracker.Clear();
 
@@ -178,24 +176,52 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             switch (scope)
             {
                 case "shift-entry":
-                    await _shiftService.UpdateShiftEntryAsync(shiftId,
+                    await _shiftService.UpdateShiftEntryAsync(
+                        shiftId,
                         CreateShiftEntryRequest(At(9), At(17)) with
-                        { ConcurrencyToken = 99, Title = "Stale edit", AssignmentEntryLinks = [] }, cancellationToken);
+                        {
+                            ConcurrencyToken = 99,
+                            Title = "Stale edit",
+                            AssignmentEntryLinks = [],
+                        },
+                        cancellationToken
+                    );
                     break;
                 case "shift-series":
-                    await _shiftService.UpdateShiftSeriesAsync(shiftId,
+                    await _shiftService.UpdateShiftSeriesAsync(
+                        shiftId,
                         CreateShiftSeriesRequest() with
-                        { ConcurrencyToken = 99, Title = "Stale edit", AssignmentSeriesLinks = [] }, cancellationToken);
+                        {
+                            ConcurrencyToken = 99,
+                            Title = "Stale edit",
+                            AssignmentSeriesLinks = [],
+                        },
+                        cancellationToken
+                    );
                     break;
                 case "assignment-entry":
-                    await _assignmentService.UpdateAssignmentEntryAsync(assignmentId,
+                    await _assignmentService.UpdateAssignmentEntryAsync(
+                        assignmentId,
                         CreateAssignmentEntryUpdateRequest() with
-                        { ConcurrencyToken = 99, Title = "Stale edit", ShiftEntryLinks = [] }, cancellationToken);
+                        {
+                            ConcurrencyToken = 99,
+                            Title = "Stale edit",
+                            ShiftEntryLinks = [],
+                        },
+                        cancellationToken
+                    );
                     break;
                 default:
-                    await _assignmentService.UpdateAssignmentSeriesAsync(assignmentId,
+                    await _assignmentService.UpdateAssignmentSeriesAsync(
+                        assignmentId,
                         CreateAssignmentSeriesRequest() with
-                        { ConcurrencyToken = 99, Title = "Stale edit", ShiftSeriesLinks = [] }, cancellationToken);
+                        {
+                            ConcurrencyToken = 99,
+                            Title = "Stale edit",
+                            ShiftSeriesLinks = [],
+                        },
+                        cancellationToken
+                    );
                     break;
             }
         });
@@ -220,26 +246,50 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         switch (scope)
         {
             case "shift-entry":
-                var shiftEntry = await _shiftService.UpdateShiftEntryAsync(shiftId,
-                    CreateShiftEntryRequest(At(9), At(17)) with { UserIds = [UserA, UserB] }, cancellationToken);
+                var shiftEntry = await _shiftService.UpdateShiftEntryAsync(
+                    shiftId,
+                    CreateShiftEntryRequest(At(9), At(17)) with
+                    {
+                        UserIds = [UserA, UserB],
+                    },
+                    cancellationToken
+                );
                 root = await _db.ShiftEntries.SingleAsync(item => item.Id == shiftId, cancellationToken);
                 returnedVersion = shiftEntry!.ConcurrencyToken;
                 break;
             case "shift-series":
-                var shiftSeries = await _shiftService.UpdateShiftSeriesAsync(shiftId,
-                    CreateShiftSeriesRequest() with { UserIds = [UserA, UserB] }, cancellationToken);
+                var shiftSeries = await _shiftService.UpdateShiftSeriesAsync(
+                    shiftId,
+                    CreateShiftSeriesRequest() with
+                    {
+                        UserIds = [UserA, UserB],
+                    },
+                    cancellationToken
+                );
                 root = await _db.ShiftSeries.SingleAsync(item => item.Id == shiftId, cancellationToken);
                 returnedVersion = shiftSeries!.ConcurrencyToken;
                 break;
             case "assignment-entry":
-                var assignmentEntry = await _assignmentService.UpdateAssignmentEntryAsync(assignmentId,
-                    CreateAssignmentEntryUpdateRequest() with { ShiftEntryLinks = [] }, cancellationToken);
+                var assignmentEntry = await _assignmentService.UpdateAssignmentEntryAsync(
+                    assignmentId,
+                    CreateAssignmentEntryUpdateRequest() with
+                    {
+                        ShiftEntryLinks = [],
+                    },
+                    cancellationToken
+                );
                 root = await _db.AssignmentEntries.SingleAsync(item => item.Id == assignmentId, cancellationToken);
                 returnedVersion = assignmentEntry!.ConcurrencyToken;
                 break;
             default:
-                var assignmentSeries = await _assignmentService.UpdateAssignmentSeriesAsync(assignmentId,
-                    CreateAssignmentSeriesRequest() with { ShiftSeriesLinks = [] }, cancellationToken);
+                var assignmentSeries = await _assignmentService.UpdateAssignmentSeriesAsync(
+                    assignmentId,
+                    CreateAssignmentSeriesRequest() with
+                    {
+                        ShiftSeriesLinks = [],
+                    },
+                    cancellationToken
+                );
                 root = await _db.AssignmentSeries.SingleAsync(item => item.Id == assignmentId, cancellationToken);
                 returnedVersion = assignmentSeries!.ConcurrencyToken;
                 break;
@@ -264,19 +314,57 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     private async Task<string> CaptureSchedulingStateAsync()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        return System.Text.Json.JsonSerializer.Serialize(new
-        {
-            Events = await _db.Events.AsNoTracking().OrderBy(item => item.Id)
-                .Select(item => new { item.Id, item.Title, item.StartAtUtc, item.EndAtUtc }).ToListAsync(cancellationToken),
-            Series = await _db.EventSeries.AsNoTracking().OrderBy(item => item.Id)
-                .Select(item => new { item.Id, item.Title, item.RecurrenceRule }).ToListAsync(cancellationToken),
-            EntryLinks = await _db.ShiftAssignmentEntries.AsNoTracking().OrderBy(item => item.Id)
-                .Select(item => new { item.Id, item.ShiftEntryId, item.AssignmentEntryId }).ToListAsync(cancellationToken),
-            SeriesLinks = await _db.ShiftAssignmentSeriesLinks.AsNoTracking().OrderBy(item => item.Id)
-                .Select(item => new { item.Id, item.ShiftSeriesId, item.AssignmentSeriesId }).ToListAsync(cancellationToken),
-            LinkUsers = await _db.ShiftAssignmentEntryUsers.AsNoTracking().OrderBy(item => item.Id)
-                .Select(item => new { item.Id, item.UserId }).ToListAsync(cancellationToken),
-        });
+        return System.Text.Json.JsonSerializer.Serialize(
+            new
+            {
+                Events = await _db
+                    .Events.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new
+                    {
+                        item.Id,
+                        item.Title,
+                        item.StartAtUtc,
+                        item.EndAtUtc,
+                    })
+                    .ToListAsync(cancellationToken),
+                Series = await _db
+                    .EventSeries.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new
+                    {
+                        item.Id,
+                        item.Title,
+                        item.RecurrenceRule,
+                    })
+                    .ToListAsync(cancellationToken),
+                EntryLinks = await _db
+                    .ShiftAssignmentEntries.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new
+                    {
+                        item.Id,
+                        item.ShiftEntryId,
+                        item.AssignmentEntryId,
+                    })
+                    .ToListAsync(cancellationToken),
+                SeriesLinks = await _db
+                    .ShiftAssignmentSeriesLinks.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new
+                    {
+                        item.Id,
+                        item.ShiftSeriesId,
+                        item.AssignmentSeriesId,
+                    })
+                    .ToListAsync(cancellationToken),
+                LinkUsers = await _db
+                    .ShiftAssignmentEntryUsers.AsNoTracking()
+                    .OrderBy(item => item.Id)
+                    .Select(item => new { item.Id, item.UserId })
+                    .ToListAsync(cancellationToken),
+            }
+        );
     }
 
     [Fact]

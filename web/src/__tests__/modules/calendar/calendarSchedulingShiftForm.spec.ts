@@ -29,6 +29,24 @@ const baseFormData: ShiftResourceFormData = {
 };
 
 describe('calendarSchedulingShiftForm', () => {
+  it.each(['Latest server notes', '', null])('uses loaded entry notes instead of stale summary notes: %s', (notes) => {
+    const formData = createShiftFormDataFromEntry(
+      { id: 42, notes },
+      {
+        id: 'shift-42',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Registry shift',
+        notes: 'Stale summary notes',
+        start: '2026-06-29T16:00:00Z',
+        end: '2026-06-30T00:00:00Z',
+      },
+      'America/Vancouver',
+    );
+
+    expect(formData.notes).toBe(notes ?? '');
+  });
+
   it('hydrates linked assignments from a shift entry response', () => {
     const formData = createShiftFormDataFromEntry(
       {

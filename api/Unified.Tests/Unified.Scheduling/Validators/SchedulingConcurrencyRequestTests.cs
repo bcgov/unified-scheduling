@@ -29,10 +29,26 @@ public sealed class SchedulingConcurrencyRequestTests
     [InlineData(uint.MaxValue, false)]
     public void UpdateValidators_WhenVersionIsZero_RejectVersion(uint version, bool hasError)
     {
-        AssertVersion(new ShiftEntryUpdateRequestValidator(), new ShiftEntryUpdateRequest { ConcurrencyToken = version }, hasError);
-        AssertVersion(new ShiftSeriesUpdateRequestValidator(), new ShiftSeriesUpdateRequest { ConcurrencyToken = version }, hasError);
-        AssertVersion(new AssignmentEntryUpdateRequestValidator(), new AssignmentEntryUpdateRequest { ConcurrencyToken = version }, hasError);
-        AssertVersion(new AssignmentSeriesUpdateRequestValidator(), new AssignmentSeriesUpdateRequest { ConcurrencyToken = version }, hasError);
+        AssertVersion(
+            new ShiftEntryUpdateRequestValidator(),
+            new ShiftEntryUpdateRequest { ConcurrencyToken = version },
+            hasError
+        );
+        AssertVersion(
+            new ShiftSeriesUpdateRequestValidator(),
+            new ShiftSeriesUpdateRequest { ConcurrencyToken = version },
+            hasError
+        );
+        AssertVersion(
+            new AssignmentEntryUpdateRequestValidator(),
+            new AssignmentEntryUpdateRequest { ConcurrencyToken = version },
+            hasError
+        );
+        AssertVersion(
+            new AssignmentSeriesUpdateRequestValidator(),
+            new AssignmentSeriesUpdateRequest { ConcurrencyToken = version },
+            hasError
+        );
     }
 
     private static void AssertVersion<T>(IValidator<T> validator, T request, bool hasError)

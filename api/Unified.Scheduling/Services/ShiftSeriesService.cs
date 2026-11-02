@@ -253,7 +253,9 @@ internal sealed class ShiftSeriesService(
                     (input, _) =>
                     {
                         if (string.IsNullOrWhiteSpace(input.RecurrenceRule))
-                            throw new ArgumentException("A recurring shift series cannot be converted to a single shift.");
+                            throw new ArgumentException(
+                                "A recurring shift series cannot be converted to a single shift."
+                            );
 
                         return Task.CompletedTask;
                     },
@@ -283,7 +285,9 @@ internal sealed class ShiftSeriesService(
             {
                 ApplySeriesNonRecurrenceUpdatesToChildren(entity, oldValues, oldUserIds, newUserIds);
             }
-            var currentEntries = entity.ShiftEntries.Where(entry => db.Entry(entry).State != EntityState.Deleted).ToList();
+            var currentEntries = entity
+                .ShiftEntries.Where(entry => db.Entry(entry).State != EntityState.Deleted)
+                .ToList();
             await LoanOutUserShiftGuard.EnsureEntriesCanScheduleAsync(
                 db,
                 timeZoneService,
