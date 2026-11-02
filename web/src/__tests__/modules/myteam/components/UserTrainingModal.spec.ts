@@ -113,6 +113,27 @@ describe('UserTrainingModal', () => {
     });
   });
 
+  it('clears selected times and saves the training as date-only', async () => {
+    const wrapper = await mountModal();
+    await fillTraining(wrapper);
+
+    for (const id of ['user-training-awarded-time', 'user-training-ending-time']) {
+      const field = wrapper.findAllComponents({ name: 'UaTextField' }).find((item) => item.props('id') === id)!;
+      expect(field.text()).toContain('Optional');
+      await field.get('.v-field__clearable [role="button"]').trigger('click');
+      await flushPromises();
+      expect((wrapper.get(`input#${id}`).element as HTMLInputElement).value).toBe('');
+    }
+
+    await save(wrapper);
+
+    expect(created[0]).toMatchObject({
+      awardedOn: '2026-07-20T07:00:00.000Z',
+      endingOn: '2026-07-20T07:00:00.000Z',
+    });
+    expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-20T07:00:00.000Z');
+  });
+
   it('waits for the To date before calculating expiry', async () => {
     const wrapper = await mountModal();
     wrapper.findComponent({ name: 'UaSelect' }).vm.$emit('update:modelValue', 10);
