@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { createLatestRequestGuard } from './latestRequestGuard';
+import { isSchedulingConcurrencyConflict, schedulingConcurrencyMessage } from './schedulingConcurrency';
 import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntryRequest';
 import type { ShiftEntryResponse } from '@/api-access/generated/models/shiftEntryResponse';
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
@@ -58,6 +60,12 @@ const activeTab = ref<ShiftDetailTabId>('details');
 const selectedOpenScope = ref<ShiftOpenScope | null>(getInitialOpenScope());
 const isSaving = ref(false);
 const apiError = ref('');
+const concurrencyToken = ref<number | null>(null);
+const hasConcurrencyConflict = ref(false);
+const loadGuard = createLatestRequestGuard();
+let resourceRevision = 0;
+let isUnmounted = false;
+const isLoadingEntry = ref(false);
 const isLoadingSeries = ref(false);
 const formErrors = ref<Record<string, string>>({});
 const recurrenceError = ref('');
@@ -176,7 +184,13 @@ const { detailRows } = useSchedulingShiftDetailRows({
 
 watch(
   () => props.event,
-  async (event) => {
+  async (event, previousEvent) => {
+    if (event.id !== previousEvent?.id) resourceRevision++;
+    loadGuard.begin();
+    concurrencyToken.value = null;
+    hasConcurrencyConflict.value = false;
+    isLoadingEntry.value = false;
+    isLoadingSeries.value = false;
     selectedEntry.value = null;
     selectedSeries.value = null;
     editFormData.value = createShiftFormDataFromEvent(event, timeZoneId.value);
@@ -187,7 +201,9 @@ watch(
     recurrenceError.value = '';
     isDeleteConfirmed.value = false;
 
-    if (!resolveShiftSeriesId()) {
+    if (selectedOpenScope.value === 'series') {
+      if (await loadSelectedSeries()) editFormData.value = createEditFormData();
+    } else if (selectedOpenScope.value === 'event') {
       await loadSelectedEntry();
     }
   },
@@ -215,7 +231,10 @@ function selectTab(tabId: ShiftDetailTabId) {
 }
 
 async function selectOpenScope(scope: ShiftOpenScope) {
+  if (scope !== selectedOpenScope.value) resourceRevision++;
   apiError.value = '';
+  concurrencyToken.value = null;
+  hasConcurrencyConflict.value = false;
 
   if (scope === 'series') {
     const series = await loadSelectedSeries();
@@ -236,13 +255,23 @@ async function selectOpenScope(scope: ShiftOpenScope) {
 }
 
 async function loadSelectedEntry() {
+  const requestId = loadGuard.begin();
+  concurrencyToken.value = null;
+  isLoadingSeries.value = false;
   const id = resolveShiftEntryId();
   if (!id) {
     apiError.value = 'Could not determine the shift entry to open.';
     return null;
   }
 
-  const result = await shiftApi.loadShiftEntry(id);
+  isLoadingEntry.value = true;
+  let result;
+  try {
+    result = await shiftApi.loadShiftEntry(id);
+  } finally {
+    if (loadGuard.isCurrent(requestId)) isLoadingEntry.value = false;
+  }
+  if (!loadGuard.isCurrent(requestId)) return null;
   if (result.error.value) {
     apiError.value = result.error.value.message || 'Failed to load the shift entry.';
     return null;
@@ -254,11 +283,15 @@ async function loadSelectedEntry() {
     return null;
   }
 
+  concurrencyToken.value = selectedEntry.value.concurrencyToken ?? null;
   editFormData.value = createShiftFormDataFromEntry(selectedEntry.value, props.event, activeTimeZoneId.value);
   return selectedEntry.value;
 }
 
 async function loadSelectedSeries() {
+  const requestId = loadGuard.begin();
+  concurrencyToken.value = null;
+  isLoadingEntry.value = false;
   const id = resolveShiftSeriesId();
   if (!id) {
     apiError.value = 'Could not determine the shift series to open.';
@@ -269,6 +302,7 @@ async function loadSelectedSeries() {
 
   try {
     const result = await shiftApi.loadShiftSeries(id);
+    if (!loadGuard.isCurrent(requestId)) return null;
 
     if (result.error.value) {
       apiError.value = result.error.value.message || 'Failed to load shift series.';
@@ -280,9 +314,42 @@ async function loadSelectedSeries() {
       apiError.value = 'Shift series was not found.';
     }
 
+    concurrencyToken.value = selectedSeries.value?.concurrencyToken ?? null;
     return selectedSeries.value;
   } finally {
-    isLoadingSeries.value = false;
+    if (loadGuard.isCurrent(requestId)) isLoadingSeries.value = false;
+  }
+}
+
+function handleClose() {
+  resourceRevision++;
+  loadGuard.begin();
+  concurrencyToken.value = null;
+  hasConcurrencyConflict.value = false;
+  emit('close');
+}
+
+onBeforeUnmount(() => {
+  isUnmounted = true;
+  loadGuard.begin();
+});
+
+function isCurrentResource(revision: number) {
+  return !isUnmounted && revision === resourceRevision;
+}
+
+async function reloadLatest() {
+  if (isSaving.value || isLoadingEntry.value || isLoadingSeries.value) return;
+  apiError.value = '';
+  try {
+    const loaded = selectedOpenScope.value === 'series' ? await loadSelectedSeries() : await loadSelectedEntry();
+    if (!loaded) return;
+    editFormData.value = createEditFormData();
+    formErrors.value = {};
+    recurrenceError.value = '';
+    hasConcurrencyConflict.value = false;
+  } catch (error: unknown) {
+    apiError.value = error instanceof Error ? error.message : 'Failed to reload the shift.';
   }
 }
 
@@ -326,6 +393,7 @@ function validateForm(): ShiftResourceFormData | null {
 }
 
 async function handleSaveEdit() {
+  if (isSaving.value || hasConcurrencyConflict.value || isLoadingEntry.value || isLoadingSeries.value) return;
   if (!hasShiftEditPermission.value) {
     apiError.value = 'You do not have permission to edit shifts.';
     return;
@@ -341,6 +409,7 @@ async function handleSaveEdit() {
     return;
   }
 
+  const revision = resourceRevision;
   isSaving.value = true;
   apiError.value = '';
 
@@ -348,30 +417,40 @@ async function handleSaveEdit() {
     if (payload.cancel) {
       const cancelled =
         payload.kind === 'series'
-          ? await cancelShiftSeries(resolveShiftSeriesId(), payload.cancel)
-          : await cancelShiftEntry(resolveShiftEntryId(), payload.cancel);
+          ? await cancelShiftSeries(resolveShiftSeriesId(), payload.cancel, revision)
+          : await cancelShiftEntry(resolveShiftEntryId(), payload.cancel, revision);
       if (!cancelled) {
         return;
       }
 
       calendarStore.refresh();
-      emit('close');
+      if (isCurrentResource(revision)) handleClose();
       return;
     }
 
     const saved =
-      payload.kind === 'series' ? await updateShiftSeries(payload.body) : await updateShiftEntry(payload.body);
+      payload.kind === 'series' ? await updateShiftSeries(payload.body, revision) : await updateShiftEntry(payload.body, revision);
     if (!saved) {
+      return;
+    }
+
+    if (!isCurrentResource(revision)) {
+      calendarStore.refresh();
       return;
     }
 
     const published =
       payload.kind === 'series'
-        ? await publishShiftSeries(resolveShiftSeriesId(), payload.publish)
-        : await publishShiftEntry(resolveShiftEntryId(), payload.publish);
+        ? await publishShiftSeries(resolveShiftSeriesId(), payload.publish, revision)
+        : await publishShiftEntry(resolveShiftEntryId(), payload.publish, revision);
+    if (!isCurrentResource(revision)) {
+      calendarStore.refresh();
+      return;
+    }
     if (!published) {
       const publicationError = apiError.value;
       await reloadShiftAfterPublicationFailure(payload.kind);
+      if (!isCurrentResource(revision)) return;
       apiError.value =
         publicationError ||
         'The shift was updated as Draft, but publication failed. Its current status has been reloaded.';
@@ -379,11 +458,13 @@ async function handleSaveEdit() {
     }
 
     calendarStore.refresh();
-    emit('close');
+    handleClose();
   } catch (error: unknown) {
-    apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    if (isCurrentResource(revision)) {
+      apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
+    }
   } finally {
-    isSaving.value = false;
+    if (!isUnmounted) isSaving.value = false;
   }
 }
 
@@ -427,7 +508,7 @@ async function handleDeleteShift() {
     }
 
     calendarStore.refresh();
-    emit('close');
+    handleClose();
   } catch (error: unknown) {
     apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
   } finally {
@@ -469,14 +550,23 @@ async function deleteShiftSeries() {
   return true;
 }
 
-async function updateShiftSeries(body: ShiftSeriesRequest) {
+async function updateShiftSeries(body: ShiftSeriesRequest, revision: number) {
   const id = resolveShiftSeriesId();
   if (!id) {
     apiError.value = 'Could not determine the shift series to update.';
     return null;
   }
 
-  const result = await shiftApi.updateShiftSeries(id, body);
+  if (concurrencyToken.value === null) {
+    apiError.value = 'Reload the shift before saving. Its version is missing.';
+    return null;
+  }
+  const result = await shiftApi.updateShiftSeries(id, { ...body, concurrencyToken: concurrencyToken.value });
+  if (!isCurrentResource(revision)) return result.error.value ? null : (result.data.value ?? null);
+  if (isSchedulingConcurrencyConflict(result)) {
+    hasConcurrencyConflict.value = true;
+    return null;
+  }
 
   if (result.error.value) {
     if (applyServerValidationErrors(result.data.value)) {
@@ -487,17 +577,27 @@ async function updateShiftSeries(body: ShiftSeriesRequest) {
     return null;
   }
 
+  concurrencyToken.value = result.data.value?.concurrencyToken ?? null;
   return result.data.value ?? null;
 }
 
-async function updateShiftEntry(body: ShiftEntryRequest) {
+async function updateShiftEntry(body: ShiftEntryRequest, revision: number) {
   const id = resolveShiftEntryId();
   if (!id) {
     apiError.value = 'Could not determine the shift entry to update.';
     return null;
   }
 
-  const result = await shiftApi.updateShiftEntry(id, body);
+  if (concurrencyToken.value === null) {
+    apiError.value = 'Reload the shift before saving. Its version is missing.';
+    return null;
+  }
+  const result = await shiftApi.updateShiftEntry(id, { ...body, concurrencyToken: concurrencyToken.value });
+  if (!isCurrentResource(revision)) return result.error.value ? null : (result.data.value ?? null);
+  if (isSchedulingConcurrencyConflict(result)) {
+    hasConcurrencyConflict.value = true;
+    return null;
+  }
 
   if (result.error.value) {
     if (applyServerValidationErrors(result.data.value)) {
@@ -508,10 +608,11 @@ async function updateShiftEntry(body: ShiftEntryRequest) {
     return null;
   }
 
+  concurrencyToken.value = result.data.value?.concurrencyToken ?? null;
   return result.data.value ?? null;
 }
 
-async function publishShiftSeries(id: number | null, shouldPublish: boolean) {
+async function publishShiftSeries(id: number | null, shouldPublish: boolean, revision = resourceRevision) {
   if (!shouldPublish || !id) {
     return true;
   }
@@ -519,14 +620,14 @@ async function publishShiftSeries(id: number | null, shouldPublish: boolean) {
   const publishResult = await shiftApi.publishShiftSeries(id);
 
   if (publishResult.error.value) {
-    apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
+    if (isCurrentResource(revision)) apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
     return false;
   }
 
   return true;
 }
 
-async function publishShiftEntry(id: number | null, shouldPublish: boolean) {
+async function publishShiftEntry(id: number | null, shouldPublish: boolean, revision = resourceRevision) {
   if (!shouldPublish || !id) {
     return true;
   }
@@ -534,7 +635,7 @@ async function publishShiftEntry(id: number | null, shouldPublish: boolean) {
   const publishResult = await shiftApi.publishShiftEntry(id);
 
   if (publishResult.error.value) {
-    apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
+    if (isCurrentResource(revision)) apiError.value = resolveShiftPublishError(publishResult.data.value, publishResult.error.value);
     return false;
   }
 
@@ -558,7 +659,7 @@ function resolveShiftPublishError(data: unknown, error: unknown) {
   return error instanceof Error && error.message ? error.message : 'Shift updated but failed to publish.';
 }
 
-async function cancelShiftSeries(id: number | null, shouldCancel: boolean) {
+async function cancelShiftSeries(id: number | null, shouldCancel: boolean, revision = resourceRevision) {
   if (!shouldCancel || !id) {
     return true;
   }
@@ -566,14 +667,14 @@ async function cancelShiftSeries(id: number | null, shouldCancel: boolean) {
   const cancelResult = await shiftApi.cancelShiftSeries(id);
 
   if (cancelResult.error.value) {
-    apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
+    if (isCurrentResource(revision)) apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
     return false;
   }
 
   return true;
 }
 
-async function cancelShiftEntry(id: number | null, shouldCancel: boolean) {
+async function cancelShiftEntry(id: number | null, shouldCancel: boolean, revision = resourceRevision) {
   if (!shouldCancel || !id) {
     return true;
   }
@@ -581,7 +682,7 @@ async function cancelShiftEntry(id: number | null, shouldCancel: boolean) {
   const cancelResult = await shiftApi.cancelShiftEntry(id);
 
   if (cancelResult.error.value) {
-    apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
+    if (isCurrentResource(revision)) apiError.value = cancelResult.error.value.message || 'Shift updated but failed to cancel.';
     return false;
   }
 
@@ -680,8 +781,20 @@ function getInitialOpenScope(): ShiftOpenScope | null {
 </script>
 
 <template>
-  <UaModal :title="modalTitle" width="760" @close="emit('close')">
+  <UaModal :title="modalTitle" width="760" @close="handleClose">
     <template #alerts>
+      <UaAlert v-if="hasConcurrencyConflict" type="error" :closable="false">
+        <p>{{ schedulingConcurrencyMessage }}</p>
+        <p>Reloading replaces your unsaved changes with the latest version.</p>
+        <UaBtn
+          variant="outlined"
+          :disabled="isSaving"
+          :loading="isLoadingEntry || isLoadingSeries"
+          @click="reloadLatest"
+        >
+          Reload latest
+        </UaBtn>
+      </UaAlert>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>
@@ -782,10 +895,17 @@ function getInitialOpenScope(): ShiftOpenScope | null {
     <template v-if="!shouldShowOpenScopeChoice && (activeTab === 'edit' || activeTab === 'delete')" #actions>
       <template v-if="activeTab === 'edit'">
         <UaBtn variant="outlined" :disabled="isSaving" @click="selectTab('details')">Cancel</UaBtn>
-        <UaBtn color="primary" variant="flat" :loading="isSaving" @click="handleSaveEdit">Save</UaBtn>
+        <UaBtn
+          color="primary"
+          variant="flat"
+          :loading="isSaving"
+          :disabled="hasConcurrencyConflict || concurrencyToken === null || isLoadingEntry || isLoadingSeries"
+          @click="handleSaveEdit"
+          >Save</UaBtn
+        >
       </template>
       <template v-else>
-        <UaBtn variant="outlined" :disabled="isSaving" @click="emit('close')">Close</UaBtn>
+        <UaBtn variant="outlined" :disabled="isSaving" @click="handleClose">Close</UaBtn>
         <UaBtn color="error" variant="flat" :disabled="!canDeleteShift" :loading="isSaving" @click="handleDeleteShift">
           {{ isPublishedShift ? 'Cancel Shift' : 'Delete' }}
         </UaBtn>

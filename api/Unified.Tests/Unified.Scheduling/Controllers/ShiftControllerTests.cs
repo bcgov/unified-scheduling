@@ -459,7 +459,8 @@ public class ShiftControllerTests
             service,
             new ShiftSeriesRequestValidator(),
             new ShiftEntryRequestValidator(),
-            new ShiftEntryUpdateRequestValidator()
+            new ShiftEntryUpdateRequestValidator(),
+            new ShiftSeriesUpdateRequestValidator()
         );
 
         var claims = new List<Claim>();
@@ -473,9 +474,10 @@ public class ShiftControllerTests
         return controller;
     }
 
-    private static ShiftSeriesRequest CreateShiftSeriesRequest(IReadOnlyCollection<Guid>? userIds = null) =>
+    private static ShiftSeriesUpdateRequest CreateShiftSeriesRequest(IReadOnlyCollection<Guid>? userIds = null) =>
         new()
         {
+            ConcurrencyToken = 1,
             Title = "Series",
             RecurrenceRule = "FREQ=DAILY;COUNT=1",
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
@@ -487,6 +489,7 @@ public class ShiftControllerTests
     private static ShiftEntryUpdateRequest CreateShiftEntryRequest(IReadOnlyCollection<Guid>? userIds = null) =>
         new()
         {
+            ConcurrencyToken = 1,
             ShiftSeriesId = 1,
             Title = "Entry",
             StartAtUtc = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero),
@@ -560,7 +563,7 @@ public class ShiftControllerTests
 
         public Task<ShiftSeriesResponse?> UpdateShiftSeriesAsync(
             int id,
-            ShiftSeriesRequest request,
+            ShiftSeriesUpdateRequest request,
             CancellationToken cancellationToken = default
         )
         {

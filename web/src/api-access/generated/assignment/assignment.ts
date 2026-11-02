@@ -10,6 +10,7 @@ import type {
   AssignmentEntryUpdateRequest,
   AssignmentSeriesRequest,
   AssignmentSeriesResponse,
+  AssignmentSeriesUpdateRequest,
   ExpireShiftRequest,
   GetApiSchedulingAssignmentsEntriesParams,
   GetApiSchedulingAssignmentsSeriesParams,
@@ -53,7 +54,7 @@ export const getApiSchedulingAssignmentsSeriesId = (
 };
 export const putApiSchedulingAssignmentsSeriesId = (
   id: number,
-  assignmentSeriesRequest: AssignmentSeriesRequest,
+  assignmentSeriesUpdateRequest: AssignmentSeriesUpdateRequest,
   options?: SecondParameter<typeof useFetchAPI<AssignmentSeriesResponse>>,
 ) => {
   return useFetchAPI<AssignmentSeriesResponse>(
@@ -61,7 +62,7 @@ export const putApiSchedulingAssignmentsSeriesId = (
       url: `/api/scheduling/assignments/series/${id}`,
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      data: assignmentSeriesRequest,
+      data: assignmentSeriesUpdateRequest,
     },
     options,
   );

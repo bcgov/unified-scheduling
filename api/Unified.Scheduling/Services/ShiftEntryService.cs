@@ -7,6 +7,7 @@ using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
+using Unified.Db.Extensions;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Mappings;
@@ -162,74 +163,79 @@ public sealed class ShiftEntryService(
         Guid? conflictOverrideActorId = null
     )
     {
-        logger.LogInformation("Updating shift entry {ShiftEntryId}.", id);
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
-        var entity = await LoadShiftEntry(id, asNoTracking: false, cancellationToken);
-        if (entity is null)
-            return null;
-
-        var shiftSeries = request.ShiftSeriesId.HasValue
-            ? await GetValidatedShiftSeriesAsync(request.ShiftSeriesId.Value, cancellationToken)
-            : null;
-
-        var updated = await calendarEventEntryService.UpdateEventAsync(
-            request,
-            entity,
-            SchedulingConstants.SourceModule,
-            SchedulingConstants.ShiftEventTypeCode,
-            validators:
-            [
-                (input, _) =>
-                {
-                    ShiftAssignmentGuards.EnsureShiftEntryUpdatePreservesLinks(
-                        entity,
-                        input.StartAtUtc,
-                        input.EndAtUtc,
-                        input.TimeZoneId,
-                        input.UserIds,
-                        input.ShiftSeriesId,
-                        timeZoneService,
-                        input.AssignmentEntryLinks?.Select(link => link.AssignmentEntryId).ToList()
-                    );
-                    return Task.CompletedTask;
-                },
-            ],
-            additionalGuards: input =>
-            {
-                entity.Event!.EventSeriesId = shiftSeries?.EventSeriesId;
-                entity.ShiftSeriesId = input.ShiftSeriesId;
-            },
-            cancellationToken: cancellationToken
-        );
-        if (updated is null)
-            return null;
-        entity = updated;
-
-        await db.SaveChangesAsync(cancellationToken);
-        if (request.AssignmentEntryLinks is not null)
-            await shiftAssignmentService.ReplaceShiftEntryLinksAsync(
-                entity.Id,
-                request.AssignmentEntryLinks,
+        return await SchedulingUpdateConcurrency.ExecuteAsync<ShiftEntryResponse?>(async () =>
+        {
+            logger.LogInformation("Updating shift entry {ShiftEntryId}.", id);
+            await using var transaction = await db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
                 cancellationToken
             );
+            var entity = await LoadShiftEntry(id, asNoTracking: false, cancellationToken);
+            if (entity is null)
+                return null;
 
-        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
-            db,
-            [entity.Id],
-            cancellationToken
-        );
-        await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
-            conflictCandidates,
-            request.ConflictOverrides,
-            conflictOverrideActorId,
-            cancellationToken
-        );
-        await transaction.CommitAsync(cancellationToken);
-        logger.LogInformation("Updated shift entry {ShiftEntryId}.", id);
-        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+            db.RequireVersion(entity, request.ConcurrencyToken);
+
+            var shiftSeries = request.ShiftSeriesId.HasValue
+                ? await GetValidatedShiftSeriesAsync(request.ShiftSeriesId.Value, cancellationToken)
+                : null;
+
+            var updated = await calendarEventEntryService.UpdateEventAsync(
+                request,
+                entity,
+                SchedulingConstants.SourceModule,
+                SchedulingConstants.ShiftEventTypeCode,
+                validators:
+                [
+                    (input, _) =>
+                    {
+                        ShiftAssignmentGuards.EnsureShiftEntryUpdatePreservesLinks(
+                            entity,
+                            input.StartAtUtc,
+                            input.EndAtUtc,
+                            input.TimeZoneId,
+                            input.UserIds,
+                            input.ShiftSeriesId,
+                            timeZoneService,
+                            input.AssignmentEntryLinks?.Select(link => link.AssignmentEntryId).ToList()
+                        );
+                        return Task.CompletedTask;
+                    },
+                ],
+                additionalGuards: input =>
+                {
+                    entity.Event!.EventSeriesId = shiftSeries?.EventSeriesId;
+                    entity.ShiftSeriesId = input.ShiftSeriesId;
+                },
+                cancellationToken: cancellationToken
+            );
+            if (updated is null)
+                return null;
+            entity = updated;
+
+            await db.SaveChangesAsync(cancellationToken);
+            if (request.AssignmentEntryLinks is not null)
+                await shiftAssignmentService.ReplaceShiftEntryLinksAsync(
+                    entity.Id,
+                    request.AssignmentEntryLinks,
+                    cancellationToken
+                );
+
+            var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
+                db,
+                [entity.Id],
+                cancellationToken
+            );
+            await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
+                conflictCandidates,
+                request.ConflictOverrides,
+                conflictOverrideActorId,
+                cancellationToken
+            );
+            await transaction.CommitAsync(cancellationToken);
+            logger.LogInformation("Updated shift entry {ShiftEntryId}.", id);
+            return ShiftResponseMapper.ToShiftEntryResponse(entity);
+        });
     }
 
     public async Task<ShiftEntryResponse?> PublishShiftEntryAsync(int id, CancellationToken cancellationToken = default)

@@ -7,6 +7,7 @@
 import type { ShiftAssignmentEntryResponse } from './shiftAssignmentEntryResponse.ts';
 
 export interface ShiftEntryResponse {
+  concurrencyToken?: number;
   /** @nullable */
   shiftSeriesId?: number | null;
   eventId?: number;

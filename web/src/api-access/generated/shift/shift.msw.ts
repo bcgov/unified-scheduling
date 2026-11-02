@@ -14,6 +14,7 @@ import type { ShiftEntryResponse, ShiftSeriesResponse } from '../models';
 export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -45,6 +46,7 @@ export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesRespon
       ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -76,6 +78,7 @@ export const getGetApiSchedulingShiftsSeriesResponseMock = (): ShiftSeriesRespon
       ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -113,6 +116,7 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
 ): ShiftSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -145,6 +149,7 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -177,6 +182,7 @@ export const getPostApiSchedulingShiftsSeriesResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -215,6 +221,7 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
 ): ShiftSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -247,6 +254,7 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -279,6 +287,7 @@ export const getGetApiSchedulingShiftsSeriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -317,6 +326,7 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
 ): ShiftSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -349,6 +359,7 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -381,6 +392,7 @@ export const getPutApiSchedulingShiftsSeriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -419,6 +431,7 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
 ): ShiftSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -451,6 +464,7 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -483,6 +497,7 @@ export const getPostApiSchedulingShiftsSeriesIdPublishResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -521,6 +536,7 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
 ): ShiftSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -553,6 +569,7 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -585,6 +602,7 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftEntryIds: faker.helpers.arrayElement([
         Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => faker.number.int()),
         undefined,
@@ -621,6 +639,7 @@ export const getPostApiSchedulingShiftsSeriesIdExpireResponseMock = (
 export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -665,6 +684,7 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -709,6 +729,7 @@ export const getGetApiSchedulingShiftsEntriesResponseMock = (): ShiftEntryRespon
       ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -759,6 +780,7 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
 ): ShiftEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -804,6 +826,7 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -849,6 +872,7 @@ export const getPostApiSchedulingShiftsEntriesResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -900,6 +924,7 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
 ): ShiftEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -945,6 +970,7 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -990,6 +1016,7 @@ export const getGetApiSchedulingShiftsEntriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1041,6 +1068,7 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
 ): ShiftEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1086,6 +1114,7 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1131,6 +1160,7 @@ export const getPutApiSchedulingShiftsEntriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1182,6 +1212,7 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
 ): ShiftEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1227,6 +1258,7 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1272,6 +1304,7 @@ export const getPostApiSchedulingShiftsEntriesIdPublishResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1323,6 +1356,7 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
 ): ShiftEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1368,6 +1402,7 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([
@@ -1413,6 +1448,7 @@ export const getPostApiSchedulingShiftsEntriesIdExpireResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       shiftSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       eventId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentLinks: faker.helpers.arrayElement([

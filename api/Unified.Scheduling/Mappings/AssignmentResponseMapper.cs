@@ -24,6 +24,7 @@ internal static class AssignmentResponseMapper
         return response with
         {
             Id = assignmentSeries.Id,
+            ConcurrencyToken = assignmentSeries.ConcurrencyToken,
             EventSeriesId = assignmentSeries.EventSeriesId,
             AssignmentDefinitionId = assignmentSeries.AssignmentDefinitionId,
             CategoryId = assignmentSeries.CategoryId,
@@ -62,6 +63,7 @@ internal static class AssignmentResponseMapper
         return response with
         {
             Id = assignmentEntry.Id,
+            ConcurrencyToken = assignmentEntry.ConcurrencyToken,
             StartAtUtc = assignmentEntry.Event!.StartAtUtc,
             EventSeriesId = null,
             AssignmentSeriesId = assignmentEntry.AssignmentSeriesId,

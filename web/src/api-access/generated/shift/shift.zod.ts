@@ -15,6 +15,7 @@ export const GetApiSchedulingShiftsSeriesQueryParams = zod.strictObject({
 });
 
 export const GetApiSchedulingShiftsSeriesResponseItem = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -61,6 +62,7 @@ export const PostApiSchedulingShiftsSeriesBody = zod.strictObject({
 });
 
 export const PostApiSchedulingShiftsSeriesResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -88,6 +90,7 @@ export const GetApiSchedulingShiftsSeriesIdParams = zod.strictObject({
 });
 
 export const GetApiSchedulingShiftsSeriesIdResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -115,6 +118,7 @@ export const PutApiSchedulingShiftsSeriesIdParams = zod.strictObject({
 });
 
 export const PutApiSchedulingShiftsSeriesIdBody = zod.strictObject({
+  concurrencyToken: zod.int(),
   assignmentSeriesLinks: zod
     .array(
       zod.strictObject({
@@ -137,6 +141,7 @@ export const PutApiSchedulingShiftsSeriesIdBody = zod.strictObject({
 });
 
 export const PutApiSchedulingShiftsSeriesIdResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -170,6 +175,7 @@ export const PostApiSchedulingShiftsSeriesIdPublishParams = zod.strictObject({
 });
 
 export const PostApiSchedulingShiftsSeriesIdPublishResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -204,6 +210,7 @@ export const PostApiSchedulingShiftsSeriesIdExpireBody = zod.union([
 ]);
 
 export const PostApiSchedulingShiftsSeriesIdExpireResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftEntryIds: zod.array(zod.int()).optional(),
   id: zod.int().optional(),
   eventSeriesId: zod.int().optional(),
@@ -236,6 +243,7 @@ export const GetApiSchedulingShiftsEntriesQueryParams = zod.strictObject({
 });
 
 export const GetApiSchedulingShiftsEntriesResponseItem = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   assignmentLinks: zod
@@ -299,6 +307,7 @@ export const PostApiSchedulingShiftsEntriesBody = zod.strictObject({
 });
 
 export const PostApiSchedulingShiftsEntriesResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   assignmentLinks: zod
@@ -341,6 +350,7 @@ export const GetApiSchedulingShiftsEntriesIdParams = zod.strictObject({
 });
 
 export const GetApiSchedulingShiftsEntriesIdResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   assignmentLinks: zod
@@ -383,6 +393,7 @@ export const PutApiSchedulingShiftsEntriesIdParams = zod.strictObject({
 });
 
 export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
+  concurrencyToken: zod.int(),
   conflictOverrides: zod
     .array(
       zod.strictObject({
@@ -419,6 +430,7 @@ export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
 });
 
 export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   assignmentLinks: zod
@@ -467,6 +479,7 @@ export const PostApiSchedulingShiftsEntriesIdPublishParams = zod.strictObject({
 });
 
 export const PostApiSchedulingShiftsEntriesIdPublishResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   assignmentLinks: zod
@@ -516,6 +529,7 @@ export const PostApiSchedulingShiftsEntriesIdExpireBody = zod.union([
 ]);
 
 export const PostApiSchedulingShiftsEntriesIdExpireResponse = zod.object({
+  concurrencyToken: zod.int().optional(),
   shiftSeriesId: zod.int().nullish(),
   eventId: zod.int().optional(),
   assignmentLinks: zod

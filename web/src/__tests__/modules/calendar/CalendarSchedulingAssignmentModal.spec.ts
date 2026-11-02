@@ -1401,6 +1401,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createAwaitGuardedFetchResult(
           {
             id: 257,
+            concurrencyToken: 7,
             assignmentSeriesId: 211,
             assignmentDefinitionId: 7,
             title: 'Court coverage',
@@ -1542,6 +1543,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createAwaitGuardedFetchResult(
           {
             id: 211,
+            concurrencyToken: 7,
             assignmentDefinitionId: 7,
             title: 'Court coverage',
             startAtUtc: '2026-07-13T16:00:00Z',
@@ -1938,6 +1940,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            concurrencyToken: 7,
             assignmentDefinitionId: 8,
             title: 'August assignment',
             startAtUtc: '2026-08-10T16:00:00Z',
@@ -2072,6 +2075,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            concurrencyToken: 7,
             assignmentDefinitionId: 7,
             title: 'Court Room Monitor',
             color: 'pink',
@@ -2210,6 +2214,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            concurrencyToken: 7,
             assignmentDefinitionId: 7,
             title: 'Court Room Monitor',
             color: 'pink',
@@ -2497,6 +2502,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            concurrencyToken: 7,
             assignmentDefinitionId: 7,
             title: 'Court coverage',
             startAtUtc: '2026-07-13T16:00:00Z',

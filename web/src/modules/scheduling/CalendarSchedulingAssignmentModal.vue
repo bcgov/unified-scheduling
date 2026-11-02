@@ -25,7 +25,8 @@ import type { SelectOption, SelectValue } from '@/types/select';
 import { formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarTime } from '@/utils/date';
 import { DateTime } from 'luxon';
 import { RRule } from 'rrule';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { isSchedulingConcurrencyConflict, schedulingConcurrencyMessage } from './schedulingConcurrency';
 import {
   buildCreateAssignmentPayload,
   createInitialAssignmentFormData,
@@ -117,6 +118,9 @@ const publishedShiftLinkMessage =
 const isSaving = ref(false);
 const isAssignmentDefinitionModalOpen = ref(false);
 const apiError = ref('');
+const concurrencyToken = ref<number | null>(null);
+const hasConcurrencyConflict = ref(false);
+const mutationGuard = createLatestRequestGuard();
 const assignmentLoad = useSchedulingAssignmentLoad();
 const assignmentLoadError = assignmentLoad.error;
 const assignmentLoadState = assignmentLoad.state;
@@ -392,6 +396,11 @@ watch(
       props.initialAssignedUserId,
     ] as const,
   ([initialDate]) => {
+    assignmentLoad.reset();
+    mutationGuard.begin();
+    concurrencyToken.value = null;
+    hasConcurrencyConflict.value = false;
+    clearPendingConflict();
     selectedOpenScope.value = getInitialOpenScope();
     modalMode.value = props.mode ?? 'create';
     activeTab.value = props.mode === 'edit' ? 'edit' : 'details';
@@ -429,6 +438,11 @@ watch(
 );
 
 async function selectOpenScope(scope: AssignmentOpenScope) {
+  assignmentLoad.reset();
+  mutationGuard.begin();
+  concurrencyToken.value = null;
+  hasConcurrencyConflict.value = false;
+  clearPendingConflict();
   selectedOpenScope.value = scope;
   activeTab.value = 'details';
   formData.value = createInitialFormData(props.initialDate);
@@ -815,6 +829,10 @@ function updateShiftEntryLinkUsers(index: number, value: SelectValue | undefined
 function handleClose() {
   if (!isBusy.value) {
     clearPendingConflict();
+    assignmentLoad.reset();
+    mutationGuard.begin();
+    concurrencyToken.value = null;
+    hasConcurrencyConflict.value = false;
     emit('close');
   }
 }
@@ -1295,6 +1313,7 @@ function validateForm(): AssignmentFormData | null {
 }
 
 async function handleSave() {
+  if (isBusy.value || hasConcurrencyConflict.value) return;
   const hasMutationPermission = isEditMode.value ? canEditAssignment.value : canCreateAssignment.value;
   if (isReadOnly.value || !hasMutationPermission) {
     apiError.value = 'You do not have permission to save assignments.';
@@ -1342,12 +1361,20 @@ async function handleSave() {
     const saveOptions: SaveAssignmentOptions = {
       payload,
       isEdit: isEditMode.value,
+      concurrencyToken: concurrencyToken.value ?? undefined,
       assignmentEntryId: props.assignmentEntryId,
       assignmentSeriesId: props.assignmentSeriesId,
     };
+    const requestId = mutationGuard.begin();
     const saveResult = await assignmentMutation.save(saveOptions);
+    if (!mutationGuard.isCurrent(requestId)) return;
 
     if (saveResult.error.value) {
+      if (isSchedulingConcurrencyConflict(saveResult)) {
+        clearPendingConflict();
+        hasConcurrencyConflict.value = true;
+        return;
+      }
       const conflictRejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
       if (isEditMode.value && !isSeriesScope.value && conflictRejection?.conflicts[0]) {
         pendingSaveOptions.value = saveOptions;
@@ -1373,6 +1400,7 @@ async function handleSave() {
       return;
     }
 
+    concurrencyToken.value = saveResult.data.value?.concurrencyToken ?? null;
     calendarStore.refresh();
     emit('close');
   } catch (error: unknown) {
@@ -1407,11 +1435,18 @@ async function handleConflictOverride(note: string) {
   conflictRetryError.value = '';
 
   try {
+    const requestId = mutationGuard.begin();
     const saveResult = await assignmentMutation.save({
       ...saveOptions,
       conflictOverrides: conflictOverrides.value,
     });
+    if (!mutationGuard.isCurrent(requestId)) return;
     if (saveResult.error.value) {
+      if (isSchedulingConcurrencyConflict(saveResult)) {
+        clearPendingConflict();
+        hasConcurrencyConflict.value = true;
+        return;
+      }
       const rejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
       if (rejection?.conflicts[0]) {
         pendingConflict.value = rejection.conflicts[0];
@@ -1426,6 +1461,7 @@ async function handleConflictOverride(note: string) {
     }
 
     clearPendingConflict();
+    concurrencyToken.value = saveResult.data.value?.concurrencyToken ?? null;
     calendarStore.refresh();
     emit('close');
   } catch (error: unknown) {
@@ -1597,6 +1633,7 @@ async function handleLifecycleAction() {
 }
 
 async function loadInitialAssignment() {
+  concurrencyToken.value = null;
   if (modalMode.value === 'create') {
     assignmentLoadState.value = 'loaded';
     return;
@@ -1605,6 +1642,7 @@ async function loadInitialAssignment() {
   const kind = isSeriesScope.value ? 'series' : 'entry';
   const id = kind === 'series' ? props.assignmentSeriesId : props.assignmentEntryId;
   await assignmentLoad.load(kind, id, (assignment) => {
+    concurrencyToken.value = assignment.concurrencyToken ?? null;
     if (kind === 'series') {
       formData.value = createFormDataFromAssignmentSeries(assignment as AssignmentSeriesResponse);
       existingShiftSeriesLinks.value = (formData.value.shiftSeriesLinks ?? []).map((link) => ({ ...link }));
@@ -1618,6 +1656,24 @@ async function loadInitialAssignment() {
       applyInitialSelections();
     }
   });
+}
+
+onBeforeUnmount(() => {
+  assignmentLoad.reset();
+  mutationGuard.begin();
+  concurrencyToken.value = null;
+});
+
+async function reloadLatest() {
+  if (isBusy.value) return;
+  apiError.value = '';
+  clearPendingConflict();
+  await loadInitialAssignment();
+  if (assignmentLoadState.value === 'loaded') {
+    hasConcurrencyConflict.value = false;
+    recurrenceError.value = '';
+    formErrors.value = {};
+  }
 }
 
 function applyScopeRestrictions() {
@@ -1746,6 +1802,13 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
 <template>
   <UaModal :title="modalTitle" width="840" :loading="isBusy" @close="handleClose">
     <template #alerts>
+      <UaAlert v-if="hasConcurrencyConflict" type="error" :closable="false">
+        <p>{{ schedulingConcurrencyMessage }}</p>
+        <p>Reloading replaces your unsaved changes with the latest version.</p>
+        <UaBtn variant="outlined" :disabled="isSaving" :loading="isLoadingAssignment" @click="reloadLatest">
+          Reload latest
+        </UaBtn>
+      </UaAlert>
       <UaAlert v-if="assignmentLoadError" type="error">
         {{ assignmentLoadError }}
       </UaAlert>
@@ -2116,7 +2179,14 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
         >
           Cancel
         </UaBtn>
-        <UaBtn color="primary" variant="flat" :loading="isSaving" @click="handleSave">Save</UaBtn>
+        <UaBtn
+          color="primary"
+          variant="flat"
+          :loading="isSaving"
+          :disabled="hasConcurrencyConflict || (isEditMode && concurrencyToken === null)"
+          @click="handleSave"
+          >Save</UaBtn
+        >
       </template>
     </template>
   </UaModal>

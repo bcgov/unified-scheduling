@@ -5,6 +5,7 @@ export * from './audit/audit.ts';
 export * from './auth/auth.ts';
 export * from './away-locations/away-locations.ts';
 export * from './calendar/calendar.ts';
+export * from './ches-test/ches-test.ts';
 export * from './config/config.ts';
 export * from './dashboard/dashboard.ts';
 export * from './health/health.ts';

@@ -75,9 +75,11 @@ public static class SchedulingModule
         services.AddScoped<ShiftSeriesMaterializationHandler>();
         services.AddScoped<AssignmentSeriesMaterializationHandler>();
         services.AddScoped<ShiftSeriesRequestValidator>();
+        services.AddScoped<ShiftSeriesUpdateRequestValidator>();
         services.AddScoped<ShiftEntryRequestValidator>();
         services.AddScoped<ShiftEntryUpdateRequestValidator>();
         services.AddScoped<AssignmentSeriesRequestValidator>();
+        services.AddScoped<AssignmentSeriesUpdateRequestValidator>();
         services.AddScoped<AssignmentEntryRequestValidator>();
         services.AddScoped<AssignmentEntryUpdateRequestValidator>();
         services.AddScoped<AssignmentDefinitionRequestValidator>();
