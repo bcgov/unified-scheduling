@@ -238,11 +238,13 @@ export function createShiftFormDataFromEntry(
     timeZoneId: entry.timeZoneId ?? fallbackEvent.timeZoneId,
     statusTypeCode: entry.statusTypeCode ?? fallbackEvent.statusTypeCode,
     locationId: entry.locationId ?? fallbackEvent.locationId,
-    resourceIds: entry.userIds ?? fallbackEvent.resourceIds,
   };
 
   return {
     ...createShiftFormDataFromEvent(event, timeZoneId),
+    description: entry.description ?? null,
+    color: entry.color ?? null,
+    userIds: entry.userIds ?? [],
     assignmentEntryId: assignmentEntryLinks.length === 1 ? assignmentEntryLinks[0]?.assignmentEntryId : null,
     assignmentEntryIds: assignmentEntryLinks.map((link) => link.assignmentEntryId),
     assignmentEntryLinks,
