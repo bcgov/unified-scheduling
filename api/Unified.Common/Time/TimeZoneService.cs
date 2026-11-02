@@ -29,7 +29,7 @@ public sealed class TimeZoneService : ITimeZoneService
         var normalizedTimeZoneId = NormalizeOptionalTimeZoneId(timeZoneId);
         return normalizedTimeZoneId is null
             ? TimeZoneInfo.Utc
-            : TimeZoneInfo.FindSystemTimeZoneById(normalizedTimeZoneId);
+            : FindTimeZone(normalizedTimeZoneId);
     }
 
     public TimeZoneInfo ResolveRequired(string timeZoneId)
@@ -37,7 +37,30 @@ public sealed class TimeZoneService : ITimeZoneService
         if (string.IsNullOrWhiteSpace(timeZoneId))
             throw new ArgumentException("A time zone ID is required.", nameof(timeZoneId));
 
-        return TimeZoneInfo.FindSystemTimeZoneById(NormalizeTimeZoneId(timeZoneId));
+        return FindTimeZone(NormalizeTimeZoneId(timeZoneId));
+    }
+
+    private static TimeZoneInfo FindTimeZone(string timeZoneId)
+    {
+        // Windows can have the BC rules installed while ICU still maps Vancouver to US Pacific rules.
+        // Keep the IANA ID and use the installed BC rules, including historical DST transitions.
+        if (
+            OperatingSystem.IsWindows()
+            && string.Equals(timeZoneId, "America/Vancouver", StringComparison.OrdinalIgnoreCase)
+            && TimeZoneInfo.TryFindSystemTimeZoneById("British Columbia Standard Time", out var timeZone)
+        )
+        {
+            return TimeZoneInfo.CreateCustomTimeZone(
+                timeZoneId,
+                timeZone.BaseUtcOffset,
+                timeZone.DisplayName,
+                timeZone.StandardName,
+                timeZone.DaylightName,
+                timeZone.GetAdjustmentRules()
+            );
+        }
+
+        return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
     }
 
     public DateTimeOffset ToTimeZone(DateTimeOffset value, string? timeZoneId) =>
@@ -71,17 +94,39 @@ public sealed class TimeZoneService : ITimeZoneService
     {
         var unspecifiedLocalTime = DateTime.SpecifyKind(localTime, DateTimeKind.Unspecified);
 
-        if (timeZone.IsInvalidTime(unspecifiedLocalTime))
+        // A changed base offset can leave historical Unix rules with zero DaylightDelta,
+        // which .NET's IsInvalidTime/IsAmbiguousTime checks ignore. Validate candidates
+        // against UTC-to-local conversion instead, using only offsets from the zone's rules.
+        var offsets = timeZone
+            .GetAdjustmentRules()
+            .SelectMany(rule =>
+                new[]
+                {
+                    timeZone.BaseUtcOffset + rule.BaseUtcOffsetDelta,
+                    timeZone.BaseUtcOffset + rule.BaseUtcOffsetDelta + rule.DaylightDelta,
+                }
+            )
+            .Append(timeZone.BaseUtcOffset)
+            .Distinct();
+        var candidates = offsets
+            .Select(offset => unspecifiedLocalTime.Ticks - offset.Ticks)
+            .Where(ticks => ticks >= DateTime.MinValue.Ticks && ticks <= DateTime.MaxValue.Ticks)
+            .Select(ticks => new DateTimeOffset(ticks, TimeSpan.Zero))
+            .Where(instant => ToLocalUnspecified(instant, timeZone) == unspecifiedLocalTime)
+            .Take(2)
+            .ToArray();
+
+        if (candidates.Length == 0)
             throw new InvalidOperationException(
                 $"Local time {unspecifiedLocalTime:O} is invalid in time zone {timeZone.Id}."
             );
 
-        if (timeZone.IsAmbiguousTime(unspecifiedLocalTime))
+        if (candidates.Length > 1)
             throw new InvalidOperationException(
                 $"Local time {unspecifiedLocalTime:O} is ambiguous in time zone {timeZone.Id}."
             );
 
-        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(unspecifiedLocalTime, timeZone), TimeSpan.Zero);
+        return candidates[0];
     }
 
     public UtcDateRange ConvertInclusiveLocalDateRangeToUtcRange(
