@@ -171,6 +171,7 @@ public sealed class CalendarEventMapper
 
         config
             .NewConfig<CalendarEventBase, Event>()
+            .Ignore(dest => dest.ConcurrencyToken)
             .Ignore(dest => dest.EventSeriesId)
             .Ignore(dest => dest.IsException)
             .Ignore(dest => dest.EventTypeCode)
@@ -186,6 +187,7 @@ public sealed class CalendarEventMapper
 
         config
             .NewConfig<CalendarEventSeriesRequest, EventSeries>()
+            .Ignore(dest => dest.ConcurrencyToken)
             .Ignore(dest => dest.EventTypeCode)
             .Ignore(dest => dest.StatusTypeCode)
             .Map(dest => dest.Title, src => src.Title.Trim())

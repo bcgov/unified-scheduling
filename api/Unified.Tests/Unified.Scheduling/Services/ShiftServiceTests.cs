@@ -3247,7 +3247,7 @@ public class ShiftServiceTests : IAsyncLifetime
         return shiftEntry;
     }
 
-    private static ShiftSeriesRequest CreateShiftSeriesRequest(
+    private static ShiftSeriesUpdateRequest CreateShiftSeriesRequest(
         string title = "Series",
         IReadOnlyCollection<Guid>? userIds = null,
         string recurrenceRule = "FREQ=DAILY;COUNT=1"

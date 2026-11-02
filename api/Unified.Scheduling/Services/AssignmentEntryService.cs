@@ -7,6 +7,7 @@ using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
+using Unified.Db.Extensions;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Mappings;
@@ -136,136 +137,141 @@ public sealed class AssignmentEntryService(
         Guid? conflictOverrideActorId = null
     )
     {
-        logger.LogInformation("Updating assignment entry {AssignmentEntryId}.", id);
-
-        var definition = await GetActiveDefinitionAsync(
-            request.AssignmentDefinitionId,
-            request.StartAtUtc,
-            cancellationToken
-        );
-
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
-
-        var assignmentEntry = await db
-            .AssignmentEntries.Include(entry => entry.Event)
-            .Include(entry => entry.ShiftAssignmentEntries)
-                .ThenInclude(link => link.Users)
-            .Include(entry => entry.ShiftAssignmentEntries)
-                .ThenInclude(link => link.ShiftEntry)
-                    .ThenInclude(shiftEntry => shiftEntry!.Event)
-            .Include(entry => entry.ShiftAssignmentEntries)
-                .ThenInclude(link => link.ShiftAssignmentSeriesLink)
-            .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken);
-
-        if (assignmentEntry is null)
-            return null;
-
-        List<ShiftAssignmentEntry> invalidatedShiftEntryLinks = [];
-        List<ShiftEntryLinkRequest>? requestedShiftEntryLinks = null;
-        IReadOnlyCollection<int> retainedShiftEntryIds = [];
-        var updatedEntry = await calendarEventEntryService.UpdateEventAsync(
-            request,
-            assignmentEntry,
-            SchedulingConstants.SourceModule,
-            SchedulingConstants.AssignmentEventTypeCode,
-            validators:
-            [
-                (input, ct) =>
-                {
-                    return ValidateAssignmentValuesAsync(
-                        input.LocationId,
-                        input.CategoryId,
-                        input.SubCategoryId,
-                        definition,
-                        ct
-                    );
-                },
-                (input, ct) =>
-                {
-                    invalidatedShiftEntryLinks = assignmentEntry
-                        .ShiftAssignmentEntries.Where(link =>
-                            link.ShiftEntry?.Event is Event shiftEvent
-                            && !ShiftAssignmentGuards.AssignmentStartsOnShiftDate(
-                                shiftEvent.StartAtUtc,
-                                shiftEvent.EndAtUtc,
-                                input.StartAtUtc,
-                                shiftEvent.TimeZoneId,
-                                timeZoneService
-                            )
-                        )
-                        .ToList();
-                    var invalidatedShiftEntryIds = invalidatedShiftEntryLinks
-                        .Select(link => link.ShiftEntryId)
-                        .ToHashSet();
-                    requestedShiftEntryLinks = input
-                        .ShiftEntryLinks?.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
-                        .ToList();
-                    retainedShiftEntryIds =
-                        requestedShiftEntryLinks?.Select(link => link.ShiftEntryId).ToList()
-                        ?? assignmentEntry
-                            .ShiftAssignmentEntries.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
-                            .Select(link => link.ShiftEntryId)
-                            .ToList();
-                    ShiftAssignmentGuards.EnsureAssignmentEntryUpdatePreservesLinks(
-                        assignmentEntry,
-                        input.StartAtUtc,
-                        assignmentEntry.AssignmentSeriesId,
-                        timeZoneService,
-                        retainedShiftEntryIds
-                    );
-                    ct.ThrowIfCancellationRequested();
-                    return Task.CompletedTask;
-                },
-            ],
-            cancellationToken: cancellationToken
-        );
-        if (updatedEntry is null)
-            return null;
-        assignmentEntry = updatedEntry;
-
-        await db.SaveChangesAsync(cancellationToken);
-
-        if (request.ShiftEntryLinks is null)
+        return await SchedulingUpdateConcurrency.ExecuteAsync<AssignmentEntryResponse?>(async () =>
         {
-            foreach (var invalidatedLink in invalidatedShiftEntryLinks)
-                await shiftAssignmentService.DeleteShiftEntryLinkAsync(invalidatedLink.Id, cancellationToken);
-        }
+            logger.LogInformation("Updating assignment entry {AssignmentEntryId}.", id);
 
-        await shiftAssignmentService.ReplaceAssignmentEntryLinksAsync(
-            assignmentEntry.Id,
-            requestedShiftEntryLinks,
-            cancellationToken
-        );
-        await AssignmentUniquenessValidator.EnsureAssignmentsAreUniqueAsync(
-            db,
-            timeZoneService,
-            [assignmentEntry.Id],
-            cancellationToken
-        );
-        var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
-            db,
-            loanOutAvailabilityService,
-            [assignmentEntry.Id],
-            cancellationToken
-        );
-        await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
-            updatedConflictState,
-            request.ConflictOverrides,
-            conflictOverrideActorId,
-            cancellationToken
-        );
-        await calendarConflictService.InvalidateResolvedOverridesAsync(
-            [new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, assignmentEntry.EventId.ToString())],
-            cancellationToken: cancellationToken
-        );
+            var definition = await GetActiveDefinitionAsync(
+                request.AssignmentDefinitionId,
+                request.StartAtUtc,
+                cancellationToken
+            );
 
-        await transaction.CommitAsync(cancellationToken);
+            await using var transaction = await db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                cancellationToken
+            );
 
-        logger.LogInformation("Updated assignment entry {AssignmentEntryId}.", id);
-        return await GetAssignmentEntryByIdAsync(assignmentEntry.Id, cancellationToken);
+            var assignmentEntry = await db
+                .AssignmentEntries.Include(entry => entry.Event)
+                .Include(entry => entry.ShiftAssignmentEntries)
+                    .ThenInclude(link => link.Users)
+                .Include(entry => entry.ShiftAssignmentEntries)
+                    .ThenInclude(link => link.ShiftEntry)
+                        .ThenInclude(shiftEntry => shiftEntry!.Event)
+                .Include(entry => entry.ShiftAssignmentEntries)
+                    .ThenInclude(link => link.ShiftAssignmentSeriesLink)
+                .SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken);
+
+            if (assignmentEntry is null)
+                return null;
+
+            db.RequireVersion(assignmentEntry, request.ConcurrencyToken);
+
+            List<ShiftAssignmentEntry> invalidatedShiftEntryLinks = [];
+            List<ShiftEntryLinkRequest>? requestedShiftEntryLinks = null;
+            IReadOnlyCollection<int> retainedShiftEntryIds = [];
+            var updatedEntry = await calendarEventEntryService.UpdateEventAsync(
+                request,
+                assignmentEntry,
+                SchedulingConstants.SourceModule,
+                SchedulingConstants.AssignmentEventTypeCode,
+                validators:
+                [
+                    (input, ct) =>
+                    {
+                        return ValidateAssignmentValuesAsync(
+                            input.LocationId,
+                            input.CategoryId,
+                            input.SubCategoryId,
+                            definition,
+                            ct
+                        );
+                    },
+                    (input, ct) =>
+                    {
+                        invalidatedShiftEntryLinks = assignmentEntry
+                            .ShiftAssignmentEntries.Where(link =>
+                                link.ShiftEntry?.Event is Event shiftEvent
+                                && !ShiftAssignmentGuards.AssignmentStartsOnShiftDate(
+                                    shiftEvent.StartAtUtc,
+                                    shiftEvent.EndAtUtc,
+                                    input.StartAtUtc,
+                                    shiftEvent.TimeZoneId,
+                                    timeZoneService
+                                )
+                            )
+                            .ToList();
+                        var invalidatedShiftEntryIds = invalidatedShiftEntryLinks
+                            .Select(link => link.ShiftEntryId)
+                            .ToHashSet();
+                        requestedShiftEntryLinks = input
+                            .ShiftEntryLinks?.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
+                            .ToList();
+                        retainedShiftEntryIds =
+                            requestedShiftEntryLinks?.Select(link => link.ShiftEntryId).ToList()
+                            ?? assignmentEntry
+                                .ShiftAssignmentEntries.Where(link => !invalidatedShiftEntryIds.Contains(link.ShiftEntryId))
+                                .Select(link => link.ShiftEntryId)
+                                .ToList();
+                        ShiftAssignmentGuards.EnsureAssignmentEntryUpdatePreservesLinks(
+                            assignmentEntry,
+                            input.StartAtUtc,
+                            assignmentEntry.AssignmentSeriesId,
+                            timeZoneService,
+                            retainedShiftEntryIds
+                        );
+                        ct.ThrowIfCancellationRequested();
+                        return Task.CompletedTask;
+                    },
+                ],
+                cancellationToken: cancellationToken
+            );
+            if (updatedEntry is null)
+                return null;
+            assignmentEntry = updatedEntry;
+
+            await db.SaveChangesAsync(cancellationToken);
+
+            if (request.ShiftEntryLinks is null)
+            {
+                foreach (var invalidatedLink in invalidatedShiftEntryLinks)
+                    await shiftAssignmentService.DeleteShiftEntryLinkAsync(invalidatedLink.Id, cancellationToken);
+            }
+
+            await shiftAssignmentService.ReplaceAssignmentEntryLinksAsync(
+                assignmentEntry.Id,
+                requestedShiftEntryLinks,
+                cancellationToken
+            );
+            await AssignmentUniquenessValidator.EnsureAssignmentsAreUniqueAsync(
+                db,
+                timeZoneService,
+                [assignmentEntry.Id],
+                cancellationToken
+            );
+            var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+                db,
+                loanOutAvailabilityService,
+                [assignmentEntry.Id],
+                cancellationToken
+            );
+            await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
+                updatedConflictState,
+                request.ConflictOverrides,
+                conflictOverrideActorId,
+                cancellationToken
+            );
+            await calendarConflictService.InvalidateResolvedOverridesAsync(
+                [new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, assignmentEntry.EventId.ToString())],
+                cancellationToken: cancellationToken
+            );
+
+            await transaction.CommitAsync(cancellationToken);
+
+            logger.LogInformation("Updated assignment entry {AssignmentEntryId}.", id);
+            return await GetAssignmentEntryByIdAsync(assignmentEntry.Id, cancellationToken);
+        });
     }
 
     public async Task<AssignmentEntryResponse?> PublishAssignmentEntryAsync(

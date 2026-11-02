@@ -20,7 +20,7 @@ public interface IShiftSeriesService
 
     Task<ShiftSeriesResponse?> UpdateShiftSeriesAsync(
         int id,
-        ShiftSeriesRequest request,
+        ShiftSeriesUpdateRequest request,
         CancellationToken cancellationToken = default
     );
 

@@ -69,7 +69,13 @@ public class GlobalExceptionHandlerTests
         Assert.Equal(StatusCodes.Status409Conflict, context.Response.StatusCode);
 
         var body = await ReadJsonBodyAsync(context);
-        Assert.Equal("Conflict.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal("Resource changed", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal("concurrency_conflict", body.RootElement.GetProperty("code").GetString());
+        Assert.Equal(
+            "This record has changed since you opened it. Reload it before saving again.",
+            body.RootElement.GetProperty("detail").GetString()
+        );
+        Assert.Equal(context.TraceIdentifier, body.RootElement.GetProperty("traceId").GetString());
     }
 
     [Fact]
@@ -88,6 +94,7 @@ public class GlobalExceptionHandlerTests
 
         var body = await ReadJsonBodyAsync(context);
         Assert.Equal("Conflict.", body.RootElement.GetProperty("title").GetString());
+        Assert.False(body.RootElement.TryGetProperty("code", out _));
         Assert.Equal(
             "An assignment already exists.",
             body.RootElement.GetProperty("errors").GetProperty("AssignmentDefinitionId")[0].GetString()
