@@ -1118,7 +1118,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _assignmentService.CreateAssignmentEntryAsync(
                 CreateAssignmentEntryRequest(At(14), At(16)) with
                 {
-                    ShiftEntryLinks = [new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] }],
+                    ShiftEntryLinks =
+                    [
+                        new ShiftEntryLinkRequest { ShiftEntryId = shift.Id, AssignedUserIds = [UserA] },
+                    ],
                 },
                 TestContext.Current.CancellationToken
             )
