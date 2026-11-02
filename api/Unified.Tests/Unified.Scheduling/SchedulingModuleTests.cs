@@ -1,12 +1,19 @@
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Unified.Authorization.Seeders;
+using Unified.Calendar;
 using Unified.Common.Mvc;
+using Unified.Common.Scheduling;
 using Unified.Common.Seeding;
+using Unified.Db;
+using Unified.LoanOut;
+using Unified.LoanOut.Services;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
+using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
 
@@ -14,6 +21,138 @@ namespace Unified.Tests.Scheduling;
 
 public sealed class SchedulingModuleTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void SchedulingServices_ResolveWithOptionalLoanOut_InEitherRegistrationOrder(
+        bool loanOutEnabled,
+        bool loanOutFirst
+    )
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:Scheduling:Enabled"] = "True",
+                    ["FeatureFlags:Calendar:Enabled"] = "True",
+                    ["FeatureFlags:Stats:Enabled"] = "True",
+                    ["FeatureFlags:LoanOut:Enabled"] = loanOutEnabled.ToString(),
+                    ["CalendarDateTime:DefaultTimeZoneId"] = "UTC",
+                }
+            )
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddDbContext<UnifiedDbContext>(options => options.UseSqlite("Data Source=:memory:"));
+        services.AddCalendarModule(configuration);
+        if (loanOutFirst)
+            services.AddLoanOutModule(configuration);
+        services.AddSchedulingModule(configuration);
+        if (!loanOutFirst)
+            services.AddLoanOutModule(configuration);
+        if (loanOutEnabled)
+        {
+            // Re-registering the enabled integration must replace the fallback without duplicate services.
+            LoanOutServiceProvider.Register(services);
+            services.AddScoped<ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>>(provider =>
+                provider.GetRequiredService<ILoanOutCalendarDataProvider>()
+            );
+        }
+
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IShiftService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IShiftAssignmentService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IAssignmentService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISchedulingCalendarService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISchedulePublishService>());
+        var availability = Assert.Single(scope.ServiceProvider.GetServices<ShiftLoanOutAvailabilityService>());
+        var markers = Assert.Single(scope.ServiceProvider.GetServices<ShiftLoanOutExceptionMarkerService>());
+        var transfers = Assert.Single(scope.ServiceProvider.GetServices<LoanOutShiftTransferService>());
+        Assert.Same(availability, scope.ServiceProvider.GetRequiredService<ShiftLoanOutAvailabilityService>());
+        Assert.Same(markers, scope.ServiceProvider.GetRequiredService<ShiftLoanOutExceptionMarkerService>());
+        Assert.Same(transfers, scope.ServiceProvider.GetRequiredService<LoanOutShiftTransferService>());
+        using var secondScope = provider.CreateScope();
+        Assert.NotSame(availability, secondScope.ServiceProvider.GetRequiredService<ShiftLoanOutAvailabilityService>());
+        Assert.NotSame(markers, secondScope.ServiceProvider.GetRequiredService<ShiftLoanOutExceptionMarkerService>());
+        Assert.NotSame(transfers, secondScope.ServiceProvider.GetRequiredService<LoanOutShiftTransferService>());
+        var loanOutService = Assert.Single(scope.ServiceProvider.GetServices<ISchedulingLoanOutService>());
+        Assert.Same(loanOutService, scope.ServiceProvider.GetRequiredService<ISchedulingLoanOutService>());
+        if (loanOutEnabled)
+        {
+            Assert.IsType<SchedulingLoanOutService>(loanOutService);
+            Assert.Same(loanOutService, scope.ServiceProvider.GetRequiredService<SchedulingLoanOutService>());
+        }
+        else
+        {
+            Assert.IsType<NoOpSchedulingLoanOutService>(loanOutService);
+            Assert.Null(
+                scope.ServiceProvider.GetService<
+                    ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>
+                >()
+            );
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LoanOutServices_ResolveWithSchedulingDisabled_InEitherRegistrationOrder(bool loanOutFirst)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:Scheduling:Enabled"] = "False",
+                    ["FeatureFlags:Calendar:Enabled"] = "True",
+                    ["FeatureFlags:Stats:Enabled"] = "False",
+                    ["FeatureFlags:LoanOut:Enabled"] = "True",
+                    ["CalendarDateTime:DefaultTimeZoneId"] = "UTC",
+                }
+            )
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddDbContext<UnifiedDbContext>(options => options.UseSqlite("Data Source=:memory:"));
+        services.AddCalendarModule(configuration);
+        if (loanOutFirst)
+            services.AddLoanOutModule(configuration);
+        services.AddSchedulingModule(configuration);
+        if (!loanOutFirst)
+            services.AddLoanOutModule(configuration);
+        LoanOutServiceProvider.Register(services);
+
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ILoanOutService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ILoanOutEntryService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ILoanOutSeriesService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ILoanOutCalendarDataProvider>());
+        Assert.Null(scope.ServiceProvider.GetService<IShiftService>());
+        var integration = Assert.Single(scope.ServiceProvider.GetServices<ISchedulingLoanOutService>());
+        Assert.IsType<NoOpSchedulingLoanOutService>(integration);
+        Assert.Same(integration, scope.ServiceProvider.GetRequiredService<ISchedulingLoanOutService>());
+        var users = new[] { Guid.NewGuid() };
+        var eligible = await integration.GetAssignableUserIdsByOccurrenceAsync(
+            users,
+            [new ShiftAssignmentLoanOutContext(DateTimeOffset.UtcNow, null)],
+            5,
+            "UTC",
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(users, Assert.Single(eligible));
+        Assert.False(
+            await integration.TransferLoanedOutUserShift(
+                new global::Unified.Db.Models.LoanOut.LoanOutEntry(),
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+    }
+
     [Fact]
     public void StartupRegistration_WhenSchedulingModuleEnabled_ExposesSchedulingCalendarRoute()
     {

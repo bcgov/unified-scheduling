@@ -59,6 +59,11 @@ const showLeaveTab = computed(
     (accessControl.featureFlags.value?.Leave?.enabled ?? false) &&
     accessControl.hasPermission(Permissions.UsersLeaveView),
 );
+const showLoanOutTab = computed(
+  () =>
+    (accessControl.featureFlags.value?.LoanOut?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.UsersLoanOutView),
+);
 
 onMounted(async () => {
   try {
@@ -127,6 +132,9 @@ onMounted(async () => {
         </UaBtn>
         <UaBtn v-if="showLeaveTab" variant="outlined" :to="{ name: 'UserLeave', params: { userId: props.userId } }">
           Leave
+        </UaBtn>
+        <UaBtn v-if="showLoanOutTab" variant="outlined" :to="{ name: 'UserLoanOut', params: { userId: props.userId } }">
+          Loan-out
         </UaBtn>
         <UaBtn
           v-if="accessControl.hasPermission(Permissions.AwayLocationsView)"

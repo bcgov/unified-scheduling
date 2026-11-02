@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
 using Unified.Common.Calendar.Conflicts;
@@ -16,7 +17,9 @@ public sealed class ShiftAssignmentService(
     ILogger<ShiftAssignmentService> logger,
     UnifiedDbContext db,
     ITimeZoneService timeZoneService,
-    ICalendarConflictService calendarConflictService
+    ICalendarConflictService calendarConflictService,
+    ISchedulingLoanOutService schedulingLoanOutService,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService
 ) : IShiftAssignmentService
 {
     public async Task<ShiftAssignmentEntryResponse> LinkShiftEntryAsync(
@@ -279,6 +282,12 @@ public sealed class ShiftAssignmentService(
             .ShiftEntries.Include(entry => entry.Event)
             .Include(entry => entry.Users)
             .Where(entry => entry.ShiftSeriesId == request.ShiftSeriesId)
+            .Where(entry =>
+                !(
+                    entry.Event!.IsException
+                    && entry.Event.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway)
+                )
+            )
             .Where(entry => entry.Event != null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .ToListAsync(cancellationToken);
         var assignmentEntries = await db
@@ -313,16 +322,40 @@ public sealed class ShiftAssignmentService(
                 "Selected users must belong to every matching shift entry."
             );
 
-        var shiftEntryIds = intersections.Select(pair => pair.shiftEntry.Id).Distinct().ToList();
-        var assignmentEntryIds = intersections.Select(pair => pair.assignmentEntry.Id).Distinct().ToList();
-        var existingLinks = await db
-            .ShiftAssignmentEntries.Include(link => link.Users)
-            .Include(link => link.ShiftAssignmentSeriesLink)
-                .ThenInclude(link => link!.Users)
-            .Where(link =>
-                shiftEntryIds.Contains(link.ShiftEntryId) && assignmentEntryIds.Contains(link.AssignmentEntryId)
+        var assignableUserIdsByOccurrence = await schedulingLoanOutService.GetAssignableUserIdsByOccurrenceAsync(
+            selectedUserIds,
+            intersections
+                .Select(pair => new ShiftAssignmentLoanOutContext(
+                    pair.assignmentEntry.Event!.StartAtUtc,
+                    pair.assignmentEntry.Event.EndAtUtc
+                ))
+                .ToList(),
+            intersections[0].assignmentEntry.Event!.LocationId,
+            intersections[0].assignmentEntry.Event!.TimeZoneId,
+            cancellationToken
+        );
+
+        var assignableIntersections = intersections
+            .Select(
+                (pair, index) =>
+                    (pair.shiftEntry, pair.assignmentEntry, assignedUserIds: assignableUserIdsByOccurrence[index])
             )
-            .ToListAsync(cancellationToken);
+            .Where(pair => pair.assignedUserIds.Count > 0)
+            .ToList();
+
+        var shiftEntryIds = assignableIntersections.Select(pair => pair.shiftEntry.Id).Distinct().ToList();
+        var assignmentEntryIds = assignableIntersections.Select(pair => pair.assignmentEntry.Id).Distinct().ToList();
+        var existingLinks =
+            assignableIntersections.Count == 0
+                ? []
+                : await db
+                    .ShiftAssignmentEntries.Include(link => link.Users)
+                    .Include(link => link.ShiftAssignmentSeriesLink)
+                        .ThenInclude(link => link!.Users)
+                    .Where(link =>
+                        shiftEntryIds.Contains(link.ShiftEntryId) && assignmentEntryIds.Contains(link.AssignmentEntryId)
+                    )
+                    .ToListAsync(cancellationToken);
 
         var seriesLink = await db
             .ShiftAssignmentSeriesLinks.Include(link => link.Users)
@@ -384,13 +417,15 @@ public sealed class ShiftAssignmentService(
         db.ShiftAssignmentSeriesLinkUsers.RemoveRange(seriesLink.Users);
         ShiftAssignmentUserSync.ReplaceSeriesUsers(seriesLink, selectedUserIds);
 
-        var intersectionKeys = intersections.Select(pair => (pair.shiftEntry.Id, pair.assignmentEntry.Id)).ToHashSet();
+        var intersectionKeys = assignableIntersections
+            .Select(pair => (pair.shiftEntry.Id, pair.assignmentEntry.Id))
+            .ToHashSet();
         var existingLinksByPair = existingLinks.ToDictionary(
             link => (link.ShiftEntryId, link.AssignmentEntryId),
             link => link
         );
         var syncedLinks = new List<ShiftAssignmentEntry>();
-        foreach (var (shiftEntry, assignmentEntry) in intersections)
+        foreach (var (shiftEntry, assignmentEntry, assignedUserIds) in assignableIntersections)
         {
             if (existingLinksByPair.TryGetValue((shiftEntry.Id, assignmentEntry.Id), out var existingLink))
             {
@@ -399,7 +434,7 @@ public sealed class ShiftAssignmentService(
                     if (!existingLink.IsException)
                     {
                         db.ShiftAssignmentEntryUsers.RemoveRange(existingLink.Users);
-                        ShiftAssignmentUserSync.ReplaceEntryUsers(existingLink, selectedUserIds);
+                        ShiftAssignmentUserSync.ReplaceEntryUsers(existingLink, assignedUserIds);
                     }
                 }
                 syncedLinks.Add(existingLink);
@@ -409,7 +444,7 @@ public sealed class ShiftAssignmentService(
             var link = ShiftAssignmentUserSync.CreateEntryLink(
                 shiftEntry.Id,
                 assignmentEntry.Id,
-                selectedUserIds,
+                assignedUserIds,
                 seriesLink,
                 isException: false
             );
@@ -618,7 +653,14 @@ public sealed class ShiftAssignmentService(
         var shiftEntry = await LoadShiftEntryAsync(shiftEntryId, cancellationToken);
         var assignmentEntry = await LoadAssignmentEntryAsync(assignmentEntryId, cancellationToken);
 
-        ShiftAssignmentGuards.EnsureCanLink(shiftEntry, assignmentEntry, selectedUserIds, timeZoneService);
+        var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync([shiftEntry], cancellationToken);
+        ShiftAssignmentGuards.EnsureCanLink(
+            shiftEntry,
+            assignmentEntry,
+            selectedUserIds,
+            timeZoneService,
+            awayUsers.GetValueOrDefault(shiftEntry)
+        );
 
         var link = await db
             .ShiftAssignmentEntries.Include(existingLink => existingLink.Users)

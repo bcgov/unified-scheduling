@@ -1,14 +1,20 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Calendar;
 using Unified.Calendar.Conflicts;
+using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
+using Unified.Common.Time;
+using Unified.Db;
 using Unified.Scheduling.FeatureFlags;
+using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Seeders;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
@@ -48,6 +54,30 @@ public static class SchedulingModule
             throw new InvalidOperationException("Scheduling requires the Stats module to be enabled.");
 
         services.AddSingleton(TimeProvider.System);
+        services.TryAddScoped<ISchedulingLoanOutService, NoOpSchedulingLoanOutService>();
+        services.TryAddScoped<ShiftLoanOutAvailabilityService>(provider =>
+            new(
+                provider.GetRequiredService<UnifiedDbContext>(),
+                provider.GetRequiredService<ICalendarTimeZoneResolver>(),
+                provider.GetRequiredService<ITimeZoneService>(),
+                () => provider.GetRequiredService<IShiftService>()
+            )
+        );
+        services.TryAddScoped<ShiftLoanOutExceptionMarkerService>();
+        services.TryAddScoped<SchedulingLoanOutEventMapper>();
+        services.TryAddScoped<LoanOutShiftTransferService>(provider =>
+            new(
+                provider.GetRequiredService<ILogger<LoanOutShiftTransferService>>(),
+                provider.GetRequiredService<UnifiedDbContext>(),
+                provider.GetRequiredService<SchedulingLoanOutEventMapper>(),
+                () => provider.GetRequiredService<IShiftService>(),
+                () => provider.GetRequiredService<IShiftAssignmentService>(),
+                provider.GetRequiredService<ShiftLoanOutAvailabilityService>(),
+                provider.GetRequiredService<ShiftLoanOutExceptionMarkerService>(),
+                provider.GetRequiredService<IRecurrenceExpander>()
+            )
+        );
+        services.TryAddScoped<SchedulingLoanOutService>();
         services.AddScoped<IShiftEntryService, ShiftEntryService>();
         services.AddScoped<IShiftSeriesService, ShiftSeriesService>();
         services.AddScoped<ShiftService>();

@@ -33,7 +33,8 @@ internal static class ShiftAssignmentGuards
         ShiftEntry shiftEntry,
         AssignmentEntry assignmentEntry,
         IReadOnlyCollection<Guid> selectedUserIds,
-        ITimeZoneService timeZoneService
+        ITimeZoneService timeZoneService,
+        IReadOnlyCollection<Guid>? awayUserIds = null
     )
     {
         if (shiftEntry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Cancelled)
@@ -58,6 +59,8 @@ internal static class ShiftAssignmentGuards
             );
 
         EnsureUsersBelongToShiftEntry(shiftEntry, selectedUserIds);
+        if (awayUserIds?.Any(selectedUserIds.Contains) == true)
+            throw new InvalidOperationException("Selected users are away from the linked shift entry.");
     }
 
     public static void EnsureShiftEntryUpdatePreservesLinks(

@@ -9,6 +9,7 @@ import type {
 
 export interface CalendarContributionLoadOptions {
   signal?: AbortSignal;
+  runtimeContext?: CalendarRuntimeContext;
 }
 
 export interface CalendarModuleContribution {

@@ -543,6 +543,14 @@ async function publishShiftEntry(id: number | null, shouldPublish: boolean) {
 
 function resolveShiftPublishError(data: unknown, error: unknown) {
   const errorData = error && typeof error === 'object' ? (error as { data?: unknown }).data : undefined;
+  const validationMessages = [data, errorData].flatMap((candidate) => {
+    const mapped = mapToValidationErrors(candidate);
+    return mapped ? Object.values(mapped) : [];
+  });
+  if (validationMessages.length > 0) {
+    return [...new Set(validationMessages)].join(' ');
+  }
+
   const hasConflicts = [data, errorData].some((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     return (
@@ -648,7 +656,9 @@ function applyServerValidationErrors(rawError: unknown) {
   }
 
   formErrors.value = mapped;
-  if (mapped.userIds) {
+  if (mapped.loanOut) {
+    apiError.value = mapped.loanOut;
+  } else if (mapped.userIds) {
     apiError.value = 'One or more selected employees already have a shift at this location on the selected date.';
   }
   return true;

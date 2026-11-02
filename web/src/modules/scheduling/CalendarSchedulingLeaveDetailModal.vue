@@ -107,8 +107,17 @@ const schedulingMetadata = computed(() => (isCalendarSchedulingEvent(props.event
 const leaveTypeName = computed(() => schedulingMetadata.value?.leaveTypeName);
 const leaveEntryId = computed(() => getEventEntryId(props.event));
 const leaveSeriesId = computed(() => getEventSeriesId(props.event));
+const isReadOnlyAtLocation = computed(() => {
+  const viewingLocationId = locationsStore.selectedLocationId;
+  const leaveLocationId =
+    selectedOpenScope.value === 'series'
+      ? (selectedSeries.value?.locationId ?? props.event.locationId)
+      : (selectedEntry.value?.locationId ?? props.event.locationId);
+  return viewingLocationId != null && leaveLocationId != null && Number(viewingLocationId) !== leaveLocationId;
+});
 const canEdit = computed(
   () =>
+    !isReadOnlyAtLocation.value &&
     (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
     accessControl.hasPermission(Permissions.LeaveEdit),
 );
@@ -121,6 +130,7 @@ const currentStatusTypeCode = computed(() =>
 // Like shifts, only draft leave (a single occurrence or the whole series) can be deleted.
 const canDelete = computed(
   () =>
+    !isReadOnlyAtLocation.value &&
     (selectedOpenScope.value === 'series' ? leaveSeriesId.value != null : leaveEntryId.value != null) &&
     (!currentStatusTypeCode.value || getSchedulingLifecycleCapabilities(currentStatusTypeCode.value).canDelete) &&
     accessControl.hasPermission(Permissions.LeaveDelete),
@@ -315,7 +325,7 @@ function selectTab(tabId: LeaveDetailTabId) {
 }
 
 async function handleSave() {
-  if (selectedOpenScope.value == null) {
+  if (!canEdit.value || selectedOpenScope.value == null) {
     return;
   }
 
@@ -367,7 +377,12 @@ async function handleSave() {
 
 async function handleDelete() {
   const id = selectedEntry.value?.id ?? leaveEntryId.value;
-  if (!isDeleteConfirmed.value || selectedOpenScope.value == null || (selectedOpenScope.value === 'event' && !id)) {
+  if (
+    !canDelete.value ||
+    !isDeleteConfirmed.value ||
+    selectedOpenScope.value == null ||
+    (selectedOpenScope.value === 'event' && !id)
+  ) {
     return;
   }
 
