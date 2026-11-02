@@ -18,7 +18,7 @@ public interface IAssignmentSeriesService
 
     Task<AssignmentSeriesResponse?> UpdateAssignmentSeriesAsync(
         int id,
-        AssignmentSeriesRequest request,
+        AssignmentSeriesUpdateRequest request,
         CancellationToken cancellationToken = default
     );
 

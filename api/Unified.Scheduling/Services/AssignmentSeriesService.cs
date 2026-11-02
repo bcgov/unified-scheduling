@@ -5,6 +5,7 @@ using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db;
+using Unified.Db.Extensions;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Mappings;
@@ -142,101 +143,106 @@ public sealed class AssignmentSeriesService(
 
     public async Task<AssignmentSeriesResponse?> UpdateAssignmentSeriesAsync(
         int id,
-        AssignmentSeriesRequest request,
+        AssignmentSeriesUpdateRequest request,
         CancellationToken cancellationToken = default
     )
     {
-        if (string.IsNullOrWhiteSpace(request.RecurrenceRule))
-            throw new ArgumentException("A recurring assignment series cannot be converted to a single assignment.");
-        await ValidateAssignmentSeriesRequest(request, cancellationToken);
-        logger.LogInformation("Updating assignment series {AssignmentSeriesId}.", id);
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            System.Data.IsolationLevel.Serializable,
-            cancellationToken
-        );
-        var entity = await db
-            .AssignmentSeries.Include(series => series.EventSeries!)
-                .ThenInclude(eventSeries => eventSeries.Events)
-            .Include(series => series.AssignmentEntries)
-                .ThenInclude(entry => entry.Event)
-            .Include(series => series.ShiftAssignmentSeriesLinks)
-                .ThenInclude(link => link.Users)
-            .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
-        if (entity is null)
+        return await SchedulingUpdateConcurrency.ExecuteAsync<AssignmentSeriesResponse?>(async () =>
         {
-            await transaction.RollbackAsync(cancellationToken);
-            return null;
-        }
-        // Capture recurrence changes and inherited values before the update mutates the series.
-        var updatePlan = AssignmentSeriesUpdatePlanner.CreatePlan(entity, request);
-        var existingShiftSeriesLinks =
-            request.ShiftSeriesLinks is null && updatePlan.RegenerateEntries
-                ? entity
-                    .ShiftAssignmentSeriesLinks.Select(link => new ShiftSeriesLinkRequest
-                    {
-                        ShiftSeriesId = link.ShiftSeriesId,
-                        AssignedUserIds = link.Users.Select(user => user.UserId).ToList(),
-                    })
-                    .ToList()
-                : null;
-
-        var assignmentSeries =
-            await calendarEventSeriesService.UpdateEventAsync(
-                request,
-                entity,
-                SchedulingConstants.SourceModule,
-                SchedulingConstants.AssignmentEventTypeCode,
-                cancellationToken: cancellationToken
-            ) ?? throw new InvalidOperationException("Failed to update assignment series.");
-
-        if (updatePlan.RegenerateEntries)
-        {
-            await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(assignmentSeries.Id, [], cancellationToken);
-            await eventSeriesMaterializationService.RegenerateDraftSeriesAsync(
-                assignmentSeries.EventSeries!,
-                AssignmentRecurrenceValidationOptions,
-                assignmentSeriesMaterializationHandler,
-                new AssignmentSeriesMaterializationContext
-                {
-                    AssignmentSeries = assignmentSeries,
-                    ExistingEntries = assignmentSeries.AssignmentEntries.ToList(),
-                },
+            if (string.IsNullOrWhiteSpace(request.RecurrenceRule))
+                throw new ArgumentException("A recurring assignment series cannot be converted to a single assignment.");
+            await ValidateAssignmentSeriesRequest(request, cancellationToken);
+            logger.LogInformation("Updating assignment series {AssignmentSeriesId}.", id);
+            await using var transaction = await db.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable,
                 cancellationToken
             );
-        }
-        else if (updatePlan.PropagateSeriesChanges)
-            PropagateSeriesChangesToEntries(assignmentSeries, request, updatePlan);
-        await db.SaveChangesAsync(cancellationToken);
-        await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
-        var linksToApply = request.ShiftSeriesLinks ?? existingShiftSeriesLinks;
-        if (linksToApply is not null)
-            await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
-                assignmentSeries.Id,
-                linksToApply,
-                cancellationToken
-            );
-        var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
-            db,
-            id,
-            cancellationToken
-        );
-        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
-        var affectedEventIds = await db
-            .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == id)
-            .Select(entry => entry.EventId)
-            .ToListAsync(cancellationToken);
-        await calendarConflictService.InvalidateResolvedOverridesAsync(
-            affectedEventIds
-                .Select(eventId => new CalendarConflictEventIdentity(
+            var entity = await db
+                .AssignmentSeries.Include(series => series.EventSeries!)
+                    .ThenInclude(eventSeries => eventSeries.Events)
+                .Include(series => series.AssignmentEntries)
+                    .ThenInclude(entry => entry.Event)
+                .Include(series => series.ShiftAssignmentSeriesLinks)
+                    .ThenInclude(link => link.Users)
+                .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
+            if (entity is null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return null;
+            }
+            db.RequireVersion(entity, request.ConcurrencyToken);
+
+            // Capture recurrence changes and inherited values before the update mutates the series.
+            var updatePlan = AssignmentSeriesUpdatePlanner.CreatePlan(entity, request);
+            var existingShiftSeriesLinks =
+                request.ShiftSeriesLinks is null && updatePlan.RegenerateEntries
+                    ? entity
+                        .ShiftAssignmentSeriesLinks.Select(link => new ShiftSeriesLinkRequest
+                        {
+                            ShiftSeriesId = link.ShiftSeriesId,
+                            AssignedUserIds = link.Users.Select(user => user.UserId).ToList(),
+                        })
+                        .ToList()
+                    : null;
+
+            var assignmentSeries =
+                await calendarEventSeriesService.UpdateEventAsync(
+                    request,
+                    entity,
                     SchedulingConstants.SourceModule,
-                    eventId.ToString()
-                ))
-                .ToList(),
-            cancellationToken: cancellationToken
-        );
-        await transaction.CommitAsync(cancellationToken);
-        logger.LogInformation("Updated assignment series {AssignmentSeriesId}.", id);
-        return await MapToAssignmentSeriesResponseAsync(assignmentSeries, cancellationToken);
+                    SchedulingConstants.AssignmentEventTypeCode,
+                    cancellationToken: cancellationToken
+                ) ?? throw new InvalidOperationException("Failed to update assignment series.");
+
+            if (updatePlan.RegenerateEntries)
+            {
+                await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(assignmentSeries.Id, [], cancellationToken);
+                await eventSeriesMaterializationService.RegenerateDraftSeriesAsync(
+                    assignmentSeries.EventSeries!,
+                    AssignmentRecurrenceValidationOptions,
+                    assignmentSeriesMaterializationHandler,
+                    new AssignmentSeriesMaterializationContext
+                    {
+                        AssignmentSeries = assignmentSeries,
+                        ExistingEntries = assignmentSeries.AssignmentEntries.ToList(),
+                    },
+                    cancellationToken
+                );
+            }
+            else if (updatePlan.PropagateSeriesChanges)
+                PropagateSeriesChangesToEntries(assignmentSeries, request, updatePlan);
+            await db.SaveChangesAsync(cancellationToken);
+            await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
+            var linksToApply = request.ShiftSeriesLinks ?? existingShiftSeriesLinks;
+            if (linksToApply is not null)
+                await shiftAssignmentService.ReplaceAssignmentSeriesLinksAsync(
+                    assignmentSeries.Id,
+                    linksToApply,
+                    cancellationToken
+                );
+            var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
+                db,
+                id,
+                cancellationToken
+            );
+            await calendarConflictService.EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
+            var affectedEventIds = await db
+                .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == id)
+                .Select(entry => entry.EventId)
+                .ToListAsync(cancellationToken);
+            await calendarConflictService.InvalidateResolvedOverridesAsync(
+                affectedEventIds
+                    .Select(eventId => new CalendarConflictEventIdentity(
+                        SchedulingConstants.SourceModule,
+                        eventId.ToString()
+                    ))
+                    .ToList(),
+                cancellationToken: cancellationToken
+            );
+            await transaction.CommitAsync(cancellationToken);
+            logger.LogInformation("Updated assignment series {AssignmentSeriesId}.", id);
+            return await MapToAssignmentSeriesResponseAsync(assignmentSeries, cancellationToken);
+        });
     }
 
     public async Task<AssignmentSeriesResponse?> PublishAssignmentSeriesAsync(

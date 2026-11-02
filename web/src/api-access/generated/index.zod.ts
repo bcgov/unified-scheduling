@@ -5,6 +5,7 @@ export * from './audit/audit.zod.ts';
 export * from './auth/auth.zod.ts';
 export * from './away-locations/away-locations.zod.ts';
 export * from './calendar/calendar.zod.ts';
+export * from './ches-test/ches-test.zod.ts';
 export * from './config/config.zod.ts';
 export * from './dashboard/dashboard.zod.ts';
 export * from './health/health.zod.ts';

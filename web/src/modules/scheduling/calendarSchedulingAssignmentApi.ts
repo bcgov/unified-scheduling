@@ -1,3 +1,4 @@
+import type { AssignmentSeriesUpdateRequest } from '@/api-access/generated/models/assignmentSeriesUpdateRequest';
 import type { AssignmentEntryRequest } from '@/api-access/generated/models/assignmentEntryRequest';
 import type { AssignmentEntryUpdateRequest } from '@/api-access/generated/models/assignmentEntryUpdateRequest';
 import type { AssignmentSeriesRequest } from '@/api-access/generated/models/assignmentSeriesRequest';
@@ -34,7 +35,7 @@ export async function updateAssignmentEntry(id: number, body: AssignmentEntryUpd
   return result;
 }
 
-export async function updateAssignmentSeries(id: number, body: AssignmentSeriesRequest) {
+export async function updateAssignmentSeries(id: number, body: AssignmentSeriesUpdateRequest) {
   const result = putApiSchedulingAssignmentsSeriesId(id, body, { options: { immediate: false } });
   await result.execute();
   return result;
