@@ -6,12 +6,22 @@ public class TimeZoneServiceTests
 {
     private readonly ITimeZoneService _service = new TimeZoneService();
 
-    [Fact]
-    public void ResolveOrUtc_WhenTimeZoneExists_ReturnsTimeZone()
+    [Theory]
+    [InlineData(2025, 1, -8)]
+    [InlineData(2025, 7, -7)]
+    [InlineData(2026, 1, -8)]
+    [InlineData(2026, 11, -7)]
+    [InlineData(2027, 1, -7)]
+    public void ResolveOrUtc_WhenTimeZoneExists_ReturnsTimeZone(int year, int month, int expectedOffsetHours)
     {
         var result = _service.ResolveOrUtc("America/Vancouver");
+        var requiredResult = _service.ResolveRequired("America/Vancouver");
+        var instant = new DateTimeOffset(year, month, 2, 16, 0, 0, TimeSpan.Zero);
 
         Assert.Equal("America/Vancouver", result.Id);
+        Assert.Equal("America/Vancouver", requiredResult.Id);
+        Assert.Equal(TimeSpan.FromHours(expectedOffsetHours), result.GetUtcOffset(instant));
+        Assert.Equal(TimeSpan.FromHours(expectedOffsetHours), requiredResult.GetUtcOffset(instant));
     }
 
     [Theory]
@@ -91,19 +101,31 @@ public class TimeZoneServiceTests
         Assert.Equal(DateTimeKind.Unspecified, result.Kind);
     }
 
-    [Fact]
-    public void ToUtcInstant_WhenLocalTimeIsValid_ReturnsUtcInstant()
+    [Theory]
+    [InlineData(2026, 7, 1, 9, 30, 16, 30)]
+    [InlineData(2026, 11, 1, 1, 30, 8, 30)]
+    [InlineData(2027, 1, 1, 9, 0, 16, 0)]
+    public void ToUtcInstant_WhenLocalTimeIsValid_ReturnsUtcInstant(
+        int year,
+        int month,
+        int day,
+        int hour,
+        int minute,
+        int utcHour,
+        int utcMinute
+    )
     {
         var timeZone = _service.ResolveRequired("America/Vancouver");
 
-        var result = _service.ToUtcInstant(new DateTime(2026, 7, 1, 9, 30, 0), timeZone);
+        var result = _service.ToUtcInstant(new DateTime(year, month, day, hour, minute, 0), timeZone);
 
-        Assert.Equal(new DateTimeOffset(2026, 7, 1, 16, 30, 0, TimeSpan.Zero), result);
+        Assert.Equal(new DateTimeOffset(year, month, day, utcHour, utcMinute, 0, TimeSpan.Zero), result);
     }
 
     [Theory]
+    [InlineData(2025, 3, 9, 2, 30, "invalid")]
+    [InlineData(2025, 11, 2, 1, 30, "ambiguous")]
     [InlineData(2026, 3, 8, 2, 30, "invalid")]
-    [InlineData(2026, 11, 1, 1, 30, "ambiguous")]
     public void ToUtcInstant_WhenLocalTimeIsInvalidOrAmbiguous_Throws(
         int year,
         int month,
@@ -137,36 +159,30 @@ public class TimeZoneServiceTests
         Assert.Equal(new DateTimeOffset(2026, 7, 3, 7, 0, 0, TimeSpan.Zero), range.EndAtUtc);
     }
 
-    [Fact]
-    public void ConvertInclusiveLocalDateRangeToUtcRange_WhenSpringDaylightSavingBegins_ReturnsTwentyThreeHours()
+    [Theory]
+    [InlineData(2026, 3, 8, 23, "2026-03-08T08:00:00Z", "2026-03-09T07:00:00Z")]
+    [InlineData(2025, 11, 2, 25, "2025-11-02T07:00:00Z", "2025-11-03T08:00:00Z")]
+    [InlineData(2026, 11, 1, 24, "2026-11-01T07:00:00Z", "2026-11-02T07:00:00Z")]
+    public void ConvertInclusiveLocalDateRangeToUtcRange_WhenTransitionRulesChange_ReturnsExpectedDayLength(
+        int year,
+        int month,
+        int day,
+        int hours,
+        string expectedStart,
+        string expectedEnd
+    )
     {
         var timeZone = _service.ResolveRequired("America/Vancouver");
 
         var range = _service.ConvertInclusiveLocalDateRangeToUtcRange(
-            new DateOnly(2026, 3, 8),
-            new DateOnly(2026, 3, 8),
+            new DateOnly(year, month, day),
+            new DateOnly(year, month, day),
             timeZone
         );
 
-        Assert.Equal(TimeSpan.FromHours(23), range.EndAtUtc - range.StartAtUtc);
-        Assert.Equal(new DateTimeOffset(2026, 3, 8, 8, 0, 0, TimeSpan.Zero), range.StartAtUtc);
-        Assert.Equal(new DateTimeOffset(2026, 3, 9, 7, 0, 0, TimeSpan.Zero), range.EndAtUtc);
-    }
-
-    [Fact]
-    public void ConvertInclusiveLocalDateRangeToUtcRange_WhenAutumnDaylightSavingEnds_ReturnsTwentyFiveHours()
-    {
-        var timeZone = _service.ResolveRequired("America/Vancouver");
-
-        var range = _service.ConvertInclusiveLocalDateRangeToUtcRange(
-            new DateOnly(2025, 11, 2),
-            new DateOnly(2025, 11, 2),
-            timeZone
-        );
-
-        Assert.Equal(TimeSpan.FromHours(25), range.EndAtUtc - range.StartAtUtc);
-        Assert.Equal(new DateTimeOffset(2025, 11, 2, 7, 0, 0, TimeSpan.Zero), range.StartAtUtc);
-        Assert.Equal(new DateTimeOffset(2025, 11, 3, 8, 0, 0, TimeSpan.Zero), range.EndAtUtc);
+        Assert.Equal(TimeSpan.FromHours(hours), range.EndAtUtc - range.StartAtUtc);
+        Assert.Equal(DateTimeOffset.Parse(expectedStart), range.StartAtUtc);
+        Assert.Equal(DateTimeOffset.Parse(expectedEnd), range.EndAtUtc);
     }
 
     [Fact]
