@@ -68,7 +68,13 @@ public static class TrainingModule
         services.AddScoped<IUserTrainingService, UserTrainingService>();
         services.AddScoped<TrainingCalendarEventService>();
         if (CalendarModule.IsModuleEnabled(config))
+        {
             services.AddScoped<ICalendarConflictParticipantProvider, TrainingConflictParticipantProvider>();
+            services.AddScoped<
+                IEntitySideEffect<UserHomeLocationChangedSignal>,
+                InvalidateTrainingOverridesOnHomeLocationChangeHandler
+            >();
+        }
         services.AddScoped<ITrainingProfileTypeService, TrainingProfileTypeService>();
         services.AddScoped<IUserTrainingExpiryNotificationService, UserTrainingExpiryNotificationService>();
         services.AddScoped<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>();

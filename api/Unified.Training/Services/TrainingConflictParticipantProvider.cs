@@ -68,8 +68,11 @@ public sealed class TrainingConflictParticipantProvider(
             return [];
 
         // UTC-stored Training dates can occupy the preceding or following UTC day in a local time zone.
-        var coarseStart = query.StartAtUtc.AddDays(-2);
-        var coarseEnd = query.EndAtUtc.AddDays(2);
+        var startAtUtc = query.StartAtUtc.ToUniversalTime();
+        var endAtUtc = query.EndAtUtc.ToUniversalTime();
+        var coarseStart =
+            startAtUtc < DateTimeOffset.MinValue.AddDays(2) ? DateTimeOffset.MinValue : startAtUtc.AddDays(-2);
+        var coarseEnd = endAtUtc > DateTimeOffset.MaxValue.AddDays(-2) ? DateTimeOffset.MaxValue : endAtUtc.AddDays(2);
         var records = db
             .UserTrainings.AsNoTracking()
             .Where(training =>
@@ -110,7 +113,14 @@ public sealed class TrainingConflictParticipantProvider(
         var startDay = DateOnly.FromDateTime(record.AwardedOn.UtcDateTime);
         var endDay = DateOnly.FromDateTime(end.UtcDateTime);
         var timeZone = timeZoneResolver.Resolve(null, record.TimeZoneId);
-        var range = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(startDay, endDay, timeZone);
+        // The exclusive local day after DateOnly.MaxValue cannot be represented.
+        var range =
+            endDay == DateOnly.MaxValue
+                ? new UtcDateRange(
+                    timeZoneService.ToUtcInstant(startDay.ToDateTime(TimeOnly.MinValue), timeZone),
+                    DateTimeOffset.MaxValue
+                )
+                : timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(startDay, endDay, timeZone);
 
         return new CalendarConflictParticipant(
             IdentityFor(record.Id).EventId,
