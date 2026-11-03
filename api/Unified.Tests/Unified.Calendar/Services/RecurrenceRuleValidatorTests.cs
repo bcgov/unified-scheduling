@@ -282,6 +282,7 @@ public class RecurrenceRuleValidatorTests
     )
     {
         // Arrange
+        // Los Angeles retains conventional DST rules on both Windows and Linux.
         var seriesStartAtUtc = DateTimeOffset.Parse(startAtUtc);
         var seriesEndAtUtc = DateTimeOffset.Parse(endAtUtc);
 
@@ -290,7 +291,7 @@ public class RecurrenceRuleValidatorTests
             recurrenceRule,
             seriesStartAtUtc,
             seriesEndAtUtc,
-            "America/Vancouver",
+            "America/Los_Angeles",
             CreateOptions()
         );
 
@@ -304,7 +305,7 @@ public class RecurrenceRuleValidatorTests
     [Theory]
     [InlineData("2026-10-31T16:00:00Z")]
     [InlineData("2026-12-31T16:00:00Z")]
-    public void ExpandAllBounded_WhenPacificTimeIsPermanent_PreservesLocalWallClockTime(string startAtUtc)
+    public void ExpandAllBounded_WhenTimeZoneHasPermanentOffset_PreservesLocalWallClockTime(string startAtUtc)
     {
         var start = DateTimeOffset.Parse(startAtUtc);
         var series = new EventSeries
@@ -312,7 +313,7 @@ public class RecurrenceRuleValidatorTests
             RecurrenceRule = "FREQ=DAILY;COUNT=3",
             StartAtUtc = start,
             EndAtUtc = start.AddHours(1),
-            TimeZoneId = "America/Vancouver",
+            TimeZoneId = "America/Dawson_Creek",
         };
 
         var occurrences = _expander.ExpandAllBounded(series, 3).ToArray();
@@ -327,7 +328,7 @@ public class RecurrenceRuleValidatorTests
                 _timeZoneService
                     .ToLocalUnspecified(
                         occurrences[index].StartAtUtc,
-                        _timeZoneService.ResolveRequired("America/Vancouver")
+                        _timeZoneService.ResolveRequired(series.TimeZoneId)
                     )
                     .Hour
             );

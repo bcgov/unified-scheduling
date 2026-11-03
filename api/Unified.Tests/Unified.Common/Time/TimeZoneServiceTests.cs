@@ -7,19 +7,24 @@ public class TimeZoneServiceTests
     private readonly ITimeZoneService _service = new TimeZoneService();
 
     [Theory]
-    [InlineData(2025, 1, -8)]
-    [InlineData(2025, 7, -7)]
-    [InlineData(2026, 1, -8)]
-    [InlineData(2026, 11, -7)]
-    [InlineData(2027, 1, -7)]
-    public void ResolveOrUtc_WhenTimeZoneExists_ReturnsTimeZone(int year, int month, int expectedOffsetHours)
+    [InlineData("America/Vancouver", 2025, 1, -8)]
+    [InlineData("America/Vancouver", 2025, 7, -7)]
+    [InlineData("America/Vancouver", 2026, 1, -8)]
+    [InlineData("America/Dawson_Creek", 2026, 11, -7)]
+    [InlineData("America/Dawson_Creek", 2027, 1, -7)]
+    public void ResolveOrUtc_WhenTimeZoneExists_ReturnsTimeZone(
+        string timeZoneId,
+        int year,
+        int month,
+        int expectedOffsetHours
+    )
     {
-        var result = _service.ResolveOrUtc("America/Vancouver");
-        var requiredResult = _service.ResolveRequired("America/Vancouver");
+        var result = _service.ResolveOrUtc(timeZoneId);
+        var requiredResult = _service.ResolveRequired(timeZoneId);
         var instant = new DateTimeOffset(year, month, 2, 16, 0, 0, TimeSpan.Zero);
 
-        Assert.Equal("America/Vancouver", result.Id);
-        Assert.Equal("America/Vancouver", requiredResult.Id);
+        Assert.Equal(timeZoneId, result.Id);
+        Assert.Equal(timeZoneId, requiredResult.Id);
         Assert.Equal(TimeSpan.FromHours(expectedOffsetHours), result.GetUtcOffset(instant));
         Assert.Equal(TimeSpan.FromHours(expectedOffsetHours), requiredResult.GetUtcOffset(instant));
     }
@@ -105,7 +110,7 @@ public class TimeZoneServiceTests
     [InlineData(2026, 7, 1, 9, 30, 16, 30)]
     [InlineData(2026, 11, 1, 1, 30, 8, 30)]
     [InlineData(2027, 1, 1, 9, 0, 16, 0)]
-    public void ToUtcInstant_WhenLocalTimeIsValid_ReturnsUtcInstant(
+    public void ToUtcInstant_WhenTimeZoneHasPermanentOffset_ReturnsUtcInstant(
         int year,
         int month,
         int day,
@@ -115,7 +120,8 @@ public class TimeZoneServiceTests
         int utcMinute
     )
     {
-        var timeZone = _service.ResolveRequired("America/Vancouver");
+        // Dawson Creek has long observed UTC-7, independently of recent Vancouver rule updates.
+        var timeZone = _service.ResolveRequired("America/Dawson_Creek");
 
         var result = _service.ToUtcInstant(new DateTime(year, month, day, hour, minute, 0), timeZone);
 
@@ -135,7 +141,8 @@ public class TimeZoneServiceTests
         string expectedMessage
     )
     {
-        var timeZone = _service.ResolveRequired("America/Vancouver");
+        // Exercise DST rejection without Vancouver's platform-dependent historical rule representation.
+        var timeZone = _service.ResolveRequired("America/Los_Angeles");
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _service.ToUtcInstant(new DateTime(year, month, day, hour, minute, 0), timeZone)
@@ -160,10 +167,11 @@ public class TimeZoneServiceTests
     }
 
     [Theory]
-    [InlineData(2026, 3, 8, 23, "2026-03-08T08:00:00Z", "2026-03-09T07:00:00Z")]
-    [InlineData(2025, 11, 2, 25, "2025-11-02T07:00:00Z", "2025-11-03T08:00:00Z")]
-    [InlineData(2026, 11, 1, 24, "2026-11-01T07:00:00Z", "2026-11-02T07:00:00Z")]
-    public void ConvertInclusiveLocalDateRangeToUtcRange_WhenTransitionRulesChange_ReturnsExpectedDayLength(
+    [InlineData("America/Los_Angeles", 2026, 3, 8, 23, "2026-03-08T08:00:00Z", "2026-03-09T07:00:00Z")]
+    [InlineData("America/Los_Angeles", 2025, 11, 2, 25, "2025-11-02T07:00:00Z", "2025-11-03T08:00:00Z")]
+    [InlineData("America/Dawson_Creek", 2026, 11, 1, 24, "2026-11-01T07:00:00Z", "2026-11-02T07:00:00Z")]
+    public void ConvertInclusiveLocalDateRangeToUtcRange_WhenZoneObservesDstOrPermanentOffset_ReturnsExpectedDayLength(
+        string timeZoneId,
         int year,
         int month,
         int day,
@@ -172,7 +180,7 @@ public class TimeZoneServiceTests
         string expectedEnd
     )
     {
-        var timeZone = _service.ResolveRequired("America/Vancouver");
+        var timeZone = _service.ResolveRequired(timeZoneId);
 
         var range = _service.ConvertInclusiveLocalDateRangeToUtcRange(
             new DateOnly(year, month, day),
