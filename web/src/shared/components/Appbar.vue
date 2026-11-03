@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { mdiLogout, mdiEarth } from '@mdi/js';
 import UaSelect from '@/shared/components/UaSelect.vue';
+import { redirectToLogout } from '@/utils/authNavigation';
 
 const bcgovLogo = new URL('/images/bcid-logo-rev-en.svg', import.meta.url).href;
 const navigationStore = useNavigationStore();
@@ -12,7 +13,7 @@ const locationsStore = useLocationsStore();
 
 const handleLogout = () => {
   authStore.clearUserInfo();
-  window.location.href = '/api/auth/logout';
+  redirectToLogout();
 };
 </script>
 

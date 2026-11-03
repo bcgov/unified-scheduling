@@ -47,8 +47,8 @@ public class AssignmentEntryConfiguration : BaseEntityConfiguration<AssignmentEn
             "AssignmentEntries",
             table =>
                 table.HasCheckConstraint(
-                    "CK_AssignmentEntries_CapacityAtLeastOne",
-                    "\"Capacity\" >= 1"
+                    "CK_AssignmentEntries_CapacityNonNegative",
+                    "\"Capacity\" >= 0"
                 )
         );
 

@@ -39,6 +39,50 @@ describe('calendarSchedulingAssignmentForm', () => {
     });
   });
 
+  it('accepts and preserves zero capacity in assignment entry payloads', () => {
+    const formData = { ...baseFormData, capacity: 0 };
+    const validationResult = validateAssignmentFormData(formData, { timeZoneId: 'America/Vancouver' });
+    const payload = buildCreateAssignmentPayload({
+      formData,
+      timeZoneId: 'America/Vancouver',
+      locationId: 12,
+      assignmentOptions: [{ code: 7, description: 'Court assignment' }],
+    });
+
+    expect(validationResult.errors).toEqual({});
+    expect(validationResult.data?.capacity).toBe(0);
+    expect(payload?.kind).toBe('entry');
+    expect(payload?.body.capacity).toBe(0);
+  });
+
+  it('accepts and preserves zero capacity in assignment series payloads', () => {
+    const formData: AssignmentFormData = {
+      ...baseFormData,
+      capacity: 0,
+      repeatMode: 'custom',
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;COUNT=4',
+    };
+    const validationResult = validateAssignmentFormData(formData, { timeZoneId: 'America/Vancouver' });
+    const payload = buildCreateAssignmentPayload({
+      formData,
+      timeZoneId: 'America/Vancouver',
+      locationId: 12,
+      assignmentOptions: [{ code: 7, description: 'Court assignment' }],
+    });
+
+    expect(validationResult.errors).toEqual({});
+    expect(validationResult.data?.capacity).toBe(0);
+    expect(payload?.kind).toBe('series');
+    expect(payload?.body.capacity).toBe(0);
+  });
+
+  it('rejects negative assignment capacity', () => {
+    const result = validateAssignmentFormData({ ...baseFormData, capacity: -1 }, { timeZoneId: 'America/Vancouver' });
+
+    expect(result.errors.capacity).toBeTruthy();
+    expect(result.data).toBeNull();
+  });
+
   it('preserves an existing description when unrelated fields are edited', () => {
     const payload = buildCreateAssignmentPayload({
       formData: {

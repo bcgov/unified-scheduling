@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -12,7 +13,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Unified.Infrastructure.Helpers;
@@ -23,12 +26,202 @@ namespace Unified.Infrastructure;
 public static class AuthenticationServiceCollectionExtension
 {
     private const string IdirIdClaimType = "keycloak/idir_user_guid";
+    private static readonly TimeSpan TransientRefreshFailureCooldown = TimeSpan.FromSeconds(10);
 
-    private record TokenResponse(
-        [property: JsonPropertyName("access_token")] string AccessToken,
-        [property: JsonPropertyName("refresh_token")] string RefreshToken,
+    private sealed class TokenRefreshCooldown(TimeProvider timeProvider)
+    {
+        private long retryAfterUtcTicks;
+
+        public bool IsActive => timeProvider.GetUtcNow().UtcTicks < Interlocked.Read(ref retryAfterUtcTicks);
+
+        public void Start() =>
+            Interlocked.Exchange(
+                ref retryAfterUtcTicks,
+                timeProvider.GetUtcNow().Add(TransientRefreshFailureCooldown).UtcTicks
+            );
+
+        public void Reset() => Interlocked.Exchange(ref retryAfterUtcTicks, 0);
+    }
+
+    private sealed record TokenResponse(
+        [property: JsonPropertyName("access_token")] string? AccessToken,
+        [property: JsonPropertyName("refresh_token")] string? RefreshToken,
+        [property: JsonPropertyName("id_token")] string? IdToken,
         [property: JsonPropertyName("expires_in")] int ExpiresIn
     );
+
+    private static async Task ValidateAndRefreshPrincipalAsync(
+        CookieValidatePrincipalContext cookieCtx,
+        KeycloakOptions keycloakOptions
+    )
+    {
+        if (cookieCtx.Principal is null)
+        {
+            cookieCtx.RejectPrincipal();
+            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        var externalSubject =
+            cookieCtx.Principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? cookieCtx.Principal.FindFirstValue("sub");
+        if (string.IsNullOrWhiteSpace(externalSubject))
+        {
+            cookieCtx.RejectPrincipal();
+            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        var expiresAt = cookieCtx.Properties.GetTokenValue("expires_at");
+        if (string.IsNullOrWhiteSpace(expiresAt) || !DateTimeOffset.TryParse(expiresAt, out var accessTokenExpiration))
+        {
+            cookieCtx.RejectPrincipal();
+            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        var timeProvider = cookieCtx.HttpContext.RequestServices.GetRequiredService<TimeProvider>();
+        var cooldown = cookieCtx.HttpContext.RequestServices.GetRequiredService<TokenRefreshCooldown>();
+        var now = timeProvider.GetUtcNow();
+        if (accessTokenExpiration - now > keycloakOptions.TokenRefreshThreshold)
+            return;
+
+        var refreshToken = cookieCtx.Properties.GetTokenValue("refresh_token");
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            cookieCtx.RejectPrincipal();
+            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return;
+        }
+
+        void RejectIfExpired()
+        {
+            if (accessTokenExpiration <= timeProvider.GetUtcNow())
+                cookieCtx.RejectPrincipal();
+        }
+
+        if (cooldown.IsActive && accessTokenExpiration > timeProvider.GetUtcNow())
+        {
+            return;
+        }
+
+        var logger = cookieCtx
+            .HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(nameof(AuthenticationServiceCollectionExtension));
+        var httpClient = cookieCtx
+            .HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>()
+            .CreateClient("TokenRefresh");
+        var tokenEndpoint = string.IsNullOrWhiteSpace(keycloakOptions.RefreshTokenEndpoint)
+            ? $"{keycloakOptions.Authority.TrimEnd('/')}/protocol/openid-connect/token"
+            : $"{keycloakOptions.Authority.TrimEnd('/')}/{keycloakOptions.RefreshTokenEndpoint.TrimStart('/')}";
+
+        HttpResponseMessage response;
+        try
+        {
+            using var content = new FormUrlEncodedContent(
+                new Dictionary<string, string>
+                {
+                    ["grant_type"] = "refresh_token",
+                    ["client_id"] = keycloakOptions.Client,
+                    ["client_secret"] = keycloakOptions.Secret,
+                    ["refresh_token"] = refreshToken,
+                }
+            );
+            response = await httpClient.PostAsync(tokenEndpoint, content, cookieCtx.HttpContext.RequestAborted);
+        }
+        catch (OperationCanceledException) when (!cookieCtx.HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogWarning("Keycloak token refresh timed out.");
+            cooldown.Start();
+            RejectIfExpired();
+            return;
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "Keycloak token refresh could not reach the identity provider.");
+            cooldown.Start();
+            RejectIfExpired();
+            return;
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                if (
+                    response.StatusCode
+                    is HttpStatusCode.BadRequest
+                        or HttpStatusCode.Unauthorized
+                        or HttpStatusCode.Forbidden
+                )
+                {
+                    cookieCtx.RejectPrincipal();
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Keycloak token refresh returned transient HTTP status {StatusCode}.",
+                        (int)response.StatusCode
+                    );
+                    if (
+                        response.StatusCode is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests
+                        || (int)response.StatusCode >= 500
+                    )
+                        cooldown.Start();
+                    RejectIfExpired();
+                }
+                return;
+            }
+
+            TokenResponse? tokenResponse;
+            try
+            {
+                tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>(
+                    cookieCtx.HttpContext.RequestAborted
+                );
+            }
+            catch (Exception exception)
+                when (exception is HttpRequestException or System.Text.Json.JsonException or NotSupportedException)
+            {
+                logger.LogWarning(exception, "Keycloak token refresh returned an invalid response.");
+                RejectIfExpired();
+                return;
+            }
+
+            if (
+                tokenResponse is null
+                || string.IsNullOrWhiteSpace(tokenResponse.AccessToken)
+                || tokenResponse.ExpiresIn <= 0
+            )
+            {
+                logger.LogWarning("Keycloak token refresh returned an incomplete response.");
+                RejectIfExpired();
+                return;
+            }
+
+            var replacementRefreshToken = string.IsNullOrWhiteSpace(tokenResponse.RefreshToken)
+                ? refreshToken
+                : tokenResponse.RefreshToken;
+            var existingIdToken = cookieCtx.Properties.GetTokenValue("id_token");
+            var replacementIdToken = string.IsNullOrWhiteSpace(tokenResponse.IdToken)
+                ? existingIdToken
+                : tokenResponse.IdToken;
+            var refreshedTokens = new List<AuthenticationToken>
+            {
+                new() { Name = "refresh_token", Value = replacementRefreshToken },
+                new()
+                {
+                    Name = "expires_at",
+                    Value = timeProvider.GetUtcNow().AddSeconds(tokenResponse.ExpiresIn).ToString("O"),
+                },
+            };
+            if (!string.IsNullOrWhiteSpace(replacementIdToken))
+                refreshedTokens.Add(new AuthenticationToken { Name = "id_token", Value = replacementIdToken });
+
+            cookieCtx.Properties.StoreTokens(refreshedTokens);
+            cookieCtx.ShouldRenew = true;
+            cooldown.Reset();
+        }
+    }
 
     public static IServiceCollection AddUnifiedAuthentication(
         this IServiceCollection services,
@@ -38,18 +231,15 @@ public static class AuthenticationServiceCollectionExtension
     {
         var keycloakOptions = configuration.GetSection(KeycloakOptions.SectionName).Get<KeycloakOptions>();
 
-        var refreshThreshold = KeycloakOptions.DefaultRefreshThreshold;
-        if (!string.IsNullOrWhiteSpace(keycloakOptions.RefreshThreshold))
-        {
-            TimeSpan.TryParse(keycloakOptions.RefreshThreshold, out refreshThreshold);
-        }
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<TokenRefreshCooldown>();
 
         services
             .AddAuthentication(options =>
             {
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             })
             .AddCookie(options =>
             {
@@ -68,77 +258,7 @@ public static class AuthenticationServiceCollectionExtension
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         return context.Response.CompleteAsync();
                     },
-                    OnValidatePrincipal = async cookieCtx =>
-                    {
-                        if (cookieCtx.Principal is null)
-                        {
-                            cookieCtx.RejectPrincipal();
-                            return;
-                        }
-
-                        var externalSubject =
-                            cookieCtx.Principal.FindFirstValue(ClaimTypes.NameIdentifier)
-                            ?? cookieCtx.Principal.FindFirstValue("sub");
-                        if (string.IsNullOrWhiteSpace(externalSubject))
-                        {
-                            cookieCtx.RejectPrincipal();
-                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                            return;
-                        }
-
-                        var expiresAt = cookieCtx.Properties.GetTokenValue("expires_at");
-                        if (
-                            string.IsNullOrWhiteSpace(expiresAt)
-                            || !DateTimeOffset.TryParse(expiresAt, out var accessTokenExpiration)
-                        )
-                        {
-                            cookieCtx.RejectPrincipal();
-                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                            return;
-                        }
-
-                        var timeRemaining = accessTokenExpiration.Subtract(DateTimeOffset.UtcNow);
-                        if (timeRemaining > refreshThreshold)
-                            return;
-
-                        var refreshToken = cookieCtx.Properties.GetTokenValue("refresh_token");
-                        if (string.IsNullOrWhiteSpace(refreshToken))
-                            return;
-
-                        var httpClientFactory =
-                            cookieCtx.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
-                        var httpClient = httpClientFactory.CreateClient("TokenRefresh");
-
-                        var tokenEndpoint = $"{keycloakOptions.Authority}/protocol/openid-connect/token";
-                        var content = new FormUrlEncodedContent(
-                            new Dictionary<string, string>
-                            {
-                                ["grant_type"] = "refresh_token",
-                                ["client_id"] = keycloakOptions.Client,
-                                ["client_secret"] = keycloakOptions.Secret,
-                                ["refresh_token"] = refreshToken,
-                            }
-                        );
-
-                        var response = await httpClient.PostAsync(tokenEndpoint, content);
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            cookieCtx.RejectPrincipal();
-                            await cookieCtx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                        }
-                        else
-                        {
-                            var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
-                            if (tokenResponse != null)
-                            {
-                                var updatedExpiresAt = DateTimeOffset.UtcNow.AddSeconds(tokenResponse.ExpiresIn);
-                                cookieCtx.Properties.UpdateTokenValue("expires_at", updatedExpiresAt.ToString());
-                                cookieCtx.Properties.UpdateTokenValue("access_token", tokenResponse.AccessToken);
-                                cookieCtx.Properties.UpdateTokenValue("refresh_token", tokenResponse.RefreshToken);
-                                cookieCtx.ShouldRenew = true;
-                            }
-                        }
-                    },
+                    OnValidatePrincipal = ctx => ValidateAndRefreshPrincipalAsync(ctx, keycloakOptions),
                 };
             })
             .AddOpenIdConnect(options =>
@@ -172,10 +292,14 @@ public static class AuthenticationServiceCollectionExtension
                 {
                     OnTicketReceived = context =>
                     {
-                        //id_token_hint for Keycloak logout.
-                        context.Properties.UpdateTokenValue("access_token", null);
-                        context.Properties.UpdateTokenValue("refresh_token", null);
-                        context.Properties.Items[".TokenNames"] = "id_token";
+                        var retainedTokens = context
+                            .Properties.GetTokens()
+                            .Where(token =>
+                                (token.Name is "refresh_token" or "id_token" or "expires_at")
+                                && !string.IsNullOrWhiteSpace(token.Value)
+                            )
+                            .ToArray();
+                        context.Properties.StoreTokens(retainedTokens);
                         return Task.CompletedTask;
                     },
                     OnRedirectToIdentityProvider = context =>
