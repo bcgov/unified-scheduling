@@ -163,7 +163,7 @@ function handleActionClick() {
 }
 
 .calendar-matrix-cell-header__main {
-  align-items: flex-start;
+  align-items: stretch;
   background: transparent;
   border: 0;
   color: inherit;
