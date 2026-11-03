@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import CalendarMatrixSidePanelItem from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue';
+import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 import { Permissions } from '@/api-access/generated/models';
 import { createPinia, setActivePinia } from 'pinia';
 import { http, HttpResponse } from 'msw';
@@ -111,6 +115,121 @@ function items(events: CalendarSchedulingEvent[], query = context, permissions =
 }
 
 describe('assignment sidebar warnings', () => {
+  it.each([
+    {
+      name: 'single-day Edmonton leave',
+      start: '2025-01-13T07:00:00Z',
+      end: '2025-01-14T07:00:00Z',
+      timeZoneId: 'America/Edmonton',
+      first: '2025-01-13',
+      exclusiveEnd: '2025-01-14',
+      dates: 'January 13, 2025',
+    },
+    {
+      name: 'multi-day Edmonton leave',
+      start: '2025-01-13T07:00:00Z',
+      end: '2025-01-15T07:00:00Z',
+      timeZoneId: 'America/Edmonton',
+      first: '2025-01-13',
+      exclusiveEnd: '2025-01-15',
+      dates: 'January 13, 2025 - January 14, 2025',
+    },
+    {
+      name: 'Vancouver leave',
+      start: '2025-01-13T08:00:00Z',
+      end: '2025-01-15T08:00:00Z',
+      timeZoneId: 'America/Vancouver',
+      first: '2025-01-13',
+      exclusiveEnd: '2025-01-15',
+      dates: 'January 13, 2025 - January 14, 2025',
+    },
+    {
+      name: 'leave without a source zone',
+      start: '2025-01-13T08:00:00Z',
+      end: '2025-01-15T08:00:00Z',
+      timeZoneId: undefined,
+      first: '2025-01-13',
+      exclusiveEnd: '2025-01-15',
+      dates: 'January 13, 2025 - January 14, 2025',
+    },
+    {
+      name: 'Edmonton leave across the spring DST boundary',
+      start: '2025-03-08T07:00:00Z',
+      end: '2025-03-11T06:00:00Z',
+      timeZoneId: 'America/Edmonton',
+      first: '2025-03-08',
+      exclusiveEnd: '2025-03-11',
+      dates: 'March 8, 2025 - March 10, 2025',
+    },
+  ])(
+    'preserves source dates and the exclusive end for $name',
+    async ({ start, end, timeZoneId, first, exclusiveEnd, dates }) => {
+      const query = { ...context, startDate: first, endDate: exclusiveEnd };
+      const item = items([leave('vacation', start, end, { allDay: true, timeZoneId })], query)[0]!;
+      expect(item.warningGroups?.[0]?.warnings).toEqual([
+        expect.objectContaining({ start: first, end: exclusiveEnd, allDay: true }),
+      ]);
+      const app = await createTestApp({ loadConfig: false });
+      const wrapper = mount(CalendarMatrixSidePanelItem, {
+        props: { item, timeZone: 'America/Vancouver' },
+        global: {
+          plugins: app.mountPlugins,
+          stubs: {
+            VTooltip: { template: '<div><slot name="activator" :props="{}" /><slot /></div>' },
+          },
+        },
+      });
+      expect(wrapper.text()).toContain(`${dates}, ${CALENDAR_ALL_DAY_LABEL}`);
+      wrapper.unmount();
+    },
+  );
+
+  it('preserves date-only leave and training even when a source timezone is provided', () => {
+    const query = { ...context, startDate: '2025-01-13', endDate: '2025-01-14' };
+    const data = response(
+      [leave('leave', '2025-01-13', '2025-01-15', { allDay: true, timeZoneId: 'America/Edmonton' })],
+      [training('training', '2025-01-13', '2025-01-15', { timeZoneId: 'America/Edmonton' })],
+      query,
+    );
+    const groups = buildCalendarAssignmentViewModel(data, query, 'day', trainingRuntime).sidePanel!.items[0]!
+      .warningGroups!;
+    expect(groups.map((group) => group.warnings[0])).toEqual([
+      expect.objectContaining({ start: '2025-01-13', end: '2025-01-15', allDay: true }),
+      expect.objectContaining({ start: '2025-01-13', end: '2025-01-15', allDay: true }),
+    ]);
+  });
+
+  it('keeps timed leave and training in the matrix timezone', async () => {
+    const query = { ...context, startDate: '2025-01-13', endDate: '2025-01-14' };
+    const start = '2025-01-13T17:00:00Z';
+    const end = '2025-01-13T18:00:00Z';
+    const data = response(
+      [leave('leave', start, end, { timeZoneId: 'America/Edmonton' })],
+      [training('training', start, end, { allDay: false, timeZoneId: 'America/Edmonton' })],
+      query,
+    );
+    const item = buildCalendarAssignmentViewModel(data, query, 'day', trainingRuntime).sidePanel!.items[0]!;
+    expect(item.warningGroups!.flatMap((group) => group.warnings)).toEqual([
+      expect.objectContaining({ start, end }),
+      expect.objectContaining({ start, end, allDay: false }),
+    ]);
+    const app = await createTestApp({ loadConfig: false });
+    const wrapper = mount(CalendarMatrixSidePanelItem, {
+      props: { item, timeZone: 'America/Vancouver' },
+      global: {
+        plugins: app.mountPlugins,
+        stubs: {
+          VTooltip: { template: '<div><slot name="activator" :props="{}" /><slot /></div>' },
+        },
+      },
+    });
+    expect(wrapper.findAll('li').map((warning) => warning.text())).toEqual([
+      expect.stringContaining('January 13, 2025, 9:00 AM - 10:00 AM'),
+      expect.stringContaining('January 13, 2025, 9:00 AM - 10:00 AM'),
+    ]);
+    wrapper.unmount();
+  });
+
   it('groups warning-only training across locations with leave and filters by user, period, and cancellation', () => {
     const data = response(
       [leave('leave', '2025-03-09T17:00:00Z')],

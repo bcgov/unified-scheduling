@@ -129,6 +129,7 @@ function handleDragEnd() {
     <v-tooltip
       v-if="warningGroups.length"
       location="end"
+      open-on-click
       open-on-focus
       content-class="bg-surface text-on-surface border"
     >
@@ -139,8 +140,8 @@ function handleDragEnd() {
           class="calendar-matrix-side-panel-item__warning"
           :aria-label="`Event warnings for ${item.title}`"
           :draggable="false"
-          @mousedown.stop.prevent
-          @touchstart.stop.prevent
+          @mousedown.stop
+          @touchstart.stop
           @dragstart.stop.prevent
           @click.stop
           @keydown.stop
@@ -182,7 +183,7 @@ function handleDragEnd() {
   align-items: center;
   background: transparent;
   border: 0;
-  color: rgb(var(--v-theme-accent));
+  color: rgb(var(--v-theme-secondary));
   cursor: pointer;
   display: inline-flex;
   height: 0.75rem;

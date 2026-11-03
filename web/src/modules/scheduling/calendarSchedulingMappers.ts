@@ -841,8 +841,8 @@ function buildUserWarningGroups(
           group.id === 'leave' && isCalendarSchedulingEvent(event)
             ? event.metadata.leaveTypeName || 'Leave'
             : event.title.replace(/^Training:\s*/i, ''),
-        start: event.allDay ? getCalendarEventDateKey(event.start, timeZone)! : event.start,
-        end: event.allDay ? getCalendarEventDateKey(event.end, timeZone) : event.end,
+        start: event.allDay ? getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone)! : event.start,
+        end: event.allDay ? getCalendarEventDateKey(event.end, event.timeZoneId ?? timeZone) : event.end,
         allDay: event.allDay,
       })),
     }));
