@@ -121,6 +121,7 @@ public class TimeZoneServiceTests
 
         Assert.Contains(expectedMessage, exception.Message);
     }
+
     private static TimeZoneInfo CreatePacificTimeZone()
     {
         var daylightStart = TimeZoneInfo.TransitionTime.CreateFloatingDateRule(
