@@ -118,7 +118,10 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
     {
         var response = await _service.CreateLoanOutEntryAsync(CreateRequest(), TestContext.Current.CancellationToken);
 
-        var entry = await _db.LoanOutEntries.Include(item => item.Event).Include(item => item.Users).SingleAsync();
+        var entry = await _db
+            .LoanOutEntries.Include(item => item.Event)
+            .Include(item => item.Users)
+            .SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(entry.Id, response.Id);
         Assert.Equal(10, response.LoanOutLocationId);
         Assert.Equal(Start, entry.Event!.StartAtUtc);
@@ -153,7 +156,9 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
     public async Task UpdateLoanOutEntryAsync_AlwaysPersistsEventAsAllDay()
     {
         var created = await _service.CreateLoanOutEntryAsync(CreateRequest(), TestContext.Current.CancellationToken);
-        var entry = await _db.LoanOutEntries.Include(item => item.Event).SingleAsync();
+        var entry = await _db
+            .LoanOutEntries.Include(item => item.Event)
+            .SingleAsync(TestContext.Current.CancellationToken);
         entry.Event!.AllDay = false;
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 

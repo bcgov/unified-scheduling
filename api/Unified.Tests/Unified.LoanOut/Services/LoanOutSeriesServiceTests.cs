@@ -140,7 +140,7 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             .LoanOutSeries.Include(item => item.EventSeries)
             .Include(item => item.Users)
             .Include(item => item.LoanOutEntries)
-            .SingleAsync();
+            .SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(series.Id, response.Id);
         Assert.Equal(10, response.LoanOutLocationId);
         Assert.Equal(2, response.LoanOutEntryIds.Count);
@@ -210,7 +210,7 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
                 .ThenInclude(eventSeries => eventSeries.Events)
             .Include(item => item.LoanOutEntries)
                 .ThenInclude(entry => entry.Event)
-            .SingleAsync();
+            .SingleAsync(TestContext.Current.CancellationToken);
         series.EventSeries!.AllDay = false;
         foreach (var eventEntity in _db.Events)
             eventEntity.AllDay = false;
