@@ -136,6 +136,8 @@ describe('CalendarSchedulingAddResourceModal', () => {
     const message = 'A selected resource already has a loan-out on one or more of these dates.';
     const userId = '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62';
     server.use(
+      http.get('/api/scheduling/assignments/entries', () => HttpResponse.json([])),
+      http.get('/api/scheduling/assignments/series', () => HttpResponse.json([])),
       http.post(`/api/scheduling/loan-out/${kind === 'series' ? 'series' : 'entries'}`, () =>
         HttpResponse.json({ title: 'Conflict.', status: 409, errors: { UserIds: [message] } }, { status: 409 }),
       ),
@@ -157,9 +159,9 @@ describe('CalendarSchedulingAddResourceModal', () => {
           UaBtn: { template: '<button><slot/></button>' },
           CalendarSchedulingResourceTabs: {
             template:
-              '<div><button @click="$emit(\'update:modelValue\', \'loanout\')">Loan Out</button><slot name="loanout"/></div>',
+              '<div><button @click="$emit(\'update:activeTab\', \'loanout\')">Loan Out</button><slot name="loanout"/></div>',
           },
-          LoanOutForm: { props: ['modelValue', 'formErrors'], template: '<div />' },
+          LoanOutForm: { name: 'LoanOutForm', props: ['modelValue', 'formErrors'], template: '<div />' },
         },
       },
     });
