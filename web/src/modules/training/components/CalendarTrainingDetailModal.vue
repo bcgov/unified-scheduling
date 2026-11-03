@@ -22,9 +22,12 @@ if (trainingEvent) {
   });
 }
 
-const selectedTraining = computed(() => data.value?.find((record) => record.id === trainingEvent?.userTrainingId));
+const trainingRecords = computed(() => (Array.isArray(data.value) ? data.value : []));
+const selectedTraining = computed(() =>
+  trainingRecords.value.find((record) => record.id === trainingEvent?.userTrainingId),
+);
 const trainingVersions = computed(() =>
-  (data.value ?? []).filter((record) => record.trainingId === selectedTraining.value?.trainingId),
+  trainingRecords.value.filter((record) => record.trainingId === selectedTraining.value?.trainingId),
 );
 </script>
 
