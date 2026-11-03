@@ -621,7 +621,16 @@ describe('calendar workflow', () => {
     wrapper.unmount();
   });
 
-  it('resolves print context only after current data and child rendering, and reports load failures', async () => {
+  it.each([
+    ['day', '2026-08-24', '2026-08-25', true],
+    ['week', '2026-08-24', '2026-08-31', true],
+    ['work-week', '2026-08-24', '2026-08-29', true],
+    ['week', '2026-08-25', '2026-08-31', false],
+    ['work-week', '2026-08-25', '2026-08-29', false],
+    ['day', '2026-08-24', '2026-08-26', false],
+    ['week', '2026-08-24', '2026-08-30', false],
+    ['work-week', '2026-08-24', '2026-08-28', false],
+  ] as const)('validates %s print dates: %s to %s', async (period, startDate, endDate, valid) => {
     const loadData = vi.fn().mockResolvedValue({ contributions: {} });
     const PrintView = defineComponent({
       props: { renderToken: { type: String, default: '' } },
@@ -670,29 +679,36 @@ describe('calendar workflow', () => {
         mode: 'print',
         view: 'schedule',
         locationId: '7',
-        startDate: '2026-08-24',
-        endDate: '2026-08-31',
-        period: 'week',
+        startDate,
+        endDate,
+        period,
       },
     });
     await router.isReady();
     const locationsStore = useLocationsStore(pinia);
     locationsStore.entities = [{ id: 7, name: 'Seven', timezone: 'America/Vancouver' }];
     const calendarStore = useCalendarStore(pinia);
+    calendarStore.setAnchorDate('2025-04-09');
+    locationsStore.setSelectedLocationId(99);
     const wrapper = mount(Calendar, { global: { plugins: mountPlugins } });
 
     try {
       await flushPromises();
 
+      if (!valid) {
+        expect(wrapper.get('#calendar-print-root').attributes('data-render-state')).toBe('error');
+        return;
+      }
+
       expect(calendarStore.activeViewId).toBe('calendar.matrix-schedule');
-      expect(calendarStore.period).toBe('week');
-      expect(calendarStore.dateRange).toEqual({ startDate: '2026-08-24', endDate: '2026-08-31' });
+      expect(calendarStore.period).toBe(period);
+      expect(calendarStore.dateRange).toEqual({ startDate, endDate });
       expect(locationsStore.selectedLocationId).toBe(7);
       expect(loadData).toHaveBeenLastCalledWith(
         expect.objectContaining({ presentationMode: 'print' }),
         expect.objectContaining({
-          startDate: '2026-08-24',
-          endDate: '2026-08-31',
+          startDate,
+          endDate,
           activeViewId: 'calendar.matrix-schedule',
           locationId: 7,
         }),

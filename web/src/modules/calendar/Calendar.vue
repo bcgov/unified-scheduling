@@ -68,14 +68,12 @@ const printContext = computed<CalendarPrintContext | undefined>(() => {
   const requestedPeriod = readQueryValue(route.query.period);
   const period = isCalendarPeriod(requestedPeriod) && requestedPeriod !== 'month' ? requestedPeriod : undefined;
 
-  if (
-    !viewId ||
-    !locationId ||
-    !isValidDateOnly(startDate) ||
-    !isValidDateOnly(endDate) ||
-    !period ||
-    buildDateRangeForPeriod(startDate, period).endDate !== endDate
-  ) {
+  if (!viewId || !locationId || !isValidDateOnly(startDate) || !isValidDateOnly(endDate) || !period) {
+    return undefined;
+  }
+
+  const expectedRange = buildDateRangeForPeriod(startDate, period);
+  if (expectedRange.startDate !== startDate || expectedRange.endDate !== endDate) {
     return undefined;
   }
 
