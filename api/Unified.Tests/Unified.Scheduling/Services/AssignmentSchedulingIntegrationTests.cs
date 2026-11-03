@@ -1642,6 +1642,242 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task LoanOutDisabled_ExistingAwayRows_DoNotHideShiftsOrBlockAssignmentLinks(bool seriesLink)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var shiftSeries = await _shiftService.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+            },
+            ct
+        );
+        var assignmentSeries = await _assignmentService.CreateAssignmentSeriesAsync(
+            CreateAssignmentSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+            },
+            ct
+        );
+        var shifts = await _db
+            .ShiftEntries.Include(entry => entry.Event)
+            .Include(entry => entry.Users)
+            .Where(entry => entry.ShiftSeriesId == shiftSeries.Id)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .ToListAsync(ct);
+        shifts[0].Event!.IsException = true;
+        shifts[0].Event!.ExceptionReason = "Other";
+        shifts[1].Event!.IsException = true;
+        shifts[1].Event!.ExceptionReason = "IsAway";
+        var loanOut = CreateLoanOutEntry(AtDay(2, 7));
+        loanOut.Event!.EndAtUtc = AtDay(3, 7);
+        _db.LoanOutEntries.Add(loanOut);
+        await _db.SaveChangesAsync(ct);
+
+        var zones = new TimeZoneService();
+        var resolver = new CalendarTimeZoneResolver(
+            Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+            zones
+        );
+        var availability = SchedulingLoanOutTestServices.CreateAvailability(_db, zones, loanOutEnabled: false);
+        var links = new ShiftAssignmentService(
+            NullLogger<ShiftAssignmentService>.Instance,
+            _db,
+            zones,
+            _conflictService,
+            new NoOpSchedulingLoanOutService(),
+            availability
+        );
+        var shiftService = CreateShift(
+            _db,
+            _materializationService,
+            CreateLoanOutRecurrenceExpander(),
+            links,
+            zones,
+            new FixedTimeProvider(FixedNow),
+            _conflictService,
+            loanOutEnabled: false
+        );
+        var entries = await shiftService.GetShiftEntriesAsync(
+            new ShiftEntryQueryParams { ShiftSeriesId = shiftSeries.Id },
+            ct
+        );
+        var awayResponse = Assert.Single(entries, entry => entry.Id == shifts[1].Id);
+        Assert.False(awayResponse.IsException);
+        Assert.Null(awayResponse.ExceptionReason);
+        Assert.Equal("Other", Assert.Single(entries, entry => entry.Id == shifts[0].Id).ExceptionReason);
+        Assert.False((await shiftService.GetShiftEntryByIdAsync(shifts[1].Id, ct))!.IsException);
+
+        var calendar = new SchedulingCalendarService(
+            NullLogger<SchedulingCalendarService>.Instance,
+            _db,
+            resolver,
+            zones,
+            availability
+        );
+        var response = await calendar.GetDataAsync(
+            new SchedulingCalendarRequest
+            {
+                LocationId = 5,
+                UserIds = [UserA],
+                StartDate = new DateOnly(2026, 6, 1),
+                EndDate = new DateOnly(2026, 6, 2),
+            },
+            includeShifts: true,
+            includeAssignments: false,
+            includeLeave: false,
+            includeLoanOut: false,
+            ct
+        );
+        Assert.Equal(2, response.Events.Count);
+        Assert.All(response.Events, entry => Assert.Equal([UserA.ToString()], entry.ResourceIds));
+        var awayEvent = Assert.Single(response.Events, entry => entry.ShiftEntryId == shifts[1].Id);
+        Assert.False(awayEvent.IsException);
+        Assert.Null(awayEvent.ExceptionReason);
+        Assert.Equal(
+            "Other",
+            Assert.Single(response.Events, entry => entry.ShiftEntryId == shifts[0].Id).ExceptionReason
+        );
+
+        if (seriesLink)
+        {
+            await links.LinkShiftSeriesAsync(
+                new ShiftAssignmentSeriesRequest
+                {
+                    ShiftSeriesId = shiftSeries.Id,
+                    AssignmentSeriesId = assignmentSeries.Id,
+                    AssignedUserIds = [UserA],
+                },
+                ct
+            );
+            Assert.Equal(2, await _db.ShiftAssignmentEntries.CountAsync(ct));
+        }
+        else
+        {
+            var assignment = await _db.AssignmentEntries.SingleAsync(
+                entry => entry.AssignmentSeriesId == assignmentSeries.Id && entry.Event!.StartAtUtc == AtDay(2, 10),
+                ct
+            );
+            var link = await links.LinkShiftEntryAsync(
+                new ShiftAssignmentEntryRequest
+                {
+                    ShiftEntryId = shifts[1].Id,
+                    AssignmentEntryId = assignment.Id,
+                    UserIds = [UserA],
+                },
+                ct
+            );
+            Assert.Equal([UserA], link.UserIds);
+        }
+
+        Assert.Equal("IsAway", shifts[1].Event!.ExceptionReason);
+        Assert.True(shifts[1].Event!.IsException);
+        Assert.True(await _db.LoanOutEntries.AnyAsync(entry => entry.Id == loanOut.Id, ct));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ShiftConflicts_WithExistingLoanOut_OnlySuppressCandidatesWhenEnabled(
+        bool loanOutEnabled,
+        bool existingShift
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var shift = await _shiftService.CreateShiftEntryAsync(CreateShiftEntryRequest(AtDay(2, 9), AtDay(2, 17)), ct);
+        var original = await _db
+            .ShiftEntries.Include(entry => entry.Event)
+            .Include(entry => entry.Users)
+            .SingleAsync(entry => entry.Id == shift.Id, ct);
+        original.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        var loanOut = CreateLoanOutEntry(AtDay(2, 7));
+        loanOut.Event!.EndAtUtc = AtDay(3, 7);
+        _db.LoanOutEntries.Add(loanOut);
+        await _db.SaveChangesAsync(ct);
+        var proposed = new ShiftEntry
+        {
+            Event = new Event
+            {
+                StartAtUtc = AtDay(2, 10),
+                EndAtUtc = AtDay(2, 18),
+                LocationId = 5,
+                TimeZoneId = "UTC",
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+            },
+            Users = [new ShiftEntryUser { UserId = UserA }],
+        };
+        var zones = new TimeZoneService();
+        var conflicts = new ShiftConflictService(
+            _db,
+            zones,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, zones, loanOutEnabled: loanOutEnabled)
+        );
+        Task ValidateAsync() =>
+            conflicts.EnsureShiftsDoNotConflictAsync(
+                existingShift ? [proposed] : [original, proposed],
+                existingShift ? [] : [original.Id],
+                ct
+            );
+        if (loanOutEnabled)
+            await ValidateAsync();
+        else
+            await Assert.ThrowsAsync<ConflictValidationException>(ValidateAsync);
+    }
+
+    [Fact]
+    public async Task LoanOutDisabled_AvailabilityAndMarkers_DoNotApplyOrClearStoredLoanOutEffects()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var series = await _shiftService.CreateShiftSeriesAsync(
+            CreateShiftSeriesRequest() with
+            {
+                RecurrenceRule = "FREQ=DAILY;COUNT=2",
+            },
+            ct
+        );
+        var shifts = await _db
+            .ShiftEntries.Include(entry => entry.Event)
+            .Include(entry => entry.Users)
+            .Where(entry => entry.ShiftSeriesId == series.Id)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .ToListAsync(ct);
+        shifts[1].Event!.IsException = true;
+        shifts[1].Event!.ExceptionReason = "IsAway";
+        var loanOut = CreateLoanOutEntry(AtDay(1, 7));
+        loanOut.Event!.EndAtUtc = AtDay(3, 7);
+        _db.LoanOutEntries.Add(loanOut);
+        await _db.SaveChangesAsync(ct);
+        var zones = new TimeZoneService();
+        var availability = SchedulingLoanOutTestServices.CreateAvailability(_db, zones, loanOutEnabled: false);
+        var markers = SchedulingLoanOutTestServices.CreateMarker(_db, zones, loanOutEnabled: false);
+
+        Assert.Empty(await availability.GetAwayUserIdsAsync(shifts, ct));
+        var assignable = await availability.GetAssignableUserIdsByOccurrenceAsync(
+            [UserA],
+            [new(AtDay(1, 10), AtDay(1, 12)), new(AtDay(2, 10), AtDay(2, 12))],
+            5,
+            "UTC",
+            ct
+        );
+        Assert.Equal(2, assignable.Count);
+        Assert.All(assignable, users => Assert.Equal([UserA], users));
+        Assert.False(await availability.HasShiftAtLoanOutLocationAsync([loanOut], 5, ct));
+        Assert.Empty(await markers.ApplyToSeriesAsync(shifts, ct));
+        markers.RefreshMarker(shifts[0], [UserA]);
+        markers.RefreshMarker(shifts[1], []);
+        await markers.RestoreHomeLocationUserShiftsAsync([loanOut], ct);
+        Assert.False(shifts[0].Event!.IsException);
+        Assert.Null(shifts[0].Event!.ExceptionReason);
+        Assert.True(shifts[1].Event!.IsException);
+        Assert.Equal("IsAway", shifts[1].Event!.ExceptionReason);
+        Assert.False(_db.ChangeTracker.HasChanges());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task LoanOut_PreservesMembership_LinksOnlyAvailableUsers_AndRestoresOnDelete(bool overlappingLoanOut)
     {
         var ct = TestContext.Current.CancellationToken;
@@ -5283,7 +5519,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         IShiftAssignmentService links,
         ITimeZoneService zones,
         TimeProvider time,
-        ICalendarConflictService conflicts
+        ICalendarConflictService conflicts,
+        bool loanOutEnabled = true
     )
     {
         var factory = new ShiftEventFactory();
@@ -5291,9 +5528,11 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var shiftConflicts = new ShiftConflictService(
             db,
             zones,
-            SchedulingLoanOutTestServices.CreateAvailability(db, zones)
+            SchedulingLoanOutTestServices.CreateAvailability(db, zones, loanOutEnabled: loanOutEnabled)
         );
-        var loanOutProvider = new LoanOutCalendarDataProvider(db, new LoanOutCalendarMapper(), zones);
+        var loanOutProvider = loanOutEnabled
+            ? new LoanOutCalendarDataProvider(db, new LoanOutCalendarMapper(), zones)
+            : null;
         var series = new ShiftSeriesService(
             NullLogger<ShiftSeriesService>.Instance,
             db,
@@ -5311,7 +5550,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             time,
             conflicts,
             shiftConflicts,
-            SchedulingLoanOutTestServices.CreateMarker(db, zones),
+            SchedulingLoanOutTestServices.CreateMarker(db, zones, loanOutEnabled: loanOutEnabled),
             schedulingCalendarDataProvider: loanOutProvider
         );
         var entries = new ShiftEntryService(

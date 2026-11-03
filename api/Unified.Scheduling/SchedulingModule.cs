@@ -60,7 +60,8 @@ public static class SchedulingModule
                 provider.GetRequiredService<UnifiedDbContext>(),
                 provider.GetRequiredService<ICalendarTimeZoneResolver>(),
                 provider.GetRequiredService<ITimeZoneService>(),
-                () => provider.GetRequiredService<IShiftService>()
+                () => provider.GetRequiredService<IShiftService>(),
+                config.GetValue<bool>("FeatureFlags:LoanOut:Enabled")
             )
         );
         services.TryAddScoped<ShiftLoanOutExceptionMarkerService>();

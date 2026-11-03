@@ -13,9 +13,12 @@ public sealed class ShiftLoanOutAvailabilityService(
     UnifiedDbContext db,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
-    Func<IShiftService> shiftServiceFactory
+    Func<IShiftService> shiftServiceFactory,
+    bool loanOutEnabled
 )
 {
+    public bool IsEnabled { get; } = loanOutEnabled;
+
     public async Task<IReadOnlyDictionary<ShiftEntry, IReadOnlyCollection<Guid>>> GetAwayUserIdsAsync(
         IReadOnlyCollection<ShiftEntry> entries,
         CancellationToken cancellationToken,
@@ -23,6 +26,10 @@ public sealed class ShiftLoanOutAvailabilityService(
     )
     {
         var result = new Dictionary<ShiftEntry, IReadOnlyCollection<Guid>>();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsEnabled)
+            return result;
+
         var candidates = entries
             .Where(entry =>
                 entry.Event is not null && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
@@ -108,6 +115,10 @@ public sealed class ShiftLoanOutAvailabilityService(
         CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsEnabled)
+            return assignmentOccurrences.Select(_ => userIds).ToList();
+
         if (assignmentOccurrences.Count == 0)
             return [];
 
@@ -176,6 +187,10 @@ public sealed class ShiftLoanOutAvailabilityService(
         CancellationToken cancellationToken
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsEnabled)
+            return false;
+
         var entries = loanOutEntries.Where(entry => entry.Event is not null && entry.Users.Count > 0).ToList();
         if (entries.Count == 0)
             return false;

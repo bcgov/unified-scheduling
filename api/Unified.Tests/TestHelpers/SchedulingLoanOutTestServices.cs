@@ -15,7 +15,8 @@ internal static class SchedulingLoanOutTestServices
         UnifiedDbContext db,
         ITimeZoneService timeZoneService,
         ICalendarTimeZoneResolver? resolver = null,
-        Func<IShiftService>? shiftServiceFactory = null
+        Func<IShiftService>? shiftServiceFactory = null,
+        bool loanOutEnabled = true
     ) =>
         new(
             db,
@@ -25,16 +26,21 @@ internal static class SchedulingLoanOutTestServices
                     timeZoneService
                 ),
             timeZoneService,
-            shiftServiceFactory ?? (() => throw new NotSupportedException())
+            shiftServiceFactory ?? (() => throw new NotSupportedException()),
+            loanOutEnabled
         );
 
-    public static ShiftLoanOutExceptionMarkerService CreateMarker(UnifiedDbContext db, ITimeZoneService timeZoneService)
+    public static ShiftLoanOutExceptionMarkerService CreateMarker(
+        UnifiedDbContext db,
+        ITimeZoneService timeZoneService,
+        bool loanOutEnabled = true
+    )
     {
         var resolver = new CalendarTimeZoneResolver(
             Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
             timeZoneService
         );
-        return new(db, CreateAvailability(db, timeZoneService, resolver), resolver);
+        return new(db, CreateAvailability(db, timeZoneService, resolver, loanOutEnabled: loanOutEnabled), resolver);
     }
 
     public static SchedulingLoanOutService Create(

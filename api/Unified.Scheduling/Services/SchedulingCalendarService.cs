@@ -69,7 +69,11 @@ public sealed class SchedulingCalendarService(
             events.AddRange(
                 shifts
                     .Select(shift =>
-                        ShiftResponseMapper.ToCalendarEventResponse(shift, awayUsers.GetValueOrDefault(shift))
+                        ShiftResponseMapper.ToCalendarEventResponse(
+                            shift,
+                            awayUsers.GetValueOrDefault(shift),
+                            loanOutAvailabilityService.IsEnabled
+                        )
                     )
                     .Where(response =>
                         request.UserIds is not { Count: > 0 }

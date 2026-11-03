@@ -70,6 +70,7 @@ public sealed class SchedulingModuleTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISchedulingCalendarService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISchedulePublishService>());
         var availability = Assert.Single(scope.ServiceProvider.GetServices<ShiftLoanOutAvailabilityService>());
+        Assert.Equal(loanOutEnabled, availability.IsEnabled);
         var markers = Assert.Single(scope.ServiceProvider.GetServices<ShiftLoanOutExceptionMarkerService>());
         var transfers = Assert.Single(scope.ServiceProvider.GetServices<LoanOutShiftTransferService>());
         Assert.Same(availability, scope.ServiceProvider.GetRequiredService<ShiftLoanOutAvailabilityService>());

@@ -94,7 +94,8 @@ public sealed class ShiftEntryService(
             .Select(entry =>
                 ShiftResponseMapper.ToShiftEntryResponse(
                     entry,
-                    ShiftResponseMapper.ToAssignmentLinkResponses(entry.ShiftAssignmentEntries)
+                    ShiftResponseMapper.ToAssignmentLinkResponses(entry.ShiftAssignmentEntries),
+                    loanOutEnabled: schedulingCalendarDataProvider is not null
                 )
             )
             .ToList();
@@ -110,7 +111,8 @@ public sealed class ShiftEntryService(
             ? null
             : ShiftResponseMapper.ToShiftEntryResponse(
                 result,
-                ShiftResponseMapper.ToAssignmentLinkResponses(result.ShiftAssignmentEntries)
+                ShiftResponseMapper.ToAssignmentLinkResponses(result.ShiftAssignmentEntries),
+                loanOutEnabled: schedulingCalendarDataProvider is not null
             );
     }
 
@@ -180,7 +182,10 @@ public sealed class ShiftEntryService(
         if (transaction is not null)
             await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Created shift entry {ShiftEntryId}.", entity.Id);
-        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+        return ShiftResponseMapper.ToShiftEntryResponse(
+            entity,
+            loanOutEnabled: schedulingCalendarDataProvider is not null
+        );
     }
 
     public async Task<ShiftEntryResponse?> UpdateShiftEntryAsync(
@@ -268,7 +273,10 @@ public sealed class ShiftEntryService(
         );
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Updated shift entry {ShiftEntryId}.", id);
-        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+        return ShiftResponseMapper.ToShiftEntryResponse(
+            entity,
+            loanOutEnabled: schedulingCalendarDataProvider is not null
+        );
     }
 
     public async Task<ShiftEntryResponse?> PublishShiftEntryAsync(int id, CancellationToken cancellationToken = default)
@@ -282,7 +290,10 @@ public sealed class ShiftEntryService(
             return null;
         }
         logger.LogInformation("Published shift entry {ShiftEntryId}.", id);
-        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+        return ShiftResponseMapper.ToShiftEntryResponse(
+            entity,
+            loanOutEnabled: schedulingCalendarDataProvider is not null
+        );
     }
 
     public async Task<ShiftPublicationResult> PublishEntriesAsync(
@@ -359,7 +370,10 @@ public sealed class ShiftEntryService(
         await db.SaveChangesAsync(cancellationToken);
         await InvalidateLinkedOverridesAsync(linkedAssignmentEventIds, cancelledByUserId, cancellationToken);
         logger.LogInformation("Expired shift entry {ShiftEntryId}.", id);
-        return ShiftResponseMapper.ToShiftEntryResponse(entity);
+        return ShiftResponseMapper.ToShiftEntryResponse(
+            entity,
+            loanOutEnabled: schedulingCalendarDataProvider is not null
+        );
     }
 
     public async Task<bool> DeleteShiftEntryAsync(int id, CancellationToken cancellationToken = default)

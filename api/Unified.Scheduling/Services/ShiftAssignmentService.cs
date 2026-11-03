@@ -283,7 +283,8 @@ public sealed class ShiftAssignmentService(
             .Include(entry => entry.Users)
             .Where(entry => entry.ShiftSeriesId == request.ShiftSeriesId)
             .Where(entry =>
-                !(
+                !loanOutAvailabilityService.IsEnabled
+                || !(
                     entry.Event!.IsException
                     && entry.Event.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway)
                 )

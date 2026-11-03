@@ -20,6 +20,9 @@ public sealed class ShiftLoanOutExceptionMarkerService(
     )
     {
         var awayUsers = await availabilityService.GetAwayUserIdsAsync(entries, cancellationToken);
+        if (!availabilityService.IsEnabled)
+            return awayUsers;
+
         foreach (var entry in entries.Where(entry => entry.Event?.StatusTypeCode == CalendarEventStatusTypeCodes.Draft))
             RefreshMarker(entry, awayUsers.GetValueOrDefault(entry) ?? []);
         return awayUsers;
@@ -31,6 +34,9 @@ public sealed class ShiftLoanOutExceptionMarkerService(
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (!availabilityService.IsEnabled)
+            return;
+
         var removed = removedEntries.Where(entry => entry.Event is not null).ToList();
         var userIds = removed.SelectMany(entry => entry.Users).Select(user => user.UserId).Distinct().ToList();
         if (userIds.Count == 0)
@@ -132,6 +138,9 @@ public sealed class ShiftLoanOutExceptionMarkerService(
 
     public void RefreshMarker(ShiftEntry entry, IReadOnlyCollection<Guid> awayUserIds)
     {
+        if (!availabilityService.IsEnabled)
+            return;
+
         var calendarEvent = entry.Event!;
         if (entry.Users.Count > 0 && entry.Users.All(user => awayUserIds.Contains(user.UserId)))
         {

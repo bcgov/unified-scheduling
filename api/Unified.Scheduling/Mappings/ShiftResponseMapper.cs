@@ -1,3 +1,4 @@
+using Unified.Calendar;
 using Unified.Calendar.Mappings;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
@@ -32,7 +33,8 @@ internal static class ShiftResponseMapper
 
     public static ShiftEntryResponse ToShiftEntryResponse(
         ShiftEntry shiftEntry,
-        IReadOnlyCollection<ShiftAssignmentEntryResponse>? assignmentLinks = null
+        IReadOnlyCollection<ShiftAssignmentEntryResponse>? assignmentLinks = null,
+        bool loanOutEnabled = true
     )
     {
         var userIds = shiftEntry.Users.Select(user => user.UserId).Distinct().ToList();
@@ -46,8 +48,10 @@ internal static class ShiftResponseMapper
             Id = shiftEntry.Id,
             ShiftSeriesId = shiftEntry.ShiftSeriesId,
             EventId = shiftEntry.EventId,
-            IsException = shiftEntry.Event!.IsException,
-            ExceptionReason = shiftEntry.Event.ExceptionReason,
+            IsException = shiftEntry.Event!.IsException && !IgnoreAwayMarker(shiftEntry.Event, loanOutEnabled),
+            ExceptionReason = IgnoreAwayMarker(shiftEntry.Event, loanOutEnabled)
+                ? null
+                : shiftEntry.Event.ExceptionReason,
             AssignmentLinks = assignmentLinks ?? [],
         };
     }
@@ -79,7 +83,8 @@ internal static class ShiftResponseMapper
 
     public static SchedulingCalendarEventResponse ToCalendarEventResponse(
         ShiftEntry shiftEntry,
-        IReadOnlyCollection<Guid>? awayUserIds = null
+        IReadOnlyCollection<Guid>? awayUserIds = null,
+        bool loanOutEnabled = true
     )
     {
         var eventEntity = shiftEntry.Event!;
@@ -104,8 +109,8 @@ internal static class ShiftResponseMapper
             SeriesEndAtUtc = eventEntity.SeriesEndAtUtc,
             TimeZoneId = eventEntity.TimeZoneId,
             AllDay = eventEntity.AllDay,
-            IsException = eventEntity.IsException,
-            ExceptionReason = eventEntity.ExceptionReason,
+            IsException = eventEntity.IsException && !IgnoreAwayMarker(eventEntity, loanOutEnabled),
+            ExceptionReason = IgnoreAwayMarker(eventEntity, loanOutEnabled) ? null : eventEntity.ExceptionReason,
             EventTypeCode = SchedulingConstants.ShiftEventTypeCode,
             StatusTypeCode = eventEntity.StatusTypeCode,
             CancelledAt = eventEntity.CancelledAt,
@@ -118,6 +123,9 @@ internal static class ShiftResponseMapper
                 .ToList(),
         };
     }
+
+    private static bool IgnoreAwayMarker(Event eventEntity, bool loanOutEnabled) =>
+        !loanOutEnabled && eventEntity.ExceptionReason == nameof(CalendarEventExceptionReasonCode.IsAway);
 }
 
 public sealed record ShiftSeriesEntryIds(int ShiftSeriesId, int ShiftEntryId, int EventId);
