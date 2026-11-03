@@ -11,6 +11,7 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaAutocomplete from '@/shared/components/UaAutocomplete.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useUsersStore } from '@/stores/Users';
 import { useScheduleDistributionStore } from '@/modules/scheduling/calendarSchedulingDistributionStore';
 import { server } from '../../mocks/server';
 
@@ -19,6 +20,119 @@ afterEach(() => {
 });
 
 describe('CalendarSchedulingDistributionModal', () => {
+  it('offers enabled recipients and rejects selections that lose eligibility before sending', async () => {
+    const enabled: UserResponse = {
+      id: 'd20d7f24-b50e-42f7-aef8-f45e36918bae',
+      idirName: 'enabled',
+      idirId: null,
+      isEnabled: true,
+      firstName: 'Enabled',
+      lastName: 'Recipient',
+      email: 'enabled@example.com',
+      employeeNumber: '',
+      gender: 'Other',
+      rank: null,
+      badgeNumber: null,
+      homeLocationId: 7,
+      lastLogin: null,
+    };
+    const disabled = {
+      ...enabled,
+      id: '79d8d8b1-9e53-43d2-8ede-c149b1351dce',
+      isEnabled: false,
+      firstName: 'Disabled',
+      email: 'disabled@example.com',
+    };
+    const noEmail = {
+      ...enabled,
+      id: 'bbef24da-a49d-48b7-9f83-65e39753e476',
+      firstName: 'No',
+      lastName: 'Email',
+      email: '',
+    };
+    let users = [enabled, disabled, noEmail];
+    const requests: unknown[] = [];
+    server.use(
+      http.get('*/api/users', () => HttpResponse.json(users)),
+      http.post('*/api/scheduling/distribute', async ({ request }) => {
+        requests.push(await request.json());
+        return HttpResponse.json({ recipientCount: 1 });
+      }),
+    );
+    const app = await createTestApp({ loadConfig: false });
+    app.router.addRoute({ path: '/distribution-test', component: { template: '<div />' } });
+    await app.router.push('/distribution-test');
+    await app.router.isReady();
+    const wrapper = mount(CalendarSchedulingDistributionModal, {
+      props: {
+        locationId: 7,
+        startDate: '2026-08-24',
+        endDate: '2026-08-25',
+        period: 'day',
+        view: 'schedule',
+        model: {
+          timeZone: 'America/Vancouver',
+          days: [],
+          cells: [],
+          primaryColumn: {
+            label: 'TEAM',
+            resources: [enabled, disabled].map((user) => ({
+              id: user.id,
+              type: 'user',
+              title: user.firstName!,
+            })),
+          },
+        },
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+    try {
+      await flushPromises();
+      const autocomplete = wrapper.getComponent(UaAutocomplete);
+      expect(autocomplete.props('modelValue')).toEqual([enabled.id]);
+      expect(autocomplete.props('items')).toEqual([
+        expect.objectContaining({ code: enabled.id }),
+        expect.objectContaining({ code: noEmail.id }),
+      ]);
+      const send = wrapper.findAllComponents(UaBtn).find((button) => button.text() === 'Send')!;
+      autocomplete.vm.$emit('update:modelValue', [enabled.id, noEmail.id]);
+      await wrapper.vm.$nextTick();
+      expect(document.body.textContent).toContain('No Email does not have an email address');
+      expect(send.element).toHaveProperty('disabled', true);
+      send.vm.$emit('click');
+      await flushPromises();
+      expect(requests).toEqual([]);
+
+      autocomplete.vm.$emit('update:modelValue', [enabled.id]);
+      users = [{ ...enabled, isEnabled: false }, disabled, noEmail];
+      const usersStore = useUsersStore(app.pinia);
+      usersStore.invalidateLocation(7);
+      await usersStore.ensureUsersForLocation(7);
+      await flushPromises();
+      expect(autocomplete.props('items')).toEqual([expect.objectContaining({ code: noEmail.id })]);
+      send.vm.$emit('click');
+      await flushPromises();
+      expect(document.body.textContent).toContain(
+        'Some selected recipients are no longer eligible. Remove them before sending.',
+      );
+      expect(autocomplete.props('modelValue')).toEqual([enabled.id]);
+      expect(requests).toEqual([]);
+      expect(wrapper.emitted('close')).toBeUndefined();
+
+      users = [enabled, disabled, noEmail];
+      usersStore.invalidateLocation(7);
+      await usersStore.ensureUsersForLocation(7);
+      await flushPromises();
+      send.vm.$emit('click');
+      await flushPromises();
+      expect(requests).toEqual([expect.objectContaining({ recipientUserIds: [enabled.id] })]);
+      expect(wrapper.emitted('close')).toEqual([[]]);
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it('starts once, closes the modal, and completes globally after unmount and navigation', async () => {
     let finish!: () => void;
     const responseReady = new Promise<void>((resolve) => {
