@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { Settings } from 'luxon';
 
 import { calendarEventDetailModalAction } from '@/modules/calendar/actions/calendarEventDetailModalAction';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
@@ -259,4 +260,46 @@ describe('calendar registries and store', () => {
 
     expect(store.selectedEventId).toBe('event-99');
   });
+
+  it('uses the location date for initial positioning and Today across midnight', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-14T06:30:00Z'));
+    const originalZone = Settings.defaultZone;
+    Settings.defaultZone = 'UTC';
+    try {
+      const store = useCalendarStore();
+      store.setPeriod('day');
+      expect(store.anchorDate).toBe('2026-07-14');
+      store.goToToday();
+      store.initializeAnchorDate('America/Vancouver');
+      expect(store.anchorDate).toBe('2026-07-13');
+      store.initializeAnchorDate('America/Edmonton');
+      expect(store.anchorDate).toBe('2026-07-14');
+      store.setAnchorDate('2025-04-16');
+      store.goToToday('America/Edmonton');
+      expect(store.anchorDate).toBe('2026-07-14');
+      expect(store.period).toBe('day');
+      store.goToToday('America/Vancouver');
+      expect(store.anchorDate).toBe('2026-07-13');
+      store.goToToday();
+      expect(store.anchorDate).toBe('2026-07-14');
+    } finally {
+      Settings.defaultZone = originalZone;
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(['date', 'previous', 'next'] as const)(
+    'preserves explicit %s navigation when location data loads or changes',
+    (action) => {
+      const store = useCalendarStore();
+      if (action === 'date') store.setAnchorDate('2025-04-16');
+      else store.shiftPeriod(action);
+      const selectedAnchor = store.anchorDate;
+      store.initializeAnchorDate('America/Vancouver');
+      store.initializeAnchorDate('America/Edmonton');
+      expect(store.anchorDate).toBe(selectedAnchor);
+      expect(store.period).toBe('week');
+    },
+  );
 });

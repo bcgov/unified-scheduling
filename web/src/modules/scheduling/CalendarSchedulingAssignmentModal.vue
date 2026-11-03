@@ -1410,6 +1410,15 @@ async function handleSave() {
   }
 }
 
+function conflictAcknowledgementKey(acknowledgement: CalendarConflictAcknowledgement) {
+  // Backend identities preserve module/event strings and treat participant order as irrelevant.
+  const participants = [
+    JSON.stringify([acknowledgement.firstSourceModule, acknowledgement.firstEventId]),
+    JSON.stringify([acknowledgement.secondSourceModule, acknowledgement.secondEventId]),
+  ].sort();
+  return JSON.stringify([acknowledgement.resourceId.toLowerCase(), ...participants]);
+}
+
 async function handleConflictOverride(note: string) {
   const conflict = pendingConflict.value;
   const saveOptions = pendingSaveOptions.value;
@@ -1420,16 +1429,18 @@ async function handleConflictOverride(note: string) {
   const firstEventId = conflict.entry.eventId;
   const secondEventId = conflict.overlaps.eventId;
 
+  const acknowledgement: CalendarConflictAcknowledgement = {
+    firstSourceModule: conflict.entry.sourceModule,
+    firstEventId,
+    secondSourceModule: conflict.overlaps.sourceModule,
+    secondEventId,
+    resourceId: conflict.resourceId,
+    note,
+  };
+  const acknowledgementKey = conflictAcknowledgementKey(acknowledgement);
   conflictOverrides.value = [
-    ...conflictOverrides.value,
-    {
-      firstSourceModule: conflict.entry.sourceModule,
-      firstEventId,
-      secondSourceModule: conflict.overlaps.sourceModule,
-      secondEventId,
-      resourceId: conflict.resourceId,
-      note,
-    },
+    ...conflictOverrides.value.filter((existing) => conflictAcknowledgementKey(existing) !== acknowledgementKey),
+    acknowledgement,
   ];
   isSaving.value = true;
   conflictRetryError.value = '';

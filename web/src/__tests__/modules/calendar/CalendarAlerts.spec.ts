@@ -5,16 +5,20 @@ import { createTestApp } from '@/__tests__/helpers/createTestApp';
 
 const TestView = defineComponent({
   name: 'CalendarAlertTestView',
+  emits: ['eventClick'],
   template: '<div data-testid="calendar-alert-test-view">Calendar view</div>',
 });
 
-async function mountCalendarWithLocation(selectedLocationId: number | '') {
+async function mountCalendarWithLocation(selectedLocationId: number | '', timeZone?: string) {
   const loadData = vi.fn().mockResolvedValue({ contributions: {} });
+  const cancel = vi.fn();
+  const buildModel = vi.fn(() => ({ ready: true }));
+  const runAction = vi.fn();
 
   vi.doMock('@/modules/calendar/calendarDataService', () => ({
     calendarDataService: {
       loadData,
-      cancel: vi.fn(),
+      cancel,
       endSession: vi.fn(),
     },
   }));
@@ -25,16 +29,16 @@ async function mountCalendarWithLocation(selectedLocationId: number | '') {
           id: 'alert-test-view',
           label: 'Alerts',
           component: TestView,
-          buildModel: () => ({ ready: true }),
+          buildModel,
         },
       ]),
     },
   }));
   vi.doMock('@/modules/calendar/registry/calendarActionRegistry', () => ({
     calendarActionRegistry: {
-      getToolbarActionsForView: vi.fn(() => []),
-      getCreateActions: vi.fn(() => []),
-      getViewDetailActions: vi.fn(() => []),
+      getToolbarActionsForView: vi.fn(() => [{ id: 'manage', label: 'Manage', run: runAction }]),
+      getCreateActions: vi.fn(() => [{ id: 'create', label: 'Create', run: runAction }]),
+      getViewDetailActions: vi.fn(() => [{ id: 'detail', run: runAction }]),
     },
   }));
 
@@ -47,7 +51,7 @@ async function mountCalendarWithLocation(selectedLocationId: number | '') {
   const locationsStore = useLocationsStore(app.pinia);
   const calendarAlertStore = useCalendarAlertStore(app.pinia);
 
-  locationsStore.entities = [{ id: 12, name: 'Main Hall' }] as never[];
+  locationsStore.entities = [{ id: 12, name: 'Main Hall', timezone: timeZone }] as never[];
   locationsStore.setSelectedLocationId(selectedLocationId);
 
   const wrapper = mount(Calendar, {
@@ -62,6 +66,9 @@ async function mountCalendarWithLocation(selectedLocationId: number | '') {
   return {
     wrapper,
     loadData,
+    cancel,
+    buildModel,
+    runAction,
     locationsStore,
     calendarAlertStore,
   };
@@ -83,6 +90,63 @@ describe('Calendar alerts', () => {
 
     wrapper.unmount();
   });
+
+  it.each(['America/Vancouver', 'America/Edmonton', 'America/Dawson_Creek', 'America/Creston'])(
+    'blocks invalid location zones with a recoverable alert and resumes with %s',
+    async (validTimeZone) => {
+      const { wrapper, loadData, cancel, buildModel, runAction, locationsStore, calendarAlertStore } =
+        await mountCalendarWithLocation(12, 'Invalid/ConfiguredZone');
+      try {
+        const { default: CalendarToolbar } = await import('@/modules/calendar/components/CalendarToolbar.vue');
+        const toolbar = wrapper.findComponent(CalendarToolbar);
+        const event = {
+          id: 'event',
+          type: 'calendar.general',
+          sourceModule: 'calendar',
+          title: 'Event',
+          start: '2026-07-13',
+        };
+        expect(document.body.textContent).toContain('The selected location has an invalid time zone.');
+        expect(calendarAlertStore.alerts).toContainEqual(
+          expect.objectContaining({ severity: 'error', dismissible: false }),
+        );
+        expect(wrapper.findComponent(TestView).exists()).toBe(false);
+        expect(loadData).not.toHaveBeenCalled();
+        expect(buildModel).not.toHaveBeenCalled();
+        expect(toolbar.props('createActions')).toEqual([]);
+        expect(toolbar.props('toolbarActions')).toEqual([]);
+        toolbar.vm.$emit('today');
+        toolbar.vm.$emit('trigger-create-action', 'create');
+        toolbar.vm.$emit('trigger-toolbar-action', 'manage');
+        await (
+          wrapper.vm as unknown as { handleViewEventClick: (value: typeof event) => Promise<void> }
+        ).handleViewEventClick(event);
+        await flushPromises();
+        expect(runAction).not.toHaveBeenCalled();
+
+        locationsStore.entities = [{ id: 12, name: 'Main Hall', timezone: validTimeZone }];
+        await flushPromises();
+        expect(document.body.textContent).not.toContain('The selected location has an invalid time zone.');
+        expect(calendarAlertStore.alerts).toEqual([]);
+        expect(wrapper.findComponent(TestView).exists()).toBe(true);
+        expect(loadData).toHaveBeenCalledOnce();
+        toolbar.vm.$emit('trigger-create-action', 'create');
+        toolbar.vm.$emit('trigger-toolbar-action', 'manage');
+        wrapper.findComponent(TestView).vm.$emit('eventClick', event);
+        await flushPromises();
+        expect(runAction).toHaveBeenCalledTimes(3);
+
+        locationsStore.entities = [{ id: 12, name: 'Main Hall', timezone: 'Invalid/ConfiguredZone' }];
+        await flushPromises();
+        expect(wrapper.findComponent(TestView).exists()).toBe(false);
+        expect(document.body.textContent).toContain('The selected location has an invalid time zone.');
+        expect(loadData).toHaveBeenCalledOnce();
+        expect(cancel).toHaveBeenCalledTimes(2);
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
 
   it('renders a warning when no active location is selected', async () => {
     const { wrapper, loadData, locationsStore } = await mountCalendarWithLocation('');

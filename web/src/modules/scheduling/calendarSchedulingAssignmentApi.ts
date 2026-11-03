@@ -2,6 +2,7 @@ import type { AssignmentSeriesUpdateRequest } from '@/api-access/generated/model
 import type { AssignmentEntryRequest } from '@/api-access/generated/models/assignmentEntryRequest';
 import type { AssignmentEntryUpdateRequest } from '@/api-access/generated/models/assignmentEntryUpdateRequest';
 import type { AssignmentSeriesRequest } from '@/api-access/generated/models/assignmentSeriesRequest';
+import { assertSchedulingTimeZoneCompatibility } from './schedulingTimeZoneCompatibility';
 import type { GetApiSchedulingAssignmentsEntriesParams } from '@/api-access/generated/models/getApiSchedulingAssignmentsEntriesParams';
 import type { GetApiSchedulingAssignmentsSeriesParams } from '@/api-access/generated/models/getApiSchedulingAssignmentsSeriesParams';
 import {
@@ -20,6 +21,7 @@ import {
 } from '@/api-access/generated/assignment/assignment';
 
 export async function createAssignmentEntry(body: AssignmentEntryRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = postApiSchedulingAssignmentsEntries(body, { options: { immediate: false } });
   await result.execute();
   return {
@@ -30,12 +32,14 @@ export async function createAssignmentEntry(body: AssignmentEntryRequest) {
 }
 
 export async function updateAssignmentEntry(id: number, body: AssignmentEntryUpdateRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = putApiSchedulingAssignmentsEntriesId(id, body, { options: { immediate: false } });
   await result.execute();
   return result;
 }
 
 export async function updateAssignmentSeries(id: number, body: AssignmentSeriesUpdateRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = putApiSchedulingAssignmentsSeriesId(id, body, { options: { immediate: false } });
   await result.execute();
   return result;
@@ -78,6 +82,7 @@ export async function deleteAssignmentSeries(id: number) {
 }
 
 export async function createAssignmentSeries(body: AssignmentSeriesRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = postApiSchedulingAssignmentsSeries(body, { options: { immediate: false } });
   await result.execute();
   return {

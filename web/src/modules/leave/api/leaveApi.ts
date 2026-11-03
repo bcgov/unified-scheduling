@@ -5,6 +5,7 @@ import type {
   SchedulingLeaveSeriesResponse as LeaveSeriesResponse,
 } from '@/api-access/generated/models';
 import { useFetchAPI } from '@/api-access/useFetchAPI';
+import { assertSchedulingTimeZoneCompatibility } from '@/modules/scheduling/schedulingTimeZoneCompatibility';
 
 const leaveEntryUrl = (id: number) => `/api/scheduling/leave/entries/${id}`;
 const leaveSeriesUrl = (id: number) => `/api/scheduling/leave/series/${id}`;
@@ -45,6 +46,7 @@ export async function getLeaveSeries(id: number) {
 
 // Create: Leave Entry and Series API functions
 export async function createLeaveEntry(body: LeaveEntryRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = useFetchAPI<LeaveEntryResponse>(
     {
       url: '/api/scheduling/leave/entries',
@@ -59,6 +61,7 @@ export async function createLeaveEntry(body: LeaveEntryRequest) {
 }
 
 export async function createLeaveSeries(body: LeaveSeriesRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = useFetchAPI<LeaveSeriesResponse>(
     {
       url: '/api/scheduling/leave/series',
@@ -74,6 +77,7 @@ export async function createLeaveSeries(body: LeaveSeriesRequest) {
 
 // Update: Leave Entry and Series API functions
 export async function updateLeaveEntry(id: number, body: LeaveEntryRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = useFetchAPI<LeaveEntryResponse>(
     { url: leaveEntryUrl(id), method: 'PUT', headers: { 'Content-Type': 'application/json' }, data: body },
     { options: { immediate: false } },
@@ -83,6 +87,7 @@ export async function updateLeaveEntry(id: number, body: LeaveEntryRequest) {
 }
 
 export async function updateLeaveSeries(id: number, body: LeaveSeriesRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = useFetchAPI<LeaveSeriesResponse>(
     {
       url: leaveSeriesUrl(id),

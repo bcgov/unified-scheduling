@@ -6,6 +6,7 @@ import type {
 } from '../calendarTypes';
 import type { CalendarPeriod } from '../calendarStore';
 import { selectCalendarEvents } from '../calendarSelectors';
+import { isValidIanaTimeZone } from '@/utils/date';
 
 interface CalendarDisplayConfig {
   view: 'timeGridDay' | 'timeGridWeek' | 'dayGridMonth';
@@ -40,11 +41,16 @@ export const buildCalendarDefaultViewModel = (
   context: CalendarQueryContext,
   _runtimeContext: CalendarRuntimeContext,
   period: CalendarPeriod,
-): CalendarFullCalendarViewModel => {
+): CalendarFullCalendarViewModel | null => {
   const display = resolveCalendarDisplay(period);
+  const configuredTimeZone = context.filters.timeZoneId;
+  if (typeof configuredTimeZone === 'string' && !isValidIanaTimeZone(configuredTimeZone)) {
+    return null;
+  }
 
   return {
     view: display.view,
+    timeZoneId: typeof configuredTimeZone === 'string' ? configuredTimeZone : 'local',
     initialDate: context.startDate,
     events: selectCalendarEvents(response),
     weekends: display.weekends,

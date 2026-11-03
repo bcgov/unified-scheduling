@@ -133,11 +133,31 @@ describe('calendar selectors and view models', () => {
   ] as const)('builds the default view model for %s', (period, view, weekends) => {
     expect(buildCalendarDefaultViewModel(response, queryContext, runtimeContext, period)).toEqual({
       view,
+      timeZoneId: 'local',
       initialDate: '2025-01-13',
       events: selectCalendarEvents(response),
       weekends,
     });
   });
+
+  it.each(['America/Vancouver', 'America/Edmonton', 'America/Dawson_Creek', 'America/Creston'])(
+    'forwards the configured viewing zone %s without substituting event zones',
+    (timeZoneId) => {
+      expect(
+        buildCalendarDefaultViewModel(response, { ...queryContext, filters: { timeZoneId } }, runtimeContext, 'week')
+          ?.timeZoneId,
+      ).toBe(timeZoneId);
+    },
+  );
+
+  it.each(['Invalid/ConfiguredZone', '', 'local'])(
+    'does not build a calendar with an invalid configured IANA zone %s',
+    (timeZoneId) => {
+      expect(
+        buildCalendarDefaultViewModel(response, { ...queryContext, filters: { timeZoneId } }, runtimeContext, 'week'),
+      ).toBeNull();
+    },
+  );
 });
 
 describe('scheduling calendar view model', () => {

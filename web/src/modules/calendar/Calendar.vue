@@ -5,7 +5,7 @@ import { useAccessControl } from '@/composables/useAccessControl';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaCard from '@/shared/components/UaCard.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { formatRangeLabel } from '@/utils/date';
+import { formatRangeLabel, isValidIanaTimeZone } from '@/utils/date';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
 import CalendarMatrixSkeleton from './components/matrix/CalendarMatrixSkeleton.vue';
 import { useCalendarAlertStore } from './calendarAlertStore';
@@ -47,6 +47,32 @@ const activeLocationTimeZone = computed(() => {
   const locationId = activeLocationId.value;
   return locationId == null ? undefined : locationsStore.entitiesMap[locationId]?.timezone;
 });
+
+const hasInvalidLocationTimeZone = computed(
+  () => activeLocationTimeZone.value != null && !isValidIanaTimeZone(activeLocationTimeZone.value),
+);
+const LOCATION_TIME_ZONE_ALERT_ID = 'calendar.location.time-zone';
+
+watch(
+  activeLocationTimeZone,
+  (timeZoneId) => {
+    if (hasInvalidLocationTimeZone.value) {
+      calendarAlertStore.setAlert({
+        id: LOCATION_TIME_ZONE_ALERT_ID,
+        severity: 'error',
+        message:
+          'The selected location has an invalid time zone. Select another location or have its time-zone configuration corrected.',
+        source: 'calendar',
+        dismissible: false,
+      });
+      return;
+    }
+
+    calendarAlertStore.clearAlert(LOCATION_TIME_ZONE_ALERT_ID);
+    calendarStore.initializeAnchorDate(timeZoneId);
+  },
+  { immediate: true },
+);
 
 const runtimeContext = computed<CalendarRuntimeContext>(() => ({
   featureFlags: accessControl.configStore.config?.featureFlags ?? {},
@@ -97,7 +123,7 @@ watch(
 
 const queryContext = computed<CalendarQueryContext>(() => {
   const effectiveFilters = { ...filters.value };
-  if (activeLocationTimeZone.value) {
+  if (activeLocationTimeZone.value && !hasInvalidLocationTimeZone.value) {
     effectiveFilters.timeZoneId = activeLocationTimeZone.value;
   }
 
@@ -118,7 +144,7 @@ const createActionContext = () => ({
 });
 
 const activeViewModel = computed(() => {
-  if (!activeView.value) {
+  if (!activeView.value || hasInvalidLocationTimeZone.value) {
     return null;
   }
 
@@ -128,7 +154,7 @@ const activeViewModel = computed(() => {
 const calendarEvents = computed(() => selectCalendarEvents(dataResponse.value));
 
 const selectedDetailEvent = computed(() => {
-  if (!selectedEventId.value) {
+  if (!selectedEventId.value || hasInvalidLocationTimeZone.value) {
     return undefined;
   }
 
@@ -136,7 +162,7 @@ const selectedDetailEvent = computed(() => {
 });
 
 const registeredToolbarActions = computed(() => {
-  if (!activeView.value) {
+  if (!activeView.value || hasInvalidLocationTimeZone.value) {
     return [];
   }
 
@@ -148,6 +174,7 @@ const toolbarActions = computed<CalendarToolbarButton[]>(() =>
 );
 
 const createActions = computed<CalendarToolbarButton[]>(() => {
+  if (hasInvalidLocationTimeZone.value) return [];
   const actions = calendarActionRegistry.getCreateActions(createActionContext(), runtimeContext.value);
 
   return actions.map((action) => ({
@@ -168,6 +195,7 @@ const reloadKey = computed(() =>
     endDate: dateRange.value.endDate,
     period: period.value,
     locationId: activeLocationId.value ?? null,
+    hasInvalidLocationTimeZone: hasInvalidLocationTimeZone.value,
     filters: queryContext.value.filters,
     refreshNonce: refreshNonce.value,
     runtimeContextKey: runtimeContextKey.value,
@@ -177,7 +205,7 @@ const reloadKey = computed(() =>
 const loadData = async () => {
   const requestId = ++latestRequestId;
 
-  if (activeLocationId.value === undefined) {
+  if (activeLocationId.value === undefined || hasInvalidLocationTimeZone.value) {
     calendarDataService.cancel();
     loading.value = false;
     errorMessage.value = '';
@@ -246,13 +274,16 @@ const handlePrevious = () => calendarStore.shiftPeriod('previous');
 
 const handleNext = () => calendarStore.shiftPeriod('next');
 
-const handleToday = () => calendarStore.goToToday();
+const handleToday = () => {
+  if (!hasInvalidLocationTimeZone.value) calendarStore.goToToday(activeLocationTimeZone.value);
+};
 
 const handleDateSelection = (selectedDate: string) => calendarStore.setAnchorDate(selectedDate);
 
 const handlePeriodChange = (nextPeriod: CalendarPeriod) => calendarStore.setPeriod(nextPeriod);
 
 const handleToolbarAction = async (actionId: string) => {
+  if (hasInvalidLocationTimeZone.value) return;
   const action = registeredToolbarActions.value.find((candidate) => candidate.id === actionId);
 
   if (!action || action.disabled) {
@@ -263,6 +294,7 @@ const handleToolbarAction = async (actionId: string) => {
 };
 
 const handleCreateAction = async (actionId: string) => {
+  if (hasInvalidLocationTimeZone.value) return;
   const action = calendarActionRegistry
     .getCreateActions(createActionContext(), runtimeContext.value)
     .find((candidate) => candidate.id === actionId);
@@ -279,7 +311,7 @@ const handleActiveViewChange = (viewId: string) => {
 };
 
 const handleViewEventClick = async (event: CalendarEventBase) => {
-  if (!activeView.value) {
+  if (!activeView.value || hasInvalidLocationTimeZone.value) {
     return;
   }
 
@@ -352,7 +384,7 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
           @event-click="handleViewEventClick"
         />
       </div>
-      <div v-else class="calendar-page__state">No calendar views are registered.</div>
+      <div v-else-if="!hasInvalidLocationTimeZone" class="calendar-page__state">No calendar views are registered.</div>
     </UaCard>
 
     <CalendarEventDetailModal

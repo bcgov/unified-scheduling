@@ -2,6 +2,7 @@ import type { ShiftSeriesUpdateRequest } from '@/api-access/generated/models/shi
 import type { ShiftEntryRequest } from '@/api-access/generated/models/shiftEntryRequest';
 import type { ShiftEntryUpdateRequest } from '@/api-access/generated/models/shiftEntryUpdateRequest';
 import type { ShiftSeriesRequest } from '@/api-access/generated/models/shiftSeriesRequest';
+import { assertSchedulingTimeZoneCompatibility } from './schedulingTimeZoneCompatibility';
 import {
   deleteApiSchedulingShiftsEntriesId,
   deleteApiSchedulingShiftsSeriesId,
@@ -18,24 +19,28 @@ import {
 } from '@/api-access/generated/shift/shift';
 
 export async function createShiftEntry(body: ShiftEntryRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = postApiSchedulingShiftsEntries(body, { options: { immediate: false } });
   await result.execute();
   return result;
 }
 
 export async function createShiftSeries(body: ShiftSeriesRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = postApiSchedulingShiftsSeries(body, { options: { immediate: false } });
   await result.execute();
   return result;
 }
 
 export async function updateShiftEntry(id: number, body: ShiftEntryUpdateRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = putApiSchedulingShiftsEntriesId(id, body, { options: { immediate: false } });
   await result.execute();
   return result;
 }
 
 export async function updateShiftSeries(id: number, body: ShiftSeriesUpdateRequest) {
+  assertSchedulingTimeZoneCompatibility(body.timeZoneId);
   const result = putApiSchedulingShiftsSeriesId(id, body, { options: { immediate: false } });
   await result.execute();
   return result;

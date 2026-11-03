@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { IANAZone } from 'luxon';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/__tests__/mocks/server';
@@ -12,6 +13,7 @@ const userId = '11111111-1111-4111-8111-111111111111';
 const mounted: VueWrapper[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   mounted.splice(0).forEach((wrapper) => wrapper.unmount());
   document.body.innerHTML = '';
 });
@@ -37,7 +39,7 @@ describe('scheduling edit modal concurrency', () => {
         color: 'white',
         startAtUtc: '2026-07-13T09:00:00Z',
         endAtUtc: '2026-07-13T17:00:00Z',
-        timeZoneId: 'UTC',
+        timeZoneId: 'America/Vancouver',
         allDay: false,
         locationId: 1,
         statusTypeCode: 'Draft',
@@ -110,7 +112,7 @@ describe('scheduling edit modal concurrency', () => {
                   title: 'Summary',
                   start: '2026-07-13T09:00:00Z',
                   end: '2026-07-13T17:00:00Z',
-                  timeZoneId: 'UTC',
+                  timeZoneId: 'America/Vancouver',
                   locationId: 1,
                   statusTypeCode: 'Draft',
                   resourceIds: [userId],
@@ -126,7 +128,7 @@ describe('scheduling edit modal concurrency', () => {
                 editScope: scope === 'entry' ? 'event' : 'series',
                 assignmentEntryId: 41,
                 assignmentSeriesId: 42,
-                timeZone: 'UTC',
+                timeZone: 'America/Vancouver',
               },
               global: { plugins: app.mountPlugins },
               attachTo: document.body,
@@ -161,6 +163,21 @@ describe('scheduling edit modal concurrency', () => {
       // The token comes from the full response, even when a summary contains another value.
       expect(vm.concurrencyToken).toBe(7);
       form().notes = 'Unsaved local notes';
+
+      const originalOffset = IANAZone.prototype.offset;
+      let winterOffset = -480;
+      vi.spyOn(IANAZone.prototype, 'offset').mockImplementation(function (this: IANAZone, instant) {
+        return instant === Date.UTC(2027, 0, 15, 12) ? winterOffset : originalOffset.call(this, instant);
+      });
+      await save();
+      await flushPromises();
+      expect(writes).toHaveLength(0);
+      expect(form().notes).toBe('Unsaved local notes');
+      expect(vm.concurrencyToken).toBe(7);
+      expect(vm.hasConcurrencyConflict).toBe(false);
+      expect(wrapper.emitted('close')).toBeUndefined();
+      expect(document.body.textContent).toContain('No changes were saved.');
+      winterOffset = -420;
 
       await save();
       await flushPromises();

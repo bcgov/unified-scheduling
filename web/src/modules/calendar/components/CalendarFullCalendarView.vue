@@ -48,6 +48,7 @@ const handleEventClick = (arg: EventClickInfo) => {
     <UaCalendar
       :events="events"
       :view="model.view"
+      :time-zone="model.timeZoneId"
       :initial-date="model.initialDate"
       :weekends="model.weekends"
       @event-click="handleEventClick"

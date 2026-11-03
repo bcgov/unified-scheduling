@@ -12,6 +12,7 @@ export type CalendarPeriod = 'day' | 'week' | 'work-week' | 'month';
 export const useCalendarStore = defineStore('calendar', () => {
   const activeViewId = ref('');
   const anchorDate = ref(getTodayDateOnly());
+  const hasExplicitAnchor = ref(false);
   const period = ref<CalendarPeriod>('week');
   const dateRange = computed(() => buildDateRangeForPeriod(anchorDate.value, period.value));
   const locationId = ref<number>();
@@ -25,7 +26,14 @@ export const useCalendarStore = defineStore('calendar', () => {
   };
 
   const setAnchorDate = (value: string) => {
+    hasExplicitAnchor.value = true;
     anchorDate.value = value;
+  };
+
+  const initializeAnchorDate = (timeZoneId?: string) => {
+    if (!hasExplicitAnchor.value) {
+      anchorDate.value = getTodayDateOnly(timeZoneId);
+    }
   };
 
   const setPeriod = (value: CalendarPeriod) => {
@@ -33,11 +41,13 @@ export const useCalendarStore = defineStore('calendar', () => {
   };
 
   const shiftPeriod = (direction: CalendarNavigationDirection) => {
+    hasExplicitAnchor.value = true;
     anchorDate.value = shiftCalendarAnchor(anchorDate.value, period.value, direction);
   };
 
-  const goToToday = () => {
-    anchorDate.value = getTodayDateOnly();
+  const goToToday = (timeZoneId?: string) => {
+    anchorDate.value = getTodayDateOnly(timeZoneId);
+    hasExplicitAnchor.value = false;
   };
 
   const setLocationId = (value?: number) => {
@@ -82,6 +92,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     activeViewId,
     dateRange,
     anchorDate,
+    hasExplicitAnchor,
     period,
     locationId,
     filters,
@@ -90,6 +101,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     selectedResourceId,
     setActiveView,
     setAnchorDate,
+    initializeAnchorDate,
     setPeriod,
     shiftPeriod,
     goToToday,

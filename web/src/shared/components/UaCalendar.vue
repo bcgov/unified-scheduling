@@ -59,12 +59,14 @@ const props = withDefaults(
     events: EventInput[];
     view: UaCalendarView;
     initialDate?: string;
+    timeZone?: string;
     height?: string | number;
     weekends?: boolean;
     fullCalendarProps?: UaFullCalendarProps;
   }>(),
   {
     initialDate: undefined,
+    timeZone: 'local',
     height: 'auto',
     weekends: true,
     fullCalendarProps: undefined,
@@ -79,6 +81,7 @@ const defaultCalendarOptions = computed<CalendarOptions>(() => ({
   plugins: [classicThemePlugin, dayGridPlugin, timeGridPlugin],
   initialView: props.view,
   initialDate: props.initialDate,
+  timeZone: props.timeZone,
   events: props.events,
   height: props.height,
   weekends: props.weekends,

@@ -1,4 +1,4 @@
-import { DateTime, type DateTimeFormatOptions } from 'luxon';
+import { DateTime, IANAZone, type DateTimeFormatOptions } from 'luxon';
 
 export const DATE_FORMAT = 'yyyy-MM-dd';
 
@@ -112,8 +112,16 @@ export function getTodayDateInputValue(): string {
   return DateTime.now().toFormat(DATE_FORMAT);
 }
 
-export function getTodayDateOnly(): string {
-  return getTodayDateInputValue();
+export function isValidIanaTimeZone(timeZoneId: string): boolean {
+  return IANAZone.isValidZone(timeZoneId);
+}
+
+export function getTodayDateOnly(timeZoneId?: string): string {
+  const today = timeZoneId ? DateTime.now().setZone(timeZoneId) : DateTime.now();
+  if (!today.isValid) {
+    throw new Error(`Invalid time zone: ${timeZoneId}`);
+  }
+  return today.toFormat(DATE_FORMAT);
 }
 
 /**

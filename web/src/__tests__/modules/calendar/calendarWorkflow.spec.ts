@@ -13,8 +13,76 @@ describe('calendar workflow', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.useRealTimers();
   });
+
+  it.each(['automatic', 'date', 'next', 'previous', 'today'] as const)(
+    'handles late location loading after %s positioning and uses the current location for Today',
+    async (navigation) => {
+      vi.stubEnv('TZ', 'UTC');
+      vi.setSystemTime(new Date('2026-07-14T06:30:00Z'));
+      vi.doMock('@/modules/calendar/calendarDataService', () => ({
+        calendarDataService: { loadData: async () => ({ contributions: {} }), cancel: vi.fn(), endSession: vi.fn() },
+      }));
+      vi.doMock('@/modules/calendar/registry/calendarRegistry', () => ({
+        calendarRegistry: {
+          getAvailableViews: () => [
+            { id: 'test', label: 'Test', component: defineComponent({ template: '<div />' }), buildModel: () => ({}) },
+          ],
+        },
+      }));
+      vi.doMock('@/modules/calendar/registry/calendarActionRegistry', () => ({
+        calendarActionRegistry: { getCreateActions: () => [], getToolbarActionsForView: () => [] },
+      }));
+      const [{ default: Calendar }, { useCalendarStore }, { useLocationsStore }, { default: CalendarToolbar }] =
+        await Promise.all([
+          import('@/modules/calendar/Calendar.vue'),
+          import('@/modules/calendar/calendarStore'),
+          import('@/stores/LocationsStore'),
+          import('@/modules/calendar/components/CalendarToolbar.vue'),
+        ]);
+      const app = await createTestApp({ loadConfig: false });
+      const store = useCalendarStore(app.pinia);
+      const locations = useLocationsStore(app.pinia);
+      locations.entities = [];
+      locations.setSelectedLocationId(12);
+      store.setPeriod('day');
+      const wrapper = mount(Calendar, { global: { plugins: app.mountPlugins, stubs: { CalendarToolbar: true } } });
+      try {
+        const toolbar = wrapper.findComponent(CalendarToolbar);
+        if (navigation === 'date') toolbar.vm.$emit('select-date', '2025-04-16');
+        else if (navigation !== 'automatic') toolbar.vm.$emit(navigation);
+        await flushPromises();
+        const selectedAnchor = store.anchorDate;
+        if (navigation === 'automatic' || navigation === 'today') expect(selectedAnchor).toBe('2026-07-14');
+        locations.entities = [
+          { id: 12, name: 'Vancouver', timezone: 'America/Vancouver' },
+          { id: 13, name: 'Edmonton', timezone: 'America/Edmonton' },
+        ];
+        await flushPromises();
+        const followsToday = navigation === 'automatic' || navigation === 'today';
+        expect(store.anchorDate).toBe(followsToday ? '2026-07-13' : selectedAnchor);
+        locations.setSelectedLocationId(13);
+        await flushPromises();
+        expect(store.anchorDate).toBe(followsToday ? '2026-07-14' : selectedAnchor);
+        locations.setSelectedLocationId(12);
+        await flushPromises();
+        toolbar.vm.$emit('today');
+        await flushPromises();
+        expect(store.anchorDate).toBe('2026-07-13');
+        locations.setSelectedLocationId(13);
+        await flushPromises();
+        expect(store.anchorDate).toBe('2026-07-14');
+        toolbar.vm.$emit('today');
+        await flushPromises();
+        expect(store.anchorDate).toBe('2026-07-14');
+        expect(store.period).toBe('day');
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
 
   it('renders the main calendar path, reloads for date navigation, and opens event details', async () => {
     const viewEvent = {
