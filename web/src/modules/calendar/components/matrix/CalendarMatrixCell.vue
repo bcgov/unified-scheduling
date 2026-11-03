@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue';
+import UaActionPrompt from '@/shared/components/UaActionPrompt.vue';
 import { calendarMatrixContextKey } from './calendarMatrixContext';
 import CalendarMatrixEventBlock from './CalendarMatrixEventBlock.vue';
 import type {
@@ -243,16 +244,21 @@ function handleEmptyCellAdd() {
           </template>
         </div>
       </template>
-      <button
-        v-if="canAddEmptyCellResource && resource"
-        class="calendar-matrix-cell__empty-add"
-        type="button"
-        :aria-label="resource.action?.ariaLabel"
-        @click.stop="handleEmptyCellAdd"
-      >
-        <v-icon v-if="resource.action?.icon" :icon="resource.action.icon" size="16" />
-        <span v-else>{{ resource.action?.label ?? '+' }}</span>
-      </button>
+      <UaActionPrompt v-if="canAddEmptyCellResource && resource" :prompt="resource.action?.prompt">
+        <template #activator="{ tooltipProps, highlighted }">
+          <button
+            v-bind="tooltipProps"
+            class="calendar-matrix-cell__empty-add"
+            :class="{ 'ua-action-prompt--highlighted': highlighted }"
+            type="button"
+            :aria-label="resource.action?.ariaLabel"
+            @click.stop="handleEmptyCellAdd"
+          >
+            <v-icon v-if="resource.action?.icon" :icon="resource.action.icon" size="16" />
+            <span v-else>{{ resource.action?.label ?? '+' }}</span>
+          </button>
+        </template>
+      </UaActionPrompt>
     </slot>
   </section>
 </template>

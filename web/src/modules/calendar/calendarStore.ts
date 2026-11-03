@@ -8,6 +8,11 @@ import {
 } from '@/utils/date';
 
 export type CalendarPeriod = 'day' | 'week' | 'work-week' | 'month';
+export interface CalendarScrollPosition {
+  top: number;
+  left: number;
+  panelTop: number;
+}
 
 export const useCalendarStore = defineStore('calendar', () => {
   const activeViewId = ref('');
@@ -17,6 +22,8 @@ export const useCalendarStore = defineStore('calendar', () => {
   const locationId = ref<number>();
   const filters = ref<Record<string, unknown>>({});
   const refreshNonce = ref(0);
+  const scrollGeneration = ref(0);
+  const scrollPositions = new Map<string, CalendarScrollPosition>();
   const selectedEventId = ref<string>();
   const selectedResourceId = ref<string>();
 
@@ -78,6 +85,40 @@ export const useCalendarStore = defineStore('calendar', () => {
     refreshNonce.value += 1;
   };
 
+  const scrollKey = (viewId: string, selectedLocationId?: number) => `${viewId}:${selectedLocationId ?? ''}`;
+  const getScrollPosition = (viewId: string, selectedLocationId?: number): CalendarScrollPosition =>
+    scrollPositions.get(scrollKey(viewId, selectedLocationId)) ?? { top: 0, left: 0, panelTop: 0 };
+  const saveGridScrollPosition = (
+    viewId: string,
+    selectedLocationId: number | undefined,
+    generation: number,
+    top: number,
+    left: number,
+  ) => {
+    if (generation !== scrollGeneration.value) return;
+    scrollPositions.set(scrollKey(viewId, selectedLocationId), {
+      ...getScrollPosition(viewId, selectedLocationId),
+      top,
+      left,
+    });
+  };
+  const savePanelScrollPosition = (
+    viewId: string,
+    selectedLocationId: number | undefined,
+    generation: number,
+    panelTop: number,
+  ) => {
+    if (generation !== scrollGeneration.value) return;
+    scrollPositions.set(scrollKey(viewId, selectedLocationId), {
+      ...getScrollPosition(viewId, selectedLocationId),
+      panelTop,
+    });
+  };
+  const resetScrollPositions = () => {
+    scrollGeneration.value += 1;
+    scrollPositions.clear();
+  };
+
   return {
     activeViewId,
     dateRange,
@@ -86,6 +127,7 @@ export const useCalendarStore = defineStore('calendar', () => {
     locationId,
     filters,
     refreshNonce,
+    scrollGeneration,
     selectedEventId,
     selectedResourceId,
     setActiveView,
@@ -101,5 +143,9 @@ export const useCalendarStore = defineStore('calendar', () => {
     setSelectedResource,
     clearSelection,
     refresh,
+    getScrollPosition,
+    saveGridScrollPosition,
+    savePanelScrollPosition,
+    resetScrollPositions,
   };
 });

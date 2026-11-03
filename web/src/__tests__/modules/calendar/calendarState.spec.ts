@@ -203,6 +203,24 @@ describe('calendar registries and store', () => {
     expect(store.locationId).toBeUndefined();
   });
 
+  it('keeps per-view scroll positions until a date or location context resets them', () => {
+    const store = useCalendarStore();
+    const generation = store.scrollGeneration;
+
+    store.saveGridScrollPosition('shifts', 12, generation, 120, 240);
+    store.savePanelScrollPosition('shifts', 12, generation, 350);
+    store.saveGridScrollPosition('assignments', 12, generation, 40, 80);
+    store.saveGridScrollPosition('shifts', 13, generation, 10, 20);
+
+    expect(store.getScrollPosition('shifts', 12)).toEqual({ top: 120, left: 240, panelTop: 350 });
+    expect(store.getScrollPosition('assignments', 12)).toEqual({ top: 40, left: 80, panelTop: 0 });
+    expect(store.getScrollPosition('shifts', 13)).toEqual({ top: 10, left: 20, panelTop: 0 });
+
+    store.resetScrollPositions();
+    store.saveGridScrollPosition('shifts', 12, generation, 999, 999);
+    expect(store.getScrollPosition('shifts', 12)).toEqual({ top: 0, left: 0, panelTop: 0 });
+  });
+
   it('derives ranges from the anchor and period navigation state', () => {
     const store = useCalendarStore();
 

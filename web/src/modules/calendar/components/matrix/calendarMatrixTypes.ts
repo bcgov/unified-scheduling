@@ -42,6 +42,7 @@ export interface CalendarMatrixResourceActionDisplay {
   label?: string;
   icon?: string;
   ariaLabel: string;
+  prompt?: string;
 }
 
 export interface CalendarMatrixEventDisplay {
@@ -66,6 +67,7 @@ export interface CalendarMatrixResource {
   id: string;
   type: string;
   title: string;
+  draggable?: boolean;
   subtitle?: string;
   meta?: CalendarMatrixMetaItem[];
   avatarText?: string;
@@ -141,6 +143,7 @@ export interface CalendarMatrixSidePanel {
   items: CalendarMatrixSidePanelItem[];
   actionId?: string;
   actionLabel?: string;
+  actionPrompt?: string;
 }
 
 export interface CalendarMatrixSidePanelItem {
@@ -151,6 +154,7 @@ export interface CalendarMatrixSidePanelItem {
   meta?: CalendarMatrixMetaItem[];
   avatarText?: string;
   draggable?: boolean;
+  prompt?: string;
   payload?: unknown;
 }
 
@@ -168,7 +172,7 @@ export interface CalendarMatrixViewModel {
 }
 
 export interface CalendarMatrixDragPayload {
-  source: 'side-panel' | 'event-block';
+  source: 'side-panel' | 'event-block' | 'resource-row';
   itemId: string;
   itemType: string;
   payload?: unknown;

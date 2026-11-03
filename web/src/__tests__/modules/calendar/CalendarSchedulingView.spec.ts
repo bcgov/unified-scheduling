@@ -21,11 +21,10 @@ import {
   calendarSchedulingConflictHeaderId,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingEventDetail,
-  closeCalendarSchedulingExistingShiftChoice,
   closeCalendarSchedulingResourceActionModal,
   getCalendarSchedulingHeaderConflictKey,
   showCalendarSchedulingAssignmentModal,
-  showCalendarSchedulingExistingShiftChoice,
+  showCalendarSchedulingEventDetail,
   showCalendarSchedulingResourceActionModal,
 } from '@/modules/scheduling/calendarSchedulingState';
 
@@ -52,7 +51,6 @@ describe('CalendarSchedulingView', () => {
   afterEach(() => {
     closeCalendarSchedulingAssignmentModal();
     closeCalendarSchedulingEventDetail();
-    closeCalendarSchedulingExistingShiftChoice();
     closeCalendarSchedulingResourceActionModal();
     calendarSchedulingConflictEventId.value = undefined;
     calendarSchedulingConflictHeaderId.value = undefined;
@@ -168,7 +166,7 @@ describe('CalendarSchedulingView', () => {
     wrapper.unmount();
   });
 
-  it('opens an existing Shift from an assignment drop directly at event scope', async () => {
+  it('forwards a direct edit request for an existing shift at event scope', async () => {
     const shiftEvent = {
       id: 'shift-entry-42',
       type: 'scheduling.shift',
@@ -177,13 +175,7 @@ describe('CalendarSchedulingView', () => {
       start: '2026-08-24T16:00:00Z',
       metadata: { shiftEntryId: '42', shiftSeriesId: '202' },
     };
-    showCalendarSchedulingExistingShiftChoice({
-      shiftEvent,
-      resource: { id: 'user-1', type: 'user', title: 'Alex Alpha' },
-      date: '2026-08-24',
-      assignmentEntryId: 251,
-      assignmentEvents: [],
-    });
+    showCalendarSchedulingEventDetail(shiftEvent, { initialOpenScope: 'event', initialTab: 'edit' });
 
     const app = await createTestApp({ loadConfig: false });
     const wrapper = mount(CalendarSchedulingView, {
@@ -200,15 +192,10 @@ describe('CalendarSchedulingView', () => {
       },
     });
 
-    const editButton = Array.from(document.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Edit existing shift'),
-    );
-    editButton?.dispatchEvent(new Event('click', { bubbles: true }));
-    await wrapper.vm.$nextTick();
-
     expect(wrapper.findComponent(CalendarSchedulingShiftDetailModal).props()).toMatchObject({
       event: shiftEvent,
       initialOpenScope: 'event',
+      initialTab: 'edit',
     });
 
     wrapper.unmount();

@@ -10,16 +10,23 @@ const hasPermission = vi.hoisted(() => vi.fn(() => true));
 vi.mock('@/composables/useAccessControl', () => ({ useAccessControl: () => ({ hasPermission }) }));
 
 function createAwaitGuardedFetchResult<T>(value: T, execute = vi.fn().mockResolvedValue(undefined)) {
+  let hasExecuted = false;
   const result = {
     data: { value },
     error: { value: null },
-    execute,
+    execute: async () => {
+      await execute();
+      hasExecuted = true;
+    },
   };
 
   return new Proxy(result, {
     get(target, property, receiver) {
       if (property === 'then') {
-        throw new Error('useFetch result should not be awaited before execute()');
+        if (!hasExecuted) {
+          throw new Error('useFetch result should not be awaited before execute()');
+        }
+        return undefined;
       }
 
       return Reflect.get(target, property, receiver);
@@ -1345,7 +1352,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
-  it('adds the dropped user without reloading shift users when the link selection changes', async () => {
+  it('adds a dragged user without replacing an existing assignment link', async () => {
     const getAssignmentDefinitionsExecute = vi.fn().mockResolvedValue(undefined);
     const getShiftSeriesExecute = vi.fn().mockResolvedValue(undefined);
     const getShiftEntriesExecute = vi.fn().mockResolvedValue(undefined);
@@ -1401,6 +1408,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createAwaitGuardedFetchResult(
           {
             id: 257,
+            statusTypeCode: 'Draft',
             assignmentSeriesId: 211,
             assignmentDefinitionId: 7,
             title: 'Court coverage',
@@ -1437,8 +1445,10 @@ describe('CalendarSchedulingAssignmentModal', () => {
       props: {
         mode: 'edit',
         assignmentEntryId: 257,
+        editScope: 'event',
         initialShiftEntryIds: [44],
         initialAssignedUserId: 'user-1',
+        draggedUserOnly: true,
         timeZone: 'America/Vancouver',
       },
       global: { plugins: app.mountPlugins },
@@ -1449,6 +1459,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
 
     const vm = wrapper.vm as unknown as {
       formData: {
+        assignmentSeriesId?: number | null;
         startTime?: string;
         endTime?: string;
         shiftEntryLinks?: Array<{ shiftEntryId: number; assignedUserIds: string[] }>;
@@ -1459,8 +1470,10 @@ describe('CalendarSchedulingAssignmentModal', () => {
 
     expect(vm.formData.startTime).toBe('09:00');
     expect(vm.formData.endTime).toBe('17:00');
+    expect(vm.formData.assignmentSeriesId).toBe(211);
     expect(vm.formData.shiftEntryLinks).toEqual([
       {
+        id: 301,
         shiftEntryId: 44,
         assignedUserIds: expect.arrayContaining(['user-1', 'user-2']),
       },
@@ -1481,6 +1494,28 @@ describe('CalendarSchedulingAssignmentModal', () => {
     expect(vm.getShiftEntryUserOptions(44)).toBe(initialUserOptions);
 
     wrapper.unmount();
+
+    const createWrapper = mount(CalendarSchedulingAssignmentModal, {
+      props: {
+        initialDate: '2026-07-13',
+        initialShiftEntryIds: [44],
+        initialAssignedUserId: 'user-1',
+        draggedUserOnly: true,
+        timeZone: 'America/Vancouver',
+      },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+
+    await flushPromises();
+    const createVm = createWrapper.vm as unknown as {
+      formData: { shiftEntryLinks?: Array<{ shiftEntryId: number; assignedUserIds: string[] }> };
+      applyInitialSelections: () => void;
+    };
+    expect(createVm.formData.shiftEntryLinks).toEqual([{ shiftEntryId: 44, assignedUserIds: ['user-1'] }]);
+    createVm.applyInitialSelections();
+    expect(createVm.formData.shiftEntryLinks).toEqual([{ shiftEntryId: 44, assignedUserIds: ['user-1'] }]);
+    createWrapper.unmount();
   });
 
   it('loads the entire series with only its shift staff available for the link', async () => {
@@ -1938,6 +1973,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            statusTypeCode: 'Draft',
             assignmentDefinitionId: 8,
             title: 'August assignment',
             startAtUtc: '2026-08-10T16:00:00Z',
@@ -2072,6 +2108,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            statusTypeCode: 'Draft',
             assignmentDefinitionId: 7,
             title: 'Court Room Monitor',
             color: 'pink',
@@ -2210,6 +2247,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
         createFetchResult({
           value: {
             id: 257,
+            statusTypeCode: 'Draft',
             assignmentDefinitionId: 7,
             title: 'Court Room Monitor',
             color: 'pink',
