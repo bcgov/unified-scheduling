@@ -1,10 +1,10 @@
-/* Self-hosted BC Sans webfonts from public/webfonts. */
+/* Self-hosted BC Sans webfonts bundled with Vite. */
 @font-face {
   font-family: 'BC Sans';
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('/webfonts/2023_03_14_BCSans-Light_2g.woff2') format('woff2');
+  src: url('../webfonts/2023_03_14_BCSans-Light_2g.woff2') format('woff2');
 }
 
 @font-face {
@@ -12,7 +12,7 @@
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url('/webfonts/2023_01_01_BCSans-LightItalic_2f.woff2') format('woff2');
+  src: url('../webfonts/2023_01_01_BCSans-LightItalic_2f.woff2') format('woff2');
 }
 
 @font-face {
@@ -20,7 +20,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/webfonts/2023_01_01_BCSans-Regular_2f.woff2') format('woff2');
+  src: url('../webfonts/2023_01_01_BCSans-Regular_2f.woff2') format('woff2');
 }
 
 @font-face {
@@ -28,7 +28,7 @@
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('/webfonts/2023_01_01_BCSans-Bold_2f.woff2') format('woff2');
+  src: url('../webfonts/2023_01_01_BCSans-Bold_2f.woff2') format('woff2');
 }
 
 @font-face {
@@ -36,7 +36,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url('/webfonts/2023_01_01_BCSans-Italic_2f.woff2') format('woff2');
+  src: url('../webfonts/2023_01_01_BCSans-Italic_2f.woff2') format('woff2');
 }
 
 @font-face {
@@ -44,5 +44,5 @@
   font-style: italic;
   font-weight: 700;
   font-display: swap;
-  src: url('/webfonts/2023_01_01_BCSans-BoldItalic_2f.woff2') format('woff2');
+  src: url('../webfonts/2023_01_01_BCSans-BoldItalic_2f.woff2') format('woff2');
 }

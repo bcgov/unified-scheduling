@@ -14,12 +14,6 @@ export interface BrandSettingsOptions {
   /** @nullable */
   navigationSelectedColor?: string | null;
   /** @nullable */
-  primaryLogoEnabled?: boolean | null;
-  /** @nullable */
-  primaryLogoUrl?: string | null;
-  /** @nullable */
-  primaryLogoAlt?: string | null;
-  /** @nullable */
   quickLinks?: string[] | null;
   /** @nullable */
   dashboardMessage?: string | null;
@@ -27,8 +21,6 @@ export interface BrandSettingsOptions {
   secondaryLogoUrl?: string | null;
   /** @nullable */
   secondaryLogoAlt?: string | null;
-  /** @nullable */
-  backgroundImageEnabled?: boolean | null;
   /** @nullable */
   backgroundImageUrl?: string | null;
   /** @nullable */

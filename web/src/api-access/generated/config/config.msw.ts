@@ -144,9 +144,6 @@ export const getGetApiConfigResponseMock = (
               faker.string.alpha({ length: { min: 10, max: 20 } }),
               null,
             ]),
-            primaryLogoEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), null]),
-            primaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            primaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             quickLinks: faker.helpers.arrayElement([
               Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
                 faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -156,7 +153,6 @@ export const getGetApiConfigResponseMock = (
             dashboardMessage: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             secondaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             secondaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            backgroundImageEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), null]),
             backgroundImageUrl: faker.helpers.arrayElement([
               faker.string.alpha({ length: { min: 10, max: 20 } }),
               null,
@@ -238,9 +234,6 @@ export const getGetApiConfigResponseMock = (
               faker.string.alpha({ length: { min: 10, max: 20 } }),
               null,
             ]),
-            primaryLogoEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), null]),
-            primaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            primaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             quickLinks: faker.helpers.arrayElement([
               Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
                 faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -250,7 +243,6 @@ export const getGetApiConfigResponseMock = (
             dashboardMessage: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             secondaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             secondaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            backgroundImageEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), null]),
             backgroundImageUrl: faker.helpers.arrayElement([
               faker.string.alpha({ length: { min: 10, max: 20 } }),
               null,
@@ -332,9 +324,6 @@ export const getGetApiConfigResponseMock = (
               faker.string.alpha({ length: { min: 10, max: 20 } }),
               null,
             ]),
-            primaryLogoEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), null]),
-            primaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            primaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             quickLinks: faker.helpers.arrayElement([
               Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
                 faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -344,7 +333,6 @@ export const getGetApiConfigResponseMock = (
             dashboardMessage: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             secondaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             secondaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            backgroundImageEnabled: faker.helpers.arrayElement([faker.datatype.boolean(), null]),
             backgroundImageUrl: faker.helpers.arrayElement([
               faker.string.alpha({ length: { min: 10, max: 20 } }),
               null,

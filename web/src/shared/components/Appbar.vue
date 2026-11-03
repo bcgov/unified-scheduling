@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { useNavigationStore } from '@/stores/NavigationStore';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { mdiLogout, mdiMapMarker, mdiChevronDown } from '@mdi/js';
+import { mdiLogout, mdiMapMarker, mdiChevronDown, mdiMenu } from '@mdi/js';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import { redirectToLogout } from '@/utils/authNavigation';
 import { useBranding } from '@/composables/useBranding';
@@ -65,7 +65,32 @@ const handleLogout = () => {
         </v-menu>
       </div>
 
-      <v-spacer />
+      <div v-if="authStore.isRegistered" class="appbar-mobile-navigation">
+        <v-menu>
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon class="mobile-menu-btn" aria-label="Open navigation menu">
+              <v-icon :icon="mdiMenu" />
+            </v-btn>
+          </template>
+          <v-list aria-label="Primary navigation">
+            <v-list-item
+              v-for="navItem in navigationStore.mainLinks"
+              :key="navItem.name"
+              :to="navItem.path"
+              :title="navItem.name"
+            />
+            <v-list-subheader v-if="navigationStore.adminLinks.length">Admin</v-list-subheader>
+            <v-list-item
+              v-for="link in navigationStore.adminLinks"
+              :key="link.path"
+              :to="link.path"
+              :title="link.name"
+            />
+          </v-list>
+        </v-menu>
+      </div>
+
+      <v-spacer class="appbar-spacer" />
 
       <div v-if="authStore.isAuthenticated" class="appbar-actions">
         <UaSelect
@@ -118,7 +143,7 @@ const handleLogout = () => {
 
 .app-bar {
   position: static !important;
-  padding-inline: clamp(16px, 2.7vw, 44px);
+  padding-inline: clamp(4px, 1vw, var(--ua-spacing-md));
   background: var(--ua-brand-blue) !important;
 }
 
@@ -129,8 +154,11 @@ const handleLogout = () => {
 .appbar-branding {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: clamp(4px, 0.95vw, var(--ua-spacing-md));
   flex: 0 0 auto;
+}
+.appbar-mobile-navigation {
+  display: none;
 }
 .appbar-branding-link {
   color: inherit;
@@ -151,13 +179,13 @@ const handleLogout = () => {
 .appbar-logo img {
   display: block;
   width: auto;
-  height: 48px;
-  max-width: 192px;
+  height: clamp(28px, 3.75vw, 48px);
+  max-width: clamp(112px, 15vw, 192px);
   object-fit: contain;
 }
 .appbar-logo--secondary img {
-  height: 76px;
-  max-width: 220px;
+  height: clamp(40px, 4.7vw, 76px);
+  max-width: clamp(72px, 17.2vw, 220px);
 }
 
 .appbar-logo-separator {
@@ -172,7 +200,7 @@ const handleLogout = () => {
   align-items: stretch;
   flex: 1 1 auto;
   min-width: 0;
-  margin-left: clamp(16px, 2.4vw, 40px);
+  margin-left: clamp(4px, 1.25vw, var(--ua-spacing-lg));
   overflow-x: auto;
 }
 
@@ -181,14 +209,14 @@ const handleLogout = () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: clamp(2px, calc(1vw - 5px), var(--ua-spacing-sm));
   flex: 0 0 auto;
-  padding: 0 clamp(16px, 1.8vw, 30px);
+  padding-inline: clamp(1px, calc(1.8vw - 12px), var(--ua-spacing-md));
   border: 0;
   background: transparent;
   color: #fff;
   font: inherit;
-  font-size: 18px;
+  font-size: clamp(13px, 1.25vw, var(--ua-font-size-lg));
   line-height: 1.25;
   text-decoration: none;
   white-space: nowrap;
@@ -234,13 +262,15 @@ const handleLogout = () => {
 .appbar-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: clamp(var(--ua-spacing-sm), 0.63vw, var(--ua-spacing-md));
   flex: 0 0 auto;
-  margin-left: 24px;
+  margin-left: clamp(var(--ua-spacing-sm), 1.25vw, var(--ua-spacing-lg));
 }
 
 .location-picker {
-  width: clamp(320px, 25vw, 440px);
+  width: clamp(120px, 20vw, 320px);
+  max-width: 100%;
+  min-width: 0;
   flex: 0 0 auto;
   background: #fff;
   border-radius: 12px;
@@ -262,8 +292,10 @@ const handleLogout = () => {
 }
 .location-picker :deep(.v-select__selection-text) {
   color: #000;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.3;
 }
 
@@ -276,36 +308,52 @@ const handleLogout = () => {
   color: var(--ua-brand-blue);
   font-weight: 700;
 }
-@media (max-width: 1200px) {
-  .appbar-branding {
-    gap: 12px;
+@media (max-width: 700px) {
+  :global(:root) {
+    --ua-appbar-height: 114px;
   }
-  .appbar-logo img {
-    height: 40px;
-    max-width: 160px;
+  .app-bar {
+    height: auto !important;
+    min-height: 0 !important;
   }
-  .appbar-logo--secondary img {
-    height: 76px;
-    max-width: 220px;
+  .app-bar :deep(.v-toolbar__content) {
+    height: auto !important;
+    min-height: 0;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    overflow: visible;
+    padding: 6px 8px;
+  }
+  .appbar-logo {
+    height: 44px;
+  }
+  .appbar-logo-separator {
+    height: 36px;
   }
   .router-link-container {
-    margin-left: 16px;
+    display: none;
   }
-  .router-link {
-    padding-inline: 16px;
-    font-size: 16px;
+  .appbar-mobile-navigation {
+    display: flex;
+  }
+  .mobile-menu-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .appbar-spacer {
+    display: none;
   }
   .appbar-actions {
-    gap: 12px;
-    margin-left: 12px;
+    order: 4;
+    flex: 1 0 100%;
+    width: 100%;
+    justify-content: flex-end;
+    margin: 0;
   }
-}
-@media (max-width: 700px) {
-  .app-bar :deep(.v-toolbar__content) {
-    overflow-x: auto;
-  }
-  .router-link-container {
-    flex-shrink: 0;
+  .location-picker {
+    width: auto;
+    max-width: none;
+    flex: 1 1 0%;
   }
 }
 </style>

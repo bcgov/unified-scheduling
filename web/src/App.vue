@@ -1,12 +1,28 @@
 <script setup lang="ts">
+import { watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useTheme } from 'vuetify';
 import Appbar from '@/shared/components/Appbar.vue';
 import AppFooter from '@/shared/components/AppFooter.vue';
 import UaBackgroundOverlay from '@/shared/components/UaBackgroundOverlay.vue';
 import { useBranding } from '@/composables/useBranding';
 
 const route = useRoute();
-const { brandingStyles, backgroundImageUrl } = useBranding();
+const { brandingStyles, backgroundImageUrl, primaryColor, backgroundColor, activeColor } = useBranding();
+const theme = useTheme();
+
+watch(
+  [primaryColor, backgroundColor, activeColor],
+  ([primary, background, active]) => {
+    const colors = theme.themes.value.uaLight?.colors;
+    if (!colors) return;
+
+    colors.primary = primary;
+    colors.background = background;
+    colors.active = active;
+  },
+  { immediate: true },
+);
 </script>
 
 <template>

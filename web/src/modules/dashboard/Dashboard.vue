@@ -18,22 +18,11 @@ const greeting = computed(() => (authStore.userName ? `Hello, ${authStore.userNa
 function availableDestinations(tiles: DashboardTile[]): DashboardTile[] {
   return tiles.flatMap((tile) => {
     if (tile.id === 'admin') {
-      const destination = navigationStore.adminLinks[0];
+      const destination = navigationStore.adminPaths.find((path) => path.name === 'roles-permissions');
       return destination ? [{ ...tile, path: destination.path }] : [];
     }
 
-    if (!accessControl.featureFlags.value[tile.featureFlagKey]?.enabled) return [];
-
-    if (tile.requiredPermission && !accessControl.hasPermission(tile.requiredPermission)) {
-      return [];
-    }
-
-    if (
-      tile.section === 'personal' &&
-      (!authStore.currentUserId || !accessControl.featureFlags.value.UserManagement?.enabled)
-    ) {
-      return [];
-    }
+    if (!tile.featureFlagKeys.every((key) => accessControl.featureFlags.value[key]?.enabled)) return [];
 
     return [tile];
   });
@@ -47,7 +36,7 @@ const availableTiles = computed(() => availableDestinations(getDashboardTiles(br
     <DefaultDashboardBanner v-if="branding.dashboardBanner.value" :banner="branding.dashboardBanner.value" />
     <section class="dashboard-hero">
       <div class="dashboard-hero__text">
-        <h1 class="dashboard-hero__title">{{ greeting }}</h1>
+        <p class="dashboard-hero__title">{{ greeting }}</p>
         <p class="dashboard-hero__guidance">
           {{ branding.dashboardMessage.value }}
         </p>
