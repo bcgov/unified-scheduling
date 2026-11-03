@@ -148,14 +148,29 @@ public sealed class TrainingModuleTests
                 && descriptor.ImplementationType == typeof(TrainingConflictParticipantProvider)
             )
         );
+        Assert.Equal(
+            expectedProvider,
+            services.Any(descriptor =>
+                descriptor.ServiceType == typeof(IEntitySideEffect<UserHomeLocationChangedSignal>)
+                && descriptor.ImplementationType == typeof(InvalidateTrainingOverridesOnHomeLocationChangeHandler)
+                && descriptor.Lifetime == ServiceLifetime.Scoped
+            )
+        );
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         if (trainingEnabled)
             Assert.IsType<UserTrainingService>(scope.ServiceProvider.GetRequiredService<IUserTrainingService>());
         if (expectedProvider)
+        {
             Assert.IsType<TrainingConflictParticipantProvider>(
                 Assert.Single(scope.ServiceProvider.GetServices<ICalendarConflictParticipantProvider>())
             );
+            Assert.IsType<InvalidateTrainingOverridesOnHomeLocationChangeHandler>(
+                Assert.Single(scope.ServiceProvider.GetServices<IEntitySideEffect<UserHomeLocationChangedSignal>>())
+            );
+        }
+        else
+            Assert.Empty(scope.ServiceProvider.GetServices<IEntitySideEffect<UserHomeLocationChangedSignal>>());
     }
 
     private static void AssertContainsScopedRegistration<TService, TImplementation>(IServiceCollection services)

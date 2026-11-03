@@ -176,6 +176,111 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         );
     }
 
+    [Fact]
+    public async Task GetParticipantsAsync_MaximumCalendarDate_ReturnsOverlappingTrainingWithoutOverflow()
+    {
+        await SetTimeZoneAsync("UTC");
+        var training = await AddAsync(_userA, 1, Day(9999, 12, 29), Day(9999, 12, 30));
+        await AddAsync(_userA, 2, Day(9999, 12, 27), Day(9999, 12, 28));
+        var participant = Assert.Single(
+            await _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(Day(9999, 12, 30), Day(9999, 12, 31), [_userA]),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(training.Id, participant.SourceEntityId);
+        Assert.Equal(Day(9999, 12, 29), participant.Start);
+        Assert.Equal(Day(9999, 12, 31), participant.End);
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_MinimumInstant_ReturnsOverlappingTrainingWithoutOverflow()
+    {
+        await SetTimeZoneAsync("UTC");
+        var training = await AddAsync(_userA, 1, DateTimeOffset.MinValue, DateTimeOffset.MinValue);
+        await AddAsync(_userA, 2, Day(1, 1, 2), Day(1, 1, 2));
+        var participant = Assert.Single(
+            await _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(DateTimeOffset.MinValue, Day(1, 1, 2), [_userA]),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(training.Id, participant.SourceEntityId);
+        Assert.Equal(DateTimeOffset.MinValue, participant.Start);
+        Assert.Equal(Day(1, 1, 2), participant.End);
+    }
+
+    [Theory]
+    [InlineData("UTC", 30, false)]
+    [InlineData("America/Vancouver", 30, false)]
+    [InlineData("America/Edmonton", 31, false)]
+    [InlineData("America/Vancouver", 31, true)]
+    public async Task GetParticipantsAsync_MaximumStoredEnd_MatchesIndividualParticipant(
+        string timeZoneId,
+        int startDay,
+        bool legacyEnd
+    )
+    {
+        await SetTimeZoneAsync(timeZoneId);
+        var training = await AddAsync(
+            _userA,
+            1,
+            Day(9999, 12, startDay),
+            legacyEnd ? DateTimeOffset.MinValue : DateTimeOffset.MaxValue
+        );
+        var identity = TrainingConflictParticipantProvider.IdentityFor(training.Id);
+        var individual = Assert.IsType<CalendarConflictParticipant>(
+            await _provider.GetParticipantAsync(identity, _userA, TestContext.Current.CancellationToken)
+        );
+        var participant = Assert.Single(
+            await _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(individual.Start, DateTimeOffset.MaxValue, [_userA]),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(individual, participant);
+        Assert.Equal(identity, participant.Identity);
+        Assert.Equal(_userA, participant.ResourceId);
+        Assert.Equal(timeZoneId, participant.TimeZoneId);
+        Assert.Equal(DateTimeOffset.MaxValue, participant.End);
+        var timeZoneService = new TimeZoneService();
+        Assert.Equal(
+            timeZoneService.ToUtcInstant(new DateTime(9999, 12, startDay), timeZoneService.ResolveRequired(timeZoneId)),
+            participant.Start
+        );
+    }
+
+    private async Task SetTimeZoneAsync(string timeZoneId)
+    {
+        var location = await _db.Locations.SingleAsync(TestContext.Current.CancellationToken);
+        location.Timezone = timeZoneId;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task GetParticipantAsync_NullHomeLocation_UsesConfiguredTimeZoneFallback()
+    {
+        var user = await _db.Users.SingleAsync(user => user.Id == _userA, TestContext.Current.CancellationToken);
+        user.HomeLocationId = null;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var training = await AddAsync(_userA, 1, Day(2026, 7, 13), DateTimeOffset.MinValue);
+
+        var participant = Assert.IsType<CalendarConflictParticipant>(
+            await _provider.GetParticipantAsync(
+                TrainingConflictParticipantProvider.IdentityFor(training.Id),
+                _userA,
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal("UTC", participant.TimeZoneId);
+        Assert.Equal(Day(2026, 7, 13), participant.Start);
+        Assert.Equal(Day(2026, 7, 14), participant.End);
+    }
+
     private async Task<UserTraining> AddAsync(
         Guid userId,
         int version,
@@ -190,7 +295,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             Version = version,
             AwardedOn = awardedOn,
             EndingOn = endingOn,
-            ExpiryDate = awardedOn.AddYears(2),
+            ExpiryDate = awardedOn.Year <= 9997 ? awardedOn.AddYears(2) : null,
         };
         _db.UserTrainings.Add(record);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
