@@ -273,6 +273,7 @@ public class RecurrenceRuleValidatorTests
     [Theory]
     [InlineData("FREQ=DAILY;COUNT=3", "2025-03-08T09:30:00+00:00", "2025-03-08T10:30:00+00:00", "invalid")]
     [InlineData("FREQ=DAILY;COUNT=3", "2025-11-01T08:30:00+00:00", "2025-11-01T09:30:00+00:00", "ambiguous")]
+    [InlineData("FREQ=DAILY;COUNT=3", "2026-03-07T09:30:00+00:00", "2026-03-07T10:30:00+00:00", "invalid")]
     public void Validate_WhenRecurrenceExpansionHitsInvalidOrAmbiguousDstLocalTime_ReturnsPredictableError(
         string recurrenceRule,
         string startAtUtc,
@@ -298,6 +299,39 @@ public class RecurrenceRuleValidatorTests
         var error = Assert.Single(result.Errors);
         Assert.Contains("RRULE is invalid", error);
         Assert.Contains(expectedMessage, error);
+    }
+
+    [Theory]
+    [InlineData("2026-10-31T16:00:00Z")]
+    [InlineData("2026-12-31T16:00:00Z")]
+    public void ExpandAllBounded_WhenPacificTimeIsPermanent_PreservesLocalWallClockTime(string startAtUtc)
+    {
+        var start = DateTimeOffset.Parse(startAtUtc);
+        var series = new EventSeries
+        {
+            RecurrenceRule = "FREQ=DAILY;COUNT=3",
+            StartAtUtc = start,
+            EndAtUtc = start.AddHours(1),
+            TimeZoneId = "America/Vancouver",
+        };
+
+        var occurrences = _expander.ExpandAllBounded(series, 3).ToArray();
+
+        Assert.Equal(3, occurrences.Length);
+        for (var index = 0; index < occurrences.Length; index++)
+        {
+            Assert.Equal(start.AddDays(index), occurrences[index].StartAtUtc);
+            Assert.Equal(start.AddDays(index).AddHours(1), occurrences[index].EndAtUtc);
+            Assert.Equal(
+                9,
+                _timeZoneService
+                    .ToLocalUnspecified(
+                        occurrences[index].StartAtUtc,
+                        _timeZoneService.ResolveRequired("America/Vancouver")
+                    )
+                    .Hour
+            );
+        }
     }
 
     [Fact]
