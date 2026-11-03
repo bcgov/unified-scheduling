@@ -12,6 +12,8 @@ namespace Unified.Tests.Scheduling.Services;
 public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 {
     private static readonly Guid UserId = new("11111111-1111-1111-1111-111111111111");
+    private static readonly DateTimeOffset AssignmentStart = new(2026, 8, 24, 16, 30, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset AssignmentEnd = new(2026, 8, 24, 18, 45, 0, TimeSpan.Zero);
     private UnifiedDbContext _db = null!;
     private SchedulingConflictParticipantProvider _provider = null!;
 
@@ -25,6 +27,8 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         var shiftEvent = CreateEvent(10, "Visible shift", SchedulingConstants.ShiftEventTypeCode);
         var assignmentEvent = CreateEvent(20, "Restricted assignment", SchedulingConstants.AssignmentEventTypeCode);
+        assignmentEvent.StartAtUtc = AssignmentStart;
+        assignmentEvent.EndAtUtc = AssignmentEnd;
         var link = new ShiftAssignmentEntry
         {
             Id = 30,
@@ -61,11 +65,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();
 
     [Theory]
-    [MemberData(nameof(AuthorizedPermissionCases))]
-    public async Task GetParticipantsAsync_AuthorizedViewer_ProjectsPermissionAppropriateEvent(
-        string[] permissions,
-        string expectedEventId,
-        string expectedTitle
+    [MemberData(nameof(PermissionCases))]
+    public async Task GetParticipantsAsync_ViewerPermissions_ReturnsOnlyAuthorizedAssignments(
+        string[]? permissions,
+        bool expectedParticipant
     )
     {
         var participants = await _provider.GetParticipantsAsync(
@@ -73,36 +76,103 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
+        if (!expectedParticipant)
+        {
+            Assert.Empty(participants);
+            return;
+        }
         var participant = Assert.Single(participants);
-        Assert.Equal(expectedEventId, participant.EventId);
-        Assert.Equal(expectedTitle, participant.Title);
+        Assert.Equal("20", participant.EventId);
+        Assert.Equal("Restricted assignment", participant.Title);
+        Assert.Equal(AssignmentStart, participant.Start);
+        Assert.Equal(AssignmentEnd, participant.End);
+        Assert.Equal(UserId, participant.ResourceId);
+        Assert.Equal(50, participant.SourceEntityId);
+        Assert.Equal("scheduling", participant.SourceModule);
+        Assert.Equal("America/Vancouver", participant.TimeZoneId);
+        Assert.Equal(
+            await _provider.GetParticipantsAsync(CreateQuery(null), TestContext.Current.CancellationToken),
+            participants
+        );
     }
 
-    public static TheoryData<string[], string, string> AuthorizedPermissionCases =>
+    public static TheoryData<string[]?, bool> PermissionCases =>
         new()
         {
-            { [nameof(Permissions.ShiftsView)], "10", "Visible shift" },
-            { [nameof(Permissions.AssignmentsView)], "20", "Restricted assignment" },
-            { [nameof(Permissions.ShiftsView), nameof(Permissions.AssignmentsView)], "20", "Restricted assignment" },
+            { [nameof(Permissions.AssignmentsView)], true },
+            { [nameof(Permissions.ShiftsView), nameof(Permissions.AssignmentsView)], true },
+            { [nameof(Permissions.ShiftsView)], false },
+            { [], false },
+            { null, true },
         };
 
-    [Fact]
-    public async Task GetParticipantsAsync_WithoutViewPermission_ReturnsNoParticipants()
+    [Theory]
+    [InlineData(false, "draft", false, 0)]
+    [InlineData(true, "draft", false, 0)]
+    [InlineData(false, "draft", true, 1)]
+    [InlineData(true, "draft", true, 1)]
+    [InlineData(false, "cancelled", true, 0)]
+    [InlineData(true, "cancelled", true, 0)]
+    public async Task GetParticipantsAsync_AuthorizedViewer_PreservesStatusFilters(
+        bool updateShift,
+        string status,
+        bool includeDraft,
+        int expectedCount
+    )
     {
-        var participants = await _provider.GetParticipantsAsync(CreateQuery([]), TestContext.Current.CancellationToken);
-
-        Assert.Empty(participants);
+        var eventEntity = await _db.Events.FindAsync([updateShift ? 10 : 20], TestContext.Current.CancellationToken);
+        eventEntity!.StatusTypeCode = status;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var participants = await _provider.GetParticipantsAsync(
+            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            {
+                IncludeDraftParticipants = includeDraft,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(expectedCount, participants.Count);
     }
 
     [Fact]
-    public async Task GetParticipantsAsync_WithoutHttpPermissionContext_PreservesAssignmentProjection()
+    public async Task GetParticipantsAsync_AuthorizedViewer_PreservesResourceAndHalfOpenRangeFilters()
     {
-        var participants = await _provider.GetParticipantsAsync(
-            CreateQuery(null),
-            TestContext.Current.CancellationToken
+        var query = CreateQuery([nameof(Permissions.AssignmentsView)]);
+        Assert.Single(
+            await _provider.GetParticipantsAsync(
+                query with
+                {
+                    ResourceIds = [UserId],
+                },
+                TestContext.Current.CancellationToken
+            )
         );
-
-        Assert.Equal("20", Assert.Single(participants).EventId);
+        Assert.Empty(
+            await _provider.GetParticipantsAsync(
+                query with
+                {
+                    ResourceIds = [Guid.NewGuid()],
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Empty(
+            await _provider.GetParticipantsAsync(
+                query with
+                {
+                    EndAtUtc = AssignmentStart,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Empty(
+            await _provider.GetParticipantsAsync(
+                query with
+                {
+                    StartAtUtc = AssignmentEnd,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
     }
 
     private static CalendarConflictQuery CreateQuery(IEnumerable<string>? permissions) =>
