@@ -1,34 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useNavigationStore } from '@/stores/NavigationStore';
 import { useAuthStore } from '@/stores/auth';
-import { useAccessControl } from '@/composables/useAccessControl';
 import { useBranding } from '@/composables/useBranding';
-import { getDashboardTiles, type DashboardTile } from '@/modules/dashboard/dashboardTiles.js';
+import { getDashboardTiles } from '@/modules/dashboard/dashboardTiles.js';
 import DefaultDashboardLayout from './template/defaultDashboardLayout.vue';
 import DefaultDashboardBanner from './template/defaultDashboardBanner.vue';
 
 const authStore = useAuthStore();
-const accessControl = useAccessControl();
 const branding = useBranding();
-const navigationStore = useNavigationStore();
 
 const greeting = computed(() => (authStore.userName ? `Hello, ${authStore.userName}` : 'Welcome'));
-
-function availableDestinations(tiles: DashboardTile[]): DashboardTile[] {
-  return tiles.flatMap((tile) => {
-    if (tile.id === 'admin') {
-      const destination = navigationStore.adminPaths.find((path) => path.name === 'roles-permissions');
-      return destination ? [{ ...tile, path: destination.path }] : [];
-    }
-
-    if (!tile.featureFlagKeys.every((key) => accessControl.featureFlags.value[key]?.enabled)) return [];
-
-    return [tile];
-  });
-}
-
-const availableTiles = computed(() => availableDestinations(getDashboardTiles(branding.dashboardTiles.value)));
+const availableTiles = computed(() => getDashboardTiles(branding.dashboardTiles.value));
 </script>
 
 <template>
