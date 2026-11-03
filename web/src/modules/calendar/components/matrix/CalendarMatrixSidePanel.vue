@@ -58,6 +58,7 @@ const emit = defineEmits<{
   display: grid;
   gap: var(--ua-spacing-md);
   grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
   padding: var(--ua-spacing-md);
 }
 
@@ -79,7 +80,14 @@ const emit = defineEmits<{
   align-content: start;
   display: grid;
   gap: var(--ua-spacing-sm);
-  overflow: auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (min-width: 901px) {
+  .calendar-matrix-side-panel__list {
+    overscroll-behavior-y: contain;
+  }
 }
 
 .calendar-matrix-side-panel__empty {

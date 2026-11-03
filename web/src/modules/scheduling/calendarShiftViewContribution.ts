@@ -12,6 +12,7 @@ export const calendarShiftViewContribution: CalendarViewDefinition = {
   // component into the eager bundle.
   component: defineAsyncComponent(() => import('./CalendarSchedulingView.vue')),
   loadingVariant: 'matrix',
+  fillAvailableHeight: true,
   isAvailable: (context) => canViewShifts(context) || canViewLeave(context),
   buildModel: (data, queryContext, _runtimeContext, period) =>
     buildCalendarSchedulingViewModel(data, queryContext, period),
