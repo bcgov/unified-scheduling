@@ -45,7 +45,9 @@ const includeAssignmentTimes = ref(true);
 const errorMessage = ref('');
 
 const modelPayload = computed(() => props.model.payload as CalendarSchedulingMatrixPayload | undefined);
-const eligibleUsers = computed(() => schedulingUsersStore.getUsersForLocation(props.locationId));
+const eligibleUsers = computed(() =>
+  schedulingUsersStore.getUsersForLocation(props.locationId).filter((user) => user.isEnabled === true),
+);
 const eligibleUsersById = computed(() => new Map(eligibleUsers.value.map((user) => [user.id, user])));
 
 const selectedRecipients = computed(() =>
@@ -130,7 +132,7 @@ watch(
     try {
       const users = await schedulingUsersStore.ensureUsersForLocation(locationId);
       if (requestId === userLoadRequestId) {
-        const eligibleIds = new Set(users.map((user) => user.id));
+        const eligibleIds = new Set(users.filter((user) => user.isEnabled === true).map((user) => user.id));
         selectedRecipientIds.value = resolveDisplayedUserIds().filter((userId) => eligibleIds.has(userId));
       }
     } catch (error: unknown) {
@@ -199,6 +201,12 @@ async function sendSchedule() {
   errorMessage.value = '';
   if (selectedRecipientIds.value.length === 0) {
     errorMessage.value = 'Select at least one recipient.';
+    isSending.value = false;
+    return;
+  }
+
+  if (selectedRecipientIds.value.some((userId) => !eligibleUsersById.value.has(userId))) {
+    errorMessage.value = 'Some selected recipients are no longer eligible. Remove them before sending.';
     isSending.value = false;
     return;
   }

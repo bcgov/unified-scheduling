@@ -79,7 +79,8 @@ test('generates a one-day assignment PDF with published assignment details', asy
 });
 
 async function mockApplicationApi(page: Page) {
-  await page.route('**/api/**', async (route) => {
+  const isApiRequest = (url: URL) => url.pathname.startsWith('/api/');
+  await page.route(isApiRequest, async (route) => {
     const url = new URL(route.request().url());
     const json = (body: unknown) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
@@ -122,6 +123,8 @@ async function mockApplicationApi(page: Page) {
         ]);
       case '/api/users':
         return json(users);
+      case '/api/lookup/PositionTypes':
+        return json([{ code: 'Chief Sheriff', description: 'Chief Sheriff', displayOrder: 1 }]);
       case '/api/calendar/events':
         return json({ moduleId: 'calendar', contributionId: 'calendar.events', events: [] });
       case '/api/scheduling/calendar/events':
