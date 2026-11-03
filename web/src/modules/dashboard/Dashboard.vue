@@ -21,14 +21,21 @@ function availableDestinations(tiles: DashboardTile[]): DashboardTile[] {
       const destination = navigationStore.adminLinks[0];
       return destination ? [{ ...tile, path: destination.path }] : [];
     }
+
     if (!accessControl.featureFlags.value[tile.featureFlagKey]?.enabled) return [];
-    if (tile.requiredPermission && !accessControl.hasPermission(tile.requiredPermission)) return [];
-    if (
-      tile.path.includes(':userId') &&
-      (!authStore.currentUserId || !accessControl.featureFlags.value.UserManagement?.enabled)
-    )
+
+    if (tile.requiredPermission && !accessControl.hasPermission(tile.requiredPermission)) {
       return [];
-    return [{ ...tile, path: tile.path.replace(':userId', authStore.currentUserId ?? '') }];
+    }
+
+    if (
+      tile.section === 'personal' &&
+      (!authStore.currentUserId || !accessControl.featureFlags.value.UserManagement?.enabled)
+    ) {
+      return [];
+    }
+
+    return [tile];
   });
 }
 

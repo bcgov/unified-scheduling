@@ -2,12 +2,14 @@ import { mdiAccountOutline, mdiAccountGroup, mdiCalendarMonth, mdiChartBar, mdiC
 import { Permissions, type FeatureFlagsResponse } from '@/api-access/generated/models';
 import type { DashboardTileId } from '@/branding/types';
 import { defaultBrand } from '@/branding/brandingConfig';
+import { useAuthStore } from '@/stores/auth';
+import type { RouteLocationRaw } from 'vue-router';
 
 export interface DashboardTile {
   id: DashboardTileId;
   name: string;
   description: string;
-  path: string;
+  path: RouteLocationRaw;
   icon: string;
   section?: 'personal';
   requiredPermission?: Permissions;
@@ -54,45 +56,6 @@ const ALL_DASHBOARD_TILES: DashboardTile[] = [
     icon: mdiCog,
     featureFlagKey: 'UserManagement',
   },
-];
-
-export function getDashboardTiles(tileIds?: DashboardTileId[]): DashboardTile[] {
-  const selectedTileIds = tileIds ?? defaultBrand.dashboardTiles ?? [];
-  return resolveTiles(selectedTileIds);
-}
-
-function resolveTiles(selectedTileIds: DashboardTileId[]): DashboardTile[] {
-  const tileDefinitions = [...ALL_DASHBOARD_TILES, ...MY_SPACE_TILES];
-
-  return selectedTileIds
-    .map((tileId) => tileDefinitions.find((tile) => tile.id === tileId))
-    .filter((tile): tile is DashboardTile => !!tile);
-}
-
-/**
- * Optional personal destinations for brands that explicitly select them.
- * These appear in the same grid as module cards. The `:userId` placeholder
- * is replaced with the signed-in user's ID before rendering.
- */
-const MY_SPACE_TILES: DashboardTile[] = [
-  {
-    id: 'myProfile',
-    section: 'personal',
-    name: 'My Profile',
-    description: 'View and manage your personal information.',
-    path: '/myteam/:userId',
-    icon: mdiAccountOutline,
-    featureFlagKey: 'UserManagement',
-  },
-  {
-    id: 'training',
-    section: 'personal',
-    name: 'Training',
-    description: 'View your training records and certification status.',
-    path: '/myteam/:userId/training',
-    icon: mdiSchoolOutline,
-    featureFlagKey: 'Training',
-  },
   {
     id: 'reporting',
     name: 'Reporting',
@@ -103,3 +66,45 @@ const MY_SPACE_TILES: DashboardTile[] = [
     requiredPermission: Permissions.ReportsGenerate,
   },
 ];
+
+export function getDashboardTiles(tileIds?: DashboardTileId[]): DashboardTile[] {
+  const selectedTileIds = tileIds ?? defaultBrand.dashboardTiles ?? [];
+  return resolveTiles(selectedTileIds);
+}
+
+function resolveTiles(selectedTileIds: DashboardTileId[]): DashboardTile[] {
+  const tileDefinitions = [...ALL_DASHBOARD_TILES, ...getMySpaceTiles()];
+
+  return selectedTileIds
+    .map((tileId) => tileDefinitions.find((tile) => tile.id === tileId))
+    .filter((tile): tile is DashboardTile => !!tile);
+}
+
+/**
+ * Optional personal destinations for brands that explicitly select them.
+ * These appear in the same grid as module cards and uses authstore to get the signed-in user's ID.
+ */
+function getMySpaceTiles(): DashboardTile[] {
+  const authStore = useAuthStore();
+
+  return [
+    {
+      id: 'myProfile',
+      section: 'personal',
+      name: 'My Profile',
+      description: 'View and manage your personal information.',
+      path: { name: 'UserProfile', params: { userId: authStore.currentUserId ?? undefined } },
+      icon: mdiAccountOutline,
+      featureFlagKey: 'UserManagement',
+    },
+    {
+      id: 'training',
+      section: 'personal',
+      name: 'My Training',
+      description: 'View your training records and certification status.',
+      path: { name: 'UserTraining', params: { userId: authStore.currentUserId ?? undefined } },
+      icon: mdiSchoolOutline,
+      featureFlagKey: 'Training',
+    },
+  ];
+}
