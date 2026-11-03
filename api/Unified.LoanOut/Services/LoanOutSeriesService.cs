@@ -21,7 +21,8 @@ public sealed class LoanOutSeriesService(
     ICalendarEventSeriesService<LoanOutSeriesRequest, LoanOutSeries> calendarEventSeriesService,
     IEventSeriesMaterializationService materializer,
     LoanOutSeriesMaterializationHandler materializationHandler,
-    ISchedulingLoanOutService schedulingLoanOutService
+    ISchedulingLoanOutService schedulingLoanOutService,
+    IRecurrenceExpander recurrenceExpander
 ) : ILoanOutSeriesService
 {
     private static readonly RecurrenceValidationOptions RecurrenceOptions = new()
@@ -49,6 +50,7 @@ public sealed class LoanOutSeriesService(
             [
                 (input, token) => LocationGuard.EnsureValidAsync(db, input.LocationId, input.LoanOutLocationId, token),
                 (input, token) => UserGuard.EnsureValidAsync(db, input.UserIds, token),
+                (input, token) => DuplicateLoanOutGuard.EnsureValidAsync(db, input, recurrenceExpander, token),
             ],
             cancellationToken: cancellationToken
         );
@@ -138,6 +140,7 @@ public sealed class LoanOutSeriesService(
             [
                 (input, token) => LocationGuard.EnsureValidAsync(db, input.LocationId, input.LoanOutLocationId, token),
                 (input, token) => UserGuard.EnsureValidAsync(db, input.UserIds, token),
+                (input, token) => DuplicateLoanOutGuard.EnsureValidAsync(db, input, recurrenceExpander, token),
             ],
             cancellationToken: cancellationToken
         );

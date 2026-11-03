@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Unified.Calendar.Mappings;
 using Unified.Calendar.Services;
+using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models;
@@ -27,7 +28,14 @@ namespace Unified.Tests.LoanOut.Services;
 public sealed class LoanOutEntryServiceTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset EffectiveDate = new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset Start = new(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new TimeZoneService().FromDateStringToStartOfDayInTimeZone(
+        "2026-06-01",
+        "America/Vancouver"
+    );
+    private static readonly DateTimeOffset End = new TimeZoneService().FromDateStringToEndOfDayInTimeZone(
+        "2026-06-01",
+        "America/Vancouver"
+    );
     private static readonly Guid UserA = new("11111111-1111-1111-1111-111111111111");
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _db = null!;
@@ -140,6 +148,62 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
         Assert.Null(response);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SaveLoanOutEntryAsync_WhenResourceHasOverlappingDates_RejectsWithoutSaving(bool update)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await _service.CreateLoanOutEntryAsync(CreateRequest(), ct);
+        var original = update
+            ? await _service.CreateLoanOutEntryAsync(
+                CreateRequest() with
+                {
+                    StartAtUtc = Start.AddDays(2),
+                    EndAtUtc = End.AddDays(2),
+                },
+                ct
+            )
+            : null;
+        // Different times and a different destination still occupy the same resource's calendar date.
+        var request = CreateRequest() with
+        {
+            StartAtUtc = Start.AddHours(5),
+            EndAtUtc = Start.AddHours(6),
+            LoanOutLocationId = 5,
+        };
+        await Assert.ThrowsAsync<ConflictValidationException>(async () =>
+        {
+            if (original is null)
+                await _service.CreateLoanOutEntryAsync(request, ct);
+            else
+                await _service.UpdateLoanOutEntryAsync(original.Id, request, ct);
+        });
+        Assert.False(_db.ChangeTracker.HasChanges());
+        _db.ChangeTracker.Clear();
+        Assert.Equal(update ? 2 : 1, await _db.LoanOutEntries.CountAsync(ct));
+        if (original is not null)
+            Assert.Equal(Start.AddDays(2), (await _service.GetLoanOutEntryByIdAsync(original.Id, ct))!.StartAtUtc);
+    }
+
+    [Fact]
+    public async Task CreateLoanOutEntryAsync_WhenPreviousStartsBeforeRequestedDate_AllowsCreation()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var midnight = new DateTimeOffset(2026, 6, 2, 7, 0, 0, TimeSpan.Zero);
+        await _service.CreateLoanOutEntryAsync(CreateRequest() with { EndAtUtc = midnight }, ct);
+        var response = await _service.CreateLoanOutEntryAsync(
+            CreateRequest() with
+            {
+                StartAtUtc = midnight,
+                EndAtUtc = End.AddDays(1),
+            },
+            ct
+        );
+        Assert.Equal(midnight, response.StartAtUtc);
+        Assert.Equal(2, await _db.LoanOutEntries.CountAsync(ct));
+    }
+
     [Fact]
     public async Task UpdateLoanOutEntryAsync_WhenMissing_ReturnsNull()
     {
@@ -164,7 +228,11 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
 
         var response = await _service.UpdateLoanOutEntryAsync(
             created.Id,
-            CreateRequest(),
+            CreateRequest() with
+            {
+                StartAtUtc = Start.AddDays(7),
+                EndAtUtc = End.AddDays(7),
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -194,6 +262,8 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
                 {
                     LoanOutLocationId = 5,
                     Title = "Blocked update",
+                    StartAtUtc = Start.AddDays(7),
+                    EndAtUtc = End.AddDays(7),
                 },
                 TestContext.Current.CancellationToken
             )
@@ -352,7 +422,7 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
         {
             Title = "Loan out",
             StartAtUtc = Start,
-            EndAtUtc = Start.AddHours(4),
+            EndAtUtc = End,
             TimeZoneId = "America/Vancouver",
             LocationId = 5,
             LoanOutLocationId = 10,

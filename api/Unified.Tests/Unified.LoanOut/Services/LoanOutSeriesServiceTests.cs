@@ -27,7 +27,14 @@ namespace Unified.Tests.LoanOut.Services;
 public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset EffectiveDate = new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset Start = new(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new TimeZoneService().FromDateStringToStartOfDayInTimeZone(
+        "2026-06-01",
+        "America/Vancouver"
+    );
+    private static readonly DateTimeOffset End = new TimeZoneService().FromDateStringToEndOfDayInTimeZone(
+        "2026-06-01",
+        "America/Vancouver"
+    );
     private static readonly Guid UserA = new("11111111-1111-1111-1111-111111111111");
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _db = null!;
@@ -121,7 +128,8 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
                 expander
             ),
             new LoanOutSeriesMaterializationHandler(_db),
-            _schedulingLoanOutService
+            _schedulingLoanOutService,
+            expander
         );
     }
 
@@ -218,7 +226,11 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
 
         var response = await _service.UpdateLoanOutSeriesAsync(
             created.Id,
-            CreateRequest(),
+            CreateRequest() with
+            {
+                StartAtUtc = Start.AddDays(7),
+                EndAtUtc = End.AddDays(7),
+            },
             TestContext.Current.CancellationToken
         );
 
@@ -249,6 +261,8 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
                 {
                     LoanOutLocationId = 5,
                     Title = "Blocked update",
+                    StartAtUtc = Start.AddDays(7),
+                    EndAtUtc = End.AddDays(7),
                 },
                 TestContext.Current.CancellationToken
             )
@@ -266,15 +280,14 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(30, 19, 22, true)]
-    [InlineData(30, 19, 10, false)]
-    [InlineData(19, 30, 22, false)]
-    [InlineData(30, 30, 10, false)]
-    public async Task UpdateLoanOutSeriesAsync_OnlyWithdrawnCoverageBlocksTheUpdate(
+    [InlineData(30, 19, 22)]
+    [InlineData(30, 19, 10)]
+    [InlineData(19, 30, 22)]
+    [InlineData(30, 30, 10)]
+    public async Task UpdateLoanOutSeriesAsync_WhenOccurrenceDatesAreRetained_RejectsBeforeShiftValidation(
         int originalEndDay,
         int newEndDay,
-        int shiftDay,
-        bool shouldConflict
+        int shiftDay
     )
     {
         var ct = TestContext.Current.CancellationToken;
@@ -293,29 +306,18 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             RecurrenceRule = $"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=202612{newEndDay:00}T235959Z",
         };
 
-        if (shouldConflict)
-            await Assert.ThrowsAsync<ConflictValidationException>(() =>
-                _service.UpdateLoanOutSeriesAsync(created.Id, updatedRequest, ct)
-            );
-        else
-        {
-            var result = await _service.UpdateLoanOutSeriesAsync(created.Id, updatedRequest, ct);
-            Assert.NotNull(result);
-            Assert.All(
-                await _db.LoanOutEntries.Include(entry => entry.Event).ToListAsync(ct),
-                entry => Assert.True(entry.Event!.StartAtUtc.Day <= newEndDay)
-            );
-            if (newEndDay < originalEndDay)
-            {
-                Assert.NotEmpty(_schedulingLoanOutService.RestoredEntries);
-                Assert.All(
-                    _schedulingLoanOutService.RestoredEntries,
-                    entry => Assert.True(entry.Event!.StartAtUtc.Day > newEndDay)
-                );
-            }
-            else
-                Assert.Empty(_schedulingLoanOutService.RestoredEntries);
-        }
+        var exception = await Assert.ThrowsAsync<ConflictValidationException>(() =>
+            _service.UpdateLoanOutSeriesAsync(created.Id, updatedRequest, ct)
+        );
+        Assert.True(exception.Errors.ContainsKey("LoanOut"));
+        Assert.False(_db.ChangeTracker.HasChanges());
+        Assert.Null(_schedulingLoanOutService.LastCheckedLocationId);
+        Assert.Empty(_schedulingLoanOutService.RestoredEntries);
+        _db.ChangeTracker.Clear();
+        var retained = await _service.GetLoanOutSeriesByIdAsync(created.Id, ct);
+        Assert.NotNull(retained);
+        Assert.Equal(request.RecurrenceRule, retained.RecurrenceRule);
+        Assert.Equal(created.LoanOutEntryIds.Order(), retained.LoanOutEntryIds.Order());
     }
 
     [Theory]
@@ -428,12 +430,106 @@ public sealed class LoanOutSeriesServiceTests : IAsyncLifetime
             Title = "Loan out series",
             RecurrenceRule = "FREQ=DAILY;COUNT=2",
             StartAtUtc = Start,
-            EndAtUtc = Start.AddHours(4),
+            EndAtUtc = End,
             TimeZoneId = "America/Vancouver",
             LocationId = 5,
             LoanOutLocationId = 10,
             UserIds = [UserA],
         };
+
+    [Theory]
+    [InlineData("FREQ=WEEKLY;BYDAY=MO,TH;COUNT=2", 6, 4, true)]
+    [InlineData("FREQ=WEEKLY;BYDAY=MO,TH;COUNT=2", 6, 2, false)]
+    [InlineData("FREQ=MONTHLY;BYMONTHDAY=1,15;COUNT=2", 6, 15, true)]
+    [InlineData("FREQ=MONTHLY;BYMONTHDAY=1,15;COUNT=2", 6, 2, false)]
+    [InlineData("FREQ=YEARLY;BYMONTH=6,12;BYMONTHDAY=1;COUNT=2", 12, 1, true)]
+    [InlineData("FREQ=YEARLY;BYMONTH=6,12;BYMONTHDAY=1;COUNT=2", 6, 2, false)]
+    public async Task CreateLoanOutSeriesAsync_WithSelectedRecurrenceDates_ChecksOnlyOccurrences(
+        string recurrenceRule,
+        int existingMonth,
+        int existingDay,
+        bool conflicts
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var existingStart = new DateTimeOffset(2026, existingMonth, existingDay, 16, 0, 0, TimeSpan.Zero);
+        await _service.CreateLoanOutSeriesAsync(
+            CreateRequest() with
+            {
+                StartAtUtc = existingStart,
+                EndAtUtc = existingStart.AddHours(4),
+                RecurrenceRule = "FREQ=DAILY;COUNT=1",
+            },
+            ct
+        );
+        var request = CreateRequest() with { RecurrenceRule = recurrenceRule };
+        if (conflicts)
+        {
+            await Assert.ThrowsAsync<ConflictValidationException>(() => _service.CreateLoanOutSeriesAsync(request, ct));
+            Assert.False(_db.ChangeTracker.HasChanges());
+            Assert.Equal(1, await _db.LoanOutSeries.CountAsync(ct));
+        }
+        else
+        {
+            var created = await _service.CreateLoanOutSeriesAsync(request, ct);
+            Assert.Equal(2, await _db.LoanOutEntries.CountAsync(entry => entry.LoanOutSeriesId == created.Id, ct));
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task SaveLoanOutSeriesAsync_WhenLaterOccurrenceOverlaps_RejectsWithoutSaving(
+        bool update,
+        bool regenerate
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var original = update ? await _service.CreateLoanOutSeriesAsync(CreateRequest(), ct) : null;
+        _db.LoanOutEntries.Add(
+            new LoanOutEntry
+            {
+                LoanOutLocationId = 5,
+                Event = new Event
+                {
+                    Title = "Existing standalone loan-out",
+                    StartAtUtc = Start.AddDays(update ? 3 : 1).AddHours(5),
+                    EndAtUtc = Start.AddDays(update ? 3 : 1).AddHours(6),
+                    TimeZoneId = "America/Vancouver",
+                    LocationId = 5,
+                    SourceModule = LoanOutConstants.SourceModule,
+                    EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                    StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+                },
+                Users = [new LoanOutEntryUser { UserId = UserA }],
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+        var request = CreateRequest() with
+        {
+            StartAtUtc = update && regenerate ? Start.AddDays(2) : Start,
+            EndAtUtc = update && regenerate ? End.AddDays(2) : End,
+            RecurrenceRule = update && !regenerate ? "FREQ=DAILY;COUNT=4" : "FREQ=DAILY;COUNT=2",
+        };
+        await Assert.ThrowsAsync<ConflictValidationException>(async () =>
+        {
+            if (original is null)
+                await _service.CreateLoanOutSeriesAsync(request, ct);
+            else
+                await _service.UpdateLoanOutSeriesAsync(original.Id, request, ct);
+        });
+        Assert.False(_db.ChangeTracker.HasChanges());
+        _db.ChangeTracker.Clear();
+        Assert.Equal(update ? 1 : 0, await _db.LoanOutSeries.CountAsync(ct));
+        Assert.Equal(update ? 3 : 1, await _db.LoanOutEntries.CountAsync(ct));
+        if (original is not null)
+        {
+            var saved = (await _service.GetLoanOutSeriesByIdAsync(original.Id, ct))!;
+            Assert.Equal(Start, saved.StartAtUtc);
+            Assert.Equal("FREQ=DAILY;COUNT=2", saved.RecurrenceRule);
+        }
+    }
 
     private sealed class FakeSchedulingLoanOutService : ISchedulingLoanOutService
     {

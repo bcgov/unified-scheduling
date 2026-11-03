@@ -36,7 +36,7 @@ import { useAccessControl } from '@/composables/useAccessControl';
 import LeaveForm, { type LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import CalendarSchedulingResourceTabs from './CalendarSchedulingResourceTabs.vue';
 import LoanOutForm, { type LoanOutFormData } from '@/modules/loanout/components/LoanOutForm.vue';
-import { buildLoanOutRequest } from '@/modules/loanout/loanOutRequest';
+import { buildLoanOutRequest, resolveLoanOutSaveError } from '@/modules/loanout/loanOutRequest';
 import { createLoanOutEntry, createLoanOutSeries } from '@/modules/loanout/api/loanOutApi';
 
 const props = defineProps<{
@@ -457,8 +457,9 @@ async function handleSaveLoanOut() {
     const result =
       built.kind === 'series' ? await createLoanOutSeries(built.request) : await createLoanOutEntry(built.request);
     if (result.error.value) {
-      loanOutFormErrors.value = mapToValidationErrors(result.error.value.data) ?? {};
-      apiError.value = result.error.value.message || 'Failed to create loan-out.';
+      const resolved = resolveLoanOutSaveError(result.data.value, result.error.value, 'Failed to create loan-out.');
+      loanOutFormErrors.value = resolved.fieldErrors;
+      apiError.value = resolved.message;
       return;
     }
     calendarStore.refresh();
