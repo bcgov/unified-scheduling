@@ -388,7 +388,7 @@ export function buildShiftTitle(employeeName: string) {
   return `${employeeName} shift`;
 }
 
-export function formatUserOptionLabel(user: UserResponse) {
+export function formatUserOptionLabel(user: Pick<UserResponse, 'firstName' | 'lastName' | 'idirName'>) {
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
   return fullName || user.idirName;
 }

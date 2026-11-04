@@ -42,7 +42,7 @@ const isDropTarget = ref(false);
 const headers = computed(() => props.cell.headers ?? []);
 const hasEvents = computed(() => props.cell.groups.some((group) => group.events.length > 0));
 const hasContent = computed(() => headers.value.length > 0 || hasEvents.value);
-const canAddEmptyCellResource = computed(() => !hasContent.value && !!props.resource?.action);
+const canAddEmptyCellResource = computed(() => !props.cell.disabled && !hasContent.value && !!props.resource?.action);
 const cellAriaLabel = computed(() => {
   const resourceTitle = props.resource?.title ?? props.cell.resourceId;
   const eventCount = props.cell.groups.reduce((total, group) => total + group.events.length, 0);
@@ -54,7 +54,8 @@ const cellAriaLabel = computed(() => {
     .filter(Boolean)
     .join(', ');
 
-  return `${resourceTitle} on ${props.cell.date}, ${summary}`;
+  const disabledDescription = props.cell.disabled ? ', unavailable' : '';
+  return `${resourceTitle} on ${props.cell.date}, ${summary}${disabledDescription}`;
 });
 
 function resolveEventDisplay(
@@ -92,6 +93,9 @@ function canAcceptDrag(event: DragEvent) {
 }
 
 function handleDragEnter(event: DragEvent) {
+  if (props.cell.disabled) {
+    return;
+  }
   if (!canAcceptDrag(event)) {
     return;
   }
@@ -101,7 +105,7 @@ function handleDragEnter(event: DragEvent) {
 }
 
 function handleDragOver(event: DragEvent) {
-  if (canAcceptDrag(event)) {
+  if (!props.cell.disabled && canAcceptDrag(event)) {
     event.preventDefault();
     isDropTarget.value = true;
 
@@ -123,6 +127,12 @@ function handleDragLeave(event: DragEvent) {
 }
 
 function handleDrop(event: DragEvent) {
+  if (props.cell.disabled) {
+    event.preventDefault();
+    event.stopPropagation();
+    isDropTarget.value = false;
+    return;
+  }
   const payload = readDragPayload(event);
 
   if (!payload) {
@@ -171,7 +181,7 @@ function handleDragStart(payload: CalendarMatrixDragPayload) {
 }
 
 function handleEmptyCellAdd() {
-  if (!props.resource?.action) {
+  if (props.cell.disabled || !props.resource?.action) {
     return;
   }
 
@@ -189,9 +199,11 @@ function handleEmptyCellAdd() {
     :aria-label="cellAriaLabel"
     :class="{
       'is-empty': !hasContent,
+      'is-disabled': cell.disabled,
       'is-drop-target': isDropTarget,
       'is-today': isToday,
     }"
+    :aria-disabled="cell.disabled || undefined"
     @dragenter="handleDragEnter"
     @dragleave="handleDragLeave"
     @dragover="handleDragOver"
@@ -269,6 +281,20 @@ function handleEmptyCellAdd() {
   gap: 1px;
   grid-auto-rows: max-content;
   padding: var(--ua-spacing-sm);
+  position: relative;
+  isolation: isolate;
+}
+.calendar-matrix-cell.is-disabled {
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+.calendar-matrix-cell.is-disabled::after {
+  background: rgb(var(--v-theme-surface-variant) / 0.1);
+  content: '';
+  inset: 0;
+  pointer-events: auto;
+  position: absolute;
+  z-index: 10;
 }
 
 .calendar-matrix-cell.is-empty {

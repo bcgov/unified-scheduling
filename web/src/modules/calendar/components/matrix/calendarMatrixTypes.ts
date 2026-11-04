@@ -1,4 +1,5 @@
 import type { CalendarConflict, CalendarEventBase } from '../../calendarTypes';
+import type { LoanOutMetaData } from '@/api-access/generated/models';
 
 export const CalendarMatrixEventGroupVariant = {
   Primary: 'primary',
@@ -65,10 +66,12 @@ export interface CalendarMatrixDay {
 export interface CalendarMatrixResource {
   id: string;
   type: string;
+  sourceModule?: string;
   title: string;
   subtitle?: string;
   meta?: CalendarMatrixMetaItem[];
   avatarText?: string;
+  loanOutMetaData?: LoanOutMetaData[];
   action?: CalendarMatrixResourceActionDisplay;
 }
 
@@ -96,6 +99,7 @@ export interface CalendarMatrixEventGroup {
 export interface CalendarMatrixCell {
   resourceId: string;
   date: string;
+  disabled?: boolean;
   headers?: CalendarMatrixCellHeader[];
   groups: CalendarMatrixEventGroup[];
   payload?: unknown;

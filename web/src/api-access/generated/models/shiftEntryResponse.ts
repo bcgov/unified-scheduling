@@ -10,6 +10,9 @@ export interface ShiftEntryResponse {
   /** @nullable */
   shiftSeriesId?: number | null;
   eventId?: number;
+  isException?: boolean;
+  /** @nullable */
+  exceptionReason?: string | null;
   assignmentLinks?: ShiftAssignmentEntryResponse[];
   id?: number;
   /** @nullable */

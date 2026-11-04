@@ -19,7 +19,18 @@ public sealed class ShiftSeriesMaterializationHandler(UnifiedDbContext db)
         CancellationToken cancellationToken
     )
     {
-        var existingEventIds = existingEvents.Select(eventEntity => eventEntity.Id).ToHashSet();
+        var preservedEventIds = context
+            .ExistingEntries.Where(entry =>
+                entry.Event is not null
+                && entry.Event.LocationId != eventSeries.LocationId
+                && existingEvents.Any(eventEntity => eventEntity.Id == entry.EventId)
+            )
+            .Select(entry => entry.EventId)
+            .ToHashSet();
+        var existingEventIds = existingEvents
+            .Where(eventEntity => !preservedEventIds.Contains(eventEntity.Id))
+            .Select(eventEntity => eventEntity.Id)
+            .ToHashSet();
         var existingEntries = context.ExistingEntries.Where(entry => existingEventIds.Contains(entry.EventId)).ToList();
         db.ShiftEntryUsers.RemoveRange(existingEntries.SelectMany(entry => entry.Users));
         db.ShiftEntries.RemoveRange(existingEntries);
@@ -34,6 +45,18 @@ public sealed class ShiftSeriesMaterializationHandler(UnifiedDbContext db)
         CancellationToken cancellationToken
     )
     {
+        if (
+            context.ExistingEntries.Any(entry =>
+                entry.Event is not null
+                && entry.Event.LocationId != eventSeries.LocationId
+                && entry.Event.SeriesStartAtUtc == occurrence.StartAtUtc
+            )
+        )
+        {
+            db.Events.Remove(eventEntity);
+            return Task.CompletedTask;
+        }
+
         db.ShiftEntries.Add(
             new ShiftEntry
             {

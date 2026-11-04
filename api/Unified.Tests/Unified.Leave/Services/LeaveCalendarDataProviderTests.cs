@@ -70,17 +70,19 @@ public sealed class LeaveCalendarDataProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetEventsAsync_OnlyReturnsEventsOverlappingHalfOpenRange()
+    public async Task GetEventsAsync_IncludesEventsTouchingRangeBoundariesAndExcludesOutsideEvents()
     {
         var inside = await AddEntryAsync(RangeStart.AddDays(1));
         var overlapsStart = await AddEntryAsync(RangeStart.AddHours(-4), RangeStart.AddHours(4));
-        await AddEntryAsync(RangeStart.AddDays(-2), RangeStart); // ends exactly at range start
-        await AddEntryAsync(RangeEnd, RangeEnd.AddHours(8)); // starts exactly at range end
+        var endsAtStart = await AddEntryAsync(RangeStart.AddDays(-2), RangeStart);
+        var startsAtEnd = await AddEntryAsync(RangeEnd, RangeEnd.AddHours(8));
+        await AddEntryAsync(RangeStart.AddDays(-2), RangeStart.AddTicks(-1));
+        await AddEntryAsync(RangeEnd.AddTicks(1), RangeEnd.AddHours(8));
 
         var result = await GetAsync();
 
         Assert.Equal(
-            new[] { inside.Id, overlapsStart.Id }.Order(),
+            new[] { inside.Id, overlapsStart.Id, endsAtStart.Id, startsAtEnd.Id }.Order(),
             result.Select(x => x.LeaveEntryId).Order().ToArray()
         );
     }

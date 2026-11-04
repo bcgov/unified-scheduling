@@ -129,90 +129,7 @@ export const getGetApiConfigResponseMock = (
             },
             undefined,
           ]),
-        },
-        undefined,
-      ]),
-      supportEmail: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      selectedBrand: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-      brandingOptions: faker.helpers.arrayElement([
-        {
-          [faker.string.alphanumeric(5)]: {
-            primaryColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            backgroundColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            navigationSelectedColor: faker.helpers.arrayElement([
-              faker.string.alpha({ length: { min: 10, max: 20 } }),
-              null,
-            ]),
-            quickLinks: faker.helpers.arrayElement([
-              Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
-                faker.string.alpha({ length: { min: 10, max: 20 } }),
-              ),
-              null,
-            ]),
-            dashboardMessage: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            secondaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            secondaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            backgroundImageUrl: faker.helpers.arrayElement([
-              faker.string.alpha({ length: { min: 10, max: 20 } }),
-              null,
-            ]),
-            applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            header: faker.helpers.arrayElement([null, { ...getGetApiConfigResponseBrandHeaderOptionsMock() }]),
-          },
-        },
-        undefined,
-      ]),
-      ...overrideResponse,
-    },
-    {
-      featureFlags: faker.helpers.arrayElement([
-        {
-          UserManagement: faker.helpers.arrayElement([
-            {
-              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-              enabled: faker.datatype.boolean(),
-              userBadgeNumber: faker.helpers.arrayElement([{ enabled: faker.datatype.boolean() }, undefined]),
-            },
-            undefined,
-          ]),
-          Calendar: faker.helpers.arrayElement([
-            {
-              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-              enabled: faker.datatype.boolean(),
-              calendarMatrixTest: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-            },
-            undefined,
-          ]),
-          Scheduling: faker.helpers.arrayElement([
-            {
-              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-              enabled: faker.datatype.boolean(),
-            },
-            undefined,
-          ]),
-          Stats: faker.helpers.arrayElement([
-            {
-              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-              enabled: faker.datatype.boolean(),
-            },
-            undefined,
-          ]),
-          Training: faker.helpers.arrayElement([
-            {
-              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-              enabled: faker.datatype.boolean(),
-            },
-            undefined,
-          ]),
-          Reporting: faker.helpers.arrayElement([
-            {
-              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-              enabled: faker.datatype.boolean(),
-            },
-            undefined,
-          ]),
-          Leave: faker.helpers.arrayElement([
+          LoanOut: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
@@ -303,6 +220,110 @@ export const getGetApiConfigResponseMock = (
             undefined,
           ]),
           Leave: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+            },
+            undefined,
+          ]),
+          LoanOut: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+            },
+            undefined,
+          ]),
+        },
+        undefined,
+      ]),
+      supportEmail: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      selectedBrand: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      brandingOptions: faker.helpers.arrayElement([
+        {
+          [faker.string.alphanumeric(5)]: {
+            primaryColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            backgroundColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            navigationSelectedColor: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            quickLinks: faker.helpers.arrayElement([
+              Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+                faker.string.alpha({ length: { min: 10, max: 20 } }),
+              ),
+              null,
+            ]),
+            dashboardMessage: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            secondaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            secondaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            backgroundImageUrl: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            header: faker.helpers.arrayElement([null, { ...getGetApiConfigResponseBrandHeaderOptionsMock() }]),
+          },
+        },
+        undefined,
+      ]),
+      ...overrideResponse,
+    },
+    {
+      featureFlags: faker.helpers.arrayElement([
+        {
+          UserManagement: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+              userBadgeNumber: faker.helpers.arrayElement([{ enabled: faker.datatype.boolean() }, undefined]),
+            },
+            undefined,
+          ]),
+          Calendar: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+              calendarMatrixTest: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
+            },
+            undefined,
+          ]),
+          Scheduling: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+            },
+            undefined,
+          ]),
+          Stats: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+            },
+            undefined,
+          ]),
+          Training: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+            },
+            undefined,
+          ]),
+          Reporting: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+            },
+            undefined,
+          ]),
+          Leave: faker.helpers.arrayElement([
+            {
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+              enabled: faker.datatype.boolean(),
+            },
+            undefined,
+          ]),
+          LoanOut: faker.helpers.arrayElement([
             {
               source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),

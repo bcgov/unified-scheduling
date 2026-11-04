@@ -1,18 +1,25 @@
 import { getApiUsersUserIdActingPositions } from '@/api-access/generated/acting-positions/acting-positions';
 import { postApiSchedulingCalendarEvents } from '@/api-access/generated/scheduling-calendar/scheduling-calendar';
-import type { ActingPositionResponseDto, SchedulingCalendarRequest, UserResponse } from '@/api-access/generated/models';
+import type {
+  ActingPositionResponseDto,
+  LoanOutMetaData,
+  SchedulingCalendarEventResponse,
+  SchedulingCalendarRequest,
+  UserResponse,
+} from '@/api-access/generated/models';
 import type { CalendarResourceBase } from '@/modules/calendar/calendarTypes';
 import { CalendarContributionId, CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
 import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import {
   isLeaveEvent,
+  isLoanOutEvent,
   leaveEventColor,
   type CalendarSchedulingEvent,
   type CalendarUser,
 } from '../calendarSchedulingData';
 import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
-import { canViewAssignments, canViewShifts, canViewLeave } from '../calendarSchedulingPermissions';
+import { canViewAssignments, canViewShifts, canViewLeave, canViewLoanOut } from '../calendarSchedulingPermissions';
 import { useUsersStore } from '@/stores/Users';
 import { useLookupStore } from '@/stores/LookupStore';
 import { LookupCodeTypes } from '@/api-access/generated/models';
@@ -24,6 +31,7 @@ export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   subtitle?: string;
   meta?: CalendarMetaItem[];
   avatarText?: string;
+  loanOutMetaData?: LoanOutMetaData[];
 }
 
 interface CalendarSchedulingResourceData {
@@ -40,7 +48,10 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
   isAvailable(runtimeContext) {
     return (
       (runtimeContext.featureFlags.Scheduling?.enabled ?? true) &&
-      (canViewShifts(runtimeContext) || canViewAssignments(runtimeContext) || canViewLeave(runtimeContext))
+      (canViewShifts(runtimeContext) ||
+        canViewAssignments(runtimeContext) ||
+        canViewLeave(runtimeContext) ||
+        canViewLoanOut(runtimeContext))
     );
   },
   onDeactivate() {
@@ -69,62 +80,72 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
     return {
       moduleId: CalendarModuleId.Scheduling,
       contributionId: CalendarContributionId.SchedulingEvents,
-      events: events.map<CalendarSchedulingEvent>((event) => {
-        const assignedUserIds = event.assignedUserIds ?? [];
-        const leaveFields = resolveLeaveFields(event);
-
-        return {
-          id: event.id,
-          type: event.type,
-          sourceModule: event.sourceModule,
-          title: event.title,
-          description: event.description ?? undefined,
-          notes: event.notes ?? undefined,
-          color: event.color ?? (isLeaveEvent(event) ? leaveEventColor : undefined),
-          start: event.start,
-          end: event.end ?? undefined,
-          seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
-          seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
-          allDay: event.allDay ?? false,
-          isException: event.isException ?? false,
-          eventTypeCode: event.eventTypeCode,
-          statusTypeCode: event.statusTypeCode,
-          cancelledAt: event.cancelledAt ?? undefined,
-          cancelledByUserId: event.cancelledByUserId ?? undefined,
-          cancellationReason: event.cancellationReason ?? undefined,
-          timeZoneId: event.timeZoneId ?? undefined,
-          locationId: event.locationId ?? undefined,
-          resourceIds: event.resourceIds ?? [],
-          metadata: {
-            shiftEntryId: event.shiftEntryId == null ? undefined : String(event.shiftEntryId),
-            shiftSeriesId: event.shiftSeriesId ?? undefined,
-            assignmentEntryId: event.assignmentEntryId == null ? undefined : String(event.assignmentEntryId),
-            assignmentSeriesId: event.assignmentSeriesId == null ? undefined : String(event.assignmentSeriesId),
-            assignmentDefinitionId: resolveAssignmentDefinitionId(event),
-            userIds: event.userIds ?? [],
-            eventId: event.eventId,
-            capacity: event.capacity ?? undefined,
-            assignedCount: event.assignedUserCount ?? assignedUserIds.length,
-            assignedShiftIds: (event.linkedShiftEntryIds ?? []).map(String),
-            assignedUserIds,
-            assignedUsers: assignedUserIds.flatMap((userId) => {
-              const user = resourceData.getUserById(userId);
-              return user ? [mapUserToCalendarUser(user)] : [];
-            }),
-            categoryId: event.categoryId ?? undefined,
-            categoryName: event.categoryName ?? undefined,
-            subCategoryId: event.subCategoryId ?? undefined,
-            subCategoryName: event.subCategoryName ?? undefined,
-            ...leaveFields,
-          },
-        };
-      }),
+      events: events.map((event) => mapSchedulingCalendarEvent(event, resourceData.getUserById)),
       resources: resourceUsers.map<CalendarSchedulingUserResource>((user) =>
         mapUserToCalendarSchedulingResource(user, resourceData.actingPositionsByUserId.get(user.id) ?? []),
       ),
     };
   },
 };
+export function mapSchedulingCalendarEvent(
+  event: SchedulingCalendarEventResponse,
+  getUserById?: (userId: string) => UserResponse | undefined,
+): CalendarSchedulingEvent {
+  const assignedUserIds = event.assignedUserIds ?? [];
+  const leaveFields = resolveLeaveFields(event);
+
+  return {
+    id: event.id,
+    type: event.type,
+    sourceModule: event.sourceModule,
+    title: event.title,
+    description: event.description ?? undefined,
+    notes: event.notes ?? undefined,
+    color: event.color ?? (isLeaveEvent(event) ? leaveEventColor : undefined),
+    start: event.start,
+    end: event.end ?? undefined,
+    seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
+    seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
+    allDay: event.allDay ?? false,
+    isException: event.isException ?? false,
+    exceptionReason: event.exceptionReason ?? undefined,
+    eventTypeCode: event.eventTypeCode,
+    statusTypeCode: event.statusTypeCode,
+    cancelledAt: event.cancelledAt ?? undefined,
+    cancelledByUserId: event.cancelledByUserId ?? undefined,
+    cancellationReason: event.cancellationReason ?? undefined,
+    timeZoneId: event.timeZoneId ?? undefined,
+    locationId: event.locationId ?? undefined,
+    resourceIds:
+      event.resourceIds?.length || !isLoanOutEvent(event) ? (event.resourceIds ?? []) : (event.userIds ?? []),
+    metadata: {
+      shiftEntryId: event.shiftEntryId == null ? undefined : String(event.shiftEntryId),
+      shiftSeriesId: event.shiftSeriesId ?? undefined,
+      assignmentEntryId: event.assignmentEntryId == null ? undefined : String(event.assignmentEntryId),
+      assignmentSeriesId: event.assignmentSeriesId == null ? undefined : String(event.assignmentSeriesId),
+      assignmentDefinitionId: resolveAssignmentDefinitionId(event),
+      loanOutEntryId: event.loanOutEntryId == null ? undefined : String(event.loanOutEntryId),
+      loanOutSeriesId: event.loanOutSeriesId == null ? undefined : String(event.loanOutSeriesId),
+      loanOutLocationId: event.loanOutLocationId ?? undefined,
+      loanOutLocationName: event.loanOutLocationName ?? undefined,
+      userIds: event.userIds ?? [],
+      eventId: event.eventId,
+      capacity: event.capacity ?? undefined,
+      assignedCount: event.assignedUserCount ?? assignedUserIds.length,
+      assignedShiftIds: (event.linkedShiftEntryIds ?? []).map(String),
+      assignedUserIds,
+      assignedUsers: assignedUserIds.flatMap((userId) => {
+        const user = getUserById?.(userId);
+        return user ? [mapUserToCalendarUser(user)] : [];
+      }),
+      categoryId: event.categoryId ?? undefined,
+      categoryName: event.categoryName ?? undefined,
+      subCategoryId: event.subCategoryId ?? undefined,
+      subCategoryName: event.subCategoryName ?? undefined,
+      ...leaveFields,
+    },
+  };
+}
 
 function resolveLeaveFields(event: object & { id?: unknown }) {
   const source = event as {

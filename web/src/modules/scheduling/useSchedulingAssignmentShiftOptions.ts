@@ -1,6 +1,10 @@
 import { ref, type ComputedRef } from 'vue';
 import { getApiSchedulingShiftsEntries, getApiSchedulingShiftsSeries } from '@/api-access/generated/shift/shift';
-import type { ShiftEntryResponse, ShiftSeriesResponse } from '@/api-access/generated/models';
+import type {
+  ShiftEntryResponse,
+  ShiftSeriesResponse,
+  SchedulingCalendarEventResponse,
+} from '@/api-access/generated/models';
 import { createLatestRequestGuard } from './latestRequestGuard';
 import { toUtcCalendarDayRange } from './schedulingDateTime';
 import type { ShiftEntryLinkFormData, ShiftSeriesLinkFormData } from './calendarSchedulingAssignmentForm';
@@ -13,9 +17,11 @@ export interface SchedulingAssignmentShiftOptionsOptions {
   onLoaded?(): void;
 }
 
+type AssignmentShiftEntry = ShiftEntryResponse &
+  Pick<SchedulingCalendarEventResponse, 'isException' | 'exceptionReason'>;
 export function useSchedulingAssignmentShiftOptions(options: SchedulingAssignmentShiftOptionsOptions) {
   const shiftSeries = ref<ShiftSeriesResponse[]>([]);
-  const shiftEntries = ref<ShiftEntryResponse[]>([]);
+  const shiftEntries = ref<AssignmentShiftEntry[]>([]);
   const isLoading = ref(false);
   const requestGuard = createLatestRequestGuard();
 
@@ -50,7 +56,9 @@ export function useSchedulingAssignmentShiftOptions(options: SchedulingAssignmen
       }
 
       shiftSeries.value = seriesResult.data.value ?? [];
-      shiftEntries.value = entryResult.data.value ?? [];
+      shiftEntries.value = (entryResult.data.value ?? []).filter(
+        (entry: AssignmentShiftEntry) => !(entry.isException && entry.exceptionReason === 'IsAway'),
+      );
       options.onLoaded?.();
     } catch (error: unknown) {
       if (requestGuard.isCurrent(requestId)) {
