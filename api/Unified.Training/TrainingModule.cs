@@ -64,6 +64,7 @@ public static class TrainingModule
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IEntitySideEffect<UserCreatedSignal>, AssignMandatoryTrainingOnUserCreationHandler>();
         services.AddScoped<IUserTrainingService, UserTrainingService>();
+        services.AddScoped<TrainingCalendarEventService>();
         services.AddScoped<ITrainingProfileTypeService, TrainingProfileTypeService>();
         services.AddScoped<IUserTrainingExpiryNotificationService, UserTrainingExpiryNotificationService>();
         services.AddScoped<IRecurringJob, UserTrainingExpiryNoticeRecurringJob>();
@@ -77,6 +78,7 @@ public static class TrainingModule
 
         services.AddScoped<TrainingLookupRequestValidator>();
         services.AddScoped<UserTrainingRequestValidator>();
+        services.AddScoped<TrainingCalendarEventsRequestValidator>();
 
         services
             .AddAuthorizationBuilder()
