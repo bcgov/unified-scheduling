@@ -24,8 +24,13 @@ public static class DuplicateLoanOutGuard
         var timeZone = timeZoneService.ResolveOrUtc(request.TimeZoneId);
         var requestDate = GetLocalDate(request.StartAtUtc, timeZone);
         var startAtUtc = timeZoneService.ToUtcInstant(requestDate.ToDateTime(TimeOnly.MinValue), timeZone);
+        var dayStartUtc = startAtUtc;
+        var dayEndUtc = dayStartUtc.AddDays(1);
         var exists = await GetResourceLoanOuts(db, request.UserIds)
-            .AnyAsync(entry => entry.Event!.StartAtUtc == startAtUtc, cancellationToken);
+            .AnyAsync(
+                entry => entry.Event!.StartAtUtc >= dayStartUtc && entry.Event.StartAtUtc < dayEndUtc,
+                cancellationToken
+            );
         ThrowIfDuplicate(exists);
     }
 
