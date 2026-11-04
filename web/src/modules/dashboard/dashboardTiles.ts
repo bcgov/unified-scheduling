@@ -31,6 +31,7 @@ const NON_ADMIN_DASHBOARD_TILES: DashboardTile[] = [
     path: '/myteam',
     icon: mdiAccountGroup,
     featureFlagKeys: ['UserManagement'],
+    permissions: [Permissions.UsersView],
   },
   {
     id: 'stats',
@@ -47,7 +48,8 @@ const NON_ADMIN_DASHBOARD_TILES: DashboardTile[] = [
       'Manage, edit and publish schedules, shifts, assignments, leave, training and loans for your team at your selected location.',
     path: '/calendar',
     icon: mdiCalendarMonth,
-    featureFlagKeys: ['Calendar', 'Scheduling'],
+    featureFlagKeys: ['Calendar', 'Scheduling', 'Leave'],
+    permissions: [Permissions.ShiftsView, Permissions.AssignmentsView, Permissions.LeaveView],
   },
 ];
 
