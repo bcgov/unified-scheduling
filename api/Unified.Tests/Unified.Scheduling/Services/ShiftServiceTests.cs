@@ -2208,7 +2208,8 @@ public class ShiftServiceTests : IAsyncLifetime
                 expander
             ),
             new LoanOutSeriesMaterializationHandler(_dbContext),
-            schedulingLoanOutService
+            schedulingLoanOutService,
+            expander
         );
 
         if (dateRangeEntry)

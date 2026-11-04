@@ -3557,7 +3557,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 ),
                 _materializationService,
                 new LoanOutSeriesMaterializationHandler(_db),
-                _schedulingLoanOutService
+                _schedulingLoanOutService,
+                CreateLoanOutRecurrenceExpander()
             );
             Assert.True(await service.DeleteLoanOutSeriesAsync(loanOutSeries!.Id, ct));
         }
@@ -4193,7 +4194,15 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                     )
                 );
         }
-        if (failTransfer)
+        var duplicateDates = recurring && newDay == 3;
+        var updateRejected = duplicateDates || failTransfer;
+        if (duplicateDates)
+        {
+            // The updated recurrence retains an existing loan-out date and is rejected before transfer.
+            var error = await Assert.ThrowsAsync<ConflictValidationException>(UpdateAsync);
+            Assert.True(error.Errors.ContainsKey("LoanOut"));
+        }
+        else if (failTransfer)
         {
             var error = await Assert.ThrowsAsync<InvalidOperationException>(UpdateAsync);
             Assert.Equal("Destination copy failed.", error.Message);
@@ -4202,7 +4211,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             await UpdateAsync();
         _db.ChangeTracker.Clear();
 
-        var newDays = failTransfer ? oldDays : Enumerable.Range(newDay, recurring ? 2 : 1).ToArray();
+        var newDays = updateRejected ? oldDays : Enumerable.Range(newDay, recurring ? 2 : 1).ToArray();
         var retained = await _db
             .ShiftEntries.Include(entry => entry.Event)
             .Include(entry => entry.Users)
@@ -4244,10 +4253,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .Where(entry => entry.Event!.LocationId == 9)
             .ToListAsync(ct);
         Assert.Equal(
-            failTransfer ? [] : newDays.Select(day => AtDay(day, 9)),
+            updateRejected ? [] : newDays.Select(day => AtDay(day, 9)),
             copied.Select(entry => entry.Event!.StartAtUtc).Order()
         );
-        var expectedLoanOutStart = AtDay(failTransfer ? 2 : newDay, 7);
+        var expectedLoanOutStart = AtDay(updateRejected ? 2 : newDay, 7);
         if (recurring)
             Assert.Equal(expectedLoanOutStart, (await seriesService.GetLoanOutSeriesByIdAsync(id, ct))!.StartAtUtc);
         else
@@ -4348,7 +4357,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             ),
             _materializationService,
             new LoanOutSeriesMaterializationHandler(_db),
-            integration ?? _schedulingLoanOutService
+            integration ?? _schedulingLoanOutService,
+            CreateLoanOutRecurrenceExpander()
         );
 
     [Fact]
