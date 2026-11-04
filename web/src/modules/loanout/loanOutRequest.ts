@@ -3,7 +3,7 @@ import {
   PostApiSchedulingLoanOutEntriesBody,
   PostApiSchedulingLoanOutSeriesBody,
 } from '@/api-access/generated/loan-out/loan-out.zod';
-import { toUtcCalendarDayRange } from '@/modules/scheduling/schedulingDateTime';
+import { buildLocalDateTimeRange, defaultStartTime, defaultEndTime } from '@/modules/scheduling/schedulingDateTime';
 import type { SelectOption } from '@/types/select';
 import type { LoanOutFormData } from './components/LoanOutForm.vue';
 import { RRule } from 'rrule';
@@ -69,7 +69,12 @@ export function buildLoanOutRequest(
     return { error: 'Select a location before adding loan-out.' };
   }
   if (!DateTime.now().setZone(options.timeZoneId).isValid) return { error: 'Select a valid time zone.' };
-  const dateRange = toUtcCalendarDayRange(form.date, options.timeZoneId);
+  const dateRange = buildLocalDateTimeRange(
+    form.date,
+    form.startTime || defaultStartTime,
+    form.endTime || defaultEndTime,
+    options.timeZoneId,
+  );
   if (!dateRange) {
     return { error: 'Select a valid date.', fieldErrors: { date: 'Select a valid date.' } };
   }
@@ -79,8 +84,8 @@ export function buildLoanOutRequest(
       userIds.map((id) => options.employeeOptions?.find((option) => String(option.code) === id)?.description || id),
     ),
     notes: form.notes?.trim() || null,
-    startAtUtc: dateRange.startAtUtc,
-    endAtUtc: dateRange.endAtUtc,
+    startAtUtc: dateRange.start.toUTC().toISO({ suppressMilliseconds: true }),
+    endAtUtc: dateRange.end.toUTC().toISO({ suppressMilliseconds: true }),
     timeZoneId: options.timeZoneId,
     allDay: true,
     locationId: options.locationId,

@@ -67,8 +67,8 @@ public sealed class LoanOutCalendarDataProvider(
             .Where(entry => entry.Event!.EventTypeCode == LoanOutConstants.LoanOutEventTypeCode)
             .Where(entry => entry.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .Where(entry =>
-                entry.Event!.StartAtUtc < dateRange.EndAtUtc
-                && (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) > dateRange.StartAtUtc
+                entry.Event!.StartAtUtc <= dateRange.EndAtUtc
+                && (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) >= dateRange.StartAtUtc
             )
             .Where(entry => entry.LoanOutLocationId == request.LocationId || request.LocationId == null)
             .ToListAsync(cancellationToken);

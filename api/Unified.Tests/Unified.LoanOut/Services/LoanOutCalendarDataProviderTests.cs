@@ -140,10 +140,11 @@ public sealed class LoanOutCalendarDataProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetUsersAsync_WhenEntryIsOnInclusiveEndDate_UsesLocationTimeZone()
+    public async Task GetUsersAsync_IncludesLocalDateRangeEndBoundaryAndExcludesLaterEntries()
     {
         await AddEntryAsync(new DateTimeOffset(2025, 3, 10, 6, 30, 0, TimeSpan.Zero));
         await AddEntryAsync(new DateTimeOffset(2025, 3, 10, 7, 0, 0, TimeSpan.Zero));
+        await AddEntryAsync(new DateTimeOffset(2025, 3, 10, 7, 0, 0, TimeSpan.Zero).AddTicks(1));
 
         var result = await _provider.GetUsersAsync(
             new LoanOutUserSearchRequest
@@ -159,9 +160,38 @@ public sealed class LoanOutCalendarDataProviderTests : IAsyncLifetime
         var user = Assert.Single(result);
         Assert.Equal(UserId, user.Id);
         Assert.Equal(
-            new DateTimeOffset(2025, 3, 10, 6, 30, 0, TimeSpan.Zero),
-            Assert.Single(user.LoanOutMetaData).StartAtUtc
+            new DateTimeOffset?[]
+            {
+                new DateTimeOffset(2025, 3, 10, 6, 30, 0, TimeSpan.Zero),
+                new DateTimeOffset(2025, 3, 10, 7, 0, 0, TimeSpan.Zero),
+            },
+            user.LoanOutMetaData.Select(metadata => metadata.StartAtUtc).Order()
         );
+    }
+
+    [Fact]
+    public async Task GetUsersAsync_WhenLoanOutUsesWorkingHours_ReturnsOnlySelectedLocalDate()
+    {
+        var start = new DateTimeOffset(2025, 9, 30, 9, 0, 0, TimeSpan.FromHours(-7)).ToUniversalTime();
+        var entry = await AddEntryAsync(start);
+        entry.Event!.EndAtUtc = start.AddHours(8);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await AddEntryAsync(start.AddDays(1));
+
+        var result = await _provider.GetUsersAsync(
+            new LoanOutUserSearchRequest
+            {
+                StartDate = new DateOnly(2025, 9, 30),
+                EndDate = new DateOnly(2025, 9, 30),
+                TimeZoneId = "America/Vancouver",
+                LocationId = 5,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        var metadata = Assert.Single(Assert.Single(result).LoanOutMetaData);
+        Assert.Equal(start, metadata.StartAtUtc);
+        Assert.Equal(start.AddHours(8), metadata.EndAtUtc);
     }
 
     private async Task<LoanOutEntry> AddEntryAsync(DateTimeOffset startAtUtc, int? eventSeriesId = null)
