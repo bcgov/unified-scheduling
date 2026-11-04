@@ -1,7 +1,8 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { ref, toRaw } from 'vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { CalendarEventStatus, CalendarEventType } from '@/api-access/generated/models';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
@@ -67,7 +68,7 @@ const iconStub = {
   template: '<i class="icon-stub">{{ icon }}</i>',
 };
 
-async function mountWithApp(component: unknown, options: Record<string, unknown> = {}) {
+async function mountWithApp(component: unknown, options: Record<string, unknown> = {}): Promise<VueWrapper> {
   const { mountPlugins } = await createTestApp({ loadConfig: false });
 
   return mount(
@@ -403,6 +404,145 @@ describe('CalendarMatrixSidePanelItem', () => {
 });
 
 describe('CalendarMatrixSidePanel', () => {
+  const searchableItems: CalendarMatrixSidePanelItemModel[] = [
+    { ...sidePanelItem, searchText: 'Analytical engine' },
+    { id: 'item-2', type: 'user', title: 'Grace Hopper', subtitle: 'Admiral' },
+    { id: 'item-3', type: 'assignment', title: 'Court', payload: { hidden: 'secret' } },
+  ];
+  const searchablePanel = { ...sidePanel, search: { placeholder: 'Search people...' }, items: searchableItems };
+
+  it.each([
+    ['ada', ['item-1']],
+    ['DEVELOPER', ['item-1']],
+    ['analytical', ['item-1']],
+    ['  ENGINE\tdeveloper ADA  ', ['item-1']],
+    ['ada admiral', []],
+    ['secret', []],
+    ['   ', ['item-1', 'item-2', 'item-3']],
+    ['', ['item-1', 'item-2', 'item-3']],
+  ])('filters title, subtitle, and search text for query %j', async (query, expectedIds) => {
+    const originalItems = structuredClone(searchableItems);
+    const wrapper = await mountWithApp(CalendarMatrixSidePanel, { props: { panel: searchablePanel } });
+    const input = wrapper.get('input');
+    expect(input.attributes('aria-label')).toBe('Search people');
+    expect(input.attributes('placeholder')).toBe('Search people...');
+
+    await input.setValue(query);
+
+    expect(wrapper.findAllComponents(CalendarMatrixSidePanelItem).map((item) => item.props('item').id)).toEqual(
+      expectedIds,
+    );
+    expect(wrapper.text().includes('No matching items.')).toBe(expectedIds.length === 0);
+    expect(searchablePanel.items).toEqual(originalItems);
+    wrapper.unmount();
+  });
+
+  it('clears with the clear control and handles null and empty input values', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixSidePanel, { props: { panel: searchablePanel } });
+    const input = wrapper.get('input');
+    const textField = wrapper.findComponent({ name: 'VTextField' });
+
+    await input.setValue('ada');
+    await wrapper.get('.v-field__clearable .v-icon').trigger('click');
+    await flushPromises();
+    expect(input.element.value).toBe('');
+    expect(wrapper.findAllComponents(CalendarMatrixSidePanelItem)).toHaveLength(3);
+
+    for (const value of [null, '']) {
+      await input.setValue('grace');
+      textField.vm.$emit('update:modelValue', value);
+      await wrapper.vm.$nextTick();
+      expect(input.element.value).toBe('');
+      expect(wrapper.findAllComponents(CalendarMatrixSidePanelItem).map((item) => item.props('item').id)).toEqual([
+        'item-1',
+        'item-2',
+        'item-3',
+      ]);
+      expect(useCalendarStore().sidePanelSearchByView[useCalendarStore().activeViewId]).toBe('');
+    }
+    wrapper.unmount();
+  });
+
+  it('keeps actions, slots, item references, and drag payloads when filtered', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixSidePanel, {
+      props: { panel: searchablePanel },
+      slots: { item: '<template #item="{ item }"><span class="custom-item">{{ item.title }}</span></template>' },
+    });
+    await wrapper.get('input').setValue('engine');
+    const item = wrapper.getComponent(CalendarMatrixSidePanelItem);
+    expect(toRaw(item.props('item'))).toBe(searchableItems[0]);
+    expect(wrapper.get('.custom-item').text()).toBe('Ada Lovelace');
+
+    await item.trigger('click');
+    const transfer = { setData: vi.fn(), setDragImage: vi.fn() };
+    await item.trigger('dragstart', { dataTransfer: transfer });
+    await wrapper.get('button').trigger('click');
+
+    expect(wrapper.emitted('itemClick')?.[0]?.[0]).toBe(item.props('item'));
+    expect(wrapper.emitted('itemDragStart')?.[0]?.[0]).toEqual({
+      source: 'side-panel',
+      itemId: sidePanelItem.id,
+      itemType: sidePanelItem.type,
+      payload: sidePanelItem.payload,
+    });
+    const dragPayload = wrapper.emitted('itemDragStart')?.[0]?.[0] as { payload: unknown } | undefined;
+    expect(toRaw(dragPayload?.payload)).toBe(sidePanelItem.payload);
+    expect(transfer.setData).toHaveBeenCalledWith(
+      'application/json',
+      JSON.stringify({
+        source: 'side-panel',
+        itemId: sidePanelItem.id,
+        itemType: sidePanelItem.type,
+        payload: sidePanelItem.payload,
+      }),
+    );
+    expect(wrapper.emitted('action')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('ignores saved queries when search is disabled and distinguishes an empty collection', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixSidePanel, { props: { panel: searchablePanel } });
+    await wrapper.get('input').setValue('missing');
+    expect(wrapper.text()).toContain('No matching items.');
+
+    await wrapper.setProps({ panel: { ...searchablePanel, items: [] } });
+    expect(wrapper.text()).toContain('No items to display.');
+    expect(wrapper.text()).not.toContain('No matching items.');
+
+    await wrapper.setProps({ panel: { ...sidePanel, items: searchableItems } });
+    expect(wrapper.find('input').exists()).toBe(false);
+    expect(wrapper.findAllComponents(CalendarMatrixSidePanelItem)).toHaveLength(3);
+    wrapper.unmount();
+  });
+
+  it('restores independent queries when switching views and after remounting', async () => {
+    const { mountPlugins, pinia } = await createTestApp({ loadConfig: false });
+    const wrapper = mount(CalendarMatrixSidePanel, {
+      props: { panel: searchablePanel },
+      global: { plugins: mountPlugins },
+    });
+    const store = useCalendarStore(pinia);
+    store.setActiveView('schedule');
+    await wrapper.get('input').setValue('ada');
+    store.setActiveView('assignment');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('input').element.value).toBe('');
+    await wrapper.get('input').setValue('grace');
+    store.setActiveView('schedule');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('input').element.value).toBe('ada');
+    expect(wrapper.findAllComponents(CalendarMatrixSidePanelItem)).toHaveLength(1);
+    wrapper.unmount();
+
+    // Reuse this Calendar session's Pinia, as the page does after loading.
+    const remounted = mount(CalendarMatrixSidePanel, {
+      props: { panel: searchablePanel },
+      global: { plugins: mountPlugins },
+    });
+    expect(remounted.findComponent(CalendarMatrixSidePanelItem).props('item').id).toBe('item-1');
+    remounted.unmount();
+  });
+
   it('renders items, emits action, and forwards item drag events', async () => {
     const wrapper = await mountWithApp(CalendarMatrixSidePanel, {
       props: { panel: sidePanel },
