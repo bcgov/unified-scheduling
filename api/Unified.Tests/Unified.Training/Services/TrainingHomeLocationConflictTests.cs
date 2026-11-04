@@ -327,7 +327,11 @@ public sealed class TrainingHomeLocationConflictTests : IAsyncLifetime
             new ShiftAssignmentEntry
             {
                 AssignmentEntry = assignment,
-                ShiftEntry = new ShiftEntry { Event = NewEvent("shift", assignmentStart) },
+                ShiftEntry = new ShiftEntry
+                {
+                    Event = NewEvent("shift", assignmentStart),
+                    Users = [new ShiftEntryUser { UserId = userId }],
+                },
                 Users = [new ShiftAssignmentEntryUser { UserId = userId }],
             }
         );

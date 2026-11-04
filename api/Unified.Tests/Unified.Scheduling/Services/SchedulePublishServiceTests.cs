@@ -332,6 +332,7 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
 
         var shift = await SeedDraftShiftAsync();
         shift.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        shift.Users.Add(new ShiftEntryUser { UserId = ResourceId });
         var assignment = new AssignmentEntry
         {
             AssignmentDefinitionId = 1,
