@@ -173,12 +173,15 @@ export function buildCalendarSchedulingViewModel(
       const isLoanOutUser = !isUnassignedRow && Boolean(userResource?.loanOutMetaData?.length);
       const isLoanOutDay = isLoanedOutOnDate(userResource?.loanOutMetaData, day.date, timeZone);
       const isUnavailable = isLoanOutUser && !homeLocationUserIds.has(user.id) && !isLoanOutDay;
-      const userTrainingEvents = isUnassignedRow
-        ? []
-        : trainingEvents.filter(
-            (event) =>
-              event.resourceIds?.includes(user.id) && event.start <= day.date && day.date < (event.end ?? event.start),
-          );
+      const userTrainingEvents =
+        isUnassignedRow || (!homeLocationUserIds.has(user.id) && !isLoanOutDay)
+          ? []
+          : trainingEvents.filter(
+              (event) =>
+                event.resourceIds?.includes(user.id) &&
+                event.start <= day.date &&
+                day.date < (event.end ?? event.start),
+            );
       cells.push({
         resourceId: user.id,
         date: day.date,
