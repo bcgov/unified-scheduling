@@ -48,7 +48,10 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          loanOutEntryId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+          loanOutEntryId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
           loanOutSeriesId: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.number.int(), null]),
             undefined,
@@ -195,7 +198,10 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          loanOutEntryId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+          loanOutEntryId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
           loanOutSeriesId: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.number.int(), null]),
             undefined,
@@ -342,7 +348,10 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
-          loanOutEntryId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+          loanOutEntryId: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.number.int(), null]),
+            undefined,
+          ]),
           loanOutSeriesId: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.number.int(), null]),
             undefined,
