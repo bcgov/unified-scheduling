@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import CalendarMatrixSidePanelItem from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue';
@@ -8,6 +8,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/__tests__/mocks/server';
 import { calendarSchedulingEventsContribution } from '@/modules/scheduling/contributions/calendarSchedulingEventsContribution';
+import { calendarSchedulingLoanOutContribution } from '@/modules/scheduling/contributions/calendarSchedulingLoanOutContribution';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import type {
   CalendarDataResponse,
   CalendarQueryContext,
@@ -16,7 +18,10 @@ import type {
 import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSchedulingData';
 import type { CalendarSchedulingUserResource } from '@/modules/scheduling/contributions/calendarSchedulingEventsContribution';
 import type { CalendarSchedulingAssignmentResource } from '@/modules/scheduling/contributions/calendarSchedulingAssignmentResourcesContribution';
-import type { TrainingCalendarEvent } from '@/modules/training/contributions/calendarTrainingEventsContribution';
+import {
+  calendarTrainingEventsContribution,
+  type TrainingCalendarEvent,
+} from '@/modules/training/contributions/calendarTrainingEventsContribution';
 import { calendarAssignmentViewContribution } from '@/modules/scheduling/calendarAssignmentViewContribution';
 import {
   buildCalendarAssignmentViewModel,
@@ -79,6 +84,25 @@ const trainingRuntime: CalendarRuntimeContext = {
   featureFlags: { Calendar: { enabled: true }, Training: { enabled: true } },
   permissions: [...runtime.permissions!, Permissions.UserTrainingsView],
 };
+const loanOutRuntime: CalendarRuntimeContext = {
+  featureFlags: {
+    ...trainingRuntime.featureFlags,
+    Scheduling: { enabled: true },
+    Leave: { enabled: true },
+    LoanOut: { enabled: true },
+  },
+  permissions: [...trainingRuntime.permissions!, Permissions.LoanOutView],
+};
+
+function loanOut(id: string, start: string, end?: string, extra: Partial<CalendarSchedulingEvent> = {}) {
+  return leave(id, start, end, {
+    type: 'scheduling.LoanOut',
+    sourceModule: 'loanout',
+    locationId: 1,
+    metadata: { userIds: ['user-1'], loanOutLocationId: 2 },
+    ...extra,
+  });
+}
 
 function response(
   events: CalendarSchedulingEvent[],
@@ -115,6 +139,259 @@ function items(events: CalendarSchedulingEvent[], query = context, permissions =
 }
 
 describe('assignment sidebar warnings', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    useLocationsStore().entities = [
+      { id: 1, name: 'Vancouver', timezone: 'America/Vancouver' },
+      { id: 2, name: 'Edmonton', timezone: 'America/Edmonton' },
+      { id: 3, name: 'Surrey', timezone: 'America/Vancouver' },
+    ];
+  });
+
+  it('shows a home employee loan-out with origin and destination without changing schedule warnings or dragging', () => {
+    const event = loanOut('out', '2025-03-09T17:00:00Z', '2025-03-09T20:00:00Z');
+    const data = response([event]);
+    const item = buildCalendarAssignmentViewModel(data, context, 'day', loanOutRuntime).sidePanel!.items[0]!;
+    expect(item.warningGroups).toEqual([
+      {
+        id: 'loanout',
+        heading: 'Loan Out',
+        warnings: [
+          { id: 'out', title: 'From: Vancouver; To: Edmonton', start: event.start, end: event.end, allDay: false },
+        ],
+      },
+    ]);
+    expect(item.draggable).toBe(true);
+    expect(item.payload).toMatchObject({ userId: 'user-1', sourceModule: 'scheduling' });
+    expect(
+      buildCalendarSchedulingViewModel(data, context, 'day').sidePanel!.items.every(
+        (sidebarItem) => sidebarItem.warningGroups === undefined,
+      ),
+    ).toBe(true);
+    expect(items([event], context, trainingRuntime)[0]!.warningGroups).toBeUndefined();
+    expect(
+      items([event], context, { ...loanOutRuntime, featureFlags: { LoanOut: { enabled: false } } })[0]!.warningGroups,
+    ).toBeUndefined();
+  });
+
+  it('orders overlapping loan-out occurrences across DST boundaries and removes cancellations and duplicate metadata', () => {
+    const events = [
+      loanOut('later', '2025-03-09T20:00:00Z', '2025-03-10T10:00:00Z'),
+      loanOut('earlier', '2025-03-08T20:00:00Z', '2025-03-09T09:00:00Z'),
+      loanOut('middle', '2025-03-09T17:00:00Z', '2025-03-09T19:00:00Z'),
+      loanOut('same-time-other-record', '2025-03-09T17:00:00Z', '2025-03-09T19:00:00Z'),
+      loanOut('cancelled', '2025-03-09T18:00:00Z', '2025-03-09T19:00:00Z', { statusTypeCode: 'cancelled' }),
+      loanOut('cancelled-at', '2025-03-09T19:00:00Z', '2025-03-09T20:00:00Z', {
+        cancelledAt: '2025-03-08T00:00:00Z',
+      }),
+      loanOut('ends-at-start', '2025-03-08T20:00:00Z', '2025-03-09T08:00:00Z'),
+      loanOut('starts-at-end', '2025-03-10T07:00:00Z', '2025-03-10T10:00:00Z'),
+    ];
+    const data = response([...events, events[2]!]);
+    data.contributions['scheduling.loanout'] = {
+      moduleId: 'loanout',
+      contributionId: 'scheduling.loanout',
+      events: [],
+      resources: [
+        {
+          id: 'user-1', type: 'user', sourceModule: 'loanout', label: 'One', title: 'One', homeLocationId: 1,
+          loanOutMetaData: events.map((event) => ({ loanOutLocationId: 2, startAtUtc: event.start, endAtUtc: event.end })),
+        } as CalendarSchedulingUserResource,
+      ],
+    };
+    const warnings = buildCalendarAssignmentViewModel(data, context, 'day', loanOutRuntime).sidePanel!.items[0]!
+      .warningGroups![0]!.warnings;
+    expect(warnings.map((warning) => warning.id)).toEqual(['earlier', 'middle', 'same-time-other-record', 'later']);
+    expect(warnings[0]).toMatchObject({ start: '2025-03-08T20:00:00Z', end: '2025-03-09T09:00:00Z' });
+    expect(warnings[3]).toMatchObject({ end: '2025-03-10T10:00:00Z' });
+  });
+
+  it('loads borrowed home-location training and warns once with original leave times while preserving projections', async () => {
+    const borrowedId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const borrowedTraining = training('borrowed-training', '2025-03-09', '2025-03-10', {
+      userId: borrowedId, resourceIds: [borrowedId], locationId: 2,
+    });
+    const trainingRecords = [
+      training('home-warning', '2025-03-09', '2025-03-10'),
+      borrowedTraining,
+      training('unrelated-training', '2025-03-09', '2025-03-10', {
+        userId: 'other-user', resourceIds: ['other-user'], locationId: 99,
+      }),
+    ];
+    const trainingRequests: Array<{ locationId?: number; userIds?: string[] }> = [];
+    let userRequests = 0;
+    let leaveRequests = 0;
+    server.use(
+      http.get('*/api/users', () => HttpResponse.json([{ id: 'user-1', homeLocationId: 1 }])),
+      http.post('*/api/training/calendar/events', async ({ request }) => {
+        const body = (await request.json()) as { locationId?: number; userIds?: string[] };
+        trainingRequests.push(body);
+        // Match the backend: explicit IDs take precedence over the selected location.
+        const records = trainingRecords.filter((record) =>
+          body.userIds?.length ? body.userIds.includes(record.userId) : record.locationId === body.locationId,
+        );
+        return HttpResponse.json(records.flatMap((record) => [record, record]));
+      }),
+      http.post('*/api/loan-out/scheduling/users', async ({ request }) => {
+        userRequests++;
+        expect(await request.json()).toMatchObject({
+          locationId: 1, endDate: '2025-03-09', timeZoneId: 'America/Vancouver',
+        });
+        return HttpResponse.json([
+          {
+            id: borrowedId, firstName: 'Borrowed', lastName: 'User', idirName: 'borrowed', homeLocationId: 2,
+            loanOutMetaData: [
+              { loanOutLocationId: 1, startAtUtc: '2025-03-09T17:00:00Z', endAtUtc: '2025-03-09T21:00:00Z' },
+              { loanOutLocationId: 1, startAtUtc: '2025-03-09T17:00:00.000Z', endAtUtc: '2025-03-09T21:00:00.000Z' },
+              { loanOutLocationId: 1, startAtUtc: '2025-03-09T22:00:00Z', endAtUtc: '2025-03-09T22:30:00Z' },
+            ],
+          },
+        ]);
+      }),
+      http.post('*/api/leave/calendar/events', async ({ request }) => {
+        leaveRequests++;
+        expect(await request.json()).toMatchObject({ userIds: [borrowedId] });
+        const event = {
+          id: 'scheduling.leave-entry.7', type: 'scheduling.leave', sourceModule: 'leave', title: 'Vacation',
+          start: '2025-03-09T15:00:00Z', end: '2025-03-09T23:00:00Z', locationId: 2,
+          userIds: [borrowedId], leaveEntryId: 7, leaveTypeName: 'Vacation',
+        };
+        return HttpResponse.json([event, event]);
+      }),
+    );
+    const borrowed = await calendarSchedulingLoanOutContribution.load(context, { runtimeContext: loanOutRuntime });
+    expect(borrowed.resources![0]).toMatchObject({ homeLocationId: 2 });
+    expect(borrowed.events.map((event) => [event.start, event.end])).toEqual([
+      ['2025-03-09T17:00:00.000Z', '2025-03-09T21:00:00.000Z'],
+      ['2025-03-09T22:00:00.000Z', '2025-03-09T22:30:00.000Z'],
+      ['2025-03-09T17:00:00.000Z', '2025-03-09T21:00:00.000Z'],
+      ['2025-03-09T22:00:00.000Z', '2025-03-09T22:30:00.000Z'],
+    ]);
+    const data = response([]);
+    data.contributions['scheduling.loanout'] = borrowed;
+    data.contributions['training.events'] = await calendarTrainingEventsContribution.load(
+      { ...context, activeViewId: 'calendar.matrix-assignment' },
+      { runtimeContext: loanOutRuntime },
+    );
+    expect(trainingRequests).toHaveLength(3);
+    expect(trainingRequests).toContainEqual({
+      startDate: '2025-03-09', endDate: '2025-03-09', locationId: 1, userIds: [borrowedId],
+    });
+    expect(data.contributions['training.events'].events.map((event) => event.id)).toEqual([
+      'home-warning', 'borrowed-training',
+    ]);
+    const sidebar = () => buildCalendarAssignmentViewModel(data, context, 'day', loanOutRuntime).sidePanel!.items;
+    const item = sidebar().find((user) => user.id === borrowedId)!;
+    expect(item.warningGroups?.map((group) => group.heading)).toEqual(['Leave', 'Training', 'Loan Out']);
+    expect(item.warningGroups?.map((group) => group.warnings.length)).toEqual([1, 1, 2]);
+    expect(item.warningGroups![0]!.warnings[0]).toMatchObject({
+      id: 'scheduling.leave-entry.7', title: 'Vacation', start: '2025-03-09T15:00:00Z', end: '2025-03-09T23:00:00Z',
+    });
+    expect(item.warningGroups![1]!.warnings[0]).toMatchObject({ id: 'borrowed-training' });
+    expect(item.warningGroups![2]!.warnings[0]).toMatchObject({ title: 'From: Edmonton; To: Vancouver' });
+    expect(
+      sidebar().find((user) => user.id === 'user-1')!.warningGroups![0]!.warnings.map((warning) => warning.id),
+    ).toEqual(['home-warning']);
+    expect(sidebar().find((user) => user.id === 'user-2')!.warningGroups).toBeUndefined();
+    expect(item.payload).toMatchObject({ userId: borrowedId, sourceModule: 'loanout', loanOutMetaData: expect.any(Array) });
+    // Each contribution retains its existing borrower lookup; warning mapping adds no requests.
+    expect(userRequests).toBe(2);
+    expect(leaveRequests).toBe(1);
+    const app = await createTestApp({ loadConfig: false });
+    const wrapper = mount(CalendarMatrixSidePanelItem, {
+      props: { item, timeZone: 'America/Vancouver' },
+      global: {
+        plugins: app.mountPlugins,
+        stubs: { VTooltip: { template: '<div><slot name="activator" :props="{}" /><slot /></div>' } },
+      },
+    });
+    const leaveRows = wrapper.findAll('li').filter((row) => row.text().includes('Vacation'));
+    expect(leaveRows).toHaveLength(1);
+    expect(leaveRows[0]!.text()).toContain('March 9, 2025, 8:00 AM - 4:00 PM');
+    wrapper.unmount();
+  });
+
+  it.each([true, false])(
+    'restores original leave across calendar/DST boundaries without expanding projected users (allDay=%s)',
+    async (allDay) => {
+      const borrowedId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+      const original = {
+        id: 'leave-occurrence', type: 'scheduling.leave', sourceModule: 'leave', title: 'Vacation',
+        start: '2025-03-08T07:00:00Z', end: '2025-03-11T06:00:00Z', allDay,
+        timeZoneId: 'America/Edmonton', locationId: 2, leaveTypeName: 'Vacation',
+        userIds: [borrowedId, 'user-1'],
+      };
+      server.use(
+        http.post('*/api/loan-out/scheduling/users', () => HttpResponse.json([{
+          id: borrowedId, firstName: 'Borrowed', lastName: 'User', idirName: 'borrowed', homeLocationId: 2,
+          loanOutMetaData: [{ loanOutLocationId: 1, startAtUtc: original.start, endAtUtc: original.end }],
+        }])),
+        http.post('*/api/leave/calendar/events', () => HttpResponse.json([original, original])),
+      );
+      const borrowed = await calendarSchedulingLoanOutContribution.load(context, { runtimeContext: loanOutRuntime });
+      expect(borrowed.events).toHaveLength(2);
+      expect(borrowed.events[0]).toMatchObject({
+        start: '2025-03-09T08:00:00.000Z', end: '2025-03-10T07:00:00.000Z', resourceIds: [borrowedId],
+        metadata: { originalLeaveOccurrence: { id: original.id, start: original.start, end: original.end } },
+      });
+      const data = response([]);
+      data.contributions['scheduling.loanout'] = borrowed;
+      const sidebar = buildCalendarAssignmentViewModel(data, context, 'day', loanOutRuntime).sidePanel!.items;
+      const item = sidebar.find((user) => user.id === borrowedId)!;
+      const warnings = item.warningGroups!.find((group) => group.id === 'leave')!.warnings;
+      expect(warnings).toEqual([
+        expect.objectContaining({
+          id: original.id, allDay,
+          start: allDay ? '2025-03-08' : original.start,
+          end: allDay ? '2025-03-11' : original.end,
+        }),
+      ]);
+      expect(sidebar.find((user) => user.id === 'user-1')!.warningGroups).toBeUndefined();
+      const app = await createTestApp({ loadConfig: false });
+      const wrapper = mount(CalendarMatrixSidePanelItem, {
+        props: { item, timeZone: 'America/Vancouver' },
+        global: {
+          plugins: app.mountPlugins,
+          stubs: { VTooltip: { template: '<div><slot name="activator" :props="{}" /><slot /></div>' } },
+        },
+      });
+      const leaveRows = wrapper.findAll('li').filter((row) => row.text().includes('Vacation'));
+      expect(leaveRows).toHaveLength(1);
+      expect(leaveRows[0]!.text()).toContain(
+        allDay
+          ? `March 8, 2025 - March 10, 2025, ${CALENDAR_ALL_DAY_LABEL}`
+          : 'March 7, 2025, 11:00 PM - March 10, 2025, 11:00 PM',
+      );
+      wrapper.unmount();
+    },
+  );
+
+  it('handles missing optional loan-out metadata and dates without dropping existing warnings', () => {
+    const data = response([
+      loanOut('unknown-location', '2025-03-09T17:00:00Z', undefined, {
+        locationId: undefined, metadata: { userIds: ['user-1'] },
+      }),
+      leave('leave', '2025-03-09T18:00:00Z'),
+    ]);
+    data.contributions['scheduling.loanout'] = {
+      moduleId: 'loanout',
+      contributionId: 'scheduling.loanout',
+      events: [],
+      resources: [
+        {
+          id: 'borrowed', type: 'user', sourceModule: 'loanout', label: 'Borrowed', title: 'Borrowed',
+          loanOutMetaData: [{ loanOutLocationId: 1 }, { startAtUtc: 'invalid' }],
+        } as CalendarSchedulingUserResource,
+      ],
+    };
+    const sidebar = buildCalendarAssignmentViewModel(data, context, 'day', loanOutRuntime).sidePanel!.items;
+    expect(sidebar[0]!.warningGroups?.map((group) => group.heading)).toEqual(['Leave', 'Loan Out']);
+    expect(sidebar[0]!.warningGroups![1]!.warnings[0]).toMatchObject({
+      title: 'From: Unknown location; To: Location -', start: '2025-03-09T17:00:00Z', end: undefined,
+    });
+    expect(sidebar.find((user) => user.id === 'borrowed')!.warningGroups).toBeUndefined();
+  });
+
   it.each([
     {
       name: 'single-day Edmonton leave',

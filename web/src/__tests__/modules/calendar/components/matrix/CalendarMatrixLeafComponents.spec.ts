@@ -380,6 +380,18 @@ describe('CalendarMatrixSidePanelItem', () => {
                 { id: 'training-1', title: 'Session', start: '2025-01-14T07:00:00Z', end: '2025-01-14T09:00:00Z' },
               ],
             },
+            {
+              id: 'loanout',
+              heading: 'Loan Out',
+              warnings: [
+                {
+                  id: 'loanout-1',
+                  title: 'From: Vancouver; To: Edmonton',
+                  start: '2025-01-13T17:00:00Z',
+                  end: '2025-01-13T19:00:00Z',
+                },
+              ],
+            },
           ],
         },
       },
@@ -400,7 +412,9 @@ describe('CalendarMatrixSidePanelItem', () => {
     expect(button.attributes('draggable')).toBe('false');
     expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnFocus')).toBe(true);
     expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnClick')).toBe(true);
-    expect(wrapper.findAll('strong').map((heading) => heading.text())).toEqual(['Leave', 'Training']);
+    expect(wrapper.findAll('strong').map((heading) => heading.text())).toEqual(['Leave', 'Training', 'Loan Out']);
+    expect(wrapper.text()).toContain('From: Vancouver; To: Edmonton');
+    expect(wrapper.text()).toContain('January 13, 2025, 9:00 AM - 11:00 AM');
     expect(wrapper.text()).toContain(`January 13, 2025 - January 14, 2025, ${CALENDAR_ALL_DAY_LABEL}`);
     expect(wrapper.text().toUpperCase()).toContain('JANUARY 13, 2025, 11:00 PM - JANUARY 14, 2025, 1:00 AM');
 

@@ -49,7 +49,8 @@ import {
 } from './calendarSchedulingData';
 import type { CalendarSchedulingUserResource } from './contributions/calendarSchedulingEventsContribution';
 import { schedulingLoanOutContributionId } from './contributions/calendarSchedulingLoanOutContribution';
-import { canViewLeave } from './calendarSchedulingPermissions';
+import { canViewLeave, canViewLoanOut } from './calendarSchedulingPermissions';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import {
   schedulingAssignmentResourcesContributionId,
   type CalendarSchedulingAssignmentResource,
@@ -589,7 +590,11 @@ function selectSchedulingUserResources(response: CalendarDataResponse): Calendar
     }
 
     if (resource.loanOutMetaData?.length) {
-      users.set(resource.id, { ...existing, loanOutMetaData: resource.loanOutMetaData });
+      users.set(resource.id, {
+        ...existing,
+        homeLocationId: existing.homeLocationId ?? resource.homeLocationId,
+        loanOutMetaData: resource.loanOutMetaData,
+      });
     }
   }
   return [...users.values()];
@@ -735,6 +740,22 @@ function buildUserSidePanelItems(
   context: CalendarQueryContext,
   runtimeContext?: CalendarRuntimeContext,
 ): CalendarMatrixSidePanelItem[] {
+  const users = selectSchedulingUserResources(response);
+  const homeUserIds = new Set(
+    selectContribution(response, schedulingShiftContributionId)?.resources?.map((user) => user.id),
+  );
+  const borrowedUserIds = new Set(
+    users
+      .filter(
+        (user) =>
+          user.loanOutMetaData?.length &&
+          (user.homeLocationId != null ? user.homeLocationId !== context.locationId : !homeUserIds.has(user.id)),
+      )
+      .map((user) => user.id),
+  );
+  const loanOutEnabled = Boolean(runtimeContext && canViewLoanOut(runtimeContext));
+  const schedulingEvents = selectSchedulingShiftEvents(response);
+  const loanOutEvents = loanOutEnabled ? schedulingEvents.filter(isLoanOutEvent) : [];
   const trainingData = selectContribution(response, trainingCalendarContributionId)?.data as
     TrainingCalendarEventsData | undefined;
   const rangeStart = DateTime.fromISO(days[0]!.date, { zone: timeZone });
@@ -742,7 +763,10 @@ function buildUserSidePanelItems(
   const leaveEvents =
     runtimeContext && canViewLeave(runtimeContext)
       ? selectSidebarWarningEvents(
-          selectSchedulingShiftEvents(response).filter(isLeaveEvent),
+          // Keep projected user membership when restoring the original occurrence's display range.
+          schedulingEvents
+            .filter(isLeaveEvent)
+            .map((event) => ({ ...event, ...event.metadata.originalLeaveOccurrence })),
           rangeStart,
           rangeEnd,
           timeZone,
@@ -753,14 +777,21 @@ function buildUserSidePanelItems(
     context.locationId != null &&
     calendarTrainingEventsContribution.isAvailable?.(runtimeContext, context)
       ? selectSidebarWarningEvents(
-          (trainingData?.warningEvents ?? []).filter(isTrainingCalendarEvent),
+          [
+            ...(trainingData?.warningEvents ?? []),
+            ...(loanOutEnabled
+              ? (selectContribution(response, trainingCalendarContributionId)?.events ?? [])
+                  .filter(isTrainingCalendarEvent)
+                  .filter((event) => borrowedUserIds.has(event.userId))
+              : []),
+          ].filter(isTrainingCalendarEvent),
           rangeStart,
           rangeEnd,
           timeZone,
         )
       : [];
 
-  return selectSchedulingUserResources(response).map((user) => ({
+  return users.map((user) => ({
     id: user.id,
     type: user.type,
     title: user.title,
@@ -768,13 +799,66 @@ function buildUserSidePanelItems(
     meta: user.meta,
     avatarText: user.avatarText,
     draggable: true,
-    warningGroups: buildUserWarningGroups(leaveEvents, trainingEvents, user.id, timeZone),
+    warningGroups: buildUserWarningGroups(
+      leaveEvents,
+      trainingEvents,
+      loanOutEnabled ? selectUserLoanOutWarnings(user, loanOutEvents, rangeStart, rangeEnd, timeZone) : [],
+      user,
+      timeZone,
+    ),
     payload: {
       userId: user.id,
       title: user.title,
       sourceModule: user.sourceModule,
       loanOutMetaData: user.loanOutMetaData,
     },
+  }));
+}
+
+function sidebarWarningEventKey(event: CalendarEventBase) {
+  if (!isCalendarSchedulingEvent(event) || !isLeaveEvent(event)) return event.id;
+  return `leave.${event.metadata.leaveEntryId ?? event.id}`;
+}
+
+function loanOutOccurrenceKey(event: CalendarSchedulingEvent, timeZone: string) {
+  const start = DateTime.fromISO(event.start, { zone: timeZone }).toMillis();
+  const end = DateTime.fromISO(event.end ?? event.start, { zone: timeZone }).toMillis();
+  return `${event.metadata.loanOutLocationId ?? event.id}:${start}:${end}`;
+}
+
+function selectUserLoanOutWarnings(
+  user: CalendarSchedulingUserResource,
+  events: CalendarSchedulingEvent[],
+  rangeStart: DateTime,
+  rangeEnd: DateTime,
+  timeZone: string,
+) {
+  const metadataEvents = (user.loanOutMetaData ?? []).flatMap<CalendarSchedulingEvent>((metadata) =>
+    metadata.startAtUtc
+      ? [
+          {
+            id: `loanout.${user.id}.${metadata.startAtUtc}.${metadata.endAtUtc ?? ''}.${metadata.loanOutLocationId}`,
+            type: 'scheduling.LoanOut',
+            sourceModule: 'loanout',
+            title: 'Loan Out',
+            start: metadata.startAtUtc,
+            end: metadata.endAtUtc ?? undefined,
+            locationId: user.homeLocationId,
+            metadata: { userIds: [user.id], loanOutLocationId: metadata.loanOutLocationId },
+          },
+        ]
+      : [],
+  );
+  // Full occurrences override metadata, including cancellation; metadata has no occurrence ID.
+  const occurrences = new Map(metadataEvents.map((event) => [loanOutOccurrenceKey(event, timeZone), event]));
+  for (const event of events) {
+    if (!event.metadata.userIds?.includes(user.id) && !event.resourceIds?.includes(user.id)) continue;
+    occurrences.delete(loanOutOccurrenceKey(event, timeZone));
+    occurrences.set(event.metadata.loanOutEntryId ?? event.id, event);
+  }
+  return selectSidebarWarningEvents([...occurrences.values()], rangeStart, rangeEnd, timeZone).map((event) => ({
+    ...event,
+    allDay: false,
   }));
 }
 
@@ -814,9 +898,11 @@ function selectSidebarWarningEvents<T extends CalendarEventBase>(
 function buildUserWarningGroups(
   leaveEvents: CalendarSchedulingEvent[],
   trainingEvents: TrainingCalendarEvent[],
-  userId: string,
+  loanOutEvents: CalendarSchedulingEvent[],
+  user: CalendarSchedulingUserResource,
   timeZone: string,
 ) {
+  const userId = user.id;
   const groups = [
     {
       id: 'leave',
@@ -830,17 +916,22 @@ function buildUserWarningGroups(
       heading: 'Training',
       events: trainingEvents.filter((event) => event.userId === userId),
     },
+    { id: 'loanout', heading: 'Loan Out', events: loanOutEvents },
   ]
     .filter((group) => group.events.length > 0)
     .map((group) => ({
       id: group.id,
       heading: group.heading,
-      warnings: group.events.map((event) => ({
+      warnings: [
+        ...new Map(group.events.map((event) => [sidebarWarningEventKey(event), event])).values(),
+      ].map((event) => ({
         id: event.id,
         title:
-          group.id === 'leave' && isCalendarSchedulingEvent(event)
-            ? event.metadata.leaveTypeName || 'Leave'
-            : event.title.replace(/^Training:\s*/i, ''),
+          group.id === 'loanout' && isCalendarSchedulingEvent(event)
+            ? loanOutWarningTitle(event, user.homeLocationId)
+            : group.id === 'leave' && isCalendarSchedulingEvent(event)
+              ? event.metadata.leaveTypeName || 'Leave'
+              : event.title.replace(/^Training:\s*/i, ''),
         start: event.allDay ? getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone)! : event.start,
         end: event.allDay ? getCalendarEventDateKey(event.end, event.timeZoneId ?? timeZone) : event.end,
         allDay: event.allDay,
@@ -848,6 +939,16 @@ function buildUserWarningGroups(
     }));
 
   return groups.length ? groups : undefined;
+}
+
+function loanOutWarningTitle(event: CalendarSchedulingEvent, homeLocationId?: number) {
+  const locations = useLocationsStore().entitiesMap;
+  const origin = locations[event.locationId ?? homeLocationId ?? '']?.name ?? 'Unknown location';
+  const destination =
+    locations[event.metadata.loanOutLocationId ?? '']?.name ??
+    event.metadata.loanOutLocationName ??
+    `Location ${event.metadata.loanOutLocationId ?? '-'}`;
+  return `From: ${origin}; To: ${destination}`;
 }
 
 function buildCellHeader(
