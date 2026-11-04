@@ -24,6 +24,10 @@ public enum Permissions
     UsersLeaveEdit,
     UsersLeaveDelete,
     UsersLeaveView,
+    UsersLoanOutCreate,
+    UsersLoanOutEdit,
+    UsersLoanOutDelete,
+    UsersLoanOutView,
 
     // --- Roles ---
     RolesView,
@@ -121,4 +125,8 @@ public enum Permissions
     LeaveEdit,
     LeaveDelete,
     LeaveView,
+    LoanOutCreateAndAssign,
+    LoanOutEdit,
+    LoanOutDelete,
+    LoanOutView,
 }

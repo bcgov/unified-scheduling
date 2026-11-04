@@ -9,6 +9,9 @@ import { useLocationsStore } from '@/stores/LocationsStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { useAuthStore } from '@/stores/auth';
 import { Permissions } from '@/api-access/generated/models';
+import { http, HttpResponse } from 'msw';
+import { server } from '../../mocks/server';
+import { createTestApp } from '../../helpers/createTestApp';
 
 function createModalTestApp(permissions = Object.values(Permissions)) {
   const pinia = createPinia();
@@ -127,6 +130,62 @@ describe('CalendarSchedulingAddResourceModal', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
+  });
+
+  it.each(['entry', 'series'])('displays the detailed duplicate loan-out error when creating a %s', async (kind) => {
+    const message = 'A selected resource already has a loan-out on one or more of these dates.';
+    const userId = '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62';
+    server.use(
+      http.get('/api/scheduling/assignments/entries', () => HttpResponse.json([])),
+      http.get('/api/scheduling/assignments/series', () => HttpResponse.json([])),
+      http.post(`/api/scheduling/loan-out/${kind === 'series' ? 'series' : 'entries'}`, () =>
+        HttpResponse.json({ title: 'Conflict.', status: 409, errors: { UserIds: [message] } }, { status: 409 }),
+      ),
+    );
+    const { default: CalendarSchedulingAddResourceModal } =
+      await import('@/modules/scheduling/CalendarSchedulingAddResourceModal.vue');
+    const app = await createTestApp({
+      featureFlags: { LoanOut: { enabled: true } },
+      permissions: [Permissions.LoanOutCreateAndAssign],
+    });
+    useLocationsStore(app.pinia).setSelectedLocationId(12);
+    const wrapper = mount(CalendarSchedulingAddResourceModal, {
+      props: { initialDate: '2026-08-24', timeZone: 'America/Vancouver' },
+      global: {
+        plugins: app.mountPlugins,
+        stubs: {
+          UaModal: { template: '<div><slot name="alerts"/><slot/><slot name="actions"/></div>' },
+          UaAlert: { template: '<div role="alert"><slot/></div>' },
+          UaBtn: { template: '<button><slot/></button>' },
+          CalendarSchedulingResourceTabs: {
+            template:
+              '<div><button @click="$emit(\'update:activeTab\', \'loanout\')">Loan Out</button><slot name="loanout"/></div>',
+          },
+          LoanOutForm: { name: 'LoanOutForm', props: ['modelValue', 'formErrors'], template: '<div />' },
+        },
+      },
+    });
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Loan Out')!
+      .trigger('click');
+    const form = wrapper.findComponent({ name: 'LoanOutForm' });
+    form.vm.$emit('update:modelValue', {
+      userIds: [userId],
+      date: '2026-08-24',
+      loanOutLocationId: 10,
+      repeatMode: kind === 'series' ? 'custom' : 'never',
+      recurrenceRule: kind === 'series' ? 'FREQ=DAILY;COUNT=2' : null,
+    });
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Save')!
+      .trigger('click');
+    await vi.waitFor(() => expect(wrapper.get('[role="alert"]').text()).toBe(message));
+    expect(form.props('formErrors')).toEqual({ userIds: message });
+    expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
   });
 
   it('allows draft creation without exposing publish when SchedulePublish is missing', async () => {

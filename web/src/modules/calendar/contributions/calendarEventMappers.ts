@@ -26,6 +26,7 @@ export function mapApiCalendarEventToCalendarEventBase(apiEvent: CalendarEventRe
     allDay: apiEvent.allDay,
     isReadOnly: apiEvent.isReadOnly,
     isException: apiEvent.isException,
+    exceptionReason: apiEvent.exceptionReason ?? undefined,
     holidayType: apiEvent.holidayType ?? undefined,
     eventTypeCode,
     statusTypeCode: apiEvent.statusTypeCode,

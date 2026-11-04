@@ -12,6 +12,7 @@ using Unified.Calendar;
 using Unified.Calendar.Controllers;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Mvc;
+using Unified.Common.Scheduling;
 using Unified.Common.Time;
 using Unified.Core;
 using Unified.Db;
@@ -24,10 +25,14 @@ using Unified.Infrastructure.Options;
 using Unified.JCInterface;
 using Unified.Leave;
 using Unified.Leave.Controllers;
+using Unified.LoanOut;
+using Unified.LoanOut.Controllers;
+using Unified.LoanOut.Services;
 using Unified.Reporting;
 using Unified.Reporting.Controllers;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
+using Unified.Scheduling.Models;
 using Unified.Stats;
 using Unified.Stats.Controllers;
 using Unified.Training;
@@ -109,8 +114,15 @@ var hangfireOptions =
                 .Concat(AuditSeedDataSets.All)
         )
         .AddJCInterfaceModule(builder.Configuration)
-        .AddInterceptors();
-    builder.Services.AddLeaveModule(builder.Configuration);
+        .AddInterceptors()
+        .AddLeaveModule(builder.Configuration)
+        .AddLoanOutModule(builder.Configuration);
+    if (LoanOutModule.IsModuleEnabled(builder.Configuration))
+    {
+        builder.Services.AddScoped<ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>>(sp =>
+            sp.GetRequiredService<ILoanOutCalendarDataProvider>()
+        );
+    }
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddChesTestController(builder.Environment, builder.Configuration);
@@ -120,9 +132,13 @@ var hangfireOptions =
         SchedulingModule.IsModuleEnabled(builder.Configuration)
     );
     mvcBuilder.AddConditionalApplicationPart<LeaveTypeController>(LeaveModule.IsModuleEnabled(builder.Configuration));
+    mvcBuilder.AddConditionalApplicationPart<LeaveCalendarController>(
+        LeaveModule.IsModuleEnabled(builder.Configuration)
+    );
     mvcBuilder.AddConditionalApplicationPart<SchedulingLeaveController>(
         LeaveModule.IsModuleEnabled(builder.Configuration)
     );
+    mvcBuilder.AddConditionalApplicationPart<LoanOutController>(LoanOutModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<StatGroupsController>(StatsModule.IsModuleEnabled(builder.Configuration));
     mvcBuilder.AddConditionalApplicationPart<UserTrainingController>(
         TrainingModule.IsModuleEnabled(builder.Configuration)

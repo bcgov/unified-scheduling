@@ -46,6 +46,10 @@ export interface CalendarEventMetadata {
   leaveSeriesId?: string;
   leaveTypeId?: number;
   leaveTypeName?: string;
+  loanOutEntryId?: string;
+  loanOutSeriesId?: string;
+  loanOutLocationId?: number;
+  loanOutLocationName?: string;
 }
 
 export const leaveEventType = 'scheduling.leave';
@@ -54,6 +58,9 @@ export const leaveEventColor = 'purple';
 
 export function isLeaveEvent(event: { type?: string | null; eventTypeCode?: string | null }) {
   return event.type === leaveEventType || event.eventTypeCode === leaveEventTypeCode;
+}
+export function isLoanOutEvent(event: { type?: string | null; eventTypeCode?: string | null }) {
+  return event.type?.toLowerCase() === 'scheduling.loanout' || event.eventTypeCode === 'loanOut';
 }
 
 export type CalendarAssignmentCapacitySlotState = 'empty' | 'filled' | 'partial';

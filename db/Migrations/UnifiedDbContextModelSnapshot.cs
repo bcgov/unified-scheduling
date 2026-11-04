@@ -95,7 +95,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("EntityType", "EntityPK")
                         .HasDatabaseName("ix_audit_entity");
 
-                    b.ToTable("AuditRecords");
+                    b.ToTable("AuditRecords", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.CalendarConflictOverride", b =>
@@ -166,7 +166,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("FirstSourceModule", "FirstEventId", "SecondSourceModule", "SecondEventId", "ResourceId")
                         .IsUnique();
 
-                    b.ToTable("CalendarConflictOverrides");
+                    b.ToTable("CalendarConflictOverrides", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.Event", b =>
@@ -225,6 +225,9 @@ namespace Unified.Db.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("general");
+
+                    b.Property<string>("ExceptionReason")
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsException")
                         .ValueGeneratedOnAdd()
@@ -462,7 +465,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("Room", "LocationId")
                         .IsUnique();
 
-                    b.ToTable("CourtRooms");
+                    b.ToTable("CourtRooms", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntry", b =>
@@ -673,6 +676,213 @@ namespace Unified.Db.Migrations
                     b.ToTable("LeaveSeriesUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LoanOutLocationId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("LoanOutSeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("EventId")
+                        .IsUnique();
+
+                    b.HasIndex("LoanOutLocationId");
+
+                    b.HasIndex("LoanOutSeriesId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("LoanOutEntries", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutEntryUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("LoanOutEntryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("LoanOutEntryId");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("LoanOutEntryId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("LoanOutEntryId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LoanOutEntryUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutSeries", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("EventSeriesId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LoanOutLocationId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("EventSeriesId")
+                        .IsUnique();
+
+                    b.HasIndex("LoanOutLocationId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("LoanOutSeries", (string)null);
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutSeriesUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<uint>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("LoanOutSeriesId")
+                        .HasColumnType("integer")
+                        .HasColumnName("LoanOutSeriesId");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("UpdatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("LoanOutSeriesId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("LoanOutSeriesId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("LoanOutSeriesUsers", (string)null);
+                });
+
             modelBuilder.Entity("Unified.Db.Models.Location", b =>
                 {
                     b.Property<int>("Id")
@@ -737,7 +947,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Locations");
+                    b.ToTable("Locations", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.EventStatusType", b =>
@@ -794,7 +1004,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("EventStatusTypes");
+                    b.ToTable("EventStatusTypes", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.EventType", b =>
@@ -851,7 +1061,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("EventTypes");
+                    b.ToTable("EventTypes", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.LeaveType", b =>
@@ -911,7 +1121,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("LeaveTypes");
+                    b.ToTable("LeaveTypes", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.PositionType", b =>
@@ -1024,7 +1234,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Regions");
+                    b.ToTable("Regions", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentDefinition", b =>
@@ -1188,7 +1398,7 @@ namespace Unified.Db.Migrations
 
                     b.ToTable("AssignmentEntries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AssignmentEntries_CapacityNonNegative", "\"Capacity\" >= 0");
+                            t.HasCheckConstraint("CK_AssignmentEntries_CapacityAtLeastOne", "\"Capacity\" >= 1");
                         });
                 });
 
@@ -1253,7 +1463,7 @@ namespace Unified.Db.Migrations
 
                     b.ToTable("AssignmentSeries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AssignmentSeries_CapacityNonNegative", "\"Capacity\" >= 0");
+                            t.HasCheckConstraint("CK_AssignmentSeries_CapacityAtLeastOne", "\"Capacity\" >= 1");
                         });
                 });
 
@@ -2030,7 +2240,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("StatCategories");
+                    b.ToTable("StatCategories", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatGroup", b =>
@@ -2078,7 +2288,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("StatGroups");
+                    b.ToTable("StatGroups", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatMetric", b =>
@@ -2127,7 +2337,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("StatMetrics");
+                    b.ToTable("StatMetrics", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatRecord", b =>
@@ -2214,7 +2424,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("DateFrom", "DateTo");
 
-                    b.ToTable("StatRecords");
+                    b.ToTable("StatRecords", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatSignoff", b =>
@@ -2271,7 +2481,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UserId", "LocationId", "Month", "Year")
                         .IsUnique();
 
-                    b.ToTable("StatSignoffs");
+                    b.ToTable("StatSignoffs", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.SubCategory", b =>
@@ -2324,7 +2534,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("SubCategories");
+                    b.ToTable("SubCategories", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.SubCategoryMetric", b =>
@@ -2381,7 +2591,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("SubCategoryMetrics");
+                    b.ToTable("SubCategoryMetrics", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
@@ -2458,7 +2668,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Trainings");
+                    b.ToTable("Trainings", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.TrainingCategory", b =>
@@ -2508,7 +2718,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("TrainingCategories");
+                    b.ToTable("TrainingCategories", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileRequirement", b =>
@@ -2618,7 +2828,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("TrainingProfileTypes");
+                    b.ToTable("TrainingProfileTypes", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.UserTraining", b =>
@@ -2696,7 +2906,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UserId", "TrainingId", "Version")
                         .IsUnique();
 
-                    b.ToTable("UserTrainings");
+                    b.ToTable("UserTrainings", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.Permission", b =>
@@ -2741,7 +2951,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Permissions");
+                    b.ToTable("Permissions", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.Role", b =>
@@ -2795,7 +3005,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.RolePermission", b =>
@@ -2844,7 +3054,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("RolePermissions");
+                    b.ToTable("RolePermissions", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.User", b =>
@@ -2954,7 +3164,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserActingPosition", b =>
@@ -3023,7 +3233,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserActingPositions");
+                    b.ToTable("UserActingPositions", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserAwayLocation", b =>
@@ -3072,7 +3282,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserAwayLocations");
+                    b.ToTable("UserAwayLocations", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserLeave", b =>
@@ -3126,7 +3336,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserLeave");
+                    b.ToTable("UserLeave", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserRole", b =>
@@ -3184,7 +3394,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("RoleId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("UserRoles");
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.CalendarConflictOverride", b =>
@@ -3466,6 +3676,145 @@ namespace Unified.Db.Migrations
                     b.Navigation("CreatedBy");
 
                     b.Navigation("LeaveSeries");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutEntry", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Calendar.Event", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Location", "LoanOutLocation")
+                        .WithMany()
+                        .HasForeignKey("LoanOutLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.LoanOut.LoanOutSeries", "LoanOutSeries")
+                        .WithMany("LoanOutEntries")
+                        .HasForeignKey("LoanOutSeriesId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Event");
+
+                    b.Navigation("LoanOutLocation");
+
+                    b.Navigation("LoanOutSeries");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutEntryUser", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.LoanOut.LoanOutEntry", "LoanOutEntry")
+                        .WithMany("Users")
+                        .HasForeignKey("LoanOutEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("LoanOutEntry");
+
+                    b.Navigation("UpdatedBy");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutSeries", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.Calendar.EventSeries", "EventSeries")
+                        .WithMany()
+                        .HasForeignKey("EventSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.Location", "LoanOutLocation")
+                        .WithMany()
+                        .HasForeignKey("LoanOutLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("EventSeries");
+
+                    b.Navigation("LoanOutLocation");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutSeriesUser", b =>
+                {
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.LoanOut.LoanOutSeries", "LoanOutSeries")
+                        .WithMany("Users")
+                        .HasForeignKey("LoanOutSeriesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Unified.Db.Models.UserManagement.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("LoanOutSeries");
 
                     b.Navigation("UpdatedBy");
 
@@ -4670,6 +5019,18 @@ namespace Unified.Db.Migrations
             modelBuilder.Entity("Unified.Db.Models.Leave.LeaveSeries", b =>
                 {
                     b.Navigation("LeaveEntries");
+
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutEntry", b =>
+                {
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Unified.Db.Models.LoanOut.LoanOutSeries", b =>
+                {
+                    b.Navigation("LoanOutEntries");
 
                     b.Navigation("Users");
                 });

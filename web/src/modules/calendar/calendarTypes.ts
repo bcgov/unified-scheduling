@@ -24,6 +24,7 @@ export interface CalendarEventBase {
   allDay?: boolean;
   isReadOnly?: boolean;
   isException?: boolean;
+  exceptionReason?: string;
   holidayType?: string;
   eventTypeCode?: string;
   statusTypeCode?: string;

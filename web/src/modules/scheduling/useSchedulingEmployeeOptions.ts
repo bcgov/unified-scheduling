@@ -1,9 +1,15 @@
 import { computed, ref, watch, type Ref } from 'vue';
+import type { LoanOutCalendarUser } from '@/api-access/generated/models';
+import { Permissions } from '@/api-access/generated/models';
 import type { UserResponse } from '@/api-access/generated/models/userResponse';
 import type { SelectOption } from '@/types/select';
 import { formatUserOptionLabel, type ShiftResourceFormData } from './calendarSchedulingShiftForm';
 import type { CalendarMatrixResource } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import { useUsersStore } from '@/stores/Users';
+import { useLocationsStore } from '@/stores/LocationsStore';
+import { useAccessControl } from '@/composables/useAccessControl';
+import { useLoanOutSchedulingUsers } from '@/modules/loanout/api/loanOutApi';
+import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { createLatestRequestGuard } from './latestRequestGuard';
 
 export function useSchedulingEmployeeOptions(
@@ -12,35 +18,35 @@ export function useSchedulingEmployeeOptions(
   options: { resource?: Ref<CalendarMatrixResource | undefined>; onError?: (message: string) => void } = {},
 ) {
   const usersStore = useUsersStore();
+  const locationsStore = useLocationsStore();
+  const accessControl = useAccessControl();
+  const canLoadLoanOutUsers = computed(
+    () =>
+      (accessControl.featureFlags?.value?.LoanOut?.enabled ?? false) &&
+      accessControl.hasPermission(Permissions.LoanOutView),
+  );
   const isLoadingUsers = ref(false);
   const availableUsers = ref<UserResponse[]>([]);
+  const availableLoanOutUsers = ref<LoanOutCalendarUser[]>([]);
   const requestGuard = createLatestRequestGuard();
 
   const employeeOptions = computed<SelectOption[]>(() => {
-    const selectOptions = availableUsers.value.map((user) => ({
+    const usersById = new Map<string, UserResponse | LoanOutCalendarUser>();
+    for (const user of [...availableUsers.value, ...availableLoanOutUsers.value]) {
+      if (!usersById.has(user.id)) {
+        usersById.set(user.id, user);
+      }
+    }
+    return Array.from(usersById.values(), (user) => ({
       code: user.id,
       description: formatUserOptionLabel(user),
     }));
-
-    const resource = options.resource?.value;
-    if (resource?.type === 'user' && !selectOptions.some((option) => option.code === resource.id)) {
-      selectOptions.unshift({
-        code: resource.id,
-        description: resource.title || resource.id,
-      });
-    }
-
-    for (const userId of formData.value.userIds ?? []) {
-      if (!selectOptions.some((option) => option.code === userId)) {
-        selectOptions.unshift({ code: userId, description: userId });
-      }
-    }
-
-    return selectOptions;
   });
 
   async function loadEmployeeOptions(nextLocationId: number | null) {
     const requestId = requestGuard.begin();
+    const date = formData.value.date;
+    availableLoanOutUsers.value = [];
     if (!nextLocationId) {
       availableUsers.value = [];
       isLoadingUsers.value = false;
@@ -49,14 +55,40 @@ export function useSchedulingEmployeeOptions(
 
     isLoadingUsers.value = true;
 
+    let loadingLocationUsers = true;
     try {
       const users = await usersStore.ensureUsersForLocation(nextLocationId);
+      if (!requestGuard.isCurrent(requestId)) {
+        return;
+      }
+      availableUsers.value = users;
+      loadingLocationUsers = false;
+      if (!date || !canLoadLoanOutUsers.value) {
+        return;
+      }
+      const timeZoneId = resolveSchedulingTimeZoneId(locationsStore.entitiesMap[nextLocationId]?.timezone);
+      const result = useLoanOutSchedulingUsers({
+        startDate: date,
+        endDate: date,
+        locationId: nextLocationId,
+        timeZoneId,
+      });
+      await result.execute();
+      if (result.error.value) {
+        throw result.error.value;
+      }
+      if (!result.data.value) {
+        throw new Error('Failed to load loan-out employees.');
+      }
       if (requestGuard.isCurrent(requestId)) {
-        availableUsers.value = users;
+        availableLoanOutUsers.value = result.data.value;
       }
     } catch (error: unknown) {
       if (requestGuard.isCurrent(requestId)) {
-        availableUsers.value = [];
+        if (loadingLocationUsers) {
+          availableUsers.value = [];
+        }
+        availableLoanOutUsers.value = [];
         options.onError?.(error instanceof Error ? error.message : 'Failed to load employees.');
       }
     } finally {
@@ -66,7 +98,11 @@ export function useSchedulingEmployeeOptions(
     }
   }
 
-  watch(locationId, loadEmployeeOptions, { immediate: true });
+  watch(
+    [locationId, () => formData.value.date, canLoadLoanOutUsers],
+    ([nextLocationId]) => loadEmployeeOptions(nextLocationId),
+    { immediate: true },
+  );
 
   return {
     availableUsers,
