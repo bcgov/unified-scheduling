@@ -1275,7 +1275,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             includeAssignments: false,
             includeLeave: false,
             includeLoanOut: false,
-            TestContext.Current.CancellationToken
+            cancellationToken: TestContext.Current.CancellationToken
         );
         var preview = await CreateSchedulePublishService()
             .PreviewAsync(
@@ -2161,11 +2161,14 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("2026-11-01T06:30:00Z", false)]
-    [InlineData("2026-11-01T08:30:00Z", true)]
-    [InlineData("2026-11-02T07:30:00Z", true)]
-    [InlineData("2026-11-02T08:30:00Z", false)]
-    public async Task SchedulingCalendar_DerivesAwayUsersUsingLocationDayAcrossDst(string shiftStart, bool isAway)
+    [InlineData("2025-09-30T06:30:00Z", false)]
+    [InlineData("2025-09-30T08:30:00Z", true)]
+    [InlineData("2025-10-01T06:30:00Z", true)]
+    [InlineData("2025-10-01T07:30:00Z", false)]
+    public async Task SchedulingCalendar_DerivesAwayUsersUsingLocationDayAcrossMonthBoundary(
+        string shiftStart,
+        bool isAway
+    )
     {
         var ct = TestContext.Current.CancellationToken;
         var start = DateTimeOffset.Parse(shiftStart, System.Globalization.CultureInfo.InvariantCulture);
@@ -2176,8 +2179,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             },
             ct
         );
-        var loanOut = CreateLoanOutEntry(new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero));
-        loanOut.Event!.EndAtUtc = new DateTimeOffset(2026, 11, 2, 8, 0, 0, TimeSpan.Zero);
+        var loanOut = CreateLoanOutEntry(new DateTimeOffset(2025, 9, 30, 7, 0, 0, TimeSpan.Zero));
+        loanOut.Event!.EndAtUtc = new DateTimeOffset(2025, 10, 1, 7, 0, 0, TimeSpan.Zero);
         _db.LoanOutEntries.Add(loanOut);
         await _db.SaveChangesAsync(ct);
         _db.ChangeTracker.Clear();
@@ -2186,8 +2189,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         {
             LocationId = 5,
             TimeZoneId = "Asia/Tokyo",
-            StartDate = new DateOnly(2026, 10, 31),
-            EndDate = new DateOnly(2026, 11, 2),
+            StartDate = new DateOnly(2025, 9, 29),
+            EndDate = new DateOnly(2025, 10, 1),
         };
         var result = await _calendarService.GetDataAsync(request, true, false, false, false, ct);
         var calendarEvent = Assert.Single(result.Events);
@@ -3131,7 +3134,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     {
         var ct = TestContext.Current.CancellationToken;
         var users = multipleUsers ? new[] { UserB, UserA } : new[] { UserA };
-        var entryRequest = CreateShiftEntryRequest(AtDay(2, 9), AtDay(2, 17)) with { UserIds = users };
+        var entryRequest = CreateShiftEntryRequest(LoanOutAtDay(2, 9), LoanOutAtDay(2, 17)) with { UserIds = users };
         var seriesRequest = CreateShiftSeriesRequest() with
         {
             StartAtUtc = entryRequest.StartAtUtc,
@@ -3139,7 +3142,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             RecurrenceRule = "FREQ=DAILY;COUNT=3",
             UserIds = users,
         };
-        await SeedHomeLoanOutValidationAsync(AtDay(2, 0), AtDay(3, 0));
+        await SeedHomeLoanOutValidationAsync(LoanOutAtDay(2, 0), LoanOutAtDay(3, 0));
         var before = await _db.ShiftEntries.CountAsync(ct);
         var beforeSeries = await _db.ShiftSeries.CountAsync(ct);
 
@@ -3167,7 +3170,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     public async Task HomeLoanOutValidation_ReturnsGenericMessage()
     {
         var ct = TestContext.Current.CancellationToken;
-        var dayStart = new DateTimeOffset(2026, 10, 26, 7, 0, 0, TimeSpan.Zero);
+        var dayStart = new DateTimeOffset(2025, 10, 26, 7, 0, 0, TimeSpan.Zero);
         await SeedHomeLoanOutValidationAsync(dayStart, dayStart.AddDays(1));
         var user = await _db.Users.SingleAsync(user => user.Id == UserA, ct);
         user.FirstName = "john";
@@ -3204,11 +3207,11 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     {
         var ct = TestContext.Current.CancellationToken;
         await SeedHomeLoanOutValidationAsync(
-            AtDay(2, 0),
-            AtDay(series && scenario == "destination" ? 4 : 3, 0),
+            LoanOutAtDay(2, 0),
+            LoanOutAtDay(series && scenario == "destination" ? 4 : 3, 0),
             scenario == "cancelled"
         );
-        var start = scenario == "outside-range" ? AtDay(4, 9) : AtDay(2, 9);
+        var start = scenario == "outside-range" ? LoanOutAtDay(4, 9) : LoanOutAtDay(2, 9);
         var users = scenario == "other-user" ? new[] { UserB } : new[] { UserA };
         var locationId = scenario == "destination" ? 9 : 5;
         if (series)
@@ -3251,11 +3254,11 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     public async Task HomeLoanOutValidation_TuesdayFridaySeries_ChecksActualOccurrences(int loanOutDay, bool conflict)
     {
         var ct = TestContext.Current.CancellationToken;
-        await SeedHomeLoanOutValidationAsync(AtDay(loanOutDay, 7), AtDay(loanOutDay + 1, 7));
+        await SeedHomeLoanOutValidationAsync(LoanOutAtDay(loanOutDay, 7), LoanOutAtDay(loanOutDay + 1, 7));
         var request = CreateShiftSeriesRequest() with
         {
-            StartAtUtc = AtDay(2, 9),
-            EndAtUtc = AtDay(2, 17),
+            StartAtUtc = LoanOutAtDay(2, 9),
+            EndAtUtc = LoanOutAtDay(2, 17),
             RecurrenceRule = "FREQ=WEEKLY;BYDAY=TU,FR;COUNT=2",
         };
         if (conflict)
@@ -3270,14 +3273,17 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(3, 1, true)] // June 2 locally, although the UTC date is June 3.
-    [InlineData(3, 8, false)] // June 3 locally, after the loan-out ended.
+    [InlineData(3, 1, true)] // September 2 locally, although the UTC date is September 3.
+    [InlineData(3, 8, false)] // September 3 locally, after the loan-out ended.
     public async Task HomeLoanOutValidation_UsesHomeLocationDate(int utcDay, int utcHour, bool conflict)
     {
         var ct = TestContext.Current.CancellationToken;
-        // Vancouver is UTC-07 in June: this loan-out covers the whole local June 2.
-        await SeedHomeLoanOutValidationAsync(AtDay(2, 7), AtDay(3, 7));
-        var request = CreateShiftEntryRequest(AtDay(utcDay, utcHour), AtDay(utcDay, utcHour).AddHours(1)) with
+        // Vancouver is UTC-07 in September: this loan-out covers the whole local September 2.
+        await SeedHomeLoanOutValidationAsync(LoanOutAtDay(2, 7), LoanOutAtDay(3, 7));
+        var request = CreateShiftEntryRequest(
+            LoanOutAtDay(utcDay, utcHour),
+            LoanOutAtDay(utcDay, utcHour).AddHours(1)
+        ) with
         {
             TimeZoneId = "America/Vancouver",
         };
@@ -3308,13 +3314,13 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var users = multipleUsers ? new[] { UserA, UserB } : new[] { UserA };
         var request = CreateShiftSeriesRequest() with
         {
-            StartAtUtc = AtDay(1, 9),
-            EndAtUtc = AtDay(1, 17),
+            StartAtUtc = LoanOutAtDay(1, 9),
+            EndAtUtc = LoanOutAtDay(1, 17),
             RecurrenceRule = "FREQ=DAILY;COUNT=3",
             UserIds = users,
         };
         var series = await _shiftService.CreateShiftSeriesAsync(request, ct);
-        await SeedHomeLoanOutValidationAsync(AtDay(2, 7), AtDay(3, 7));
+        await SeedHomeLoanOutValidationAsync(LoanOutAtDay(2, 7), LoanOutAtDay(3, 7));
         if (transferFirst)
         {
             var loanOut = await _db
@@ -3323,7 +3329,11 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 .SingleAsync(ct);
             Assert.True(await _schedulingLoanOutService.TransferLoanedOutUserShift(loanOut, cancellationToken: ct));
         }
-        var update = request with { Title = "Updated series", EndAtUtc = regenerate ? AtDay(1, 18) : request.EndAtUtc };
+        var update = request with
+        {
+            Title = "Updated series",
+            EndAtUtc = regenerate ? LoanOutAtDay(1, 18) : request.EndAtUtc,
+        };
         Assert.NotNull(await _shiftService.UpdateShiftSeriesAsync(series.Id, update, ct));
         Assert.NotNull(await _shiftService.UpdateShiftSeriesAsync(series.Id, update, ct));
         _db.ChangeTracker.Clear();
@@ -3334,20 +3344,20 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .ToListAsync(ct);
         Assert.Equal(3, entries.Count);
         Assert.All(entries, entry => Assert.Equal(users.Order(), entry.Users.Select(user => user.UserId).Order()));
-        var affected = Assert.Single(entries, entry => entry.Event!.StartAtUtc == AtDay(2, 9));
+        var affected = Assert.Single(entries, entry => entry.Event!.StartAtUtc == LoanOutAtDay(2, 9));
         Assert.Equal(UserA, Assert.Single(await GetAwayUsersAsync(affected)));
         Assert.Equal(!multipleUsers, affected.Event!.IsException);
         Assert.Equal(multipleUsers ? null : "IsAway", affected.Event.ExceptionReason);
         foreach (var entry in entries.Except([affected]))
             Assert.Empty(await GetAwayUsersAsync(entry));
-        Assert.Equal(regenerate ? AtDay(2, 18) : AtDay(2, 17), affected.Event.EndAtUtc);
+        Assert.Equal(regenerate ? LoanOutAtDay(2, 18) : LoanOutAtDay(2, 17), affected.Event.EndAtUtc);
         var destinations = await _db
             .ShiftEntries.Include(entry => entry.Event)
             .Where(entry => entry.Event!.LocationId == 9)
             .ToListAsync(ct);
         Assert.Equal(transferFirst ? 1 : 0, destinations.Count);
         if (transferFirst)
-            Assert.Equal(AtDay(2, 17), Assert.Single(destinations).Event!.EndAtUtc);
+            Assert.Equal(LoanOutAtDay(2, 17), Assert.Single(destinations).Event!.EndAtUtc);
     }
 
     [Theory]
@@ -3360,10 +3370,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var home = await _db.Locations.SingleAsync(location => location.Id == 5, ct);
         home.Timezone = "UTC";
         await _db.SaveChangesAsync(ct);
-        await SeedHomeLoanOutValidationAsync(AtDay(3, 0), AtDay(4, 0));
-        var request = CreateShiftEntryRequest(AtDay(2, 22), AtDay(3, 2)) with
+        await SeedHomeLoanOutValidationAsync(LoanOutAtDay(3, 0), LoanOutAtDay(4, 0));
+        var request = CreateShiftEntryRequest(LoanOutAtDay(2, 22), LoanOutAtDay(3, 2)) with
         {
-            EndAtUtc = endHour.HasValue ? AtDay(3, endHour.Value) : null,
+            EndAtUtc = endHour.HasValue ? LoanOutAtDay(3, endHour.Value) : null,
         };
         if (conflict)
         {
@@ -3389,8 +3399,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var ct = TestContext.Current.CancellationToken;
         var request = CreateShiftSeriesRequest() with
         {
-            StartAtUtc = AtDay(2, 9),
-            EndAtUtc = AtDay(2, 17),
+            StartAtUtc = LoanOutAtDay(2, 9),
+            EndAtUtc = LoanOutAtDay(2, 17),
             RecurrenceRule = "FREQ=WEEKLY;BYDAY=TU,FR;COUNT=2",
             UserIds = [UserA, UserB],
         };
@@ -3399,8 +3409,12 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             scenario == "outside-range" ? 8
             : scenario == "between-occurrences" ? 3
             : 5;
-        // Vancouver local midnight is 07:00 UTC in June.
-        await SeedHomeLoanOutValidationAsync(AtDay(loanOutDay, 7), AtDay(loanOutDay + 1, 7), scenario == "cancelled");
+        // Vancouver local midnight is 07:00 UTC in September.
+        await SeedHomeLoanOutValidationAsync(
+            LoanOutAtDay(loanOutDay, 7),
+            LoanOutAtDay(loanOutDay + 1, 7),
+            scenario == "cancelled"
+        );
         var update = request with
         {
             Title = "Allowed update",
@@ -3449,15 +3463,15 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var source = await _shiftService.CreateShiftSeriesAsync(
             CreateShiftSeriesRequest() with
             {
-                StartAtUtc = AtDay(2, 9),
-                EndAtUtc = AtDay(2, 17),
+                StartAtUtc = LoanOutAtDay(2, 9),
+                EndAtUtc = LoanOutAtDay(2, 17),
                 RecurrenceRule = "FREQ=DAILY;COUNT=5",
                 UserIds = [UserA],
             },
             ct
         );
         var otherUser = await _shiftService.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(AtDay(2, 9), AtDay(2, 17)) with
+            CreateShiftEntryRequest(LoanOutAtDay(2, 9), LoanOutAtDay(2, 17)) with
             {
                 UserIds = [UserB],
             },
@@ -3470,14 +3484,14 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         foreach (var shift in shifts)
         {
             shift.Event!.IsException = true;
-            shift.Event.ExceptionReason = shift.Event.StartAtUtc == AtDay(4, 9) ? "Other" : "IsAway";
+            shift.Event.ExceptionReason = shift.Event.StartAtUtc == LoanOutAtDay(4, 9) ? "Other" : "IsAway";
         }
         var removed = new[] { 2, 5 }
             .Take(series ? 2 : 1)
             .Select(day =>
             {
-                var entry = CreateLoanOutEntry(AtDay(day, 7));
-                entry.Event!.EndAtUtc = AtDay(day + 1, 7);
+                var entry = CreateLoanOutEntry(LoanOutAtDay(day, 7));
+                entry.Event!.EndAtUtc = LoanOutAtDay(day + 1, 7);
                 return entry;
             })
             .ToList();
@@ -3487,8 +3501,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             var eventSeries = new EventSeries
             {
                 Title = "Loan out",
-                StartAtUtc = AtDay(2, 7),
-                EndAtUtc = AtDay(3, 7),
+                StartAtUtc = LoanOutAtDay(2, 7),
+                EndAtUtc = LoanOutAtDay(3, 7),
                 RecurrenceRule = "FREQ=WEEKLY;BYDAY=TU,FR;COUNT=2",
                 TimeZoneId = "UTC",
                 LocationId = 5,
@@ -3510,8 +3524,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _db.LoanOutEntries.AddRange(removed);
         if (overlap != "none")
         {
-            var remaining = CreateLoanOutEntry(AtDay(2, 7));
-            remaining.Event!.EndAtUtc = AtDay(3, 7);
+            var remaining = CreateLoanOutEntry(LoanOutAtDay(2, 7));
+            remaining.Event!.EndAtUtc = LoanOutAtDay(3, 7);
             if (overlap == "other-user")
                 remaining.Users = [new LoanOutEntryUser { UserId = UserB }];
             if (overlap == "cancelled")
@@ -3637,8 +3651,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             scenario == "mixed-local-users" ? 9 : 5;
         foreach (var day in scenario == "overnight-covered" ? new[] { 2, 3, 5, 6 } : new[] { 2, 5 })
         {
-            var loanOut = CreateLoanOutEntry(AtDay(day, 7));
-            loanOut.Event!.EndAtUtc = AtDay(day + 1, 7);
+            var loanOut = CreateLoanOutEntry(LoanOutAtDay(day, 7));
+            loanOut.Event!.EndAtUtc = LoanOutAtDay(day + 1, 7);
             loanOut.Event.TimeZoneId = "America/Vancouver";
             if (scenario == "cancelled")
                 loanOut.Event.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
@@ -3649,8 +3663,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         await _db.SaveChangesAsync(ct);
         _db.ChangeTracker.Clear();
         var overnight = scenario.StartsWith("overnight", StringComparison.Ordinal);
-        var start = AtDay(!recurring && scenario == "gap" ? 3 : 2, overnight ? 22 : 9);
-        var end = overnight ? AtDay(3, 6) : start.AddHours(8);
+        var start = LoanOutAtDay(!recurring && scenario == "gap" ? 3 : 2, overnight ? 22 : 9);
+        var end = overnight ? LoanOutAtDay(3, 6) : start.AddHours(8);
         var userIds = scenario.StartsWith("mixed-", StringComparison.Ordinal)
             ? new[] { UserA, UserB }
             : new[] { UserA };
@@ -3758,13 +3772,13 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             : 5;
         (await _db.Users.SingleAsync(user => user.Id == UserB, ct)).HomeLocationId =
             scenario == "mixed-local-users" ? 9 : 5;
-        var originalLoanOut = CreateLoanOutEntry(AtDay(2, 7));
-        originalLoanOut.Event!.EndAtUtc = AtDay(3, 7);
+        var originalLoanOut = CreateLoanOutEntry(LoanOutAtDay(2, 7));
+        originalLoanOut.Event!.EndAtUtc = LoanOutAtDay(3, 7);
         originalLoanOut.Event.TimeZoneId = "America/Vancouver";
         _db.LoanOutEntries.Add(originalLoanOut);
         await _db.SaveChangesAsync(ct);
         var original = await _shiftService.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(AtDay(2, 9), AtDay(2, 17)) with
+            CreateShiftEntryRequest(LoanOutAtDay(2, 9), LoanOutAtDay(2, 17)) with
             {
                 LocationId = 9,
                 UserIds = [UserA],
@@ -3775,7 +3789,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .ShiftEntryUsers.Where(user => user.ShiftEntryId == original.Id)
             .Select(user => user.Id)
             .ToArrayAsync(ct);
-        var loanOut = CreateLoanOutEntry(AtDay(scenario is "outside" or "unknown-home" ? 2 : 3, 7));
+        var loanOut = CreateLoanOutEntry(LoanOutAtDay(scenario is "outside" or "unknown-home" ? 2 : 3, 7));
         loanOut.Event!.EndAtUtc = loanOut.Event.StartAtUtc.AddDays(1);
         loanOut.Event.TimeZoneId = "America/Vancouver";
         if (scenario == "cancelled")
@@ -3785,8 +3799,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         _db.LoanOutEntries.Add(loanOut);
         if (scenario == "overnight-covered")
         {
-            var next = CreateLoanOutEntry(AtDay(4, 7));
-            next.Event!.EndAtUtc = AtDay(5, 7);
+            var next = CreateLoanOutEntry(LoanOutAtDay(4, 7));
+            next.Event!.EndAtUtc = LoanOutAtDay(5, 7);
             next.Event.TimeZoneId = "America/Vancouver";
             _db.LoanOutEntries.Add(next);
         }
@@ -3801,8 +3815,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 : scenario == "unknown-home-return-home" ? 5
                 : 9,
             UserIds = scenario.StartsWith("mixed-", StringComparison.Ordinal) ? [UserA, UserB] : [UserA],
-            StartAtUtc = AtDay(3, overnight ? 22 : 9),
-            EndAtUtc = overnight ? AtDay(4, scenario == "exclusive-midnight" ? 4 : 6) : AtDay(3, 17),
+            StartAtUtc = LoanOutAtDay(3, overnight ? 22 : 9),
+            EndAtUtc = overnight ? LoanOutAtDay(4, scenario == "exclusive-midnight" ? 4 : 6) : LoanOutAtDay(3, 17),
             TimeZoneId = "UTC",
         };
         if (allowed)
@@ -3862,15 +3876,15 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         {
             LocationId = 9,
             UserIds = [UserA],
-            StartAtUtc = AtDay(2, 9),
-            EndAtUtc = AtDay(2, 17),
+            StartAtUtc = LoanOutAtDay(2, 9),
+            EndAtUtc = LoanOutAtDay(2, 17),
             RecurrenceRule = "FREQ=WEEKLY;BYDAY=TU,FR;COUNT=2",
             TimeZoneId = "UTC",
         };
         foreach (var day in scenario == "extend-covered" ? new[] { 2, 5, 9 } : new[] { 2, 5 })
         {
-            var loanOut = CreateLoanOutEntry(AtDay(day, 7));
-            loanOut.Event!.EndAtUtc = AtDay(day + 1, 7);
+            var loanOut = CreateLoanOutEntry(LoanOutAtDay(day, 7));
+            loanOut.Event!.EndAtUtc = LoanOutAtDay(day + 1, 7);
             loanOut.Event.TimeZoneId = "America/Vancouver";
             _db.LoanOutEntries.Add(loanOut);
         }
@@ -3880,16 +3894,19 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         {
             var friday = await _db
                 .LoanOutEntries.Include(entry => entry.Event)
-                .SingleAsync(entry => entry.Event!.StartAtUtc == AtDay(5, 7), ct);
+                .SingleAsync(entry => entry.Event!.StartAtUtc == LoanOutAtDay(5, 7), ct);
             friday.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
         }
         if (scenario == "override-gap")
         {
             var occurrence = await _db
                 .ShiftEntries.Include(entry => entry.Event)
-                .SingleAsync(entry => entry.ShiftSeriesId == series.Id && entry.Event!.StartAtUtc == AtDay(5, 9), ct);
-            occurrence.Event!.StartAtUtc = AtDay(4, 9);
-            occurrence.Event.EndAtUtc = AtDay(4, 17);
+                .SingleAsync(
+                    entry => entry.ShiftSeriesId == series.Id && entry.Event!.StartAtUtc == LoanOutAtDay(5, 9),
+                    ct
+                );
+            occurrence.Event!.StartAtUtc = LoanOutAtDay(4, 9);
+            occurrence.Event.EndAtUtc = LoanOutAtDay(4, 17);
             occurrence.Event.IsException = true;
         }
         await _db.SaveChangesAsync(ct);
@@ -3909,15 +3926,19 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 : scenario.StartsWith("extend", StringComparison.Ordinal) ? "FREQ=WEEKLY;BYDAY=TU,FR;COUNT=3"
                 : request.RecurrenceRule,
             UserIds = scenario.StartsWith("mixed-", StringComparison.Ordinal) ? [UserA, UserB] : [UserA],
-            EndAtUtc = scenario == "overnight" ? AtDay(3, 6) : request.EndAtUtc,
+            EndAtUtc = scenario == "overnight" ? LoanOutAtDay(3, 6) : request.EndAtUtc,
             LocationId = scenario == "new-location" ? 10 : 9,
         };
         if (allowed)
             Assert.NotNull(await _shiftService.UpdateShiftSeriesAsync(series.Id, update, ct));
         else
-            await Assert.ThrowsAsync<ConflictValidationException>(() =>
+        {
+            var conflict = await Assert.ThrowsAsync<ConflictValidationException>(() =>
                 _shiftService.UpdateShiftSeriesAsync(series.Id, update, ct)
             );
+            Assert.True(conflict.Errors.ContainsKey("LoanOut"));
+            Assert.Contains("not loaned out to this location", Assert.Single(conflict.Errors["LoanOut"]));
+        }
         _db.ChangeTracker.Clear();
         var parent = await _db
             .ShiftSeries.Include(item => item.EventSeries)
@@ -3960,10 +3981,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("2026-11-02T04:30:00Z", "2026-11-02T05:00:00Z", true)]
-    [InlineData("2026-11-02T04:30:00Z", "2026-11-02T05:15:00Z", false)]
-    [InlineData("2026-11-02T05:30:00Z", "2026-11-02T06:00:00Z", false)]
-    public async Task UpdateBorrowedShift_UsesLoanOutCalendarDatesAcrossTimeZonesAndDst(
+    [InlineData("2025-10-01T03:30:00Z", "2025-10-01T04:00:00Z", true)]
+    [InlineData("2025-10-01T03:30:00Z", "2025-10-01T04:15:00Z", false)]
+    [InlineData("2025-10-01T04:30:00Z", "2025-10-01T05:00:00Z", false)]
+    public async Task UpdateBorrowedShift_UsesLoanOutCalendarDatesAcrossTimeZonesAndMonthBoundary(
         string start,
         string end,
         bool allowed
@@ -3971,27 +3992,27 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     {
         var ct = TestContext.Current.CancellationToken;
         (await _db.Users.SingleAsync(user => user.Id == UserA, ct)).HomeLocationId = 5;
-        var originalLoanOut = CreateLoanOutEntry(AtDay(2, 7));
-        originalLoanOut.Event!.EndAtUtc = AtDay(3, 7);
+        var originalLoanOut = CreateLoanOutEntry(LoanOutAtDay(2, 7));
+        originalLoanOut.Event!.EndAtUtc = LoanOutAtDay(3, 7);
         originalLoanOut.Event.TimeZoneId = "America/Vancouver";
         _db.LoanOutEntries.Add(originalLoanOut);
         await _db.SaveChangesAsync(ct);
         var original = await _shiftService.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(AtDay(2, 9), AtDay(2, 17)) with
+            CreateShiftEntryRequest(LoanOutAtDay(2, 9), LoanOutAtDay(2, 17)) with
             {
                 LocationId = 9,
             },
             ct
         );
-        var loanOut = CreateLoanOutEntry(new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero));
-        loanOut.Event!.EndAtUtc = new DateTimeOffset(2026, 11, 2, 8, 0, 0, TimeSpan.Zero);
+        var loanOut = CreateLoanOutEntry(new DateTimeOffset(2025, 9, 30, 7, 0, 0, TimeSpan.Zero));
+        loanOut.Event!.EndAtUtc = new DateTimeOffset(2025, 10, 1, 7, 0, 0, TimeSpan.Zero);
         loanOut.Event.TimeZoneId = "America/Vancouver";
         _db.LoanOutEntries.Add(loanOut);
         await _db.SaveChangesAsync(ct);
         _db.ChangeTracker.Clear();
         var update = new ShiftEntryUpdateRequest
         {
-            Title = "DST edit",
+            Title = "Month boundary edit",
             LocationId = 9,
             UserIds = [UserA],
             TimeZoneId = "UTC",
@@ -4018,8 +4039,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             null,
             9,
             [UserA],
-            AtDay(3, 9),
-            AtDay(3, 17),
+            LoanOutAtDay(3, 9),
+            LoanOutAtDay(3, 17),
             ct
         );
     }
@@ -4044,15 +4065,15 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var source = await _shiftService.CreateShiftSeriesAsync(
             CreateShiftSeriesRequest() with
             {
-                StartAtUtc = AtDay(1, 9),
-                EndAtUtc = AtDay(1, 17),
+                StartAtUtc = LoanOutAtDay(1, 9),
+                EndAtUtc = LoanOutAtDay(1, 17),
                 RecurrenceRule = "FREQ=DAILY;COUNT=6",
                 UserIds = [UserA],
             },
             ct
         );
         var otherUser = await _shiftService.CreateShiftEntryAsync(
-            CreateShiftEntryRequest(AtDay(2, 9), AtDay(2, 17)) with
+            CreateShiftEntryRequest(LoanOutAtDay(2, 9), LoanOutAtDay(2, 17)) with
             {
                 UserIds = [UserB],
             },
@@ -4075,7 +4096,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                     UserRow: Assert.Single(entry.Users).Id
                 )
         );
-        var unrelated = Assert.Single(originals, entry => entry.Event!.StartAtUtc == AtDay(6, 9));
+        var unrelated = Assert.Single(originals, entry => entry.Event!.StartAtUtc == LoanOutAtDay(6, 9));
         unrelated.Event!.IsException = true;
         unrelated.Event.ExceptionReason = "Other";
         await _db.SaveChangesAsync(ct);
@@ -4087,8 +4108,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             LocationId = 5,
             LoanOutLocationId = 9,
             UserIds = [UserA],
-            StartAtUtc = AtDay(2, 7),
-            EndAtUtc = AtDay(3, 7),
+            StartAtUtc = LoanOutAtDay(2, 7),
+            EndAtUtc = LoanOutAtDay(3, 7),
             TimeZoneId = "America/Vancouver",
         };
         var seriesRequest = new LoanOutSeriesRequest
@@ -4133,8 +4154,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             Assert.True(await _shiftService.DeleteShiftEntryAsync(entryId, ct));
         if (overlappingLoanOut)
         {
-            var remaining = CreateLoanOutEntry(AtDay(2, 7));
-            remaining.Event!.EndAtUtc = AtDay(3, 7);
+            var remaining = CreateLoanOutEntry(LoanOutAtDay(2, 7));
+            remaining.Event!.EndAtUtc = LoanOutAtDay(3, 7);
             _db.LoanOutEntries.Add(remaining);
             await _db.SaveChangesAsync(ct);
         }
@@ -4175,8 +4196,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                         id,
                         seriesRequest with
                         {
-                            StartAtUtc = AtDay(newDay, 7),
-                            EndAtUtc = AtDay(newDay + 1, 7),
+                            StartAtUtc = LoanOutAtDay(newDay, 7),
+                            EndAtUtc = LoanOutAtDay(newDay + 1, 7),
                         },
                         ct
                     )
@@ -4187,8 +4208,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                         id,
                         entryRequest with
                         {
-                            StartAtUtc = AtDay(newDay, 7),
-                            EndAtUtc = AtDay(newDay + 1, 7),
+                            StartAtUtc = LoanOutAtDay(newDay, 7),
+                            EndAtUtc = LoanOutAtDay(newDay + 1, 7),
                         },
                         ct
                     )
@@ -4253,10 +4274,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             .Where(entry => entry.Event!.LocationId == 9)
             .ToListAsync(ct);
         Assert.Equal(
-            updateRejected ? [] : newDays.Select(day => AtDay(day, 9)),
+            updateRejected ? [] : newDays.Select(day => LoanOutAtDay(day, 9)),
             copied.Select(entry => entry.Event!.StartAtUtc).Order()
         );
-        var expectedLoanOutStart = AtDay(updateRejected ? 2 : newDay, 7);
+        var expectedLoanOutStart = LoanOutAtDay(updateRejected ? 2 : newDay, 7);
         if (recurring)
             Assert.Equal(expectedLoanOutStart, (await seriesService.GetLoanOutSeriesByIdAsync(id, ct))!.StartAtUtc);
         else
@@ -4270,15 +4291,18 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     public async Task UpdateLoanOut_WhenDestinationShiftBlocksEdit_PreservesOriginalMarkersAndDates(bool recurring)
     {
         var ct = TestContext.Current.CancellationToken;
-        var source = await _shiftService.CreateShiftEntryAsync(CreateShiftEntryRequest(AtDay(2, 9), AtDay(2, 17)), ct);
+        var source = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(LoanOutAtDay(2, 9), LoanOutAtDay(2, 17)),
+            ct
+        );
         var entryRequest = new LoanOutEntryRequest
         {
             Title = "Away",
             LocationId = 5,
             LoanOutLocationId = 9,
             UserIds = [UserA],
-            StartAtUtc = AtDay(2, 7),
-            EndAtUtc = AtDay(3, 7),
+            StartAtUtc = LoanOutAtDay(2, 7),
+            EndAtUtc = LoanOutAtDay(3, 7),
             TimeZoneId = "America/Vancouver",
         };
         var seriesRequest = new LoanOutSeriesRequest
@@ -4304,8 +4328,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                     id,
                     seriesRequest with
                     {
-                        StartAtUtc = AtDay(4, 7),
-                        EndAtUtc = AtDay(5, 7),
+                        StartAtUtc = LoanOutAtDay(4, 7),
+                        EndAtUtc = LoanOutAtDay(5, 7),
                     },
                     ct
                 )
@@ -4316,8 +4340,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                     id,
                     entryRequest with
                     {
-                        StartAtUtc = AtDay(4, 7),
-                        EndAtUtc = AtDay(5, 7),
+                        StartAtUtc = LoanOutAtDay(4, 7),
+                        EndAtUtc = LoanOutAtDay(5, 7),
                     },
                     ct
                 )
@@ -4330,9 +4354,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         Assert.True(retained.Event!.IsException);
         Assert.Equal("IsAway", retained.Event.ExceptionReason);
         if (recurring)
-            Assert.Equal(AtDay(2, 7), (await series.GetLoanOutSeriesByIdAsync(id, ct))!.StartAtUtc);
+            Assert.Equal(LoanOutAtDay(2, 7), (await series.GetLoanOutSeriesByIdAsync(id, ct))!.StartAtUtc);
         else
-            Assert.Equal(AtDay(2, 7), (await entries.GetLoanOutEntryByIdAsync(id, ct))!.StartAtUtc);
+            Assert.Equal(LoanOutAtDay(2, 7), (await entries.GetLoanOutEntryByIdAsync(id, ct))!.StartAtUtc);
         Assert.Equal(1, await _db.ShiftEntries.CountAsync(entry => entry.Event!.LocationId == 9, ct));
     }
 
@@ -4365,8 +4389,11 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     public async Task DeleteLoanOut_WhenDestinationShiftBlocksDeletion_PreservesAwayFlags()
     {
         var ct = TestContext.Current.CancellationToken;
-        var source = await _shiftService.CreateShiftEntryAsync(CreateShiftEntryRequest(AtDay(2, 9), AtDay(2, 17)), ct);
-        await SeedHomeLoanOutValidationAsync(AtDay(2, 7), AtDay(3, 7));
+        var source = await _shiftService.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(LoanOutAtDay(2, 9), LoanOutAtDay(2, 17)),
+            ct
+        );
+        await SeedHomeLoanOutValidationAsync(LoanOutAtDay(2, 7), LoanOutAtDay(3, 7));
         var loanOut = await _db
             .LoanOutEntries.Include(entry => entry.Event)
             .Include(entry => entry.Users)
@@ -5458,6 +5485,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         };
 
     private static DateTimeOffset At(int hour) => new(2026, 6, 1, hour, 0, 0, TimeSpan.Zero);
+
+    // September 2025 starts on Monday, so days 2 and 5 are Tuesday and Friday.
+    private static DateTimeOffset LoanOutAtDay(int day, int hour) => new(2025, 9, day, hour, 0, 0, TimeSpan.Zero);
 
     private static DateTimeOffset AtDay(int day, int hour) => new(2026, 6, day, hour, 0, 0, TimeSpan.Zero);
 

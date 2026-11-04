@@ -10,7 +10,7 @@ namespace Unified.Tests.Scheduling.Services;
 
 public sealed class SchedulingLoanOutEventMapperTests
 {
-    private static readonly DateTimeOffset Start = new(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Start = new(2025, 6, 1, 16, 0, 0, TimeSpan.Zero);
     private static readonly Guid UserId = new("11111111-1111-1111-1111-111111111111");
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class SchedulingLoanOutEventMapperTests
                 TimeZoneId = "America/Vancouver",
                 AllDay = true,
                 LocationId = 5,
-                RecurrenceRule = "FREQ=DAILY;COUNT=10;UNTIL=20260620T160000Z",
+                RecurrenceRule = "FREQ=DAILY;COUNT=10;UNTIL=20250620T160000Z",
             },
         };
         var occurrences = new[]
@@ -105,9 +105,9 @@ public sealed class SchedulingLoanOutEventMapperTests
     }
 
     [Theory]
-    [InlineData("2026-11-01T07:00:00Z", "2026-11-01T16:00:00Z", "2026-11-03T08:00:00Z", "2026-11-03T16:00:00Z")]
-    [InlineData("2026-03-08T08:00:00Z", "2026-03-08T15:00:00Z", "2026-03-10T07:00:00Z", "2026-03-10T15:00:00Z")]
-    [InlineData("2026-03-07T08:00:00Z", "2026-03-07T16:00:00Z", "2026-03-08T08:00:00Z", "2026-03-08T15:00:00Z")]
+    [InlineData("2025-11-02T07:00:00Z", "2025-11-02T16:00:00Z", "2025-11-04T08:00:00Z", "2025-11-04T16:00:00Z")]
+    [InlineData("2025-03-09T08:00:00Z", "2025-03-09T15:00:00Z", "2025-03-11T07:00:00Z", "2025-03-11T15:00:00Z")]
+    [InlineData("2025-03-08T08:00:00Z", "2025-03-08T16:00:00Z", "2025-03-09T08:00:00Z", "2025-03-09T15:00:00Z")]
     public void ToShiftSeriesRequest_PreservesLocalDurationAcrossDst(
         string sourceStart,
         string sourceEnd,
@@ -128,15 +128,16 @@ public sealed class SchedulingLoanOutEventMapperTests
         };
         var occurrence = new ShiftEntry { Event = new Event { StartAtUtc = DateTimeOffset.Parse(occurrenceStart) } };
 
-        var request = CreateMapper().ToShiftSeriesRequest(source, [occurrence], 10, [UserId]);
+        // Match main's DST fixtures while preserving the configured resolver fallback.
+        var request = CreateMapper("America/Los_Angeles").ToShiftSeriesRequest(source, [occurrence], 10, [UserId]);
 
         Assert.Equal(DateTimeOffset.Parse(expectedEnd), request.EndAtUtc);
     }
 
     [Theory]
-    [InlineData("2026-11-02T17:00:00Z")]
-    [InlineData("2026-11-03T04:00:00Z")]
-    [InlineData("2026-11-02T17:00:00.123Z")]
+    [InlineData("2025-11-02T17:00:00Z")]
+    [InlineData("2025-11-03T04:00:00Z")]
+    [InlineData("2025-11-02T17:00:00.123Z")]
     public void ToShiftSeriesRequest_IncludesFinalThursday(string startAtUtc)
     {
         var timeZoneService = new TimeZoneService();
@@ -200,8 +201,8 @@ public sealed class SchedulingLoanOutEventMapperTests
         {
             EventSeries = new EventSeries
             {
-                StartAtUtc = DateTimeOffset.Parse("2026-11-02T16:00:00Z"),
-                EndAtUtc = DateTimeOffset.Parse("2026-11-03T00:00:00Z"),
+                StartAtUtc = DateTimeOffset.Parse("2025-11-02T16:00:00Z"),
+                EndAtUtc = DateTimeOffset.Parse("2025-11-03T00:00:00Z"),
                 TimeZoneId = "America/Vancouver",
                 RecurrenceRule = "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;COUNT=20",
             },
@@ -265,12 +266,12 @@ public sealed class SchedulingLoanOutEventMapperTests
         public TimeZoneInfo Resolve(string? requestedTimeZoneId, string? fallbackTimeZoneId = null) => zone;
     }
 
-    private static SchedulingLoanOutEventMapper CreateMapper()
+    private static SchedulingLoanOutEventMapper CreateMapper(string timeZoneId = "America/Vancouver")
     {
         var timeZoneService = new TimeZoneService();
         return new SchedulingLoanOutEventMapper(
             new CalendarTimeZoneResolver(
-                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = timeZoneId }),
                 timeZoneService
             ),
             timeZoneService

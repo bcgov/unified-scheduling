@@ -5,7 +5,6 @@ using Unified.Db;
 using Unified.Leave;
 using Unified.Leave.Models;
 using Unified.Leave.Services;
-using Unified.Leave.Validators;
 
 namespace Unified.Tests.Leave;
 
@@ -35,7 +34,6 @@ public sealed class LeaveModuleTests
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(ISchedulingLeaveService));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(ILeaveTypeService));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(ILeaveCalendarDataProvider));
-        Assert.DoesNotContain(services, d => d.ServiceType == typeof(LeaveCalendarQueryValidator));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(LeaveSeriesMaterializationHandler));
     }
 
@@ -64,7 +62,6 @@ public sealed class LeaveModuleTests
         AssertScoped<ISchedulingLeaveService, SchedulingLeaveService>(services);
         AssertScoped<ILeaveTypeService, LeaveTypeService>(services);
         AssertScoped<ILeaveCalendarDataProvider, LeaveCalendarDataProvider>(services);
-        AssertScoped<LeaveCalendarQueryValidator, LeaveCalendarQueryValidator>(services);
     }
 
     [Fact]
