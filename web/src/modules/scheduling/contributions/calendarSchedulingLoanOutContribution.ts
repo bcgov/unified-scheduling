@@ -7,7 +7,7 @@ import { useLoanOutSchedulingUsers } from '@/modules/loanout/api/loanOutApi';
 import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { DateTime } from 'luxon';
-import type { CalendarQueryContext } from '@/modules/calendar/calendarTypes';
+import type { CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
 import { getLeaveCalendarEvents, type LeaveCalendarEvent } from '@/modules/leave/api/leaveApi';
 import type { CalendarSchedulingUserResource } from './calendarSchedulingEventsContribution';
 import { mapSchedulingCalendarEvent } from './calendarSchedulingEventsContribution';
@@ -17,6 +17,10 @@ import { resolveSchedulingTimeZoneFromFilters, resolveSchedulingTimeZoneId } fro
 
 export const schedulingLoanOutContributionId = 'scheduling.loanout';
 const borrowedLeaveAlertId = 'scheduling.loanout.leave-unavailable';
+
+type LoanOutLeaveProjection = SchedulingCalendarEventResponse & {
+  originalLeaveOccurrence: Pick<CalendarEventBase, 'id' | 'start' | 'end'>;
+};
 
 export const calendarSchedulingLoanOutContribution: CalendarModuleContribution = {
   moduleId: 'loanout',
@@ -51,10 +55,14 @@ export const calendarSchedulingLoanOutContribution: CalendarModuleContribution =
     return {
       moduleId: 'loanout',
       contributionId: schedulingLoanOutContributionId,
-      events: leave.map((event) => ({
-        ...mapSchedulingCalendarEvent(event),
-        isReadOnly: true,
-      })),
+      events: leave.map((event) => {
+        const mapped = mapSchedulingCalendarEvent(event);
+        return {
+          ...mapped,
+          isReadOnly: true,
+          metadata: { ...mapped.metadata, originalLeaveOccurrence: event.originalLeaveOccurrence },
+        };
+      }),
       resources,
     };
   },
@@ -94,6 +102,7 @@ function mapLoanOutUserToResource(user: LoanOutCalendarUser) {
     id: user.id,
     type: 'user',
     sourceModule: 'loanout',
+    homeLocationId: user.homeLocationId ?? undefined,
     label: title,
     title,
     subtitle: user.rank ?? undefined,
@@ -123,7 +132,7 @@ export async function loadLoanOutLeaveEvents(
   context: CalendarQueryContext,
   resources: CalendarSchedulingUserResource[],
   options?: CalendarContributionLoadOptions,
-): Promise<SchedulingCalendarEventResponse[]> {
+): Promise<LoanOutLeaveProjection[]> {
   const alerts = useCalendarAlertStore();
   alerts.clearAlert(borrowedLeaveAlertId);
   const runtime = options?.runtimeContext;
@@ -167,8 +176,8 @@ export function projectLoanOutLeave(
   borrowed: CalendarSchedulingUserResource[],
   rangeStart: string,
   rangeEnd: string,
-): SchedulingCalendarEventResponse[] {
-  const result: SchedulingCalendarEventResponse[] = [];
+): LoanOutLeaveProjection[] {
+  const result: LoanOutLeaveProjection[] = [];
   for (const event of events) {
     const projections = new Map<string, { start: number; end: number; users: string[] }>();
     for (const userId of event.userIds ?? []) {
@@ -198,6 +207,7 @@ export function projectLoanOutLeave(
       result.push({
         ...event,
         id: `${event.id}.location.${key}`,
+        originalLeaveOccurrence: { id: event.id, start: event.start, end: event.end ?? undefined },
         start: new Date(projection.start).toISOString(),
         end: new Date(projection.end).toISOString(),
         userIds: projection.users,

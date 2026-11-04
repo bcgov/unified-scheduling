@@ -28,6 +28,7 @@ import { formatUserName } from '@/utils/user';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
+  homeLocationId?: number;
   subtitle?: string;
   meta?: CalendarMetaItem[];
   avatarText?: string;
@@ -209,6 +210,7 @@ function mapUserToCalendarSchedulingResource(
     id: user.id,
     type: 'user',
     sourceModule: 'scheduling',
+    homeLocationId: user.homeLocationId ?? undefined,
     label: title,
     title,
     subtitle: subtitle || undefined,
