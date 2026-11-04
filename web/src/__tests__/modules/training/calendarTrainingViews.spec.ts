@@ -59,4 +59,61 @@ describe('training calendar views', () => {
     const model = buildCalendarAssignmentViewModel(response, query, 'week');
     expect(model.cells.flatMap((cell) => cell.groups.flatMap((group) => group.events))).toEqual([]);
   });
+
+  it.each([
+    ['2025-04-09T07:00:00Z', '2025-04-10T07:00:00Z', ['2025-04-09']],
+    ['2025-04-09T23:00:00Z', '2025-04-11T07:00:00Z', ['2025-04-09', '2025-04-10']],
+  ])(
+    'limits borrowed training to loan-out dates from %s to %s and retains home training',
+    (startAtUtc, endAtUtc, dates) => {
+      const borrowedTraining = {
+        ...training,
+        id: 'training.user-training.43',
+        start: query.startDate,
+        end: query.endDate,
+        resourceIds: ['borrowed-user'],
+      };
+      const resources: CalendarSchedulingUserResource[] = ['borrowed-user', 'user-1'].map((id) => ({
+        id,
+        type: 'user',
+        sourceModule: 'loanout',
+        label: id,
+        title: id,
+        loanOutMetaData: [{ loanOutLocationId: 12, startAtUtc, endAtUtc }],
+      }));
+      const model = buildCalendarSchedulingViewModel(
+        {
+          contributions: {
+            ...response.contributions,
+            'training.events': {
+              moduleId: 'training',
+              contributionId: 'training.events',
+              events: [training, borrowedTraining],
+            },
+            'scheduling.loanout': {
+              moduleId: 'loanout',
+              contributionId: 'scheduling.loanout',
+              events: [],
+              resources,
+            },
+          },
+        },
+        { ...query, locationId: 12, filters: { timeZoneId: 'America/Vancouver' } },
+        'week',
+      );
+
+      const borrowedCells = model.cells.filter((cell) =>
+        cell.headers?.some((header) => header.id === borrowedTraining.id),
+      );
+      expect(borrowedCells.map((cell) => [cell.resourceId, cell.date])).toEqual(
+        dates.map((date) => ['borrowed-user', date]),
+      );
+      expect(borrowedCells.every((cell) => !cell.disabled)).toBe(true);
+      expect(
+        model.cells
+          .filter((cell) => cell.headers?.some((header) => header.id === training.id))
+          .map((cell) => cell.date),
+      ).toEqual(['2025-04-08', '2025-04-09', '2025-04-10']);
+    },
+  );
 });

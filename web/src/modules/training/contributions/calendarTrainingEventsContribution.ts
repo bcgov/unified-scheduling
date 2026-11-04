@@ -1,7 +1,14 @@
 import { Permissions } from '@/api-access/generated/models';
 import { useFetchAPI } from '@/api-access/useFetchAPI';
-import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
+import type { CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
 import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
+import { useLoanOutSchedulingUsers } from '@/modules/loanout/api/loanOutApi';
+import { canViewLoanOut } from '@/modules/scheduling/calendarSchedulingPermissions';
+import {
+  resolveSchedulingTimeZoneFromFilters,
+  resolveSchedulingTimeZoneId,
+} from '@/modules/scheduling/schedulingTimeZone';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import { addDays, toApiDateString, toCalendarDateOnly } from '@/utils/date';
 
 export const trainingCalendarContributionId = 'training.events';
@@ -57,6 +64,35 @@ function validUserIds(filters: Record<string, unknown>): string[] | undefined {
   return ids.length ? ids : undefined;
 }
 
+async function loadTrainingEvents(context: CalendarQueryContext, userIds?: string[], signal?: AbortSignal) {
+  const { data, error, execute, abort } = useFetchAPI<TrainingCalendarEventResponse[]>(
+    {
+      url: '/api/training/calendar/events',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      data: {
+        startDate: toApiDateString(context.startDate),
+        endDate: toApiDateString(addDays(context.endDate, -1)),
+        locationId: context.locationId,
+        userIds,
+      },
+    },
+    { fetchOptions: { signal }, options: { immediate: false } },
+  );
+
+  if (signal?.aborted) throw new DOMException('Training calendar request was aborted.', 'AbortError');
+  const abortRequest = () => abort();
+  signal?.addEventListener('abort', abortRequest, { once: true });
+  try {
+    await execute();
+  } finally {
+    signal?.removeEventListener('abort', abortRequest);
+  }
+  if (signal?.aborted) throw new DOMException('Training calendar request was aborted.', 'AbortError');
+  if (error.value) throw error.value;
+  return data.value ?? [];
+}
+
 export const calendarTrainingEventsContribution: CalendarModuleContribution = {
   moduleId: 'training',
   contributionId: trainingCalendarContributionId,
@@ -73,36 +109,42 @@ export const calendarTrainingEventsContribution: CalendarModuleContribution = {
       return { moduleId: 'training', contributionId: trainingCalendarContributionId, events: [] };
     }
 
-    const { data, error, execute, abort } = useFetchAPI<TrainingCalendarEventResponse[]>(
-      {
-        url: '/api/training/calendar/events',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        data: {
-          startDate: toApiDateString(context.startDate),
-          endDate: toApiDateString(addDays(context.endDate, -1)),
+    let events = await loadTrainingEvents(context, userIds, options?.signal);
+    const runtime = options?.runtimeContext;
+    if (
+      !userIds &&
+      context.locationId != null &&
+      runtime?.featureFlags.Scheduling?.enabled &&
+      canViewLoanOut(runtime)
+    ) {
+      const borrowedUsers = useLoanOutSchedulingUsers(
+        {
+          startDate: context.startDate,
+          endDate: addDays(context.endDate, -1),
           locationId: context.locationId,
-          userIds,
+          timeZoneId: resolveSchedulingTimeZoneId(
+            useLocationsStore().entitiesMap[context.locationId]?.timezone,
+            resolveSchedulingTimeZoneFromFilters(context.filters),
+          ),
         },
-      },
-      { fetchOptions: { signal: options?.signal }, options: { immediate: false } },
-    );
+        options?.signal,
+      );
+      await borrowedUsers.execute();
+      if (options?.signal?.aborted) throw new DOMException('Training calendar request was aborted.', 'AbortError');
+      if (borrowedUsers.error.value) throw borrowedUsers.error.value;
+      if (!borrowedUsers.data.value) throw new Error('Failed to load loan-out users.');
 
-    if (options?.signal?.aborted) throw new DOMException('Training calendar request was aborted.', 'AbortError');
-    const abortRequest = () => abort();
-    options?.signal?.addEventListener('abort', abortRequest, { once: true });
-    try {
-      await execute();
-    } finally {
-      options?.signal?.removeEventListener('abort', abortRequest);
+      const borrowedUserIds = [...new Set(borrowedUsers.data.value.map((user) => user.id))];
+      if (borrowedUserIds.length) {
+        const borrowedEvents = await loadTrainingEvents(context, borrowedUserIds, options?.signal);
+        events = [...new Map([...events, ...borrowedEvents].map((event) => [event.id, event])).values()];
+      }
     }
-    if (options?.signal?.aborted) throw new DOMException('Training calendar request was aborted.', 'AbortError');
-    if (error.value) throw error.value;
 
     return {
       moduleId: 'training',
       contributionId: trainingCalendarContributionId,
-      events: (data.value ?? []).map<TrainingCalendarEvent>((event) => ({
+      events: events.map<TrainingCalendarEvent>((event) => ({
         id: event.id,
         userTrainingId: event.userTrainingId,
         userId: event.userId,
