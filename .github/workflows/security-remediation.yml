@@ -1,0 +1,28 @@
+name: Invoke Security Vulnerability Remediation
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Base branch to create rollup branches from
+        required: false
+        default: main
+        type: string
+      dry_run:
+        description: Analyze only; do not create branches, PRs, or issues
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  invoke-security-remediation:
+    uses: sumathi-thirumani/bc-scaffold/.github/workflows/security-vulnerability-remediation.yml@feature/security-remediation-renovate-integration
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      security-events: write
+      vulnerability-alerts: read
+    with:
+      base_branch: ${{ inputs.base_branch }}
+      dry_run: ${{ inputs.dry_run == 'true' }}
