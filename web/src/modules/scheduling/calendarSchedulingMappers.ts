@@ -922,20 +922,20 @@ function buildUserWarningGroups(
     .map((group) => ({
       id: group.id,
       heading: group.heading,
-      warnings: [
-        ...new Map(group.events.map((event) => [sidebarWarningEventKey(event), event])).values(),
-      ].map((event) => ({
-        id: event.id,
-        title:
-          group.id === 'loanout' && isCalendarSchedulingEvent(event)
-            ? loanOutWarningTitle(event, user.homeLocationId)
-            : group.id === 'leave' && isCalendarSchedulingEvent(event)
-              ? event.metadata.leaveTypeName || 'Leave'
-              : event.title.replace(/^Training:\s*/i, ''),
-        start: event.allDay ? getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone)! : event.start,
-        end: event.allDay ? getCalendarEventDateKey(event.end, event.timeZoneId ?? timeZone) : event.end,
-        allDay: event.allDay,
-      })),
+      warnings: [...new Map(group.events.map((event) => [sidebarWarningEventKey(event), event])).values()].map(
+        (event) => ({
+          id: event.id,
+          title:
+            group.id === 'loanout' && isCalendarSchedulingEvent(event)
+              ? loanOutWarningTitle(event, user.homeLocationId)
+              : group.id === 'leave' && isCalendarSchedulingEvent(event)
+                ? event.metadata.leaveTypeName || 'Leave'
+                : event.title.replace(/^Training:\s*/i, ''),
+          start: event.allDay ? getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone)! : event.start,
+          end: event.allDay ? getCalendarEventDateKey(event.end, event.timeZoneId ?? timeZone) : event.end,
+          allDay: event.allDay,
+        }),
+      ),
     }));
 
   return groups.length ? groups : undefined;
