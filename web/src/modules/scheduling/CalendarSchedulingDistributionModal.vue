@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { DateTime } from 'luxon';
 import { useRoute, useRouter } from 'vue-router';
-import type { UserResponse } from '@/api-access/generated/models';
+import type { LoanOutCalendarUser, UserResponse } from '@/api-access/generated/models';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
+import type { CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixViewModel } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import { useLoanOutSchedulingUsers } from '@/modules/loanout/api/loanOutApi';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaAutocomplete from '@/shared/components/UaAutocomplete.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import type { SelectOption } from '@/types/select';
 import { useUsersStore } from '@/stores/Users';
+import { addDays } from '@/utils/date';
+import { canViewLoanOut } from './calendarSchedulingPermissions';
 import { normalizeSchedulingLifecycleStatus } from './schedulingLifecycle';
 import type { CalendarSchedulingMatrixPayload } from './calendarSchedulingMappers';
 import type {
@@ -27,6 +31,7 @@ const props = defineProps<{
   period: CalendarPeriod;
   view: ScheduleDistributionView;
   model: CalendarMatrixViewModel;
+  runtimeContext?: CalendarRuntimeContext;
 }>();
 
 const emit = defineEmits<{
@@ -43,11 +48,18 @@ const isLoadingUsers = ref(false);
 const isSending = ref(false);
 const includeAssignmentTimes = ref(true);
 const errorMessage = ref('');
+const recipientLoadError = ref('');
+const borrowedUsers = ref<LoanOutCalendarUser[]>([]);
+const canLoadBorrowedUsers = computed(() => Boolean(props.runtimeContext && canViewLoanOut(props.runtimeContext)));
 
 const modelPayload = computed(() => props.model.payload as CalendarSchedulingMatrixPayload | undefined);
-const eligibleUsers = computed(() =>
-  schedulingUsersStore.getUsersForLocation(props.locationId).filter((user) => user.isEnabled === true),
-);
+const eligibleUsers = computed(() => {
+  const users = [
+    ...(canLoadBorrowedUsers.value ? borrowedUsers.value : []),
+    ...schedulingUsersStore.getUsersForLocation(props.locationId),
+  ];
+  return [...new Map(users.map((user) => [user.id, user])).values()].filter((user) => user.isEnabled === true);
+});
 const eligibleUsersById = computed(() => new Map(eligibleUsers.value.map((user) => [user.id, user])));
 
 const selectedRecipients = computed(() =>
@@ -122,22 +134,44 @@ const conflictWarningMessage = computed(() => {
 });
 
 let userLoadRequestId = 0;
+// Keep shared home-user lookups alive across date changes; cancel this modal's consumers on close.
+const homeUserLoadController = new AbortController();
+onBeforeUnmount(() => homeUserLoadController.abort());
 watch(
-  () => props.locationId,
-  async (locationId) => {
+  [
+    () => props.locationId,
+    () => props.startDate,
+    () => props.endDate,
+    () => props.model.timeZone,
+    canLoadBorrowedUsers,
+  ],
+  async ([locationId, startDate, endDate, timeZoneId, loadBorrowedUsers], _, onCleanup) => {
     const requestId = ++userLoadRequestId;
+    const controller = new AbortController();
+    onCleanup(() => {
+      ++userLoadRequestId;
+      controller.abort();
+    });
     selectedRecipientIds.value = [];
     recipientSearch.value = '';
+    borrowedUsers.value = [];
+    recipientLoadError.value = '';
+    errorMessage.value = '';
     isLoadingUsers.value = true;
     try {
-      const users = await schedulingUsersStore.ensureUsersForLocation(locationId);
+      const [, loanOutUsers] = await Promise.all([
+        schedulingUsersStore.ensureUsersForLocation(locationId, homeUserLoadController.signal),
+        loadBorrowedUsers
+          ? loadBorrowedRecipients(locationId, startDate, endDate, timeZoneId, controller.signal)
+          : Promise.resolve([]),
+      ]);
       if (requestId === userLoadRequestId) {
-        const eligibleIds = new Set(users.filter((user) => user.isEnabled === true).map((user) => user.id));
-        selectedRecipientIds.value = resolveDisplayedUserIds().filter((userId) => eligibleIds.has(userId));
+        borrowedUsers.value = loanOutUsers;
+        selectedRecipientIds.value = resolveDisplayedUserIds().filter((userId) => eligibleUsersById.value.has(userId));
       }
-    } catch (error: unknown) {
+    } catch {
       if (requestId === userLoadRequestId) {
-        errorMessage.value = error instanceof Error ? error.message : 'Failed to load application users.';
+        recipientLoadError.value = 'Failed to load schedule recipients. Close and reopen this dialog to try again.';
       }
     } finally {
       if (requestId === userLoadRequestId) {
@@ -147,6 +181,33 @@ watch(
   },
   { immediate: true },
 );
+
+async function loadBorrowedRecipients(
+  locationId: number,
+  startDate: string,
+  endDate: string,
+  timeZoneId: string,
+  signal: AbortSignal,
+) {
+  const result = useLoanOutSchedulingUsers(
+    { locationId, startDate, endDate: addDays(endDate, -1), timeZoneId },
+    signal,
+  );
+  await result.execute();
+  if (result.error.value) throw result.error.value;
+  if (!result.data.value) throw new Error('Failed to load borrowed recipients.');
+
+  const rangeStart = DateTime.fromISO(startDate, { zone: timeZoneId }).toMillis();
+  const rangeEnd = DateTime.fromISO(endDate, { zone: timeZoneId }).toMillis();
+  return result.data.value.filter((user) =>
+    user.loanOutMetaData?.some((loanOut) => {
+      if (loanOut.loanOutLocationId !== locationId || !loanOut.startAtUtc) return false;
+      const start = DateTime.fromISO(loanOut.startAtUtc).toMillis();
+      const end = loanOut.endAtUtc ? DateTime.fromISO(loanOut.endAtUtc).toMillis() : start;
+      return start < rangeEnd && (loanOut.endAtUtc ? end > rangeStart : start >= rangeStart);
+    }),
+  );
+}
 
 function resolveDisplayedUserIds() {
   const userIds = new Set<string>();
@@ -166,7 +227,7 @@ function resolveDisplayedUserIds() {
   return [...userIds];
 }
 
-function formatUserName(user: UserResponse) {
+function formatUserName(user: UserResponse | LoanOutCalendarUser) {
   return [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.idirName || user.id;
 }
 
@@ -196,7 +257,7 @@ function printSchedule() {
 }
 
 async function sendSchedule() {
-  if (isSending.value || distribution.isPending || isLoadingUsers.value) return;
+  if (isSending.value || distribution.isPending || isLoadingUsers.value || recipientLoadError.value) return;
   isSending.value = true;
   errorMessage.value = '';
   if (selectedRecipientIds.value.length === 0) {
@@ -248,6 +309,7 @@ function formatCount(count: number, noun: string) {
 <template>
   <UaModal title="Distribute Schedule" width="720" :loading="isSending" @close="emit('close')">
     <template #alerts>
+      <UaAlert v-if="recipientLoadError" type="error" :closable="false">{{ recipientLoadError }}</UaAlert>
       <UaAlert v-if="errorMessage" type="error" :closable="false">{{ errorMessage }}</UaAlert>
       <UaAlert v-if="hasDrafts" type="warning" :closable="false">{{ draftWarningMessage }}</UaAlert>
       <UaAlert v-if="!conflictDataAvailable" type="warning" :closable="false">
@@ -304,6 +366,7 @@ function formatCount(count: number, noun: string) {
           isSending ||
           distribution.isPending ||
           isLoadingUsers ||
+          !!recipientLoadError ||
           selectedRecipientIds.length === 0 ||
           missingEmailRecipients.length > 0
         "

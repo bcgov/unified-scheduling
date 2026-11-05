@@ -362,10 +362,20 @@ describe('calendar workflow', () => {
         await flushPromises();
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('ada');
         expect(loadData).toHaveBeenCalledTimes(initialCalls + 1);
+        expect(loadData).toHaveBeenLastCalledWith(
+          expect.anything(),
+          expect.objectContaining({ activeViewId: 'assignment' }),
+          expect.anything(),
+        );
         await wrapper.findAll('[role="tab"]')[0]!.trigger('click');
         await flushPromises();
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
         expect(loadData).toHaveBeenCalledTimes(initialCalls + 2);
+        expect(loadData).toHaveBeenLastCalledWith(
+          expect.anything(),
+          expect.objectContaining({ activeViewId: 'schedule' }),
+          expect.anything(),
+        );
 
         calendarStore.setAnchorDate('2025-04-16');
         calendarStore.setPeriod('day');
