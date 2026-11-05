@@ -194,8 +194,17 @@ describe('assignment sidebar warnings', () => {
       events: [],
       resources: [
         {
-          id: 'user-1', type: 'user', sourceModule: 'loanout', label: 'One', title: 'One', homeLocationId: 1,
-          loanOutMetaData: events.map((event) => ({ loanOutLocationId: 2, startAtUtc: event.start, endAtUtc: event.end })),
+          id: 'user-1',
+          type: 'user',
+          sourceModule: 'loanout',
+          label: 'One',
+          title: 'One',
+          homeLocationId: 1,
+          loanOutMetaData: events.map((event) => ({
+            loanOutLocationId: 2,
+            startAtUtc: event.start,
+            endAtUtc: event.end,
+          })),
         } as CalendarSchedulingUserResource,
       ],
     };
@@ -209,13 +218,17 @@ describe('assignment sidebar warnings', () => {
   it('loads borrowed home-location training and warns once with original leave times while preserving projections', async () => {
     const borrowedId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
     const borrowedTraining = training('borrowed-training', '2025-03-09', '2025-03-10', {
-      userId: borrowedId, resourceIds: [borrowedId], locationId: 2,
+      userId: borrowedId,
+      resourceIds: [borrowedId],
+      locationId: 2,
     });
     const trainingRecords = [
       training('home-warning', '2025-03-09', '2025-03-10'),
       borrowedTraining,
       training('unrelated-training', '2025-03-09', '2025-03-10', {
-        userId: 'other-user', resourceIds: ['other-user'], locationId: 99,
+        userId: 'other-user',
+        resourceIds: ['other-user'],
+        locationId: 99,
       }),
     ];
     const trainingRequests: Array<{ locationId?: number; userIds?: string[] }> = [];
@@ -235,11 +248,17 @@ describe('assignment sidebar warnings', () => {
       http.post('*/api/loan-out/scheduling/users', async ({ request }) => {
         userRequests++;
         expect(await request.json()).toMatchObject({
-          locationId: 1, endDate: '2025-03-09', timeZoneId: 'America/Vancouver',
+          locationId: 1,
+          endDate: '2025-03-09',
+          timeZoneId: 'America/Vancouver',
         });
         return HttpResponse.json([
           {
-            id: borrowedId, firstName: 'Borrowed', lastName: 'User', idirName: 'borrowed', homeLocationId: 2,
+            id: borrowedId,
+            firstName: 'Borrowed',
+            lastName: 'User',
+            idirName: 'borrowed',
+            homeLocationId: 2,
             loanOutMetaData: [
               { loanOutLocationId: 1, startAtUtc: '2025-03-09T17:00:00Z', endAtUtc: '2025-03-09T21:00:00Z' },
               { loanOutLocationId: 1, startAtUtc: '2025-03-09T17:00:00.000Z', endAtUtc: '2025-03-09T21:00:00.000Z' },
@@ -252,9 +271,16 @@ describe('assignment sidebar warnings', () => {
         leaveRequests++;
         expect(await request.json()).toMatchObject({ userIds: [borrowedId] });
         const event = {
-          id: 'scheduling.leave-entry.7', type: 'scheduling.leave', sourceModule: 'leave', title: 'Vacation',
-          start: '2025-03-09T15:00:00Z', end: '2025-03-09T23:00:00Z', locationId: 2,
-          userIds: [borrowedId], leaveEntryId: 7, leaveTypeName: 'Vacation',
+          id: 'scheduling.leave-entry.7',
+          type: 'scheduling.leave',
+          sourceModule: 'leave',
+          title: 'Vacation',
+          start: '2025-03-09T15:00:00Z',
+          end: '2025-03-09T23:00:00Z',
+          locationId: 2,
+          userIds: [borrowedId],
+          leaveEntryId: 7,
+          leaveTypeName: 'Vacation',
         };
         return HttpResponse.json([event, event]);
       }),
@@ -275,25 +301,38 @@ describe('assignment sidebar warnings', () => {
     );
     expect(trainingRequests).toHaveLength(3);
     expect(trainingRequests).toContainEqual({
-      startDate: '2025-03-09', endDate: '2025-03-09', locationId: 1, userIds: [borrowedId],
+      startDate: '2025-03-09',
+      endDate: '2025-03-09',
+      locationId: 1,
+      userIds: [borrowedId],
     });
     expect(data.contributions['training.events'].events.map((event) => event.id)).toEqual([
-      'home-warning', 'borrowed-training',
+      'home-warning',
+      'borrowed-training',
     ]);
     const sidebar = () => buildCalendarAssignmentViewModel(data, context, 'day', loanOutRuntime).sidePanel!.items;
     const item = sidebar().find((user) => user.id === borrowedId)!;
     expect(item.warningGroups?.map((group) => group.heading)).toEqual(['Leave', 'Training', 'Loan Out']);
     expect(item.warningGroups?.map((group) => group.warnings.length)).toEqual([1, 1, 2]);
     expect(item.warningGroups![0]!.warnings[0]).toMatchObject({
-      id: 'scheduling.leave-entry.7', title: 'Vacation', start: '2025-03-09T15:00:00Z', end: '2025-03-09T23:00:00Z',
+      id: 'scheduling.leave-entry.7',
+      title: 'Vacation',
+      start: '2025-03-09T15:00:00Z',
+      end: '2025-03-09T23:00:00Z',
     });
     expect(item.warningGroups![1]!.warnings[0]).toMatchObject({ id: 'borrowed-training' });
     expect(item.warningGroups![2]!.warnings[0]).toMatchObject({ title: 'From: Edmonton; To: Vancouver' });
     expect(
-      sidebar().find((user) => user.id === 'user-1')!.warningGroups![0]!.warnings.map((warning) => warning.id),
+      sidebar()
+        .find((user) => user.id === 'user-1')!
+        .warningGroups![0]!.warnings.map((warning) => warning.id),
     ).toEqual(['home-warning']);
     expect(sidebar().find((user) => user.id === 'user-2')!.warningGroups).toBeUndefined();
-    expect(item.payload).toMatchObject({ userId: borrowedId, sourceModule: 'loanout', loanOutMetaData: expect.any(Array) });
+    expect(item.payload).toMatchObject({
+      userId: borrowedId,
+      sourceModule: 'loanout',
+      loanOutMetaData: expect.any(Array),
+    });
     // Each contribution retains its existing borrower lookup; warning mapping adds no requests.
     expect(userRequests).toBe(2);
     expect(leaveRequests).toBe(1);
@@ -316,22 +355,39 @@ describe('assignment sidebar warnings', () => {
     async (allDay) => {
       const borrowedId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
       const original = {
-        id: 'leave-occurrence', type: 'scheduling.leave', sourceModule: 'leave', title: 'Vacation',
-        start: '2025-03-08T07:00:00Z', end: '2025-03-11T06:00:00Z', allDay,
-        timeZoneId: 'America/Edmonton', locationId: 2, leaveTypeName: 'Vacation',
+        id: 'leave-occurrence',
+        type: 'scheduling.leave',
+        sourceModule: 'leave',
+        title: 'Vacation',
+        start: '2025-03-08T07:00:00Z',
+        end: '2025-03-11T06:00:00Z',
+        allDay,
+        timeZoneId: 'America/Edmonton',
+        locationId: 2,
+        leaveTypeName: 'Vacation',
         userIds: [borrowedId, 'user-1'],
       };
       server.use(
-        http.post('*/api/loan-out/scheduling/users', () => HttpResponse.json([{
-          id: borrowedId, firstName: 'Borrowed', lastName: 'User', idirName: 'borrowed', homeLocationId: 2,
-          loanOutMetaData: [{ loanOutLocationId: 1, startAtUtc: original.start, endAtUtc: original.end }],
-        }])),
+        http.post('*/api/loan-out/scheduling/users', () =>
+          HttpResponse.json([
+            {
+              id: borrowedId,
+              firstName: 'Borrowed',
+              lastName: 'User',
+              idirName: 'borrowed',
+              homeLocationId: 2,
+              loanOutMetaData: [{ loanOutLocationId: 1, startAtUtc: original.start, endAtUtc: original.end }],
+            },
+          ]),
+        ),
         http.post('*/api/leave/calendar/events', () => HttpResponse.json([original, original])),
       );
       const borrowed = await calendarSchedulingLoanOutContribution.load(context, { runtimeContext: loanOutRuntime });
       expect(borrowed.events).toHaveLength(2);
       expect(borrowed.events[0]).toMatchObject({
-        start: '2025-03-09T08:00:00.000Z', end: '2025-03-10T07:00:00.000Z', resourceIds: [borrowedId],
+        start: '2025-03-09T08:00:00.000Z',
+        end: '2025-03-10T07:00:00.000Z',
+        resourceIds: [borrowedId],
         metadata: { originalLeaveOccurrence: { id: original.id, start: original.start, end: original.end } },
       });
       const data = response([]);
@@ -341,7 +397,8 @@ describe('assignment sidebar warnings', () => {
       const warnings = item.warningGroups!.find((group) => group.id === 'leave')!.warnings;
       expect(warnings).toEqual([
         expect.objectContaining({
-          id: original.id, allDay,
+          id: original.id,
+          allDay,
           start: allDay ? '2025-03-08' : original.start,
           end: allDay ? '2025-03-11' : original.end,
         }),
@@ -369,7 +426,8 @@ describe('assignment sidebar warnings', () => {
   it('handles missing optional loan-out metadata and dates without dropping existing warnings', () => {
     const data = response([
       loanOut('unknown-location', '2025-03-09T17:00:00Z', undefined, {
-        locationId: undefined, metadata: { userIds: ['user-1'] },
+        locationId: undefined,
+        metadata: { userIds: ['user-1'] },
       }),
       leave('leave', '2025-03-09T18:00:00Z'),
     ]);
@@ -379,7 +437,11 @@ describe('assignment sidebar warnings', () => {
       events: [],
       resources: [
         {
-          id: 'borrowed', type: 'user', sourceModule: 'loanout', label: 'Borrowed', title: 'Borrowed',
+          id: 'borrowed',
+          type: 'user',
+          sourceModule: 'loanout',
+          label: 'Borrowed',
+          title: 'Borrowed',
           loanOutMetaData: [{ loanOutLocationId: 1 }, { startAtUtc: 'invalid' }],
         } as CalendarSchedulingUserResource,
       ],
@@ -387,7 +449,9 @@ describe('assignment sidebar warnings', () => {
     const sidebar = buildCalendarAssignmentViewModel(data, context, 'day', loanOutRuntime).sidePanel!.items;
     expect(sidebar[0]!.warningGroups?.map((group) => group.heading)).toEqual(['Leave', 'Loan Out']);
     expect(sidebar[0]!.warningGroups![1]!.warnings[0]).toMatchObject({
-      title: 'From: Unknown location; To: Location -', start: '2025-03-09T17:00:00Z', end: undefined,
+      title: 'From: Unknown location; To: Location -',
+      start: '2025-03-09T17:00:00Z',
+      end: undefined,
     });
     expect(sidebar.find((user) => user.id === 'borrowed')!.warningGroups).toBeUndefined();
   });
@@ -575,6 +639,7 @@ describe('assignment sidebar warnings', () => {
     setActivePinia(createPinia());
     const requests: Record<string, unknown>[] = [];
     server.use(
+      http.get('*/api/lookup/PositionTypes', () => HttpResponse.json([{ code: 'Chief Sheriff', displayOrder: 1 }])),
       http.get('*/api/users', () => HttpResponse.json([])),
       http.post('*/api/scheduling/calendar/events', async ({ request }) => {
         const body = (await request.json()) as Record<string, unknown>;
