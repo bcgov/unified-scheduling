@@ -243,6 +243,7 @@ export function buildCalendarSchedulingViewModel(
       label: 'ASSIGNMENTS',
       actionId: calendarSchedulingActionIds.addAssignment,
       actionLabel: 'Add Assignment',
+      search: { placeholder: 'Search assignments...' },
       items: buildAssignmentSidePanelItems(response),
     },
   };
@@ -353,6 +354,7 @@ export function buildCalendarAssignmentViewModel(
       actionId: calendarSchedulingActionIds.scheduleStaff,
       actionLabel: 'Schedule staff',
       items: buildUserSidePanelItems(response, days, timeZone, context, runtimeContext),
+      search: { placeholder: 'Search team...' },
     },
   };
 }
@@ -717,6 +719,7 @@ function buildAssignmentSidePanelItems(response: CalendarDataResponse): Calendar
     type: assignment.type,
     title: assignment.title,
     subtitle: assignment.subtitle,
+    searchText: [assignment.description, assignment.categoryName, assignment.subCategoryName].filter(Boolean).join(' '),
     meta: assignment.meta,
     avatarText: assignment.avatarText,
     draggable: true,

@@ -284,6 +284,12 @@ button.calendar-matrix-cell-header__action {
   line-height: 1.2;
 }
 
+.calendar-matrix-cell-header__subtitle {
+  font-size: var(--ua-font-size-xs);
+  font-weight: normal;
+  line-height: 1.2;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .calendar-matrix-cell-header.is-active:has(button.calendar-matrix-cell-header__main:hover) {
     background: rgba(var(--v-theme-on-surface), 0.82);

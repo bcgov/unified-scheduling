@@ -147,6 +147,9 @@ export interface CalendarMatrixSidePanel {
   items: CalendarMatrixSidePanelItem[];
   actionId?: string;
   actionLabel?: string;
+  search?: {
+    placeholder?: string;
+  };
 }
 
 export interface CalendarMatrixSidePanelItem {
@@ -154,6 +157,7 @@ export interface CalendarMatrixSidePanelItem {
   type: string;
   title: string;
   subtitle?: string;
+  searchText?: string;
   meta?: CalendarMatrixMetaItem[];
   avatarText?: string;
   draggable?: boolean;
