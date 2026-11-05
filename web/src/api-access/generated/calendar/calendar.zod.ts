@@ -80,6 +80,7 @@ export const PostApiCalendarEventsResponse = zod.object({
           end: zod.iso.datetime({ offset: true }),
           sourceEntityId: zod.int().nullable(),
           timeZoneId: zod.string().nullable(),
+          canonicalEventId: zod.string().nullable(),
         }),
         overlaps: zod.object({
           eventId: zod.string(),
@@ -89,6 +90,7 @@ export const PostApiCalendarEventsResponse = zod.object({
           end: zod.iso.datetime({ offset: true }),
           sourceEntityId: zod.int().nullable(),
           timeZoneId: zod.string().nullable(),
+          canonicalEventId: zod.string().nullable(),
         }),
         resourceId: zod.uuid(),
         overlapStart: zod.iso.datetime({ offset: true }),

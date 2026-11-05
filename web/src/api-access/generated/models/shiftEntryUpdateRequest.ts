@@ -8,7 +8,6 @@ import type { AssignmentEntryLinkRequest } from './assignmentEntryLinkRequest.ts
 import type { CalendarConflictAcknowledgement } from './calendarConflictAcknowledgement.ts';
 
 export interface ShiftEntryUpdateRequest {
-  concurrencyToken: number;
   /** @nullable */
   conflictOverrides?: CalendarConflictAcknowledgement[] | null;
   /** @nullable */
