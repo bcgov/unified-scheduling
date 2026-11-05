@@ -112,6 +112,9 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         // Assert
         Assert.Equal(420, result.PaidShiftMinutes);
         Assert.Equal(0, result.PaidOutsideShiftMinutes);
+        Assert.Equal(420, result.WorkedMinutes);
+        Assert.Equal(0, result.PaidLeaveMinutes);
+        Assert.Equal(0, result.UnpaidLeaveMinutes);
         Assert.Equal(420, result.CreditedMinutes);
         Assert.Equal(0, result.OvertimeMinutes);
     }
@@ -177,7 +180,11 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(120, result.PaidOutsideShiftMinutes);
+        Assert.Equal(540, result.WorkedMinutes);
+        Assert.Equal(0, result.PaidLeaveMinutes);
+        Assert.Equal(0, result.UnpaidLeaveMinutes);
         Assert.Equal(540, result.CreditedMinutes);
+        Assert.Equal(120, result.OvertimeMinutes);
     }
 
     [Fact]
@@ -237,6 +244,10 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         // Assert
         Assert.Equal(480, result.PaidShiftMinutes);
         Assert.Equal(60, result.WorkedLunchMinutes);
+        Assert.Equal(480, result.WorkedMinutes);
+        Assert.Equal(0, result.PaidLeaveMinutes);
+        Assert.Equal(0, result.UnpaidLeaveMinutes);
+        Assert.Equal(480, result.CreditedMinutes);
         Assert.Equal(60, result.OvertimeMinutes);
     }
 
@@ -375,9 +386,9 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
     [InlineData(false, 9, 17, 0, 0, 0, 420, 0, 0)]
     [InlineData(true, 10, 13, 0, 240, 180, 0, 420, 0)]
     [InlineData(false, 10, 13, 0, 240, 0, 180, 240, 0)]
-    [InlineData(true, 10, 13, 60, 300, 180, 0, 480, 0)]
+    [InlineData(true, 10, 13, 60, 300, 180, 0, 480, 60)]
     [InlineData(false, 10, 13, 60, 300, 0, 180, 300, 0)]
-    [InlineData(true, 10, 13, 30, 270, 180, 0, 450, 0)]
+    [InlineData(true, 10, 13, 30, 270, 180, 0, 450, 30)]
     [InlineData(false, 10, 13, 30, 270, 0, 180, 270, 0)]
     [InlineData(true, 9, 17, 60, 0, 420, 0, 420, 0)]
     [InlineData(false, 9, 17, 60, 0, 0, 420, 0, 0)]
@@ -427,12 +438,74 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(true, 180, 480)]
-    [InlineData(false, 0, 300)]
-    public async Task QueryAsync_LeaveWithAssignments_OnlyOutsideWorkGeneratesPotentialOvertime(
+    // Client-confirmed scenarios 1-4: regular work, lunch, leave and outside-shift assignments.
+    [InlineData(4, true, 60, 0, 240, 240, 0, 480, 60)]
+    [InlineData(4, true, 0, 1, 240, 240, 0, 480, 60)]
+    [InlineData(4, false, 0, 1, 240, 0, 240, 240, 0)]
+    [InlineData(5, true, 0, 3, 300, 300, 0, 600, 180)]
+    public async Task QueryAsync_ClientConfirmedScenarios_ReturnsAgreedWorkLeaveCreditAndOvertime(
+        int leaveHours,
+        bool paid,
+        int workedLunch,
+        int outsideHours,
+        int worked,
+        int paidLeave,
+        int unpaidLeave,
+        int credited,
+        int overtime
+    )
+    {
+        var shift = await AddShiftAsync(At(9), At(17), workedLunchMinutes: workedLunch);
+        await AddLeaveAsync(At(13), At(17), paid);
+        if (leaveHours == 5)
+            await AddLeaveAsync(At(9), At(10), paid);
+        if (outsideHours > 0)
+            await AddAssignmentAsync(shift, At(17), At(17 + outsideHours));
+
+        var result = Assert.Single(await QueryAsync());
+
+        Assert.Equal(worked, result.WorkedMinutes);
+        Assert.Equal(paidLeave, result.PaidLeaveMinutes);
+        Assert.Equal(unpaidLeave, result.UnpaidLeaveMinutes);
+        Assert.Equal(credited, result.CreditedMinutes);
+        Assert.Equal(overtime, result.OvertimeMinutes);
+    }
+
+    [Theory]
+    [InlineData(420, 120)]
+    [InlineData(480, 60)]
+    [InlineData(540, 0)]
+    public async Task QueryAsync_ConfiguredWorkingDayThreshold_ChangesOnlyOvertime(int threshold, int overtime)
+    {
+        service = new WorkingHoursService(
+            NullLogger<WorkingHoursService>.Instance,
+            db,
+            Options.Create(new WorkingHoursOptions { FullWorkingDayMinutes = threshold }),
+            new TimeZoneService(),
+            Options.Create(leaveFlags)
+        );
+        var shift = await AddShiftAsync(At(9), At(17), workedLunchMinutes: 60);
+        await AddLeaveAsync(At(13), At(17), true);
+        await AddAssignmentAsync(shift, At(17), At(18));
+
+        var result = Assert.Single(await QueryAsync());
+
+        Assert.Equal(300, result.WorkedMinutes);
+        Assert.Equal(240, result.PaidLeaveMinutes);
+        Assert.Equal(0, result.UnpaidLeaveMinutes);
+        Assert.Equal(540, result.CreditedMinutes);
+        Assert.Equal(overtime, result.OvertimeMinutes);
+    }
+
+    [Theory]
+    [InlineData(true, 180, 0, 480, 60)]
+    [InlineData(false, 0, 180, 300, 0)]
+    public async Task QueryAsync_LeaveWithAssignments_UsesCreditedTimeForPotentialOvertime(
         bool paid,
         int paidLeave,
-        int credited
+        int unpaidLeave,
+        int credited,
+        int overtime
     )
     {
         var shift = await AddShiftAsync(At(9), At(17));
@@ -445,13 +518,14 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
 
         Assert.Equal(300, result.WorkedMinutes);
         Assert.Equal(paidLeave, result.PaidLeaveMinutes);
+        Assert.Equal(unpaidLeave, result.UnpaidLeaveMinutes);
         Assert.Equal(credited, result.CreditedMinutes);
         Assert.Equal(60, result.PaidOutsideShiftMinutes);
-        Assert.Equal(60, result.OvertimeMinutes);
+        Assert.Equal(overtime, result.OvertimeMinutes);
     }
 
     [Fact]
-    public async Task QueryAsync_FiveHoursLeaveAndFiveHoursWork_DoesNotApplySevenHourThreshold()
+    public async Task QueryAsync_FiveHoursPaidLeaveAndFiveHoursWork_ExceedsSevenHourThresholdByThreeHours()
     {
         await AddShiftAsync(At(7), At(18));
         await AddLeaveAsync(At(7), At(12), true);
@@ -460,14 +534,15 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
 
         Assert.Equal(300, result.WorkedMinutes);
         Assert.Equal(300, result.PaidLeaveMinutes);
+        Assert.Equal(0, result.UnpaidLeaveMinutes);
         Assert.Equal(600, result.CreditedMinutes);
-        Assert.Equal(0, result.OvertimeMinutes);
+        Assert.Equal(180, result.OvertimeMinutes);
     }
 
     [Theory]
-    [InlineData(6)]
-    [InlineData(10)]
-    public async Task QueryAsync_NonSevenHourShift_UsesItsOwnRegularDuration(int durationHours)
+    [InlineData(6, 0)]
+    [InlineData(10, 210)]
+    public async Task QueryAsync_NonSevenHourShift_UsesConfiguredThreshold(int durationHours, int overtime)
     {
         var shift = await AddShiftAsync(At(7), At(7 + durationHours), workedLunchMinutes: 30);
         await AddAssignmentAsync(shift, At(6), At(7));
@@ -475,7 +550,10 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         var result = Assert.Single(await QueryAsync());
 
         Assert.Equal(durationHours * 60 + 30, result.WorkedMinutes);
-        Assert.Equal(90, result.OvertimeMinutes);
+        Assert.Equal(0, result.PaidLeaveMinutes);
+        Assert.Equal(0, result.UnpaidLeaveMinutes);
+        Assert.Equal(durationHours * 60 + 30, result.CreditedMinutes);
+        Assert.Equal(overtime, result.OvertimeMinutes);
     }
 
     [Theory]
@@ -639,8 +717,10 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         var result = Assert.Single(await QueryAsync());
         Assert.Equal(30, result.WorkedLunchMinutes);
         Assert.Equal(60, result.WorkedMinutes);
+        Assert.Equal(390, result.PaidLeaveMinutes);
+        Assert.Equal(0, result.UnpaidLeaveMinutes);
         Assert.Equal(450, result.CreditedMinutes);
-        Assert.Equal(0, result.OvertimeMinutes);
+        Assert.Equal(30, result.OvertimeMinutes);
     }
 
     [Fact]
@@ -662,7 +742,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var explicitZero = Assert.Single(await QueryAsync());
         Assert.Equal(480, explicitZero.WorkedMinutes);
-        Assert.Equal(0, explicitZero.OvertimeMinutes);
+        Assert.Equal(60, explicitZero.OvertimeMinutes);
     }
 
     [Theory]

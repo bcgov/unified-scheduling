@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Unified.Authorization.Seeders;
 using Unified.Calendar;
 using Unified.Common.Mvc;
@@ -18,6 +20,7 @@ using Unified.LoanOut.Services;
 using Unified.Scheduling;
 using Unified.Scheduling.Controllers;
 using Unified.Scheduling.Models;
+using Unified.Scheduling.Options;
 using Unified.Scheduling.Services;
 using Unified.Scheduling.Validators;
 
@@ -270,6 +273,54 @@ public sealed class SchedulingModuleTests
             SchedulePdfRenderRequest request,
             CancellationToken cancellationToken = default
         ) => throw new InvalidOperationException("DI resolution must not render a PDF.");
+    }
+
+    [Theory]
+    [InlineData(null, 420)]
+    [InlineData("480", 480)]
+    public async Task StartupValidation_ValidWorkingDayThreshold_UsesDefaultOrConfiguredMinutes(
+        string? threshold,
+        int expectedMinutes
+    )
+    {
+        using var host = CreateWorkingHoursHost(threshold);
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            expectedMinutes,
+            host.Services.GetRequiredService<IOptions<WorkingHoursOptions>>().Value.FullWorkingDayMinutes
+        );
+        await host.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    public async Task StartupValidation_NonPositiveWorkingDayThreshold_Throws(string threshold)
+    {
+        using var host = CreateWorkingHoursHost(threshold);
+
+        var exception = await Assert.ThrowsAsync<OptionsValidationException>(() =>
+            host.StartAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Contains(
+            exception.Failures,
+            failure => failure.Contains("FullWorkingDayMinutes", StringComparison.Ordinal)
+        );
+    }
+
+    private static IHost CreateWorkingHoursHost(string? threshold)
+    {
+        var configuration = CreateConfiguration(schedulingEnabled: true, calendarEnabled: true);
+        if (threshold is not null)
+            configuration[$"{WorkingHoursOptions.SectionName}:FullWorkingDayMinutes"] = threshold;
+
+        return new HostBuilder()
+            .ConfigureAppConfiguration(builder => builder.AddConfiguration(configuration))
+            .ConfigureServices((context, services) => services.AddSchedulingModule(context.Configuration))
+            .Build();
     }
 
     private static void AssertContainsScopedFactoryRegistration<TService>(IServiceCollection services)
