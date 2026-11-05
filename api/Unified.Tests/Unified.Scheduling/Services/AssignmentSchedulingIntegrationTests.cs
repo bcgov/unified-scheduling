@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Factories;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Mappings;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
@@ -5288,7 +5289,9 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _shiftService,
             _assignmentService,
             _conflictService,
-            NullLogger<SchedulePublishService>.Instance
+            NullLogger<SchedulePublishService>.Instance,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), new TimeZoneService())
         );
 
     private static SchedulePublishRequest CreateSchedulePublishRequest() =>

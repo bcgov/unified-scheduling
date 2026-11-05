@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
@@ -11,8 +12,13 @@ using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.Leave;
+using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
+using Unified.Db.Models.UserManagement;
+using Unified.Leave.Constants;
+using Unified.LoanOut.Constants;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
@@ -153,6 +159,146 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         Assert.Equal(["First blocker", "Second blocker"], preview.Blockers.ShiftConflicts.Select(x => x.Message));
     }
 
+    [Theory]
+    [InlineData(1, 0, true, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(3, 0, true, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(5, 0, true, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(7, 0, false, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(1, 6, true, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(1, 2, true, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(0, 7, false, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(7, 0, true, false, 5, 6, 10, 6, "UTC")]
+    [InlineData(7, 0, true, true, 6, 5, 10, 6, "UTC")]
+    [InlineData(7, 0, false, false, 6, 5, 10, 6, "UTC")]
+    [InlineData(0, 7, false, false, 5, 6, 10, 6, "UTC")]
+    [InlineData(5, 0, false, true, 5, 6, 11, 10, "UTC")]
+    [InlineData(0, 5, false, true, 5, 6, 11, 10, "UTC")]
+    [InlineData(1, 0, true, true, 5, 6, 11, 10, "UTC")]
+    [InlineData(0, 1, true, true, 5, 6, 11, 10, "UTC")]
+    [InlineData(2, 0, true, true, 5, 6, 11, 10, "UTC")]
+    [InlineData(0, 2, true, true, 5, 6, 11, 10, "UTC")]
+    [InlineData(5, 0, false, true, 5, 6, 11, 10, "America/Vancouver")]
+    [InlineData(0, 5, false, true, 5, 6, 11, 10, "America/Vancouver")]
+    public async Task PreviewAsync_ExcludesEmployeeOnlyWhenUnavailableEveryWeekday(
+        int loanedDayMask,
+        int leaveDayMask,
+        bool expectedPresent,
+        bool loanOutEnabled,
+        int homeLocationId,
+        int loanOutLocationId,
+        int startMonth,
+        int startDay,
+        string timeZoneId
+    )
+    {
+        var startDate = new DateOnly(2026, startMonth, startDay);
+        var zones = new TimeZoneService();
+        var eventStart = zones.ToUtcInstant(
+            startDate.ToDateTime(new TimeOnly(9, 0)),
+            zones.ResolveRequired(timeZoneId)
+        );
+        var location = await _db.Locations.SingleAsync(
+            candidate => candidate.Id == 5,
+            TestContext.Current.CancellationToken
+        );
+        location.Timezone = timeZoneId;
+        _db.Users.Add(
+            new User
+            {
+                Id = ResourceId,
+                IdirName = "loaned-employee",
+                FirstName = "Loaned",
+                LastName = "Employee",
+                IsEnabled = true,
+                HomeLocationId = homeLocationId,
+            }
+        );
+        _db.EventTypes.Add(
+            new EventType
+            {
+                Id = 2,
+                Code = LoanOutConstants.LoanOutEventTypeCode,
+                Description = "Loan out",
+                EffectiveDate = ShiftStart.AddYears(-1),
+            }
+        );
+        _db.EventTypes.Add(
+            new EventType
+            {
+                Id = 3,
+                Code = LeaveConstants.LeaveEventTypeCode,
+                Description = "Leave",
+                EffectiveDate = ShiftStart.AddYears(-1),
+            }
+        );
+        _db.LeaveTypes.Add(
+            new LeaveType
+            {
+                Id = 1,
+                Code = "test-leave",
+                Description = "Test leave",
+                EffectiveDate = ShiftStart.AddYears(-1),
+            }
+        );
+
+        for (var dayOffset = 0; dayOffset < 3; dayOffset++)
+        {
+            if ((leaveDayMask & (1 << dayOffset)) != 0)
+            {
+                _db.LeaveEntries.Add(
+                    new LeaveEntry
+                    {
+                        LeaveTypeId = 1,
+                        Event = new Event
+                        {
+                            Title = "Leave",
+                            SourceModule = LeaveConstants.SourceModule,
+                            EventTypeCode = LeaveConstants.LeaveEventTypeCode,
+                            StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                            LocationId = 5,
+                            StartAtUtc = eventStart.AddDays(dayOffset),
+                            EndAtUtc = eventStart.AddDays(dayOffset).AddHours(4),
+                        },
+                        Users = [new LeaveEntryUser { UserId = ResourceId }],
+                    }
+                );
+            }
+
+            if ((loanedDayMask & (1 << dayOffset)) == 0)
+                continue;
+
+            _db.LoanOutEntries.Add(
+                new LoanOutEntry
+                {
+                    LoanOutLocationId = loanOutLocationId,
+                    Event = new Event
+                    {
+                        Title = "Loan out",
+                        SourceModule = LoanOutConstants.SourceModule,
+                        EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                        StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                        LocationId = homeLocationId,
+                        StartAtUtc = eventStart.AddDays(dayOffset),
+                        EndAtUtc = eventStart.AddDays(dayOffset).AddHours(4),
+                    },
+                    Users = [new LoanOutEntryUser { UserId = ResourceId }],
+                }
+            );
+        }
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var preview = await CreateService([], loanOutEnabled: loanOutEnabled)
+            .PreviewAsync(
+                new SchedulePublishRequest(5, startDate, startDate.AddDays(2)),
+                TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(
+            expectedPresent ? [ResourceId] : [],
+            preview.Warnings.IncompleteEmployees.Select(employee => employee.UserId)
+        );
+    }
+
     [Fact]
     public async Task PublishAsync_WithSeries_PublishesOnlyOverlappingOccurrence()
     {
@@ -221,7 +367,8 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         IReadOnlyCollection<CalendarConflict> conflicts,
         IAssignmentPublicationService? assignmentPublicationService = null,
         IShiftPublicationService? shiftPublicationService = null,
-        ICalendarConflictService? conflictService = null
+        ICalendarConflictService? conflictService = null,
+        bool loanOutEnabled = true
     ) =>
         new(
             _db,
@@ -233,7 +380,13 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
             shiftPublicationService ?? new FakeShiftPublicationService(_db),
             assignmentPublicationService ?? new FakeAssignmentPublicationService(),
             conflictService ?? new FakeCalendarConflictService(conflicts),
-            NullLogger<SchedulePublishService>.Instance
+            NullLogger<SchedulePublishService>.Instance,
+            SchedulingLoanOutTestServices.CreateAvailability(
+                _db,
+                new TimeZoneService(),
+                loanOutEnabled: loanOutEnabled
+            ),
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), new TimeZoneService())
         );
 
     private static SchedulePublishRequest CreateRequest() =>
