@@ -230,7 +230,7 @@ public sealed class WorkingHoursService(
             PaidLeaveMinutes = paidLeaveMinutes,
             UnpaidLeaveMinutes = unpaidLeaveMinutes,
             CreditedMinutes = creditedMinutes,
-            OvertimeMinutes = paidOutsideShiftMinutes + Math.Max(0, inShiftWorkedMinutes - regularMinutes),
+            OvertimeMinutes = Math.Max(0, creditedMinutes - options.Value.FullWorkingDayMinutes),
         };
     }
 
