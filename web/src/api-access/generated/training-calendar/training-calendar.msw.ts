@@ -25,7 +25,7 @@ export const getPostApiTrainingCalendarEventsResponseMock = (): TrainingCalendar
       end: faker.date.past().toISOString().slice(0, 19) + 'Z',
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), null]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -39,7 +39,7 @@ export const getPostApiTrainingCalendarEventsResponseMock = (): TrainingCalendar
       end: faker.date.past().toISOString().slice(0, 19) + 'Z',
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), null]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -53,7 +53,7 @@ export const getPostApiTrainingCalendarEventsResponseMock = (): TrainingCalendar
       end: faker.date.past().toISOString().slice(0, 19) + 'Z',
       allDay: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       isReadOnly: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
-      locationId: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.number.int(), null]), undefined]),
+      locationId: faker.helpers.arrayElement([faker.number.int(), null]),
     })),
   ]);
 
