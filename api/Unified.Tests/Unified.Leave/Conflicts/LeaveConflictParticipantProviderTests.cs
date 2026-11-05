@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Calendar.Conflicts;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
@@ -26,8 +27,20 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
             new DbContextOptionsBuilder<UnifiedDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options
         );
         _provider = new LeaveConflictParticipantProvider(_db);
-        ICalendarConflictParticipantProvider[] providers = [_provider, new SchedulingConflictParticipantProvider(_db)];
-        _conflicts = new CalendarConflictService(providers, _db, new CalendarConflictProjection(providers), CalendarConflictTestRules.Scheduling);
+        ICalendarConflictParticipantProvider[] providers =
+        [
+            _provider,
+            new SchedulingConflictParticipantProvider(
+                _db,
+                SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+            ),
+        ];
+        _conflicts = new CalendarConflictService(
+            providers,
+            _db,
+            new CalendarConflictProjection(providers),
+            CalendarConflictTestRules.Scheduling
+        );
         return ValueTask.CompletedTask;
     }
 
@@ -119,6 +132,7 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
         var shift = await AddShiftAsync(Start.AddHours(hours), Start.AddHours(hours + 1));
         var candidates = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             [shift.Id],
             [],
             TestContext.Current.CancellationToken
@@ -153,6 +167,7 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var candidates = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             [],
             [assignment.Id],
             TestContext.Current.CancellationToken
@@ -178,6 +193,7 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
         var shift = await AddShiftAsync(Start.AddHours(startHour), Start.AddHours(endHour));
         var candidates = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             [shift.Id],
             [],
             TestContext.Current.CancellationToken
@@ -220,6 +236,7 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
         await AddShiftAsync(Start.AddHours(2), Start.AddHours(4));
         var candidates = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             [first.Id],
             [],
             TestContext.Current.CancellationToken
@@ -277,7 +294,10 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
     {
         var leave = await AddLeaveAsync(); // Vancouver, outside the requested location.
         var shift = await AddShiftAsync(Start.AddHours(1), Start.AddHours(2), CalendarEventStatusTypeCodes.Active);
-        var scheduling = new SchedulingConflictParticipantProvider(_db);
+        var scheduling = new SchedulingConflictParticipantProvider(
+            _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+        );
         var service = new CalendarConflictService(
             [_provider, scheduling],
             _db,

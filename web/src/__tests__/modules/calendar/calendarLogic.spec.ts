@@ -248,6 +248,8 @@ describe('scheduling calendar view model', () => {
       });
       const conflict = {
         id: 'excluded-home-conflict',
+        reportOnEntry: true,
+        reportOnOverlaps: true,
         resourceId: 'borrowed',
         entry: conflictEntry('1'),
         overlaps: conflictEntry('99'),

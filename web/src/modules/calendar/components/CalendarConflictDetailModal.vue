@@ -12,11 +12,11 @@ import {
   getCalendarConflictEventTimeZoneLabel,
   resolveCalendarConflictSides,
 } from '../calendarConflictFormatting';
-import type { CalendarConflict, CalendarConflictEvent } from '../calendarTypes';
+import type { CalendarConflict, CalendarConflictEvent, CalendarConflictEventIdentity } from '../calendarTypes';
 
 const props = defineProps<{
   conflict: CalendarConflict;
-  currentEventId: number;
+  currentEventId: number | CalendarConflictEventIdentity;
   timeZone: string;
   loading?: boolean;
   errorMessage?: string;

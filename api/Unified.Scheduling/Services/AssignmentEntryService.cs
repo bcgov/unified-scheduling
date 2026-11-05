@@ -17,6 +17,7 @@ namespace Unified.Scheduling.Services;
 public sealed class AssignmentEntryService(
     ILogger<AssignmentEntryService> logger,
     UnifiedDbContext db,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
     CalendarEventEntryService<AssignmentEntryRequest, AssignmentEntry> calendarEventEntryService,
     IShiftAssignmentService shiftAssignmentService,
     CalendarLifecycleService calendarLifecycleService,
@@ -249,6 +250,7 @@ public sealed class AssignmentEntryService(
         );
         var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
             db,
+            loanOutAvailabilityService,
             [assignmentEntry.Id],
             cancellationToken
         );
@@ -303,6 +305,7 @@ public sealed class AssignmentEntryService(
         await db.SaveChangesAsync(cancellationToken);
         var conflicts = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
             db,
+            loanOutAvailabilityService,
             entries.Select(entry => entry.Id).ToList(),
             cancellationToken
         );

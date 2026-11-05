@@ -4,7 +4,7 @@ import {
   buildCalendarAssignmentViewModel,
   buildCalendarSchedulingViewModel,
 } from '@/modules/scheduling/calendarSchedulingMappers';
-import type { CalendarDataResponse } from '@/modules/calendar/calendarTypes';
+import type { CalendarConflict, CalendarDataResponse } from '@/modules/calendar/calendarTypes';
 import type { CalendarSchedulingUserResource } from '@/modules/scheduling/contributions/calendarSchedulingEventsContribution';
 
 const training = {
@@ -59,6 +59,89 @@ describe('training calendar views', () => {
     const model = buildCalendarAssignmentViewModel(response, query, 'week');
     expect(model.cells.flatMap((cell) => cell.groups.flatMap((group) => group.events))).toEqual([]);
   });
+
+  it.each([
+    ['calendar', true, false],
+    ['calendar', false, true],
+    ['training', true, false],
+    ['training', false, true],
+    ['training', true, true],
+    ['training', false, false],
+  ] as const)(
+    'attaches %s conflicts only to reportable training headers (%s, %s)',
+    (otherModule, reportOnEntry, reportOnOverlaps) => {
+      const secondTraining = { ...training, id: 'training.user-training.43', title: 'Training: CPR' };
+      const conflict: CalendarConflict = {
+        id: 'training-conflict',
+        entry: {
+          eventId: training.id,
+          sourceModule: 'training',
+          title: training.title,
+          start: '2025-04-08T07:00:00Z',
+          end: '2025-04-11T07:00:00Z',
+          sourceEntityId: 42,
+          timeZoneId: 'America/Vancouver',
+          allDay: true,
+        },
+        overlaps: {
+          eventId: otherModule === 'training' ? secondTraining.id : '42',
+          sourceModule: otherModule,
+          title: otherModule === 'training' ? secondTraining.title : 'Holiday',
+          start: '2025-04-09T07:00:00Z',
+          end: '2025-04-10T07:00:00Z',
+          sourceEntityId: null,
+          timeZoneId: 'America/Vancouver',
+          allDay: true,
+        },
+        resourceId: 'user-1',
+        overlapStart: '2025-04-09T07:00:00Z',
+        overlapEnd: '2025-04-10T07:00:00Z',
+        reportOnEntry,
+        reportOnOverlaps,
+        isOverridden: false,
+        overrideNote: null,
+        createdById: null,
+        createdOn: null,
+        updatedById: null,
+        updatedOn: null,
+      };
+      const otherUserConflict = { ...conflict, id: 'other-user-conflict', resourceId: 'user-2' };
+      const model = buildCalendarSchedulingViewModel(
+        {
+          contributions: {
+            ...response.contributions,
+            'training.events': {
+              moduleId: 'training',
+              contributionId: 'training.events',
+              events: [training, secondTraining],
+            },
+            'calendar.events': {
+              moduleId: 'calendar',
+              contributionId: 'calendar.events',
+              events: [],
+              data: { conflicts: [conflict, otherUserConflict] },
+            },
+          },
+        },
+        { ...query, filters: { timeZoneId: 'America/Vancouver' } },
+        'week',
+      );
+
+      for (const cell of model.cells) {
+        for (const header of cell.headers ?? []) {
+          const reportable =
+            cell.resourceId === 'user-1' &&
+            cell.date === '2025-04-09' &&
+            (header.id === training.id ? reportOnEntry : otherModule === 'training' && reportOnOverlaps);
+          expect(header.conflicts).toEqual(
+            reportable ? [{ conflict, currentEventId: { sourceModule: 'training', eventId: header.id } }] : [],
+          );
+          expect(header.action?.actionId).toBe(reportable ? 'calendar-scheduling.show-conflict' : undefined);
+          expect(header.actionId).toBe('training.view-details');
+        }
+      }
+    },
+  );
 
   it.each([
     ['2025-04-09T07:00:00Z', '2025-04-10T07:00:00Z', ['2025-04-09']],

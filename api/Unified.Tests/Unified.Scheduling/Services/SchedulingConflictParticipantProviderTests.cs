@@ -13,7 +13,9 @@ using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Scheduling;
+using Unified.Db.Models.UserManagement;
 using Unified.Scheduling;
 using Unified.Scheduling.Services;
 using Unified.Tests.TestHelpers;
@@ -37,7 +39,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         _db = new UnifiedDbContext(options);
-        _provider = new SchedulingConflictParticipantProvider(_db);
+        _provider = new SchedulingConflictParticipantProvider(
+            _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+        );
 
         var shiftEvent = CreateEvent(10, "Visible shift", SchedulingConstants.ShiftEventTypeCode);
         var assignmentEvent = CreateEvent(20, "Restricted assignment", SchedulingConstants.AssignmentEventTypeCode);
@@ -471,6 +476,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     {
         var participants = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             [40],
             [50],
             TestContext.Current.CancellationToken
@@ -636,6 +642,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     {
         var participants = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             [40],
             TestContext.Current.CancellationToken
         );
@@ -662,6 +669,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         var participants = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             [1300],
             TestContext.Current.CancellationToken
         );
@@ -730,6 +738,333 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
                 .Single(participants, item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
                 .TimeZoneId
         );
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetParticipantsAsync_LoanedOutUser_ExcludesOnlySourceParticipationAcrossAllChecks(bool mixedShift)
+    {
+        var source = await SeedLoanOutAsync();
+        if (mixedShift)
+        {
+            source.ShiftAssignmentEntry!.ShiftEntry!.Users.Add(new ShiftEntryUser { UserId = UnrelatedUserId });
+            _db.ShiftAssignmentEntryUsers.Add(
+                new ShiftAssignmentEntryUser
+                {
+                    ShiftAssignmentEntry = source.ShiftAssignmentEntry,
+                    UserId = UnrelatedUserId,
+                }
+            );
+            await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+        var availability = SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService());
+        var participants = await _provider.GetParticipantsAsync(
+            CreateQuery(),
+            TestContext.Current.CancellationToken
+        );
+        Assert.DoesNotContain(
+            participants,
+            item => item.ResourceId == MultiLocationUserId && (item.EventId == "300" || item.EventId == "301")
+        );
+        Assert.Contains(participants, item => item.ResourceId == MultiLocationUserId && item.EventId == "400");
+        Assert.Contains(
+            participants,
+            item => item.ResourceId == MultiLocationUserId && item.EventId == "401" && item.SourceEntityId == 400
+        );
+        Assert.Equal(mixedShift, participants.Any(item => item.ResourceId == UnrelatedUserId && item.EventId == "300"));
+        Assert.Equal(mixedShift, participants.Any(item => item.ResourceId == UnrelatedUserId && item.EventId == "301"));
+
+        var publication = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
+            _db,
+            availability,
+            [300, 400],
+            [300, 400],
+            TestContext.Current.CancellationToken
+        );
+        var shiftChecks = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
+            _db,
+            availability,
+            [300, 400],
+            TestContext.Current.CancellationToken
+        );
+        var entryChecks = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+            _db,
+            availability,
+            [300, 400],
+            TestContext.Current.CancellationToken
+        );
+        var seriesChecks = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
+            _db,
+            availability,
+            77,
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(
+            publication.OrderBy(item => item.EventId).ThenBy(item => item.ResourceId),
+            shiftChecks.OrderBy(item => item.EventId).ThenBy(item => item.ResourceId)
+        );
+        Assert.Equal(
+            entryChecks.OrderBy(item => item.EventId).ThenBy(item => item.ResourceId),
+            seriesChecks.OrderBy(item => item.EventId).ThenBy(item => item.ResourceId)
+        );
+        Assert.DoesNotContain(
+            publication.Concat(entryChecks),
+            item => item.ResourceId == MultiLocationUserId && (item.EventId == "300" || item.EventId == "301")
+        );
+        Assert.Contains(publication, item => item.ResourceId == MultiLocationUserId && item.EventId == "401");
+        foreach (var eventId in new[] { "300", "301", "400", "401" })
+        {
+            var participant = await _provider.GetParticipantAsync(
+                new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, eventId),
+                MultiLocationUserId,
+                TestContext.Current.CancellationToken
+            );
+            Assert.Equal(eventId is "300" or "301", participant is null);
+        }
+
+        var sourceScoped = await _provider.GetParticipantsAsync(
+            CreateQuery() with
+            {
+                LocationId = 30,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.DoesNotContain(sourceScoped, item => item.ResourceId == MultiLocationUserId);
+        var destinationScoped = await _provider.GetParticipantsAsync(
+            CreateQuery() with
+            {
+                LocationId = 40,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Contains(
+            destinationScoped,
+            item => item.ResourceId == MultiLocationUserId && item.EventId == "401" && item.IsInQueryScope
+        );
+    }
+
+    [Theory]
+    [InlineData(true, CalendarEventStatusTypeCodes.Active, 16, 20, true)]
+    [InlineData(true, CalendarEventStatusTypeCodes.Active, 22, 23, true)]
+    [InlineData(true, CalendarEventStatusTypeCodes.Active, 0, 7, false)]
+    [InlineData(true, CalendarEventStatusTypeCodes.Cancelled, 16, 20, false)]
+    [InlineData(false, CalendarEventStatusTypeCodes.Active, 16, 20, false)]
+    public async Task GetParticipantsAsync_LoanOutEligibility_ReusesLocalDayAndFeatureRules(
+        bool enabled,
+        string status,
+        int startHour,
+        int endHour,
+        bool excluded
+    )
+    {
+        await SeedLoanOutAsync();
+        var loanOut = await _db
+            .LoanOutEntries.Include(entry => entry.Event)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        loanOut.Event!.StatusTypeCode = status;
+        loanOut.Event.StartAtUtc = new DateTimeOffset(2026, 8, 24, startHour, 0, 0, TimeSpan.Zero);
+        loanOut.Event.EndAtUtc = new DateTimeOffset(2026, 8, 24, endHour, 0, 0, TimeSpan.Zero);
+        var nextDay = CreateLinkedParticipant(
+            500,
+            501,
+            MultiLocationUserId,
+            await _db.Locations.FindAsync([30], TestContext.Current.CancellationToken)
+        );
+        nextDay.ShiftAssignmentEntry!.ShiftEntry!.Event!.StartAtUtc =
+            nextDay.ShiftAssignmentEntry.ShiftEntry.Event.StartAtUtc.AddDays(1);
+        nextDay.ShiftAssignmentEntry.ShiftEntry.Event.EndAtUtc =
+            nextDay.ShiftAssignmentEntry.ShiftEntry.Event.EndAtUtc!.Value.AddDays(1);
+        nextDay.ShiftAssignmentEntry.AssignmentEntry!.Event!.StartAtUtc =
+            nextDay.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc.AddDays(1);
+        nextDay.ShiftAssignmentEntry.AssignmentEntry.Event.EndAtUtc =
+            nextDay.ShiftAssignmentEntry.AssignmentEntry.Event.EndAtUtc!.Value.AddDays(1);
+        _db.ShiftAssignmentEntryUsers.Add(nextDay);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var availability = SchedulingLoanOutTestServices.CreateAvailability(
+            _db,
+            new TimeZoneService(),
+            loanOutEnabled: enabled
+        );
+        var provider = new SchedulingConflictParticipantProvider(_db, availability);
+        var participants = await provider.GetParticipantsAsync(
+            CreateQuery() with
+            {
+                EndAtUtc = CreateQuery().EndAtUtc.AddDays(1),
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(
+            !excluded,
+            participants.Any(item => item.ResourceId == MultiLocationUserId && item.EventId == "300")
+        );
+        Assert.Equal(
+            !excluded,
+            participants.Any(item => item.ResourceId == MultiLocationUserId && item.EventId == "301")
+        );
+        Assert.Contains(participants, item => item.ResourceId == MultiLocationUserId && item.EventId == "501");
+        Assert.Contains(participants, item => item.ResourceId == MultiLocationUserId && item.EventId == "401");
+        var publication = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
+            _db,
+            availability,
+            [300],
+            [],
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(!excluded, publication.Any(item => item.EventId == "301"));
+        var lookup = await provider.GetParticipantAsync(
+            new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, "301"),
+            MultiLocationUserId,
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(excluded, lookup is null);
+    }
+
+    [Fact]
+    public async Task GetParticipantAsync_UserBecomesLoanedOut_InvalidatesSourceConflictOverride()
+    {
+        await SeedLoanOutAsync();
+        var loanOut = await _db
+            .LoanOutEntries.Include(entry => entry.Event)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        loanOut.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var conflicts = new CalendarConflictService(
+            [_provider],
+            _db,
+            CalendarConflictTestContext.Projection(UserId),
+            CalendarConflictTestRules.Scheduling
+        );
+        await conflicts.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = SchedulingConstants.SourceModule,
+                FirstEventId = "301",
+                SecondSourceModule = SchedulingConstants.SourceModule,
+                SecondEventId = "401",
+                ResourceId = MultiLocationUserId,
+                Note = "Approved overlap",
+            },
+            UserId,
+            TestContext.Current.CancellationToken
+        );
+        var conflictOverride = await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Null(conflictOverride.InvalidatedOn);
+        loanOut.Event.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await conflicts.InvalidateResolvedOverridesAsync(
+            [new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, "301")],
+            UserId,
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(conflictOverride.InvalidatedOn);
+        Assert.NotNull(
+            await _provider.GetParticipantAsync(
+                new CalendarConflictEventIdentity(SchedulingConstants.SourceModule, "401"),
+                MultiLocationUserId,
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_LoanOutWithoutSourceLocation_UsesEmployeeHomeLocation()
+    {
+        await SeedLoanOutAsync();
+        var loanOut = await _db
+            .LoanOutEntries.Include(entry => entry.Event)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        loanOut.Event!.Location = null;
+        loanOut.Event.LocationId = null;
+        _db.Users.Add(
+            new User
+            {
+                Id = MultiLocationUserId,
+                IdirName = "loaned-user",
+                HomeLocationId = 30,
+            }
+        );
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var participants = await _provider.GetParticipantsAsync(
+            CreateQuery(),
+            TestContext.Current.CancellationToken
+        );
+        Assert.DoesNotContain(
+            participants,
+            item => item.ResourceId == MultiLocationUserId && (item.EventId == "300" || item.EventId == "301")
+        );
+        Assert.Contains(participants, item => item.ResourceId == MultiLocationUserId && item.EventId == "401");
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_CancelledRequest_PropagatesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _provider.GetParticipantsAsync(CreateQuery(), cancellation.Token)
+        );
+    }
+
+    [Fact]
+    public async Task GetParticipantsForPublicationAsync_DraftSourceShift_ExcludesLoanedOutUser()
+    {
+        var source = await SeedLoanOutAsync();
+        source.ShiftAssignmentEntry!.ShiftEntry!.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Draft;
+        source.ShiftAssignmentEntry.AssignmentEntry!.Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Draft;
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var participants = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
+            _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
+            [300, 400],
+            [],
+            TestContext.Current.CancellationToken
+        );
+        Assert.DoesNotContain(participants, item => item.EventId == "300" || item.EventId == "301");
+        Assert.Contains(participants, item => item.EventId == "401");
+    }
+
+    private async Task<ShiftAssignmentEntryUser> SeedLoanOutAsync()
+    {
+        var sourceLocation = new Location
+        {
+            Id = 30,
+            AgencyId = "SOURCE",
+            Name = "Source",
+            Timezone = "America/Vancouver",
+        };
+        var destinationLocation = new Location
+        {
+            Id = 40,
+            AgencyId = "DEST",
+            Name = "Destination",
+            Timezone = "America/Toronto",
+        };
+        var source = CreateLinkedParticipant(300, 301, MultiLocationUserId, sourceLocation);
+        var destination = CreateLinkedParticipant(400, 401, MultiLocationUserId, destinationLocation);
+        source.ShiftAssignmentEntry!.AssignmentEntry!.AssignmentSeriesId = 77;
+        destination.ShiftAssignmentEntry!.AssignmentEntry!.AssignmentSeriesId = 77;
+        _db.ShiftAssignmentEntryUsers.AddRange(source, destination);
+        _db.LoanOutEntries.Add(
+            new LoanOutEntry
+            {
+                LoanOutLocationId = destinationLocation.Id,
+                Event = new Event
+                {
+                    Title = "Loan out",
+                    SourceModule = "loanout",
+                    EventTypeCode = "loanout",
+                    StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                    Location = sourceLocation,
+                    StartAtUtc = new DateTimeOffset(2026, 8, 24, 7, 0, 0, TimeSpan.Zero),
+                    EndAtUtc = new DateTimeOffset(2026, 8, 25, 7, 0, 0, TimeSpan.Zero),
+                    TimeZoneId = "America/Vancouver",
+                },
+                Users = [new LoanOutEntryUser { UserId = MultiLocationUserId }],
+            }
+        );
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return source;
     }
 
     private static CalendarConflictQuery CreateQuery() =>
