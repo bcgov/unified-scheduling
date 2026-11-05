@@ -134,6 +134,11 @@ const selectedDetailEvent = computed(() => {
 
   return calendarEvents.value.find((event) => event.id === selectedEventId.value);
 });
+const selectedDetailComponent = computed(() =>
+  selectedDetailEvent.value
+    ? (calendarRegistry.getEventDetailComponent(selectedDetailEvent.value.sourceModule) ?? CalendarEventDetailModal)
+    : CalendarEventDetailModal,
+);
 
 const registeredToolbarActions = computed(() => {
   if (!activeView.value) {
@@ -319,7 +324,11 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
       {{ errorMessage }}
     </UaAlert>
 
-    <UaCard class="calendar-page__panel" body-padding="none">
+    <UaCard
+      class="calendar-page__panel"
+      :class="{ 'calendar-page__panel--bounded': activeView?.fillAvailableHeight }"
+      body-padding="none"
+    >
       <CalendarToolbar
         :views="views"
         :active-view-id="activeViewId"
@@ -355,8 +364,10 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
       <div v-else class="calendar-page__state">No calendar views are registered.</div>
     </UaCard>
 
-    <CalendarEventDetailModal
+    <component
       v-if="selectedDetailEvent"
+      :is="selectedDetailComponent"
+      :key="selectedDetailEvent.id"
       :event="selectedDetailEvent"
       @close="calendarStore.clearSelectedEvent()"
     />
@@ -397,5 +408,31 @@ const handleViewEventClick = async (event: CalendarEventBase) => {
   background: var(--ua-calendar-panel-bg);
   min-height: 320px;
   padding: 0 0 var(--ua-spacing-xl);
+}
+
+@media (min-width: 901px) {
+  .calendar-page__panel--bounded {
+    height: calc(100vh - var(--ua-appbar-height) - var(--ua-spacing-md) - var(--ua-spacing-xl));
+    min-height: 320px;
+    overflow: hidden;
+  }
+
+  .calendar-page__panel--bounded :deep(.ua-card__body) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .calendar-page__panel--bounded :deep(.calendar-toolbar-shell) {
+    flex-shrink: 0;
+  }
+
+  .calendar-page__panel--bounded .calendar-page__view {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
 }
 </style>
