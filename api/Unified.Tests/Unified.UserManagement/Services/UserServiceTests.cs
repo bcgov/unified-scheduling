@@ -535,6 +535,8 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal(originalIdirId, result.IdirId);
         Assert.Equal("updated@example.com", result.Email);
         Assert.Equal(5, result.HomeLocationId);
+        var signal = Assert.IsType<UserHomeLocationChangedSignal>(Assert.Single(_eventDispatcher.PublishedSignals));
+        Assert.Equal(existingUser.Id, signal.UserId);
 
         var userInDb = await _dbContext.Users.FindAsync([existingUser.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(userInDb);
@@ -575,6 +577,9 @@ public class UserServiceTests : IAsyncLifetime
         // Arrange
         await SeedTestData();
         var existingUser = await _dbContext.Users.FirstAsync(TestContext.Current.CancellationToken);
+        var homeLocationId = existingUser.HomeLocationId ?? 1;
+        existingUser.HomeLocationId = homeLocationId;
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var request = new UserRequestDto
         {
             IdirName = "  UpdatedUser  ",
@@ -586,7 +591,7 @@ public class UserServiceTests : IAsyncLifetime
             Rank = "  Deputy Sheriff  ",
             BadgeNumber = "  BADGE-001  ",
             EmployeeNumber = "  EMP-007  ",
-            HomeLocationId = 1,
+            HomeLocationId = homeLocationId,
         };
 
         // Act
@@ -598,6 +603,7 @@ public class UserServiceTests : IAsyncLifetime
         Assert.Equal("Updated", result.FirstName);
         Assert.Equal("Name", result.LastName);
         Assert.Equal("updated@example.com", result.Email);
+        Assert.Empty(_eventDispatcher.PublishedSignals);
 
         var userInDb = await _dbContext.Users.FindAsync([existingUser.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(userInDb);

@@ -84,6 +84,7 @@ describe('calendar workflow', () => {
 
     vi.doMock('@/modules/calendar/registry/calendarRegistry', () => ({
       calendarRegistry: {
+        getEventDetailComponent: vi.fn(() => undefined),
         getAvailableViews: vi.fn(() => [
           {
             id: 'workflow-view',

@@ -1,5 +1,7 @@
+using System.Data;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
+using Unified.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Db.Models.Training;
 using Unified.Training.Helpers;
@@ -8,7 +10,11 @@ using Unified.Training.Models;
 
 namespace Unified.Training.Services;
 
-public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingService
+public sealed class UserTrainingService(
+    UnifiedDbContext db,
+    ICalendarConflictService? conflictService = null,
+    TimeProvider? timeProvider = null
+) : IUserTrainingService
 {
     private static readonly DateTimeOffset MinDateTimeOffsetUtc = DateTimeOffset.MinValue;
 
@@ -166,6 +172,12 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
         EnsureExpiryIsAfterPreviousVersion(expiryDate, previousVersionExpiryDate);
         EnsureExpiryIsBeforeNextVersion(expiryDate, nextVersionExpiryDate);
 
+        var datesChanged =
+            entity.AwardedOn != normalizedRequest.AwardedOn || entity.EndingOn != normalizedRequest.EndingOn;
+        await using var transaction =
+            datesChanged && db.Database.CurrentTransaction is null
+                ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
         var previousExpiryDate = entity.ExpiryDate;
         MapToEntity(normalizedRequest, entity, expiryDate);
 
@@ -175,8 +187,13 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        if (datesChanged)
+            await InvalidateOverridesAsync(entity.Id, cancellationToken);
 
-        return await FetchResponseAsync(entity.Id, cancellationToken);
+        var result = await FetchResponseAsync(entity.Id, cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+        return result;
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -185,10 +202,53 @@ public sealed class UserTrainingService(UnifiedDbContext db) : IUserTrainingServ
         if (entity is null)
             return false;
 
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+            : null;
         db.UserTrainings.Remove(entity);
         await db.SaveChangesAsync(cancellationToken);
+        await InvalidateOverridesAsync(entity.Id, cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
 
         return true;
+    }
+
+    private async Task InvalidateOverridesAsync(int userTrainingId, CancellationToken cancellationToken)
+    {
+        var identity = TrainingConflictParticipantProvider.IdentityFor(userTrainingId);
+        if (conflictService is not null)
+        {
+            await conflictService.InvalidateResolvedOverridesAsync([identity], cancellationToken: cancellationToken);
+            return;
+        }
+
+        var overrides = await db
+            .CalendarConflictOverrides.Where(overrideEntity =>
+                overrideEntity.InvalidatedOn == null
+                && (
+                    (
+                        overrideEntity.FirstSourceModule == identity.SourceModule
+                        && overrideEntity.FirstEventId == identity.EventId
+                    )
+                    || (
+                        overrideEntity.SecondSourceModule == identity.SourceModule
+                        && overrideEntity.SecondEventId == identity.EventId
+                    )
+                )
+            )
+            .ToListAsync(cancellationToken);
+        if (overrides.Count == 0)
+            return;
+
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        foreach (var overrideEntity in overrides)
+        {
+            overrideEntity.InvalidatedOn = now;
+            overrideEntity.UpdatedOn = now;
+            overrideEntity.UpdatedById = null;
+        }
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static UserTraining MapToEntity(UserTrainingRequest request, DateTimeOffset? expiryDate)
