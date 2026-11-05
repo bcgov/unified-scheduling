@@ -360,15 +360,26 @@ describe('calendar workflow', () => {
         await wrapper.findAll('[role="tab"]')[1]!.trigger('click');
         await flushPromises();
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('ada');
+        expect(loadData).toHaveBeenCalledTimes(initialCalls + 1);
+        expect(loadData).toHaveBeenLastCalledWith(
+          expect.anything(),
+          expect.objectContaining({ activeViewId: 'assignment' }),
+          expect.anything(),
+        );
         await wrapper.findAll('[role="tab"]')[0]!.trigger('click');
         await flushPromises();
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
-        expect(loadData).toHaveBeenCalledTimes(initialCalls);
+        expect(loadData).toHaveBeenCalledTimes(initialCalls + 2);
+        expect(loadData).toHaveBeenLastCalledWith(
+          expect.anything(),
+          expect.objectContaining({ activeViewId: 'schedule' }),
+          expect.anything(),
+        );
 
         calendarStore.setAnchorDate('2025-04-16');
         calendarStore.setPeriod('day');
         await flushPromises();
-        expect(loadData).toHaveBeenCalledTimes(initialCalls + 1);
+        expect(loadData).toHaveBeenCalledTimes(initialCalls + 3);
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
 
         let finishRefresh = () => {};

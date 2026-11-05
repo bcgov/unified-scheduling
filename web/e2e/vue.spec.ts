@@ -16,6 +16,16 @@ const users = Array.from({ length: 36 }, (_, index) => ({
   homeLocationId: locationId,
   lastLogin: null,
 }));
+const borrowedUser = {
+  ...users[0],
+  id: '00000000-0000-0000-0000-000000000099',
+  firstName: 'Borrowed',
+  lastName: 'Employee',
+  homeLocationId: 99,
+  loanOutMetaData: [
+    { loanOutLocationId: locationId, startAtUtc: '2026-08-24T16:00:00Z', endAtUtc: '2026-08-25T00:00:00Z' },
+  ],
+};
 
 test.beforeEach(async ({ page }) => {
   await mockApplicationApi(page);
@@ -32,6 +42,9 @@ test('generates a multi-page seven-day schedule PDF with published content and a
   await expect(page.getByRole('heading', { name: 'August 24, 2026 - August 30, 2026' })).toBeVisible();
   await expect(page.getByText('Employee 01', { exact: true })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Published shift 1', exact: true })).toBeVisible();
+  await expect(page.getByText('Borrowed Employee', { exact: true })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Published transferred shift', exact: true })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'DRAFT TRANSFERRED SHIFT', exact: true })).toHaveCount(0);
   await expect(page.getByRole('article', { name: 'DRAFT SECRET SHIFT', exact: true })).toHaveCount(0);
   await expect(page.getByRole('article', { name: 'CANCELLED SECRET SHIFT', exact: true })).toHaveCount(0);
   await expect(page.getByRole('article', { name: 'UNKNOWN SECRET SHIFT', exact: true })).toHaveCount(0);
@@ -91,6 +104,7 @@ async function mockApplicationApi(page: Page) {
           featureFlags: {
             Calendar: { source: 'Calendar', enabled: true, calendarMatrixTest: false },
             Scheduling: { source: 'Scheduling', enabled: true },
+            LoanOut: { source: 'LoanOut', enabled: true },
             UserManagement: { source: 'UserManagement', enabled: true },
           },
           applicationName: 'Unified Scheduling',
@@ -103,7 +117,7 @@ async function mockApplicationApi(page: Page) {
           name: 'PDF Test User',
           authenticationType: 'test',
           claims: [],
-          permissions: ['ShiftsView', 'AssignmentsView'],
+          permissions: ['ShiftsView', 'AssignmentsView', 'LoanOutView'],
           userId: users[0].id,
           homeLocationId: locationId,
         });
@@ -123,6 +137,8 @@ async function mockApplicationApi(page: Page) {
         ]);
       case '/api/users':
         return json(users);
+      case '/api/loan-out/scheduling/users':
+        return json([borrowedUser]);
       case '/api/lookup/PositionTypes':
         return json([{ code: 'Chief Sheriff', description: 'Chief Sheriff', displayOrder: 1 }]);
       case '/api/calendar/events':
@@ -173,6 +189,23 @@ function schedulingEvents() {
 
   return [
     ...shifts,
+    {
+      ...shifts[0],
+      id: 'scheduling.shift-entry.998',
+      shiftEntryId: 998,
+      eventId: 998,
+      userIds: [borrowedUser.id],
+      resourceIds: [borrowedUser.id],
+      title: 'Published transferred shift',
+    },
+    {
+      ...createHiddenEvent('draft', 'DRAFT TRANSFERRED SHIFT'),
+      id: 'scheduling.shift-entry.999',
+      shiftEntryId: 999,
+      eventId: 999,
+      userIds: [borrowedUser.id],
+      resourceIds: [borrowedUser.id],
+    },
     createHiddenEvent('draft', 'DRAFT SECRET SHIFT'),
     createHiddenEvent('cancelled', 'CANCELLED SECRET SHIFT'),
     createHiddenEvent('unexpected', 'UNKNOWN SECRET SHIFT'),

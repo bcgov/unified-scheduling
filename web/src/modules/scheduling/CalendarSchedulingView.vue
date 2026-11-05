@@ -449,6 +449,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :period="props.period ?? 'week'"
     :view="showAssignmentContent ? 'assignments' : 'schedule'"
     :model="model"
+    :runtime-context="runtimeContext"
     @close="closeCalendarSchedulingDistributionModal"
   />
 

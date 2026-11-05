@@ -315,7 +315,9 @@ export function buildCalendarAssignmentViewModel(
 
   const days = buildDays(context.startDate, period, timeZone);
   const resources = buildAssignmentResourceRows(response);
-  const schedulingEvents = selectSchedulingShiftEvents(response);
+  const schedulingEvents = selectSchedulingShiftEvents(response).filter(
+    (event) => !(event.isException && event.exceptionReason === 'IsAway'),
+  );
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const conflicts = selectCalendarConflicts(response);
