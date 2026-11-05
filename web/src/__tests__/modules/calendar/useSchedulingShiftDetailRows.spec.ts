@@ -19,7 +19,7 @@ describe('useSchedulingShiftDetailRows', () => {
       statusTypeCode: 'draft',
     }));
     const formData = ref({
-      ...createInitialShiftFormDataForCreateAction(1),
+      ...createInitialShiftFormDataForCreateAction(1, 60),
       date: '2026-07-13',
       startTime: '09:00',
       endTime: '17:00',
@@ -77,7 +77,7 @@ describe('useSchedulingShiftDetailRows', () => {
       statusTypeCode: 'draft',
     }));
     const formData = ref({
-      ...createInitialShiftFormDataForCreateAction(1),
+      ...createInitialShiftFormDataForCreateAction(1, 60),
       date: '2026-07-13',
       lunchAvailableMinutes: 45,
       workedLunchMinutes: 30,

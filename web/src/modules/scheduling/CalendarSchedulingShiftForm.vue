@@ -126,9 +126,18 @@ const locationOptionsWithSelected = computed(() => {
 
   return [{ code: locationId, description: 'Unknown location' }, ...props.locationOptions];
 });
+function includeSelectedLunch(options: SelectOption[], minutes: number | null | undefined) {
+  return typeof minutes === 'number' && !options.some((option) => option.code === minutes)
+    ? [...options, { code: minutes, description: `${minutes} min` }].sort((a, b) => Number(a.code) - Number(b.code))
+    : options;
+}
+
+const availableLunchOptions = computed(() =>
+  includeSelectedLunch(lunchAvailableOptions, formData.value.lunchAvailableMinutes),
+);
 const availableWorkedLunchOptions = computed(() => {
   const lunchAvailableMinutes = formData.value.lunchAvailableMinutes;
-  return workedLunchOptions.filter(
+  return includeSelectedLunch(workedLunchOptions, formData.value.workedLunchMinutes).filter(
     (option) => typeof lunchAvailableMinutes === 'number' && Number(option.code) <= lunchAvailableMinutes,
   );
 });
@@ -407,7 +416,7 @@ function handleRecurrenceChange(value: string | null) {
         :id="`${idPrefix}-lunch-available`"
         :model-value="formData.lunchAvailableMinutes"
         aria-label="Lunch Break"
-        :items="lunchAvailableOptions"
+        :items="availableLunchOptions"
         :error="Boolean(formErrors.lunchAvailableMinutes)"
         :disabled="disabled"
         @update:model-value="updateLunchAvailable"

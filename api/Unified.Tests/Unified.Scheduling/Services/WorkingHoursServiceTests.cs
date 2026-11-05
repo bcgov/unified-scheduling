@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
 using Unified.Db;
@@ -51,7 +52,11 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
             db,
             Options.Create(new WorkingHoursOptions { DefaultLunchMinutes = 60, MaxQueryRangeDays = 31 }),
             new TimeZoneService(),
-            Options.Create(leaveFlags)
+            Options.Create(leaveFlags),
+            new CalendarTimeZoneResolver(
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
+                new TimeZoneService()
+            )
         );
     }
 
@@ -482,7 +487,11 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
             db,
             Options.Create(new WorkingHoursOptions { FullWorkingDayMinutes = threshold }),
             new TimeZoneService(),
-            Options.Create(leaveFlags)
+            Options.Create(leaveFlags),
+            new CalendarTimeZoneResolver(
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
+                new TimeZoneService()
+            )
         );
         var shift = await AddShiftAsync(At(9), At(17), workedLunchMinutes: 60);
         await AddLeaveAsync(At(13), At(17), true);
@@ -678,11 +687,41 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         Assert.Equal(300, result.WorkedMinutes);
     }
 
-    [Fact]
-    public async Task QueryAsync_DaylightSavingTransition_UsesElapsedUtcMinutes()
+    [Theory]
+    [InlineData(null, "America/Vancouver", 0, 1)]
+    [InlineData("", "America/Vancouver", 0, 1)]
+    [InlineData("UTC", "America/Vancouver", 0, 2)]
+    [InlineData(null, "America/Toronto", 6, 2)]
+    [InlineData("America/Vancouver", "America/Toronto", 6, 1)]
+    [InlineData(null, "", 6, 1)]
+    public async Task QueryAsync_UsesEffectiveTimeZoneForBusinessDateAndFiltering(
+        string? eventTimeZoneId,
+        string locationTimeZoneId,
+        int utcHour,
+        int expectedDay
+    )
+    {
+        var location = await db.Locations.FindAsync([5], TestContext.Current.CancellationToken);
+        location!.Timezone = locationTimeZoneId;
+        var start = new DateTimeOffset(2026, 7, 2, utcHour, 0, 0, TimeSpan.Zero);
+        await AddShiftAsync(start, start.AddHours(8), timeZoneId: eventTimeZoneId);
+        var date = new DateOnly(2026, 7, expectedDay);
+
+        var result = Assert.Single(await QueryAsync(new WorkingHoursQuery { StartDate = date, EndDate = date }));
+        Assert.Equal(date, result.Date);
+        Assert.Equal(420, result.PaidShiftMinutes);
+
+        var otherDate = new DateOnly(2026, 7, expectedDay == 1 ? 2 : 1);
+        Assert.Empty(await QueryAsync(new WorkingHoursQuery { StartDate = otherDate, EndDate = otherDate }));
+    }
+
+    [Theory]
+    [InlineData("America/Vancouver")]
+    [InlineData(null)]
+    public async Task QueryAsync_DaylightSavingTransition_UsesElapsedUtcMinutes(string? timeZoneId)
     {
         var start = new DateTimeOffset(2026, 11, 1, 7, 0, 0, TimeSpan.Zero);
-        await AddShiftAsync(start, start.AddHours(9), timeZoneId: "America/Vancouver");
+        await AddShiftAsync(start, start.AddHours(9), timeZoneId: timeZoneId);
         await AddLeaveAsync(start.AddHours(1), start.AddHours(3), true);
 
         var date = new DateOnly(2026, 11, 1);
@@ -795,7 +834,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         IReadOnlyCollection<Guid>? userIds = null,
         int lunchAvailableMinutes = 60,
         int workedLunchMinutes = 0,
-        string timeZoneId = "UTC",
+        string? timeZoneId = "UTC",
         string statusTypeCode = CalendarEventStatusTypeCodes.Active
     )
     {

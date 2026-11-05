@@ -11,6 +11,7 @@ export const useConfigStore = defineStore('config', () => {
   const applicationName = computed(() => config.value?.applicationName ?? null);
   const selectedBrand = computed(() => config.value?.selectedBrand ?? 'default');
   const emailDistributionAvailable = computed(() => config.value?.emailDistributionAvailable === true);
+  const defaultLunchMinutes = computed(() => config.value?.defaultLunchMinutes);
 
   const loadConfig = async (): Promise<ConfigResponse | null> => {
     if (config.value) {
@@ -29,6 +30,7 @@ export const useConfigStore = defineStore('config', () => {
     applicationName,
     selectedBrand,
     emailDistributionAvailable,
+    defaultLunchMinutes,
     loadConfig,
   };
 });

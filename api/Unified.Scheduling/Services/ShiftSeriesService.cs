@@ -261,7 +261,7 @@ internal sealed class ShiftSeriesService(
                     {
                         foreach (
                             var entry in entity.ShiftEntries.Where(entry =>
-                                entry.Event?.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                                CanApplySeriesNonRecurrenceUpdates(entry, oldValues.LocationId)
                             )
                         )
                         {
@@ -362,9 +362,7 @@ internal sealed class ShiftSeriesService(
     {
         foreach (
             var entry in shiftSeries.ShiftEntries.Where(entry =>
-                entry.Event is not null
-                && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                && entry.Event.LocationId == oldValues.LocationId
+                CanApplySeriesNonRecurrenceUpdates(entry, oldValues.LocationId)
             )
         )
         {
@@ -381,6 +379,11 @@ internal sealed class ShiftSeriesService(
                 ShiftUserSync.SyncEntryUsers(db, entry, newUserIds);
         }
     }
+
+    private static bool CanApplySeriesNonRecurrenceUpdates(ShiftEntry entry, int? originalLocationId) =>
+        entry.Event is not null
+        && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+        && entry.Event.LocationId == originalLocationId;
 
     public async Task<ShiftSeriesResponse?> PublishShiftSeriesAsync(
         int id,

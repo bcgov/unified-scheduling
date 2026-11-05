@@ -1,3 +1,4 @@
+using Unified.Scheduling.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -36,7 +37,8 @@ public class ConfigControllerTests
             featureFlags,
             applicationOptions,
             brandingOptions,
-            new ConfigurationBuilder().Build()
+            new ConfigurationBuilder().Build(),
+            Options.Create(new WorkingHoursOptions { DefaultLunchMinutes = 30 })
         );
 
         var result = controller.Get();
@@ -52,6 +54,7 @@ public class ConfigControllerTests
         Assert.IsType<UserManagementFeatureFlags>(response.FeatureFlags[UserManagementFeatureFlags.SourceName]);
         Assert.Equal("Unified Scheduling", response.ApplicationName);
         Assert.Equal("support@example.com", response.SupportEmail);
+        Assert.Equal(30, response.DefaultLunchMinutes);
         Assert.Equal("bcss", response.SelectedBrand);
     }
 
@@ -63,7 +66,8 @@ public class ConfigControllerTests
             [],
             Options.Create(new ApplicationOptions()),
             Options.Create(new BrandingOptions()),
-            new ConfigurationBuilder().Build()
+            new ConfigurationBuilder().Build(),
+            Options.Create(new WorkingHoursOptions { DefaultLunchMinutes = 30 })
         );
 
         var result = controller.Get();
@@ -104,7 +108,8 @@ public class ConfigControllerTests
             [],
             Options.Create(new ApplicationOptions()),
             Options.Create(settings),
-            configuration
+            configuration,
+            Options.Create(new WorkingHoursOptions { DefaultLunchMinutes = 30 })
         );
         var result = controller.Get();
         var response = Assert.IsType<ConfigResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
@@ -140,7 +145,8 @@ public class ConfigControllerTests
             [],
             Options.Create(new ApplicationOptions()),
             Options.Create(new BrandingOptions()),
-            configuration
+            configuration,
+            Options.Create(new WorkingHoursOptions { DefaultLunchMinutes = 30 })
         );
 
         var result = controller.Get();
