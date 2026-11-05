@@ -455,6 +455,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
                     Id = id,
                     EventId = shiftEvent.Id,
                     Event = shiftEvent,
+                    Users = [new ShiftEntryUser { UserId = userId }],
                 },
                 AssignmentEntryId = id,
                 AssignmentEntry = new AssignmentEntry
