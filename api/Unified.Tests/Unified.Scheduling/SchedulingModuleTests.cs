@@ -40,6 +40,7 @@ public sealed class SchedulingModuleTests
                     ["FeatureFlags:Stats:Enabled"] = "True",
                     ["FeatureFlags:LoanOut:Enabled"] = loanOutEnabled.ToString(),
                     ["CalendarDateTime:DefaultTimeZoneId"] = "UTC",
+                    ["CalendarConflicts:Rules:assignment:0"] = "assignment",
                 }
             )
             .Build();

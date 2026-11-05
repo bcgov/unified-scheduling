@@ -15,6 +15,7 @@ namespace Unified.Scheduling.Services;
 
 public sealed class SchedulePublishService(
     UnifiedDbContext db,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
     IShiftPublicationService shiftPublicationService,
@@ -161,6 +162,7 @@ public sealed class SchedulePublishService(
             .ToList();
         var conflictParticipants = await SchedulingConflictParticipantProvider.GetParticipantsForPublicationAsync(
             db,
+            loanOutAvailabilityService,
             shiftEntryIds,
             assignmentCandidates.Select(candidate => candidate.EntryId).ToList(),
             cancellationToken

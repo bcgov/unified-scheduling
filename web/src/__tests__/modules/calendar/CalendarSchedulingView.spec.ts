@@ -327,78 +327,89 @@ describe('CalendarSchedulingView', () => {
     expect(wrapper.findComponent({ name: 'CalendarConflictDetailModalStub' }).exists()).toBe(false);
   });
 
-  it('opens a shift-header conflict using the linked assignment event as the current participant', async () => {
-    const conflict = createConflict(101, 102, 'Second assignment', 'user-1');
-    const shift: CalendarSchedulingEvent = {
-      id: 'shift-entry-41',
-      type: 'scheduling.shift',
-      sourceModule: 'scheduling',
-      title: 'Day shift',
-      start: '2025-01-13T09:00:00Z',
-      end: '2025-01-13T17:00:00Z',
-      metadata: { eventId: 501, shiftEntryId: '41', userIds: ['user-1'] },
-    };
-    const conflictModel: CalendarMatrixViewModel = {
-      timeZone: 'America/Vancouver',
-      days: [{ date: '2025-01-13', label: 'Monday' }],
-      primaryColumn: { label: 'People', resources: [] },
-      cells: [
-        {
-          resourceId: 'user-1',
-          date: '2025-01-13',
-          headers: [
-            {
-              id: shift.id,
-              text: '9:00 AM - 5:00 PM',
-              payload: shift,
-              conflicts: [{ conflict, currentEventId: 101 }],
-            },
-          ],
-          groups: [{ id: 'assignments', events: [] }],
+  it.each([false, true])(
+    'opens a header conflict with its current participant (training: %s)',
+    async (trainingHeader) => {
+      const conflict = createConflict(101, 102, 'Second assignment', 'user-1');
+      const currentEventId = trainingHeader ? { sourceModule: 'training', eventId: 'training.user-training.42' } : 101;
+      if (typeof currentEventId !== 'number') {
+        conflict.entry = {
+          ...conflict.entry,
+          ...currentEventId,
+          title: 'Training',
+        };
+      }
+      const shift: CalendarSchedulingEvent = {
+        id: trainingHeader ? 'training.user-training.42' : 'shift-entry-41',
+        type: trainingHeader ? 'training.user-training' : 'scheduling.shift',
+        sourceModule: trainingHeader ? 'training' : 'scheduling',
+        title: trainingHeader ? 'Training' : 'Day shift',
+        start: '2025-01-13T09:00:00Z',
+        end: '2025-01-13T17:00:00Z',
+        metadata: { eventId: 501, shiftEntryId: '41', userIds: ['user-1'] },
+      };
+      const conflictModel: CalendarMatrixViewModel = {
+        timeZone: 'America/Vancouver',
+        days: [{ date: '2025-01-13', label: 'Monday' }],
+        primaryColumn: { label: 'People', resources: [] },
+        cells: [
+          {
+            resourceId: 'user-1',
+            date: '2025-01-13',
+            headers: [
+              {
+                id: shift.id,
+                text: '9:00 AM - 5:00 PM',
+                payload: shift,
+                conflicts: [{ conflict, currentEventId }],
+              },
+            ],
+            groups: [{ id: 'assignments', events: [] }],
+          },
+          {
+            resourceId: 'user-2',
+            date: '2025-01-13',
+            headers: [
+              {
+                id: shift.id,
+                text: '9:00 AM - 5:00 PM',
+                payload: shift,
+                conflicts: [{ conflict, currentEventId }],
+              },
+            ],
+            groups: [{ id: 'assignments', events: [] }],
+          },
+        ],
+      };
+      calendarSchedulingConflictHeaderId.value = getCalendarSchedulingHeaderConflictKey(
+        conflictModel.cells[0]!,
+        shift.id,
+      );
+      const app = await createTestApp({ loadConfig: false });
+      const wrapper = mount(CalendarSchedulingView, {
+        props: { model: conflictModel },
+        global: {
+          plugins: app.mountPlugins,
+          stubs: {
+            CalendarMatrixView: createHeaderMatrixViewStub(),
+            CalendarMatrixCellHeader: true,
+            CalendarSchedulingShiftDetailModal: true,
+            CalendarSchedulingAddResourceModal: true,
+            CalendarConflictDetailModal: createConflictDetailStub(),
+            VIcon: true,
+          },
         },
-        {
-          resourceId: 'user-2',
-          date: '2025-01-13',
-          headers: [
-            {
-              id: shift.id,
-              text: '9:00 AM - 5:00 PM',
-              payload: shift,
-              conflicts: [{ conflict, currentEventId: 101 }],
-            },
-          ],
-          groups: [{ id: 'assignments', events: [] }],
-        },
-      ],
-    };
-    calendarSchedulingConflictHeaderId.value = getCalendarSchedulingHeaderConflictKey(
-      conflictModel.cells[0]!,
-      shift.id,
-    );
-    const app = await createTestApp({ loadConfig: false });
-    const wrapper = mount(CalendarSchedulingView, {
-      props: { model: conflictModel },
-      global: {
-        plugins: app.mountPlugins,
-        stubs: {
-          CalendarMatrixView: createHeaderMatrixViewStub(),
-          CalendarMatrixCellHeader: true,
-          CalendarSchedulingShiftDetailModal: true,
-          CalendarSchedulingAddResourceModal: true,
-          CalendarConflictDetailModal: createConflictDetailStub(),
-          VIcon: true,
-        },
-      },
-    });
+      });
 
-    expect(wrapper.findAllComponents(CalendarSchedulingConflictOverlay)).toHaveLength(1);
-    expect(wrapper.text()).toContain('Second assignment');
-    await wrapper.get('.calendar-scheduling-conflict-overlay__resolve').trigger('click');
+      expect(wrapper.findAllComponents(CalendarSchedulingConflictOverlay)).toHaveLength(1);
+      expect(wrapper.text()).toContain('Second assignment');
+      await wrapper.get('.calendar-scheduling-conflict-overlay__resolve').trigger('click');
 
-    const detail = wrapper.getComponent({ name: 'CalendarConflictDetailModalStub' });
-    expect(detail.props('conflict')).toEqual(conflict);
-    expect(detail.props('currentEventId')).toBe(101);
-  });
+      const detail = wrapper.getComponent({ name: 'CalendarConflictDetailModalStub' });
+      expect(detail.props('conflict')).toEqual(conflict);
+      expect(detail.props('currentEventId')).toEqual(currentEventId);
+    },
+  );
 });
 
 function createMatrixViewStub() {
@@ -458,7 +469,7 @@ function createConflictDetailStub() {
     name: 'CalendarConflictDetailModalStub',
     props: {
       conflict: { type: Object as PropType<CalendarConflict>, required: true },
-      currentEventId: { type: Number, required: true },
+      currentEventId: { type: [Number, Object], required: true },
     },
     emits: ['editEvent', 'override'],
     template: '<div data-test="conflict-detail" />',

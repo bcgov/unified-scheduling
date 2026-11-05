@@ -1,5 +1,6 @@
 import type {
   CalendarConflict,
+  CalendarConflictEventIdentity,
   CalendarDataResponse,
   CalendarEventBase,
   CalendarRestrictedConflictWarning,
@@ -50,23 +51,27 @@ export const resolveCalendarEventId = (event: unknown) => {
 };
 
 export const getCalendarConflictsForEvent = (
-  eventId: number | null | undefined,
+  eventId: number | CalendarConflictEventIdentity | null | undefined,
   conflicts: readonly CalendarConflict[],
 ) => {
   if (eventId == null) {
     return [];
   }
 
-  const conflictEventId = String(eventId);
+  const identity = typeof eventId === 'number' ? { sourceModule: 'scheduling', eventId: String(eventId) } : eventId;
   return conflicts.filter(
     (conflict) =>
-      (conflict.entry.eventId === conflictEventId && conflict.reportOnEntry) ||
-      (conflict.overlaps.eventId === conflictEventId && conflict.reportOnOverlaps),
+      (conflict.entry.sourceModule === identity.sourceModule &&
+        conflict.entry.eventId === identity.eventId &&
+        conflict.reportOnEntry) ||
+      (conflict.overlaps.sourceModule === identity.sourceModule &&
+        conflict.overlaps.eventId === identity.eventId &&
+        conflict.reportOnOverlaps),
   );
 };
 
 export const getCalendarConflictsForEventAndResource = (
-  eventId: number | null | undefined,
+  eventId: number | CalendarConflictEventIdentity | null | undefined,
   resourceId: string,
   conflicts: readonly CalendarConflict[],
 ) => getCalendarConflictsForEvent(eventId, conflicts).filter((conflict) => conflict.resourceId === resourceId);

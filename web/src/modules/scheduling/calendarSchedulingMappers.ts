@@ -219,18 +219,33 @@ export function buildCalendarSchedulingViewModel(
                   payload: event,
                 }))),
           ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
-          ...userTrainingEvents.map<CalendarMatrixCellHeader>((event) => ({
-            id: event.id,
-            text: event.title,
-            allDay: event.allDay,
-            collapsible: true,
-            variant: 'outlined',
-            subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
-            title: event.title,
-            color: calendarNonSchedulingEventColors.training,
-            actionId: trainingCalendarDetailActionId,
-            payload: event,
-          })),
+          ...userTrainingEvents.map<CalendarMatrixCellHeader>((event) => {
+            const currentEventId = { sourceModule: event.sourceModule, eventId: event.id };
+            const trainingConflicts = getCalendarConflictsForEventAndResource(currentEventId, user.id, conflicts)
+              .filter((conflict) => {
+                const start = getCalendarEventDateKey(conflict.overlapStart, timeZone);
+                const end = getCalendarEventDateKey(
+                  DateTime.fromISO(conflict.overlapEnd).minus({ milliseconds: 1 }).toISO(),
+                  timeZone,
+                );
+                return start != null && end != null && start <= day.date && day.date <= end;
+              })
+              .map((conflict) => ({ conflict, currentEventId }));
+            return {
+              id: event.id,
+              text: event.title,
+              allDay: event.allDay,
+              collapsible: true,
+              variant: 'outlined',
+              subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
+              title: event.title,
+              color: calendarNonSchedulingEventColors.training,
+              actionId: trainingCalendarDetailActionId,
+              action: trainingConflicts.length > 0 ? buildPulldownAction() : undefined,
+              conflicts: trainingConflicts,
+              payload: event,
+            };
+          }),
           ...userShiftEvents.map((event) =>
             buildCellHeader(event, timeZone, getConflictsForShift(event, assignmentEvents, user.id, conflicts)),
           ),

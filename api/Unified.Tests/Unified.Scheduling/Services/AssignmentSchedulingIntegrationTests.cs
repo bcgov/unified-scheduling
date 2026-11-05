@@ -99,7 +99,12 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         _materializationService = materializationService;
         var timeProvider = new FixedTimeProvider(FixedNow);
         _conflictService = new CalendarConflictService(
-            [new SchedulingConflictParticipantProvider(_db)],
+            [
+                new SchedulingConflictParticipantProvider(
+                    _db,
+                    SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                ),
+            ],
             _db,
             CalendarConflictTestContext.Projection(UserA),
             CalendarConflictTestRules.Scheduling,
@@ -290,7 +295,12 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             timeZoneService,
             _conflictService,
             new CalendarConflictProjection(
-                [new SchedulingConflictParticipantProvider(_db)],
+                [
+                    new SchedulingConflictParticipantProvider(
+                        _db,
+                        SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                    ),
+                ],
                 new HttpContextAccessor { HttpContext = httpContext }
             )
         );
@@ -343,7 +353,13 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             EventTypeCode: "training"
         );
         var service = new CalendarConflictService(
-            [new SchedulingConflictParticipantProvider(_db), new ExternalConflictProvider(course)],
+            [
+                new SchedulingConflictParticipantProvider(
+                    _db,
+                    SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                ),
+                new ExternalConflictProvider(course),
+            ],
             _db,
             new CalendarConflictProjection([]),
             CalendarConflictTestRules.Scheduling
@@ -4820,7 +4836,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     public async Task SchedulingConflictParticipantProvider_WhenAssignmentHasLocation_UsesLocationTimeZone()
     {
         var (_, assignment, _) = await CreateLinkedEntriesAsync();
-        var provider = new SchedulingConflictParticipantProvider(_db);
+        var provider = new SchedulingConflictParticipantProvider(
+            _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+        );
 
         var participant = Assert.Single(
             (
@@ -5529,6 +5548,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     private SchedulePublishService CreateSchedulePublishService() =>
         new(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             new CalendarTimeZoneResolver(
                 Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
                 new TimeZoneService()
@@ -5826,6 +5846,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var series = new ShiftSeriesService(
             NullLogger<ShiftSeriesService>.Instance,
             db,
+            SchedulingLoanOutTestServices.CreateAvailability(db, zones, loanOutEnabled: loanOutEnabled),
             new CalendarEventSeriesService<ShiftSeriesRequest, ShiftSeries>(
                 factory,
                 new CalendarEventMapper(),
@@ -5846,6 +5867,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var entries = new ShiftEntryService(
             NullLogger<ShiftEntryService>.Instance,
             db,
+            SchedulingLoanOutTestServices.CreateAvailability(db, zones, loanOutEnabled: loanOutEnabled),
             Entry<ShiftEntryRequest, ShiftEntry>(factory),
             series,
             links,
@@ -5874,6 +5896,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             new AssignmentEntryService(
                 NullLogger<AssignmentEntryService>.Instance,
                 db,
+                SchedulingLoanOutTestServices.CreateAvailability(db, zones),
                 Entry<AssignmentEntryRequest, AssignmentEntry>(factory),
                 links,
                 lifecycle,
@@ -5884,6 +5907,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             new AssignmentSeriesService(
                 NullLogger<AssignmentSeriesService>.Instance,
                 db,
+                SchedulingLoanOutTestServices.CreateAvailability(db, zones),
                 new CalendarEventSeriesService<AssignmentSeriesRequest, AssignmentSeries>(
                     factory,
                     new CalendarEventMapper(),
