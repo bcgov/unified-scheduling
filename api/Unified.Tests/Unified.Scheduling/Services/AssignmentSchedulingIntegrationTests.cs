@@ -23,6 +23,8 @@ using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
+using Unified.Leave.Mappings;
+using Unified.Leave.Services;
 using Unified.LoanOut.Constants;
 using Unified.LoanOut.Factories;
 using Unified.LoanOut.Guards;
@@ -5291,7 +5293,16 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _conflictService,
             NullLogger<SchedulePublishService>.Instance,
             SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
-            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), new TimeZoneService())
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), new TimeZoneService()),
+            leaveDataProvider: new LeaveCalendarDataProvider(
+                _db,
+                new SchedulingLeaveEventMapper(new CalendarEventMapper())
+            ),
+            schedulingCalendarDataProvider: new LoanOutCalendarDataProvider(
+                _db,
+                new LoanOutCalendarMapper(),
+                new TimeZoneService()
+            )
         );
 
     private static SchedulePublishRequest CreateSchedulePublishRequest() =>

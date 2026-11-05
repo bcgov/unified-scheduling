@@ -6,10 +6,13 @@ using Unified.Calendar.Conflicts;
 using Unified.Calendar.Holidays;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Common.Scheduling;
+using Unified.Common.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Leave.Services;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
@@ -23,7 +26,9 @@ public sealed class SchedulePublishService(
     ICalendarConflictService conflictService,
     ILogger<SchedulePublishService> logger,
     ShiftLoanOutAvailabilityService loanOutAvailability,
-    StatutoryHolidayCalendarDataProvider holidayDataProvider
+    StatutoryHolidayCalendarDataProvider holidayDataProvider,
+    ILeaveCalendarDataProvider? leaveDataProvider = null,
+    ISchedulingCalendarEventDataProvider<SchedulingCalendarEventResponse>? schedulingCalendarDataProvider = null
 ) : ISchedulePublishService
 {
     public async Task<SchedulePublishPreviewResponse> PreviewAsync(
@@ -317,13 +322,24 @@ public sealed class SchedulePublishService(
 
     private List<SchedulePublishEmployeeWarningResponse> FilterUnavailableEmployees(
         IReadOnlyCollection<SchedulePublishEmployeeWarningResponse> employees,
-        IReadOnlyCollection<EmployeeEvent> unavailableEvents,
+        IReadOnlyCollection<UnavailableEvent> unavailableEvents,
         SchedulePublishScope scope
     )
     {
         var unavailableEventsByUser = unavailableEvents
             .GroupBy(participant => participant.UserId)
-            .ToDictionary(group => group.Key, group => group.Select(participant => participant.Event).ToList());
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                    group
+                        .Select(participant => new UnavailableEvent(
+                            participant.UserId,
+                            participant.Type,
+                            participant.StartAtUtc,
+                            participant.EndAtUtc
+                        ))
+                        .ToList()
+            );
         var timeZone = timeZoneService.ResolveRequired(scope.TimeZoneId);
 
         return employees
@@ -334,78 +350,98 @@ public sealed class SchedulePublishService(
             .ToList();
     }
 
-    private Task<List<EmployeeEvent>> LoadLoanOutEventsAsync(
+    private async Task<List<UnavailableEvent>> LoadLoanOutEventsAsync(
         SchedulePublishScope scope,
         IReadOnlyCollection<Guid> userIds,
         CancellationToken cancellationToken
-    ) =>
-        !loanOutAvailability.IsEnabled
-            ? Task.FromResult(new List<EmployeeEvent>())
-            : db
-                .LoanOutEntryUsers.AsNoTracking()
-                .Where(participant =>
-                    participant.LoanOutEntry != null
-                    && participant.LoanOutEntry.Event != null
-                    && participant.LoanOutEntry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                    && participant.LoanOutEntry.Event.StartAtUtc < scope.Range.EndAtUtc
-                    && (
-                        participant.LoanOutEntry.Event.EndAtUtc.HasValue
-                            ? participant.LoanOutEntry.Event.EndAtUtc > scope.Range.StartAtUtc
-                            : participant.LoanOutEntry.Event.StartAtUtc >= scope.Range.StartAtUtc
-                    )
-                )
-                .Where(participant =>
-                    userIds.Contains(participant.UserId)
-                    && participant.LoanOutEntry!.LoanOutLocationId != scope.Request.LocationId
-                )
-                .Select(participant => new EmployeeEvent(participant.UserId, participant.LoanOutEntry!.Event!))
-                .ToListAsync(cancellationToken);
+    )
+    {
+        if (!loanOutAvailability.IsEnabled || schedulingCalendarDataProvider is null)
+            return [];
 
-    private Task<List<Guid>> LoadLoanedInUserIdsAsync(
-        SchedulePublishScope scope,
-        CancellationToken cancellationToken
-    ) =>
-        !loanOutAvailability.IsEnabled
-            ? Task.FromResult(new List<Guid>())
-            : db
-                .LoanOutEntryUsers.AsNoTracking()
-                .Where(participant =>
-                    participant.LoanOutEntry != null
-                    && participant.LoanOutEntry.Event != null
-                    && participant.LoanOutEntry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                    && participant.LoanOutEntry.Event.StartAtUtc < scope.Range.EndAtUtc
-                    && (
-                        participant.LoanOutEntry.Event.EndAtUtc.HasValue
-                            ? participant.LoanOutEntry.Event.EndAtUtc > scope.Range.StartAtUtc
-                            : participant.LoanOutEntry.Event.StartAtUtc >= scope.Range.StartAtUtc
-                    )
-                )
-                .Where(participant => participant.LoanOutEntry!.LoanOutLocationId == scope.Request.LocationId)
-                .Select(participant => participant.UserId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
+        var calendarEvents = await schedulingCalendarDataProvider.GetDataAsync(
+            new SchedulingCalendarEventQueryContext
+            {
+                StartAtUtc = scope.Range.StartAtUtc,
+                EndAtUtc = scope.Range.EndAtUtc,
+                LocationId = scope.Request.LocationId,
+                UserIds = userIds,
+            },
+            cancellationToken
+        );
 
-    private Task<List<EmployeeEvent>> LoadLeaveEventsAsync(
-        SchedulePublishScope scope,
-        IReadOnlyCollection<Guid> userIds,
-        CancellationToken cancellationToken
-    ) =>
-        db
-            .LeaveEntryUsers.AsNoTracking()
-            .Where(participant =>
-                participant.LeaveEntry != null
-                && participant.LeaveEntry.Event != null
-                && participant.LeaveEntry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
-                && participant.LeaveEntry.Event.StartAtUtc < scope.Range.EndAtUtc
-                && (
-                    participant.LeaveEntry.Event.EndAtUtc.HasValue
-                        ? participant.LeaveEntry.Event.EndAtUtc > scope.Range.StartAtUtc
-                        : participant.LeaveEntry.Event.StartAtUtc >= scope.Range.StartAtUtc
-                )
+        return calendarEvents
+            .Where(calendarEvent => calendarEvent.LoanOutLocationId != scope.Request.LocationId)
+            .SelectMany(calendarEvent =>
+                calendarEvent
+                    .UserIds.Where(userIds.Contains)
+                    .Select(userId => new UnavailableEvent(
+                        userId,
+                        calendarEvent.Type,
+                        calendarEvent.Start,
+                        calendarEvent.End
+                    ))
             )
-            .Where(participant => userIds.Contains(participant.UserId))
-            .Select(participant => new EmployeeEvent(participant.UserId, participant.LeaveEntry!.Event!))
-            .ToListAsync(cancellationToken);
+            .ToList();
+    }
+
+    private async Task<List<Guid>> LoadLoanedInUserIdsAsync(
+        SchedulePublishScope scope,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!loanOutAvailability.IsEnabled || schedulingCalendarDataProvider is null)
+            return [];
+
+        var calendarEvents = await schedulingCalendarDataProvider.GetDataAsync(
+            new SchedulingCalendarEventQueryContext
+            {
+                StartAtUtc = scope.Range.StartAtUtc,
+                EndAtUtc = scope.Range.EndAtUtc,
+            },
+            cancellationToken
+        );
+
+        return calendarEvents
+            .Where(calendarEvent => calendarEvent.LoanOutLocationId == scope.Request.LocationId)
+            .SelectMany(calendarEvent => calendarEvent.UserIds)
+            .Distinct()
+            .ToList();
+    }
+
+    private async Task<List<UnavailableEvent>> LoadLeaveEventsAsync(
+        SchedulePublishScope scope,
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken
+    )
+    {
+        if (leaveDataProvider is null)
+            return [];
+
+        var leaveEvents = await leaveDataProvider.GetEventsAsync(
+            new CalendarEventQueryContext
+            {
+                StartAtUtc = scope.Range.StartAtUtc,
+                EndAtUtc = scope.Range.EndAtUtc,
+                LocationId = scope.Request.LocationId,
+                UserIds = userIds,
+            },
+            cancellationToken
+        );
+
+        return leaveEvents
+            .SelectMany(calendarEvent =>
+                calendarEvent
+                    .UserIds.Where(userIds.Contains)
+                    .Select(userId => new UnavailableEvent(
+                        userId,
+                        calendarEvent.Type,
+                        calendarEvent.Start,
+                        calendarEvent.End
+                    ))
+            )
+            .ToList();
+    }
 
     private async Task<List<SchedulePublishEmployeeWarningResponse>> LoadEmployeesForPublicationAsync(
         SchedulePublishScope scope,
@@ -435,7 +471,7 @@ public sealed class SchedulePublishService(
     }
 
     private bool HasEventsForAllWeekdays(
-        IReadOnlyCollection<Event> events,
+        IReadOnlyCollection<UnavailableEvent> events,
         DateOnly startDate,
         DateOnly endDate,
         TimeZoneInfo timeZone
@@ -471,7 +507,12 @@ public sealed class SchedulePublishService(
         return true;
     }
 
-    private sealed record EmployeeEvent(Guid UserId, Event Event);
+    private sealed record UnavailableEvent(
+        Guid UserId,
+        string Type,
+        DateTimeOffset StartAtUtc,
+        DateTimeOffset? EndAtUtc
+    );
 
     private sealed record SchedulePublishScope(SchedulePublishRequest Request, string TimeZoneId, UtcDateRange Range);
 

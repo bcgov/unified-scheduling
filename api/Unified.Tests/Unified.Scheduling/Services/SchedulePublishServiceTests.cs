@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Holidays;
+using Unified.Calendar.Mappings;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
@@ -21,7 +22,11 @@ using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 using Unified.Db.Models.UserManagement;
 using Unified.Leave.Constants;
+using Unified.Leave.Mappings;
+using Unified.Leave.Services;
 using Unified.LoanOut.Constants;
+using Unified.LoanOut.Mappers;
+using Unified.LoanOut.Services;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
@@ -533,7 +538,16 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
                 new TimeZoneService(),
                 loanOutEnabled: loanOutEnabled
             ),
-            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), new TimeZoneService())
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), new TimeZoneService()),
+            leaveDataProvider: new LeaveCalendarDataProvider(
+                _db,
+                new SchedulingLeaveEventMapper(new CalendarEventMapper())
+            ),
+            schedulingCalendarDataProvider: new LoanOutCalendarDataProvider(
+                _db,
+                new LoanOutCalendarMapper(),
+                new TimeZoneService()
+            )
         );
 
     private static SchedulePublishRequest CreateRequest() =>
