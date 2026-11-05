@@ -19,7 +19,6 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
   entryOptions: zod
     .array(
       zod.object({
-        concurrencyToken: zod.int().optional(),
         assignmentSeriesId: zod.int().nullish(),
         assignmentDefinitionId: zod.int().optional(),
         categoryId: zod.int().optional(),
@@ -71,7 +70,6 @@ export const PostApiSchedulingShiftAssignmentsOptionsResponse = zod.object({
   seriesOptions: zod
     .array(
       zod.object({
-        concurrencyToken: zod.int().optional(),
         assignmentDefinitionId: zod.int().optional(),
         categoryId: zod.int().optional(),
         categoryName: zod.string().nullish(),

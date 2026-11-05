@@ -13,7 +13,6 @@ import type {
   ShiftEntryUpdateRequest,
   ShiftSeriesRequest,
   ShiftSeriesResponse,
-  ShiftSeriesUpdateRequest,
 } from '../models';
 
 import { useFetchAPI } from '../../useFetchAPI.ts';
@@ -48,7 +47,7 @@ export const getApiSchedulingShiftsSeriesId = (
 };
 export const putApiSchedulingShiftsSeriesId = (
   id: number,
-  shiftSeriesUpdateRequest: ShiftSeriesUpdateRequest,
+  shiftSeriesRequest: ShiftSeriesRequest,
   options?: SecondParameter<typeof useFetchAPI<ShiftSeriesResponse>>,
 ) => {
   return useFetchAPI<ShiftSeriesResponse>(
@@ -56,7 +55,7 @@ export const putApiSchedulingShiftsSeriesId = (
       url: `/api/scheduling/shifts/series/${id}`,
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      data: shiftSeriesUpdateRequest,
+      data: shiftSeriesRequest,
     },
     options,
   );

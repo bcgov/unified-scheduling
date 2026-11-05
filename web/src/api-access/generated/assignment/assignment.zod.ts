@@ -15,7 +15,6 @@ export const GetApiSchedulingAssignmentsSeriesQueryParams = zod.strictObject({
 });
 
 export const GetApiSchedulingAssignmentsSeriesResponseItem = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
   categoryName: zod.string().nullish(),
@@ -82,7 +81,6 @@ export const PostApiSchedulingAssignmentsSeriesBody = zod.strictObject({
 });
 
 export const PostApiSchedulingAssignmentsSeriesResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
   categoryName: zod.string().nullish(),
@@ -126,7 +124,6 @@ export const GetApiSchedulingAssignmentsSeriesIdParams = zod.strictObject({
 });
 
 export const GetApiSchedulingAssignmentsSeriesIdResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
   categoryName: zod.string().nullish(),
@@ -170,7 +167,6 @@ export const PutApiSchedulingAssignmentsSeriesIdParams = zod.strictObject({
 });
 
 export const PutApiSchedulingAssignmentsSeriesIdBody = zod.strictObject({
-  concurrencyToken: zod.int(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
   subCategoryId: zod.int().optional(),
@@ -197,7 +193,6 @@ export const PutApiSchedulingAssignmentsSeriesIdBody = zod.strictObject({
 });
 
 export const PutApiSchedulingAssignmentsSeriesIdResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
   categoryName: zod.string().nullish(),
@@ -247,7 +242,6 @@ export const PostApiSchedulingAssignmentsSeriesIdPublishParams = zod.strictObjec
 });
 
 export const PostApiSchedulingAssignmentsSeriesIdPublishResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
   categoryName: zod.string().nullish(),
@@ -298,7 +292,6 @@ export const PostApiSchedulingAssignmentsSeriesIdExpireBody = zod.union([
 ]);
 
 export const PostApiSchedulingAssignmentsSeriesIdExpireResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
   categoryName: zod.string().nullish(),
@@ -347,7 +340,6 @@ export const GetApiSchedulingAssignmentsEntriesQueryParams = zod.strictObject({
 });
 
 export const GetApiSchedulingAssignmentsEntriesResponseItem = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentSeriesId: zod.int().nullish(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
@@ -425,7 +417,6 @@ export const PostApiSchedulingAssignmentsEntriesBody = zod.strictObject({
 });
 
 export const PostApiSchedulingAssignmentsEntriesResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentSeriesId: zod.int().nullish(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
@@ -478,7 +469,6 @@ export const GetApiSchedulingAssignmentsEntriesIdParams = zod.strictObject({
 });
 
 export const GetApiSchedulingAssignmentsEntriesIdResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentSeriesId: zod.int().nullish(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
@@ -531,7 +521,6 @@ export const PutApiSchedulingAssignmentsEntriesIdParams = zod.strictObject({
 });
 
 export const PutApiSchedulingAssignmentsEntriesIdBody = zod.strictObject({
-  concurrencyToken: zod.int(),
   conflictOverrides: zod
     .array(
       zod.strictObject({
@@ -572,7 +561,6 @@ export const PutApiSchedulingAssignmentsEntriesIdBody = zod.strictObject({
 });
 
 export const PutApiSchedulingAssignmentsEntriesIdResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentSeriesId: zod.int().nullish(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
@@ -631,7 +619,6 @@ export const PostApiSchedulingAssignmentsEntriesIdPublishParams = zod.strictObje
 });
 
 export const PostApiSchedulingAssignmentsEntriesIdPublishResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentSeriesId: zod.int().nullish(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
@@ -691,7 +678,6 @@ export const PostApiSchedulingAssignmentsEntriesIdExpireBody = zod.union([
 ]);
 
 export const PostApiSchedulingAssignmentsEntriesIdExpireResponse = zod.object({
-  concurrencyToken: zod.int().optional(),
   assignmentSeriesId: zod.int().nullish(),
   assignmentDefinitionId: zod.int().optional(),
   categoryId: zod.int().optional(),
