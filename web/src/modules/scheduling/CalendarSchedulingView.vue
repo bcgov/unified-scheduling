@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { mdiRepeat } from '@mdi/js';
+import { mdiAlertCircle, mdiRepeat } from '@mdi/js';
 import { useRoute } from 'vue-router';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
 import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
@@ -70,6 +70,7 @@ import {
   calendarSchedulingWorkingHoursSelection,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingAssignmentTypeCreateModal,
+  closeCalendarSchedulingConflict,
   closeCalendarSchedulingEventDetail,
   closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingPublishModal,
@@ -332,8 +333,9 @@ function isAssignmentEvent(event: CalendarEventBase) {
           "
           :conflicts="header.conflicts ?? []"
           :restricted-warnings="header.restrictedWarnings"
-          :icon="header.action?.icon"
+          :icon="mdiAlertCircle"
           :time-zone="model.timeZone"
+          @close="closeCalendarSchedulingConflict"
           @resolve="resolveHeaderConflict($event, cell, header, onHeaderAction)"
         />
       </div>
@@ -375,8 +377,9 @@ function isAssignmentEvent(event: CalendarEventBase) {
           v-if="calendarSchedulingConflictEventId === event.id && conflictEventCellKey === eventCellKey(cell, event)"
           :conflicts="group.events.find((item) => item.event === event)?.conflicts ?? []"
           :restricted-warnings="group.events.find((item) => item.event === event)?.restrictedWarnings"
-          :icon="display?.action?.icon"
+          :icon="mdiAlertCircle"
           :time-zone="model.timeZone"
+          @close="closeCalendarSchedulingConflict"
           @resolve="resolveConflict($event, event, onEventAction)"
         />
       </div>

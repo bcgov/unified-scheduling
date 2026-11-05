@@ -14,6 +14,7 @@ import * as auditModule from '@/modules/audit/AuditModule';
 import { useAuthStore } from '@/stores/auth';
 import { getApiAuthUser } from '@/api-access/generated/auth/auth';
 import { redirectToLogin } from '@/utils/authNavigation';
+import ApplicationUnavailable from '@/views/ApplicationUnavailable.vue';
 
 const UNREGISTERED_ROUTE_PATH = '/unregistered';
 const APPLICATION_UNAVAILABLE_ROUTE_PATH = '/application-unavailable';
@@ -87,7 +88,7 @@ const baseRoutes: RouteRecordRaw[] = [
   {
     path: APPLICATION_UNAVAILABLE_ROUTE_PATH,
     name: 'ApplicationUnavailable',
-    component: () => import('@/views/ApplicationUnavailable.vue'),
+    component: ApplicationUnavailable,
     meta: {
       title: 'Application unavailable',
       fullScreen: true,
