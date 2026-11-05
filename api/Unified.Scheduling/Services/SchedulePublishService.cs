@@ -132,8 +132,9 @@ public sealed class SchedulePublishService(
             .InSchedulingRange(scope.Range)
             .Where(entry => entry.Event.LocationId == scope.Request.LocationId)
             .Where(entry =>
-                entry.Event.ExceptionReason != CalendarEventExceptionReasonCode.IsAway.ToString()
-                && entry.Event.IsException == false
+                !loanOutAvailability.IsEnabled
+                || !entry.Event.IsException
+                || entry.Event.ExceptionReason != nameof(CalendarEventExceptionReasonCode.IsAway)
             )
             .ToListAsync(cancellationToken);
         var assignments = await db
@@ -148,8 +149,9 @@ public sealed class SchedulePublishService(
             .InSchedulingRange(scope.Range)
             .Where(entry => entry.Event.LocationId == scope.Request.LocationId)
             .Where(entry =>
-                entry.Event.ExceptionReason != CalendarEventExceptionReasonCode.IsAway.ToString()
-                && entry.Event.IsException == false
+                !loanOutAvailability.IsEnabled
+                || !entry.Event.IsException
+                || entry.Event.ExceptionReason != nameof(CalendarEventExceptionReasonCode.IsAway)
             )
             .ToListAsync(cancellationToken);
 
@@ -297,7 +299,6 @@ public sealed class SchedulePublishService(
         if (incompleteEmployees.Count == 0)
             return incompleteEmployees;
 
-        // Filter out employees who are unavailable due to loan-out events
         return await FilterUnavailableEmployees(incompleteEmployees, scope, cancellationToken);
     }
 
@@ -309,15 +310,9 @@ public sealed class SchedulePublishService(
     {
         var userIds = employees.Select(employee => employee.UserId).ToList();
         var loanOutEvents = await LoadLoanOutEventsAsync(scope, userIds, cancellationToken);
-        var filteredEmployees = FilterUnavailableEmployees(employees, loanOutEvents, scope);
-        if (filteredEmployees.Count == 0)
-            return filteredEmployees;
-        var leaveEvents = await LoadLeaveEventsAsync(
-            scope,
-            filteredEmployees.Select(e => e.UserId).ToList(),
-            cancellationToken
-        );
-        return FilterUnavailableEmployees(filteredEmployees, leaveEvents, scope);
+        var leaveEvents = await LoadLeaveEventsAsync(scope, userIds, cancellationToken);
+
+        return FilterUnavailableEmployees(employees, loanOutEvents.Concat(leaveEvents).ToList(), scope);
     }
 
     private List<SchedulePublishEmployeeWarningResponse> FilterUnavailableEmployees(
@@ -353,8 +348,11 @@ public sealed class SchedulePublishService(
                     && participant.LoanOutEntry.Event != null
                     && participant.LoanOutEntry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
                     && participant.LoanOutEntry.Event.StartAtUtc < scope.Range.EndAtUtc
-                    && (participant.LoanOutEntry.Event.EndAtUtc ?? participant.LoanOutEntry.Event.StartAtUtc)
-                        > scope.Range.StartAtUtc
+                    && (
+                        participant.LoanOutEntry.Event.EndAtUtc.HasValue
+                            ? participant.LoanOutEntry.Event.EndAtUtc > scope.Range.StartAtUtc
+                            : participant.LoanOutEntry.Event.StartAtUtc >= scope.Range.StartAtUtc
+                    )
                 )
                 .Where(participant =>
                     userIds.Contains(participant.UserId)
@@ -376,8 +374,11 @@ public sealed class SchedulePublishService(
                     && participant.LoanOutEntry.Event != null
                     && participant.LoanOutEntry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
                     && participant.LoanOutEntry.Event.StartAtUtc < scope.Range.EndAtUtc
-                    && (participant.LoanOutEntry.Event.EndAtUtc ?? participant.LoanOutEntry.Event.StartAtUtc)
-                        > scope.Range.StartAtUtc
+                    && (
+                        participant.LoanOutEntry.Event.EndAtUtc.HasValue
+                            ? participant.LoanOutEntry.Event.EndAtUtc > scope.Range.StartAtUtc
+                            : participant.LoanOutEntry.Event.StartAtUtc >= scope.Range.StartAtUtc
+                    )
                 )
                 .Where(participant => participant.LoanOutEntry!.LoanOutLocationId == scope.Request.LocationId)
                 .Select(participant => participant.UserId)
@@ -396,8 +397,11 @@ public sealed class SchedulePublishService(
                 && participant.LeaveEntry.Event != null
                 && participant.LeaveEntry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
                 && participant.LeaveEntry.Event.StartAtUtc < scope.Range.EndAtUtc
-                && (participant.LeaveEntry.Event.EndAtUtc ?? participant.LeaveEntry.Event.StartAtUtc)
-                    > scope.Range.StartAtUtc
+                && (
+                    participant.LeaveEntry.Event.EndAtUtc.HasValue
+                        ? participant.LeaveEntry.Event.EndAtUtc > scope.Range.StartAtUtc
+                        : participant.LeaveEntry.Event.StartAtUtc >= scope.Range.StartAtUtc
+                )
             )
             .Where(participant => userIds.Contains(participant.UserId))
             .Select(participant => new EmployeeEvent(participant.UserId, participant.LeaveEntry!.Event!))

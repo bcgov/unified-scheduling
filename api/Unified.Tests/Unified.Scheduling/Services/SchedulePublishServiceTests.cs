@@ -16,12 +16,12 @@ using Unified.Db.Models.Leave;
 using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
-using Unified.Db.Models.UserManagement;
-using Unified.Leave.Constants;
-using Unified.LoanOut.Constants;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
+using Unified.Db.Models.UserManagement;
+using Unified.Leave.Constants;
+using Unified.LoanOut.Constants;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
@@ -168,7 +168,8 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
     [InlineData(3, 0, true, true, 5, 6, 10, 6, "UTC")]
     [InlineData(5, 0, true, true, 5, 6, 10, 6, "UTC")]
     [InlineData(7, 0, false, true, 5, 6, 10, 6, "UTC")]
-    [InlineData(1, 6, true, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(1, 6, false, true, 5, 6, 10, 6, "UTC")]
+    [InlineData(1, 6, true, false, 5, 6, 10, 6, "UTC")]
     [InlineData(1, 2, true, true, 5, 6, 10, 6, "UTC")]
     [InlineData(0, 7, false, true, 5, 6, 10, 6, "UTC")]
     [InlineData(7, 0, true, false, 5, 6, 10, 6, "UTC")]
@@ -195,7 +196,7 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         string timeZoneId
     )
     {
-        var startDate = new DateOnly(2026, startMonth, startDay);
+        var startDate = new DateOnly(2025, startMonth, startDay);
         var zones = new TimeZoneService();
         var eventStart = zones.ToUtcInstant(
             startDate.ToDateTime(new TimeOnly(9, 0)),
