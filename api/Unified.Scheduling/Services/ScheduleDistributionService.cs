@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Calendar.Services;
+using Unified.Common.Time;
 using Unified.Core.Email;
 using Unified.Core.Pdf;
 using Unified.Db;
+using Unified.Db.Models.Calendar;
 using Unified.Scheduling.Models;
 
 namespace Unified.Scheduling.Services;
@@ -11,7 +14,10 @@ public sealed class ScheduleDistributionService(
     UnifiedDbContext db,
     ISchedulePdfRenderer pdfRenderer,
     IEmailService emailService,
-    ILogger<ScheduleDistributionService> logger
+    ILogger<ScheduleDistributionService> logger,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
+    ICalendarTimeZoneResolver timeZoneResolver,
+    ITimeZoneService timeZoneService
 ) : IScheduleDistributionService
 {
     public async Task<ScheduleDistributionResult> DistributeAsync(
@@ -27,13 +33,37 @@ public sealed class ScheduleDistributionService(
         if (location is null)
             throw new KeyNotFoundException($"Location {context.LocationId} was not found.");
 
-        var recipients = await db
-            .Users.AsNoTracking()
-            .Where(candidate =>
-                candidate.IsEnabled
-                && candidate.HomeLocationId == context.LocationId
-                && recipientUserIds.Contains(candidate.Id)
-            )
+        var recipientQuery = db.Users.AsNoTracking();
+        if (loanOutAvailabilityService.IsEnabled)
+        {
+            var range = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
+                context.StartDate,
+                context.EndDate.AddDays(-1),
+                timeZoneResolver.Resolve(null, location.Timezone)
+            );
+            recipientQuery = recipientQuery.Where(candidate =>
+                candidate.HomeLocationId == context.LocationId
+                || db.LoanOutEntries.Any(entry =>
+                    entry.LoanOutLocationId == context.LocationId
+                    && entry.Event != null
+                    && entry.Event.SourceModule == "loanOut"
+                    && entry.Event.EventTypeCode == "loanOut"
+                    && entry.Event.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled
+                    && entry.Event.StartAtUtc < range.EndAtUtc
+                    && (
+                        entry.Event.EndAtUtc.HasValue
+                            ? entry.Event.EndAtUtc > range.StartAtUtc
+                            : entry.Event.StartAtUtc >= range.StartAtUtc
+                    )
+                    && entry.Users.Any(user => user.UserId == candidate.Id)
+                )
+            );
+        }
+        else
+            recipientQuery = recipientQuery.Where(candidate => candidate.HomeLocationId == context.LocationId);
+
+        var recipients = await recipientQuery
+            .Where(candidate => candidate.IsEnabled && recipientUserIds.Contains(candidate.Id))
             .Select(candidate => new { candidate.Id, candidate.Email })
             .ToListAsync(cancellationToken);
         if (recipients.Count != recipientUserIds.Count)
