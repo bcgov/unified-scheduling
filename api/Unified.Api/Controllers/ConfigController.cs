@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Unified.Api.Models;
 using Unified.Api.Options;
 using Unified.Common.FeatureFlags;
+using Unified.Scheduling.Options;
 
 namespace Unified.Api.Controllers;
 
@@ -12,7 +13,8 @@ namespace Unified.Api.Controllers;
 public class ConfigController(
     ILogger<ConfigController> logger,
     IEnumerable<IFeatureFlags> featureFlags,
-    IOptions<ApplicationOptions> applicationOptions
+    IOptions<ApplicationOptions> applicationOptions,
+    IOptions<WorkingHoursOptions> workingHoursOptions
 ) : ControllerBase
 {
     /// <summary>
@@ -33,6 +35,7 @@ public class ConfigController(
             FeatureFlags = featureFlagsResponse,
             SupportEmail = applicationOptions.Value.SupportEmail,
             ApplicationName = applicationOptions.Value.Name,
+            DefaultLunchMinutes = workingHoursOptions.Value.DefaultLunchMinutes,
         };
 
         logger.LogDebug(

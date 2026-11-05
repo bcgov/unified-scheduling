@@ -20,7 +20,7 @@ import {
 } from '@/modules/scheduling/schedulingDateTime';
 
 const baseFormData: ShiftResourceFormData = {
-  ...createInitialShiftFormDataForCreateAction(1),
+  ...createInitialShiftFormDataForCreateAction(1, 60),
   title: 'System System shift',
   date: '2026-06-29',
   startTime: '09:00',
@@ -53,10 +53,10 @@ describe('calendarSchedulingShiftForm', () => {
     });
     expect(payload?.body).toMatchObject({ lunchAvailableMinutes: null, workedLunchMinutes: null });
   });
-  it('defaults new shifts to 60 minutes available and 0 minutes worked lunch', () => {
-    const formData = createInitialShiftFormDataForCreateAction(1);
+  it.each([0, 20, 30])('initializes new shifts with configured lunch %i and zero worked lunch', (minutes) => {
+    const formData = createInitialShiftFormDataForCreateAction(1, minutes);
 
-    expect(formData.lunchAvailableMinutes).toBe(60);
+    expect(formData.lunchAvailableMinutes).toBe(minutes);
     expect(formData.workedLunchMinutes).toBe(0);
   });
 

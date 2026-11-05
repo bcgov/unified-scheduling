@@ -182,6 +182,55 @@ public class ShiftServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateShiftSeriesAsync_LunchUpdate_SkipsMovedAndCancelledOccurrences()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var request = CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3") with
+        {
+            LunchAvailableMinutes = 60,
+            WorkedLunchMinutes = 0,
+        };
+        var created = await _service.CreateShiftSeriesAsync(request, cancellationToken);
+        var entries = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .Where(entry => entry.ShiftSeriesId == created.Id)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .ToListAsync(cancellationToken);
+        entries[1].Event!.LocationId = 9;
+        entries[1].WorkedLunchMinutes = 45;
+        entries[2].Event!.StatusTypeCode = CalendarEventStatusTypeCodes.Cancelled;
+        entries[2].WorkedLunchMinutes = 45;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var updated = await _service.UpdateShiftSeriesAsync(
+            created.Id,
+            request with
+            {
+                LunchAvailableMinutes = 30,
+                WorkedLunchMinutes = 0,
+            },
+            cancellationToken
+        );
+
+        Assert.Equal(30, updated!.LunchAvailableMinutes);
+        Assert.Equal(0, updated.WorkedLunchMinutes);
+        _dbContext.ChangeTracker.Clear();
+        entries = await _dbContext
+            .ShiftEntries.Include(entry => entry.Event)
+            .Where(entry => entry.ShiftSeriesId == created.Id)
+            .OrderBy(entry => entry.Event!.StartAtUtc)
+            .ToListAsync(cancellationToken);
+        Assert.Equal(30, entries[0].LunchAvailableMinutes);
+        Assert.Equal(0, entries[0].WorkedLunchMinutes);
+        Assert.Equal(9, entries[1].Event!.LocationId);
+        Assert.Equal(60, entries[1].LunchAvailableMinutes);
+        Assert.Equal(45, entries[1].WorkedLunchMinutes);
+        Assert.Equal(CalendarEventStatusTypeCodes.Cancelled, entries[2].Event!.StatusTypeCode);
+        Assert.Equal(60, entries[2].LunchAvailableMinutes);
+        Assert.Equal(45, entries[2].WorkedLunchMinutes);
+    }
+
+    [Fact]
     public async Task UpdateShiftSeriesAsync_InvalidPropagatedLunch_IsRejectedBeforeChangingParentOrChildren()
     {
         var request = CreateShiftSeriesRequest() with { LunchAvailableMinutes = 60, WorkedLunchMinutes = 15 };
@@ -208,6 +257,14 @@ public class ShiftServiceTests : IAsyncLifetime
                 TestContext.Current.CancellationToken
             )
         );
+        Assert.Equal("Series", parent.EventSeries!.Title);
+        Assert.Equal(60, parent.LunchAvailableMinutes);
+        Assert.Equal(15, parent.WorkedLunchMinutes);
+        Assert.Equal(60, child.LunchAvailableMinutes);
+        Assert.Equal(45, child.WorkedLunchMinutes);
+        await _dbContext.Entry(parent).ReloadAsync(TestContext.Current.CancellationToken);
+        await _dbContext.Entry(parent.EventSeries!).ReloadAsync(TestContext.Current.CancellationToken);
+        await _dbContext.Entry(child).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Series", parent.EventSeries!.Title);
         Assert.Equal(60, parent.LunchAvailableMinutes);
         Assert.Equal(15, parent.WorkedLunchMinutes);
@@ -2090,7 +2147,11 @@ public class ShiftServiceTests : IAsyncLifetime
         var cancellationToken = TestContext.Current.CancellationToken;
         var start = new DateTimeOffset(2026, 6, 1, 16, 0, 0, TimeSpan.Zero);
         var source = await _service.CreateShiftSeriesAsync(
-            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3"),
+            CreateShiftSeriesRequest(recurrenceRule: "FREQ=DAILY;COUNT=3") with
+            {
+                LunchAvailableMinutes = 30,
+                WorkedLunchMinutes = 15,
+            },
             cancellationToken
         );
         if (overrideFirstTime)
@@ -2173,6 +2234,7 @@ public class ShiftServiceTests : IAsyncLifetime
         var copied = await _dbContext
             .ShiftEntries.Include(entry => entry.Event)
             .Include(entry => entry.Users)
+            .Include(entry => entry.ShiftSeries)
             .Where(entry => entry.Event!.LocationId == 9)
             .OrderBy(entry => entry.Event!.StartAtUtc)
             .ToListAsync(cancellationToken);
@@ -2203,6 +2265,13 @@ public class ShiftServiceTests : IAsyncLifetime
                     Assert.NotNull(entry.ShiftSeriesId);
                 Assert.Equal(entry.Event!.StartAtUtc.AddHours(7), entry.Event.EndAtUtc);
                 Assert.Equal(UserA, Assert.Single(entry.Users).UserId);
+                Assert.Equal(30, entry.LunchAvailableMinutes);
+                Assert.Equal(15, entry.WorkedLunchMinutes);
+                if (entry.ShiftSeries is not null)
+                {
+                    Assert.Equal(30, entry.ShiftSeries.LunchAvailableMinutes);
+                    Assert.Equal(15, entry.ShiftSeries.WorkedLunchMinutes);
+                }
             }
         );
         var originals = await _dbContext

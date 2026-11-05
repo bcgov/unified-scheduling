@@ -71,6 +71,8 @@ public sealed class SchedulingLoanOutEventMapper(
             LocationId = locationId,
             UserIds = userIds,
             RecurrenceRule = LimitRecurrenceRule(recurrenceRule, orderedOccurrences.Count),
+            LunchAvailableMinutes = source.LunchAvailableMinutes,
+            WorkedLunchMinutes = source.WorkedLunchMinutes,
         };
     }
 

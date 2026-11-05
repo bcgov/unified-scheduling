@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Services;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -17,7 +18,8 @@ public sealed class WorkingHoursService(
     UnifiedDbContext db,
     IOptions<WorkingHoursOptions> options,
     ITimeZoneService timeZoneService,
-    IOptions<LeaveFeatureFlags> leaveOptions
+    IOptions<LeaveFeatureFlags> leaveOptions,
+    ICalendarTimeZoneResolver timeZoneResolver
 ) : IWorkingHoursService
 {
     public async Task<IReadOnlyCollection<WorkingHoursResult>> QueryAsync(
@@ -87,6 +89,7 @@ public sealed class WorkingHoursService(
                 x.Shift.Event!.StartAtUtc,
                 x.Shift.Event.EndAtUtc!.Value,
                 x.Shift.Event.TimeZoneId,
+                x.Shift.Event.Location != null ? x.Shift.Event.Location.Timezone : null,
                 x.Shift.LunchAvailableMinutes,
                 x.Shift.WorkedLunchMinutes
             ))
@@ -96,7 +99,7 @@ public sealed class WorkingHoursService(
         shifts = shifts
             .Where(x =>
             {
-                var date = GetBusinessDate(x.Start, x.TimeZoneId);
+                var date = GetBusinessDate(x);
 
                 return date >= query.StartDate && date <= query.EndDate;
             })
@@ -194,7 +197,7 @@ public sealed class WorkingHoursService(
             {
                 ShiftEntryId = shift.ShiftEntryId,
                 UserId = shift.UserId,
-                Date = GetBusinessDate(shift.Start, shift.TimeZoneId),
+                Date = GetBusinessDate(shift),
                 LunchAvailableMinutes = shift.LunchAvailableMinutes,
                 WorkedLunchMinutes = null,
                 PaidOutsideShiftMinutes = paidOutsideShiftMinutes,
@@ -221,7 +224,7 @@ public sealed class WorkingHoursService(
         {
             ShiftEntryId = shift.ShiftEntryId,
             UserId = shift.UserId,
-            Date = GetBusinessDate(shift.Start, shift.TimeZoneId),
+            Date = GetBusinessDate(shift),
             PaidShiftMinutes = paidShiftMinutes,
             LunchAvailableMinutes = shift.LunchAvailableMinutes,
             WorkedLunchMinutes = effectiveWorkedLunchMinutes,
@@ -352,9 +355,10 @@ public sealed class WorkingHoursService(
         return result;
     }
 
-    private DateOnly GetBusinessDate(DateTimeOffset value, string? timeZoneId)
+    private DateOnly GetBusinessDate(ShiftWorkHoursData shift)
     {
-        return DateOnly.FromDateTime(timeZoneService.ToTimeZone(value, timeZoneId).DateTime);
+        var timeZone = timeZoneResolver.Resolve(shift.TimeZoneId, shift.LocationTimeZoneId);
+        return DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(shift.Start, timeZone));
     }
 
     private static int GetDurationMinutes(DateTimeOffset start, DateTimeOffset end)
@@ -380,6 +384,7 @@ public sealed class WorkingHoursService(
         DateTimeOffset Start,
         DateTimeOffset End,
         string? TimeZoneId,
+        string? LocationTimeZoneId,
         int? LunchAvailableMinutes,
         int? WorkedLunchMinutes
     );

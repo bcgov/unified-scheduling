@@ -155,13 +155,13 @@ export const workedLunchOptions: SelectOption[] = [
   ...lunchAvailableOptions.filter((option) => option.code !== 0),
 ];
 
-export const DEFAULT_LUNCH_AVAILABLE_MINUTES = 60;
 export const DEFAULT_WORKED_LUNCH_MINUTES = 0;
 
 export function createInitialShiftFormData(
   resource: CalendarMatrixResource,
   locationId: number | null,
   statusTypeCode: CalendarEventStatusTypeCode | string,
+  defaultLunchMinutes: number | undefined,
 ): ShiftResourceFormData {
   return {
     title: buildShiftTitle(resource.title || resource.id),
@@ -178,7 +178,7 @@ export function createInitialShiftFormData(
     assignmentLabel: '',
     trainingLabel: '',
     allDay: false,
-    lunchAvailableMinutes: DEFAULT_LUNCH_AVAILABLE_MINUTES,
+    lunchAvailableMinutes: defaultLunchMinutes,
     workedLunchMinutes: DEFAULT_WORKED_LUNCH_MINUTES,
     isException: false,
     statusTypeCode,
@@ -187,7 +187,10 @@ export function createInitialShiftFormData(
   };
 }
 
-export function createInitialShiftFormDataForCreateAction(locationId: number | null): ShiftResourceFormData {
+export function createInitialShiftFormDataForCreateAction(
+  locationId: number | null,
+  defaultLunchMinutes: number | undefined,
+): ShiftResourceFormData {
   return {
     title: 'New shift',
     description: null,
@@ -203,7 +206,7 @@ export function createInitialShiftFormDataForCreateAction(locationId: number | n
     assignmentLabel: '',
     trainingLabel: '',
     allDay: false,
-    lunchAvailableMinutes: DEFAULT_LUNCH_AVAILABLE_MINUTES,
+    lunchAvailableMinutes: defaultLunchMinutes,
     workedLunchMinutes: DEFAULT_WORKED_LUNCH_MINUTES,
     isException: false,
     statusTypeCode: 'Draft',

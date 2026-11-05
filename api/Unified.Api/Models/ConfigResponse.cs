@@ -23,4 +23,9 @@ public class ConfigResponse
     /// Application display name
     /// </summary>
     public string? ApplicationName { get; set; }
+
+    /// <summary>
+    /// Default available lunch duration for new shifts, in minutes.
+    /// </summary>
+    public int DefaultLunchMinutes { get; set; }
 }
