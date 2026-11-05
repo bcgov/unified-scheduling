@@ -145,7 +145,7 @@ public sealed class ScheduleDistributionRequestValidatorTests
             var recipientId = Guid.NewGuid();
             return new TheoryData<IReadOnlyCollection<Guid>?>
             {
-                { null },
+                { (IReadOnlyCollection<Guid>?)null },
                 { [] },
                 { [Guid.Empty] },
                 { [recipientId, recipientId] },
