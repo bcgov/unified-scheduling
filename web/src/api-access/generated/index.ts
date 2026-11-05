@@ -19,7 +19,6 @@ export * from './permissions/permissions.ts';
 export * from './region/region.ts';
 export * from './reporting/reporting.ts';
 export * from './roles/roles.ts';
-export * from './schedule-distribution/schedule-distribution.ts';
 export * from './schedule-publish/schedule-publish.ts';
 export * from './scheduling-calendar/scheduling-calendar.ts';
 export * from './scheduling-leave/scheduling-leave.ts';

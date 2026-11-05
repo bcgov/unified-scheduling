@@ -6,6 +6,7 @@
  */
 
 export interface ShiftSeriesResponse {
+  concurrencyToken?: number;
   shiftEntryIds?: number[];
   id?: number;
   eventSeriesId?: number;

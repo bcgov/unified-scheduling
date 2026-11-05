@@ -14,6 +14,7 @@ import type { AssignmentEntryResponse, AssignmentSeriesResponse } from '../model
 export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSeriesResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -65,6 +66,7 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
       ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -116,6 +118,7 @@ export const getGetApiSchedulingAssignmentsSeriesResponseMock = (): AssignmentSe
       ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -173,6 +176,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
 ): AssignmentSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -225,6 +229,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -277,6 +282,7 @@ export const getPostApiSchedulingAssignmentsSeriesResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -335,6 +341,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
 ): AssignmentSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -387,6 +394,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -439,6 +447,7 @@ export const getGetApiSchedulingAssignmentsSeriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -497,6 +506,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
 ): AssignmentSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -549,6 +559,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -601,6 +612,7 @@ export const getPutApiSchedulingAssignmentsSeriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -659,6 +671,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdPublishResponseMock = (
 ): AssignmentSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -711,6 +724,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdPublishResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -763,6 +777,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdPublishResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -821,6 +836,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
 ): AssignmentSeriesResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -873,6 +889,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -925,6 +942,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
@@ -981,6 +999,7 @@ export const getPostApiSchedulingAssignmentsSeriesIdExpireResponseMock = (
 export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentEntryResponse[] =>
   faker.helpers.arrayElement([
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1041,6 +1060,7 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
       ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1101,6 +1121,7 @@ export const getGetApiSchedulingAssignmentsEntriesResponseMock = (): AssignmentE
       ]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1167,6 +1188,7 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
 ): AssignmentEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1228,6 +1250,7 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1289,6 +1312,7 @@ export const getPostApiSchedulingAssignmentsEntriesResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1356,6 +1380,7 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
 ): AssignmentEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1417,6 +1442,7 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1478,6 +1504,7 @@ export const getGetApiSchedulingAssignmentsEntriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1545,6 +1572,7 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
 ): AssignmentEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1606,6 +1634,7 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1667,6 +1696,7 @@ export const getPutApiSchedulingAssignmentsEntriesIdResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1734,6 +1764,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
 ): AssignmentEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1795,6 +1826,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1856,6 +1888,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdPublishResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1923,6 +1956,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
 ): AssignmentEntryResponse =>
   faker.helpers.arrayElement([
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -1984,6 +2018,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -2045,6 +2080,7 @@ export const getPostApiSchedulingAssignmentsEntriesIdExpireResponseMock = (
       ...overrideResponse,
     },
     {
+      concurrencyToken: faker.helpers.arrayElement([faker.number.int(), undefined]),
       assignmentSeriesId: faker.helpers.arrayElement([faker.number.int(), null]),
       assignmentDefinitionId: faker.helpers.arrayElement([faker.number.int(), undefined]),
       categoryId: faker.helpers.arrayElement([faker.number.int(), undefined]),

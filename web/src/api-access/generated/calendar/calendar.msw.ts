@@ -80,7 +80,6 @@ export const getPostApiCalendarEventsResponseMock = (
             end: faker.date.past().toISOString().slice(0, 19) + 'Z',
             sourceEntityId: faker.helpers.arrayElement([faker.number.int(), null]),
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            canonicalEventId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           overlaps: {
             eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -90,7 +89,6 @@ export const getPostApiCalendarEventsResponseMock = (
             end: faker.date.past().toISOString().slice(0, 19) + 'Z',
             sourceEntityId: faker.helpers.arrayElement([faker.number.int(), null]),
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            canonicalEventId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           resourceId: faker.string.uuid(),
           overlapStart: faker.date.past().toISOString().slice(0, 19) + 'Z',
@@ -170,7 +168,6 @@ export const getPostApiCalendarEventsResponseMock = (
             end: faker.date.past().toISOString().slice(0, 19) + 'Z',
             sourceEntityId: faker.helpers.arrayElement([faker.number.int(), null]),
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            canonicalEventId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           overlaps: {
             eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -180,7 +177,6 @@ export const getPostApiCalendarEventsResponseMock = (
             end: faker.date.past().toISOString().slice(0, 19) + 'Z',
             sourceEntityId: faker.helpers.arrayElement([faker.number.int(), null]),
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            canonicalEventId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           resourceId: faker.string.uuid(),
           overlapStart: faker.date.past().toISOString().slice(0, 19) + 'Z',
@@ -260,7 +256,6 @@ export const getPostApiCalendarEventsResponseMock = (
             end: faker.date.past().toISOString().slice(0, 19) + 'Z',
             sourceEntityId: faker.helpers.arrayElement([faker.number.int(), null]),
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            canonicalEventId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           overlaps: {
             eventId: faker.string.alpha({ length: { min: 10, max: 20 } }),
@@ -270,7 +265,6 @@ export const getPostApiCalendarEventsResponseMock = (
             end: faker.date.past().toISOString().slice(0, 19) + 'Z',
             sourceEntityId: faker.helpers.arrayElement([faker.number.int(), null]),
             timeZoneId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-            canonicalEventId: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
           },
           resourceId: faker.string.uuid(),
           overlapStart: faker.date.past().toISOString().slice(0, 19) + 'Z',
