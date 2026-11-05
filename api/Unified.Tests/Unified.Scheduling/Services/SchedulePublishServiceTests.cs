@@ -103,7 +103,13 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         shift.Users.Add(new() { UserId = ResourceId });
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var conflictService = new CalendarConflictService(
-            [new SchedulingConflictParticipantProvider(_db), new LeaveConflictParticipantProvider(_db)],
+            [
+                new SchedulingConflictParticipantProvider(
+                    _db,
+                    SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                ),
+                new LeaveConflictParticipantProvider(_db),
+            ],
             _db,
             CalendarConflictTestContext.Projection(ResourceId),
             CalendarConflictTestRules.Create(
@@ -478,7 +484,10 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         );
         var conflictService = new CalendarConflictService(
             [
-                new SchedulingConflictParticipantProvider(_db),
+                new SchedulingConflictParticipantProvider(
+                    _db,
+                    SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                ),
                 new TrainingConflictParticipantProvider(_db, timeZoneResolver, timeZoneService),
             ],
             _db,
@@ -649,7 +658,15 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(ResourceId);
         var service = CreateService(
             [hidden],
-            projection: new CalendarConflictProjection([new SchedulingConflictParticipantProvider(_db)], accessor)
+            projection: new CalendarConflictProjection(
+                [
+                    new SchedulingConflictParticipantProvider(
+                        _db,
+                        SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                    ),
+                ],
+                accessor
+            )
         );
 
         var preview = await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken);
@@ -681,6 +698,7 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
     ) =>
         new(
             _db,
+            SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService()),
             new CalendarTimeZoneResolver(
                 Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
                 new TimeZoneService()

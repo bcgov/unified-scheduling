@@ -174,7 +174,7 @@ function handleEventAction(
 }
 
 const selectedConflict = ref<CalendarConflict>();
-const selectedConflictEventId = ref<number>();
+const selectedConflictEventId = ref<CalendarMatrixConflictItem['currentEventId']>();
 const conflictOverrideLoading = ref(false);
 const conflictErrorMessage = ref('');
 function canEditConflictEvent(event: CalendarConflictEvent) {

@@ -1,4 +1,4 @@
-import type { CalendarConflict, CalendarConflictEvent } from './calendarTypes';
+import type { CalendarConflict, CalendarConflictEvent, CalendarConflictEventIdentity } from './calendarTypes';
 import { CALENDAR_ALL_DAY_LABEL, formatCalendarDateOnly, formatCalendarDateTimeRange } from '@/utils/date';
 import { DateTime } from 'luxon';
 
@@ -16,8 +16,16 @@ export function getCalendarConflictEventTimeZoneLabel(event: CalendarConflictEve
     : undefined;
 }
 
-export function resolveCalendarConflictSides(conflict: CalendarConflict, currentEventId: number) {
-  const currentEventIsOverlap = conflict.overlaps.eventId === String(currentEventId);
+export function resolveCalendarConflictSides(
+  conflict: CalendarConflict,
+  currentEventId: number | CalendarConflictEventIdentity,
+) {
+  const identity =
+    typeof currentEventId === 'number'
+      ? { sourceModule: 'scheduling', eventId: String(currentEventId) }
+      : currentEventId;
+  const currentEventIsOverlap =
+    conflict.overlaps.sourceModule === identity.sourceModule && conflict.overlaps.eventId === identity.eventId;
   return {
     current: currentEventIsOverlap ? conflict.overlaps : conflict.entry,
     other: currentEventIsOverlap ? conflict.entry : conflict.overlaps,

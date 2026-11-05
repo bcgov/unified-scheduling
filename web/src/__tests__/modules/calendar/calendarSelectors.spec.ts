@@ -18,7 +18,7 @@ const createConflict = (reportOnEntry: boolean, reportOnOverlaps: boolean): Cale
   },
   overlaps: {
     eventId: '2',
-    sourceModule: 'leave',
+    sourceModule: 'scheduling',
     title: 'Leave',
     start: '2026-07-01T17:00:00Z',
     end: '2026-07-01T19:00:00Z',
@@ -62,5 +62,19 @@ describe('calendar conflict selectors', () => {
     ]);
     expect(getCalendarConflictsForEvent(null, [conflict])).toEqual([]);
     expect(getCalendarConflictsForEvent(undefined, [conflict])).toEqual([]);
+  });
+
+  it('matches source-qualified training identities without cross-module or numeric collisions', () => {
+    const conflict = createConflict(true, true);
+    conflict.entry = { ...conflict.entry, sourceModule: 'training', eventId: 'training.user-training.42' };
+    conflict.overlaps = { ...conflict.overlaps, sourceModule: 'calendar', eventId: '1' };
+    expect(
+      getCalendarConflictsForEvent({ sourceModule: 'training', eventId: 'training.user-training.42' }, [conflict]),
+    ).toEqual([conflict]);
+    expect(
+      getCalendarConflictsForEvent({ sourceModule: 'calendar', eventId: 'training.user-training.42' }, [conflict]),
+    ).toEqual([]);
+    expect(getCalendarConflictsForEvent(42, [conflict])).toEqual([]);
+    expect(getCalendarConflictsForEvent(1, [conflict])).toEqual([]);
   });
 });
