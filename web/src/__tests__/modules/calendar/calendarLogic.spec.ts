@@ -23,6 +23,7 @@ import {
   buildCalendarAssignmentViewModel,
   buildCalendarSchedulingViewModel,
   getCalendarEventDateKey,
+  type CalendarSchedulingMatrixPayload,
 } from '@/modules/scheduling/calendarSchedulingMappers';
 import type { CalendarSchedulingUserResource } from '@/modules/scheduling/contributions/calendarSchedulingEventsContribution';
 import type { CalendarSchedulingAssignmentResource } from '@/modules/scheduling/contributions/calendarSchedulingAssignmentResourcesContribution';
@@ -141,6 +142,135 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it.each([buildCalendarSchedulingViewModel, buildCalendarAssignmentViewModel])(
+    'excludes home IsAway markers from distribution warnings while retaining destination shifts (%#)',
+    (buildViewModel) => {
+      const homeAway: CalendarSchedulingEvent = {
+        id: 'home-away',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Home away marker',
+        start: '2025-01-13T17:00:00Z',
+        end: '2025-01-14T01:00:00Z',
+        locationId: 7,
+        statusTypeCode: 'Draft',
+        isException: true,
+        exceptionReason: 'IsAway',
+        resourceIds: ['borrowed'],
+        metadata: { eventId: 1, shiftEntryId: '1', userIds: ['borrowed'] },
+      };
+      const destinationDraft: CalendarSchedulingEvent = {
+        ...homeAway,
+        id: 'destination-draft',
+        title: 'Destination draft shift',
+        locationId: 8,
+        isException: false,
+        metadata: { eventId: 2, shiftEntryId: '2', userIds: ['borrowed'] },
+      };
+      const destinationPublished: CalendarSchedulingEvent = {
+        ...destinationDraft,
+        id: 'destination-published',
+        title: 'Destination published shift',
+        statusTypeCode: 'Published',
+        metadata: { eventId: 3, shiftEntryId: '3', userIds: ['borrowed'] },
+      };
+      const assignment: CalendarSchedulingEvent = {
+        ...destinationPublished,
+        id: 'destination-assignment',
+        type: 'scheduling.assignment',
+        title: 'Destination assignment',
+        statusTypeCode: 'Active',
+        metadata: {
+          eventId: 4,
+          assignmentEntryId: '4',
+          assignmentDefinitionId: '20',
+          assignedShiftIds: ['1', '3'],
+          assignedUserIds: ['borrowed'],
+          capacity: 1,
+        },
+      };
+      const conflictEntry = (eventId: string) => ({
+        eventId,
+        sourceModule: 'scheduling',
+        title: 'Shift',
+        start: homeAway.start,
+        end: homeAway.end!,
+        sourceEntityId: null,
+        timeZoneId: null,
+      });
+      const conflict = {
+        id: 'excluded-home-conflict',
+        resourceId: 'borrowed',
+        entry: conflictEntry('1'),
+        overlaps: conflictEntry('99'),
+        overlapStart: homeAway.start,
+        overlapEnd: homeAway.end!,
+        isOverridden: false,
+      };
+      const validConflict = {
+        ...conflict,
+        id: 'destination-conflict',
+        entry: conflictEntry('3'),
+        overlaps: conflictEntry('4'),
+      };
+      const response: CalendarDataResponse = {
+        contributions: {
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            events: [homeAway, destinationDraft, destinationPublished, assignment],
+            resources: [],
+          },
+          'scheduling.loanout': {
+            moduleId: 'loanout',
+            contributionId: 'scheduling.loanout',
+            events: [],
+            resources: [{ id: 'borrowed', type: 'user', sourceModule: 'loanout', label: 'Borrowed' }],
+          },
+          'scheduling.assignment-resources': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.assignment-resources',
+            events: [],
+            resources: [createAssignmentResource('assignment-definition-20', 'Destination assignment')],
+          },
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: { conflicts: [conflict, validConflict] },
+          },
+        },
+      };
+      const model = buildViewModel(
+        response,
+        { locationId: 8, startDate: '2025-01-13', endDate: '2025-01-20', filters: { timeZoneId: 'America/Vancouver' } },
+        'week',
+      );
+      const payload = model.payload as CalendarSchedulingMatrixPayload;
+      expect(payload.events.filter((event) => event.statusTypeCode === 'Draft').map((event) => event.id)).toEqual([
+        'destination-draft',
+      ]);
+      expect(payload.events.map((event) => event.id).sort()).toEqual([
+        'destination-assignment',
+        'destination-draft',
+        'destination-published',
+      ]);
+      expect(payload.conflicts.map((item) => item.id)).toEqual(['destination-conflict']);
+      const linkedShifts = model.cells.flatMap(
+        (cell) => (cell.payload as { shiftEvents?: CalendarSchedulingEvent[] } | undefined)?.shiftEvents ?? [],
+      );
+      expect(linkedShifts.some((event) => event.id === 'home-away')).toBe(false);
+      if (buildViewModel === buildCalendarAssignmentViewModel) {
+        expect(linkedShifts.some((event) => event.id === 'destination-published')).toBe(true);
+      }
+      const displayedConflicts = model.cells.flatMap((cell) => [
+        ...(cell.headers ?? []).flatMap((header) => header.conflicts ?? []),
+        ...cell.groups.flatMap((group) => group.events.flatMap((item) => item.conflicts ?? [])),
+      ]);
+      expect(displayedConflicts.some((item) => item.conflict.id === conflict.id)).toBe(false);
+    },
+  );
+
   it('enables sidebar search with assignment fields selected by Scheduling', () => {
     const response: CalendarDataResponse = {
       contributions: {

@@ -106,8 +106,9 @@ describe('CalendarSchedulingView', () => {
     showCalendarSchedulingDistributionModal(7, '2026-08-24', '2026-08-25');
     const app = await createTestApp({ loadConfig: false });
     const calendarStore = useCalendarStore(app.pinia);
+    const runtimeContext = { featureFlags: { LoanOut: { enabled: true } }, permissions: [Permissions.LoanOutView] };
     const wrapper = mount(CalendarSchedulingView, {
-      props: { model },
+      props: { model, runtimeContext },
       global: {
         plugins: app.mountPlugins,
         stubs: {
@@ -118,6 +119,7 @@ describe('CalendarSchedulingView', () => {
     });
 
     const modal = wrapper.getComponent(CalendarSchedulingDistributionModal);
+    expect(modal.props('runtimeContext')).toEqual(runtimeContext);
     modal.vm.$emit('close');
     await wrapper.vm.$nextTick();
 
