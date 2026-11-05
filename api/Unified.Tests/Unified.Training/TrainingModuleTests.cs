@@ -162,8 +162,10 @@ public sealed class TrainingModuleTests
             Assert.IsType<UserTrainingService>(scope.ServiceProvider.GetRequiredService<IUserTrainingService>());
         if (expectedProvider)
         {
-            Assert.IsType<TrainingConflictParticipantProvider>(
-                Assert.Single(scope.ServiceProvider.GetServices<ICalendarConflictParticipantProvider>())
+            Assert.Single(
+                scope
+                    .ServiceProvider.GetServices<ICalendarConflictParticipantProvider>()
+                    .OfType<TrainingConflictParticipantProvider>()
             );
             Assert.IsType<InvalidateTrainingOverridesOnHomeLocationChangeHandler>(
                 Assert.Single(scope.ServiceProvider.GetServices<IEntitySideEffect<UserHomeLocationChangedSignal>>())
