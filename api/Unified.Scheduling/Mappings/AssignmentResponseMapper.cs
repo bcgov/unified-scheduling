@@ -124,6 +124,7 @@ internal static class AssignmentResponseMapper
             TimeZoneId = eventEntity.TimeZoneId,
             AllDay = eventEntity.AllDay,
             IsException = eventEntity.IsException,
+            ExceptionReason = eventEntity.ExceptionReason,
             EventTypeCode = SchedulingConstants.AssignmentEventTypeCode,
             StatusTypeCode = eventEntity.StatusTypeCode,
             CancelledAt = eventEntity.CancelledAt,

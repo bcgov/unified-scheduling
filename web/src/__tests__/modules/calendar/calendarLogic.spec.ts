@@ -141,6 +141,59 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it('enables sidebar search with assignment fields selected by Scheduling', () => {
+    const response: CalendarDataResponse = {
+      contributions: {
+        'scheduling.assignment-resources': {
+          moduleId: 'scheduling',
+          contributionId: 'scheduling.assignment-resources',
+          events: [],
+          resources: [
+            {
+              ...createAssignmentResource('assignment-1', 'Court', 'Security', 'Coverage'),
+              description: 'Main entrance',
+            } as CalendarSchedulingAssignmentResource,
+          ],
+        },
+        'scheduling.events': {
+          moduleId: 'scheduling',
+          contributionId: 'scheduling.events',
+          events: [],
+          resources: [
+            {
+              id: 'user-1',
+              type: 'user',
+              sourceModule: 'scheduling',
+              label: 'Ada',
+              title: 'Ada',
+              subtitle: 'Deputy',
+            } as CalendarSchedulingUserResource,
+          ],
+        },
+      },
+    };
+    const context = { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} };
+    const schedule = buildCalendarSchedulingViewModel(response, context, 'week');
+    const assignment = buildCalendarAssignmentViewModel(response, context, 'week');
+
+    expect(schedule.sidePanel?.search).toEqual({ placeholder: 'Search assignments...' });
+    expect(schedule.sidePanel?.items[0]).toMatchObject({
+      title: 'Court',
+      searchText: 'Main entrance Security Coverage',
+      draggable: true,
+      payload: { description: 'Main entrance' },
+    });
+    expect(assignment.sidePanel?.search).toEqual({ placeholder: 'Search team...' });
+    expect(assignment.sidePanel?.items[0]).toMatchObject({
+      id: 'user-1',
+      type: 'user',
+      title: 'Ada',
+      subtitle: 'Deputy',
+      draggable: true,
+      payload: { userId: 'user-1', title: 'Ada' },
+    });
+  });
+
   it('shows each leave event only in its matching user and date cell', () => {
     const leaveEvent: CalendarSchedulingEvent = {
       id: 'scheduling.leave-entry.1',

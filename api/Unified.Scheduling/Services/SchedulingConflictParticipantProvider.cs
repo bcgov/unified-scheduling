@@ -152,6 +152,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     != CalendarEventStatusTypeCodes.Cancelled
                 && participant.ShiftAssignmentEntry.ShiftEntry!.Event!.StatusTypeCode
                     != CalendarEventStatusTypeCodes.Cancelled
+                && participant.ShiftAssignmentEntry.ShiftEntry.Users.Any(user => user.UserId == participant.UserId)
             );
 
     private static IQueryable<Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser> PublishedAssignmentParticipantQuery(

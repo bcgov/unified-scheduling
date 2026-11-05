@@ -107,9 +107,9 @@ describe('scheduling rank order', () => {
     expect(schedule.primaryColumn.resources.map((item) => item.id)).toEqual(['chief', 'deputy', 'unknown']);
     expect(assignment.sidePanel?.items.map((item) => item.id)).toEqual(['chief', 'deputy', 'unknown']);
     expect(assignment.sidePanel?.items.map((item) => item.payload)).toEqual([
-      { userId: 'chief', title: 'Alex Zulu' },
-      { userId: 'deputy', title: 'Alex Adams' },
-      { userId: 'unknown', title: 'Alex Beta' },
+      { userId: 'chief', title: 'Alex Zulu', sourceModule: 'scheduling', loanOutMetaData: undefined },
+      { userId: 'deputy', title: 'Alex Adams', sourceModule: 'scheduling', loanOutMetaData: undefined },
+      { userId: 'unknown', title: 'Alex Beta', sourceModule: 'scheduling', loanOutMetaData: undefined },
     ]);
     expect(assignment.sidePanel?.items.every((item) => item.draggable)).toBe(true);
   });

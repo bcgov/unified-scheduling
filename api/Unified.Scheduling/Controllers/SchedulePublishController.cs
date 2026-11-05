@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Unified.Authorization;
 using Unified.Authorization.Claims;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
@@ -26,7 +27,7 @@ public sealed class SchedulePublishController(
     )
     {
         await validator.ValidateAndThrowAsync(request, cancellationToken);
-        return Ok(await schedulePublishService.PreviewAsync(request, cancellationToken));
+        return Ok(VisiblePreview(await schedulePublishService.PreviewAsync(request, cancellationToken)));
     }
 
     [HttpPost]
@@ -47,7 +48,34 @@ public sealed class SchedulePublishController(
         }
         catch (SchedulePublishBlockedException exception)
         {
-            return Conflict(exception.Preview);
+            return Conflict(VisiblePreview(exception.Preview));
         }
+    }
+
+    private SchedulePublishPreviewResponse VisiblePreview(SchedulePublishPreviewResponse preview)
+    {
+        if (HttpContext?.User.HasClaim(UnifiedClaimTypes.Permission, nameof(Permissions.UserTrainingsView)) == true)
+            return preview;
+
+        var conflicts = preview
+            .Blockers.Conflicts.Select(
+                (conflict, index) =>
+                    conflict.FirstSourceModule == "training" || conflict.SecondSourceModule == "training"
+                        ? conflict with
+                        {
+                            Id = $"restricted-conflict:{index}",
+                            FirstSourceModule =
+                                conflict.FirstSourceModule == "training" ? "restricted" : conflict.FirstSourceModule,
+                            FirstEventId =
+                                conflict.FirstSourceModule == "training" ? string.Empty : conflict.FirstEventId,
+                            SecondSourceModule =
+                                conflict.SecondSourceModule == "training" ? "restricted" : conflict.SecondSourceModule,
+                            SecondEventId =
+                                conflict.SecondSourceModule == "training" ? string.Empty : conflict.SecondEventId,
+                        }
+                        : conflict
+            )
+            .ToList();
+        return preview with { Blockers = preview.Blockers with { Conflicts = conflicts } };
     }
 }

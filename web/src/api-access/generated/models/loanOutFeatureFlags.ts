@@ -5,8 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface TestEmailResponse {
-  transactionId: string;
-  tag: string;
-  messageIds?: string[];
+export interface LoanOutFeatureFlags {
+  /** @nullable */
+  source?: string | null;
+  enabled: boolean;
 }

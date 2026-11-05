@@ -273,6 +273,14 @@ async function handleEventAction(payload: CalendarMatrixEventBlockActionEvent) {
   padding: var(--ua-spacing-lg);
 }
 
+@media (min-width: 901px) {
+  .calendar-matrix-view {
+    flex: 1 1 auto;
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .calendar-matrix-view.has-side-panel {
     grid-template-columns: minmax(0, 1fr);

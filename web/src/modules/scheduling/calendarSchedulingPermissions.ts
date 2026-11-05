@@ -54,3 +54,12 @@ export function canDeleteLeave(context: CalendarRuntimeContext) {
 export function canPublishSchedule(context: CalendarRuntimeContext) {
   return hasCalendarPermission(context, Permissions.SchedulePublish);
 }
+export function canViewLoanOut(context: CalendarRuntimeContext) {
+  return (context.featureFlags.LoanOut?.enabled ?? false) && hasCalendarPermission(context, Permissions.LoanOutView);
+}
+export function canCreateLoanOut(context: CalendarRuntimeContext) {
+  return (
+    (context.featureFlags.LoanOut?.enabled ?? false) &&
+    hasCalendarPermission(context, Permissions.LoanOutCreateAndAssign)
+  );
+}

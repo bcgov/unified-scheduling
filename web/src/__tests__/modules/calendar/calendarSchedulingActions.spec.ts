@@ -996,6 +996,8 @@ describe('calendarSchedulingActions', () => {
       id: 'user-1',
       type: 'user',
       title: 'Alex Alpha',
+      sourceModule: 'scheduling',
+      loanOutMetaData: undefined,
     });
     expect(calendarSchedulingResourceActionAssignmentEntryId.value).toBe(257);
     expect(calendarSchedulingResourceActionAssignmentEvents.value).toEqual([assignmentEvent]);

@@ -157,6 +157,7 @@ public sealed class SchedulingAuthorizationTests
             bool includeShifts,
             bool includeAssignments,
             bool includeLeave,
+            bool includeLoanOut = false,
             CancellationToken cancellationToken = default
         )
         {

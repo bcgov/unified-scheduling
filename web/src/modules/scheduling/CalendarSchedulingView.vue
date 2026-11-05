@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { mdiRepeat } from '@mdi/js';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
 import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
+import CalendarSchedulingLoanOutDetailModal from './CalendarSchedulingLoanOutDetailModal.vue';
 import CalendarSchedulingAddResourceModal from './CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentModal.vue';
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
@@ -58,6 +59,7 @@ import {
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
   calendarSchedulingLeaveDetailEvent,
+  calendarSchedulingLoanOutDetailEvent,
   calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
   closeCalendarSchedulingExistingShiftChoice,
@@ -65,6 +67,7 @@ import {
   closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   closeCalendarSchedulingLeaveDetail,
+  closeCalendarSchedulingLoanOutDetail,
   getCalendarSchedulingHeaderConflictKey,
   isCalendarSchedulingAssignmentModalOpen,
   isCalendarSchedulingResourceActionModalOpen,
@@ -187,13 +190,12 @@ const selectedConflict = ref<CalendarConflict>();
 const selectedConflictEventId = ref<number>();
 const conflictOverrideLoading = ref(false);
 const conflictErrorMessage = ref('');
-const canEditConflictEvents = computed(
-  () =>
-    selectedConflict.value != null &&
-    selectedConflict.value.entry.sourceModule === 'scheduling' &&
-    selectedConflict.value.overlaps.sourceModule === 'scheduling' &&
-    props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true,
-);
+function canEditConflictEvent(event: CalendarConflictEvent) {
+  return (
+    event.sourceModule === 'scheduling' &&
+    props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true
+  );
+}
 const canOverrideConflicts = computed(
   () => props.runtimeContext?.permissions?.includes(Permissions.CalendarConflictsOverride) === true,
 );
@@ -398,6 +400,12 @@ function isAssignmentEvent(event: CalendarEventBase) {
     @close="closeCalendarSchedulingLeaveDetail"
   />
 
+  <CalendarSchedulingLoanOutDetailModal
+    v-if="calendarSchedulingLoanOutDetailEvent"
+    :key="calendarSchedulingLoanOutDetailEvent.id"
+    :event="calendarSchedulingLoanOutDetailEvent"
+    @close="closeCalendarSchedulingLoanOutDetail"
+  />
   <CalendarSchedulingAssignmentDefinitionCreateModal
     v-if="assignmentDefinitionId"
     :assignment-definition-id="assignmentDefinitionId"
@@ -448,7 +456,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :time-zone="model.timeZone"
     :loading="conflictOverrideLoading"
     :error-message="conflictErrorMessage"
-    :can-edit-event="canEditConflictEvents"
+    :can-edit-event="canEditConflictEvent"
     :can-override="canOverrideConflicts"
     @close="selectedConflict = undefined"
     @edit-event="editConflictEvent"

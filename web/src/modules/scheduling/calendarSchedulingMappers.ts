@@ -1,5 +1,6 @@
 import {
   addDays,
+  CALENDAR_ALL_DAY_LABEL,
   DATE_FORMAT,
   formatCalendarEventTimeRange,
   hasExplicitTimeZoneOffset,
@@ -15,6 +16,7 @@ import {
   getCalendarConflictsForEventAndResource,
   resolveCalendarEventId,
   selectCalendarConflicts,
+  selectCalendarEvents,
   selectContribution,
 } from '@/modules/calendar/calendarSelectors';
 import type {
@@ -37,6 +39,7 @@ import {
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import {
   isLeaveEvent,
+  isLoanOutEvent,
   leaveEventColor,
   isCalendarSchedulingEvent,
   type CalendarAssignmentCapacitySlotState,
@@ -44,16 +47,19 @@ import {
   type CalendarSchedulingEvent,
 } from './calendarSchedulingData';
 import type { CalendarSchedulingUserResource } from './contributions/calendarSchedulingEventsContribution';
+import { schedulingLoanOutContributionId } from './contributions/calendarSchedulingLoanOutContribution';
 import {
   schedulingAssignmentResourcesContributionId,
   type CalendarSchedulingAssignmentResource,
 } from './contributions/calendarSchedulingAssignmentResourcesContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
+import { trainingCalendarDetailActionId } from '@/modules/training/calendarTrainingIdentifiers';
 import { calendarMatrixColorMap } from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { defaultSchedulingTimeZoneId, resolveSchedulingTimeZoneFromFilters } from './schedulingTimeZone';
 import { isSchedulingCancelled } from './schedulingLifecycle';
+import { isLoanedOutOnDate } from '@/modules/loanout/loanOutAvailability';
 
 const schedulingShiftContributionId = CalendarContributionId.SchedulingEvents;
 const unassignedScheduleResourceId = 'scheduling.unassigned';
@@ -115,12 +121,22 @@ export function buildCalendarSchedulingViewModel(
   }
 
   const days = buildDays(context.startDate, period, timeZone);
-  const schedulingEvents = selectSchedulingShiftEvents(response);
+  const schedulingEvents = selectSchedulingShiftEvents(response).filter(
+    (event) => !(event.isException && event.exceptionReason === 'IsAway'),
+  );
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
   const conflicts = selectCalendarConflicts(response);
-  const leaveEvents = schedulingEvents.filter(isLeaveEvent);
-  const resources = buildUserResourceRows(response);
+  const leaveEvents = schedulingEvents.filter((event) => isLeaveEvent(event) || isLoanOutEvent(event));
+  const trainingEvents = selectContribution(response, 'training.events')?.events ?? [];
+  const userResources = selectSchedulingUserResources(response);
+  const userResourcesById = new Map(userResources.map((user) => [user.id, user]));
+  const homeLocationUserIds = new Set(
+    (selectContribution(response, schedulingShiftContributionId)?.resources ?? [])
+      .filter(isCalendarSchedulingUserResource)
+      .map((user) => user.id),
+  );
+  const resources = buildUserResourceRows(userResources);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
     : resources;
@@ -149,12 +165,39 @@ export function buildCalendarSchedulingViewModel(
             (event) =>
               isCalendarSchedulingEvent(event) &&
               event.metadata.userIds?.includes(user.id) &&
-              isEventOnMatrixDate(event, day.date, timeZone),
+              (isLeaveEvent(event)
+                ? isLeaveOnMatrixDate(event, day.date, timeZone)
+                : isEventOnMatrixDate(event, day.date, timeZone)),
           );
+      const userResource = userResourcesById.get(user.id);
+      const isLoanOutUser = !isUnassignedRow && Boolean(userResource?.loanOutMetaData?.length);
+      const isLoanOutDay = isLoanedOutOnDate(userResource?.loanOutMetaData, day.date, timeZone);
+      const isUnavailable = isLoanOutUser && !homeLocationUserIds.has(user.id) && !isLoanOutDay;
+      const userTrainingEvents =
+        isUnassignedRow || (!homeLocationUserIds.has(user.id) && !isLoanOutDay)
+          ? []
+          : trainingEvents.filter(
+              (event) =>
+                event.resourceIds?.includes(user.id) &&
+                event.start <= day.date &&
+                day.date < (event.end ?? event.start),
+            );
       cells.push({
         resourceId: user.id,
         date: day.date,
+        disabled: isUnavailable,
+        showResourceAdd: userShiftEvents.length === 0,
         headers: [
+          ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
+          ...userTrainingEvents.map((event) => ({
+            id: event.id,
+            text: event.title,
+            subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
+            title: event.title,
+            color: 'rgb(var(--v-theme-accent))',
+            actionId: trainingCalendarDetailActionId,
+            payload: event,
+          })),
           ...userShiftEvents.map((event) =>
             buildCellHeader(
               event,
@@ -162,7 +205,6 @@ export function buildCalendarSchedulingViewModel(
               getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
             ),
           ),
-          ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
         ],
         groups: [
           {
@@ -191,6 +233,7 @@ export function buildCalendarSchedulingViewModel(
       label: 'ASSIGNMENTS',
       actionId: calendarSchedulingActionIds.addAssignment,
       actionLabel: 'Add Assignment',
+      search: { placeholder: 'Search assignments...' },
       items: buildAssignmentSidePanelItems(response),
     },
   };
@@ -300,18 +343,21 @@ export function buildCalendarAssignmentViewModel(
       actionId: calendarSchedulingActionIds.scheduleStaff,
       actionLabel: 'Schedule staff',
       items: buildUserSidePanelItems(response),
+      search: { placeholder: 'Search team...' },
     },
   };
 }
 
-function buildUserResourceRows(response: CalendarDataResponse): CalendarMatrixResource[] {
-  return selectSchedulingUserResources(response).map((user) => ({
+function buildUserResourceRows(users: CalendarSchedulingUserResource[]): CalendarMatrixResource[] {
+  return users.map((user) => ({
     id: user.id,
     type: user.type,
+    sourceModule: user.sourceModule,
     title: user.title,
     subtitle: user.subtitle,
     meta: user.meta,
     avatarText: user.avatarText,
+    loanOutMetaData: user.loanOutMetaData,
     action: {
       actionId: calendarSchedulingActionIds.addResource,
       label: '+',
@@ -321,13 +367,12 @@ function buildUserResourceRows(response: CalendarDataResponse): CalendarMatrixRe
 }
 
 function selectSchedulingShiftEvents(response: CalendarDataResponse) {
-  const contribution = selectContribution(response, schedulingShiftContributionId);
-
-  if (!contribution) {
-    return [];
-  }
-
-  return contribution.events.filter(isCalendarSchedulingEvent);
+  const contributions = Object.fromEntries(
+    [schedulingShiftContributionId, schedulingLoanOutContributionId]
+      .filter((id) => response.contributions[id])
+      .map((id) => [id, response.contributions[id]!]),
+  );
+  return selectCalendarEvents({ contributions }).filter(isCalendarSchedulingEvent);
 }
 
 function selectSchedulingAssignmentEvents(response: CalendarDataResponse) {
@@ -520,13 +565,26 @@ function getConflictsForLinkedAssignments(
 }
 
 function selectSchedulingUserResources(response: CalendarDataResponse): CalendarSchedulingUserResource[] {
-  const contribution = selectContribution(response, schedulingShiftContributionId);
+  const resources = [schedulingShiftContributionId, schedulingLoanOutContributionId].flatMap(
+    (id) => selectContribution(response, id)?.resources ?? [],
+  );
+  const users = new Map<string, CalendarSchedulingUserResource>();
+  for (const resource of resources) {
+    if (!isCalendarSchedulingUserResource(resource)) {
+      continue;
+    }
 
-  if (!contribution?.resources) {
-    return [];
+    const existing = users.get(resource.id);
+    if (!existing) {
+      users.set(resource.id, resource);
+      continue;
+    }
+
+    if (resource.loanOutMetaData?.length) {
+      users.set(resource.id, { ...existing, loanOutMetaData: resource.loanOutMetaData });
+    }
   }
-
-  return contribution.resources.flatMap((resource) => (isCalendarSchedulingUserResource(resource) ? [resource] : []));
+  return [...users.values()];
 }
 
 function selectSchedulingAssignmentResources(response: CalendarDataResponse): CalendarSchedulingAssignmentResource[] {
@@ -646,6 +704,7 @@ function buildAssignmentSidePanelItems(response: CalendarDataResponse): Calendar
     type: assignment.type,
     title: assignment.title,
     subtitle: assignment.subtitle,
+    searchText: [assignment.description, assignment.categoryName, assignment.subCategoryName].filter(Boolean).join(' '),
     meta: assignment.meta,
     avatarText: assignment.avatarText,
     draggable: true,
@@ -674,6 +733,8 @@ function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrix
     payload: {
       userId: user.id,
       title: user.title,
+      sourceModule: user.sourceModule,
+      loanOutMetaData: user.loanOutMetaData,
     },
   }));
 }
@@ -685,10 +746,10 @@ function buildCellHeader(
 ): CalendarMatrixCellHeader {
   return {
     id: event.id,
-    text: formatCalendarEventTimeRange(event.start, event.end, {
-      allDay: event.allDay,
-      timeZone: event.timeZoneId ?? timeZone,
-    }),
+    text: event.allDay
+      ? event.title
+      : formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone }),
+    subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: event.title,
     status: event.statusTypeCode,
     color: resolveCalendarSchedulingColor(event.color),
@@ -750,6 +811,13 @@ export function getCalendarEventDateKey(
 
 function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
   return getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone) === date;
+}
+function isLeaveOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
+  const dayStart = DateTime.fromISO(date, { zone: timeZone }).startOf('day');
+  const dayEnd = dayStart.plus({ days: 1 });
+  const start = DateTime.fromISO(event.start, { setZone: true });
+  const end = DateTime.fromISO(event.end ?? event.start, { setZone: true });
+  return end > start ? start < dayEnd && end > dayStart : start >= dayStart && start < dayEnd;
 }
 
 function resolveMatrixTimeZone(context: CalendarQueryContext) {
@@ -968,19 +1036,30 @@ function buildLeaveCellHeader(
   event: CalendarEventBase,
   timeZone = defaultSchedulingTimeZoneId,
 ): CalendarMatrixCellHeader {
-  const leaveTypeName = isCalendarSchedulingEvent(event) ? event.metadata.leaveTypeName : undefined;
+  const loanOut = isLoanOutEvent(event);
+  const leaveTypeName = isCalendarSchedulingEvent(event)
+    ? loanOut
+      ? (event.metadata.loanOutLocationName ?? `Location ${event.metadata.loanOutLocationId}`)
+      : event.metadata.leaveTypeName
+    : undefined;
   const label = leaveTypeName || event.title || 'Leave';
 
   return {
     id: event.id,
-    text: event.allDay
-      ? label
-      : `${label} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
-    title: `Leave: ${label}`,
+    text: loanOut
+      ? `Loan Out: ${label}`
+      : event.allDay
+        ? label
+        : `${label} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
+    subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
+    title: `${loanOut ? 'Loan Out' : 'Leave'}: ${label}`,
     status: event.statusTypeCode,
     color: resolveCalendarSchedulingColor(event.color ?? leaveEventColor),
     payload: event,
-    actionId: calendarSchedulingActionIds.viewLeaveDetails,
-    action: { actionId: calendarSchedulingActionIds.viewLeaveDetails, type: CalendarMatrixActionType.Button },
+    actionId: loanOut ? calendarSchedulingActionIds.viewLoanOutDetails : calendarSchedulingActionIds.viewLeaveDetails,
+    action: {
+      actionId: loanOut ? calendarSchedulingActionIds.viewLoanOutDetails : calendarSchedulingActionIds.viewLeaveDetails,
+      type: CalendarMatrixActionType.Button,
+    },
   };
 }

@@ -24,8 +24,8 @@ public sealed class LeaveCalendarDataProvider(UnifiedDbContext db, SchedulingLea
             .Where(entry => entry.Event!.EventTypeCode == LeaveConstants.LeaveEventTypeCode)
             .Where(entry => entry.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Cancelled)
             .Where(entry =>
-                entry.Event!.StartAtUtc < queryContext.EndAtUtc
-                && (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) > queryContext.StartAtUtc
+                entry.Event!.StartAtUtc <= queryContext.EndAtUtc
+                && (entry.Event.EndAtUtc ?? entry.Event.StartAtUtc) >= queryContext.StartAtUtc
             );
         if (queryContext.LocationId.HasValue)
             query = query.Where(entry =>

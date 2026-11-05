@@ -1,9 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
 
 const accessControl = useAccessControl();
+const props = withDefaults(
+  defineProps<{
+    allowLeave?: boolean;
+    allowLoanOut?: boolean;
+  }>(),
+  { allowLeave: true, allowLoanOut: true },
+);
 
 const showShifts = computed(
   () =>
@@ -13,20 +20,40 @@ const showShifts = computed(
 
 const showLeave = computed(
   () =>
+    props.allowLeave &&
     (accessControl.featureFlags.value?.Leave?.enabled ?? false) &&
     accessControl.hasPermission(Permissions.LeaveCreateAndAssign),
 );
+const showLoanOut = computed(
+  () =>
+    props.allowLoanOut &&
+    (accessControl.featureFlags.value?.LoanOut?.enabled ?? false) &&
+    accessControl.hasPermission(Permissions.LoanOutCreateAndAssign),
+);
 
+type ResourceTab = 'schedule' | 'leave' | 'loanout';
 const emit = defineEmits<{
-  (event: 'update:activeTab', value: 'schedule' | 'leave'): void;
+  (event: 'update:activeTab', value: ResourceTab): void;
 }>();
 
-const activeTab = ref<'schedule' | 'leave'>('schedule');
+const activeTab = ref<ResourceTab>('schedule');
 
-const updateActiveTab = (value: 'schedule' | 'leave') => {
+const updateActiveTab = (value: ResourceTab) => {
   activeTab.value = value;
   emit('update:activeTab', value);
 };
+watch(
+  [showShifts, showLeave, showLoanOut],
+  () => {
+    const available = [
+      ...(showShifts.value ? ['schedule' as const] : []),
+      ...(showLeave.value ? ['leave' as const] : []),
+      ...(showLoanOut.value ? ['loanout' as const] : []),
+    ];
+    if (!available.includes(activeTab.value) && available[0]) updateActiveTab(available[0]);
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -39,6 +66,7 @@ const updateActiveTab = (value: 'schedule' | 'leave') => {
     >
       <v-tab v-if="showShifts" value="schedule">Schedule</v-tab>
       <v-tab v-if="showLeave" value="leave">Leave</v-tab>
+      <v-tab v-if="showLoanOut" value="loanout">Loan Out</v-tab>
     </v-tabs>
 
     <div class="resource-tabs__panels">
@@ -57,6 +85,14 @@ const updateActiveTab = (value: 'schedule' | 'leave') => {
         :aria-hidden="activeTab !== 'leave'"
       >
         <slot name="leave" />
+      </section>
+      <section
+        v-if="showLoanOut"
+        class="resource-tabs__panel"
+        :class="{ 'resource-tabs__panel--active': activeTab === 'loanout' }"
+        :aria-hidden="activeTab !== 'loanout'"
+      >
+        <slot name="loanout" />
       </section>
     </div>
   </div>
