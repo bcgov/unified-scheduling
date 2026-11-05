@@ -193,11 +193,16 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
     {
         await AddLeaveAsync(); // Location 5, America/Vancouver.
         await AddShiftAsync(Start.AddHours(1), Start.AddHours(2), CalendarEventStatusTypeCodes.Active);
+        var viewerPermissions = new HashSet<string>
+        {
+            nameof(Permissions.ShiftsView),
+            nameof(Permissions.AssignmentsView),
+        };
         var result = await _conflicts.GetConflictsAsync(
             Query() with
             {
                 LocationId = 9,
-                ViewerPermissions = new HashSet<string> { nameof(Permissions.ShiftsView) },
+                ViewerPermissions = viewerPermissions,
             },
             TestContext.Current.CancellationToken
         );
@@ -207,7 +212,7 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
             Query() with
             {
                 LocationId = 99,
-                ViewerPermissions = new HashSet<string> { nameof(Permissions.ShiftsView) },
+                ViewerPermissions = viewerPermissions,
             },
             TestContext.Current.CancellationToken
         );
