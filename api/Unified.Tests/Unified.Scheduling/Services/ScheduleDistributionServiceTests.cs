@@ -158,7 +158,10 @@ public sealed class ScheduleDistributionServiceTests : IAsyncLifetime
         var emailService = new RecordingEmailService();
 
         var result = await CreateService(renderer, emailService)
-            .DistributeAsync(CreateRequest([EligibleUserId, CrossLocationUserId]), TestContext.Current.CancellationToken);
+            .DistributeAsync(
+                CreateRequest([EligibleUserId, CrossLocationUserId]),
+                TestContext.Current.CancellationToken
+            );
 
         Assert.Equal(2, result.RecipientCount);
         Assert.Equal(1, renderer.CallCount);
@@ -172,7 +175,10 @@ public sealed class ScheduleDistributionServiceTests : IAsyncLifetime
     {
         await AddLoanOutAsync(RangeStart.AddDays(2).AddHours(4), RangeStart.AddDays(2).AddHours(12));
         var request = CreateRequest([CrossLocationUserId]);
-        request = request with { Context = request.Context! with { EndDate = new DateOnly(2026, 8, 31), Period = "week" } };
+        request = request with
+        {
+            Context = request.Context! with { EndDate = new DateOnly(2026, 8, 31), Period = "week" },
+        };
         var renderer = new RecordingPdfRenderer();
         var emailService = new RecordingEmailService();
 
@@ -267,7 +273,10 @@ public sealed class ScheduleDistributionServiceTests : IAsyncLifetime
 
         if (eligible)
         {
-            var result = await service.DistributeAsync(CreateRequest(recipientIds), TestContext.Current.CancellationToken);
+            var result = await service.DistributeAsync(
+                CreateRequest(recipientIds),
+                TestContext.Current.CancellationToken
+            );
             Assert.Equal(1, result.RecipientCount);
             Assert.Equal(["eligible@example.com"], emailService.LastMessage!.To);
         }
