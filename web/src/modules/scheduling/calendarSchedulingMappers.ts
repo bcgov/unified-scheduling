@@ -236,11 +236,7 @@ export function buildCalendarSchedulingViewModel(
             payload: event,
           })),
           ...userShiftEvents.map((event) =>
-            buildCellHeader(
-              event,
-              timeZone,
-              getConflictsForShift(event, assignmentEvents, user.id, conflicts),
-            ),
+            buildCellHeader(event, timeZone, getConflictsForShift(event, assignmentEvents, user.id, conflicts)),
           ),
         ],
         groups: [
