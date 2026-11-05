@@ -26,6 +26,7 @@ type UserTrainingFormData = Partial<zod.infer<typeof PostApiTrainingUserTraining
   awardedTime: string;
   endingTime: string;
   expiryDate: string;
+  expiryDateExact: string | null;
   notes: string;
 };
 
@@ -76,6 +77,7 @@ const createFormData = (): UserTrainingFormData => ({
   endingOn: '',
   endingTime: '',
   expiryDate: '',
+  expiryDateExact: null,
   notes: '',
 });
 
@@ -105,6 +107,15 @@ const getTrainingTime = (value: string) => {
   return dateTime.isValid ? dateTime.toFormat('HH:mm') : '';
 };
 
+const toExpiryEndOfDayDateTimeString = (date: string) => {
+  const dateTime = DateTime.fromFormat(date, 'yyyy-MM-dd', { zone: trainingTimeZone });
+  if (!dateTime.isValid) {
+    throw new Error(`Invalid expiry date: ${date}`);
+  }
+
+  return dateTime.endOf('day').toISO()!;
+};
+
 const populateFormData = (training: UserTrainingResponse): UserTrainingFormData => ({
   trainingId: training.trainingId,
   trainingCode: resolveTrainingDisplay(training),
@@ -113,6 +124,7 @@ const populateFormData = (training: UserTrainingResponse): UserTrainingFormData 
   endingOn: getTrainingDate(resolveEndingOn(training)),
   endingTime: getTrainingTime(resolveEndingOn(training)),
   expiryDate: toDateInputValue(training.expiryDate) ?? '',
+  expiryDateExact: training.expiryDate ?? null,
   notes: training.notes ?? '',
 });
 
@@ -148,6 +160,7 @@ const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true })
     awardedTime: zod.union([zod.literal(''), zod.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Invalid from time.')]),
     endingTime: zod.union([zod.literal(''), zod.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Invalid to time.')]),
     expiryDate: zod.string(),
+    expiryDateExact: zod.string().nullable(),
     notes: zod.string(),
   })
   .superRefine((data, context) => {
@@ -181,8 +194,9 @@ watch(
   },
 );
 
-const handleExpiryDateInput = (value: string) => {
-  formData.value.expiryDate = value;
+const handleExpiryDateInput = (value: string | null) => {
+  formData.value.expiryDate = value ?? '';
+  formData.value.expiryDateExact = null;
   hasManualExpiryDateOverride.value = true;
   expiryDateAutoGenerateError.value = '';
   delete formErrors.value.expiryDate;
@@ -192,6 +206,7 @@ const generateExpiryDate = async (force = false) => {
   if (!canGenerateExpiryDate.value) {
     if (!hasManualExpiryDateOverride.value || force) {
       formData.value.expiryDate = '';
+      formData.value.expiryDateExact = null;
     }
     return;
   }
@@ -237,6 +252,7 @@ const generateExpiryDate = async (force = false) => {
     }
 
     formData.value.expiryDate = toDateInputValue(expiryDate) ?? '';
+    formData.value.expiryDateExact = null;
     hasManualExpiryDateOverride.value = false;
   } catch (error: unknown) {
     expiryDateAutoGenerateError.value = error instanceof Error ? error.message : 'Failed to auto-generate expiry date.';
@@ -247,6 +263,7 @@ const generateExpiryDate = async (force = false) => {
 
 const handleGenerateExpiryDate = async () => {
   hasManualExpiryDateOverride.value = false;
+  formData.value.expiryDateExact = null;
   await generateExpiryDate(true);
 };
 
@@ -276,7 +293,10 @@ const buildRequest = (): UserTrainingRequest | null => {
     trainingId: parsed.data.trainingId,
     awardedOn: toOffsetDateTimeString(parsed.data.awardedOn, parsed.data.awardedTime, trainingTimeZone),
     endingOn: toOffsetDateTimeString(parsed.data.endingOn, parsed.data.endingTime, trainingTimeZone),
-    expiryDate: parsed.data.expiryDate ? toOffsetDateTimeString(parsed.data.expiryDate, '', trainingTimeZone) : null,
+    expiryDate: parsed.data.expiryDate
+      ? (formData.value.expiryDateExact ??
+        (hasManualExpiryDateOverride.value ? toExpiryEndOfDayDateTimeString(parsed.data.expiryDate) : null))
+      : null,
     notes: parsed.data.notes.trim() || null,
   };
 };

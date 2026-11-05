@@ -98,10 +98,16 @@ public class UserTrainingRequestValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenExpiryDateIsAfterAwardedOn_PassesValidation()
+    public async Task Validate_WhenExpiryDateIsAfterEndingOn_PassesValidation()
     {
         var awardedOn = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var request = ValidRequest() with { AwardedOn = awardedOn, ExpiryDate = awardedOn.AddDays(365) };
+        var endingOn = awardedOn.AddDays(2);
+        var request = ValidRequest() with
+        {
+            AwardedOn = awardedOn,
+            EndingOn = endingOn,
+            ExpiryDate = endingOn.AddDays(365),
+        };
 
         var result = await _validator.ValidateAsync(request, TestContext.Current.CancellationToken);
 
@@ -109,10 +115,16 @@ public class UserTrainingRequestValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenExpiryDateIsBeforeAwardedOn_FailsValidation()
+    public async Task Validate_WhenExpiryDateIsAfterAwardedOnButBeforeEndingOn_FailsValidation()
     {
         var awardedOn = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var request = ValidRequest() with { AwardedOn = awardedOn, ExpiryDate = awardedOn.AddDays(-1) };
+        var endingOn = awardedOn.AddDays(2);
+        var request = ValidRequest() with
+        {
+            AwardedOn = awardedOn,
+            EndingOn = endingOn,
+            ExpiryDate = awardedOn.AddDays(1),
+        };
 
         await Assert.ThrowsAsync<ValidationException>(() =>
             _validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
@@ -120,10 +132,10 @@ public class UserTrainingRequestValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WhenExpiryDateEqualsAwardedOn_FailsValidation()
+    public async Task Validate_WhenExpiryDateEqualsEndingOn_FailsValidation()
     {
-        var awardedOn = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
-        var request = ValidRequest() with { AwardedOn = awardedOn, ExpiryDate = awardedOn };
+        var endingOn = new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero);
+        var request = ValidRequest() with { EndingOn = endingOn, ExpiryDate = endingOn };
 
         await Assert.ThrowsAsync<ValidationException>(() =>
             _validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)

@@ -95,6 +95,7 @@ describe('UserTrainingModal', () => {
         trainingId: 10,
         awardedOn: '2026-07-20T15:00:00.000-07:00',
         endingOn: '2026-07-20T18:00:00.000-07:00',
+        expiryDate: null,
       }),
     ]);
     expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-20T18:00:00.000-07:00');
@@ -181,6 +182,15 @@ describe('UserTrainingModal', () => {
     expect((wrapper.get('input#user-training-expiry-date').element as HTMLInputElement).value).toBe('2027-06-01');
   });
 
+  it('saves a manually selected expiry date at the end of that day in Vancouver', async () => {
+    const wrapper = await mountModal();
+    await fillTraining(wrapper);
+    await wrapper.get('input#user-training-expiry-date').setValue('2027-06-01');
+    await save(wrapper);
+
+    expect(created[0]?.expiryDate).toBe('2027-06-01T23:59:59.999-07:00');
+  });
+
   it('does not submit when required training is missing', async () => {
     const wrapper = await mountModal();
     await save(wrapper);
@@ -232,6 +242,7 @@ describe('UserTrainingModal', () => {
     expect(requests).toHaveLength(1);
     expect(Date.parse(requests[0]!.awardedOn)).toBe(Date.parse(training.awardedOn));
     expect(Date.parse(requests[0]!.endingOn)).toBe(Date.parse(training.endingOn));
+    expect(requests[0]!.expiryDate).toBe(training.expiryDate);
     expect(requests[0]!.notes).toBe('keep me trimmed');
     expect(wrapper.emitted('saved')).toBeTruthy();
     expect(wrapper.emitted('close')).toBeTruthy();

@@ -24,8 +24,8 @@ public sealed class UserTrainingRequestValidator : AbstractValidator<UserTrainin
             .WithMessage("Ending date must be on or after the awarded date.");
 
         RuleFor(x => x.ExpiryDate)
-            .GreaterThan(x => x.AwardedOn)
-            .WithMessage("Expiry date must be after the awarded date.")
+            .GreaterThan(x => x.EndingOn)
+            .WithMessage("Expiry date must be after the ending date.")
             .When(x => x.ExpiryDate.HasValue);
 
         RuleFor(x => x.Notes)
