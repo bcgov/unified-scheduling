@@ -380,7 +380,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
 
     [Theory]
     [InlineData("America/Vancouver", "2026-03-08", "2026-03-08T08:00:00Z", "2026-03-09T07:00:00Z")]
-    [InlineData("America/Vancouver", "2026-11-01", "2026-11-01T07:00:00Z", "2026-11-02T08:00:00Z")]
+    [InlineData("America/Vancouver", "2025-11-02", "2025-11-02T07:00:00Z", "2025-11-03T08:00:00Z")]
     [InlineData("Asia/Tokyo", "2026-06-01", "2026-05-31T15:00:00Z", "2026-06-01T15:00:00Z")]
     public async Task CreateLeaveEntryAsync_WhenAllDay_UsesLocationDateAndIndependentMidnights(
         string zone,
@@ -484,7 +484,7 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
 
     [Theory]
     [InlineData("2026-03-07", 23)]
-    [InlineData("2026-10-31", 25)]
+    [InlineData("2025-11-01", 25)]
     public async Task CreateLeaveSeriesAsync_WhenAllDayAcrossDst_MaterializesWholeLocalDays(
         string firstDate,
         int transitionHours
