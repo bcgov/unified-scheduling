@@ -115,7 +115,8 @@ const defaultCalendarOptions = computed<CalendarOptions>(() => ({
     const eventTypeCode = toCalendarEventClassToken(String(arg.event.extendedProps['eventTypeCode'] ?? 'general'));
     const eventType = toCalendarEventClassToken(String(arg.event.extendedProps['type'] ?? 'calendar.general'));
     const allDayClass = arg.event.allDay ? ' ua-calendar__event--all-day' : '';
-    return `ua-calendar__event--${eventTypeCode} ua-calendar__event-type--${eventType}${allDayClass}`;
+    const borderClass = arg.event.extendedProps['borderStyle'] === 'dotted' ? ' ua-calendar__event--dotted' : '';
+    return `ua-calendar__event--${eventTypeCode} ua-calendar__event-type--${eventType}${allDayClass}${borderClass}`;
   },
 }));
 

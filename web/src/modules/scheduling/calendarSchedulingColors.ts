@@ -1,3 +1,5 @@
+import { normalizeSchedulingLifecycleStatus } from './schedulingLifecycle';
+
 export const calendarMatrixColorMap = {
   white: '#9A9A9A',
   black: '#000000',
@@ -18,3 +20,27 @@ export const calendarMatrixColorMap = {
 } as const;
 
 export type CalendarMatrixColorId = keyof typeof calendarMatrixColorMap;
+
+export const calendarNonSchedulingEventColors = {
+  holiday: 'var(--calendar-event-holiday-color)',
+  training: 'rgb(var(--v-theme-info))',
+  leave: calendarMatrixColorMap.purple,
+} as const;
+
+export function resolveSchedulingEventBorderStyle(event: {
+  type?: string | null;
+  eventTypeCode?: string | null;
+  statusTypeCode?: string | null;
+}): 'solid' | 'dotted' {
+  const eventType = event.type?.trim().toLowerCase();
+  const eventTypeCode = event.eventTypeCode?.trim().toLowerCase();
+  const isShiftOrAssignment =
+    eventType === 'scheduling.shift' ||
+    eventType === 'scheduling.assignment' ||
+    eventTypeCode === 'shift' ||
+    eventTypeCode === 'assignment';
+
+  return isShiftOrAssignment && normalizeSchedulingLifecycleStatus(event.statusTypeCode) === 'draft'
+    ? 'dotted'
+    : 'solid';
+}

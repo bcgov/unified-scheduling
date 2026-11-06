@@ -68,6 +68,7 @@ const isActionClickable = computed(
   () => hasActionDisplay.value && props.display?.action?.type !== CalendarMatrixActionType.Custom,
 );
 const hasColorBar = computed(() => props.showColorBar && !!props.display?.color);
+const hasDottedBorder = computed(() => (props.display?.borderStyle ?? props.event.borderStyle) === 'dotted');
 const eventBlockStyle = computed(() => {
   if (!props.display?.color) {
     return undefined;
@@ -174,6 +175,7 @@ function handleDragEnd() {
         'is-selected': isSelected,
         'is-draggable': isDraggable,
         'has-color-bar': hasColorBar,
+        'has-dotted-border': hasDottedBorder,
         'has-action-display': hasActionDisplay,
       },
     ]"
@@ -224,7 +226,7 @@ function handleDragEnd() {
   --calendar-event-warning-bg: rgb(var(--v-theme-warning) / 0.12);
   --calendar-event-bg: var(--calendar-event-primary-bg);
   background: linear-gradient(var(--calendar-event-bg), var(--calendar-event-bg)), rgb(var(--v-theme-surface));
-  border: 1px solid var(--calendar-event-border-color, var(--ua-text-secondary));
+  border: var(--bcds-layout-border-width-small) solid var(--calendar-event-border-color, var(--ua-text-secondary));
   border-radius: 4px;
   color: var(--ua-text-primary);
   display: grid;
@@ -233,6 +235,11 @@ function handleDragEnd() {
   overflow: hidden;
   padding: 0.375rem 0.5rem;
   position: relative;
+}
+
+.calendar-matrix-event-block.has-dotted-border {
+  border-style: dotted;
+  border-width: var(--bcds-layout-border-width-medium);
 }
 
 .calendar-matrix-event-block__main {
@@ -307,12 +314,7 @@ button.calendar-matrix-event-block__action {
   cursor: grab;
 }
 
-.calendar-matrix-event-block.is-draft {
-  border-style: dashed;
-}
-
 .calendar-matrix-event-block.is-cancelled {
-  border-style: dotted;
   opacity: 0.6;
   text-decoration: line-through;
 }
@@ -352,7 +354,6 @@ button.calendar-matrix-event-block__action {
 .calendar-matrix-event-block.is-active {
   --calendar-event-bg: rgba(var(--v-theme-on-surface), 0.82);
   border-color: rgba(var(--v-theme-on-surface), 0.82);
-  border-style: solid;
   color: rgb(var(--v-theme-surface));
 }
 

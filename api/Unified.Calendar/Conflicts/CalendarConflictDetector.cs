@@ -34,9 +34,6 @@ public static class CalendarConflictDetector
                     if (IsSameEvent(left, right))
                         continue;
 
-                    if (!IsEligiblePair(left, right))
-                        continue;
-
                     if (!IsApplicableHolidayContext(left, right))
                         continue;
 
@@ -72,16 +69,6 @@ public static class CalendarConflictDetector
         CalendarConflictParticipant left,
         CalendarConflictParticipant right
     ) => (!left.RequiresMatchingTimeZone && !right.RequiresMatchingTimeZone) || HasSameTimeZone(left, right);
-
-    // Leave initially blocks scheduling only; do not introduce leave/leave or leave/holiday conflicts.
-    private static bool IsEligiblePair(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
-        (left.ConflictsWithSourceModule is null || left.ConflictsWithSourceModule == right.SourceModule)
-        && (right.ConflictsWithSourceModule is null || right.ConflictsWithSourceModule == left.SourceModule)
-        && (
-            left.SourceModule == "leave"
-                ? right.SourceModule == "scheduling"
-                : right.SourceModule != "leave" || left.SourceModule == "scheduling"
-        );
 
     private static bool HasSameTimeZone(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
         !string.IsNullOrWhiteSpace(left.TimeZoneId)

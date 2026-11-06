@@ -6,6 +6,23 @@ import type { CalendarConflict } from '@/modules/calendar/calendarTypes';
 import { server } from '@/__tests__/mocks/server';
 
 describe('CalendarConflictDetailModal', () => {
+  it('uses the source-qualified training side and preserves override permissions', async () => {
+    const conflict = createConflict(101, 102, 'Holiday', 'Training');
+    conflict.entry = { ...conflict.entry, sourceModule: 'calendar', eventId: 'training.user-training.42' };
+    conflict.overlaps = { ...conflict.overlaps, sourceModule: 'training', eventId: 'training.user-training.42' };
+    const wrapper = mountModal(conflict, false);
+    await wrapper.setProps({ currentEventId: { sourceModule: 'training', eventId: 'training.user-training.42' } });
+    const descriptions = wrapper.findAll('dd');
+    expect(descriptions[0]?.text()).toContain('Training');
+    expect(descriptions[1]?.text()).toContain('Holiday');
+    expect(wrapper.find('button[aria-label="Edit Training"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="ua-button"]').exists()).toBe(false);
+    await wrapper.setProps({ canOverride: true });
+    await wrapper.get('textarea').setValue('Approved training');
+    await wrapper.get('[data-test="ua-button"]').trigger('click');
+    expect(wrapper.emitted('override')).toEqual([['Approved training']]);
+  });
+
   it('displays one conflict and edits either event', async () => {
     const conflict = createConflict(101, 102, 'First assignment', 'Second assignment');
     const wrapper = mountModal(conflict);
@@ -170,6 +187,8 @@ function createConflict(
     overlapStart: '2025-01-13T11:00:00Z',
     overlapEnd: '2025-01-13T12:00:00Z',
     isOverridden: false,
+    reportOnEntry: true,
+    reportOnOverlaps: true,
     overrideNote: null,
     createdById: null,
     createdOn: null,

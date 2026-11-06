@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
@@ -85,6 +87,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         );
 
         Assert.Equal(2, participants.Count);
+        Assert.All(participants, participant => Assert.Equal("training", participant.EventTypeCode));
         Assert.Contains(
             participants,
             participant => participant.EventId == TrainingConflictParticipantProvider.IdentityFor(first.Id).EventId
@@ -279,6 +282,45 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         Assert.Equal(TimeZoneService.NormalizeTimeZoneId("UTC"), participant.TimeZoneId);
         Assert.Equal(Day(2026, 7, 13), participant.Start);
         Assert.Equal(Day(2026, 7, 14), participant.End);
+    }
+
+    [Fact]
+    public async Task GetConflictsAsync_TrainingReportsHoliday_DoesNotInferReciprocalReportingOrBlocking()
+    {
+        var user = await _db.Users.SingleAsync(user => user.Id == _userA, TestContext.Current.CancellationToken);
+        user.IsEnabled = true;
+        await AddAsync(_userA, 1, Day(2026, 7, 1), Day(2026, 7, 1));
+        var timeZoneService = new TimeZoneService();
+        var resolver = new CalendarTimeZoneResolver(
+            Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+            timeZoneService
+        );
+        var holidayProvider = new HolidayConflictParticipantProvider(
+            _db,
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
+            resolver,
+            timeZoneService
+        );
+        var service = new CalendarConflictService(
+            [_provider, holidayProvider],
+            _db,
+            new CalendarConflictProjection([]),
+            CalendarConflictTestRules.Create(("training", ["holiday"]), ("holiday", []))
+        );
+        var query = new CalendarConflictQuery(Day(2026, 7, 1), Day(2026, 7, 3), [_userA]);
+
+        var conflict = Assert.Single(await service.GetConflictsAsync(query, TestContext.Current.CancellationToken));
+
+        Assert.Equal("holiday", conflict.Entry.EventTypeCode);
+        Assert.Equal("training", conflict.Overlaps.EventTypeCode);
+        Assert.False(conflict.ReportOnEntry);
+        Assert.True(conflict.ReportOnOverlaps);
+        Assert.Empty(
+            await service.GetConflictsForCandidatesAsync([conflict.Entry], TestContext.Current.CancellationToken)
+        );
+        await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            service.EnsureNoUnresolvedConflictsAsync([conflict.Overlaps], TestContext.Current.CancellationToken)
+        );
     }
 
     private async Task<UserTraining> AddAsync(

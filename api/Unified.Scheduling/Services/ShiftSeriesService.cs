@@ -20,6 +20,7 @@ namespace Unified.Scheduling.Services;
 internal sealed class ShiftSeriesService(
     ILogger<ShiftSeriesService> logger,
     UnifiedDbContext db,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
     ICalendarEventSeriesService<ShiftSeriesRequest, ShiftSeries> calendarEventSeriesService,
     IEventSeriesMaterializationService eventSeriesMaterializationService,
     IRecurrenceExpander recurrenceExpander,
@@ -303,6 +304,7 @@ internal sealed class ShiftSeriesService(
         );
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
+            loanOutAvailabilityService,
             entity.ShiftEntries.Select(entry => entry.Id).ToList(),
             cancellationToken
         );
@@ -390,6 +392,7 @@ internal sealed class ShiftSeriesService(
         await db.SaveChangesAsync(cancellationToken);
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
+            loanOutAvailabilityService,
             entryIds,
             cancellationToken
         );

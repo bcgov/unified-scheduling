@@ -42,7 +42,6 @@ import {
 import {
   isLeaveEvent,
   isLoanOutEvent,
-  leaveEventColor,
   isCalendarSchedulingEvent,
   type CalendarAssignmentCapacitySlotState,
   type CalendarAssignmentPartialCoverageShift,
@@ -56,7 +55,11 @@ import {
 } from './contributions/calendarSchedulingAssignmentResourcesContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import { trainingCalendarDetailActionId } from '@/modules/training/calendarTrainingIdentifiers';
-import { calendarMatrixColorMap } from './calendarSchedulingColors';
+import {
+  calendarMatrixColorMap,
+  calendarNonSchedulingEventColors,
+  resolveSchedulingEventBorderStyle,
+} from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { defaultSchedulingTimeZoneId, resolveSchedulingTimeZoneFromFilters } from './schedulingTimeZone';
@@ -207,21 +210,42 @@ export function buildCalendarSchedulingViewModel(
                 .map<CalendarMatrixCellHeader>((event) => ({
                   id: event.id,
                   text: event.title,
+                  allDay: event.allDay,
+                  collapsible: true,
+                  variant: 'outlined',
                   title: event.title,
-                  color: 'var(--calendar-event-holiday-color)',
+                  color: calendarNonSchedulingEventColors.holiday,
                   actionId: CalendarActionId.EventDetail,
                   payload: event,
                 }))),
           ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
-          ...userTrainingEvents.map((event) => ({
-            id: event.id,
-            text: event.title,
-            subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
-            title: event.title,
-            color: 'rgb(var(--v-theme-accent))',
-            actionId: trainingCalendarDetailActionId,
-            payload: event,
-          })),
+          ...userTrainingEvents.map<CalendarMatrixCellHeader>((event) => {
+            const currentEventId = { sourceModule: event.sourceModule, eventId: event.id };
+            const trainingConflicts = getCalendarConflictsForEventAndResource(currentEventId, user.id, conflicts)
+              .filter((conflict) => {
+                const start = getCalendarEventDateKey(conflict.overlapStart, timeZone);
+                const end = getCalendarEventDateKey(
+                  DateTime.fromISO(conflict.overlapEnd).minus({ milliseconds: 1 }).toISO(),
+                  timeZone,
+                );
+                return start != null && end != null && start <= day.date && day.date <= end;
+              })
+              .map((conflict) => ({ conflict, currentEventId }));
+            return {
+              id: event.id,
+              text: event.title,
+              allDay: event.allDay,
+              collapsible: true,
+              variant: 'outlined',
+              subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
+              title: event.title,
+              color: calendarNonSchedulingEventColors.training,
+              actionId: trainingCalendarDetailActionId,
+              action: trainingConflicts.length > 0 ? buildPulldownAction() : undefined,
+              conflicts: trainingConflicts,
+              payload: event,
+            };
+          }),
           ...userShiftEvents.map((event) =>
             buildCellHeader(event, timeZone, getConflictsForShift(event, assignmentEvents, user.id, conflicts)),
           ),
@@ -835,6 +859,7 @@ function buildCellHeader(
     subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: event.title,
     status: event.statusTypeCode,
+    borderStyle: resolveSchedulingEventBorderStyle(event),
     color: resolveCalendarSchedulingColor(event.color),
     info: eventBelongsToSeries(event)
       ? {
@@ -963,7 +988,7 @@ function toScheduleMatrixEventItems(
   conflicts: ReadonlyArray<CalendarConflict>,
   resourceId?: string,
 ): CalendarMatrixEventItem[] {
-  return events.flatMap((event) => {
+  return events.flatMap<CalendarMatrixEventItem>((event) => {
     const linkedShifts = resolveLinkedShiftsForAssignment(event, [...userShiftEvents]);
     const activeLinkedShifts = linkedShifts.filter((shift) => !isSchedulingCancelled(shift.statusTypeCode));
     const displayLinkedShifts = activeLinkedShifts.length > 0 ? activeLinkedShifts : linkedShifts;
@@ -985,6 +1010,7 @@ function toScheduleMatrixEventItems(
         event: displayEvent,
         display: {
           color: resolveCalendarSchedulingColor(event.color),
+          borderStyle: resolveSchedulingEventBorderStyle(event),
           status: event.statusTypeCode,
           draggable: false,
           action:
@@ -1133,6 +1159,9 @@ function buildLeaveCellHeader(
 
   return {
     id: event.id,
+    allDay: event.allDay,
+    collapsible: true,
+    variant: 'outlined',
     text: loanOut
       ? `Loan Out: ${label}`
       : event.allDay
@@ -1141,7 +1170,7 @@ function buildLeaveCellHeader(
     subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: `${loanOut ? 'Loan Out' : 'Leave'}: ${label}`,
     status: event.statusTypeCode,
-    color: resolveCalendarSchedulingColor(event.color ?? leaveEventColor),
+    color: calendarNonSchedulingEventColors.leave,
     payload: event,
     actionId: loanOut ? calendarSchedulingActionIds.viewLoanOutDetails : calendarSchedulingActionIds.viewLeaveDetails,
     action: {

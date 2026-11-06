@@ -1,4 +1,9 @@
-import type { CalendarConflict, CalendarEventBase, CalendarRestrictedConflictWarning } from '../../calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarConflictEventIdentity,
+  CalendarEventBase,
+  CalendarRestrictedConflictWarning,
+} from '../../calendarTypes';
 import type { LoanOutMetaData } from '@/api-access/generated/models';
 
 export const CalendarMatrixEventGroupVariant = {
@@ -47,6 +52,7 @@ export interface CalendarMatrixResourceActionDisplay {
 
 export interface CalendarMatrixEventDisplay {
   color?: string;
+  borderStyle?: 'solid' | 'dotted';
   status?: string;
   draggable?: boolean;
   action?: CalendarMatrixActionDisplay;
@@ -54,7 +60,7 @@ export interface CalendarMatrixEventDisplay {
 
 export interface CalendarMatrixConflictItem {
   conflict: CalendarConflict;
-  currentEventId: number;
+  currentEventId: number | CalendarConflictEventIdentity;
 }
 
 export interface CalendarMatrixDay {
@@ -110,6 +116,10 @@ export interface CalendarMatrixCell {
 export interface CalendarMatrixCellHeader {
   id?: string;
   text: string;
+  allDay?: boolean;
+  collapsible?: boolean;
+  variant?: 'outlined';
+  borderStyle?: 'solid' | 'dotted';
   subtitle?: string;
   title?: string;
   status?: string;

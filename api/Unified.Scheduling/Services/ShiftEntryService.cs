@@ -19,6 +19,7 @@ namespace Unified.Scheduling.Services;
 public sealed class ShiftEntryService(
     ILogger<ShiftEntryService> logger,
     UnifiedDbContext db,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
     CalendarEventEntryService<ShiftEntryRequest, ShiftEntry> calendarEventEntryService,
     IShiftSeriesService shiftSeriesService,
     IShiftAssignmentService shiftAssignmentService,
@@ -262,6 +263,7 @@ public sealed class ShiftEntryService(
 
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
+            loanOutAvailabilityService,
             [entity.Id],
             cancellationToken
         );
@@ -324,6 +326,7 @@ public sealed class ShiftEntryService(
         await db.SaveChangesAsync(cancellationToken);
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
+            loanOutAvailabilityService,
             entries.Select(entry => entry.Id).ToList(),
             cancellationToken
         );

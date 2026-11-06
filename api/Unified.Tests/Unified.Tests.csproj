@@ -8,6 +8,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content
+      Include="..\Unified.Api\appsettings.json"
+      Link="api-appsettings.json"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

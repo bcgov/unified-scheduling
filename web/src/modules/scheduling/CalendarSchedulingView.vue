@@ -30,7 +30,6 @@ import type {
 } from '@/modules/calendar/calendarTypes';
 import { postApiCalendarConflictsOverrides } from '@/api-access/generated/calendar/calendar';
 import { Permissions } from '@/api-access/generated/models';
-import { CalendarActionId } from '@/modules/calendar/calendarIdentifiers';
 import {
   CalendarMatrixActionType,
   type CalendarMatrixConflictItem,
@@ -203,7 +202,7 @@ function handleEventAction(
 }
 
 const selectedConflict = ref<CalendarConflict>();
-const selectedConflictEventId = ref<number>();
+const selectedConflictEventId = ref<CalendarMatrixConflictItem['currentEventId']>();
 const conflictOverrideLoading = ref(false);
 const conflictErrorMessage = ref('');
 function canEditConflictEvent(event: CalendarConflictEvent) {
@@ -344,7 +343,6 @@ function isAssignmentEvent(event: CalendarEventBase) {
       <div
         class="calendar-scheduling-header"
         :class="{
-          'is-holiday': header.actionId === CalendarActionId.EventDetail,
           'has-conflict-overlay':
             calendarSchedulingConflictHeaderId != null &&
             calendarSchedulingConflictHeaderId === getCalendarSchedulingHeaderConflictKey(cell, header.id),
@@ -519,24 +517,12 @@ function isAssignmentEvent(event: CalendarEventBase) {
   z-index: 4;
 }
 
-.calendar-scheduling-event-block {
-  position: relative;
-}
-
+.calendar-scheduling-event-block,
 .calendar-scheduling-header {
   position: relative;
 }
 
-.calendar-scheduling-header.is-holiday :deep(.calendar-matrix-cell-header) {
-  background: rgb(var(--v-theme-surface));
-  border-color: var(--calendar-event-holiday-color);
-  color: var(--ua-text-primary);
-}
-
-.calendar-scheduling-header.has-conflict-overlay {
-  z-index: 5;
-}
-
+.calendar-scheduling-header.has-conflict-overlay,
 .calendar-scheduling-event-block.has-conflict-overlay {
   z-index: 5;
 }

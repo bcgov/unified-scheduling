@@ -9,6 +9,7 @@ import type {
 export type CalendarConflict = CalendarConflictResponse;
 export type CalendarConflictEvent = CalendarConflictEventResponse;
 export type CalendarRestrictedConflictWarning = CalendarRestrictedConflictWarningResponse;
+export type CalendarConflictEventIdentity = Pick<CalendarConflictEvent, 'sourceModule' | 'eventId'>;
 
 export interface CalendarEventBase {
   id: string;
@@ -18,6 +19,7 @@ export interface CalendarEventBase {
   description?: string;
   notes?: string;
   color?: string;
+  borderStyle?: 'solid' | 'dotted';
   eventSeriesId?: number;
   start: string;
   end?: string;

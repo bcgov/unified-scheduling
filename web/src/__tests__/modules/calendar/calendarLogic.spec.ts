@@ -248,6 +248,8 @@ describe('scheduling calendar view model', () => {
       });
       const conflict = {
         id: 'excluded-home-conflict',
+        reportOnEntry: true,
+        reportOnOverlaps: true,
         resourceId: 'borrowed',
         entry: conflictEntry('1'),
         overlaps: conflictEntry('99'),
@@ -546,6 +548,8 @@ describe('scheduling calendar view model', () => {
                   overlapStart: '2025-01-13T17:30:00Z',
                   overlapEnd: '2025-01-13T18:00:00Z',
                   isOverridden: false,
+                  reportOnEntry: true,
+                  reportOnOverlaps: true,
                 },
               ],
             },
@@ -853,6 +857,8 @@ describe('scheduling calendar view model', () => {
                   overlapStart: '2025-07-01T17:00:00Z',
                   overlapEnd: '2025-07-01T19:00:00Z',
                   isOverridden: false,
+                  reportOnEntry: true,
+                  reportOnOverlaps: true,
                 },
               ],
             },
