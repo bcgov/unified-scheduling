@@ -14,7 +14,6 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
     private const string PermissionGroupRoles = "Roles";
     private const string PermissionGroupActingPositions = "ActingPositions";
     private const string PermissionGroupAdmin = "Admin";
-    private const string PermissionGroupAwayLocations = "AwayLocations";
     public static ISeedData<PermissionSeedDefinition> Instance { get; } = new UserManagementPermissionSeedData();
 
     private UserManagementPermissionSeedData() { }
@@ -139,31 +138,7 @@ public sealed class UserManagementPermissionSeedData : ISeedData<PermissionSeedD
             Id = nameof(Permissions.HangfireDashboardView),
             Description = "View the Hangfire background jobs dashboard",
         },
-        // Away Locations
-        new()
-        {
-            Group = PermissionGroupAwayLocations,
-            Id = nameof(Permissions.AwayLocationsView),
-            Description = "View away locations",
-        },
-        new()
-        {
-            Group = PermissionGroupAwayLocations,
-            Id = nameof(Permissions.AwayLocationsCreate),
-            Description = "Create away locations",
-        },
-        new()
-        {
-            Group = PermissionGroupAwayLocations,
-            Id = nameof(Permissions.AwayLocationsEdit),
-            Description = "Edit away locations",
-        },
-        new()
-        {
-            Group = PermissionGroupAwayLocations,
-            Id = nameof(Permissions.AwayLocationsExpire),
-            Description = "Expire away locations",
-        },
+        // Loan Out
         new()
         {
             Group = PermissionGroupUsers,

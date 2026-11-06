@@ -62,14 +62,6 @@ const myTeamRoutes: RouteRecordRaw[] = [
             },
           },
           {
-            path: 'away-locations',
-            name: 'UserAwayLocations',
-            component: () => import('./views/AwayLocations.vue'),
-            meta: {
-              title: 'Away Locations',
-            },
-          },
-          {
             path: 'leave',
             name: 'UserLeave',
             component: () => import('./views/UserLeave.vue'),
