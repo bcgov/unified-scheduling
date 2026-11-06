@@ -49,6 +49,20 @@ public sealed class ScheduleDistributionServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DistributeAsync_WhenEmailProviderIsMissing_RejectsBeforeQueryingOrRendering()
+    {
+        var renderer = new RecordingPdfRenderer();
+        var service = CreateService(renderer, null);
+        await _db.DisposeAsync();
+
+        await Assert.ThrowsAsync<ScheduleDistributionUnavailableException>(() =>
+            service.DistributeAsync(CreateRequest([EligibleUserId]), TestContext.Current.CancellationToken)
+        );
+
+        Assert.Equal(0, renderer.CallCount);
+    }
+
+    [Fact]
     public async Task DistributeAsync_WhenRecipientIsEligible_RendersAndSendsPdf()
     {
         var renderer = new RecordingPdfRenderer();
@@ -416,7 +430,7 @@ public sealed class ScheduleDistributionServiceTests : IAsyncLifetime
 
     private ScheduleDistributionService CreateService(
         RecordingPdfRenderer renderer,
-        RecordingEmailService emailService,
+        RecordingEmailService? emailService,
         bool loanOutEnabled = true
     )
     {
@@ -428,7 +442,7 @@ public sealed class ScheduleDistributionServiceTests : IAsyncLifetime
         return new(
             _db,
             renderer,
-            emailService,
+            emailService is null ? [] : [emailService],
             NullLogger<ScheduleDistributionService>.Instance,
             SchedulingLoanOutTestServices.CreateAvailability(
                 _db,
