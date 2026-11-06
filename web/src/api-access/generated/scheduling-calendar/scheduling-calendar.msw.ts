@@ -48,6 +48,10 @@ export const getPostApiSchedulingCalendarEventsResponseMock = (
             faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
             undefined,
           ]),
+          leaveDate: faker.helpers.arrayElement([
+            faker.helpers.arrayElement([faker.date.past().toISOString().split('T')[0], null]),
+            undefined,
+          ]),
           loanOutEntryId: faker.helpers.arrayElement([
             faker.helpers.arrayElement([faker.number.int(), null]),
             undefined,

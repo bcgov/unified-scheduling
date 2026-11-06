@@ -223,11 +223,7 @@ export function buildCalendarSchedulingViewModel(
             payload: event,
           })),
           ...userShiftEvents.map((event) =>
-            buildCellHeader(
-              event,
-              timeZone,
-              getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
-            ),
+            buildCellHeader(event, timeZone, getConflictsForShift(event, assignmentEvents, user.id, conflicts)),
           ),
         ],
         groups: [
@@ -613,18 +609,24 @@ function resolveLinkedShiftsForAssignment(assignmentEvent: CalendarEventBase, us
   );
 }
 
-function getConflictsForLinkedAssignments(
+function getConflictsForShift(
   shiftEvent: CalendarEventBase,
   assignmentEvents: ReadonlyArray<CalendarEventBase>,
   resourceId: string,
   conflicts: ReadonlyArray<CalendarConflict>,
 ) {
+  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
+  const shiftEventId = resolveCalendarEventId(shiftEvent);
+  if (shiftEventId != null) {
+    for (const conflict of getCalendarConflictsForEventAndResource(shiftEventId, resourceId, conflicts)) {
+      conflictsById.set(conflict.id, { conflict, currentEventId: shiftEventId });
+    }
+  }
   if (!isCalendarSchedulingEvent(shiftEvent) || shiftEvent.metadata.shiftEntryId == null) {
-    return [];
+    return [...conflictsById.values()];
   }
 
   const shiftEntryId = String(shiftEvent.metadata.shiftEntryId);
-  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
   for (const event of assignmentEvents) {
     if (!isCalendarSchedulingEvent(event) || event.metadata.assignedShiftIds?.includes(shiftEntryId) !== true) {
       continue;
@@ -894,6 +896,10 @@ function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: s
   return getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone) === date;
 }
 function isLeaveOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
+  if (event.allDay) {
+    return event.start <= date && date < (event.end ?? addDays(event.start, 1));
+  }
+
   const dayStart = DateTime.fromISO(date, { zone: timeZone }).startOf('day');
   const dayEnd = dayStart.plus({ days: 1 });
   const start = DateTime.fromISO(event.start, { setZone: true });

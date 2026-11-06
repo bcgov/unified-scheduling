@@ -4,10 +4,12 @@ using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Calendar;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
 using Unified.Db;
+using Unified.Leave.Conflicts;
 using Unified.Leave.FeatureFlags;
 using Unified.Leave.Mappings;
 using Unified.Leave.Models;
@@ -47,6 +49,8 @@ public static class LeaveModule
         services.AddScoped<ISchedulingLeaveSeriesService, SchedulingLeaveSeriesService>();
         LeaveServiceProvider.Register(services);
         services.AddScoped<SchedulingLeaveEventMapper>();
+        services.AddScoped<LeaveRequestNormalizer>();
+        services.AddScoped<ICalendarConflictParticipantProvider, LeaveConflictParticipantProvider>();
         services.AddScoped<LeaveSeriesMaterializationHandler>();
         services.AddScoped<
             IEventSeriesMaterializationHandler<LeaveSeriesMaterializationContext>,

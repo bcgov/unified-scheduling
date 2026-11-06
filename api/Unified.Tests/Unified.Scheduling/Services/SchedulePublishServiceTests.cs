@@ -11,11 +11,13 @@ using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.Leave;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
+using Unified.Leave.Conflicts;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Services;
@@ -48,6 +50,73 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
     {
         await _db.DisposeAsync();
         await _connection.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task PublishAsync_WhenStandaloneShiftOverlapsCrossLocationDraftLeave_BlocksAndHonorsOverride()
+    {
+        _db.Users.Add(
+            new User
+            {
+                Id = ResourceId,
+                IdirName = "leave-user",
+                IsEnabled = true,
+                HomeLocationId = 5,
+            }
+        );
+        _db.EventTypes.Add(new EventType { Code = "leave", Description = "Leave" });
+        var leaveType = new LeaveType { Code = "Private", Description = "Private leave type" };
+        _db.LeaveTypes.Add(leaveType);
+        var leave = new LeaveEntry
+        {
+            LeaveType = leaveType,
+            Event = new Event
+            {
+                Title = "Restricted details",
+                SourceModule = "leave",
+                EventTypeCode = "leave",
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+                StartAtUtc = ShiftStart.AddHours(-16),
+                EndAtUtc = ShiftEnd.AddDays(1),
+                AllDay = true,
+                TimeZoneId = "America/Toronto",
+                LocationId = 6,
+            },
+            Users = [new() { UserId = ResourceId }],
+        };
+        _db.LeaveEntries.Add(leave);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var shift = await SeedDraftShiftAsync();
+        shift.Users.Add(new() { UserId = ResourceId });
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var conflictService = new CalendarConflictService(
+            [new SchedulingConflictParticipantProvider(_db), new LeaveConflictParticipantProvider(_db)],
+            _db,
+            CalendarConflictTestContext.Projection(ResourceId)
+        );
+        var service = CreateService([], conflictService: conflictService);
+        var preview = await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken);
+        Assert.False(preview.CanPublish);
+        Assert.Single(preview.Blockers.Conflicts);
+        await Assert.ThrowsAsync<SchedulePublishBlockedException>(() =>
+            service.PublishAsync(CreateRequest(), null, TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, shift.Event!.StatusTypeCode);
+        await conflictService.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = "leave",
+                FirstEventId = leave.EventId.ToString(),
+                SecondSourceModule = "scheduling",
+                SecondEventId = shift.EventId.ToString(),
+                ResourceId = ResourceId,
+                Note = "Approved",
+            },
+            ResourceId,
+            TestContext.Current.CancellationToken
+        );
+        var result = await service.PublishAsync(CreateRequest(), null, TestContext.Current.CancellationToken);
+        Assert.Equal(1, result.PublishedShiftEntryCount);
     }
 
     [Fact]
