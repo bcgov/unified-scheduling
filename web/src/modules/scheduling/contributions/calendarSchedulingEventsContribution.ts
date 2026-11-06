@@ -1,13 +1,13 @@
 import { getApiUsersUserIdActingPositions } from '@/api-access/generated/acting-positions/acting-positions';
 import { postApiSchedulingCalendarEvents } from '@/api-access/generated/scheduling-calendar/scheduling-calendar';
-import type {
-  ActingPositionResponseDto,
-  LoanOutMetaData,
-  SchedulingCalendarEventResponse,
-  SchedulingCalendarRequest,
-  UserResponse,
+import {
+  Permissions,
+  type ActingPositionResponseDto,
+  type LoanOutMetaData,
+  type SchedulingCalendarEventResponse,
+  type SchedulingCalendarRequest,
+  type UserResponse,
 } from '@/api-access/generated/models';
-import { Permissions } from '@/api-access/generated/models';
 import type { CalendarResourceBase, CalendarRuntimeContext } from '@/modules/calendar/calendarTypes';
 import { CalendarContributionId, CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
 import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';

@@ -157,6 +157,9 @@ function toAvatarText(displayName: string) {
         <UaAlert v-if="preview.blockers.conflicts.length" type="error" :closable="false">
           {{ preview.blockers.conflicts.length }} unresolved conflicts
         </UaAlert>
+        <UaAlert v-if="preview.blockers.hasRestrictedConflicts" type="error" :closable="false">
+          Unresolved conflicts include events you do not have permission to view.
+        </UaAlert>
         <UaAlert
           v-for="(blocker, index) in preview.blockers.shiftConflicts"
           :key="`${index}-${blocker.message}`"

@@ -244,7 +244,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         Assert.Equal(individual, participant);
         Assert.Equal(identity, participant.Identity);
         Assert.Equal(_userA, participant.ResourceId);
-        Assert.Equal(timeZoneId, participant.TimeZoneId);
+        Assert.Equal(TimeZoneService.NormalizeTimeZoneId(timeZoneId), participant.TimeZoneId);
         Assert.Equal(DateTimeOffset.MaxValue, participant.End);
         var timeZoneService = new TimeZoneService();
         Assert.Equal(
@@ -276,7 +276,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             )
         );
 
-        Assert.Equal("UTC", participant.TimeZoneId);
+        Assert.Equal(TimeZoneService.NormalizeTimeZoneId("UTC"), participant.TimeZoneId);
         Assert.Equal(Day(2026, 7, 13), participant.Start);
         Assert.Equal(Day(2026, 7, 14), participant.End);
     }

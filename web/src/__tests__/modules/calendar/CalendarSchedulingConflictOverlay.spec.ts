@@ -4,6 +4,27 @@ import CalendarSchedulingConflictOverlay from '@/modules/scheduling/CalendarSche
 import type { CalendarConflict } from '@/modules/calendar/calendarTypes';
 
 describe('CalendarSchedulingConflictOverlay', () => {
+  it('shows a restricted warning without event details, navigation, or override actions', () => {
+    const wrapper = mount(CalendarSchedulingConflictOverlay, {
+      props: {
+        conflicts: [],
+        timeZone: 'America/Vancouver',
+        restrictedWarnings: [
+          {
+            eventId: '42',
+            sourceModule: 'scheduling',
+            resourceId: 'visible-user',
+            message: 'This event has a conflict with an event you do not have permission to view.',
+          },
+        ],
+      },
+    });
+    expect(wrapper.text()).toContain('do not have permission to view');
+    expect(wrapper.findAll('button, a')).toHaveLength(0);
+    expect(wrapper.findAll('.calendar-scheduling-conflict-overlay__item')).toHaveLength(0);
+    expect(wrapper.emitted('resolve')).toBeUndefined();
+    wrapper.unmount();
+  });
   it('lists every conflict with details of the conflicting event and emits resolution requests', async () => {
     const firstConflict = createConflict(101, 102, 'Second assignment', 'user-1');
     const duplicateResourceConflict = createConflict(101, 102, 'Second assignment', 'user-2');

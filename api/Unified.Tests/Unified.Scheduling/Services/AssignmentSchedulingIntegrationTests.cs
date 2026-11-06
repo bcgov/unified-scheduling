@@ -101,6 +101,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         _conflictService = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_db)],
             _db,
+            CalendarConflictTestContext.Projection(UserA),
             timeProvider
         );
 
@@ -226,18 +227,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         var overridden = Assert.Single(
-            await _conflictService.GetConflictsAsync(
-                ConflictQuery(nameof(Permissions.AssignmentsView)),
-                TestContext.Current.CancellationToken
-            )
+            await _conflictService.GetConflictsAsync(ConflictQuery(), TestContext.Current.CancellationToken)
         );
         Assert.True(overridden.IsOverridden);
-        Assert.Empty(
-            await _conflictService.GetConflictsAsync(
-                ConflictQuery(nameof(Permissions.ShiftsView)),
-                TestContext.Current.CancellationToken
-            )
-        );
+        Assert.Single(await _conflictService.GetConflictsAsync(ConflictQuery(), TestContext.Current.CancellationToken));
         Assert.True(
             Assert
                 .Single(
@@ -262,10 +255,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         secondEvent.EndAtUtc = At(12);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var rechecked = Assert.Single(
-            await _conflictService.GetConflictsAsync(
-                ConflictQuery(nameof(Permissions.AssignmentsView)),
-                TestContext.Current.CancellationToken
-            )
+            await _conflictService.GetConflictsAsync(ConflictQuery(), TestContext.Current.CancellationToken)
         );
         Assert.Equal(overridden.Id, rechecked.Id);
         Assert.False(rechecked.IsOverridden);
@@ -298,7 +288,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             ),
             timeZoneService,
             _conflictService,
-            new HttpContextAccessor { HttpContext = httpContext }
+            new CalendarConflictProjection(
+                [new SchedulingConflictParticipantProvider(_db)],
+                new HttpContextAccessor { HttpContext = httpContext }
+            )
         );
         var controller = new CalendarController(
             NullLogger<CalendarController>.Instance,
@@ -342,14 +335,10 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         var course = new CalendarConflictParticipant("course-42", "training", UserA, At(start), At(end), "Course");
         var service = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_db), new ExternalConflictProvider(course)],
-            _db
+            _db,
+            new CalendarConflictProjection([])
         );
-        var conflicts = (
-            await service.GetConflictsAsync(
-                ConflictQuery(nameof(Permissions.AssignmentsView)),
-                TestContext.Current.CancellationToken
-            )
-        )
+        var conflicts = (await service.GetConflictsAsync(ConflictQuery(), TestContext.Current.CancellationToken))
             .Where(conflict =>
                 conflict.Entry.SourceModule == "training" || conflict.Overlaps.SourceModule == "training"
             )
@@ -368,8 +357,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         );
     }
 
-    private static CalendarConflictQuery ConflictQuery(string? permission = null) =>
-        new(At(0), At(23), ViewerPermissions: permission is null ? null : new HashSet<string> { permission });
+    private static CalendarConflictQuery ConflictQuery() => new(At(0), At(23));
 
     private sealed class ExternalConflictProvider(CalendarConflictParticipant participant)
         : ICalendarConflictParticipantProvider
@@ -1298,6 +1286,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
 
         var published = await _shiftService.PublishShiftEntryAsync(shift.Id, TestContext.Current.CancellationToken);
 
+        Assert.NotNull(published);
         Assert.Equal(CalendarEventStatusTypeCodes.Active, published.StatusTypeCode);
         _db.ChangeTracker.Clear();
         var assignmentStatus = await _db
@@ -4818,6 +4807,23 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SchedulingConflictParticipantProvider_WhenAssignmentHasLocation_UsesLocationTimeZone()
+    {
+        var (_, assignment, _) = await CreateLinkedEntriesAsync();
+        var provider = new SchedulingConflictParticipantProvider(_db);
+
+        var participant = Assert.Single(
+            await provider.GetParticipantsAsync(
+                new CalendarConflictQuery(At(9), At(17)),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(assignment.EventId.ToString(), participant.EventId);
+        Assert.Equal("America/Vancouver", participant.TimeZoneId);
+    }
+
+    [Fact]
     public async Task UpdateAssignmentEntryAsync_WithNullShiftEntryLinks_PreservesExistingRelationships()
     {
         var (shift, assignment, _) = await CreateLinkedEntriesAsync();
@@ -5519,7 +5525,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             _shiftService,
             _assignmentService,
             _conflictService,
-            NullLogger<SchedulePublishService>.Instance
+            NullLogger<SchedulePublishService>.Instance,
+            CalendarConflictTestContext.Projection(UserA)
         );
 
     private static SchedulePublishRequest CreateSchedulePublishRequest() =>

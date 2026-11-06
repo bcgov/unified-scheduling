@@ -19,7 +19,7 @@ public class TimeZoneServiceTests
         int expectedOffsetHours
     )
     {
-        var result = _service.ResolveOrUtc(timeZoneId);
+        var result = _service.ResolveOrUtc($" {timeZoneId} ");
         var requiredResult = _service.ResolveRequired(timeZoneId);
         var instant = new DateTimeOffset(year, month, 2, 16, 0, 0, TimeSpan.Zero);
 
@@ -230,5 +230,14 @@ public class TimeZoneServiceTests
     public void ResolveRequired_WhenTimeZoneIsBlank_Throws()
     {
         Assert.Throws<ArgumentException>(() => _service.ResolveRequired(" "));
+    }
+
+    [Fact]
+    public void ResolveRequired_WhenWindowsAliasIsSupported_NormalizesToIanaId()
+    {
+        var result = _service.ResolveRequired("Pacific Standard Time");
+
+        Assert.Equal(TimeZoneService.NormalizeTimeZoneId("Pacific Standard Time"), result.Id);
+        Assert.NotEqual("Pacific Standard Time", result.Id);
     }
 }

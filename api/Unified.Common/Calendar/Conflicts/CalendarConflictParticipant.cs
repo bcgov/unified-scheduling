@@ -8,7 +8,10 @@ public sealed record CalendarConflictParticipant(
     DateTimeOffset End,
     string Title,
     int? SourceEntityId = null,
-    string? TimeZoneId = null
+    string? TimeZoneId = null,
+    // Synthetic all-day holidays require matching operational zones; ordinary events use UTC overlap.
+    bool RequiresMatchingTimeZone = false,
+    bool IsInQueryScope = true
 )
 {
     public CalendarConflictEventIdentity Identity => CalendarConflictEventIdentity.Create(SourceModule, EventId);

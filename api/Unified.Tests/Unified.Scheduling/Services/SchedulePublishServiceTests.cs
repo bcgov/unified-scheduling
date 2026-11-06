@@ -235,7 +235,8 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
                 new SchedulingConflictParticipantProvider(_db),
                 new TrainingConflictParticipantProvider(_db, timeZoneResolver, timeZoneService),
             ],
-            _db
+            _db,
+            CalendarConflictTestContext.Projection(ResourceId)
         );
         var service = CreateService([], conflictService: conflictService);
         Assert.True((await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken)).CanPublish);
@@ -363,11 +364,60 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         return assignment;
     }
 
+    [Fact]
+    public async Task Publication_WhenAllConflictDetailsAreRestricted_StillBlocksPreviewAndPublish()
+    {
+        var assignment = await SeedLinkedDraftAssignmentAsync();
+        var shift = await _db
+            .ShiftEntries.Include(entry => entry.Event)
+            .SingleAsync(TestContext.Current.CancellationToken);
+        var hiddenStart = ShiftStart.AddMinutes(17);
+        var hidden = new CalendarConflict(
+            new(
+                "hidden-training-identity",
+                "training",
+                ResourceId,
+                hiddenStart,
+                hiddenStart.AddMinutes(13),
+                "SECRET training"
+            ),
+            new(shift.EventId.ToString(), "scheduling", ResourceId, ShiftStart, ShiftEnd, "Visible shift"),
+            ResourceId,
+            hiddenStart,
+            hiddenStart.AddMinutes(13)
+        );
+        var accessor = CalendarConflictTestContext.Accessor(ResourceId);
+        accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(ResourceId);
+        var service = CreateService(
+            [hidden],
+            projection: new CalendarConflictProjection([new SchedulingConflictParticipantProvider(_db)], accessor)
+        );
+
+        var preview = await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken);
+        var rejection = await Assert.ThrowsAsync<SchedulePublishBlockedException>(() =>
+            service.PublishAsync(CreateRequest(), ResourceId, TestContext.Current.CancellationToken)
+        );
+        foreach (var response in new[] { preview, rejection.Preview })
+        {
+            Assert.False(response.CanPublish);
+            Assert.Empty(response.Blockers.Conflicts);
+            Assert.Empty(response.Blockers.RestrictedWarnings);
+            Assert.True(response.Blockers.HasRestrictedConflicts);
+            var json = System.Text.Json.JsonSerializer.Serialize(response);
+            Assert.DoesNotContain("hidden-training-identity", json);
+            Assert.DoesNotContain("SECRET", json);
+            Assert.DoesNotContain(hiddenStart.ToString("yyyy-MM-ddTHH:mm:ss"), json);
+        }
+        Assert.Equal(CalendarEventStatusTypeCodes.Draft, assignment.Event!.StatusTypeCode);
+        Assert.Equal(CalendarEventStatusTypeCodes.Active, shift.Event!.StatusTypeCode);
+    }
+
     private SchedulePublishService CreateService(
         IReadOnlyCollection<CalendarConflict> conflicts,
         IAssignmentPublicationService? assignmentPublicationService = null,
         IShiftPublicationService? shiftPublicationService = null,
-        ICalendarConflictService? conflictService = null
+        ICalendarConflictService? conflictService = null,
+        CalendarConflictProjection? projection = null
     ) =>
         new(
             _db,
@@ -379,7 +429,8 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
             shiftPublicationService ?? new FakeShiftPublicationService(_db),
             assignmentPublicationService ?? new FakeAssignmentPublicationService(),
             conflictService ?? new FakeCalendarConflictService(conflicts),
-            NullLogger<SchedulePublishService>.Instance
+            NullLogger<SchedulePublishService>.Instance,
+            projection ?? CalendarConflictTestContext.Projection(ResourceId)
         );
 
     private static SchedulePublishRequest CreateRequest() =>

@@ -142,6 +142,54 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it('anchors restricted warnings on visible shift headers without needing hidden assignments', () => {
+    const shift: CalendarSchedulingEvent = {
+      id: 'visible-shift',
+      type: 'scheduling.shift',
+      sourceModule: 'scheduling',
+      title: 'Shift',
+      start: '2025-01-13T16:00:00Z',
+      end: '2025-01-14T00:00:00Z',
+      resourceIds: ['user-1'],
+      eventTypeCode: 'shift',
+      metadata: { eventId: 10, shiftEntryId: '40', userIds: ['user-1'] },
+    };
+    const warning = { eventId: '10', sourceModule: 'scheduling', resourceId: 'user-1', message: 'Restricted conflict' };
+    const response: CalendarDataResponse = {
+      contributions: {
+        'scheduling.events': {
+          moduleId: 'scheduling',
+          contributionId: 'scheduling.events',
+          events: [shift],
+          resources: [
+            {
+              id: 'user-1',
+              type: 'user',
+              sourceModule: 'scheduling',
+              label: 'Alex',
+              title: 'Alex',
+            } as CalendarSchedulingUserResource,
+          ],
+        },
+        'calendar.events': {
+          moduleId: 'calendar',
+          contributionId: 'calendar.events',
+          events: [],
+          data: { conflicts: [], restrictedWarnings: [warning] },
+        },
+      },
+    };
+    const model = buildCalendarSchedulingViewModel(
+      response,
+      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      'week',
+      false,
+    );
+    const header = model.cells.flatMap((cell) => cell.headers ?? []).find((item) => item.id === shift.id);
+    expect(header?.restrictedWarnings).toEqual([warning]);
+    expect(header?.action?.ariaLabel).toBe('Show Conflict Details');
+    expect(header?.conflicts).toEqual([]);
+  });
   it.each([buildCalendarSchedulingViewModel, buildCalendarAssignmentViewModel])(
     'excludes home IsAway markers from distribution warnings while retaining destination shifts (%#)',
     (buildViewModel) => {
@@ -733,15 +781,15 @@ describe('scheduling calendar view model', () => {
     expect(events.map((item) => item.event.id)).toEqual(['scheduling.assignment-entry.90']);
   });
 
-  it('shows the conflict action only when a linked assignment has a conflict for that shift user', () => {
+  it('shows a holiday conflict on the assignment and its linked shift header for the affected user', () => {
     const shiftEvents: CalendarSchedulingEvent[] = [
       {
         id: 'shift-conflict',
         type: 'scheduling.shift',
         sourceModule: 'calendar-scheduling',
         title: 'Conflict shift',
-        start: '2025-01-13T09:00:00',
-        end: '2025-01-13T17:00:00',
+        start: '2025-07-01T09:00:00',
+        end: '2025-07-01T17:00:00',
         resourceIds: ['user-1'],
         metadata: { eventId: 101, shiftEntryId: '41', userIds: ['user-1'] },
       },
@@ -750,8 +798,8 @@ describe('scheduling calendar view model', () => {
         type: 'scheduling.shift',
         sourceModule: 'calendar-scheduling',
         title: 'Normal shift',
-        start: '2025-01-14T09:00:00',
-        end: '2025-01-14T17:00:00',
+        start: '2025-07-02T09:00:00',
+        end: '2025-07-02T17:00:00',
         resourceIds: ['user-1'],
         metadata: { eventId: 102, userIds: ['user-1'], shiftSeriesId: 100 },
       },
@@ -762,8 +810,8 @@ describe('scheduling calendar view model', () => {
         type: 'scheduling.assignment',
         sourceModule: 'calendar-scheduling',
         title: 'Conflict assignment',
-        start: '2025-01-13T10:00:00',
-        end: '2025-01-13T12:00:00',
+        start: '2025-07-01T10:00:00',
+        end: '2025-07-01T12:00:00',
         metadata: {
           eventId: 201,
           assignedShiftIds: ['41'],
@@ -782,28 +830,28 @@ describe('scheduling calendar view model', () => {
             data: {
               conflicts: [
                 {
-                  id: '201:202:user-1',
+                  id: '201:stat-holiday:CanadaDay:2025-07-01:America/Vancouver:user-1',
                   resourceId: 'user-1',
                   entry: {
                     eventId: '201',
                     sourceModule: 'scheduling',
                     title: 'Conflict assignment',
-                    start: '2025-01-13T10:00:00Z',
-                    end: '2025-01-13T12:00:00Z',
+                    start: '2025-07-01T17:00:00Z',
+                    end: '2025-07-01T19:00:00Z',
                     sourceEntityId: null,
                     timeZoneId: null,
                   },
                   overlaps: {
-                    eventId: '202',
-                    sourceModule: 'scheduling',
-                    title: 'Assignment',
-                    start: '2025-01-13T10:00:00Z',
-                    end: '2025-01-13T12:00:00Z',
+                    eventId: 'stat-holiday:CanadaDay:2025-07-01:America/Vancouver',
+                    sourceModule: 'calendar',
+                    title: 'Canada Day',
+                    start: '2025-07-01T07:00:00Z',
+                    end: '2025-07-02T07:00:00Z',
                     sourceEntityId: null,
-                    timeZoneId: null,
+                    timeZoneId: 'America/Vancouver',
                   },
-                  overlapStart: '2025-01-13T10:00:00Z',
-                  overlapEnd: '2025-01-13T12:00:00Z',
+                  overlapStart: '2025-07-01T17:00:00Z',
+                  overlapEnd: '2025-07-01T19:00:00Z',
                   isOverridden: false,
                 },
               ],
@@ -825,7 +873,7 @@ describe('scheduling calendar view model', () => {
           },
         },
       },
-      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      { startDate: '2025-07-01', endDate: '2025-07-08', filters: {} },
       'week',
     );
 
@@ -834,7 +882,13 @@ describe('scheduling calendar view model', () => {
     const conflictHeader = headers.find((header) => header.id === 'shift-conflict');
     expect(conflictHeader?.action?.ariaLabel).toBe('Show Conflict Details');
     expect(conflictHeader?.conflicts?.[0]?.currentEventId).toBe(201);
-    expect(conflictHeader?.conflicts?.[0]?.conflict.id).toBe('201:202:user-1');
+    expect(conflictHeader?.conflicts?.[0]?.conflict.overlaps.title).toBe('Canada Day');
+
+    const assignmentItem = viewModel.cells
+      .find((cell) => cell.resourceId === 'user-1' && cell.date === '2025-07-01')
+      ?.groups[0]?.events.find((item) => item.event.id === 'assignment-conflict');
+    expect(assignmentItem?.display?.action?.ariaLabel).toBe('Show conflict');
+    expect(assignmentItem?.conflicts?.[0]?.conflict.overlaps.sourceModule).toBe('calendar');
     expect(headers.find((header) => header.id === 'shift-normal')?.action).toBeUndefined();
     expect(headers.find((header) => header.id === 'shift-normal')?.info?.icons).toContainEqual({
       icon: mdiCalendarSync,

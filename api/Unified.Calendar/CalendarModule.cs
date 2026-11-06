@@ -12,6 +12,7 @@ using Unified.Calendar.Options;
 using Unified.Calendar.Seeders;
 using Unified.Calendar.Services;
 using Unified.Calendar.Validators;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.FeatureFlags;
 using Unified.Common.Options;
 using Unified.Common.Seeding;
@@ -74,7 +75,9 @@ public static class CalendarModule
 
         services.AddScoped<ICalendarTimeZoneResolver, CalendarTimeZoneResolver>();
         services.AddScoped<CalendarLifecycleService>();
+        services.AddScoped<ICalendarConflictParticipantProvider, HolidayConflictParticipantProvider>();
         services.AddScoped<ICalendarConflictService, CalendarConflictService>();
+        services.AddScoped<CalendarConflictProjection>();
         services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();
         services.AddScoped<IRecurrenceRuleValidator, IcalNetRecurrenceRuleValidator>();
         services.AddScoped<IEventSeriesMaterializationService, EventSeriesMaterializationService>();

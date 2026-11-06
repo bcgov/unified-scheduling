@@ -72,6 +72,58 @@ public sealed class CalendarConflictDetectorTests
     }
 
     [Fact]
+    public void Detect_WhenNeitherParticipantRequiresMatchingTimeZone_DetectsUtcOverlapAcrossTimeZones()
+    {
+        var conflicts = CalendarConflictDetector.Detect([
+            Participant(1, ResourceA, 0, 60) with
+            {
+                TimeZoneId = "America/Vancouver",
+            },
+            Participant(2, ResourceA, 30, 90) with
+            {
+                TimeZoneId = "America/Toronto",
+            },
+        ]);
+
+        Assert.Single(conflicts);
+    }
+
+    [Fact]
+    public void Detect_WhenHolidayTimeZoneDiffers_DoesNotConflict()
+    {
+        var conflicts = CalendarConflictDetector.Detect([
+            Participant(1, ResourceA, 0, 60) with
+            {
+                TimeZoneId = "America/Vancouver",
+                RequiresMatchingTimeZone = true,
+            },
+            Participant(2, ResourceA, 30, 90) with
+            {
+                TimeZoneId = "America/Toronto",
+            },
+        ]);
+
+        Assert.Empty(conflicts);
+    }
+
+    [Fact]
+    public void Detect_WhenIdentityMatches_DoesNotConflictWithEquivalentRepresentation()
+    {
+        var conflicts = CalendarConflictDetector.Detect([
+            Participant(1, ResourceA, 0, 60) with
+            {
+                EventId = "canonical",
+            },
+            Participant(2, ResourceA, 0, 60) with
+            {
+                EventId = "canonical",
+            },
+        ]);
+
+        Assert.Empty(conflicts);
+    }
+
+    [Fact]
     public void Detect_WhenThreeIntervalsOverlap_ReturnsEachPairOnce()
     {
         var conflicts = CalendarConflictDetector.Detect([

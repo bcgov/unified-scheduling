@@ -69,7 +69,8 @@ public class ShiftServiceTests : IAsyncLifetime
         var materializationHandler = new ShiftSeriesMaterializationHandler(_dbContext);
         var conflictService = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_dbContext)],
-            _dbContext
+            _dbContext,
+            new CalendarConflictProjection([])
         );
         var schedulingLoanOutService = SchedulingLoanOutTestServices.Create(
             _dbContext,
@@ -482,6 +483,7 @@ public class ShiftServiceTests : IAsyncLifetime
                     && shiftEntry.Event.SeriesStartAtUtc == new DateTimeOffset(2026, 6, 2, 16, 0, 0, TimeSpan.Zero),
                 TestContext.Current.CancellationToken
             );
+        Assert.NotNull(unmaterializedEntry.Event);
         _dbContext.ShiftEntries.Remove(unmaterializedEntry);
         _dbContext.Events.Remove(unmaterializedEntry.Event);
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -532,7 +534,7 @@ public class ShiftServiceTests : IAsyncLifetime
             .Where(entry => entry.ShiftSeriesId == series.Id)
             .ToListAsync(TestContext.Current.CancellationToken);
         _dbContext.ShiftEntries.RemoveRange(materializedEntries);
-        _dbContext.Events.RemoveRange(materializedEntries.Select(entry => entry.Event));
+        _dbContext.Events.RemoveRange(materializedEntries.Select(entry => Assert.IsType<Event>(entry.Event)));
         await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
@@ -1600,7 +1602,7 @@ public class ShiftServiceTests : IAsyncLifetime
             existingRequest with
             {
                 StartAtUtc = existingRequest.StartAtUtc.AddDays(1),
-                EndAtUtc = existingRequest.EndAtUtc.Value.AddDays(1),
+                EndAtUtc = existingRequest.EndAtUtc!.Value.AddDays(1),
             },
             TestContext.Current.CancellationToken
         );

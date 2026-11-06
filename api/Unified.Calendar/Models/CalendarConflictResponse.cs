@@ -59,4 +59,16 @@ public sealed record CalendarConflictResponse(
 public sealed record CalendarConflictRejectionResponse(
     string Message,
     IReadOnlyCollection<CalendarConflictResponse> Conflicts
+)
+{
+    public IReadOnlyCollection<CalendarRestrictedConflictWarningResponse> RestrictedWarnings { get; init; } = [];
+    public bool HasRestrictedConflicts { get; init; }
+}
+
+// Only authorized anchors are public; no identity or metadata from the restricted participant is included.
+public sealed record CalendarRestrictedConflictWarningResponse(
+    string EventId,
+    string SourceModule,
+    Guid ResourceId,
+    string Message
 );
