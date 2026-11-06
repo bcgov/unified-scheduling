@@ -8,7 +8,11 @@ using Unified.Calendar;
 using Unified.Common.Mvc;
 using Unified.Common.Scheduling;
 using Unified.Common.Seeding;
+using Unified.Core;
+using Unified.Core.Email;
+using Unified.Core.Pdf;
 using Unified.Db;
+using Unified.Infrastructure.Email.Ches;
 using Unified.LoanOut;
 using Unified.LoanOut.Services;
 using Unified.Scheduling;
@@ -21,6 +25,55 @@ namespace Unified.Tests.Scheduling;
 
 public sealed class SchedulingModuleTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ScheduleDistributionService_WithOptionalChes_ValidatesAndResolves(bool chesEnabled)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["FeatureFlags:Scheduling:Enabled"] = "True",
+                    ["FeatureFlags:Calendar:Enabled"] = "True",
+                    ["FeatureFlags:Stats:Enabled"] = "True",
+                    ["CalendarDateTime:DefaultTimeZoneId"] = "UTC",
+                    ["Ches:Enabled"] = chesEnabled.ToString(),
+                    ["Ches:BaseUrl"] = "https://ches.example.com/api/v1/",
+                    ["Ches:AuthUrl"] = "https://auth.example.com/token",
+                    ["Ches:ClientId"] = "client-id",
+                    ["Ches:ClientSecret"] = "client-secret",
+                    ["Ches:SenderName"] = "Unified Scheduling",
+                    ["Ches:SenderEmail"] = "sender@example.com",
+                    ["Ches:AllowedAttachmentTypes:0:Extension"] = ".pdf",
+                    ["Ches:AllowedAttachmentTypes:0:ContentType"] = "application/pdf",
+                }
+            )
+            .Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRouting();
+        services.AddHttpContextAccessor();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddDbContext<UnifiedDbContext>(options => options.UseSqlite("Data Source=:memory:"));
+        services.AddCoreModule();
+        services.AddCalendarModule(configuration);
+        services.AddSchedulingModule(configuration);
+        services.AddSingleton<ISchedulePdfRenderer, UnusedPdfRenderer>();
+        services.AddChesEmail(configuration);
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }
+        );
+        using var scope = provider.CreateScope();
+
+        AssertContainsScopedRegistration<IScheduleDistributionService, ScheduleDistributionService>(services);
+        Assert.IsType<ScheduleDistributionService>(
+            scope.ServiceProvider.GetRequiredService<IScheduleDistributionService>()
+        );
+        Assert.Equal(chesEnabled, scope.ServiceProvider.GetServices<IEmailService>().Any());
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
@@ -208,6 +261,14 @@ public sealed class SchedulingModuleTests
         var exception = Assert.Throws<InvalidOperationException>(() => services.AddSchedulingModule(configuration));
 
         Assert.Equal("Scheduling requires the Calendar module to be enabled.", exception.Message);
+    }
+
+    private sealed class UnusedPdfRenderer : ISchedulePdfRenderer
+    {
+        public Task<byte[]> RenderAsync(
+            SchedulePdfRenderRequest request,
+            CancellationToken cancellationToken = default
+        ) => throw new InvalidOperationException("DI resolution must not render a PDF.");
     }
 
     private static void AssertContainsScopedFactoryRegistration<TService>(IServiceCollection services)

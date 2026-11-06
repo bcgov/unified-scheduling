@@ -50,6 +50,15 @@ public sealed class ScheduleDistributionController(
         {
             return Ok(await scheduleDistributionService.DistributeAsync(request, cancellationToken));
         }
+        catch (ScheduleDistributionUnavailableException)
+        {
+            logger.LogWarning("Schedule distribution is unavailable because no email service is registered");
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Schedule distribution is unavailable.",
+                detail: "The schedule could not be distributed. Please try again later."
+            );
+        }
         catch (PdfRenderingException exception)
         {
             logger.LogError(

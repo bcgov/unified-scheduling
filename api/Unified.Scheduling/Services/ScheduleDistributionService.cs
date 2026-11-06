@@ -13,18 +13,23 @@ namespace Unified.Scheduling.Services;
 public sealed class ScheduleDistributionService(
     UnifiedDbContext db,
     ISchedulePdfRenderer pdfRenderer,
-    IEmailService emailService,
+    IEnumerable<IEmailService> emailServices,
     ILogger<ScheduleDistributionService> logger,
     ShiftLoanOutAvailabilityService loanOutAvailabilityService,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService
 ) : IScheduleDistributionService
 {
+    private readonly IEmailService? _emailService = emailServices.FirstOrDefault();
+
     public async Task<ScheduleDistributionResult> DistributeAsync(
         ScheduleDistributionRequest request,
         CancellationToken cancellationToken = default
     )
     {
+        if (_emailService is null)
+            throw new ScheduleDistributionUnavailableException();
+
         var context = request.Context ?? throw new InvalidOperationException("A distribution context is required.");
         var recipientUserIds = request.RecipientUserIds ?? [];
         var location = await db
@@ -89,7 +94,7 @@ public sealed class ScheduleDistributionService(
         );
 
         await using var attachmentContent = new MemoryStream(pdf, writable: false);
-        await emailService.SendAsync(
+        await _emailService.SendAsync(
             new EmailMessage
             {
                 To = recipientEmails.Length == 1 ? recipientEmails : [],
