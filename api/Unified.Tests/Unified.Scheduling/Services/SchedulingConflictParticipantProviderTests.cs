@@ -393,15 +393,14 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     {
         var query = CreateQuery();
         Assert.Single(
-            (
-                await _provider.GetParticipantsAsync(
-                    query with
-                    {
-                        ResourceIds = [UserId],
-                    },
-                    TestContext.Current.CancellationToken
-                )
-            ).Where(item => item.ConflictsWithSourceModule is null)
+            await _provider.GetParticipantsAsync(
+                query with
+                {
+                    ResourceIds = [UserId],
+                },
+                TestContext.Current.CancellationToken
+            ),
+            item => item.ConflictsWithSourceModule is null
         );
         Assert.Empty(
             await _provider.GetParticipantsAsync(
@@ -412,27 +411,25 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
                 TestContext.Current.CancellationToken
             )
         );
-        Assert.Empty(
-            (
-                await _provider.GetParticipantsAsync(
-                    query with
-                    {
-                        EndAtUtc = AssignmentStart,
-                    },
-                    TestContext.Current.CancellationToken
-                )
-            ).Where(item => item.ConflictsWithSourceModule is null)
+        Assert.DoesNotContain(
+            await _provider.GetParticipantsAsync(
+                query with
+                {
+                    EndAtUtc = AssignmentStart,
+                },
+                TestContext.Current.CancellationToken
+            ),
+            item => item.ConflictsWithSourceModule is null
         );
-        Assert.Empty(
-            (
-                await _provider.GetParticipantsAsync(
-                    query with
-                    {
-                        StartAtUtc = AssignmentEnd,
-                    },
-                    TestContext.Current.CancellationToken
-                )
-            ).Where(item => item.ConflictsWithSourceModule is null)
+        Assert.DoesNotContain(
+            await _provider.GetParticipantsAsync(
+                query with
+                {
+                    StartAtUtc = AssignmentEnd,
+                },
+                TestContext.Current.CancellationToken
+            ),
+            item => item.ConflictsWithSourceModule is null
         );
     }
 
@@ -605,7 +602,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var participant = Assert.Single(participants.Where(item => item.ConflictsWithSourceModule is null));
+        var participant = Assert.Single(participants, item => item.ConflictsWithSourceModule is null);
         Assert.Equal("20", participant.EventId);
         Assert.Equal(UserId, participant.ResourceId);
     }
