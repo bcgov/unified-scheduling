@@ -137,6 +137,9 @@ const canDelete = computed(
 );
 const shouldShowOpenScopeChoice = computed(() => leaveSeriesId.value != null && selectedOpenScope.value == null);
 const entityLabel = computed(() => (selectedOpenScope.value === 'series' ? 'Leave Series' : 'Leave'));
+const selectedRecord = computed(() =>
+  selectedOpenScope.value === 'series' ? selectedSeries.value : selectedEntry.value,
+);
 
 const visibleTabs = computed<Array<{ id: LeaveDetailTabId; label: string }>>(() => [
   { id: 'details', label: 'Details' },
@@ -208,13 +211,14 @@ const detailRows = computed<ShiftDetailRow[]>(() => [
   },
   {
     label: 'Time',
-    value: formatCalendarEventTimeRange(props.event.start, props.event.end, {
-      allDay:
-        selectedOpenScope.value === 'series'
-          ? (selectedSeries.value?.allDay ?? props.event.allDay)
-          : (selectedEntry.value?.allDay ?? props.event.allDay),
-      timeZone: timeZoneId.value,
-    }),
+    value: formatCalendarEventTimeRange(
+      selectedRecord.value?.startAtUtc ?? props.event.start,
+      selectedRecord.value?.endAtUtc ?? props.event.end,
+      {
+        allDay: selectedRecord.value?.allDay ?? props.event.allDay,
+        timeZone: resolveSchedulingTimeZoneId(selectedRecord.value?.timeZoneId, timeZoneId.value),
+      },
+    ),
   },
   { label: 'Notes', value: props.event.notes?.trim() || props.event.description?.trim() || 'None' },
 ]);

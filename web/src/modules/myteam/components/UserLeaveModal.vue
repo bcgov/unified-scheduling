@@ -76,8 +76,13 @@ const buildInitialFormData = (series?: LeaveSeriesResponse): LeaveFormData => {
       (ids) => ids && ids.length > 0,
     ) ?? [props.user.id],
     leaveType: series?.leaveTypeId ?? entry.leaveTypeId ?? null,
-    date:
-      series?.leaveDate ?? (isSeriesEdit.value ? entrySeries?.leaveDate : null) ?? entry.leaveDate ?? start?.date ?? '',
+    date: allDay
+      ? (series?.leaveDate ??
+        (isSeriesEdit.value ? entrySeries?.leaveDate : null) ??
+        entry.leaveDate ??
+        start?.date ??
+        '')
+      : (start?.date ?? ''),
     allDay,
     startTime: allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
     endTime: allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
