@@ -117,7 +117,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             shifts ? nameof(Permissions.ShiftsView) : ""
         );
         var projection = new CalendarConflictProjection([_provider, trainingProvider], accessor);
-        var service = new CalendarConflictService([_provider, trainingProvider], _db, projection, CalendarConflictTestRules.Scheduling);
+        var service = new CalendarConflictService(
+            [_provider, trainingProvider],
+            _db,
+            projection,
+            CalendarConflictTestRules.Scheduling
+        );
         var time = new TimeZoneService();
         var query = new CalendarQueryService(
             NullLogger<CalendarQueryService>.Instance,
@@ -175,7 +180,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             nameof(Permissions.AssignmentsView)
         );
         var projection = new CalendarConflictProjection([_provider, training], accessor);
-        var service = new CalendarConflictService([_provider, training], _db, projection, CalendarConflictTestRules.Scheduling);
+        var service = new CalendarConflictService(
+            [_provider, training],
+            _db,
+            projection,
+            CalendarConflictTestRules.Scheduling
+        );
         var request = new CalendarConflictAcknowledgement
         {
             FirstSourceModule = "scheduling",
@@ -222,7 +232,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         var training = await SeedTrainingAsync();
         var accessor = CalendarConflictTestContext.Accessor(UserId);
         var projection = new CalendarConflictProjection([_provider, training], accessor);
-        var service = new CalendarConflictService([_provider, training], _db, projection, CalendarConflictTestRules.Scheduling);
+        var service = new CalendarConflictService(
+            [_provider, training],
+            _db,
+            projection,
+            CalendarConflictTestRules.Scheduling
+        );
         await service.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {
@@ -318,7 +333,12 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         var accessor = CalendarConflictTestContext.Accessor(UserId);
         accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(UserId, nameof(Permissions.AssignmentsView));
         var projection = new CalendarConflictProjection([_provider, training], accessor);
-        var service = new CalendarConflictService([_provider, training], _db, projection, CalendarConflictTestRules.Scheduling);
+        var service = new CalendarConflictService(
+            [_provider, training],
+            _db,
+            projection,
+            CalendarConflictTestRules.Scheduling
+        );
         var candidates = await _provider.GetParticipantsAsync(
             new(AssignmentStart, AssignmentEnd),
             TestContext.Current.CancellationToken
@@ -758,10 +778,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
         var availability = SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService());
-        var participants = await _provider.GetParticipantsAsync(
-            CreateQuery(),
-            TestContext.Current.CancellationToken
-        );
+        var participants = await _provider.GetParticipantsAsync(CreateQuery(), TestContext.Current.CancellationToken);
         Assert.DoesNotContain(
             participants,
             item => item.ResourceId == MultiLocationUserId && (item.EventId == "300" || item.EventId == "301")
@@ -984,10 +1001,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             }
         );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var participants = await _provider.GetParticipantsAsync(
-            CreateQuery(),
-            TestContext.Current.CancellationToken
-        );
+        var participants = await _provider.GetParticipantsAsync(CreateQuery(), TestContext.Current.CancellationToken);
         Assert.DoesNotContain(
             participants,
             item => item.ResourceId == MultiLocationUserId && (item.EventId == "300" || item.EventId == "301")
