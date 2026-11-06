@@ -27,6 +27,7 @@ internal static class ShiftResponseMapper
         return response with
         {
             Id = shiftSeries.Id,
+            ConcurrencyToken = shiftSeries.ConcurrencyToken,
             ShiftEntryIds = entryIds.Select(entry => entry.ShiftEntryId).ToList(),
         };
     }
@@ -46,6 +47,7 @@ internal static class ShiftResponseMapper
         return response with
         {
             Id = shiftEntry.Id,
+            ConcurrencyToken = shiftEntry.ConcurrencyToken,
             ShiftSeriesId = shiftEntry.ShiftSeriesId,
             EventId = shiftEntry.EventId,
             IsException = shiftEntry.Event!.IsException && !IgnoreAwayMarker(shiftEntry.Event, loanOutEnabled),

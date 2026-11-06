@@ -267,9 +267,9 @@ public class GlobalExceptionHandler : IExceptionHandler
         return new ProblemDetails
         {
             Status = StatusCodes.Status409Conflict,
-            Title = "Conflict.",
-            Detail = "The resource was modified by another request. Please retry.",
-            Extensions = { ["traceId"] = httpContext.TraceIdentifier },
+            Title = "Resource changed",
+            Detail = "This record has changed since you opened it. Reload it before saving again.",
+            Extensions = { ["traceId"] = httpContext.TraceIdentifier, ["code"] = "concurrency_conflict" },
         };
     }
 

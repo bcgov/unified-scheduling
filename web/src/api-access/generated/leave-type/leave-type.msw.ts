@@ -19,10 +19,7 @@ export const getGetApiLeaveLeaveTypesResponseMock = (): LeaveTypeResponse[] =>
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -30,10 +27,7 @@ export const getGetApiLeaveLeaveTypesResponseMock = (): LeaveTypeResponse[] =>
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
     })),
     Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
       id: faker.helpers.arrayElement([faker.number.int(), undefined]),
@@ -41,10 +35,7 @@ export const getGetApiLeaveLeaveTypesResponseMock = (): LeaveTypeResponse[] =>
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
     })),
   ]);
 
@@ -58,10 +49,7 @@ export const getPostApiLeaveLeaveTypesResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
@@ -70,10 +58,7 @@ export const getPostApiLeaveLeaveTypesResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
@@ -82,10 +67,7 @@ export const getPostApiLeaveLeaveTypesResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
   ]);
@@ -100,10 +82,7 @@ export const getGetApiLeaveLeaveTypesIdResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
@@ -112,10 +91,7 @@ export const getGetApiLeaveLeaveTypesIdResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
@@ -124,10 +100,7 @@ export const getGetApiLeaveLeaveTypesIdResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
   ]);
@@ -142,10 +115,7 @@ export const getPutApiLeaveLeaveTypesIdResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
@@ -154,10 +124,7 @@ export const getPutApiLeaveLeaveTypesIdResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
     {
@@ -166,10 +133,7 @@ export const getPutApiLeaveLeaveTypesIdResponseMock = (
       description: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), undefined]),
       isPaid: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
       effectiveDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', undefined]),
-      expiryDateUtc: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
-        undefined,
-      ]),
+      expiryDateUtc: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z', null]),
       ...overrideResponse,
     },
   ]);

@@ -8,6 +8,7 @@ using Unified.Common.Scheduling;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
+using Unified.Db.Extensions;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling.Factories;
@@ -200,116 +201,125 @@ internal sealed class ShiftSeriesService(
 
     public async Task<ShiftSeriesResponse?> UpdateShiftSeriesAsync(
         int id,
-        ShiftSeriesRequest request,
+        ShiftSeriesUpdateRequest request,
         CancellationToken cancellationToken = default
     )
     {
-        logger.LogInformation("Updating shift series {ShiftSeriesId}.", id);
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable,
-            cancellationToken
-        );
-        var entity = await db
-            .ShiftSeries.Include(series => series.EventSeries!)
-                .ThenInclude(eventSeries => eventSeries.Events)
-            .Include(series => series.Users)
-            .Include(series => series.ShiftEntries)
-                .ThenInclude(entry => entry.Event)
-            .Include(series => series.ShiftEntries)
-                .ThenInclude(entry => entry.Users)
-            .Include(series => series.ShiftEntries)
-                .ThenInclude(entry => entry.ShiftAssignmentEntries)
-                    .ThenInclude(link => link.Users)
-            .Include(series => series.ShiftEntries)
-                .ThenInclude(entry => entry.ShiftAssignmentEntries)
-                    .ThenInclude(link => link.AssignmentEntry)
-                        .ThenInclude(assignment => assignment!.Event)
-            .Include(series => series.ShiftEntries)
-                .ThenInclude(entry => entry.ShiftAssignmentEntries)
-                    .ThenInclude(link => link.ShiftAssignmentSeriesLink)
-            .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
-        if (entity is null)
+        return await SchedulingUpdateConcurrency.ExecuteAsync<ShiftSeriesResponse?>(async () =>
         {
-            logger.LogInformation("Shift series {ShiftSeriesId} was not found for update.", id);
-            return null;
-        }
-        var eventSeries = entity.EventSeries!;
-        var oldValues = ShiftSeriesUpdatePlanner.CaptureCopiedValues(eventSeries);
-        var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
-        var recurrenceChanged = calendarEventSeriesService.HasRecurrenceChanged(entity, request);
-        var newUserIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
-        var updated = await calendarEventSeriesService.UpdateEventAsync(
-            request,
-            entity,
-            SchedulingConstants.SourceModule,
-            SchedulingConstants.ShiftEventTypeCode,
-            validators:
-            [
-                (input, _) =>
-                {
-                    if (string.IsNullOrWhiteSpace(input.RecurrenceRule))
-                        throw new ArgumentException("A recurring shift series cannot be converted to a single shift.");
+            logger.LogInformation("Updating shift series {ShiftSeriesId}.", id);
+            await using var transaction = await db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                cancellationToken
+            );
+            var entity = await db
+                .ShiftSeries.Include(series => series.EventSeries!)
+                    .ThenInclude(eventSeries => eventSeries.Events)
+                .Include(series => series.Users)
+                .Include(series => series.ShiftEntries)
+                    .ThenInclude(entry => entry.Event)
+                .Include(series => series.ShiftEntries)
+                    .ThenInclude(entry => entry.Users)
+                .Include(series => series.ShiftEntries)
+                    .ThenInclude(entry => entry.ShiftAssignmentEntries)
+                        .ThenInclude(link => link.Users)
+                .Include(series => series.ShiftEntries)
+                    .ThenInclude(entry => entry.ShiftAssignmentEntries)
+                        .ThenInclude(link => link.AssignmentEntry)
+                            .ThenInclude(assignment => assignment!.Event)
+                .Include(series => series.ShiftEntries)
+                    .ThenInclude(entry => entry.ShiftAssignmentEntries)
+                        .ThenInclude(link => link.ShiftAssignmentSeriesLink)
+                .SingleOrDefaultAsync(series => series.Id == id, cancellationToken);
+            if (entity is null)
+            {
+                logger.LogInformation("Shift series {ShiftSeriesId} was not found for update.", id);
+                return null;
+            }
+            db.RequireVersion(entity, request.ConcurrencyToken);
 
-                    return Task.CompletedTask;
-                },
-            ],
-            cancellationToken: cancellationToken
-        );
-        if (updated is null)
-            throw new InvalidOperationException("Failed to update shift series.");
-        ShiftUserSync.SyncSeriesUsers(db, entity, newUserIds);
-        if (recurrenceChanged)
-        {
-            await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(entity.Id, [], cancellationToken);
-            await eventSeriesMaterializationService.RegenerateDraftSeriesAsync(
-                eventSeries,
-                ShiftRecurrenceValidationOptions,
-                shiftSeriesMaterializationHandler,
-                new ShiftSeriesMaterializationContext
-                {
-                    ShiftSeries = entity,
-                    UserIds = newUserIds,
-                    ExistingEntries = entity.ShiftEntries.ToList(),
-                },
+            var eventSeries = entity.EventSeries!;
+            var oldValues = ShiftSeriesUpdatePlanner.CaptureCopiedValues(eventSeries);
+            var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
+            var recurrenceChanged = calendarEventSeriesService.HasRecurrenceChanged(entity, request);
+            var newUserIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
+            var updated = await calendarEventSeriesService.UpdateEventAsync(
+                request,
+                entity,
+                SchedulingConstants.SourceModule,
+                SchedulingConstants.ShiftEventTypeCode,
+                validators:
+                [
+                    (input, _) =>
+                    {
+                        if (string.IsNullOrWhiteSpace(input.RecurrenceRule))
+                            throw new ArgumentException(
+                                "A recurring shift series cannot be converted to a single shift."
+                            );
+
+                        return Task.CompletedTask;
+                    },
+                ],
+                cancellationToken: cancellationToken
+            );
+            if (updated is null)
+                throw new InvalidOperationException("Failed to update shift series.");
+            ShiftUserSync.SyncSeriesUsers(db, entity, newUserIds);
+            if (recurrenceChanged)
+            {
+                await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(entity.Id, [], cancellationToken);
+                await eventSeriesMaterializationService.RegenerateDraftSeriesAsync(
+                    eventSeries,
+                    ShiftRecurrenceValidationOptions,
+                    shiftSeriesMaterializationHandler,
+                    new ShiftSeriesMaterializationContext
+                    {
+                        ShiftSeries = entity,
+                        UserIds = newUserIds,
+                        ExistingEntries = entity.ShiftEntries.ToList(),
+                    },
+                    cancellationToken
+                );
+            }
+            else
+            {
+                ApplySeriesNonRecurrenceUpdatesToChildren(entity, oldValues, oldUserIds, newUserIds);
+            }
+            var currentEntries = entity
+                .ShiftEntries.Where(entry => db.Entry(entry).State != EntityState.Deleted)
+                .ToList();
+            await LoanOutUserShiftGuard.EnsureEntriesCanScheduleAsync(
+                db,
+                timeZoneService,
+                schedulingCalendarDataProvider,
+                currentEntries,
                 cancellationToken
             );
-        }
-        else
-        {
-            ApplySeriesNonRecurrenceUpdatesToChildren(entity, oldValues, oldUserIds, newUserIds);
-        }
-        var currentEntries = entity.ShiftEntries.Where(entry => db.Entry(entry).State != EntityState.Deleted).ToList();
-        await LoanOutUserShiftGuard.EnsureEntriesCanScheduleAsync(
-            db,
-            timeZoneService,
-            schedulingCalendarDataProvider,
-            currentEntries,
-            cancellationToken
-        );
-        var awayUsers = await loanOutMarkerService.ApplyToSeriesAsync(currentEntries, cancellationToken);
-        foreach (var entry in currentEntries)
-            await LoanOutShiftTransferService.DelinkAssignmentUsersAsync(
-                entry,
-                awayUsers.GetValueOrDefault(entry) ?? [],
-                () => shiftAssignmentService,
+            var awayUsers = await loanOutMarkerService.ApplyToSeriesAsync(currentEntries, cancellationToken);
+            foreach (var entry in currentEntries)
+                await LoanOutShiftTransferService.DelinkAssignmentUsersAsync(
+                    entry,
+                    awayUsers.GetValueOrDefault(entry) ?? [],
+                    () => shiftAssignmentService,
+                    cancellationToken
+                );
+            ValidatePropagatedShiftEntries(entity, currentEntries);
+            await db.SaveChangesAsync(cancellationToken);
+            await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(
+                entity.Id,
+                request.AssignmentSeriesLinks,
                 cancellationToken
             );
-        ValidatePropagatedShiftEntries(entity, currentEntries);
-        await db.SaveChangesAsync(cancellationToken);
-        await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(
-            entity.Id,
-            request.AssignmentSeriesLinks,
-            cancellationToken
-        );
-        var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
-            db,
-            entity.ShiftEntries.Select(entry => entry.Id).ToList(),
-            cancellationToken
-        );
-        await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        logger.LogInformation("Updated shift series {ShiftSeriesId}.", id);
-        return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
+            var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
+                db,
+                entity.ShiftEntries.Select(entry => entry.Id).ToList(),
+                cancellationToken
+            );
+            await calendarConflictService.EnsureNoUnresolvedConflictsAsync(conflictCandidates, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            logger.LogInformation("Updated shift series {ShiftSeriesId}.", id);
+            return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
+        });
     }
 
     private void ApplySeriesNonRecurrenceUpdatesToChildren(

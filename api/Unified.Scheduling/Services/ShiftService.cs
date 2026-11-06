@@ -23,7 +23,7 @@ public sealed class ShiftService(IShiftEntryService entryService, IShiftSeriesSe
 
     public Task<ShiftSeriesResponse?> UpdateShiftSeriesAsync(
         int id,
-        ShiftSeriesRequest request,
+        ShiftSeriesUpdateRequest request,
         CancellationToken cancellationToken = default
     ) => seriesService.UpdateShiftSeriesAsync(id, request, cancellationToken);
 
