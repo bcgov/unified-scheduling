@@ -13,8 +13,14 @@ public sealed class SchedulingLoanOutEventMapperTests
     private static readonly DateTimeOffset Start = new(2025, 6, 1, 16, 0, 0, TimeSpan.Zero);
     private static readonly Guid UserId = new("11111111-1111-1111-1111-111111111111");
 
-    [Fact]
-    public void ToShiftEntryRequest_MapsExistingShiftOccurrenceAndOverridesLocationAndUsers()
+    [Theory]
+    [InlineData(30, 15)]
+    [InlineData(0, 0)]
+    [InlineData(null, null)]
+    public void ToShiftEntryRequest_MapsExistingShiftOccurrenceAndOverridesLocationAndUsers(
+        int? lunchAvailableMinutes,
+        int? workedLunchMinutes
+    )
     {
         var sourceSeries = new ShiftSeries { EventSeries = new EventSeries { Title = "Source series" } };
         var entry = new ShiftEntry
@@ -22,6 +28,8 @@ public sealed class SchedulingLoanOutEventMapperTests
             Id = 42,
             ShiftSeriesId = 77,
             ShiftSeries = sourceSeries,
+            LunchAvailableMinutes = lunchAvailableMinutes,
+            WorkedLunchMinutes = workedLunchMinutes,
             Event = new Event
             {
                 Id = 101,
@@ -58,17 +66,27 @@ public sealed class SchedulingLoanOutEventMapperTests
         Assert.Equal(UserId, Assert.Single(request.UserIds));
         Assert.Null(request.ShiftSeriesId);
         Assert.Null(request.AssignmentEntryLinks);
+        Assert.Equal(lunchAvailableMinutes, request.LunchAvailableMinutes);
+        Assert.Equal(workedLunchMinutes, request.WorkedLunchMinutes);
         Assert.Equal(77, entry.ShiftSeriesId);
         Assert.Equal(88, entry.Event.EventSeriesId);
         Assert.Equal(Start, entry.Event.SeriesStartAtUtc);
         Assert.Equal(Start.AddHours(4), entry.Event.SeriesEndAtUtc);
     }
 
-    [Fact]
-    public void ToShiftSeriesRequest_ClonesOnlyOccurrencesInLoanedPeriodAtNewLocation()
+    [Theory]
+    [InlineData(30, 15)]
+    [InlineData(0, 0)]
+    [InlineData(null, null)]
+    public void ToShiftSeriesRequest_ClonesOnlyOccurrencesInLoanedPeriodAtNewLocation(
+        int? lunchAvailableMinutes,
+        int? workedLunchMinutes
+    )
     {
         var sourceSeries = new ShiftSeries
         {
+            LunchAvailableMinutes = lunchAvailableMinutes,
+            WorkedLunchMinutes = workedLunchMinutes,
             EventSeries = new EventSeries
             {
                 Title = "Source series",
@@ -102,6 +120,8 @@ public sealed class SchedulingLoanOutEventMapperTests
         Assert.Equal(10, request.LocationId);
         Assert.Equal(UserId, Assert.Single(request.UserIds));
         Assert.Equal("FREQ=DAILY;COUNT=2", request.RecurrenceRule);
+        Assert.Equal(lunchAvailableMinutes, request.LunchAvailableMinutes);
+        Assert.Equal(workedLunchMinutes, request.WorkedLunchMinutes);
     }
 
     [Theory]

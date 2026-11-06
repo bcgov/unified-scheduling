@@ -67,4 +67,5 @@ export const GetApiConfigResponse = zod.object({
     .optional(),
   supportEmail: zod.string().nullish(),
   applicationName: zod.string().nullish(),
+  defaultLunchMinutes: zod.int().optional(),
 });

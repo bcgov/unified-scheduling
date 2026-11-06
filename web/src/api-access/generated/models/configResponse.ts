@@ -12,4 +12,5 @@ export interface ConfigResponse {
   supportEmail?: string | null;
   /** @nullable */
   applicationName?: string | null;
+  defaultLunchMinutes?: number;
 }

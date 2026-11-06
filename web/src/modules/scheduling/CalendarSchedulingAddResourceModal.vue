@@ -8,6 +8,7 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
+import { useConfigStore } from '@/stores/config';
 import { mapToValidationErrors } from '@/shared/validation/validationErrors';
 import { CalendarEventStatusTypeCode, Permissions } from '@/api-access/generated/models';
 import CalendarSchedulingShiftForm from './CalendarSchedulingShiftForm.vue';
@@ -53,6 +54,7 @@ const emit = defineEmits<{
 
 const calendarStore = useCalendarStore();
 const locationsStore = useLocationsStore();
+const configStore = useConfigStore();
 const accessControl = useAccessControl();
 const allowLeaveTab = computed(() => props.resource?.sourceModule !== 'loanout');
 const allowLoanOutTab = computed(() => props.resource?.sourceModule !== 'loanout');
@@ -210,8 +212,13 @@ function createInitialFormData(
 
   return {
     ...(resource
-      ? createInitialShiftFormData(resource, activeLocationId.value, CalendarEventStatusTypeCode.Draft)
-      : createInitialShiftFormDataForCreateAction(activeLocationId.value)),
+      ? createInitialShiftFormData(
+          resource,
+          activeLocationId.value,
+          CalendarEventStatusTypeCode.Draft,
+          configStore.defaultLunchMinutes,
+        )
+      : createInitialShiftFormDataForCreateAction(activeLocationId.value, configStore.defaultLunchMinutes)),
     date: initialDate ?? '',
     assignmentEntryId: assignmentEntryIds.length === 1 ? assignmentEntryIds[0] : null,
     assignmentEntryIds,

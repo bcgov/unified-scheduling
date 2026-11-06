@@ -148,6 +148,7 @@ describe('calendar workflow', () => {
           startDate: '2025-04-07',
           endDate: '2025-04-14',
           locationId: 12,
+          activeViewId: 'workflow-view',
           filters: { timeZoneId: 'America/Toronto' },
         },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
@@ -167,6 +168,7 @@ describe('calendar workflow', () => {
           startDate: previousRange.startDate,
           endDate: previousRange.endDate,
           locationId: 12,
+          activeViewId: 'workflow-view',
           filters: { timeZoneId: 'America/Toronto' },
         },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
@@ -184,6 +186,7 @@ describe('calendar workflow', () => {
           startDate: '2025-04-07',
           endDate: '2025-04-14',
           locationId: 12,
+          activeViewId: 'workflow-view',
           filters: { timeZoneId: 'America/Toronto' },
         },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
@@ -202,6 +205,7 @@ describe('calendar workflow', () => {
           startDate: todayRange.startDate,
           endDate: todayRange.endDate,
           locationId: 12,
+          activeViewId: 'workflow-view',
           filters: { timeZoneId: 'America/Toronto' },
         },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
@@ -229,6 +233,7 @@ describe('calendar workflow', () => {
           startDate: '2025-04-14',
           endDate: '2025-04-21',
           locationId: 12,
+          activeViewId: 'workflow-view',
           filters: { timeZoneId: 'America/Toronto' },
         },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
@@ -247,6 +252,7 @@ describe('calendar workflow', () => {
           startDate: '2025-04-16',
           endDate: '2025-04-17',
           locationId: 12,
+          activeViewId: 'workflow-view',
           filters: { timeZoneId: 'America/Toronto' },
         },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
@@ -264,6 +270,7 @@ describe('calendar workflow', () => {
           startDate: '2025-04-14',
           endDate: '2025-04-19',
           locationId: 12,
+          activeViewId: 'workflow-view',
           filters: { timeZoneId: 'America/Toronto' },
         },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
@@ -353,15 +360,16 @@ describe('calendar workflow', () => {
         await wrapper.findAll('[role="tab"]')[1]!.trigger('click');
         await flushPromises();
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('ada');
+        expect(loadData).toHaveBeenCalledTimes(initialCalls + 1);
         await wrapper.findAll('[role="tab"]')[0]!.trigger('click');
         await flushPromises();
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
-        expect(loadData).toHaveBeenCalledTimes(initialCalls);
+        expect(loadData).toHaveBeenCalledTimes(initialCalls + 2);
 
         calendarStore.setAnchorDate('2025-04-16');
         calendarStore.setPeriod('day');
         await flushPromises();
-        expect(loadData).toHaveBeenCalledTimes(initialCalls + 1);
+        expect(loadData).toHaveBeenCalledTimes(initialCalls + 3);
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
 
         let finishRefresh = () => {};
@@ -488,7 +496,13 @@ describe('calendar workflow', () => {
           featureFlags: expect.objectContaining({ Calendar: expect.objectContaining({ enabled: true }) }),
           permissions: [],
         }),
-        { startDate: expectedRange.startDate, endDate: expectedRange.endDate, locationId: 12, filters: {} },
+        {
+          startDate: expectedRange.startDate,
+          endDate: expectedRange.endDate,
+          activeViewId: 'period-view',
+          locationId: 12,
+          filters: {},
+        },
         expect.objectContaining({ getAvailableViews: expect.any(Function) }),
       );
     } finally {

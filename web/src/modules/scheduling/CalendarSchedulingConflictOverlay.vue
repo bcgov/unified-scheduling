@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { mdiClose } from '@mdi/js';
 import type { CalendarConflict, CalendarConflictEvent } from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixConflictItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import { resolveCalendarConflictSides } from '@/modules/calendar/calendarConflictFormatting';
 import { formatCalendarDateTimeRange } from '@/utils/date';
+import UaBtn from '@/shared/components/UaBtn.vue';
 
 const props = defineProps<{
   conflicts: CalendarMatrixConflictItem[];
@@ -11,6 +13,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  close: [];
   resolve: [item: CalendarMatrixConflictItem];
 }>();
 
@@ -29,7 +32,12 @@ function resolveLabel(conflict: CalendarConflict) {
 
 <template>
   <section class="calendar-scheduling-conflict-overlay">
-    <h3 class="calendar-scheduling-conflict-overlay__heading">Conflict(s)</h3>
+    <header class="calendar-scheduling-conflict-overlay__header">
+      <h3 class="calendar-scheduling-conflict-overlay__heading">Conflict(s)</h3>
+      <UaBtn type="button" variant="text" size="x-small" icon aria-label="Close conflicts" @click.stop="emit('close')">
+        <v-icon :icon="mdiClose" size="18" aria-hidden="true" />
+      </UaBtn>
+    </header>
     <article v-for="item in conflicts" :key="item.conflict.id" class="calendar-scheduling-conflict-overlay__item">
       <div class="calendar-scheduling-conflict-overlay__summary">
         <v-icon
@@ -76,6 +84,13 @@ function resolveLabel(conflict: CalendarConflict) {
 .calendar-scheduling-conflict-overlay__item {
   display: grid;
   gap: var(--ua-spacing-sm);
+}
+
+.calendar-scheduling-conflict-overlay__header {
+  align-items: center;
+  display: flex;
+  gap: var(--ua-spacing-xs);
+  justify-content: space-between;
 }
 
 .calendar-scheduling-conflict-overlay__heading {

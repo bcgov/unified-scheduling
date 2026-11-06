@@ -34,6 +34,8 @@ export const GetApiSchedulingShiftsSeriesResponseItem = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 export const GetApiSchedulingShiftsSeriesResponse = zod.array(GetApiSchedulingShiftsSeriesResponseItem);
@@ -57,6 +59,8 @@ export const PostApiSchedulingShiftsSeriesBody = zod.strictObject({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -80,6 +84,8 @@ export const PostApiSchedulingShiftsSeriesResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -107,6 +113,8 @@ export const GetApiSchedulingShiftsSeriesIdResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -133,6 +141,8 @@ export const PutApiSchedulingShiftsSeriesIdBody = zod.strictObject({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -156,6 +166,8 @@ export const PutApiSchedulingShiftsSeriesIdResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -189,6 +201,8 @@ export const PostApiSchedulingShiftsSeriesIdPublishResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -223,6 +237,8 @@ export const PostApiSchedulingShiftsSeriesIdExpireResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -272,6 +288,8 @@ export const GetApiSchedulingShiftsEntriesResponseItem = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 export const GetApiSchedulingShiftsEntriesResponse = zod.array(GetApiSchedulingShiftsEntriesResponseItem);
@@ -297,6 +315,8 @@ export const PostApiSchedulingShiftsEntriesBody = zod.strictObject({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -337,6 +357,8 @@ export const PostApiSchedulingShiftsEntriesResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -381,6 +403,8 @@ export const GetApiSchedulingShiftsEntriesIdResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -421,6 +445,8 @@ export const PutApiSchedulingShiftsEntriesIdBody = zod.strictObject({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -461,6 +487,8 @@ export const PutApiSchedulingShiftsEntriesIdResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -511,6 +539,8 @@ export const PostApiSchedulingShiftsEntriesIdPublishResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });
 
@@ -562,5 +592,7 @@ export const PostApiSchedulingShiftsEntriesIdExpireResponse = zod.object({
   timeZoneId: zod.string().nullish(),
   allDay: zod.boolean().optional(),
   locationId: zod.int().nullish(),
+  lunchAvailableMinutes: zod.int().nullish(),
+  workedLunchMinutes: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).optional(),
 });

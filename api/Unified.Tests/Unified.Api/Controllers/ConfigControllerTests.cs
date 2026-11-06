@@ -7,6 +7,7 @@ using Unified.Api.Options;
 using Unified.Calendar.FeatureFlags;
 using Unified.Common.FeatureFlags;
 using Unified.Scheduling.FeatureFlags;
+using Unified.Scheduling.Options;
 using Unified.UserManagement.FeatureFlags;
 
 namespace Unified.Tests.Api.Controllers;
@@ -29,7 +30,12 @@ public class ConfigControllerTests
         var applicationOptions = Options.Create(
             new ApplicationOptions { Name = "Unified Scheduling", SupportEmail = "support@example.com" }
         );
-        var controller = new ConfigController(NullLogger<ConfigController>.Instance, featureFlags, applicationOptions);
+        var controller = new ConfigController(
+            NullLogger<ConfigController>.Instance,
+            featureFlags,
+            applicationOptions,
+            Options.Create(new WorkingHoursOptions { DefaultLunchMinutes = 30 })
+        );
 
         var result = controller.Get();
 
@@ -44,5 +50,6 @@ public class ConfigControllerTests
         Assert.IsType<UserManagementFeatureFlags>(response.FeatureFlags[UserManagementFeatureFlags.SourceName]);
         Assert.Equal("Unified Scheduling", response.ApplicationName);
         Assert.Equal("support@example.com", response.SupportEmail);
+        Assert.Equal(30, response.DefaultLunchMinutes);
     }
 }
