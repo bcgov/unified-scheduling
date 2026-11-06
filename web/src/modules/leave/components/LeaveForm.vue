@@ -18,6 +18,7 @@ export type LeaveFormData = {
   userIds?: string[];
   leaveType?: string | number | null;
   date?: string;
+  allDay?: boolean;
   startTime?: string;
   endTime?: string;
   repeatMode?: RepeatMode;
@@ -110,7 +111,7 @@ function getRecurrenceEndDate(recurrenceRule: string | null | undefined, startDa
 
 watch(hasValidationError, (hasError) => emit('validation-change', hasError), { immediate: true });
 
-const updateField = (field: keyof LeaveFormData, value: string | string[] | number | null | undefined) => {
+const updateField = (field: keyof LeaveFormData, value: string | string[] | number | boolean | null | undefined) => {
   emit('update:modelValue', { ...props.modelValue, [field]: value });
 };
 
@@ -227,33 +228,46 @@ const updateEmployees = (value: SelectValue | undefined) => {
       </template>
     </template>
 
-    <span id="user-leave-time-label" class="user-leave__label">Time</span>
-    <div class="user-leave__time-fields" aria-labelledby="user-leave-time-label">
-      <div class="user-leave__field">
-        <span class="user-leave__time-caption">Start</span>
-        <UaSelect
-          :model-value="modelValue.startTime ?? defaultStartTime"
-          aria-label="Start Time"
-          :items="timeOptions"
-          :error="Boolean(formErrors.startTime)"
-          :disabled="disabled"
-          @update:model-value="(value: SelectValue | undefined) => updateSelectField('startTime', value)"
-        />
-        <p v-if="formErrors.startTime" class="user-leave__field-error">{{ formErrors.startTime }}</p>
+    <label class="user-leave__label" for="user-leave-all-day">All day</label>
+    <v-switch
+      id="user-leave-all-day"
+      :model-value="modelValue.allDay ?? false"
+      aria-label="All day"
+      color="primary"
+      hide-details
+      :disabled="disabled"
+      @update:model-value="(value) => updateField('allDay', Boolean(value))"
+    />
+
+    <template v-if="!modelValue.allDay">
+      <span id="user-leave-time-label" class="user-leave__label">Time</span>
+      <div class="user-leave__time-fields" aria-labelledby="user-leave-time-label">
+        <div class="user-leave__field">
+          <span class="user-leave__time-caption">Start</span>
+          <UaSelect
+            :model-value="modelValue.startTime ?? defaultStartTime"
+            aria-label="Start Time"
+            :items="timeOptions"
+            :error="Boolean(formErrors.startTime)"
+            :disabled="disabled"
+            @update:model-value="(value: SelectValue | undefined) => updateSelectField('startTime', value)"
+          />
+          <p v-if="formErrors.startTime" class="user-leave__field-error">{{ formErrors.startTime }}</p>
+        </div>
+        <div class="user-leave__field">
+          <span class="user-leave__time-caption">End</span>
+          <UaSelect
+            :model-value="modelValue.endTime ?? defaultEndTime"
+            aria-label="End Time"
+            :items="timeOptions"
+            :error="Boolean(formErrors.endTime)"
+            :disabled="disabled"
+            @update:model-value="(value: SelectValue | undefined) => updateSelectField('endTime', value)"
+          />
+          <p v-if="formErrors.endTime" class="user-leave__field-error">{{ formErrors.endTime }}</p>
+        </div>
       </div>
-      <div class="user-leave__field">
-        <span class="user-leave__time-caption">End</span>
-        <UaSelect
-          :model-value="modelValue.endTime ?? defaultEndTime"
-          aria-label="End Time"
-          :items="timeOptions"
-          :error="Boolean(formErrors.endTime)"
-          :disabled="disabled"
-          @update:model-value="(value: SelectValue | undefined) => updateSelectField('endTime', value)"
-        />
-        <p v-if="formErrors.endTime" class="user-leave__field-error">{{ formErrors.endTime }}</p>
-      </div>
-    </div>
+    </template>
 
     <UaTextarea
       id="user-leave-notes"

@@ -5,6 +5,7 @@ import type {
 import { defaultEndTime, defaultStartTime, toUtcIso } from '@/modules/scheduling/schedulingDateTime';
 import type { SelectOption } from '@/types/select';
 import type { LeaveFormData } from './components/LeaveForm.vue';
+import { DateTime } from 'luxon';
 
 export type LeaveRequestResult =
   | { kind: 'entry'; request: LeaveEntryRequest; error?: undefined }
@@ -35,14 +36,19 @@ export function buildLeaveRequest(
     return { error: 'Select a location before adding leave.' };
   }
 
-  const startAtUtc = toUtcIso(form.date, form.startTime || defaultStartTime, options.timeZoneId);
-  const endAtUtc = toUtcIso(form.date, form.endTime || defaultEndTime, options.timeZoneId);
-  if (!startAtUtc || !endAtUtc) {
-    return { error: 'Select a valid date and time.' };
-  }
-
-  if (endAtUtc <= startAtUtc) {
-    return { error: 'End time must be after start time.' };
+  const allDay = form.allDay ?? false;
+  let interval: { leaveDate: string } | { startAtUtc: string; endAtUtc: string };
+  if (allDay) {
+    if (!form.date || !/^\d{4}-\d{2}-\d{2}$/.test(form.date) || !DateTime.fromISO(form.date, { zone: 'UTC' }).isValid) {
+      return { error: 'Select a valid date.' };
+    }
+    interval = { leaveDate: form.date };
+  } else {
+    const startAtUtc = toUtcIso(form.date, form.startTime || defaultStartTime, options.timeZoneId);
+    const endAtUtc = toUtcIso(form.date, form.endTime || defaultEndTime, options.timeZoneId);
+    if (!startAtUtc || !endAtUtc) return { error: 'Select a valid date and time.' };
+    if (endAtUtc <= startAtUtc) return { error: 'End time must be after start time.' };
+    interval = { startAtUtc, endAtUtc };
   }
 
   const commonRequest = {
@@ -53,10 +59,9 @@ export function buildLeaveRequest(
       ),
     ),
     notes: form.notes?.trim() || null,
-    startAtUtc,
-    endAtUtc,
+    ...interval,
     timeZoneId: options.timeZoneId,
-    allDay: false,
+    allDay,
     locationId: options.locationId,
     userIds,
   };

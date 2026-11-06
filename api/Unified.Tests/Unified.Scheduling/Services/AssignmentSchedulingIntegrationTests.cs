@@ -4816,7 +4816,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             await provider.GetParticipantsAsync(
                 new CalendarConflictQuery(At(9), At(17)),
                 TestContext.Current.CancellationToken
-            )
+            ),
+            item => item.ConflictsWithSourceModule is null
         );
 
         Assert.Equal(assignment.EventId.ToString(), participant.EventId);

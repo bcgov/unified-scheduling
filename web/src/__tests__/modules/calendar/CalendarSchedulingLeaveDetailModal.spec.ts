@@ -1,18 +1,25 @@
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import { server } from '@/__tests__/mocks/server';
+import { Permissions } from '@/api-access/generated/models';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
+import CalendarSchedulingLeaveDetailModal from '@/modules/scheduling/CalendarSchedulingLeaveDetailModal.vue';
+import LeaveDetailsPanel from '@/modules/leave/components/LeaveDetailsPanel.vue';
+import { formatCalendarEventTimeRange } from '@/utils/date';
 import { flushPromises, mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { defineComponent } from 'vue';
+import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  getLeaveEntry: vi.fn(),
-  getLeaveSeries: vi.fn(),
-  updateLeaveEntry: vi.fn(),
-  updateLeaveSeries: vi.fn(),
-  deleteLeaveEntry: vi.fn(),
-  deleteLeaveSeries: vi.fn(),
-  hasPermission: vi.fn(() => true),
-}));
+const entry = {
+  id: 42,
+  leaveSeriesId: 77,
+  userIds: ['00000000-0000-0000-0000-000000000001'],
+  leaveTypeId: 9,
+  startAtUtc: '2026-06-10T17:00:00Z',
+  endAtUtc: '2026-06-10T18:00:00Z',
+  timeZoneId: 'America/Vancouver',
+  locationId: 3,
+};
 
 function createLeaveEvent(): CalendarEventBase {
   return {
@@ -20,59 +27,40 @@ function createLeaveEvent(): CalendarEventBase {
     type: 'scheduling.leave',
     sourceModule: 'scheduling',
     title: 'Leave',
-    start: '2026-06-10T17:00:00Z',
-    end: '2026-06-10T18:00:00Z',
-    timeZoneId: 'America/Vancouver',
+    start: entry.startAtUtc,
+    end: entry.endAtUtc,
+    timeZoneId: entry.timeZoneId,
     statusTypeCode: 'Draft',
     locationId: 3,
-    resourceIds: ['00000000-0000-0000-0000-000000000001'],
-    metadata: {
-      leaveEntryId: '42',
-      leaveSeriesId: '77',
-      leaveTypeId: 9,
-      userIds: ['00000000-0000-0000-0000-000000000001'],
-    },
+    resourceIds: entry.userIds,
+    metadata: { leaveEntryId: '42', leaveSeriesId: '77', leaveTypeId: 9, userIds: entry.userIds },
   } as CalendarEventBase;
+}
+
+async function mountModal(event = createLeaveEvent()) {
+  const app = await createTestApp({ loadConfig: false, permissions: [Permissions.LeaveEdit] });
+  return mount(CalendarSchedulingLeaveDetailModal, {
+    props: { event },
+    global: {
+      plugins: app.mountPlugins,
+      stubs: {
+        UaAlert: true,
+        UaBtn: true,
+        UaModal: defineComponent({ template: '<div><slot /></div>' }),
+        LeaveDetailsPanel: true,
+        LeaveForm: true,
+      },
+    },
+  });
 }
 
 describe('CalendarSchedulingLeaveDetailModal', () => {
   beforeEach(() => {
-    vi.resetModules();
-    vi.clearAllMocks();
-    mocks.getLeaveEntry.mockResolvedValue({
-      data: ref({
-        id: 42,
-        leaveSeriesId: 77,
-        userIds: ['00000000-0000-0000-0000-000000000001'],
-        leaveTypeId: 9,
-        startAtUtc: '2026-06-10T17:00:00Z',
-        endAtUtc: '2026-06-10T18:00:00Z',
-        timeZoneId: 'America/Vancouver',
-        locationId: 3,
-      }),
-      error: ref(null),
-    });
-    mocks.updateLeaveEntry.mockResolvedValue({ error: ref(null) });
-    vi.doMock('@/modules/leave/api/leaveApi', () => ({
-      getLeaveEntry: mocks.getLeaveEntry,
-      getLeaveSeries: mocks.getLeaveSeries,
-      updateLeaveEntry: mocks.updateLeaveEntry,
-      updateLeaveSeries: mocks.updateLeaveSeries,
-      deleteLeaveEntry: mocks.deleteLeaveEntry,
-      deleteLeaveSeries: mocks.deleteLeaveSeries,
-    }));
-    vi.doMock('@/composables/useAccessControl', () => ({
-      useAccessControl: () => ({ hasPermission: mocks.hasPermission }),
-    }));
-    vi.doMock('@/stores/LocationsStore', () => ({
-      useLocationsStore: () => ({ entitiesMap: {}, selectOptions: [] }),
-    }));
-    vi.doMock('@/stores/Users', () => ({
-      useUsersStore: () => ({ ensureUsersForLocation: vi.fn().mockResolvedValue([]) }),
-    }));
-    vi.doMock('@/modules/leave/composables/useLeaveTypeOptions', () => ({
-      useLeaveTypeOptions: () => ({ filterLeaveTypeOptionsByDate: () => [] }),
-    }));
+    server.use(
+      http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json(entry)),
+      http.get('*/api/users*', () => HttpResponse.json([])),
+      http.get('*/api/leave/leave-types', () => HttpResponse.json([])),
+    );
   });
 
   afterEach(() => {
@@ -80,22 +68,14 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
   });
 
   it('sends the series ID when updating one occurrence from a leave series', async () => {
-    const { default: CalendarSchedulingLeaveDetailModal } =
-      await import('@/modules/scheduling/CalendarSchedulingLeaveDetailModal.vue');
-    const app = await createTestApp({ loadConfig: false });
-    const wrapper = mount(CalendarSchedulingLeaveDetailModal, {
-      props: { event: createLeaveEvent() },
-      global: {
-        plugins: app.mountPlugins,
-        stubs: {
-          UaAlert: true,
-          UaBtn: true,
-          UaModal: true,
-          LeaveDetailsPanel: true,
-          LeaveForm: true,
-        },
-      },
-    });
+    let saved: unknown;
+    server.use(
+      http.put('*/api/scheduling/leave/entries/42', async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json(entry);
+      }),
+    );
+    const wrapper = await mountModal();
     const vm = wrapper.vm as unknown as {
       selectOpenScope: (scope: 'event') => Promise<void>;
       selectTab: (tabId: 'edit') => void;
@@ -107,8 +87,46 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     await vm.handleSave();
     await flushPromises();
 
-    expect(mocks.updateLeaveEntry).toHaveBeenCalledWith(42, expect.objectContaining({ leaveSeriesId: 77 }));
-
+    expect(saved).toMatchObject({ leaveSeriesId: 77 });
     wrapper.unmount();
   });
+
+  it.each(['series', 'event'] as const)(
+    'shows the scoped %s hours and all-day mode through an all-day exception',
+    async (scope) => {
+      const event = { ...createLeaveEvent(), start: '2026-06-15', end: '2026-06-16', allDay: true };
+      server.use(
+        http.get('*/api/scheduling/leave/entries/42', () =>
+          HttpResponse.json({ ...entry, allDay: true, leaveDate: '2026-06-15' }),
+        ),
+        http.get('*/api/scheduling/leave/series/77', () =>
+          HttpResponse.json({
+            ...entry,
+            id: 77,
+            allDay: false,
+            startAtUtc: '2026-06-01T13:00:00Z',
+            endAtUtc: '2026-06-01T21:00:00Z',
+            timeZoneId: 'America/Toronto',
+            recurrenceRule: 'FREQ=WEEKLY;COUNT=4',
+          }),
+        ),
+      );
+      const wrapper = await mountModal(event);
+      const vm = wrapper.vm as unknown as { selectOpenScope: (scope: 'event' | 'series') => Promise<void> };
+      await vm.selectOpenScope(scope);
+      await flushPromises();
+
+      await vi.waitFor(() => {
+        const rows = wrapper.getComponent(LeaveDetailsPanel).props('detailRows');
+        expect(rows.find((row) => row.label === 'Time')?.value).toBe(
+          scope === 'series'
+            ? formatCalendarEventTimeRange('2026-06-01T13:00:00Z', '2026-06-01T21:00:00Z', {
+                timeZone: 'America/Toronto',
+              })
+            : formatCalendarEventTimeRange(event.start, event.end, { allDay: true }),
+        );
+      });
+      wrapper.unmount();
+    },
+  );
 });
