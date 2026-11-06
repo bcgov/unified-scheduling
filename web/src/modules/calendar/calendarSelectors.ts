@@ -1,4 +1,31 @@
-import type { CalendarConflict, CalendarDataResponse, CalendarEventBase } from './calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarDataResponse,
+  CalendarEventBase,
+  CalendarRestrictedConflictWarning,
+} from './calendarTypes';
+
+export const selectCalendarRestrictedWarnings = (
+  response: CalendarDataResponse,
+): CalendarRestrictedConflictWarning[] => {
+  const data = response.contributions['calendar.events']?.data;
+  if (!data || typeof data !== 'object' || !('restrictedWarnings' in data)) return [];
+  return Array.isArray(data.restrictedWarnings) ? data.restrictedWarnings : [];
+};
+
+export const getCalendarRestrictedWarningsForEvent = (
+  eventId: number | null | undefined,
+  warnings: readonly CalendarRestrictedConflictWarning[],
+  resourceId?: string,
+) =>
+  eventId == null
+    ? []
+    : warnings.filter(
+        (warning) =>
+          warning.sourceModule === 'scheduling' &&
+          warning.eventId === String(eventId) &&
+          (!resourceId || warning.resourceId === resourceId),
+      );
 
 export const selectContribution = (response: CalendarDataResponse, contributionId: string) => {
   return response.contributions[contributionId];
@@ -14,9 +41,11 @@ export const selectCalendarConflicts = (response: CalendarDataResponse): Calenda
   return Array.isArray(conflicts) ? (conflicts as CalendarConflict[]) : [];
 };
 
-export const resolveCalendarEventId = (event: CalendarEventBase) => {
-  const value = (event as CalendarEventBase & { metadata?: { eventId?: unknown } }).metadata?.eventId;
-  const parsed = Number(value);
+export const resolveCalendarEventId = (event: unknown) => {
+  if (!event || typeof event !== 'object' || !('metadata' in event)) return null;
+  const metadata = event.metadata;
+  if (!metadata || typeof metadata !== 'object' || !('eventId' in metadata)) return null;
+  const parsed = Number(metadata.eventId);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 

@@ -562,6 +562,17 @@ async function publishShiftEntry(id: number | null, shouldPublish: boolean) {
 
 function resolveShiftPublishError(data: unknown, error: unknown) {
   const errorData = error && typeof error === 'object' ? (error as { data?: unknown }).data : undefined;
+  if (
+    [data, errorData].some(
+      (candidate) =>
+        candidate &&
+        typeof candidate === 'object' &&
+        'hasRestrictedConflicts' in candidate &&
+        candidate.hasRestrictedConflicts === true,
+    )
+  ) {
+    return 'The shift has unresolved conflicts with events you do not have permission to view.';
+  }
   const validationMessages = [data, errorData].flatMap((candidate) => {
     const mapped = mapToValidationErrors(candidate);
     return mapped ? Object.values(mapped) : [];

@@ -158,7 +158,7 @@ describe('calendar module integration', () => {
     ).resolves.toEqual({
       moduleId: 'calendar',
       contributionId: 'calendar.events',
-      data: { conflicts: [] },
+      data: { conflicts: [], restrictedWarnings: [], hasRestrictedConflicts: false },
       events: [
         expect.objectContaining({
           id: 'stat-holiday:CanadaDay:2025-07-01',

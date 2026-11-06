@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Unified.Authorization;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
@@ -16,6 +17,18 @@ public sealed class TrainingConflictParticipantProvider(
     private const string SourceModule = "training";
     private const string EventIdPrefix = "training.user-training.";
     private static readonly DateTimeOffset MinimumEnd = DateTimeOffset.MinValue;
+
+    public Task<CalendarConflictParticipantVisibility?> GetVisibilityAsync(
+        CalendarConflictParticipant participant,
+        IReadOnlySet<string> viewerPermissions,
+        CancellationToken cancellationToken = default
+    ) =>
+        Task.FromResult<CalendarConflictParticipantVisibility?>(
+            participant.SourceModule == SourceModule
+            && participant.EventId.StartsWith(EventIdPrefix, StringComparison.Ordinal)
+                ? new(viewerPermissions.Contains(nameof(Permissions.UserTrainingsView)), [])
+                : null
+        );
 
     public static CalendarConflictEventIdentity IdentityFor(int userTrainingId) =>
         CalendarConflictEventIdentity.Create(

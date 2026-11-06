@@ -10,6 +10,7 @@ namespace Unified.Calendar.Conflicts;
 public sealed class CalendarConflictService(
     IEnumerable<ICalendarConflictParticipantProvider> participantProviders,
     UnifiedDbContext db,
+    CalendarConflictProjection conflictProjection,
     TimeProvider? timeProvider = null
 ) : ICalendarConflictService
 {
@@ -88,6 +89,10 @@ public sealed class CalendarConflictService(
 
         var conflictsWithOverrides = await GetConflictsForCandidatesAsync(candidates, cancellationToken);
         var currentConflictsByKey = conflictsWithOverrides.ToDictionary(CalendarConflictKey.Create);
+        // Authorize persisted participants, including already-overridden pairs, before accepting acknowledgements.
+        // Client source labels and candidate metadata are never evidence of visibility.
+        foreach (var key in acknowledgementsByKey.Keys)
+            await AuthorizeOverrideAsync(key, actorId!.Value, cancellationToken);
         var unresolved = conflictsWithOverrides
             .Where(conflict =>
                 !conflict.IsOverridden && !acknowledgementsByKey.ContainsKey(CalendarConflictKey.Create(conflict))
@@ -122,9 +127,16 @@ public sealed class CalendarConflictService(
         var firstParticipant = await LoadParticipantAsync(key.FirstEvent, key.ResourceId, cancellationToken);
         var secondParticipant = await LoadParticipantAsync(key.SecondEvent, key.ResourceId, cancellationToken);
         if (firstParticipant is null || secondParticipant is null)
-            throw new KeyNotFoundException(
-                "Both calendar conflict participants must exist before a conflict can be overridden."
-            );
+            throw UnavailableConflict();
+        if (
+            !await conflictProjection.CanOverrideAsync(
+                firstParticipant,
+                secondParticipant,
+                createdById,
+                cancellationToken
+            )
+        )
+            throw UnavailableConflict();
 
         var rangeStart =
             firstParticipant.Start < secondParticipant.Start ? firstParticipant.Start : secondParticipant.Start;
@@ -147,6 +159,24 @@ public sealed class CalendarConflictService(
         await UpsertOverrideAsync(key, acknowledgement.Note, createdById, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    private async Task AuthorizeOverrideAsync(
+        CalendarConflictKey key,
+        Guid actorId,
+        CancellationToken cancellationToken
+    )
+    {
+        var first = await LoadParticipantAsync(key.FirstEvent, key.ResourceId, cancellationToken);
+        var second = await LoadParticipantAsync(key.SecondEvent, key.ResourceId, cancellationToken);
+        if (
+            first is null
+            || second is null
+            || !await conflictProjection.CanOverrideAsync(first, second, actorId, cancellationToken)
+        )
+            throw UnavailableConflict();
+    }
+
+    private static KeyNotFoundException UnavailableConflict() => new("The requested conflict is unavailable.");
 
     private async Task<CalendarConflictOverride> UpsertOverrideAsync(
         CalendarConflictKey key,

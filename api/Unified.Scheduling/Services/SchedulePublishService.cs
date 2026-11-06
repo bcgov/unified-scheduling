@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Unified.Authorization;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
@@ -19,7 +20,8 @@ public sealed class SchedulePublishService(
     IShiftPublicationService shiftPublicationService,
     IAssignmentPublicationService assignmentPublicationService,
     ICalendarConflictService conflictService,
-    ILogger<SchedulePublishService> logger
+    ILogger<SchedulePublishService> logger,
+    CalendarConflictProjection conflictProjection
 ) : ISchedulePublishService
 {
     public async Task<SchedulePublishPreviewResponse> PreviewAsync(
@@ -92,7 +94,7 @@ public sealed class SchedulePublishService(
         var plan = await BuildPublicationPlanAsync(snapshot, cancellationToken);
         var findings = await AnalyzePublicationAsync(scope, snapshot, plan, cancellationToken);
 
-        return new SchedulePublishEvaluation(plan, BuildPreview(scope, plan, findings));
+        return new SchedulePublishEvaluation(plan, await BuildPreviewAsync(scope, plan, findings, cancellationToken));
     }
 
     private async Task<SchedulePublishScope> ResolveScopeAsync(
@@ -182,16 +184,6 @@ public sealed class SchedulePublishService(
             await conflictService.GetConflictsForCandidatesAsync(plan.ConflictParticipants, cancellationToken)
         )
             .Where(conflict => !conflict.IsOverridden)
-            .Select(conflict => new SchedulePublishConflictResponse(
-                conflict.Id,
-                conflict.Entry.SourceModule,
-                conflict.Entry.EventId,
-                conflict.Overlaps.SourceModule,
-                conflict.Overlaps.EventId,
-                conflict.ResourceId,
-                conflict.OverlapStart,
-                conflict.OverlapEnd
-            ))
             .ToList();
 
         var unassignedShifts = snapshot
@@ -223,10 +215,11 @@ public sealed class SchedulePublishService(
         );
     }
 
-    private static SchedulePublishPreviewResponse BuildPreview(
+    private async Task<SchedulePublishPreviewResponse> BuildPreviewAsync(
         SchedulePublishScope scope,
         SchedulePublicationPlan plan,
-        SchedulePublishFindings findings
+        SchedulePublishFindings findings,
+        CancellationToken cancellationToken
     )
     {
         var counts = new SchedulePublishCandidateCountsResponse(
@@ -235,15 +228,31 @@ public sealed class SchedulePublishService(
         );
         var warnings = new SchedulePublishWarningsResponse(
             findings.IncompleteEmployees,
-            findings.UnassignedShifts,
-            findings.UnassignedAssignments
+            conflictProjection.HasPermission(nameof(Permissions.ShiftsView)) ? findings.UnassignedShifts : [],
+            conflictProjection.HasPermission(nameof(Permissions.AssignmentsView)) ? findings.UnassignedAssignments : []
         );
+        var visible = await conflictProjection.ProjectAsync(findings.Conflicts, cancellationToken);
         var blockers = new SchedulePublishBlockersResponse(
-            findings.Conflicts,
+            visible
+                .Conflicts.Select(conflict => new SchedulePublishConflictResponse(
+                    conflict.Id,
+                    conflict.Entry.SourceModule,
+                    conflict.Entry.EventId,
+                    conflict.Overlaps.SourceModule,
+                    conflict.Overlaps.EventId,
+                    conflict.ResourceId,
+                    conflict.OverlapStart,
+                    conflict.OverlapEnd
+                ))
+                .ToList(),
             findings
                 .ShiftPublicationBlockers.Select(blocker => new SchedulePublishShiftBlockerResponse(blocker.Message))
                 .ToList()
-        );
+        )
+        {
+            RestrictedWarnings = visible.RestrictedWarnings,
+            HasRestrictedConflicts = visible.HasRestrictedConflicts,
+        };
 
         return new SchedulePublishPreviewResponse(
             new SchedulePublishScopeResponse(
@@ -257,7 +266,7 @@ public sealed class SchedulePublishService(
             counts,
             warnings,
             blockers,
-            counts.TotalCount > 0 && blockers.Conflicts.Count == 0 && blockers.ShiftConflicts.Count == 0
+            counts.TotalCount > 0 && findings.Conflicts.Count == 0 && blockers.ShiftConflicts.Count == 0
         );
     }
 
@@ -316,7 +325,7 @@ public sealed class SchedulePublishService(
         IReadOnlyCollection<SchedulePublishEmployeeWarningResponse> IncompleteEmployees,
         IReadOnlyCollection<SchedulePublishEventWarningResponse> UnassignedShifts,
         IReadOnlyCollection<SchedulePublishEventWarningResponse> UnassignedAssignments,
-        IReadOnlyCollection<SchedulePublishConflictResponse> Conflicts,
+        IReadOnlyCollection<CalendarConflict> Conflicts,
         IReadOnlyCollection<ShiftPublicationBlocker> ShiftPublicationBlockers
     );
 

@@ -142,6 +142,54 @@ describe('calendar selectors and view models', () => {
 });
 
 describe('scheduling calendar view model', () => {
+  it('anchors restricted warnings on visible shift headers without needing hidden assignments', () => {
+    const shift: CalendarSchedulingEvent = {
+      id: 'visible-shift',
+      type: 'scheduling.shift',
+      sourceModule: 'scheduling',
+      title: 'Shift',
+      start: '2025-01-13T16:00:00Z',
+      end: '2025-01-14T00:00:00Z',
+      resourceIds: ['user-1'],
+      eventTypeCode: 'shift',
+      metadata: { eventId: 10, shiftEntryId: '40', userIds: ['user-1'] },
+    };
+    const warning = { eventId: '10', sourceModule: 'scheduling', resourceId: 'user-1', message: 'Restricted conflict' };
+    const response: CalendarDataResponse = {
+      contributions: {
+        'scheduling.events': {
+          moduleId: 'scheduling',
+          contributionId: 'scheduling.events',
+          events: [shift],
+          resources: [
+            {
+              id: 'user-1',
+              type: 'user',
+              sourceModule: 'scheduling',
+              label: 'Alex',
+              title: 'Alex',
+            } as CalendarSchedulingUserResource,
+          ],
+        },
+        'calendar.events': {
+          moduleId: 'calendar',
+          contributionId: 'calendar.events',
+          events: [],
+          data: { conflicts: [], restrictedWarnings: [warning] },
+        },
+      },
+    };
+    const model = buildCalendarSchedulingViewModel(
+      response,
+      { startDate: '2025-01-13', endDate: '2025-01-20', filters: {} },
+      'week',
+      false,
+    );
+    const header = model.cells.flatMap((cell) => cell.headers ?? []).find((item) => item.id === shift.id);
+    expect(header?.restrictedWarnings).toEqual([warning]);
+    expect(header?.action?.ariaLabel).toBe('Show Conflict Details');
+    expect(header?.conflicts).toEqual([]);
+  });
   it.each([buildCalendarSchedulingViewModel, buildCalendarAssignmentViewModel])(
     'excludes home IsAway markers from distribution warnings while retaining destination shifts (%#)',
     (buildViewModel) => {

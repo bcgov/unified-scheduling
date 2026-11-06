@@ -54,7 +54,13 @@ public sealed class SchedulePublishControllerTests
             ),
             new SchedulePublishCandidateCountsResponse(1, 1),
             new SchedulePublishWarningsResponse([], [], []),
-            new SchedulePublishBlockersResponse([trainingConflict, otherConflict], []),
+            new SchedulePublishBlockersResponse(
+                canViewTraining ? [trainingConflict, otherConflict] : [otherConflict],
+                []
+            )
+            {
+                HasRestrictedConflicts = !canViewTraining,
+            },
             false
         );
         var controller = new SchedulePublishController(
@@ -91,18 +97,10 @@ public sealed class SchedulePublishControllerTests
 
         Assert.False(response.CanPublish);
         Assert.Contains(otherConflict, response.Blockers.Conflicts);
-        var visibleTrainingConflict = Assert.Single(
-            response.Blockers.Conflicts,
-            conflict => conflict.Id != otherConflict.Id
-        );
-        if (canViewTraining)
-            Assert.Equal(trainingConflict, visibleTrainingConflict);
-        else
-        {
-            Assert.Equal("restricted", visibleTrainingConflict.FirstSourceModule);
-            Assert.Equal(string.Empty, visibleTrainingConflict.FirstEventId);
+        Assert.Equal(canViewTraining, response.Blockers.Conflicts.Contains(trainingConflict));
+        Assert.Equal(!canViewTraining, response.Blockers.HasRestrictedConflicts);
+        if (!canViewTraining)
             Assert.DoesNotContain("training.user-training.7", System.Text.Json.JsonSerializer.Serialize(response));
-        }
     }
 
     private sealed class BlockedPublishService(SchedulePublishPreviewResponse preview) : ISchedulePublishService
