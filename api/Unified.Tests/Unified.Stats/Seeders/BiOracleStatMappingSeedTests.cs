@@ -15,13 +15,16 @@ public sealed class BiOracleStatMappingSeedTests
     {
         var mappingSet = Assert.Single(BiOracleStatMappingSeedData.Definitions);
 
-        Assert.Null(mappingSet.EffectiveDate);
-        Assert.Equal(516, mappingSet.Mappings.Count);
-        Assert.Equal(Enumerable.Range(1, 516), mappingSet.Mappings.Select(mapping => mapping.Id));
+        Assert.Equal(1, mappingSet.Id);
+        Assert.Equal(new DateOnly(2026, 11, 1), mappingSet.EffectiveDate);
+        Assert.Null(mappingSet.ExpiryDate);
+        Assert.Equal(661, mappingSet.Mappings.Count);
+        Assert.Equal(Enumerable.Range(1, 661), mappingSet.Mappings.Select(mapping => mapping.Id));
         Assert.Equal(
-            210,
+            296,
             mappingSet.Mappings.Select(mapping => (mapping.TargetTable, mapping.TargetColumn)).Distinct().Count()
         );
+        BiOracleStatMappingSeedValidator.Validate(BiOracleStatMappingSeedData.Definitions);
         Assert.Contains(
             mappingSet.Mappings,
             mapping => mapping.SubCategoryMetricId == 88 && mapping.TargetColumn == "CVF_OTHR_HRS"
@@ -43,7 +46,9 @@ public sealed class BiOracleStatMappingSeedTests
     [Fact]
     public void ProductionData_HasApprovedLocationLevelMappingsOnly()
     {
-        var mappings = Assert.Single(BiOracleStatMappingSeedData.Definitions).Mappings;
+        var mappings = Assert
+            .Single(BiOracleStatMappingSeedData.Definitions, definition => definition.Id == 1)
+            .Mappings;
         (int SubCategoryMetricId, string TargetColumn)[] expectedMappings =
         [
             (366, "CCRT_KMS"),
@@ -68,10 +73,18 @@ public sealed class BiOracleStatMappingSeedTests
             (407, "HLD_CELL_HRS"),
             (433, "CVF_CRTORD_RCVD"),
             (434, "CVF_CRTORD_CONC"),
+            (435, "CVF_DOCS_RCVD"),
+            (436, "CVF_DOCS_CONC"),
+            (437, "CVF_OTHR_RCVD"),
+            (438, "CVF_OTHR_CONC"),
             (439, "CVF_WARR_RCVD"),
             (440, "CVF_WARR_CONC"),
             (441, "CRIM_CRTORD_RCVD"),
             (442, "CRIM_CRTORD_CONC"),
+            (443, "CRIM_DOCS_RCVD"),
+            (444, "CRIM_DOCS_CONC"),
+            (445, "CRIM_OTHR_RCVD"),
+            (446, "CRIM_OTHR_CONC"),
             (447, "CRIM_WARR_RCVD"),
             (448, "CRIM_WARR_CONC"),
         ];
@@ -145,7 +158,6 @@ public sealed class BiOracleStatMappingSeedTests
                 locationLevelIds.Contains(mapping.SubCategoryMetricId)
                 && mapping.TargetTable == BiOracleTargetTable.SheriffServicesHours
         );
-        Assert.DoesNotContain(mappings, mapping => new[] { 435, 436, 443, 444 }.Contains(mapping.SubCategoryMetricId));
         Assert.Equal(
             mappings.Count,
             mappings
@@ -256,6 +268,7 @@ public sealed class BiOracleStatMappingSeedTests
     [InlineData("UNKNOWN", "GRD_ESC_HRS_L1")]
     [InlineData(BiOracleTargetTable.SheriffServices, "")]
     [InlineData(BiOracleTargetTable.SheriffServices, "CRT_LOC_ID")]
+    [InlineData(BiOracleTargetTable.SheriffServices, "NIL_REPORT")]
     public void Validate_InvalidOrControlTarget_Throws(string targetTable, string targetColumn)
     {
         var mappingSet = MappingSet(Mapping(1, 100, targetTable, targetColumn));
