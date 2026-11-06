@@ -90,7 +90,12 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
         var accessor = CalendarConflictTestContext.Accessor(FirstEnabledUserId);
         accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(FirstEnabledUserId);
         var projection = new CalendarConflictProjection([_provider, provider], accessor);
-        var service = new CalendarConflictService([_provider, provider], _db, projection, CalendarConflictTestRules.Scheduling);
+        var service = new CalendarConflictService(
+            [_provider, provider],
+            _db,
+            projection,
+            CalendarConflictTestRules.Scheduling
+        );
         var time = new TimeZoneService();
         var query = new CalendarQueryService(
             NullLogger<CalendarQueryService>.Instance,
@@ -337,7 +342,12 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             TimeZoneId: "America/Vancouver",
             EventTypeCode: "assignment"
         );
-        var service = new CalendarConflictService([_provider], _db, new CalendarConflictProjection([]), CalendarConflictTestRules.Scheduling);
+        var service = new CalendarConflictService(
+            [_provider],
+            _db,
+            new CalendarConflictProjection([]),
+            CalendarConflictTestRules.Scheduling
+        );
 
         var conflicts = await service.GetConflictsForCandidatesAsync(
             [torontoAssignment, vancouverAssignment],
@@ -370,7 +380,12 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             TimeZoneId: "America/Vancouver",
             EventTypeCode: "assignment"
         );
-        var service = new CalendarConflictService([_provider], _db, new CalendarConflictProjection([]), CalendarConflictTestRules.Scheduling);
+        var service = new CalendarConflictService(
+            [_provider],
+            _db,
+            new CalendarConflictProjection([]),
+            CalendarConflictTestRules.Scheduling
+        );
 
         var conflicts = await service.GetConflictsForCandidatesAsync(
             [torontoAssignment, vancouverAssignment],
