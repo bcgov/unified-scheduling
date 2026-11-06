@@ -1,15 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { useNavigationStore } from '@/stores/NavigationStore';
 import { useAuthStore } from '@/stores/auth';
 import { useLocationsStore } from '@/stores/LocationsStore';
-import { mdiLogout, mdiEarth } from '@mdi/js';
+import { mdiLogout, mdiMapMarker, mdiChevronDown, mdiMenu } from '@mdi/js';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import { redirectToLogout } from '@/utils/authNavigation';
+import { useBranding } from '@/composables/useBranding';
 
-const bcgovLogo = new URL('/images/bcid-logo-rev-en.svg', import.meta.url).href;
 const navigationStore = useNavigationStore();
 const authStore = useAuthStore();
 const locationsStore = useLocationsStore();
+const branding = useBranding();
+const route = useRoute();
+const isAdminActive = computed(() =>
+  navigationStore.adminLinks.some((link) => route.path === link.path || route.path.startsWith(`${link.path}/`)),
+);
 
 const handleLogout = () => {
   authStore.clearUserInfo();
@@ -19,23 +26,71 @@ const handleLogout = () => {
 
 <template>
   <div class="app-bar-wrapper">
-    <v-app-bar class="app-bar" density="compact" flat>
-      <div class="appbar-logo">
-        <img width="177" height="44" :src="bcgovLogo" alt="B.C. Government Logo" />
-      </div>
+    <v-app-bar class="app-bar" :height="80" flat>
+      <RouterLink class="appbar-branding appbar-branding-link" to="/dashboard" aria-label="Go to dashboard home">
+        <div class="appbar-logo">
+          <img :src="branding.primaryLogoUrl.value" :alt="branding.primaryLogoAlt.value" />
+        </div>
+        <template v-if="branding.secondaryLogoUrl.value">
+          <div class="appbar-logo-separator" />
+          <div class="appbar-logo appbar-logo--secondary">
+            <img :src="branding.secondaryLogoUrl.value" :alt="branding.secondaryLogoAlt.value" />
+          </div>
+        </template>
+      </RouterLink>
       <div v-if="authStore.isRegistered" class="router-link-container">
         <RouterLink
-          v-for="navItem in navigationStore.links"
+          v-for="navItem in navigationStore.mainLinks"
           :key="navItem.name"
-          :class="['router-link', navItem?.class ?? '']"
+          class="router-link"
           :to="navItem.path"
           active-class="active"
         >
           {{ navItem.name }}
         </RouterLink>
+        <v-menu v-if="navigationStore.adminLinks.length">
+          <template #activator="{ props }">
+            <button v-bind="props" type="button" class="router-link" :class="{ active: isAdminActive }">
+              Admin <v-icon :icon="mdiChevronDown" size="18" />
+            </button>
+          </template>
+          <v-list aria-label="Administration">
+            <v-list-item
+              v-for="link in navigationStore.adminLinks"
+              :key="link.path"
+              :to="link.path"
+              :title="link.name"
+            />
+          </v-list>
+        </v-menu>
       </div>
 
-      <v-spacer />
+      <div v-if="authStore.isRegistered" class="appbar-mobile-navigation">
+        <v-menu>
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon class="mobile-menu-btn" aria-label="Open navigation menu">
+              <v-icon :icon="mdiMenu" />
+            </v-btn>
+          </template>
+          <v-list aria-label="Primary navigation">
+            <v-list-item
+              v-for="navItem in navigationStore.mainLinks"
+              :key="navItem.name"
+              :to="navItem.path"
+              :title="navItem.name"
+            />
+            <v-list-subheader v-if="navigationStore.adminLinks.length">Admin</v-list-subheader>
+            <v-list-item
+              v-for="link in navigationStore.adminLinks"
+              :key="link.path"
+              :to="link.path"
+              :title="link.name"
+            />
+          </v-list>
+        </v-menu>
+      </div>
+
+      <v-spacer class="appbar-spacer" />
 
       <div v-if="authStore.isAuthenticated" class="appbar-actions">
         <UaSelect
@@ -43,13 +98,18 @@ const handleLogout = () => {
           v-model="locationsStore.selectedLocationId"
           :items="locationsStore.selectOptions"
           label="Select location"
-          :prepend-inner-icon="mdiEarth"
+          :prepend-inner-icon="mdiMapMarker"
+          :menu-icon="mdiChevronDown"
+          item-color="#000000"
+          density="comfortable"
+          variant="outlined"
+          hide-details
           class="location-picker"
         />
         <v-menu min-width="200px" rounded>
           <template #activator="{ props }">
             <v-btn icon v-bind="props" class="avatar-btn">
-              <v-avatar color="accent" size="36">
+              <v-avatar color="accent" size="40">
                 <span class="initials-text">{{ authStore.initials }}</span>
               </v-avatar>
             </v-btn>
@@ -73,93 +133,227 @@ const handleLogout = () => {
   </div>
 </template>
 
-<style>
+<style scoped>
 .app-bar-wrapper {
+  font-family: var(--ua-brand-font);
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  inset: 0 0 auto;
   z-index: 1000;
 }
 
 .app-bar {
-  background-color: rgb(var(--v-theme-primary)) !important;
-  padding: var(--ua-spacing-sm) var(--ua-spacing-xl);
   position: static !important;
-}
-
-.appbar-logo {
-  margin-left: clamp(var(--ua-spacing-xs), 1.2vw, var(--ua-spacing-xl));
-  margin-right: clamp(var(--ua-spacing-xs), 0.8vw, var(--ua-spacing-md));
-  flex: 0 0 auto;
+  padding-inline: clamp(4px, 1vw, var(--ua-spacing-md));
+  background: var(--ua-brand-blue) !important;
 }
 
 .gold-accent-bar {
   height: 4px;
-  background-color: rgb(var(--v-theme-accent));
+  background: var(--ua-brand-gold);
+}
+.appbar-branding {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 0.95vw, var(--ua-spacing-md));
+  flex: 0 0 auto;
+}
+.appbar-mobile-navigation {
+  display: none;
+}
+.appbar-branding-link {
+  color: inherit;
+  text-decoration: none;
+}
+.appbar-branding-link:focus-visible {
+  outline: 2px solid var(--ua-navigation-selected);
+  outline-offset: 3px;
+}
+
+.appbar-logo {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 76px;
+}
+
+.appbar-logo img {
+  display: block;
+  width: auto;
+  height: clamp(28px, 3.75vw, 48px);
+  max-width: clamp(112px, 15vw, 192px);
+  object-fit: contain;
+}
+.appbar-logo--secondary img {
+  height: clamp(40px, 4.7vw, 76px);
+  max-width: clamp(72px, 17.2vw, 220px);
+}
+
+.appbar-logo-separator {
+  width: 2px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .router-link-container {
   display: flex;
-  gap: clamp(var(--ua-spacing-xs), 0.8vw, var(--ua-spacing-md));
-  margin-left: clamp(var(--ua-spacing-xs), 1.2vw, var(--ua-spacing-xl));
-  align-items: center;
+  align-self: stretch;
+  align-items: stretch;
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
+  margin-left: clamp(4px, 1.25vw, var(--ua-spacing-lg));
+  overflow-x: auto;
 }
 
 .router-link {
-  color: var(--ua-card-header-color);
-  padding-left: clamp(var(--ua-spacing-xs), 0.6vw, var(--ua-spacing-md));
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(2px, calc(1vw - 5px), var(--ua-spacing-sm));
+  flex: 0 0 auto;
+  padding-inline: clamp(1px, calc(1.8vw - 12px), var(--ua-spacing-md));
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: clamp(13px, 1.25vw, var(--ua-font-size-lg));
+  line-height: 1.25;
   text-decoration: none;
-  min-width: clamp(72px, 5.5vw, 92px);
-  width: auto;
-  text-align: center;
-  display: inline-block;
   white-space: nowrap;
-  font-size: clamp(0.86rem, 0.82rem + 0.2vw, 1rem);
+  cursor: pointer;
 }
 
-.router-link--border {
-  border-left: 2px solid rgba(255, 255, 255, 0.5);
+.router-link + .router-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 30px;
+  width: 2px;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.4);
 }
 
-.router-link.active,
+.router-link.active {
+  color: var(--ua-navigation-selected);
+  font-weight: 700;
+}
+.router-link.active:hover {
+  color: var(--ua-navigation-selected);
+}
+.router-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 4px;
+  background: var(--ua-navigation-selected);
+}
 .router-link:hover {
-  font-weight: var(--ua-font-weight-semibold);
-  color: rgb(var(--v-theme-accent));
-  text-decoration: underline;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+.router-link:focus-visible {
+  outline: 2px solid var(--ua-navigation-selected);
+  outline-offset: -4px;
 }
 
 .appbar-actions {
   display: flex;
   align-items: center;
-  gap: clamp(var(--ua-spacing-xs), 0.8vw, var(--ua-spacing-md));
-  margin-right: clamp(var(--ua-spacing-xs), 1.2vw, var(--ua-spacing-xl));
+  gap: clamp(var(--ua-spacing-sm), 0.63vw, var(--ua-spacing-md));
   flex: 0 0 auto;
-  min-width: 0;
+  margin-left: clamp(var(--ua-spacing-sm), 1.25vw, var(--ua-spacing-lg));
 }
 
 .location-picker {
-  width: clamp(160px, 20vw, 320px);
+  width: clamp(120px, 20vw, 320px);
+  max-width: 100%;
   min-width: 0;
-  font-size: clamp(0.9rem, 0.85rem + 0.15vw, 1rem);
-  background: var(--ua-field-bg);
+  flex: 0 0 auto;
+  background: #fff;
+  border-radius: 12px;
+  color: #000;
 }
 
+.location-picker :deep(.v-field) {
+  border-radius: 12px;
+}
 .location-picker :deep(.v-field__input) {
-  white-space: nowrap;
+  min-height: 50px;
+  padding-block: 7px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.location-picker :deep(.v-select__selection) {
+  min-width: 0;
+  max-width: 100%;
+}
+.location-picker :deep(.v-select__selection-text) {
+  color: #000;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
 }
 
 .avatar-btn {
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 40px;
+  height: 40px;
 }
 
 .initials-text {
-  color: rgb(var(--v-theme-primary));
-  font-weight: var(--ua-font-weight-bold, 700);
+  color: var(--ua-brand-blue);
+  font-weight: 700;
+}
+@media (max-width: 700px) {
+  :global(:root) {
+    --ua-appbar-height: 114px;
+  }
+  .app-bar {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .app-bar :deep(.v-toolbar__content) {
+    height: auto !important;
+    min-height: 0;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    overflow: visible;
+    padding: 6px 8px;
+  }
+  .appbar-logo {
+    height: 44px;
+  }
+  .appbar-logo-separator {
+    height: 36px;
+  }
+  .router-link-container {
+    display: none;
+  }
+  .appbar-mobile-navigation {
+    display: flex;
+  }
+  .mobile-menu-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .appbar-spacer {
+    display: none;
+  }
+  .appbar-actions {
+    order: 4;
+    flex: 1 0 100%;
+    width: 100%;
+    justify-content: flex-end;
+    margin: 0;
+  }
+  .location-picker {
+    width: auto;
+    max-width: none;
+    flex: 1 1 0%;
+  }
 }
 </style>

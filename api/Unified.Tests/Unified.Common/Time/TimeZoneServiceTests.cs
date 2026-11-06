@@ -151,6 +151,38 @@ public class TimeZoneServiceTests
         Assert.Contains(expectedMessage, exception.Message);
     }
 
+    private static TimeZoneInfo CreatePacificTimeZone()
+    {
+        var daylightStart = TimeZoneInfo.TransitionTime.CreateFloatingDateRule(
+            new DateTime(1, 1, 1, 2, 0, 0),
+            month: 3,
+            week: 2,
+            dayOfWeek: DayOfWeek.Sunday
+        );
+        var daylightEnd = TimeZoneInfo.TransitionTime.CreateFloatingDateRule(
+            new DateTime(1, 1, 1, 2, 0, 0),
+            month: 11,
+            week: 1,
+            dayOfWeek: DayOfWeek.Sunday
+        );
+        var adjustmentRule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(
+            new DateTime(2025, 1, 1),
+            new DateTime(2025, 12, 31),
+            TimeSpan.FromHours(1),
+            daylightStart,
+            daylightEnd
+        );
+
+        return TimeZoneInfo.CreateCustomTimeZone(
+            "Test Pacific",
+            TimeSpan.FromHours(-8),
+            "Test Pacific",
+            "Pacific Standard Time",
+            "Pacific Daylight Time",
+            [adjustmentRule]
+        );
+    }
+
     [Fact]
     public void ConvertInclusiveLocalDateRangeToUtcRange_UsesExclusiveEndBoundary()
     {

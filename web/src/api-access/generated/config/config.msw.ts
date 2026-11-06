@@ -9,7 +9,67 @@ import { faker } from '@faker-js/faker';
 import { HttpResponse, http } from 'msw';
 import type { RequestHandlerOptions } from 'msw';
 
-import type { ConfigResponse } from '../models';
+import type { BrandHeaderOptions, ConfigResponse } from '../models';
+
+export const getGetApiConfigResponseBrandHeaderOptionsMock = (
+  overrideResponse: Partial<BrandHeaderOptions> = {},
+): BrandHeaderOptions => ({
+  title: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  subtitle: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  poweredByText: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  imageUrl: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  logoUrl: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  logoAlt: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  ...overrideResponse,
+});
 
 export const getGetApiConfigResponseMock = (
   overrideResponse: Partial<Extract<ConfigResponse, object>> = {},
@@ -103,12 +163,35 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      supportEmail: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      applicationName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      supportEmail: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      selectedBrand: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      brandingOptions: faker.helpers.arrayElement([
+        {
+          [faker.string.alphanumeric(5)]: {
+            primaryColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            backgroundColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            navigationSelectedColor: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            quickLinks: faker.helpers.arrayElement([
+              Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+                faker.string.alpha({ length: { min: 10, max: 20 } }),
+              ),
+              null,
+            ]),
+            dashboardMessage: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            secondaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            secondaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            backgroundImageUrl: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            header: faker.helpers.arrayElement([null, { ...getGetApiConfigResponseBrandHeaderOptionsMock() }]),
+          },
+        },
         undefined,
       ]),
       ...overrideResponse,
@@ -201,12 +284,35 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      supportEmail: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      applicationName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      supportEmail: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      selectedBrand: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      brandingOptions: faker.helpers.arrayElement([
+        {
+          [faker.string.alphanumeric(5)]: {
+            primaryColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            backgroundColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            navigationSelectedColor: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            quickLinks: faker.helpers.arrayElement([
+              Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+                faker.string.alpha({ length: { min: 10, max: 20 } }),
+              ),
+              null,
+            ]),
+            dashboardMessage: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            secondaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            secondaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            backgroundImageUrl: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            header: faker.helpers.arrayElement([null, { ...getGetApiConfigResponseBrandHeaderOptionsMock() }]),
+          },
+        },
         undefined,
       ]),
       ...overrideResponse,
@@ -299,12 +405,35 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      supportEmail: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      applicationName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      supportEmail: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      selectedBrand: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      brandingOptions: faker.helpers.arrayElement([
+        {
+          [faker.string.alphanumeric(5)]: {
+            primaryColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            backgroundColor: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            navigationSelectedColor: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            quickLinks: faker.helpers.arrayElement([
+              Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+                faker.string.alpha({ length: { min: 10, max: 20 } }),
+              ),
+              null,
+            ]),
+            dashboardMessage: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            secondaryLogoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            secondaryLogoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            backgroundImageUrl: faker.helpers.arrayElement([
+              faker.string.alpha({ length: { min: 10, max: 20 } }),
+              null,
+            ]),
+            applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+            header: faker.helpers.arrayElement([null, { ...getGetApiConfigResponseBrandHeaderOptionsMock() }]),
+          },
+        },
         undefined,
       ]),
       ...overrideResponse,

@@ -4,6 +4,7 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { ConfigResponseBrandingOptions } from './configResponseBrandingOptions.ts';
 import type { FeatureFlagsResponse } from './featureFlagsResponse.ts';
 
 export interface ConfigResponse {
@@ -12,4 +13,7 @@ export interface ConfigResponse {
   supportEmail?: string | null;
   /** @nullable */
   applicationName?: string | null;
+  /** @nullable */
+  selectedBrand?: string | null;
+  brandingOptions?: ConfigResponseBrandingOptions;
 }
