@@ -62,6 +62,10 @@ services:
       - Ches__AllowedAttachmentTypes__0__ContentType=${ChesAllowedAttachment0ContentType:-application/pdf}
       - Ches__MaxAttachmentSizeBytes=${ChesMaxAttachmentSizeBytes:-20971520}
       - Ches__MaxRecipientsPerMessage=${ChesMaxRecipientsPerMessage:-500}
+      - ScheduleDistribution__FrontendBaseUrl=${ScheduleDistributionFrontendBaseUrl:-http://web:8080/}
+      - ScheduleDistribution__DefaultViewportWidth=${ScheduleDistributionDefaultViewportWidth:-1440}
+      - ScheduleDistribution__DefaultViewportHeight=${ScheduleDistributionDefaultViewportHeight:-1000}
+      - ScheduleDistribution__RenderTimeoutSeconds=${ScheduleDistributionRenderTimeoutSeconds:-45}
     ports:
       - 5000:5000
     volumes:

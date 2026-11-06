@@ -5,6 +5,7 @@ import {
   postApiTrainingUserTrainings,
   putApiTrainingUserTrainingsId,
 } from '@/api-access/generated/user-training/user-training';
+import { PostApiTrainingUserTrainingsBody } from '@/api-access/generated/user-training/user-training.zod';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -12,13 +13,24 @@ import UaModal from '@/shared/components/UaModal.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
-import { getTodayDateInputValue, toDateInputValue, toOffsetDateTimeString } from '@/utils/date';
+import { getTodayDateInputValue, toDateInputValue, toDateTime, toOffsetDateTimeString } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
-import { mdiRefresh } from '@mdi/js';
+import { mdiClose, mdiRefresh } from '@mdi/js';
+import { DateTime } from 'luxon';
 import { computed, ref, watch } from 'vue';
 import * as zod from 'zod';
 
 type UserTrainingModalMode = 'create' | 'edit' | 'renew';
+type UserTrainingFormData = Partial<zod.infer<typeof PostApiTrainingUserTrainingsBody>> & {
+  trainingCode: string;
+  awardedTime: string;
+  endingTime: string;
+  expiryDate: string;
+  expiryDateExact: string | null;
+  notes: string;
+};
+
+const trainingTimeZone = 'America/Vancouver';
 
 const props = withDefaults(
   defineProps<{
@@ -57,12 +69,15 @@ const expiryDateAutoGenerateError = ref('');
 const formErrors = ref<Record<string, string>>({});
 const hasManualExpiryDateOverride = ref(false);
 
-const createFormData = () => ({
+const createFormData = (): UserTrainingFormData => ({
   trainingId: undefined as number | undefined,
   trainingCode: '',
   awardedOn: '',
+  awardedTime: '',
   endingOn: '',
+  endingTime: '',
   expiryDate: '',
+  expiryDateExact: null,
   notes: '',
 });
 
@@ -77,32 +92,43 @@ const resolveTrainingDisplay = (training: UserTrainingResponse) => {
 
 const isSentinelDateInputValue = (value: string | null | undefined) => value === '0001-01-01';
 
-const resolveEndingOnInputValue = (training: UserTrainingResponse) => {
+const resolveEndingOn = (training: UserTrainingResponse) => {
   const endingOn = toDateInputValue(training.endingOn);
   if (endingOn && !isSentinelDateInputValue(endingOn)) {
-    return endingOn;
+    return training.endingOn!;
   }
 
-  return toDateInputValue(training.awardedOn) ?? getTodayDateInputValue();
+  return training.awardedOn;
 };
 
-const populateFormData = (training: UserTrainingResponse) => ({
+const getTrainingDate = (value: string) => toDateTime(value, trainingTimeZone).toISODate() ?? getTodayDateInputValue();
+const getTrainingTime = (value: string) => {
+  const dateTime = toDateTime(value, trainingTimeZone);
+  return dateTime.isValid ? dateTime.toFormat('HH:mm') : '';
+};
+
+const toExpiryEndOfDayDateTimeString = (date: string) => {
+  const dateTime = DateTime.fromFormat(date, 'yyyy-MM-dd', { zone: trainingTimeZone });
+  if (!dateTime.isValid) {
+    throw new Error(`Invalid expiry date: ${date}`);
+  }
+
+  return dateTime.endOf('day').toISO()!;
+};
+
+const populateFormData = (training: UserTrainingResponse): UserTrainingFormData => ({
   trainingId: training.trainingId,
   trainingCode: resolveTrainingDisplay(training),
-  awardedOn: toDateInputValue(training.awardedOn) ?? getTodayDateInputValue(),
-  endingOn: resolveEndingOnInputValue(training),
+  awardedOn: getTrainingDate(training.awardedOn),
+  awardedTime: getTrainingTime(training.awardedOn),
+  endingOn: getTrainingDate(resolveEndingOn(training)),
+  endingTime: getTrainingTime(resolveEndingOn(training)),
   expiryDate: toDateInputValue(training.expiryDate) ?? '',
+  expiryDateExact: training.expiryDate ?? null,
   notes: training.notes ?? '',
 });
 
-const populateRenewFormData = (training: UserTrainingResponse) => ({
-  trainingId: training.trainingId,
-  trainingCode: resolveTrainingDisplay(training),
-  awardedOn: toDateInputValue(training.awardedOn) ?? getTodayDateInputValue(),
-  endingOn: resolveEndingOnInputValue(training),
-  expiryDate: toDateInputValue(training.expiryDate) ?? '',
-  notes: training.notes ?? '',
-});
+const populateRenewFormData = populateFormData;
 
 const getInitialFormData = () => {
   if (!props.training) {
@@ -121,17 +147,29 @@ const getInitialFormData = () => {
 
 const formData = ref(getInitialFormData());
 
-const canGenerateExpiryDate = computed(() => Boolean(formData.value.trainingId && formData.value.awardedOn));
+const canGenerateExpiryDate = computed(() => Boolean(formData.value.trainingId && formData.value.endingOn));
 
 const expiryDateErrorMessages = computed(() => formErrors.value.expiryDate || expiryDateAutoGenerateError.value || '');
 
-const schema = zod.object({
-  trainingId: zod.number({ error: 'Training is required.' }),
-  awardedOn: zod.string().min(1, 'From date is required.'),
-  endingOn: zod.string().min(1, 'To date is required.'),
-  expiryDate: zod.string(),
-  notes: zod.string(),
-});
+const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true })
+  .extend({
+    trainingId: zod.number({ error: 'Training is required.' }),
+    trainingCode: zod.string(),
+    awardedOn: zod.iso.date({ error: 'From date is required.' }),
+    endingOn: zod.iso.date({ error: 'To date is required.' }),
+    awardedTime: zod.union([zod.literal(''), zod.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Invalid from time.')]),
+    endingTime: zod.union([zod.literal(''), zod.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Invalid to time.')]),
+    expiryDate: zod.string(),
+    expiryDateExact: zod.string().nullable(),
+    notes: zod.string(),
+  })
+  .superRefine((data, context) => {
+    const start = DateTime.fromISO(`${data.awardedOn}T${data.awardedTime || '00:00'}`, { zone: trainingTimeZone });
+    const end = DateTime.fromISO(`${data.endingOn}T${data.endingTime || '00:00'}`, { zone: trainingTimeZone });
+    if (start.isValid && end.isValid && end < start) {
+      context.addIssue({ code: 'custom', path: ['endingOn'], message: 'To date and time must be on or after From.' });
+    }
+  });
 
 watch(
   () => [props.training, props.mode] as const,
@@ -156,8 +194,9 @@ watch(
   },
 );
 
-const handleExpiryDateInput = (value: string) => {
-  formData.value.expiryDate = value;
+const handleExpiryDateInput = (value: string | null) => {
+  formData.value.expiryDate = value ?? '';
+  formData.value.expiryDateExact = null;
   hasManualExpiryDateOverride.value = true;
   expiryDateAutoGenerateError.value = '';
   delete formErrors.value.expiryDate;
@@ -167,6 +206,7 @@ const generateExpiryDate = async (force = false) => {
   if (!canGenerateExpiryDate.value) {
     if (!hasManualExpiryDateOverride.value || force) {
       formData.value.expiryDate = '';
+      formData.value.expiryDateExact = null;
     }
     return;
   }
@@ -180,12 +220,13 @@ const generateExpiryDate = async (force = false) => {
 
   try {
     const requestedTrainingId = formData.value.trainingId!;
-    const requestedAwardedOn = formData.value.awardedOn;
+    const requestedEndingOn = formData.value.endingOn!;
+    const requestedEndingTime = formData.value.endingTime;
 
     const { data, error, execute } = getApiTrainingUserTrainingsExpiryDate(
       {
         TrainingId: requestedTrainingId,
-        AwardedOn: toOffsetDateTimeString(requestedAwardedOn, '', 'America/Vancouver'),
+        AwardedOn: toOffsetDateTimeString(requestedEndingOn, requestedEndingTime, trainingTimeZone),
       },
       {
         options: {
@@ -202,11 +243,16 @@ const generateExpiryDate = async (force = false) => {
 
     const expiryDate = data.value?.expiryDate ?? null;
 
-    if (requestedTrainingId !== formData.value.trainingId || requestedAwardedOn !== formData.value.awardedOn) {
+    if (
+      requestedTrainingId !== formData.value.trainingId ||
+      requestedEndingOn !== formData.value.endingOn ||
+      requestedEndingTime !== formData.value.endingTime
+    ) {
       return;
     }
 
     formData.value.expiryDate = toDateInputValue(expiryDate) ?? '';
+    formData.value.expiryDateExact = null;
     hasManualExpiryDateOverride.value = false;
   } catch (error: unknown) {
     expiryDateAutoGenerateError.value = error instanceof Error ? error.message : 'Failed to auto-generate expiry date.';
@@ -217,11 +263,12 @@ const generateExpiryDate = async (force = false) => {
 
 const handleGenerateExpiryDate = async () => {
   hasManualExpiryDateOverride.value = false;
+  formData.value.expiryDateExact = null;
   await generateExpiryDate(true);
 };
 
 watch(
-  () => [formData.value.trainingId, formData.value.awardedOn] as const,
+  () => [formData.value.trainingId, formData.value.endingOn, formData.value.endingTime] as const,
   () => {
     void generateExpiryDate();
   },
@@ -244,9 +291,12 @@ const buildRequest = (): UserTrainingRequest | null => {
   return {
     userId: props.userId,
     trainingId: parsed.data.trainingId,
-    awardedOn: toOffsetDateTimeString(parsed.data.awardedOn, '', 'America/Vancouver'),
-    endingOn: toOffsetDateTimeString(parsed.data.endingOn, '', 'America/Vancouver'),
-    expiryDate: parsed.data.expiryDate ? toOffsetDateTimeString(parsed.data.expiryDate, '', 'America/Vancouver') : null,
+    awardedOn: toOffsetDateTimeString(parsed.data.awardedOn, parsed.data.awardedTime, trainingTimeZone),
+    endingOn: toOffsetDateTimeString(parsed.data.endingOn, parsed.data.endingTime, trainingTimeZone),
+    expiryDate: parsed.data.expiryDate
+      ? (formData.value.expiryDateExact ??
+        (hasManualExpiryDateOverride.value ? toExpiryEndOfDayDateTimeString(parsed.data.expiryDate) : null))
+      : null,
     notes: parsed.data.notes.trim() || null,
   };
 };
@@ -306,21 +356,57 @@ const handleSave = async () => {
         disabled
       />
 
-      <UaTextField
-        id="user-training-awarded-on"
-        v-model="formData.awardedOn"
-        type="date"
-        label="From"
-        :error-messages="formErrors.awardedOn"
-      />
+      <label class="ua-form-label" for="user-training-awarded-on">From</label>
+      <div class="user-training-modal__date-time-row">
+        <UaTextField
+          id="user-training-awarded-on"
+          v-model="formData.awardedOn"
+          type="date"
+          label=""
+          :error-messages="formErrors.awardedOn"
+        />
+        <UaTextField
+          id="user-training-awarded-time"
+          :model-value="formData.awardedTime"
+          type="time"
+          label=""
+          aria-label="From time (optional)"
+          title="From time (optional)"
+          hint="Optional"
+          persistent-hint
+          clearable
+          persistent-clear
+          :clear-icon="mdiClose"
+          :error-messages="formErrors.awardedTime"
+          @update:model-value="formData.awardedTime = $event ?? ''"
+        />
+      </div>
 
-      <UaTextField
-        id="user-training-ending-on"
-        v-model="formData.endingOn"
-        type="date"
-        label="To"
-        :error-messages="formErrors.endingOn"
-      />
+      <label class="ua-form-label" for="user-training-ending-on">To</label>
+      <div class="user-training-modal__date-time-row">
+        <UaTextField
+          id="user-training-ending-on"
+          v-model="formData.endingOn"
+          type="date"
+          label=""
+          :error-messages="formErrors.endingOn"
+        />
+        <UaTextField
+          id="user-training-ending-time"
+          :model-value="formData.endingTime"
+          type="time"
+          label=""
+          aria-label="To time (optional)"
+          title="To time (optional)"
+          hint="Optional"
+          persistent-hint
+          clearable
+          persistent-clear
+          :clear-icon="mdiClose"
+          :error-messages="formErrors.endingTime"
+          @update:model-value="formData.endingTime = $event ?? ''"
+        />
+      </div>
 
       <label class="ua-form-label" for="user-training-expiry-date">Expiry Date</label>
       <div class="user-training-modal__expiry-row">
@@ -357,6 +443,18 @@ const handleSave = async () => {
 </template>
 
 <style scoped>
+.user-training-modal__date-time-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ua-spacing-sm);
+  min-width: 0;
+}
+
+.user-training-modal__date-time-row :deep(.v-input) {
+  min-width: 0;
+}
+
 .user-training-modal__expiry-row {
   display: flex;
   align-items: center;
@@ -382,6 +480,12 @@ const handleSave = async () => {
   .user-training-modal__generate-expiry-btn {
     align-self: flex-start;
     margin-top: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .user-training-modal__date-time-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

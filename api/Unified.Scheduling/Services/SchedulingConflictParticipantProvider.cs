@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Unified.Authorization;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -33,6 +34,9 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         CancellationToken cancellationToken = default
     )
     {
+        if (query.ViewerPermissions is { } permissions && !permissions.Contains(nameof(Permissions.AssignmentsView)))
+            return [];
+
         var participants = ActiveParticipantQuery(db)
             .Where(participant =>
                 participant.ShiftAssignmentEntry!.AssignmentEntry!.Event!.StartAtUtc < query.EndAtUtc

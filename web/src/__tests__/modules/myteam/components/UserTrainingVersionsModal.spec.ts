@@ -18,7 +18,12 @@ const UaDataTableStub = defineComponent({
       default: () => [],
     },
   },
-  template: '<div class="ua-data-table-stub">rows: {{ items.length }}</div>',
+  template: `<div class="ua-data-table-stub">rows: {{ items.length }}
+    <div v-for="(item, index) in items" :key="index">
+      <slot name="item.awardedOn" :item="item" />
+      <slot name="item.endingOn" :item="item" />
+    </div>
+  </div>`,
 });
 
 const VTabsStub = defineComponent({
@@ -52,8 +57,8 @@ const sampleTraining = {
   version: 2,
   trainingCode: 'CPR',
   trainingCategoryName: 'Medical',
-  awardedOn: '2026-01-20T00:00:00Z',
-  endingOn: '2026-01-20T00:00:00Z',
+  awardedOn: '2026-01-20T23:00:00Z',
+  endingOn: '2026-01-21T02:00:00Z',
   expiryDate: '2026-02-01T00:00:00Z',
   noticeState: 'None',
   notes: 'Current version',
@@ -83,6 +88,8 @@ describe('UserTrainingVersionsModal', () => {
     expect(wrapper.text()).toContain('CPR');
     expect(wrapper.text()).toContain('Medical');
     expect(wrapper.text()).toContain('Current version');
+    expect(wrapper.text()).toContain('2026-01-20 3:00 PM');
+    expect(wrapper.text()).toContain('2026-01-20 6:00 PM');
   });
 
   it('shows history table when history tab is selected', async () => {
@@ -115,5 +122,7 @@ describe('UserTrainingVersionsModal', () => {
 
     expect(wrapper.find('.ua-data-table-stub').exists()).toBe(true);
     expect(wrapper.find('.ua-data-table-stub').text()).toContain('rows: 1');
+    expect(wrapper.find('.ua-data-table-stub').text()).toContain('2026-01-20 3:00 PM');
+    expect(wrapper.find('.ua-data-table-stub').text()).toContain('2026-01-20 6:00 PM');
   });
 });
