@@ -1,3 +1,4 @@
+using System.Data;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -147,10 +148,26 @@ public sealed class UserService(
         userEntity.Rank = request.Rank?.Trim();
         userEntity.BadgeNumber = request.BadgeNumber?.Trim();
         userEntity.EmployeeNumber = request.EmployeeNumber.Trim();
+        var homeLocationChanged = userEntity.HomeLocationId != request.HomeLocationId;
+        await using var transaction =
+            homeLocationChanged && DB.Database.CurrentTransaction is null
+                ? await DB.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
         userEntity.HomeLocationId = request.HomeLocationId;
         userEntity.TrainingProfileId = request.TrainingProfileId;
 
         await DB.SaveChangesAsync(cancellationToken);
+        if (homeLocationChanged)
+        {
+            await eventDispatcher.PublishAsync(
+                new UserHomeLocationChangedSignal(userEntity.Id, DateTimeOffset.UtcNow),
+                cancellationToken
+            );
+            await DB.SaveChangesAsync(cancellationToken);
+        }
+
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
 
         logger.LogInformation("Updated user {UserId}", userEntity.Id);
 

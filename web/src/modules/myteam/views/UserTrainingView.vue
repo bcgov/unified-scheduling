@@ -10,7 +10,7 @@ import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaPlaceholderPage from '@/shared/components/UaPlaceholderPage.vue';
-import { toCalendarDateString } from '@/utils/date';
+import { toCalendarDateString, toDateTime } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
 import { mdiAutorenew, mdiDelete, mdiPencil, mdiPlus } from '@mdi/js';
 import { computed, ref } from 'vue';
@@ -251,11 +251,11 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
       </template>
 
       <template #[`item.awardedOn`]="{ item }">
-        {{ toCalendarDateString(item.awardedOn) ?? '-' }}
+        {{ toDateTime(item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a') }}
       </template>
 
       <template #[`item.endingOn`]="{ item }">
-        {{ toCalendarDateString(item.endingOn ?? item.awardedOn) ?? '-' }}
+        {{ toDateTime(item.endingOn ?? item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a') }}
       </template>
 
       <template #[`item.expiryDate`]="{ item }">

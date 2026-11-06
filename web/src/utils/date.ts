@@ -1,6 +1,7 @@
 import { DateTime, type DateTimeFormatOptions } from 'luxon';
 
 export const DATE_FORMAT = 'yyyy-MM-dd';
+export const CALENDAR_ALL_DAY_LABEL = 'All Day';
 
 const calendarDateOnlyFormat = {
   month: 'long',
@@ -374,7 +375,7 @@ export function formatCalendarEventTimeRange(
     allDayLabel?: string;
   } = {},
 ): string {
-  const { allDay = false, timeZone, locale = 'en-CA', allDayLabel = 'All day' } = options;
+  const { allDay = false, timeZone, locale = 'en-CA', allDayLabel = CALENDAR_ALL_DAY_LABEL } = options;
 
   if (allDay) {
     return allDayLabel;

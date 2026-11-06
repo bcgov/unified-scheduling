@@ -10,6 +10,7 @@ export const calendarAssignmentViewContribution: CalendarViewDefinition = {
   // Lazy-load for the same reason as calendarShiftViewContribution above.
   component: defineAsyncComponent(() => import('./CalendarAssignmentView.vue')),
   loadingVariant: 'matrix',
+  fillAvailableHeight: true,
   isAvailable: canViewAssignments,
   buildModel: (data, queryContext, _runtimeContext, period) =>
     buildCalendarAssignmentViewModel(data, queryContext, period),

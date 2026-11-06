@@ -46,6 +46,8 @@ const UaDataTableStub = defineComponent({
     <div class="ua-data-table-stub">
       <div class="ua-data-table-stub__count">rows: {{ items.length }}</div>
       <div v-for="item in items" :key="item.id" class="ua-data-table-stub__row">
+        <slot name="item.awardedOn" :item="item" />
+        <slot name="item.endingOn" :item="item" />
         <slot name="item.actions" :item="item" />
       </div>
     </div>
@@ -159,6 +161,7 @@ describe('UserTrainingView', () => {
 
     const cpr = items.find((item) => item.trainingId === 1);
     expect(cpr?.version).toBe(2);
+    expect(table.text()).toContain('2026-01-31 4:00 PM');
   });
 
   it('shows renew action only for rotating trainings', () => {

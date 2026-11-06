@@ -133,7 +133,7 @@ const headers = [
   { title: 'Training Type', key: 'trainingCode', sortable: true },
   { title: 'Region', key: 'regionName', sortable: true },
   { title: 'Location', key: 'locationName', sortable: true },
-  { title: 'Awarded On', key: 'awardedOn', sortable: true },
+  { title: 'Completion Date', key: 'endingOn', sortable: true },
   { title: 'Expiry Date', key: 'expiryDate', sortable: true },
   { title: 'Status', key: 'status', sortable: false },
   { title: 'Version', key: 'version', sortable: true },

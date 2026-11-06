@@ -1,16 +1,24 @@
 using System.Data;
 using System.Data.Common;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Authorization;
+using Unified.Authorization.Claims;
 using Unified.Calendar.Conflicts;
+using Unified.Calendar.Controllers;
 using Unified.Calendar.Factories;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Mappings;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Calendar.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Common.Validation;
@@ -156,6 +164,229 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
     {
         await _db.DisposeAsync();
         await _connection.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task ConflictQuery_UsesCanonicalAssignmentIntervals(bool differentShifts, bool overlapping)
+    {
+        var (shift, first, second) = await CreateDraftConflictAsync();
+        if (differentShifts)
+        {
+            var otherShift = await _shiftService.CreateShiftEntryAsync(
+                CreateShiftEntryRequest(At(9), At(17)),
+                TestContext.Current.CancellationToken
+            );
+            var link = await _db.ShiftAssignmentEntries.SingleAsync(
+                entry => entry.AssignmentEntryId == second.Id,
+                TestContext.Current.CancellationToken
+            );
+            link.ShiftEntryId = otherShift.Id;
+        }
+        var firstEvent = await _db.Events.FindAsync([first.EventId], TestContext.Current.CancellationToken);
+        var secondEvent = await _db.Events.FindAsync([second.EventId], TestContext.Current.CancellationToken);
+        firstEvent!.EndAtUtc = At(11);
+        secondEvent!.StartAtUtc = overlapping ? At(10).AddMinutes(30) : At(11);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var conflicts = await _conflictService.GetConflictsAsync(
+            ConflictQuery(),
+            TestContext.Current.CancellationToken
+        );
+        if (!overlapping)
+        {
+            Assert.Empty(conflicts);
+            return;
+        }
+        var conflict = Assert.Single(conflicts);
+        Assert.Equal(first.EventId.ToString(), conflict.Entry.EventId);
+        Assert.Equal(second.EventId.ToString(), conflict.Overlaps.EventId);
+        Assert.NotEqual(shift.EventId.ToString(), conflict.Entry.EventId);
+        Assert.NotEqual(conflict.Entry.EventId, conflict.Overlaps.EventId);
+        Assert.Equal(At(10).AddMinutes(30), conflict.OverlapStart);
+        Assert.Equal(At(11), conflict.OverlapEnd);
+    }
+
+    [Fact]
+    public async Task ConflictOverride_UsesCanonicalAssignmentsAcrossQueriesAndInvalidation()
+    {
+        var (_, first, second) = await CreateDraftConflictAsync();
+        await _conflictService.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = "scheduling",
+                FirstEventId = first.EventId.ToString(),
+                SecondSourceModule = "scheduling",
+                SecondEventId = second.EventId.ToString(),
+                ResourceId = UserA,
+                Note = "Approved overlap",
+            },
+            UserA,
+            TestContext.Current.CancellationToken
+        );
+        var overridden = Assert.Single(
+            await _conflictService.GetConflictsAsync(
+                ConflictQuery(nameof(Permissions.AssignmentsView)),
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.True(overridden.IsOverridden);
+        Assert.Empty(
+            await _conflictService.GetConflictsAsync(
+                ConflictQuery(nameof(Permissions.ShiftsView)),
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.True(
+            Assert
+                .Single(
+                    await _conflictService.GetConflictsAsync(ConflictQuery(), TestContext.Current.CancellationToken)
+                )
+                .IsOverridden
+        );
+
+        var secondEvent = await _db.Events.FindAsync([second.EventId], TestContext.Current.CancellationToken);
+        secondEvent!.StartAtUtc = At(13);
+        secondEvent.EndAtUtc = At(14);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await _conflictService.InvalidateResolvedOverridesAsync(
+            [new CalendarConflictEventIdentity("scheduling", second.EventId.ToString())],
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(
+            (await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)).InvalidatedOn
+        );
+        Assert.Empty(await _conflictService.GetConflictsAsync(ConflictQuery(), TestContext.Current.CancellationToken));
+        secondEvent.StartAtUtc = At(10);
+        secondEvent.EndAtUtc = At(12);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var rechecked = Assert.Single(
+            await _conflictService.GetConflictsAsync(
+                ConflictQuery(nameof(Permissions.AssignmentsView)),
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(overridden.Id, rechecked.Id);
+        Assert.False(rechecked.IsOverridden);
+    }
+
+    [Theory]
+    [InlineData(nameof(Permissions.AssignmentsView), 1)]
+    [InlineData(nameof(Permissions.ShiftsView), 0)]
+    [InlineData(null, 0)]
+    public async Task CalendarEvents_UsesViewerClaimsWithoutChangingPublicationChecks(string? permission, int count)
+    {
+        var (_, first, second) = await CreateDraftConflictAsync();
+        var httpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(
+                new ClaimsIdentity(
+                    permission is null ? [] : [new Claim(UnifiedClaimTypes.Permission, permission)],
+                    "test"
+                )
+            ),
+        };
+        var timeZoneService = new TimeZoneService();
+        var queryService = new CalendarQueryService(
+            NullLogger<CalendarQueryService>.Instance,
+            _db,
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
+            new CalendarTimeZoneResolver(
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+                timeZoneService
+            ),
+            timeZoneService,
+            _conflictService,
+            new HttpContextAccessor { HttpContext = httpContext }
+        );
+        var controller = new CalendarController(
+            NullLogger<CalendarController>.Instance,
+            queryService,
+            _conflictService,
+            new(),
+            new()
+        )
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
+        };
+        var result = await controller.GetData(
+            new CalendarDataRequest
+            {
+                StartDate = new DateOnly(2026, 6, 1),
+                EndDate = new DateOnly(2026, 6, 1),
+                TimeZoneId = "UTC",
+            },
+            TestContext.Current.CancellationToken
+        );
+        var response = Assert.IsType<CalendarDataResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(count, response.Conflicts.Count);
+        if (count > 0)
+        {
+            var conflict = Assert.Single(response.Conflicts);
+            Assert.Equal(first.EventId.ToString(), conflict.Entry.EventId);
+            Assert.Equal(second.EventId.ToString(), conflict.Overlaps.EventId);
+        }
+        var preview = await CreateSchedulePublishService()
+            .PreviewAsync(CreateSchedulePublishRequest(), TestContext.Current.CancellationToken);
+        Assert.False(preview.CanPublish);
+        Assert.Single(preview.Blockers.Conflicts);
+    }
+
+    [Theory]
+    [InlineData(9, 10, 0)]
+    [InlineData(11, 13, 2)]
+    public async Task ConflictQuery_WithAnotherProvider_UsesAssignmentIntervals(int start, int end, int expectedCount)
+    {
+        await CreateDraftConflictAsync();
+        var course = new CalendarConflictParticipant("course-42", "training", UserA, At(start), At(end), "Course");
+        var service = new CalendarConflictService(
+            [new SchedulingConflictParticipantProvider(_db), new ExternalConflictProvider(course)],
+            _db
+        );
+        var conflicts = (
+            await service.GetConflictsAsync(
+                ConflictQuery(nameof(Permissions.AssignmentsView)),
+                TestContext.Current.CancellationToken
+            )
+        )
+            .Where(conflict =>
+                conflict.Entry.SourceModule == "training" || conflict.Overlaps.SourceModule == "training"
+            )
+            .ToList();
+        Assert.Equal(expectedCount, conflicts.Count);
+        Assert.All(
+            conflicts,
+            conflict =>
+            {
+                var assignment = conflict.Entry.SourceModule == "scheduling" ? conflict.Entry : conflict.Overlaps;
+                Assert.Equal(At(10), assignment.Start);
+                Assert.Equal(At(12), assignment.End);
+                Assert.Equal(At(11), conflict.OverlapStart);
+                Assert.Equal(At(12), conflict.OverlapEnd);
+            }
+        );
+    }
+
+    private static CalendarConflictQuery ConflictQuery(string? permission = null) =>
+        new(At(0), At(23), ViewerPermissions: permission is null ? null : new HashSet<string> { permission });
+
+    private sealed class ExternalConflictProvider(CalendarConflictParticipant participant)
+        : ICalendarConflictParticipantProvider
+    {
+        public Task<CalendarConflictParticipant?> GetParticipantAsync(
+            CalendarConflictEventIdentity identity,
+            Guid resourceId,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult(
+                identity == participant.Identity && resourceId == participant.ResourceId ? participant : null
+            );
+
+        public Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
+            CalendarConflictQuery query,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([participant]);
     }
 
     [Fact]
