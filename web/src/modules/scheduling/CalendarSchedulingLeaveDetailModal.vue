@@ -247,7 +247,7 @@ function buildEditFormData(): LeaveFormData {
       leaveType: selectedEntry.value.leaveTypeId,
       date: start?.date ?? '',
       startTime: start?.time ?? defaultStartTime,
-      endTime: end?.time ?? defaultEndTime,
+      endTime: end?.time ?? null,
       repeatMode: 'never',
       recurrenceRule: null,
       notes: selectedEntry.value.notes ?? '',
@@ -262,7 +262,7 @@ function buildEditFormData(): LeaveFormData {
     leaveType: schedulingMetadata.value?.leaveTypeId ?? null,
     date: start?.date ?? '',
     startTime: start?.time ?? defaultStartTime,
-    endTime: end?.time ?? defaultEndTime,
+    endTime: end?.time ?? null,
     repeatMode: 'never',
     recurrenceRule: null,
     notes: props.event.notes ?? '',
@@ -485,6 +485,7 @@ function formatRRuleText(value?: string | null) {
       <LeaveForm
         v-else-if="activeTab === 'edit'"
         v-model="editFormData"
+        show-required
         show-employees
         :disabled="isSaving"
         :employee-options="employeeOptions"
