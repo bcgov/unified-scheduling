@@ -20,7 +20,11 @@ class CalendarDataService {
     contributions.forEach((contribution) => this.sessionContributions.add(contribution));
     const entries = await Promise.all(
       contributions.map(async (contribution) => {
-        const data = await contribution.load(queryContext, { signal: abortController.signal, runtimeContext });
+        const data = await contribution.load(
+          queryContext,
+          { signal: abortController.signal, runtimeContext },
+          runtimeContext,
+        );
         return [contribution.contributionId, data] as const;
       }),
     );
