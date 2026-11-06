@@ -46,6 +46,7 @@ export interface CalendarEventMetadata {
   leaveSeriesId?: string;
   leaveTypeId?: number;
   leaveTypeName?: string;
+  originalLeaveOccurrence?: Pick<CalendarEventBase, 'id' | 'start' | 'end'>;
   loanOutEntryId?: string;
   loanOutSeriesId?: string;
   loanOutLocationId?: number;

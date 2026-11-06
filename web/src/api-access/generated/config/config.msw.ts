@@ -20,10 +20,7 @@ export const getGetApiConfigResponseMock = (
         {
           UserManagement: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
               userBadgeNumber: faker.helpers.arrayElement([{ enabled: faker.datatype.boolean() }, undefined]),
             },
@@ -31,10 +28,7 @@ export const getGetApiConfigResponseMock = (
           ]),
           Calendar: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
               calendarMatrixTest: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
             },
@@ -42,60 +36,42 @@ export const getGetApiConfigResponseMock = (
           ]),
           Scheduling: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Stats: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Training: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Reporting: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Leave: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           LoanOut: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
@@ -103,14 +79,8 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      supportEmail: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      applicationName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      supportEmail: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       ...overrideResponse,
     },
     {
@@ -118,10 +88,7 @@ export const getGetApiConfigResponseMock = (
         {
           UserManagement: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
               userBadgeNumber: faker.helpers.arrayElement([{ enabled: faker.datatype.boolean() }, undefined]),
             },
@@ -129,10 +96,7 @@ export const getGetApiConfigResponseMock = (
           ]),
           Calendar: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
               calendarMatrixTest: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
             },
@@ -140,60 +104,42 @@ export const getGetApiConfigResponseMock = (
           ]),
           Scheduling: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Stats: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Training: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Reporting: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Leave: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           LoanOut: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
@@ -201,14 +147,8 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      supportEmail: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      applicationName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      supportEmail: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       ...overrideResponse,
     },
     {
@@ -216,10 +156,7 @@ export const getGetApiConfigResponseMock = (
         {
           UserManagement: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
               userBadgeNumber: faker.helpers.arrayElement([{ enabled: faker.datatype.boolean() }, undefined]),
             },
@@ -227,10 +164,7 @@ export const getGetApiConfigResponseMock = (
           ]),
           Calendar: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
               calendarMatrixTest: faker.helpers.arrayElement([faker.datatype.boolean(), undefined]),
             },
@@ -238,60 +172,42 @@ export const getGetApiConfigResponseMock = (
           ]),
           Scheduling: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Stats: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Training: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Reporting: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           Leave: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
           ]),
           LoanOut: faker.helpers.arrayElement([
             {
-              source: faker.helpers.arrayElement([
-                faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-                undefined,
-              ]),
+              source: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
               enabled: faker.datatype.boolean(),
             },
             undefined,
@@ -299,14 +215,8 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      supportEmail: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
-      applicationName: faker.helpers.arrayElement([
-        faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-        undefined,
-      ]),
+      supportEmail: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
+      applicationName: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
       ...overrideResponse,
     },
   ]);

@@ -12,6 +12,6 @@ export const calendarAssignmentViewContribution: CalendarViewDefinition = {
   loadingVariant: 'matrix',
   fillAvailableHeight: true,
   isAvailable: canViewAssignments,
-  buildModel: (data, queryContext, _runtimeContext, period) =>
-    buildCalendarAssignmentViewModel(data, queryContext, period),
+  buildModel: (data, queryContext, runtimeContext, period) =>
+    buildCalendarAssignmentViewModel(data, queryContext, period, runtimeContext),
 };

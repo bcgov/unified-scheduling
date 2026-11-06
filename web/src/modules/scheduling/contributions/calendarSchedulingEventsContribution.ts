@@ -28,6 +28,7 @@ import { formatUserName } from '@/utils/user';
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
+  homeLocationId?: number;
   subtitle?: string;
   meta?: CalendarMetaItem[];
   avatarText?: string;
@@ -77,10 +78,12 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
     const events = data.events ?? [];
     const resourceUsers = filterResourceUsers(resourceData.users, userIds);
 
+    const mappedEvents = events.map((event) => mapSchedulingCalendarEvent(event, resourceData.getUserById));
+
     return {
       moduleId: CalendarModuleId.Scheduling,
       contributionId: CalendarContributionId.SchedulingEvents,
-      events: events.map((event) => mapSchedulingCalendarEvent(event, resourceData.getUserById)),
+      events: mappedEvents,
       resources: resourceUsers.map<CalendarSchedulingUserResource>((user) =>
         mapUserToCalendarSchedulingResource(user, resourceData.actingPositionsByUserId.get(user.id) ?? []),
       ),
@@ -207,6 +210,7 @@ function mapUserToCalendarSchedulingResource(
     id: user.id,
     type: 'user',
     sourceModule: 'scheduling',
+    homeLocationId: user.homeLocationId ?? undefined,
     label: title,
     title,
     subtitle: subtitle || undefined,

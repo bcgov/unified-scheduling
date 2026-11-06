@@ -1,6 +1,8 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref, toRaw } from 'vue';
+import type { Component } from 'vue';
+import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { CalendarEventStatus, CalendarEventType } from '@/api-access/generated/models';
@@ -11,6 +13,7 @@ import CalendarMatrixHeader from '@/modules/calendar/components/matrix/CalendarM
 import CalendarMatrixResourceRow from '@/modules/calendar/components/matrix/CalendarMatrixResourceRow.vue';
 import CalendarMatrixSidePanel from '@/modules/calendar/components/matrix/CalendarMatrixSidePanel.vue';
 import CalendarMatrixSidePanelItem from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue';
+import sidePanelItemSource from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue?raw';
 import { calendarMatrixContextKey } from '@/modules/calendar/components/matrix/calendarMatrixContext';
 import { CalendarMatrixActionType } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type {
@@ -68,22 +71,20 @@ const iconStub = {
   template: '<i class="icon-stub">{{ icon }}</i>',
 };
 
-async function mountWithApp(component: unknown, options: Record<string, unknown> = {}): Promise<VueWrapper> {
+async function mountWithApp<T extends Component>(component: T, options: Record<string, unknown> = {}) {
   const { mountPlugins } = await createTestApp({ loadConfig: false });
 
-  return mount(
-    component as never,
-    {
-      ...options,
-      global: {
-        ...(options.global as Record<string, unknown> | undefined),
-        plugins: mountPlugins,
-      },
-    } as never,
-  );
+  return mount(component, {
+    ...options,
+    global: {
+      ...(options.global as Record<string, unknown> | undefined),
+      plugins: mountPlugins,
+    },
+  } as never);
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   matrixContext.selectEvent.mockReset();
   matrixContext.selectResource.mockReset();
@@ -360,6 +361,142 @@ describe('CalendarMatrixResourceRow', () => {
 });
 
 describe('CalendarMatrixSidePanelItem', () => {
+  it('renders generic warning groups and isolates the focusable icon from item clicks and dragging', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixSidePanelItem, {
+      props: {
+        timeZone: 'America/Vancouver',
+        item: {
+          ...sidePanelItem,
+          warningGroups: [
+            { id: 'empty', heading: 'Empty', warnings: [] },
+            {
+              id: 'leave',
+              heading: 'Leave',
+              warnings: [{ id: 'leave-1', title: 'Vacation', start: '2025-01-13', end: '2025-01-15', allDay: true }],
+            },
+            {
+              id: 'training',
+              heading: 'Training',
+              warnings: [
+                { id: 'training-1', title: 'Session', start: '2025-01-14T07:00:00Z', end: '2025-01-14T09:00:00Z' },
+              ],
+            },
+            {
+              id: 'loanout',
+              heading: 'Loan Out',
+              warnings: [
+                {
+                  id: 'loanout-1',
+                  title: 'From: Vancouver; To: Edmonton',
+                  start: '2025-01-13T17:00:00Z',
+                  end: '2025-01-13T19:00:00Z',
+                },
+              ],
+            },
+          ],
+        },
+      },
+      global: {
+        provide: { [calendarMatrixContextKey as symbol]: matrixContext },
+        stubs: {
+          VTooltip: {
+            name: 'WarningTooltipStub',
+            props: { openOnFocus: Boolean, openOnClick: Boolean },
+            template: '<div><slot name="activator" :props="{}" /><slot /></div>',
+          },
+        },
+      },
+    });
+
+    const button = wrapper.get('button');
+    expect(button.attributes('aria-label')).toBe('Event warnings for Ada Lovelace');
+    expect(button.attributes('draggable')).toBe('false');
+    expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnFocus')).toBe(true);
+    expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnClick')).toBe(true);
+    expect(wrapper.findAll('strong').map((heading) => heading.text())).toEqual(['Leave', 'Training', 'Loan Out']);
+    expect(wrapper.text()).toContain('From: Vancouver; To: Edmonton');
+    expect(wrapper.text()).toContain('January 13, 2025, 9:00 AM - 11:00 AM');
+    expect(wrapper.text()).toContain(`January 13, 2025 - January 14, 2025, ${CALENDAR_ALL_DAY_LABEL}`);
+    expect(wrapper.text().toUpperCase()).toContain('JANUARY 13, 2025, 11:00 PM - JANUARY 14, 2025, 1:00 AM');
+
+    const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    button.element.dispatchEvent(mousedown);
+    expect(mousedown.defaultPrevented).toBe(false);
+    const touchstart = new Event('touchstart', { bubbles: true, cancelable: true });
+    button.element.dispatchEvent(touchstart);
+    expect(touchstart.defaultPrevented).toBe(false);
+    await button.trigger('focus');
+    await button.trigger('click');
+    const dragstart = new Event('dragstart', { bubbles: true, cancelable: true });
+    button.element.dispatchEvent(dragstart);
+    expect(dragstart.defaultPrevented).toBe(true);
+    expect(wrapper.emitted('itemClick')).toBeUndefined();
+    expect(wrapper.emitted('dragStart')).toBeUndefined();
+    expect(matrixContext.startDrag).not.toHaveBeenCalled();
+
+    await wrapper.setProps({
+      item: { ...sidePanelItem, warningGroups: [{ id: 'empty', heading: 'Empty', warnings: [] }] },
+    });
+    expect(wrapper.find('button').exists()).toBe(false);
+    expect(wrapper.classes()).not.toContain('has-warnings');
+  });
+
+  it.each(['hover', 'click', 'tap', 'focus'] as const)(
+    'opens the warning tooltip on %s without activating or dragging the row',
+    async (interaction) => {
+      vi.useFakeTimers();
+      const wrapper = await mountWithApp(CalendarMatrixSidePanelItem, {
+        attachTo: document.body,
+        props: {
+          item: {
+            ...sidePanelItem,
+            warningGroups: [
+              {
+                id: 'leave',
+                heading: 'Leave',
+                warnings: [{ id: 'vacation', title: 'Vacation', start: '2025-01-13', allDay: true }],
+              },
+            ],
+          },
+        },
+        global: { provide: { [calendarMatrixContextKey as symbol]: matrixContext } },
+      });
+      try {
+        const button = wrapper.get('button');
+        if (interaction === 'hover') {
+          await button.trigger('mouseenter');
+        } else if (interaction === 'focus') {
+          button.element.focus();
+          expect(document.activeElement).toBe(button.element);
+        } else {
+          if (interaction === 'tap') {
+            await button.trigger('touchstart');
+            await button.trigger('touchend');
+          }
+          await button.trigger('click');
+        }
+        await vi.advanceTimersByTimeAsync(300);
+        const tooltip = document.getElementById(button.attributes('aria-describedby')!);
+        expect(tooltip?.classList.contains('v-overlay--active')).toBe(true);
+        expect(tooltip?.textContent).toContain('Vacation');
+        expect(wrapper.emitted('itemClick')).toBeUndefined();
+        expect(wrapper.emitted('dragStart')).toBeUndefined();
+        expect(matrixContext.startDrag).not.toHaveBeenCalled();
+        await wrapper.trigger('dragstart', { dataTransfer: { setData: vi.fn(), setDragImage: vi.fn() } });
+        expect(matrixContext.startDrag).toHaveBeenCalledOnce();
+        expect(wrapper.emitted('dragStart')).toHaveLength(1);
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
+
+  it('uses the secondary theme token for warning icon contrast', () => {
+    expect(sidePanelItemSource).toMatch(
+      /\.calendar-matrix-side-panel-item__warning\s*\{[^}]*color:\s*rgb\(var\(--v-theme-secondary\)\)/,
+    );
+  });
+
   it('renders the item content and emits dragStart for draggable items', async () => {
     const dataTransfer = {
       setData: vi.fn(),
