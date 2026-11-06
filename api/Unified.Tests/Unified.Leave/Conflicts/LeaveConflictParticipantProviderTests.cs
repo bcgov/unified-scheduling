@@ -1,5 +1,8 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Unified.Authorization;
 using Unified.Calendar.Conflicts;
+using Unified.Calendar.Models;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -7,6 +10,7 @@ using Unified.Db.Models.Leave;
 using Unified.Db.Models.Scheduling;
 using Unified.Leave.Conflicts;
 using Unified.Scheduling.Services;
+using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Leave.Conflicts;
 
@@ -31,6 +35,131 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
     }
 
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();
+
+    [Theory]
+    [InlineData(true, false, true, true)]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, false, false, false)]
+    public async Task CreateOverrideAsync_WithRealProviders_RequiresLeaveVisibilityAndOverridePermission(
+        bool canViewLeave,
+        bool canViewUserLeave,
+        bool canOverride,
+        bool expected
+    )
+    {
+        var leave = await AddLeaveAsync();
+        var shift = await AddShiftAsync(Start.AddHours(1), Start.AddHours(2));
+        var permissions = new List<string> { nameof(Permissions.ShiftsView) };
+        if (canViewLeave)
+            permissions.Add(nameof(Permissions.LeaveView));
+        if (canViewUserLeave)
+            permissions.Add(nameof(Permissions.UsersLeaveView));
+        if (canOverride)
+            permissions.Add(nameof(Permissions.CalendarConflictsOverride));
+        var accessor = CalendarConflictTestContext.Accessor(UserB);
+        accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(UserB, permissions.ToArray());
+        ICalendarConflictParticipantProvider[] providers = [_provider, new SchedulingConflictParticipantProvider(_db)];
+        var projection = new CalendarConflictProjection(providers, accessor);
+        var service = new CalendarConflictService(providers, _db, projection);
+        var projected = await projection.ProjectAsync(
+            await service.GetConflictsAsync(Query(), TestContext.Current.CancellationToken),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(canViewLeave ? 1 : 0, projected.Conflicts.Count);
+        Assert.Equal(!canViewLeave, projected.HasRestrictedConflicts);
+        Assert.All(projected.RestrictedWarnings, warning => Assert.Equal("scheduling", warning.SourceModule));
+        var json = JsonSerializer.Serialize(projected);
+        Assert.DoesNotContain("Restricted leave type", json);
+        Assert.DoesNotContain("Private description", json);
+        Assert.DoesNotContain("Private notes", json);
+        if (canViewLeave)
+            Assert.Contains("Leave", json);
+        var acknowledgement = new CalendarConflictAcknowledgement
+        {
+            FirstSourceModule = "leave",
+            FirstEventId = leave.EventId.ToString(),
+            SecondSourceModule = "scheduling",
+            SecondEventId = shift.EventId.ToString(),
+            ResourceId = UserA,
+            Note = "Approved overlap",
+        };
+
+        if (expected)
+        {
+            await service.CreateOverrideAsync(acknowledgement, UserB, TestContext.Current.CancellationToken);
+            Assert.True(
+                Assert
+                    .Single(await service.GetConflictsAsync(Query(), TestContext.Current.CancellationToken))
+                    .IsOverridden
+            );
+        }
+        else
+        {
+            await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+                service.CreateOverrideAsync(acknowledgement, UserB, TestContext.Current.CancellationToken)
+            );
+            Assert.Empty(_db.CalendarConflictOverrides);
+        }
+    }
+
+    [Theory]
+    [InlineData("leave", "0")]
+    [InlineData("leave", "01")]
+    [InlineData("leave", "not-an-id")]
+    [InlineData("leave", "999")]
+    [InlineData("scheduling", "1")]
+    public async Task GetVisibilityAsync_WhenIdentityIsInvalid_ReturnsNull(string module, string eventId)
+    {
+        await AddLeaveAsync();
+        var participant = Assert.Single(
+            await _provider.GetParticipantsAsync(Query(), TestContext.Current.CancellationToken)
+        );
+        Assert.Null(
+            await _provider.GetVisibilityAsync(
+                participant with
+                {
+                    SourceModule = module,
+                    EventId = eventId,
+                },
+                new HashSet<string> { nameof(Permissions.LeaveView) },
+                TestContext.Current.CancellationToken
+            )
+        );
+    }
+
+    [Fact]
+    public async Task GetVisibilityAsync_WhenCanonicalLeave_ReturnsNoSchedulingAnchorsAndChecksMembership()
+    {
+        var leave = await AddLeaveAsync();
+        var participant = Assert.Single(
+            await _provider.GetParticipantsAsync(Query(), TestContext.Current.CancellationToken)
+        );
+        var permissions = new HashSet<string> { nameof(Permissions.LeaveView) };
+        var visibility = await _provider.GetVisibilityAsync(
+            participant,
+            permissions,
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(visibility);
+        Assert.True(visibility.CanView);
+        Assert.Empty(visibility.VisibleAnchors);
+        Assert.Null(
+            await _provider.GetVisibilityAsync(
+                participant with
+                {
+                    ResourceId = UserB,
+                },
+                permissions,
+                TestContext.Current.CancellationToken
+            )
+        );
+        leave.Event!.EventTypeCode = "general";
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Assert.Null(
+            await _provider.GetVisibilityAsync(participant, permissions, TestContext.Current.CancellationToken)
+        );
+    }
 
     [Fact]
     public async Task GetParticipantsAsync_WhenDraftExcluded_StillIncludesRecordedLeaveWithoutViewPermissions()
@@ -187,15 +316,22 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
         );
     }
 
-    [Fact]
-    public async Task GetConflictsAsync_WhenLeaveIsAtAnotherLocationAndTimeZone_RetainsOnlyScopedConflicts()
+    [Theory]
+    [InlineData(5, 5)]
+    [InlineData(9, 5)]
+    [InlineData(9, 9)]
+    public async Task GetConflictsAsync_WithLocationScope_RetainsSameAndCrossLocationConflicts(
+        int locationId,
+        int leaveLocationId
+    )
     {
-        await AddLeaveAsync(); // Location 5, America/Vancouver.
+        var leave = await AddLeaveAsync();
+        leave.Event!.LocationId = leaveLocationId;
         await AddShiftAsync(Start.AddHours(1), Start.AddHours(2), CalendarEventStatusTypeCodes.Active);
         var result = await _conflicts.GetConflictsAsync(
             Query() with
             {
-                LocationId = 9,
+                LocationId = locationId,
             },
             TestContext.Current.CancellationToken
         );
@@ -209,6 +345,54 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
         Assert.Empty(unrelatedScope);
+    }
+
+    [Fact]
+    public async Task GetConflictsAsync_WhenOnlyLeaveIsInScope_IncludesCrossLocationAssignmentAndShift()
+    {
+        await AddLeaveAsync();
+        var shift = await AddShiftAsync(Start.AddHours(1), Start.AddHours(3), CalendarEventStatusTypeCodes.Active);
+        var assignmentEvent = SchedulingEvent(Start.AddHours(1), Start.AddHours(2), "assignment");
+        assignmentEvent.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        _db.ShiftAssignmentEntries.Add(
+            new ShiftAssignmentEntry
+            {
+                ShiftEntry = shift,
+                AssignmentEntry = new AssignmentEntry
+                {
+                    Event = assignmentEvent,
+                    AssignmentDefinitionId = 1,
+                    CategoryId = 1,
+                    SubCategoryId = 1,
+                },
+                Users = [new() { UserId = UserA }],
+            }
+        );
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var result = await _conflicts.GetConflictsAsync(
+            Query() with
+            {
+                LocationId = 5,
+            },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Equal(2, result.Count);
+        Assert.All(result, conflict => Assert.Equal("leave", conflict.Entry.SourceModule));
+        Assert.Contains(result, conflict => conflict.Overlaps.EventId == assignmentEvent.Id.ToString());
+        Assert.Contains(result, conflict => conflict.Overlaps.EventId == shift.EventId.ToString());
+        Assert.Empty(
+            await _conflicts.GetConflictsAsync(Query() with { LocationId = 99 }, TestContext.Current.CancellationToken)
+        );
+        Assert.Empty(
+            await _conflicts.GetConflictsAsync(
+                Query() with
+                {
+                    LocationId = 5,
+                    ResourceIds = [UserB],
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
     }
 
     [Fact]

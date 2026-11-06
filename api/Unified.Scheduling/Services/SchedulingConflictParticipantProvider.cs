@@ -115,23 +115,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         }
 
         var shifts = await GetShiftParticipantsAsync(query, cancellationToken);
-        if (query.LocationId.HasValue)
-        {
-            var locationId = query.LocationId.Value;
-            var scopedResourceIds = await participants
-                .Where(participant =>
-                    participant.ShiftAssignmentEntry!.AssignmentEntry!.Event!.LocationId == null
-                    || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == locationId
-                )
-                .Select(participant => participant.UserId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-            if (scopedResourceIds.Count == 0)
-                return shifts.Select(ForLeaveConflicts).ToList();
-
-            participants = participants.Where(participant => scopedResourceIds.Contains(participant.UserId));
-        }
-
+        // Apply location scope after all providers contribute; either side can anchor a conflict.
         var assignments = await ProjectParticipantsAsync(participants, cancellationToken, query.LocationId);
         return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
     }
@@ -245,23 +229,6 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         {
             var resourceIds = query.ResourceIds.Distinct().ToList();
             participants = participants.Where(participant => resourceIds.Contains(participant.UserId));
-        }
-
-        if (query.LocationId.HasValue)
-        {
-            var locationId = query.LocationId.Value;
-            var scopedResourceIds = await participants
-                .Where(participant =>
-                    participant.ShiftEntry!.Event!.LocationId == null
-                    || participant.ShiftEntry.Event.LocationId == locationId
-                )
-                .Select(participant => participant.UserId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-            if (scopedResourceIds.Count == 0)
-                return [];
-
-            participants = participants.Where(participant => scopedResourceIds.Contains(participant.UserId));
         }
 
         return await ProjectShiftParticipantsAsync(participants, cancellationToken, query.LocationId);
