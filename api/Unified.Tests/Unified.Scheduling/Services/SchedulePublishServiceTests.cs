@@ -91,7 +91,8 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var conflictService = new CalendarConflictService(
             [new SchedulingConflictParticipantProvider(_db), new LeaveConflictParticipantProvider(_db)],
-            _db
+            _db,
+            CalendarConflictTestContext.Projection(ResourceId)
         );
         var service = CreateService([], conflictService: conflictService);
         var preview = await service.PreviewAsync(CreateRequest(), TestContext.Current.CancellationToken);
