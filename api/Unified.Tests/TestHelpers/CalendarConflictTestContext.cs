@@ -29,6 +29,7 @@ internal static class CalendarConflictTestContext
                     nameof(Permissions.CalendarConflictsOverride),
                     nameof(Permissions.AssignmentsView),
                     nameof(Permissions.ShiftsView),
+                    nameof(Permissions.LeaveView),
                     nameof(Permissions.UserTrainingsView)
                 ),
             },
@@ -68,6 +69,7 @@ internal static class CalendarConflictTestContext
             var permission = participant.SourceModule switch
             {
                 "scheduling" => nameof(Permissions.AssignmentsView),
+                "leave" => nameof(Permissions.LeaveView),
                 "training" => nameof(Permissions.UserTrainingsView),
                 "calendar" => null,
                 _ => "unknown",

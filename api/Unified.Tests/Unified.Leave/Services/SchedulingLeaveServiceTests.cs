@@ -19,6 +19,7 @@ using Unified.Leave.Mappings;
 using Unified.Leave.Models.Scheduling;
 using Unified.Leave.Services;
 using Unified.Leave.Validators;
+using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Leave.Services;
 
@@ -75,7 +76,8 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
         );
         _conflicts = new CalendarConflictService(
             [new LeaveConflictParticipantProvider(db), _schedulingParticipants],
-            db
+            db,
+            CalendarConflictTestContext.Projection(LeaveTestDatabase.UserA)
         );
         var eventFactory = new LeaveEventFactory();
 
