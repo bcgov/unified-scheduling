@@ -16,6 +16,8 @@ import {
   getCalendarConflictsForEventAndResource,
   resolveCalendarEventId,
   selectCalendarConflicts,
+  selectCalendarRestrictedWarnings,
+  getCalendarRestrictedWarningsForEvent,
   selectCalendarEvents,
   selectContribution,
 } from '@/modules/calendar/calendarSelectors';
@@ -253,27 +255,31 @@ export function buildCalendarSchedulingViewModel(
     }
   }
 
-  return {
-    days,
-    timeZone,
-    payload: {
-      events: schedulingEvents,
-      conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
-      conflictsAvailable: canViewAssignmentConflicts && hasCalendarConflictData(response),
+  return addRestrictedWarnings(
+    {
+      days,
+      timeZone,
+      payload: {
+        events: schedulingEvents,
+        conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
+        conflictsAvailable: canViewAssignmentConflicts && hasCalendarConflictData(response),
+      },
+      primaryColumn: {
+        label: 'TEAM',
+        resources: scheduleResources,
+      },
+      cells,
+      sidePanel: {
+        label: 'ASSIGNMENTS',
+        actionId: calendarSchedulingActionIds.addAssignment,
+        actionLabel: 'Add Assignment',
+        search: { placeholder: 'Search assignments...' },
+        items: buildAssignmentSidePanelItems(response),
+      },
     },
-    primaryColumn: {
-      label: 'TEAM',
-      resources: scheduleResources,
-    },
-    cells,
-    sidePanel: {
-      label: 'ASSIGNMENTS',
-      actionId: calendarSchedulingActionIds.addAssignment,
-      actionLabel: 'Add Assignment',
-      search: { placeholder: 'Search assignments...' },
-      items: buildAssignmentSidePanelItems(response),
-    },
-  };
+    response,
+    true,
+  );
 }
 
 function buildUnassignedResourceRow(): CalendarMatrixResource {
@@ -368,27 +374,61 @@ export function buildCalendarAssignmentViewModel(
     }
   }
 
-  return {
-    days,
-    timeZone,
-    payload: {
-      events: schedulingEvents,
-      conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
-      conflictsAvailable: hasCalendarConflictData(response),
+  return addRestrictedWarnings(
+    {
+      days,
+      timeZone,
+      payload: {
+        events: schedulingEvents,
+        conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
+        conflictsAvailable: hasCalendarConflictData(response),
+      },
+      primaryColumn: {
+        label: 'ASSIGNMENTS',
+        resources,
+      },
+      cells,
+      sidePanel: {
+        label: 'TEAM',
+        actionId: calendarSchedulingActionIds.scheduleStaff,
+        actionLabel: 'Schedule staff',
+        items: buildUserSidePanelItems(response, days, timeZone, context, runtimeContext),
+        search: { placeholder: 'Search team...' },
+      },
     },
-    primaryColumn: {
-      label: 'ASSIGNMENTS',
-      resources,
-    },
-    cells,
-    sidePanel: {
-      label: 'TEAM',
-      actionId: calendarSchedulingActionIds.scheduleStaff,
-      actionLabel: 'Schedule staff',
-      items: buildUserSidePanelItems(response, days, timeZone, context, runtimeContext),
-      search: { placeholder: 'Search team...' },
-    },
-  };
+    response,
+    false,
+  );
+}
+
+function addRestrictedWarnings(
+  model: CalendarMatrixViewModel,
+  response: CalendarDataResponse,
+  resourceScoped: boolean,
+) {
+  const warnings = selectCalendarRestrictedWarnings(response);
+  for (const cell of model.cells) {
+    const resourceId = resourceScoped ? cell.resourceId : undefined;
+    for (const header of cell.headers ?? []) {
+      const event = header.payload;
+      if (!event || typeof event !== 'object' || !('metadata' in event)) continue;
+      header.restrictedWarnings = getCalendarRestrictedWarningsForEvent(
+        resolveCalendarEventId(event),
+        warnings,
+        resourceId,
+      );
+      if (header.restrictedWarnings.length) header.action = buildPulldownAction();
+    }
+    for (const item of cell.groups.flatMap((group) => group.events)) {
+      item.restrictedWarnings = getCalendarRestrictedWarningsForEvent(
+        resolveCalendarEventId(item.event),
+        warnings,
+        resourceId,
+      );
+      if (item.restrictedWarnings.length) item.display = { ...item.display, action: buildPulldownAction() };
+    }
+  }
+  return model;
 }
 
 function hasCalendarConflictData(response: CalendarDataResponse) {

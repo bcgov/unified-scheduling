@@ -64,6 +64,17 @@ export const PostApiSchedulingPublishPreviewResponse = zod.object({
         message: zod.string(),
       }),
     ),
+    restrictedWarnings: zod
+      .array(
+        zod.object({
+          eventId: zod.string(),
+          sourceModule: zod.string(),
+          resourceId: zod.uuid(),
+          message: zod.string(),
+        }),
+      )
+      .optional(),
+    hasRestrictedConflicts: zod.boolean().optional(),
   }),
   canPublish: zod.boolean(),
 });

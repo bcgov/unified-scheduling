@@ -73,7 +73,11 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
             timeZoneService
         );
         _assignmentProvider = new AssignmentProvider();
-        _conflicts = new CalendarConflictService([trainingProvider, _assignmentProvider], _db);
+        _conflicts = new CalendarConflictService(
+            [trainingProvider, _assignmentProvider],
+            _db,
+            CalendarConflictTestContext.Projection(ActorId)
+        );
         _service = new UserTrainingService(_db, _conflicts);
     }
 

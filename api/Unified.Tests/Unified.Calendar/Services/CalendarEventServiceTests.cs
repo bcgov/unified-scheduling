@@ -41,7 +41,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
             new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
             CreateCalendarTimeZoneResolver(),
             timeZoneService,
-            new CalendarConflictService([], _dbContext)
+            new CalendarConflictService([], _dbContext, new CalendarConflictProjection([])),
+            new CalendarConflictProjection([])
         );
     }
 
@@ -283,7 +284,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
             new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
             CreateCalendarTimeZoneResolver(),
             timeZoneService,
-            new CalendarConflictService([conflictProvider], _dbContext)
+            new CalendarConflictService([conflictProvider], _dbContext, new CalendarConflictProjection([])),
+            new CalendarConflictProjection([])
         );
         var request = CreateRequest(
             new DateOnly(2026, 7, 1),
@@ -295,7 +297,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
         await service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
 
         Assert.NotNull(conflictProvider.LastQuery);
-        Assert.Equal(new[] { "America/Toronto" }, conflictProvider.LastQuery.TimeZoneIds);
+        Assert.Equal(9, conflictProvider.LastQuery.LocationId);
         Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), conflictProvider.LastQuery.StartAtUtc);
         Assert.Equal(new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero), conflictProvider.LastQuery.EndAtUtc);
     }

@@ -126,13 +126,7 @@ public sealed class HolidayConflictParticipantProvider(
                 .ToList();
         }
 
-        var timeZones = ResolveTimeZones(query.TimeZoneIds);
-        if (timeZones.Count > 1)
-            throw new InvalidOperationException(
-                "Multiple operational time zones require resource-specific holiday contexts."
-            );
-
-        return [new HolidayContext(null, timeZones.Single())];
+        return [new HolidayContext(null, timeZoneResolver.Resolve(null))];
     }
 
     private IReadOnlyCollection<CalendarEventResponse> GetOverlappingHolidayEvents(
@@ -152,20 +146,17 @@ public sealed class HolidayConflictParticipantProvider(
             .ToList();
     }
 
-    private IReadOnlyCollection<TimeZoneInfo> ResolveTimeZones(IReadOnlyCollection<string>? timeZoneIds)
-    {
-        if (timeZoneIds is not { Count: > 0 })
-            return [timeZoneResolver.Resolve(null)];
-
-        var resolvedTimeZones = timeZoneIds
-            .Where(timeZoneId => !string.IsNullOrWhiteSpace(timeZoneId))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(timeZoneId => timeZoneResolver.Resolve(timeZoneId))
-            .DistinctBy(timeZone => timeZone.Id, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return resolvedTimeZones.Count > 0 ? resolvedTimeZones : [timeZoneResolver.Resolve(null)];
-    }
+    public Task<CalendarConflictParticipantVisibility?> GetVisibilityAsync(
+        CalendarConflictParticipant participant,
+        IReadOnlySet<string> viewerPermissions,
+        CancellationToken cancellationToken = default
+    ) =>
+        Task.FromResult<CalendarConflictParticipantVisibility?>(
+            participant.SourceModule == CalendarConstants.SourceModule
+            && TryParseEventId(participant.EventId, out _, out _, out _)
+                ? new(true, [])
+                : null
+        );
 
     private CalendarConflictParticipant MapParticipant(
         CalendarEventResponse holidayEvent,
@@ -181,8 +172,7 @@ public sealed class HolidayConflictParticipantProvider(
             holidayEvent.Title,
             TimeZoneId: timeZoneId,
             RequiresMatchingTimeZone: true,
-            IsInQueryScope: false,
-            CanonicalEventId: holidayEvent.Id
+            IsInQueryScope: false
         );
 
     // The time zone is part of the synthetic identity so overrides can reconstruct the

@@ -1,3 +1,5 @@
+using Unified.Calendar.Models;
+
 namespace Unified.Scheduling.Models;
 
 public sealed record SchedulePublishRequest(int LocationId, DateOnly StartDate, DateOnly EndDate);
@@ -42,7 +44,11 @@ public sealed record SchedulePublishShiftBlockerResponse(string Message);
 public sealed record SchedulePublishBlockersResponse(
     IReadOnlyCollection<SchedulePublishConflictResponse> Conflicts,
     IReadOnlyCollection<SchedulePublishShiftBlockerResponse> ShiftConflicts
-);
+)
+{
+    public IReadOnlyCollection<CalendarRestrictedConflictWarningResponse> RestrictedWarnings { get; init; } = [];
+    public bool HasRestrictedConflicts { get; init; }
+}
 
 public sealed record SchedulePublishPreviewResponse(
     SchedulePublishScopeResponse Scope,

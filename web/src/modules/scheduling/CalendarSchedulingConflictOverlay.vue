@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import type { CalendarConflict, CalendarConflictEvent } from '@/modules/calendar/calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarConflictEvent,
+  CalendarRestrictedConflictWarning,
+} from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixConflictItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import { resolveCalendarConflictSides } from '@/modules/calendar/calendarConflictFormatting';
 import { formatCalendarDateTimeRange } from '@/utils/date';
 
 const props = defineProps<{
   conflicts: CalendarMatrixConflictItem[];
+  restrictedWarnings?: CalendarRestrictedConflictWarning[];
   icon?: string;
   timeZone: string;
 }>();
@@ -30,6 +35,14 @@ function resolveLabel(conflict: CalendarConflict) {
 <template>
   <section class="calendar-scheduling-conflict-overlay">
     <h3 class="calendar-scheduling-conflict-overlay__heading">Conflict(s)</h3>
+    <article
+      v-for="warning in restrictedWarnings"
+      :key="`${warning.eventId}:${warning.resourceId}`"
+      class="calendar-scheduling-conflict-overlay__summary"
+    >
+      <v-icon v-if="icon" :icon="icon" size="18" />
+      <span>{{ warning.message }}</span>
+    </article>
     <article v-for="item in conflicts" :key="item.conflict.id" class="calendar-scheduling-conflict-overlay__item">
       <div class="calendar-scheduling-conflict-overlay__summary">
         <v-icon

@@ -1,10 +1,17 @@
 using System.Data.Common;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Holidays;
+using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
@@ -66,13 +73,147 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RestrictedAssignmentOnHoliday_HasNoPublicCalendarAnchor_ButStillBlocksMutation()
+    {
+        var start = new DateTimeOffset(2026, 7, 1, 16, 0, 0, TimeSpan.Zero);
+        var assignment = new CalendarConflictParticipant(
+            "hidden-assignment",
+            "scheduling",
+            FirstEnabledUserId,
+            start,
+            start.AddHours(1),
+            "Hidden assignment",
+            TimeZoneId: "America/Vancouver"
+        );
+        var provider = new FixedParticipantProvider(assignment);
+        var accessor = CalendarConflictTestContext.Accessor(FirstEnabledUserId);
+        accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(FirstEnabledUserId);
+        var projection = new CalendarConflictProjection([_provider, provider], accessor);
+        var service = new CalendarConflictService([_provider, provider], _db, projection);
+        var time = new TimeZoneService();
+        var query = new CalendarQueryService(
+            NullLogger<CalendarQueryService>.Instance,
+            _db,
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), time),
+            new CalendarTimeZoneResolver(
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
+                time
+            ),
+            time,
+            service,
+            projection
+        );
+
+        var calendar = await query.GetCalendarDataAsync(
+            new CalendarDataRequest { StartDate = new DateOnly(2026, 7, 1), EndDate = new DateOnly(2026, 7, 1) },
+            TestContext.Current.CancellationToken
+        );
+        Assert.Empty(calendar.Conflicts);
+        Assert.Empty(calendar.RestrictedWarnings);
+        Assert.False(calendar.HasRestrictedConflicts);
+        var json = System.Text.Json.JsonSerializer.Serialize(calendar);
+        Assert.DoesNotContain("hidden-assignment", json);
+        Assert.DoesNotContain("Hidden assignment", json);
+
+        var rejection = await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            service.EnsureNoUnresolvedConflictsAsync([assignment], TestContext.Current.CancellationToken)
+        );
+        var context = new ExceptionContext(
+            new ActionContext(new DefaultHttpContext(), new RouteData(), new ActionDescriptor()),
+            []
+        )
+        {
+            Exception = rejection,
+        };
+        await new CalendarConflictExceptionFilter(projection).OnExceptionAsync(context);
+        var failure = Assert.IsType<CalendarConflictRejectionResponse>(
+            Assert.IsType<ConflictObjectResult>(context.Result).Value
+        );
+        Assert.True(failure.HasRestrictedConflicts);
+        Assert.Empty(failure.RestrictedWarnings);
+        Assert.Empty(failure.Conflicts);
+        var holiday = Assert.Single(rejection.Conflicts).Entry;
+        if (holiday.SourceModule != "calendar")
+            holiday = Assert.Single(rejection.Conflicts).Overlaps;
+        var visibility = await _provider.GetVisibilityAsync(
+            holiday,
+            new HashSet<string>(),
+            TestContext.Current.CancellationToken
+        );
+        Assert.True(visibility!.CanView);
+        Assert.Empty(visibility.VisibleAnchors);
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_WhenResourceContextsAreEmpty_DoesNotQueryUsers()
+    {
+        _userQueryCounter.Reset();
+        var participants = await _provider.GetParticipantsAsync(
+            new CalendarConflictQuery(
+                new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero),
+                ResourceTimeZones: []
+            ),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Empty(participants);
+        Assert.Equal(0, _userQueryCounter.UserQueryCount);
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_WhenResourceContextsAreUnavailable_UsesConfiguredDefaultZone()
+    {
+        var participants = await _provider.GetParticipantsAsync(
+            new CalendarConflictQuery(
+                new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero),
+                ResourceIds: [FirstEnabledUserId]
+            ),
+            TestContext.Current.CancellationToken
+        );
+        var holiday = Assert.Single(participants);
+        Assert.Equal("America/Vancouver", holiday.TimeZoneId);
+        Assert.Equal("stat-holiday:CanadaDay:2026-07-01:America/Vancouver", holiday.EventId);
+    }
+
+    [Fact]
+    public async Task GetConflictsAsync_WhenParticipantTimeZoneIsNull_DoesNotInventAHolidayResourceContext()
+    {
+        _userQueryCounter.Reset();
+        var assignment = new CalendarConflictParticipant(
+            "42",
+            "scheduling",
+            FirstEnabledUserId,
+            new DateTimeOffset(2026, 7, 1, 13, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 1, 14, 0, 0, TimeSpan.Zero),
+            "Assignment",
+            TimeZoneId: null
+        );
+        var service = new CalendarConflictService(
+            [_provider, new FixedParticipantProvider(assignment)],
+            _db,
+            new CalendarConflictProjection([])
+        );
+        var conflicts = await service.GetConflictsAsync(
+            new CalendarConflictQuery(assignment.Start, assignment.End),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Empty(conflicts);
+        Assert.Equal(0, _userQueryCounter.UserQueryCount);
+    }
+
+    [Fact]
     public async Task GetParticipantsAsync_WhenHolidayOverlaps_ReturnsEveryEnabledUserInRequestedTimeZone()
     {
         var participants = await _provider.GetParticipantsAsync(
             new CalendarConflictQuery(
                 new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero),
                 new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero),
-                TimeZoneIds: ["America/Toronto"]
+                ResourceTimeZones:
+                [
+                    new(FirstEnabledUserId, "America/Toronto"),
+                    new(SecondEnabledUserId, "America/Toronto"),
+                ]
             ),
             TestContext.Current.CancellationToken
         );
@@ -92,7 +233,6 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
                 Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), participant.Start);
                 Assert.Equal(new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero), participant.End);
                 Assert.Equal("America/Toronto", participant.TimeZoneId);
-                Assert.Equal("stat-holiday:CanadaDay:2026-07-01", participant.CanonicalEventId);
                 Assert.Null(participant.SourceEntityId);
             }
         );
@@ -138,7 +278,11 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             "Court Room Monitor",
             TimeZoneId: "America/Toronto"
         );
-        var service = new CalendarConflictService([_provider, new FixedParticipantProvider(assignment)], _db);
+        var service = new CalendarConflictService(
+            [_provider, new FixedParticipantProvider(assignment)],
+            _db,
+            new CalendarConflictProjection([])
+        );
 
         var conflict = Assert.Single(
             await service.GetConflictsAsync(
@@ -146,7 +290,11 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
                     new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero),
                     new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero),
                     ResourceIds: [FirstEnabledUserId],
-                    TimeZoneIds: ["America/Toronto"]
+                    ResourceTimeZones:
+                    [
+                        new(FirstEnabledUserId, "America/Toronto"),
+                        new(SecondEnabledUserId, "America/Toronto"),
+                    ]
                 ),
                 TestContext.Current.CancellationToken
             )
@@ -181,7 +329,7 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             "Vancouver assignment",
             TimeZoneId: "America/Vancouver"
         );
-        var service = new CalendarConflictService([_provider], _db);
+        var service = new CalendarConflictService([_provider], _db, new CalendarConflictProjection([]));
 
         var conflicts = await service.GetConflictsForCandidatesAsync(
             [torontoAssignment, vancouverAssignment],
@@ -189,24 +337,6 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
         );
 
         Assert.Empty(conflicts);
-    }
-
-    [Fact]
-    public async Task GetParticipantsAsync_WhenMultipleTimeZonesLackResourceContexts_Throws()
-    {
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _provider.GetParticipantsAsync(
-                new CalendarConflictQuery(
-                    new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero),
-                    new DateTimeOffset(2026, 7, 2, 7, 0, 0, TimeSpan.Zero),
-                    ResourceIds: [FirstEnabledUserId],
-                    TimeZoneIds: ["America/Toronto", "America/Vancouver"]
-                ),
-                TestContext.Current.CancellationToken
-            )
-        );
-
-        Assert.Contains("resource-specific", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -230,7 +360,7 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             "Vancouver assignment",
             TimeZoneId: "America/Vancouver"
         );
-        var service = new CalendarConflictService([_provider], _db);
+        var service = new CalendarConflictService([_provider], _db, new CalendarConflictProjection([]));
 
         var conflicts = await service.GetConflictsForCandidatesAsync(
             [torontoAssignment, vancouverAssignment],
@@ -254,7 +384,11 @@ public sealed class HolidayConflictParticipantProviderTests : IAsyncLifetime
             new CalendarConflictQuery(
                 new DateTimeOffset(2026, 8, 24, 7, 0, 0, TimeSpan.Zero),
                 new DateTimeOffset(2026, 8, 25, 7, 0, 0, TimeSpan.Zero),
-                TimeZoneIds: ["America/Vancouver"]
+                ResourceTimeZones:
+                [
+                    new(FirstEnabledUserId, "America/Vancouver"),
+                    new(SecondEnabledUserId, "America/Vancouver"),
+                ]
             ),
             TestContext.Current.CancellationToken
         );
