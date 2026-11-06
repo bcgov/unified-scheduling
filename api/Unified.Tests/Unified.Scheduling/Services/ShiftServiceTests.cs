@@ -5,18 +5,22 @@ using Microsoft.Extensions.Options;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Factories;
 using Unified.Calendar.Mappings;
+using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Calendar.Scheduling.Models;
 using Unified.Common.Time;
 using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
+using Unified.Db.Models.Leave;
 using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.UserManagement;
+using Unified.Leave.Conflicts;
 using Unified.LoanOut.Constants;
 using Unified.LoanOut.Factories;
 using Unified.LoanOut.Mappers;
@@ -41,6 +45,7 @@ public class ShiftServiceTests : IAsyncLifetime
     private SqliteConnection _connection = null!;
     private UnifiedDbContext _dbContext = null!;
     private ShiftService _service = null!;
+    private CalendarConflictService _conflictService = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -67,10 +72,15 @@ public class ShiftServiceTests : IAsyncLifetime
             recurrenceExpander
         );
         var materializationHandler = new ShiftSeriesMaterializationHandler(_dbContext);
-        var conflictService = new CalendarConflictService(
-            [new SchedulingConflictParticipantProvider(_dbContext)],
+        ICalendarConflictParticipantProvider[] providers =
+        [
+            new SchedulingConflictParticipantProvider(_dbContext),
+            new LeaveConflictParticipantProvider(_dbContext),
+        ];
+        var conflictService = _conflictService = new CalendarConflictService(
+            providers,
             _dbContext,
-            new CalendarConflictProjection([])
+            new CalendarConflictProjection(providers, CalendarConflictTestContext.Accessor(UserC))
         );
         var schedulingLoanOutService = SchedulingLoanOutTestServices.Create(
             _dbContext,
@@ -104,6 +114,214 @@ public class ShiftServiceTests : IAsyncLifetime
     {
         await _dbContext.DisposeAsync();
         await _connection.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("time", true)]
+    [InlineData("users", true)]
+    [InlineData("location", false)]
+    [InlineData("notes", false)]
+    public async Task UpdateShiftEntryAsync_WhenAcknowledgedLeaveConflictChanges_InvalidatesOnlyResolvedOverrides(
+        string change,
+        bool invalidated
+    )
+    {
+        var request = CreateShiftEntryRequest();
+        var entry = await _service.CreateShiftEntryAsync(request, TestContext.Current.CancellationToken);
+        var acknowledgement = await AddLeaveOverrideAsync(entry.EventId, UserA);
+        var other = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(userIds: [UserB]),
+            TestContext.Current.CancellationToken
+        );
+        var unrelated = await AddLeaveOverrideAsync(other.EventId, UserB);
+        var updated = change switch
+        {
+            "time" => request with
+            {
+                StartAtUtc = request.StartAtUtc.AddDays(1),
+                EndAtUtc = request.EndAtUtc!.Value.AddDays(1),
+            },
+            "users" => request with { UserIds = [UserC] },
+            "location" => request with { LocationId = 9 },
+            _ => request with { Notes = "Updated notes" },
+        };
+
+        await _service.UpdateShiftEntryAsync(entry.Id, updated, TestContext.Current.CancellationToken);
+
+        Assert.Equal(invalidated, acknowledgement.InvalidatedOn.HasValue);
+        Assert.Null(unrelated.InvalidatedOn);
+        if (change == "time")
+        {
+            await _service.UpdateShiftEntryAsync(entry.Id, request, TestContext.Current.CancellationToken);
+            await Assert.ThrowsAsync<CalendarConflictException>(() =>
+                _service.PublishShiftEntryAsync(entry.Id, TestContext.Current.CancellationToken)
+            );
+            Assert.NotNull(acknowledgement.InvalidatedOn);
+        }
+    }
+
+    [Theory]
+    [InlineData("time", true)]
+    [InlineData("recurrence", true)]
+    [InlineData("users", true)]
+    [InlineData("location", false)]
+    [InlineData("notes", false)]
+    public async Task UpdateShiftSeriesAsync_WhenAcknowledgedLeaveConflictChanges_InvalidatesOriginalResolvedIdentities(
+        string change,
+        bool invalidated
+    )
+    {
+        var request = CreateShiftSeriesRequest();
+        var series = await _service.CreateShiftSeriesAsync(request, TestContext.Current.CancellationToken);
+        var originalEventId = Assert.Single(series.EventIds);
+        var acknowledgement = await AddLeaveOverrideAsync(originalEventId, UserA);
+        var other = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(userIds: [UserB]),
+            TestContext.Current.CancellationToken
+        );
+        var unrelated = await AddLeaveOverrideAsync(other.EventId, UserB);
+        var updated = change switch
+        {
+            "time" => request with
+            {
+                StartAtUtc = request.StartAtUtc.AddDays(1),
+                EndAtUtc = request.EndAtUtc!.Value.AddDays(1),
+            },
+            "recurrence" => request with { RecurrenceRule = "FREQ=DAILY;COUNT=2" },
+            "users" => request with { UserIds = [UserC] },
+            "location" => request with { LocationId = 9 },
+            _ => request with { Notes = "Updated notes" },
+        };
+
+        var result = await _service.UpdateShiftSeriesAsync(series.Id, updated, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(invalidated, acknowledgement.InvalidatedOn.HasValue);
+        Assert.Null(unrelated.InvalidatedOn);
+        if (change is "time" or "recurrence")
+            Assert.DoesNotContain(originalEventId, result.EventIds);
+        else
+            Assert.Equal(series.EventIds, result.EventIds);
+        if (change == "time")
+        {
+            await _service.UpdateShiftSeriesAsync(series.Id, request, TestContext.Current.CancellationToken);
+            await Assert.ThrowsAsync<CalendarConflictException>(() =>
+                _service.PublishShiftSeriesAsync(series.Id, TestContext.Current.CancellationToken)
+            );
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task RemoveShift_WhenLeaveConflictWasAcknowledged_InvalidatesOnlyAffectedOverride(
+        bool series,
+        bool cancel
+    )
+    {
+        int id;
+        int eventId;
+        if (series)
+        {
+            var created = await _service.CreateShiftSeriesAsync(
+                CreateShiftSeriesRequest(),
+                TestContext.Current.CancellationToken
+            );
+            id = created.Id;
+            eventId = Assert.Single(created.EventIds);
+        }
+        else
+        {
+            var created = await _service.CreateShiftEntryAsync(
+                CreateShiftEntryRequest(),
+                TestContext.Current.CancellationToken
+            );
+            id = created.Id;
+            eventId = created.EventId;
+        }
+        var acknowledgement = await AddLeaveOverrideAsync(eventId, UserA);
+        var other = await _service.CreateShiftEntryAsync(
+            CreateShiftEntryRequest(userIds: [UserB]),
+            TestContext.Current.CancellationToken
+        );
+        var unrelated = await AddLeaveOverrideAsync(other.EventId, UserB);
+
+        if (series && cancel)
+            await _service.ExpireShiftSeriesAsync(
+                id,
+                new ExpireShiftRequest(),
+                CancelledByUser,
+                TestContext.Current.CancellationToken
+            );
+        else if (series)
+            Assert.True(await _service.DeleteShiftSeriesAsync(id, TestContext.Current.CancellationToken));
+        else if (cancel)
+            await _service.ExpireShiftEntryAsync(
+                id,
+                new ExpireShiftRequest(),
+                CancelledByUser,
+                TestContext.Current.CancellationToken
+            );
+        else
+            Assert.True(await _service.DeleteShiftEntryAsync(id, TestContext.Current.CancellationToken));
+
+        Assert.NotNull(acknowledgement.InvalidatedOn);
+        Assert.Null(unrelated.InvalidatedOn);
+    }
+
+    private async Task<CalendarConflictOverride> AddLeaveOverrideAsync(int shiftEventId, Guid userId)
+    {
+        if (!await _dbContext.EventTypes.AnyAsync(type => type.Code == "leave", TestContext.Current.CancellationToken))
+            _dbContext.EventTypes.Add(CreateEventType("leave"));
+        var shiftEvent = await _dbContext.Events.SingleAsync(
+            calendarEvent => calendarEvent.Id == shiftEventId,
+            TestContext.Current.CancellationToken
+        );
+        var leave = new LeaveEntry
+        {
+            LeaveType = new LeaveType
+            {
+                Code = $"Leave{shiftEventId}",
+                Description = "Private leave type",
+                EffectiveDate = new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            },
+            Event = new Event
+            {
+                SourceModule = "leave",
+                EventTypeCode = "leave",
+                StatusTypeCode = CalendarEventStatusTypeCodes.Draft,
+                Title = "Private leave",
+                StartAtUtc = shiftEvent.StartAtUtc,
+                EndAtUtc = shiftEvent.EndAtUtc,
+                LocationId = 5,
+                TimeZoneId = "America/Vancouver",
+            },
+            Users = [new() { UserId = userId }],
+        };
+        _dbContext.LeaveEntries.Add(leave);
+        await _dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await _conflictService.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = "leave",
+                FirstEventId = leave.EventId.ToString(),
+                SecondSourceModule = "scheduling",
+                SecondEventId = shiftEventId.ToString(),
+                ResourceId = userId,
+                Note = "Acknowledged leave overlap",
+            },
+            UserC,
+            TestContext.Current.CancellationToken
+        );
+        return await _dbContext.CalendarConflictOverrides.SingleAsync(
+            item =>
+                item.FirstSourceModule == "leave"
+                && item.FirstEventId == leave.EventId.ToString()
+                && item.ResourceId == userId,
+            TestContext.Current.CancellationToken
+        );
     }
 
     [Fact]

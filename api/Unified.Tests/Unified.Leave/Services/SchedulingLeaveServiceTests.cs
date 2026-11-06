@@ -939,6 +939,70 @@ public sealed class SchedulingLeaveServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateLeaveSeriesAsync_WhenOnlyNotesChangeAfterAllDayException_PreservesDatesAndOccurrences()
+    {
+        var request = CreateSeriesRequest(recurrenceRule: "FREQ=WEEKLY;COUNT=3");
+        var series = await _service.CreateLeaveSeriesAsync(request, TestContext.Current.CancellationToken);
+        var entryId = series.LeaveEntryIds.Order().Skip(1).First();
+        await _service.UpdateLeaveEntryAsync(
+            entryId,
+            CreateEntryRequest(leaveSeriesId: series.Id) with
+            {
+                AllDay = true,
+                LeaveDate = new DateOnly(2026, 6, 8),
+                StartAtUtc = null,
+                EndAtUtc = null,
+            },
+            TestContext.Current.CancellationToken
+        );
+        var before = await _database
+            .Db.LeaveEntries.AsNoTracking()
+            .Where(entry => entry.LeaveSeriesId == series.Id)
+            .OrderBy(entry => entry.Id)
+            .Select(entry => new
+            {
+                entry.Id,
+                entry.EventId,
+                entry.Event!.StartAtUtc,
+                entry.Event.EndAtUtc,
+                entry.Event.AllDay,
+                entry.Event.IsException,
+            })
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        var result = await _service.UpdateLeaveSeriesAsync(
+            series.Id,
+            request with
+            {
+                Notes = "Updated notes",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(result);
+        Assert.Equal(series.StartAtUtc, result.StartAtUtc);
+        Assert.Equal(series.EndAtUtc, result.EndAtUtc);
+        Assert.Equal(series.RecurrenceRule, result.RecurrenceRule);
+        Assert.Equal(
+            before,
+            await _database
+                .Db.LeaveEntries.AsNoTracking()
+                .Where(entry => entry.LeaveSeriesId == series.Id)
+                .OrderBy(entry => entry.Id)
+                .Select(entry => new
+                {
+                    entry.Id,
+                    entry.EventId,
+                    entry.Event!.StartAtUtc,
+                    entry.Event.EndAtUtc,
+                    entry.Event.AllDay,
+                    entry.Event.IsException,
+                })
+                .ToListAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public async Task UpdateLeaveSeriesAsync_WhenRecurrenceChanged_RegeneratesDraftEntries()
     {
         var created = await _service.CreateLeaveSeriesAsync(

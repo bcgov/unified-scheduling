@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Unified.Authorization;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -10,6 +11,18 @@ namespace Unified.Leave.Conflicts;
 
 public sealed class LeaveConflictParticipantProvider(UnifiedDbContext db) : ICalendarConflictParticipantProvider
 {
+    public async Task<CalendarConflictParticipantVisibility?> GetVisibilityAsync(
+        CalendarConflictParticipant participant,
+        IReadOnlySet<string> viewerPermissions,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (await GetParticipantAsync(participant.Identity, participant.ResourceId, cancellationToken) is null)
+            return null;
+
+        return new(viewerPermissions.Contains(nameof(Permissions.LeaveView)), []);
+    }
+
     public static CalendarConflictEventIdentity IdentityFor(int eventId) =>
         CalendarConflictEventIdentity.Create(
             LeaveConstants.SourceModule,

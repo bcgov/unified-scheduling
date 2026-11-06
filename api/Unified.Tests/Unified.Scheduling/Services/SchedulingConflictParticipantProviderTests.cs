@@ -453,7 +453,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetParticipantsAsync_WithLocationScope_IncludesCrossLocationEventsForScopedResourcesOnly()
+    public async Task GetParticipantsAsync_WithLocationScope_DefersCrossLocationResourceFiltering()
     {
         var vancouver = new Location
         {
@@ -487,12 +487,15 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         );
 
         Assert.Equal(
-            new[] { "101", "201" },
+            new[] { "101", "201", "301" },
             participants.Where(item => item.ConflictsWithSourceModule is null).Select(item => item.EventId).Order()
         );
         Assert.True(participants.Single(participant => participant.EventId == "101").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "201").IsInQueryScope);
-        Assert.DoesNotContain(participants, participant => participant.ResourceId == UnrelatedUserId);
+        Assert.All(
+            participants.Where(participant => participant.ResourceId == UnrelatedUserId),
+            participant => Assert.False(participant.IsInQueryScope)
+        );
     }
 
     [Fact]
@@ -530,17 +533,30 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         );
 
         Assert.Equal(
-            new[] { "501", "601" },
+            new[] { "501", "601", "701" },
             participants.Where(item => item.ConflictsWithSourceModule is null).Select(item => item.EventId).Order()
         );
         Assert.True(participants.Single(participant => participant.EventId == "501").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "601").IsInQueryScope);
-        Assert.Single(CalendarConflictDetector.Detect(participants));
-        Assert.DoesNotContain(participants, participant => participant.ResourceId == UnrelatedUserId);
+        var service = new CalendarConflictService([_provider], _db, new CalendarConflictProjection([_provider]));
+        Assert.Single(
+            await service.GetConflictsAsync(
+                CreateQuery() with
+                {
+                    LocationId = vancouver.Id,
+                    ResourceIds = [MultiLocationUserId, UnrelatedUserId],
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.All(
+            participants.Where(participant => participant.ResourceId == UnrelatedUserId),
+            participant => Assert.False(participant.IsInQueryScope)
+        );
     }
 
     [Fact]
-    public async Task GetParticipantsAsync_WithLocationScope_ReturnsLeaveOnlyShiftsForScopedResources()
+    public async Task GetParticipantsAsync_WithLocationScope_ReturnsLeaveOnlyShiftsAcrossLocations()
     {
         var vancouver = new Location
         {
@@ -568,15 +584,16 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             CreateQuery() with
             {
                 LocationId = vancouver.Id,
+                ResourceIds = [MultiLocationUserId, UnrelatedUserId],
             },
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(new[] { "1000", "1100" }, participants.Select(participant => participant.EventId).Order());
+        Assert.Equal(new[] { "1000", "1100", "1200" }, participants.Select(participant => participant.EventId).Order());
         Assert.All(participants, participant => Assert.Equal("leave", participant.ConflictsWithSourceModule));
         Assert.True(participants.Single(participant => participant.EventId == "1000").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "1100").IsInQueryScope);
-        Assert.DoesNotContain(participants, participant => participant.ResourceId == UnrelatedUserId);
+        Assert.False(participants.Single(participant => participant.EventId == "1200").IsInQueryScope);
     }
 
     [Fact]
