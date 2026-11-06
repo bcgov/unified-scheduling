@@ -2,7 +2,7 @@
 import type { UserTrainingResponse } from '@/api-access/generated/models';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaModal from '@/shared/components/UaModal.vue';
-import { toCalendarDateString } from '@/utils/date';
+import { toCalendarDateString, toDateTime } from '@/utils/date';
 import { computed, ref } from 'vue';
 
 const props = defineProps<{
@@ -52,11 +52,15 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
         <v-col cols="12" sm="8">{{ props.training.trainingCategoryName }}</v-col>
 
         <v-col cols="12" sm="4" class="user-training-details__label">From</v-col>
-        <v-col cols="12" sm="8">{{ toCalendarDateString(props.training.awardedOn) ?? '-' }}</v-col>
+        <v-col cols="12" sm="8">{{
+          toDateTime(props.training.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a')
+        }}</v-col>
 
         <v-col cols="12" sm="4" class="user-training-details__label">To</v-col>
         <v-col cols="12" sm="8">{{
-          toCalendarDateString(props.training.endingOn ?? props.training.awardedOn) ?? '-'
+          toDateTime(props.training.endingOn ?? props.training.awardedOn, 'America/Vancouver').toFormat(
+            'yyyy-MM-dd h:mm a',
+          )
         }}</v-col>
 
         <v-col cols="12" sm="4" class="user-training-details__label">Expiry Date</v-col>
@@ -83,11 +87,11 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
         hide-default-footer
       >
         <template #[`item.awardedOn`]="{ item }">
-          {{ toCalendarDateString(item.awardedOn) ?? '-' }}
+          {{ toDateTime(item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a') }}
         </template>
 
         <template #[`item.endingOn`]="{ item }">
-          {{ toCalendarDateString(item.endingOn ?? item.awardedOn) ?? '-' }}
+          {{ toDateTime(item.endingOn ?? item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a') }}
         </template>
 
         <template #[`item.expiryDate`]="{ item }">
