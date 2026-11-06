@@ -3,7 +3,6 @@ export * from './assignment/assignment.ts';
 export * from './assignment-definition/assignment-definition.ts';
 export * from './audit/audit.ts';
 export * from './auth/auth.ts';
-export * from './away-locations/away-locations.ts';
 export * from './calendar/calendar.ts';
 export * from './config/config.ts';
 export * from './dashboard/dashboard.ts';

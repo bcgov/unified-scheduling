@@ -3,7 +3,6 @@ export * from './assignment/assignment.zod.ts';
 export * from './assignment-definition/assignment-definition.zod.ts';
 export * from './audit/audit.zod.ts';
 export * from './auth/auth.zod.ts';
-export * from './away-locations/away-locations.zod.ts';
 export * from './calendar/calendar.zod.ts';
 export * from './config/config.zod.ts';
 export * from './dashboard/dashboard.zod.ts';
