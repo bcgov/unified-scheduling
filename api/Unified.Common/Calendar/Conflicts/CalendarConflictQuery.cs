@@ -5,8 +5,6 @@ public sealed record CalendarConflictQuery(
     DateTimeOffset EndAtUtc,
     IReadOnlyCollection<Guid>? ResourceIds = null,
     bool IncludeDraftParticipants = true,
-    IReadOnlySet<string>? ViewerPermissions = null,
-    IReadOnlyCollection<string>? TimeZoneIds = null,
     int? LocationId = null,
     IReadOnlyCollection<CalendarConflictResourceTimeZone>? ResourceTimeZones = null
 );

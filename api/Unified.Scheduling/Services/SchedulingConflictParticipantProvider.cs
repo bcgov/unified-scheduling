@@ -8,6 +8,57 @@ namespace Unified.Scheduling.Services;
 
 public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) : ICalendarConflictParticipantProvider
 {
+    public async Task<CalendarConflictParticipantVisibility?> GetVisibilityAsync(
+        CalendarConflictParticipant participant,
+        IReadOnlySet<string> viewerPermissions,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            participant.SourceModule != SchedulingConstants.SourceModule
+            || !int.TryParse(participant.EventId, out var eventId)
+        )
+            return null;
+
+        var eventType = await db
+            .Events.AsNoTracking()
+            .Where(calendarEvent =>
+                calendarEvent.Id == eventId && calendarEvent.SourceModule == SchedulingConstants.SourceModule
+            )
+            .Select(calendarEvent => calendarEvent.EventTypeCode)
+            .SingleOrDefaultAsync(cancellationToken);
+        var canView = eventType switch
+        {
+            SchedulingConstants.AssignmentEventTypeCode => viewerPermissions.Contains(
+                nameof(Permissions.AssignmentsView)
+            ),
+            SchedulingConstants.ShiftEventTypeCode => viewerPermissions.Contains(nameof(Permissions.ShiftsView)),
+            _ => false,
+        };
+        if (canView)
+            return new(true, [participant.Identity]);
+        if (
+            eventType != SchedulingConstants.AssignmentEventTypeCode
+            || !viewerPermissions.Contains(nameof(Permissions.ShiftsView))
+        )
+            return new(false, []);
+
+        // Reuse actual assignment/user/shift links without adding shift conflict participation.
+        var shiftEventIds = await ActiveParticipantQuery(db)
+            .Where(link =>
+                link.UserId == participant.ResourceId && link.ShiftAssignmentEntry!.AssignmentEntry!.EventId == eventId
+            )
+            .Select(link => link.ShiftAssignmentEntry!.ShiftEntry!.EventId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        return new(
+            false,
+            shiftEventIds
+                .Select(id => CalendarConflictEventIdentity.Create(SchedulingConstants.SourceModule, id.ToString()))
+                .ToList()
+        );
+    }
+
     public async Task<CalendarConflictParticipant?> GetParticipantAsync(
         CalendarConflictEventIdentity identity,
         Guid resourceId,
@@ -41,9 +92,6 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         CancellationToken cancellationToken = default
     )
     {
-        if (query.ViewerPermissions is { } permissions && !permissions.Contains(nameof(Permissions.AssignmentsView)))
-            return [];
-
         var participants = ActiveParticipantQuery(db)
             .Where(participant =>
                 participant.ShiftAssignmentEntry!.AssignmentEntry!.Event!.StartAtUtc < query.EndAtUtc
@@ -243,8 +291,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     false,
                     !scopeLocationId.HasValue
                         || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == null
-                        || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == scopeLocationId,
-                    null
+                        || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == scopeLocationId
                 ))
                 .ToListAsync(cancellationToken)
         )
@@ -276,8 +323,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                     false,
                     !scopeLocationId.HasValue
                         || participant.ShiftEntry.Event.LocationId == null
-                        || participant.ShiftEntry.Event.LocationId == scopeLocationId,
-                    null
+                        || participant.ShiftEntry.Event.LocationId == scopeLocationId
                 ))
                 .ToListAsync(cancellationToken)
         )

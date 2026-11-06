@@ -1705,6 +1705,17 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
+  it('handles a restricted conflict rejection without either hidden event identity', async () => {
+    const { wrapper } = await mountAssignmentCreateModalWithSaveError({
+      message: 'Conflict',
+      data: { message: 'Conflict', conflicts: [], restrictedWarnings: [], hasRestrictedConflicts: true },
+    });
+    expect(document.body.textContent).toContain('unresolved conflicts with events you do not have permission to view');
+    expect(document.body.textContent).not.toContain('Override conflict');
+    expect(wrapper.emitted('close')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   it('does not load assignment definitions or shift options without an active location', async () => {
     const getApiSchedulingAssignmentDefinitions = vi.fn();
     const getApiSchedulingShiftSeries = vi.fn();
@@ -2178,145 +2189,188 @@ describe('CalendarSchedulingAssignmentModal', () => {
     wrapper.unmount();
   });
 
-  it('retries an entry edit with the acknowledged conflict in the same mutation', async () => {
-    const resourceId = 'feaa2a73-6898-48ae-9c32-9633b1ec5538';
-    const conflict = {
-      id: '41:52:feaa2a73-6898-48ae-9c32-9633b1ec5538',
-      entry: {
-        eventId: '41',
-        sourceModule: 'scheduling',
-        title: 'Court Room Monitor',
-        start: '2026-08-25T16:00:00Z',
-        end: '2026-08-25T18:00:00Z',
-        sourceEntityId: 257,
-        timeZoneId: 'America/Vancouver',
-      },
-      overlaps: {
-        eventId: '52',
-        sourceModule: 'scheduling',
-        title: 'Intake coverage',
-        start: '2026-08-25T17:00:00Z',
-        end: '2026-08-25T19:00:00Z',
-        sourceEntityId: 258,
-        timeZoneId: 'America/Vancouver',
-      },
-      resourceId,
-      overlapStart: '2026-08-25T17:00:00Z',
-      overlapEnd: '2026-08-25T18:00:00Z',
-      isOverridden: false,
-      overrideNote: null,
-      createdById: null,
-      createdOn: null,
-      updatedById: null,
-      updatedOn: null,
-    };
-    const putAssignmentEntry = vi
-      .fn()
-      .mockReturnValueOnce(
-        createFetchResult({
-          value: { message: 'The proposed change creates a calendar conflict.', conflicts: [conflict] },
-          error: new Error('The proposed change creates a calendar conflict.'),
-        }),
-      )
-      .mockReturnValueOnce(createFetchResult({ value: { id: 257 } }));
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+  ])(
+    'handles entry-edit conflicts with initial restricted=%s and retry restricted=%s',
+    async (initialRestricted, retryRestricted) => {
+      const resourceId = 'feaa2a73-6898-48ae-9c32-9633b1ec5538';
+      const conflict = {
+        id: '41:52:feaa2a73-6898-48ae-9c32-9633b1ec5538',
+        entry: {
+          eventId: '41',
+          sourceModule: 'scheduling',
+          title: 'Court Room Monitor',
+          start: '2026-08-25T16:00:00Z',
+          end: '2026-08-25T18:00:00Z',
+          sourceEntityId: 257,
+          timeZoneId: 'America/Vancouver',
+        },
+        overlaps: {
+          eventId: '52',
+          sourceModule: 'scheduling',
+          title: 'Intake coverage',
+          start: '2026-08-25T17:00:00Z',
+          end: '2026-08-25T19:00:00Z',
+          sourceEntityId: 258,
+          timeZoneId: 'America/Vancouver',
+        },
+        resourceId,
+        overlapStart: '2026-08-25T17:00:00Z',
+        overlapEnd: '2026-08-25T18:00:00Z',
+        isOverridden: false,
+        overrideNote: null,
+        createdById: null,
+        createdOn: null,
+        updatedById: null,
+        updatedOn: null,
+      };
+      const putAssignmentEntry = vi
+        .fn()
+        .mockReturnValueOnce(
+          createFetchResult({
+            value: {
+              message: 'The proposed change creates a calendar conflict.',
+              conflicts: [conflict],
+              hasRestrictedConflicts: initialRestricted,
+            },
+            error: new Error('The proposed change creates a calendar conflict.'),
+          }),
+        )
+        .mockReturnValueOnce(
+          retryRestricted
+            ? createFetchResult({
+                value: { message: 'Conflict', conflicts: [conflict], hasRestrictedConflicts: true },
+                error: new Error('Conflict'),
+              })
+            : createFetchResult({ value: { id: 257 } }),
+        );
 
-    vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
-      getApiSchedulingAssignmentDefinitions: vi.fn().mockReturnValue(
-        createFetchResult({
-          value: [
-            {
-              id: 7,
-              name: 'Court Room Monitor',
+      vi.doMock('@/api-access/generated/assignment-definition/assignment-definition', () => ({
+        getApiSchedulingAssignmentDefinitions: vi.fn().mockReturnValue(
+          createFetchResult({
+            value: [
+              {
+                id: 7,
+                name: 'Court Room Monitor',
+                locationId: 12,
+                categoryId: 6,
+                subCategoryId: 25,
+                color: 'pink',
+                defaultCapacity: 1,
+                effectiveDateUtc: '2026-08-01T00:00:00Z',
+                expiryDateUtc: null,
+              },
+            ],
+          }),
+        ),
+        postApiSchedulingAssignmentDefinitions: vi.fn(),
+      }));
+      vi.doMock('@/api-access/generated/shift/shift', () => ({
+        getApiSchedulingShiftsSeries: vi.fn().mockReturnValue(createFetchResult({ value: [] })),
+        getApiSchedulingShiftsEntries: vi.fn().mockReturnValue(createFetchResult({ value: [] })),
+      }));
+      vi.doMock('@/api-access/generated/users/users', () => ({
+        getApiUsers: vi.fn().mockReturnValue(createFetchResult({ value: [] })),
+      }));
+      vi.doMock('@/api-access/generated/assignment/assignment', () => ({
+        getApiSchedulingAssignmentsEntriesId: vi.fn().mockReturnValue(
+          createFetchResult({
+            value: {
+              id: 257,
+              assignmentDefinitionId: 7,
+              title: 'Court Room Monitor',
+              color: 'pink',
+              startAtUtc: '2026-08-25T16:00:00Z',
+              endAtUtc: '2026-08-25T18:00:00Z',
+              timeZoneId: 'America/Vancouver',
               locationId: 12,
               categoryId: 6,
               subCategoryId: 25,
-              color: 'pink',
-              defaultCapacity: 1,
-              effectiveDateUtc: '2026-08-01T00:00:00Z',
-              expiryDateUtc: null,
+              capacity: 1,
+              assignmentLinks: [],
+            },
+          }),
+        ),
+        getApiSchedulingAssignmentsSeriesId: vi.fn(),
+        putApiSchedulingAssignmentsEntriesId: putAssignmentEntry,
+        putApiSchedulingAssignmentsSeriesId: vi.fn(),
+        postApiSchedulingAssignmentsEntriesIdExpire: vi.fn(),
+        postApiSchedulingAssignmentsSeriesIdExpire: vi.fn(),
+      }));
+
+      const { default: CalendarSchedulingAssignmentModal } =
+        await import('@/modules/scheduling/CalendarSchedulingAssignmentModal.vue');
+      const app = await createTestApp({ loadConfig: false });
+      useLocationsStore(app.pinia).setSelectedLocationId(12);
+      const wrapper = mount(CalendarSchedulingAssignmentModal, {
+        props: {
+          mode: 'edit',
+          assignmentEntryId: 257,
+          initialDate: '2026-08-25',
+          timeZone: 'America/Vancouver',
+        },
+        global: { plugins: app.mountPlugins },
+        attachTo: document.body,
+      });
+      await flushPromises();
+
+      const vm = wrapper.vm as unknown as {
+        handleSave: () => Promise<void>;
+        handleConflictOverride: (note: string) => Promise<void>;
+        pendingConflict: typeof conflict | null;
+      };
+      await vm.handleSave();
+      expect(vm.pendingConflict).toEqual(conflict);
+      if (initialRestricted) {
+        const details = wrapper.findComponent({ name: 'CalendarConflictDetailModal' });
+        expect(details.props('canOverride')).toBe(false);
+        expect(details.props('errorMessage')).toContain(
+          'unresolved conflicts with events you do not have permission to view',
+        );
+        await vm.handleConflictOverride('Operationally approved');
+        expect(putAssignmentEntry).toHaveBeenCalledTimes(1);
+        expect(wrapper.emitted('close')).toBeUndefined();
+        wrapper.unmount();
+        return;
+      }
+
+      await vm.handleConflictOverride('Operationally approved');
+      if (retryRestricted) {
+        expect(vm.pendingConflict).toEqual(conflict);
+        const details = wrapper.findComponent({ name: 'CalendarConflictDetailModal' });
+        expect(details.props('canOverride')).toBe(false);
+        expect(details.props('errorMessage')).toContain(
+          'unresolved conflicts with events you do not have permission to view',
+        );
+        await vm.handleConflictOverride('Try again');
+        expect(putAssignmentEntry).toHaveBeenCalledTimes(2);
+        expect(wrapper.emitted('close')).toBeUndefined();
+        wrapper.unmount();
+        return;
+      }
+
+      expect(putAssignmentEntry).toHaveBeenCalledTimes(2);
+      expect(putAssignmentEntry.mock.calls[1]?.[1]).toEqual(
+        expect.objectContaining({
+          conflictOverrides: [
+            {
+              firstSourceModule: 'scheduling',
+              firstEventId: '41',
+              secondSourceModule: 'scheduling',
+              secondEventId: '52',
+              resourceId,
+              note: 'Operationally approved',
             },
           ],
         }),
-      ),
-      postApiSchedulingAssignmentDefinitions: vi.fn(),
-    }));
-    vi.doMock('@/api-access/generated/shift/shift', () => ({
-      getApiSchedulingShiftsSeries: vi.fn().mockReturnValue(createFetchResult({ value: [] })),
-      getApiSchedulingShiftsEntries: vi.fn().mockReturnValue(createFetchResult({ value: [] })),
-    }));
-    vi.doMock('@/api-access/generated/users/users', () => ({
-      getApiUsers: vi.fn().mockReturnValue(createFetchResult({ value: [] })),
-    }));
-    vi.doMock('@/api-access/generated/assignment/assignment', () => ({
-      getApiSchedulingAssignmentsEntriesId: vi.fn().mockReturnValue(
-        createFetchResult({
-          value: {
-            id: 257,
-            assignmentDefinitionId: 7,
-            title: 'Court Room Monitor',
-            color: 'pink',
-            startAtUtc: '2026-08-25T16:00:00Z',
-            endAtUtc: '2026-08-25T18:00:00Z',
-            timeZoneId: 'America/Vancouver',
-            locationId: 12,
-            categoryId: 6,
-            subCategoryId: 25,
-            capacity: 1,
-            assignmentLinks: [],
-          },
-        }),
-      ),
-      getApiSchedulingAssignmentsSeriesId: vi.fn(),
-      putApiSchedulingAssignmentsEntriesId: putAssignmentEntry,
-      putApiSchedulingAssignmentsSeriesId: vi.fn(),
-      postApiSchedulingAssignmentsEntriesIdExpire: vi.fn(),
-      postApiSchedulingAssignmentsSeriesIdExpire: vi.fn(),
-    }));
-
-    const { default: CalendarSchedulingAssignmentModal } =
-      await import('@/modules/scheduling/CalendarSchedulingAssignmentModal.vue');
-    const app = await createTestApp({ loadConfig: false });
-    useLocationsStore(app.pinia).setSelectedLocationId(12);
-    const wrapper = mount(CalendarSchedulingAssignmentModal, {
-      props: {
-        mode: 'edit',
-        assignmentEntryId: 257,
-        initialDate: '2026-08-25',
-        timeZone: 'America/Vancouver',
-      },
-      global: { plugins: app.mountPlugins },
-      attachTo: document.body,
-    });
-    await flushPromises();
-
-    const vm = wrapper.vm as unknown as {
-      handleSave: () => Promise<void>;
-      handleConflictOverride: (note: string) => Promise<void>;
-      pendingConflict: typeof conflict | null;
-    };
-    await vm.handleSave();
-    expect(vm.pendingConflict).toEqual(conflict);
-
-    await vm.handleConflictOverride('Operationally approved');
-
-    expect(putAssignmentEntry).toHaveBeenCalledTimes(2);
-    expect(putAssignmentEntry.mock.calls[1]?.[1]).toEqual(
-      expect.objectContaining({
-        conflictOverrides: [
-          {
-            firstSourceModule: 'scheduling',
-            firstEventId: '41',
-            secondSourceModule: 'scheduling',
-            secondEventId: '52',
-            resourceId,
-            note: 'Operationally approved',
-          },
-        ],
-      }),
-    );
-    expect(wrapper.emitted('close')).toHaveLength(1);
-    wrapper.unmount();
-  });
+      );
+      expect(wrapper.emitted('close')).toHaveLength(1);
+      wrapper.unmount();
+    },
+  );
 
   it('loads shift options with the active location and assignment calendar day', async () => {
     const getApiSchedulingAssignmentDefinitions = vi.fn().mockReturnValue(

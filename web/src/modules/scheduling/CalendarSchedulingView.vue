@@ -207,10 +207,12 @@ const selectedConflictEventId = ref<number>();
 const conflictOverrideLoading = ref(false);
 const conflictErrorMessage = ref('');
 function canEditConflictEvent(event: CalendarConflictEvent) {
-  return (
-    event.sourceModule === 'scheduling' &&
-    props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true
-  );
+  if (event.sourceModule !== 'scheduling') return false;
+  const scheduledEvent = findScheduledEvent(Number(event.eventId));
+  if (!scheduledEvent) return false;
+  return isAssignmentEvent(scheduledEvent)
+    ? props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true
+    : canEditShift.value;
 }
 const canOverrideConflicts = computed(
   () => props.runtimeContext?.permissions?.includes(Permissions.CalendarConflictsOverride) === true,
@@ -356,6 +358,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
             calendarSchedulingConflictHeaderId === getCalendarSchedulingHeaderConflictKey(cell, header.id)
           "
           :conflicts="header.conflicts ?? []"
+          :restricted-warnings="header.restrictedWarnings"
           :icon="header.action?.icon"
           :time-zone="model.timeZone"
           @resolve="resolveHeaderConflict($event, cell, header, onHeaderAction)"
@@ -398,6 +401,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
         <CalendarSchedulingConflictOverlay
           v-if="calendarSchedulingConflictEventId === event.id && conflictEventCellKey === eventCellKey(cell, event)"
           :conflicts="group.events.find((item) => item.event === event)?.conflicts ?? []"
+          :restricted-warnings="group.events.find((item) => item.event === event)?.restrictedWarnings"
           :icon="display?.action?.icon"
           :time-zone="model.timeZone"
           @resolve="resolveConflict($event, event, onEventAction)"

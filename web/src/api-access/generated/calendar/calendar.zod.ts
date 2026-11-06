@@ -102,6 +102,17 @@ export const PostApiCalendarEventsResponse = zod.object({
       }),
     )
     .optional(),
+  restrictedWarnings: zod
+    .array(
+      zod.object({
+        eventId: zod.string(),
+        sourceModule: zod.string(),
+        resourceId: zod.uuid(),
+        message: zod.string(),
+      }),
+    )
+    .optional(),
+  hasRestrictedConflicts: zod.boolean().optional(),
 });
 
 export const PostApiCalendarConflictsOverridesBody = zod.strictObject({

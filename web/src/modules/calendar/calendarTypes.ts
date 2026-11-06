@@ -1,12 +1,14 @@
 import type {
   CalendarConflictEventResponse,
   CalendarConflictResponse,
+  CalendarRestrictedConflictWarningResponse,
   FeatureFlagsResponse,
   Permissions,
 } from '@/api-access/generated/models';
 
 export type CalendarConflict = CalendarConflictResponse;
 export type CalendarConflictEvent = CalendarConflictEventResponse;
+export type CalendarRestrictedConflictWarning = CalendarRestrictedConflictWarningResponse;
 
 export interface CalendarEventBase {
   id: string;

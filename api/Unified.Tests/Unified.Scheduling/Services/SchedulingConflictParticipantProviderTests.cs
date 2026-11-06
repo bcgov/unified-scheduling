@@ -1,13 +1,23 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Unified.Authorization;
 using Unified.Calendar.Conflicts;
+using Unified.Calendar.Holidays;
+using Unified.Calendar.Models;
+using Unified.Calendar.Options;
+using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
 using Unified.Scheduling;
 using Unified.Scheduling.Services;
+using Unified.Tests.TestHelpers;
+using Unified.Training.Services;
 
 namespace Unified.Tests.Scheduling.Services;
 
@@ -80,22 +90,254 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();
 
     [Theory]
-    [MemberData(nameof(PermissionCases))]
-    public async Task GetParticipantsAsync_ViewerPermissions_ReturnsOnlyAuthorizedAssignments(
-        string[]? permissions,
-        bool expectedParticipant
+    [InlineData(true, true, false, 1, 0)]
+    [InlineData(true, false, false, 0, 1)]
+    [InlineData(false, false, true, 0, 1)]
+    [InlineData(false, false, false, 0, 0)]
+    [InlineData(false, true, false, 0, 0)]
+    public async Task ConflictProjection_UsesActualEventPermissionsAndVisibleLinkedShiftAnchors(
+        bool assignments,
+        bool training,
+        bool shifts,
+        int detailCount,
+        int warningCount
     )
     {
-        var participants = await _provider.GetParticipantsAsync(
-            CreateQuery(permissions),
+        var trainingProvider = await SeedTrainingAsync();
+        var accessor = CalendarConflictTestContext.Accessor(UserId);
+        accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(
+            UserId,
+            assignments ? nameof(Permissions.AssignmentsView) : "",
+            training ? nameof(Permissions.UserTrainingsView) : "",
+            shifts ? nameof(Permissions.ShiftsView) : ""
+        );
+        var projection = new CalendarConflictProjection([_provider, trainingProvider], accessor);
+        var service = new CalendarConflictService([_provider, trainingProvider], _db, projection);
+        var time = new TimeZoneService();
+        var query = new CalendarQueryService(
+            NullLogger<CalendarQueryService>.Instance,
+            _db,
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), time),
+            Resolver(time),
+            time,
+            service,
+            projection
+        );
+
+        var response = await query.GetCalendarDataAsync(
+            new CalendarDataRequest
+            {
+                StartDate = new DateOnly(2026, 8, 24),
+                EndDate = new DateOnly(2026, 8, 24),
+                TimeZoneId = "America/Vancouver",
+            },
             TestContext.Current.CancellationToken
         );
 
-        if (!expectedParticipant)
+        Assert.Equal(detailCount, response.Conflicts.Count);
+        Assert.Equal(warningCount, response.RestrictedWarnings.Count);
+        Assert.Equal(warningCount > 0, response.HasRestrictedConflicts);
+        if (warningCount > 0)
         {
-            Assert.Empty(participants);
-            return;
+            var warning = Assert.Single(response.RestrictedWarnings);
+            Assert.Equal(assignments ? "20" : "10", warning.EventId);
+            Assert.Equal(UserId, warning.ResourceId);
         }
+        if (detailCount == 0)
+        {
+            var json = JsonSerializer.Serialize(response);
+            Assert.DoesNotContain("SECRET", json);
+            Assert.DoesNotContain("training.user-training.77", json);
+            Assert.DoesNotContain("OverlapStart", json);
+            Assert.DoesNotContain("OverrideNote", json);
+            if (!assignments)
+                Assert.DoesNotContain("\"20\"", json);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConflictOverride_WithoutUnderlyingVisibility_RejectsDirectAndForgedAcknowledgements(
+        bool acknowledgement
+    )
+    {
+        var training = await SeedTrainingAsync();
+        var accessor = CalendarConflictTestContext.Accessor(UserId);
+        accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(
+            UserId,
+            nameof(Permissions.CalendarConflictsOverride),
+            nameof(Permissions.AssignmentsView)
+        );
+        var projection = new CalendarConflictProjection([_provider, training], accessor);
+        var service = new CalendarConflictService([_provider, training], _db, projection);
+        var request = new CalendarConflictAcknowledgement
+        {
+            FirstSourceModule = "scheduling",
+            FirstEventId = "20",
+            SecondSourceModule = "training",
+            SecondEventId = "training.user-training.77",
+            ResourceId = UserId,
+            Note = "Forged approval",
+        };
+        var assignment = (
+            await _provider.GetParticipantAsync(new("scheduling", "20"), UserId, TestContext.Current.CancellationToken)
+        )!;
+        var exception = acknowledgement
+            ? await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+                service.ValidateAndApplyConflictAcknowledgementsAsync(
+                    [assignment],
+                    [request],
+                    UserId,
+                    TestContext.Current.CancellationToken
+                )
+            )
+            : await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+                service.CreateOverrideAsync(request, UserId, TestContext.Current.CancellationToken)
+            );
+        Assert.Equal("The requested conflict is unavailable.", exception.Message);
+        var guessed = request with { SecondSourceModule = "scheduling" };
+        Assert.Equal(
+            exception.Message,
+            (
+                await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+                    service.CreateOverrideAsync(guessed, UserId, TestContext.Current.CancellationToken)
+                )
+            ).Message
+        );
+        Assert.Empty(_db.CalendarConflictOverrides);
+        await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            service.EnsureNoUnresolvedConflictsAsync([assignment], TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
+    public async Task ConflictOverride_AuthorizedPersistedOverride_RemainsEffectiveAfterVisibilityIsLost()
+    {
+        var training = await SeedTrainingAsync();
+        var accessor = CalendarConflictTestContext.Accessor(UserId);
+        var projection = new CalendarConflictProjection([_provider, training], accessor);
+        var service = new CalendarConflictService([_provider, training], _db, projection);
+        await service.CreateOverrideAsync(
+            new CalendarConflictAcknowledgement
+            {
+                FirstSourceModule = "scheduling",
+                FirstEventId = "20",
+                SecondSourceModule = "training",
+                SecondEventId = "training.user-training.77",
+                ResourceId = UserId,
+                Note = "Private approved note",
+            },
+            UserId,
+            TestContext.Current.CancellationToken
+        );
+        accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(UserId, nameof(Permissions.AssignmentsView));
+        var assignment = (
+            await _provider.GetParticipantAsync(new("scheduling", "20"), UserId, TestContext.Current.CancellationToken)
+        )!;
+        await service.EnsureNoUnresolvedConflictsAsync([assignment], TestContext.Current.CancellationToken);
+        var conflicts = await service.GetConflictsForCandidatesAsync(
+            [assignment],
+            TestContext.Current.CancellationToken
+        );
+        Assert.True(Assert.Single(conflicts).IsOverridden);
+        var visible = await projection.ProjectAsync(conflicts, TestContext.Current.CancellationToken);
+        Assert.Empty(visible.Conflicts);
+        Assert.Empty(visible.RestrictedWarnings);
+        Assert.False(visible.HasRestrictedConflicts);
+        Assert.Null(Assert.Single(_db.CalendarConflictOverrides).InvalidatedOn);
+    }
+
+    private async Task<TrainingConflictParticipantProvider> SeedTrainingAsync()
+    {
+        _db.Users.Add(
+            new global::Unified.Db.Models.UserManagement.User
+            {
+                Id = UserId,
+                IdirName = "conflict-user",
+                IsEnabled = true,
+            }
+        );
+        _db.UserTrainings.Add(
+            new global::Unified.Db.Models.Training.UserTraining
+            {
+                Id = 77,
+                UserId = UserId,
+                Training = new global::Unified.Db.Models.Training.Training
+                {
+                    Id = 7,
+                    Code = "SECRET",
+                    Description = "Restricted course",
+                },
+                AwardedOn = new DateTimeOffset(2026, 8, 24, 0, 0, 0, TimeSpan.Zero),
+                EndingOn = new DateTimeOffset(2026, 8, 24, 0, 0, 0, TimeSpan.Zero),
+            }
+        );
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var time = new TimeZoneService();
+        return new(_db, Resolver(time), time);
+    }
+
+    private static CalendarTimeZoneResolver Resolver(ITimeZoneService time) =>
+        new(Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }), time);
+
+    [Fact]
+    public async Task ConflictProjection_MultipleCandidates_KeepsVisibleDetailsAndEveryRestrictedBlocker()
+    {
+        var training = await SeedTrainingAsync();
+        var secondEvent = CreateEvent(21, "Second visible assignment", SchedulingConstants.AssignmentEventTypeCode);
+        secondEvent.StartAtUtc = AssignmentStart;
+        secondEvent.EndAtUtc = AssignmentEnd;
+        var shift = await _db.ShiftEntries.SingleAsync(TestContext.Current.CancellationToken);
+        _db.ShiftAssignmentEntryUsers.Add(
+            new ShiftAssignmentEntryUser
+            {
+                UserId = UserId,
+                ShiftAssignmentEntry = new ShiftAssignmentEntry
+                {
+                    ShiftEntry = shift,
+                    ShiftEntryId = shift.Id,
+                    AssignmentEntry = new AssignmentEntry
+                    {
+                        Event = secondEvent,
+                        EventId = secondEvent.Id,
+                        AssignmentDefinitionId = 1,
+                        CategoryId = 1,
+                        SubCategoryId = 1,
+                        Capacity = 1,
+                    },
+                },
+            }
+        );
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var accessor = CalendarConflictTestContext.Accessor(UserId);
+        accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(UserId, nameof(Permissions.AssignmentsView));
+        var projection = new CalendarConflictProjection([_provider, training], accessor);
+        var service = new CalendarConflictService([_provider, training], _db, projection);
+        var candidates = await _provider.GetParticipantsAsync(
+            new(AssignmentStart, AssignmentEnd),
+            TestContext.Current.CancellationToken
+        );
+        var rejection = await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            service.EnsureNoUnresolvedConflictsAsync(candidates, TestContext.Current.CancellationToken)
+        );
+        Assert.Equal(3, rejection.Conflicts.Count);
+        var visible = await projection.ProjectAsync(rejection.Conflicts, TestContext.Current.CancellationToken);
+        Assert.Single(visible.Conflicts);
+        Assert.Equal(
+            new[] { "20", "21" },
+            visible.RestrictedWarnings.Select(warning => warning.EventId).Order().ToArray()
+        );
+        Assert.True(visible.HasRestrictedConflicts);
+        Assert.DoesNotContain("SECRET", JsonSerializer.Serialize(visible));
+        Assert.DoesNotContain("training.user-training.77", JsonSerializer.Serialize(visible));
+    }
+
+    [Fact]
+    public async Task GetParticipantsAsync_ReturnsApplicableAssignments()
+    {
+        var participants = await _provider.GetParticipantsAsync(CreateQuery(), TestContext.Current.CancellationToken);
+
         var participant = Assert.Single(participants);
         Assert.Equal("20", participant.EventId);
         Assert.Equal("Restricted assignment", participant.Title);
@@ -106,20 +348,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         Assert.Equal("scheduling", participant.SourceModule);
         Assert.Equal("America/Vancouver", participant.TimeZoneId);
         Assert.Equal(
-            await _provider.GetParticipantsAsync(CreateQuery(null), TestContext.Current.CancellationToken),
+            await _provider.GetParticipantsAsync(CreateQuery(), TestContext.Current.CancellationToken),
             participants
         );
     }
-
-    public static TheoryData<string[]?, bool> PermissionCases =>
-        new()
-        {
-            { [nameof(Permissions.AssignmentsView)], true },
-            { [nameof(Permissions.ShiftsView), nameof(Permissions.AssignmentsView)], true },
-            { [nameof(Permissions.ShiftsView)], false },
-            { [], false },
-            { null, true },
-        };
 
     [Theory]
     [InlineData(false, "draft", false, 0)]
@@ -139,7 +371,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         eventEntity!.StatusTypeCode = status;
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            CreateQuery() with
             {
                 IncludeDraftParticipants = includeDraft,
             },
@@ -151,7 +383,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     [Fact]
     public async Task GetParticipantsAsync_AuthorizedViewer_PreservesResourceAndHalfOpenRangeFilters()
     {
-        var query = CreateQuery([nameof(Permissions.AssignmentsView)]);
+        var query = CreateQuery();
         Assert.Single(
             await _provider.GetParticipantsAsync(
                 query with
@@ -232,7 +464,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            CreateQuery() with
             {
                 LocationId = vancouver.Id,
                 ResourceIds = [MultiLocationUserId, UnrelatedUserId],
@@ -272,7 +504,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            CreateQuery() with
             {
                 LocationId = vancouver.Id,
                 ResourceIds = [MultiLocationUserId, UnrelatedUserId],
@@ -313,7 +545,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.ShiftsView)]) with
+            CreateQuery() with
             {
                 LocationId = vancouver.Id,
             },
@@ -365,7 +597,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            CreateQuery() with
             {
                 ResourceIds = [MultiLocationUserId],
             },
@@ -392,7 +624,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var participants = await _provider.GetParticipantsAsync(
-            CreateQuery([nameof(Permissions.AssignmentsView)]) with
+            CreateQuery() with
             {
                 ResourceIds = [MultiLocationUserId],
             },
@@ -402,11 +634,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         Assert.Equal("America/Vancouver", Assert.Single(participants).TimeZoneId);
     }
 
-    private static CalendarConflictQuery CreateQuery(IEnumerable<string>? permissions) =>
+    private static CalendarConflictQuery CreateQuery() =>
         new(
             new DateTimeOffset(2026, 8, 24, 0, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 8, 25, 0, 0, 0, TimeSpan.Zero),
-            ViewerPermissions: permissions?.ToHashSet(StringComparer.Ordinal)
+            new DateTimeOffset(2026, 8, 25, 0, 0, 0, TimeSpan.Zero)
         );
 
     private static Event CreateEvent(int id, string title, string eventTypeCode) =>

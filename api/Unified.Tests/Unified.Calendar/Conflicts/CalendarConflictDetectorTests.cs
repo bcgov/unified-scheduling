@@ -107,7 +107,7 @@ public sealed class CalendarConflictDetectorTests
     }
 
     [Fact]
-    public void Detect_WhenCanonicalIdentityMatches_DoesNotConflictWithEquivalentRepresentation()
+    public void Detect_WhenIdentityMatches_DoesNotConflictWithEquivalentRepresentation()
     {
         var conflicts = CalendarConflictDetector.Detect([
             Participant(1, ResourceA, 0, 60) with
@@ -116,7 +116,7 @@ public sealed class CalendarConflictDetectorTests
             },
             Participant(2, ResourceA, 0, 60) with
             {
-                CanonicalEventId = "canonical",
+                EventId = "canonical",
             },
         ]);
 

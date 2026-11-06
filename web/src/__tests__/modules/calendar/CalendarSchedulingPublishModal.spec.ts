@@ -8,12 +8,47 @@ import { createPinia } from 'pinia';
 import CalendarSchedulingPublishModal from '@/modules/scheduling/CalendarSchedulingPublishModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { server } from '../../mocks/server';
+import { createTestApp } from '../../helpers/createTestApp';
 
 afterEach(() => {
   document.body.innerHTML = '';
 });
 
 describe('CalendarSchedulingPublishModal', () => {
+  it('keeps publication blocked when every conflict detail is restricted', async () => {
+    const app = await createTestApp({ loadConfig: false });
+    const request = { locationId: 7, startDate: '2026-08-24', endDate: '2026-08-30' };
+    server.use(
+      http.post('*/api/scheduling/publish/preview', () =>
+        HttpResponse.json({
+          scope: {
+            ...request,
+            timeZoneId: 'America/Vancouver',
+            rangeStartUtc: '2026-08-24T07:00:00Z',
+            rangeEndExclusiveUtc: '2026-08-31T07:00:00Z',
+          },
+          candidates: { shiftEntryCount: 1, assignmentEntryCount: 1, totalCount: 2 },
+          warnings: { incompleteEmployees: [], unassignedShifts: [], unassignedAssignments: [] },
+          blockers: { conflicts: [], shiftConflicts: [], restrictedWarnings: [], hasRestrictedConflicts: true },
+          canPublish: false,
+        }),
+      ),
+    );
+    const wrapper = mount(CalendarSchedulingPublishModal, {
+      props: { request },
+      global: { plugins: app.mountPlugins },
+      attachTo: document.body,
+    });
+    await flushPromises();
+    expect(document.body.textContent).toContain(
+      'Unresolved conflicts include events you do not have permission to view.',
+    );
+    const publishButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Publish Schedule',
+    );
+    expect(publishButton).toHaveProperty('disabled', true);
+    wrapper.unmount();
+  });
   it('previews and publishes the immutable calendar scope', async () => {
     const vuetify = createVuetify({ components, directives });
     const pinia = createPinia();

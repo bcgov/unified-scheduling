@@ -77,6 +77,7 @@ public static class CalendarModule
         services.AddScoped<CalendarLifecycleService>();
         services.AddScoped<ICalendarConflictParticipantProvider, HolidayConflictParticipantProvider>();
         services.AddScoped<ICalendarConflictService, CalendarConflictService>();
+        services.AddScoped<CalendarConflictProjection>();
         services.AddScoped<IRecurrenceExpander, IcalNetRecurrenceExpander>();
         services.AddScoped<IRecurrenceRuleValidator, IcalNetRecurrenceRuleValidator>();
         services.AddScoped<IEventSeriesMaterializationService, EventSeriesMaterializationService>();

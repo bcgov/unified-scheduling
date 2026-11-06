@@ -10,15 +10,21 @@ using Unified.Authorization.Claims;
 using Unified.Calendar.Conflicts;
 using Unified.Calendar.Models;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Tests.TestHelpers;
 
 namespace Unified.Tests.Calendar.Conflicts;
 
 public sealed class CalendarConflictExceptionFilterTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void OnException_TrainingConflict_FiltersUnauthorizedDetails(bool canViewTraining)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task OnException_TrainingConflict_FiltersUnauthorizedDetails(
+        bool canViewTraining,
+        bool canViewAssignments
+    )
     {
         var resourceId = Guid.NewGuid();
         var start = new DateTimeOffset(2026, 9, 21, 16, 0, 0, TimeSpan.Zero);
@@ -34,15 +40,24 @@ public sealed class CalendarConflictExceptionFilterTests
             new CalendarConflictParticipant("42", "scheduling", resourceId, start, start.AddHours(1), "Assignment"),
             resourceId,
             start,
-            start.AddHours(1)
+            start.AddHours(1),
+            OverrideNote: "Private audit note",
+            CreatedById: Guid.NewGuid(),
+            CreatedOn: start
         );
         var httpContext = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(
                 new ClaimsIdentity(
-                    canViewTraining
-                        ? [new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.UserTrainingsView))]
-                        : []
+                    (
+                        canViewAssignments
+                            ? new[] { new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.AssignmentsView)) }
+                            : []
+                    ).Concat(
+                        canViewTraining
+                            ? [new Claim(UnifiedClaimTypes.Permission, nameof(Permissions.UserTrainingsView))]
+                            : []
+                    )
                 )
             ),
         };
@@ -54,18 +69,32 @@ public sealed class CalendarConflictExceptionFilterTests
             Exception = new CalendarConflictException([conflict]),
         };
 
-        new CalendarConflictExceptionFilter().OnException(context);
+        await new CalendarConflictExceptionFilter(
+            CalendarConflictTestContext.Projection(Guid.NewGuid())
+        ).OnExceptionAsync(context);
 
         var response = Assert.IsType<CalendarConflictRejectionResponse>(
             Assert.IsType<ConflictObjectResult>(context.Result).Value
         );
-        Assert.Equal(canViewTraining, response.Conflicts.Any());
-        if (!canViewTraining)
-            Assert.DoesNotContain("SECRET", System.Text.Json.JsonSerializer.Serialize(response));
+        Assert.Equal(canViewTraining && canViewAssignments, response.Conflicts.Any());
+        if (!canViewTraining || !canViewAssignments)
+        {
+            Assert.Equal(canViewAssignments ? 1 : 0, response.RestrictedWarnings.Count);
+            Assert.True(response.HasRestrictedConflicts);
+            var json = System.Text.Json.JsonSerializer.Serialize(response);
+            Assert.DoesNotContain("Private audit note", json);
+            Assert.DoesNotContain("OverlapStart", json);
+            Assert.DoesNotContain("CreatedById", json);
+            if (!canViewTraining)
+            {
+                Assert.DoesNotContain("SECRET", json);
+                Assert.DoesNotContain("training.user-training.7", json);
+            }
+        }
     }
 
     [Fact]
-    public void OnException_WithCalendarConflictException_ReturnsConflictResponse()
+    public async Task OnException_WithCalendarConflictException_ReturnsConflictResponse()
     {
         var resourceId = Guid.NewGuid();
         var start = new DateTimeOffset(2026, 9, 21, 16, 0, 0, TimeSpan.Zero);
@@ -86,7 +115,10 @@ public sealed class CalendarConflictExceptionFilterTests
         var exception = new CalendarConflictException([conflict]);
         var context = new ExceptionContext(
             new ActionContext(
-                new DefaultHttpContext(),
+                new DefaultHttpContext
+                {
+                    User = CalendarConflictTestContext.Accessor(Guid.NewGuid()).HttpContext!.User,
+                },
                 new RouteData(),
                 new ActionDescriptor(),
                 new ModelStateDictionary()
@@ -97,7 +129,9 @@ public sealed class CalendarConflictExceptionFilterTests
             Exception = exception,
         };
 
-        new CalendarConflictExceptionFilter().OnException(context);
+        await new CalendarConflictExceptionFilter(
+            CalendarConflictTestContext.Projection(Guid.NewGuid())
+        ).OnExceptionAsync(context);
 
         var result = Assert.IsType<ConflictObjectResult>(context.Result);
         var response = Assert.IsType<CalendarConflictRejectionResponse>(result.Value);

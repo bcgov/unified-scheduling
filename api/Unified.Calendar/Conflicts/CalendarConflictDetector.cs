@@ -34,7 +34,7 @@ public static class CalendarConflictDetector
                     if (IsSameEvent(left, right))
                         continue;
 
-                    if (!HaveCompatibleTimeZones(left, right))
+                    if (!IsApplicableHolidayContext(left, right))
                         continue;
 
                     var (entry, overlaps) = OrderForDisplay(left, right);
@@ -62,18 +62,13 @@ public static class CalendarConflictDetector
     }
 
     private static bool IsSameEvent(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
-        left.Identity == right.Identity
-        || (
-            left.SourceModule == right.SourceModule
-            && string.Equals(
-                left.CanonicalEventId ?? left.EventId,
-                right.CanonicalEventId ?? right.EventId,
-                StringComparison.Ordinal
-            )
-        );
+        left.Identity == right.Identity;
 
-    private static bool HaveCompatibleTimeZones(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
-        (!left.RequiresMatchingTimeZone && !right.RequiresMatchingTimeZone) || HasSameTimeZone(left, right);
+    // UTC overlap is already established; only synthetic holidays need an operational-zone applicability check.
+    private static bool IsApplicableHolidayContext(
+        CalendarConflictParticipant left,
+        CalendarConflictParticipant right
+    ) => (!left.RequiresMatchingTimeZone && !right.RequiresMatchingTimeZone) || HasSameTimeZone(left, right);
 
     private static bool HasSameTimeZone(CalendarConflictParticipant left, CalendarConflictParticipant right) =>
         !string.IsNullOrWhiteSpace(left.TimeZoneId)
