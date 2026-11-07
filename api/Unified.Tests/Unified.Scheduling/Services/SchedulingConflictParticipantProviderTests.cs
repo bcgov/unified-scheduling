@@ -550,7 +550,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         Assert.Equal(
             new[] { "101", "201", "301" },
-            participants.Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode).Select(item => item.EventId).Order()
+            participants
+                .Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
+                .Select(item => item.EventId)
+                .Order()
         );
         Assert.True(participants.Single(participant => participant.EventId == "101").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "201").IsInQueryScope);
@@ -596,11 +599,19 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
 
         Assert.Equal(
             new[] { "501", "601", "701" },
-            participants.Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode).Select(item => item.EventId).Order()
+            participants
+                .Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
+                .Select(item => item.EventId)
+                .Order()
         );
         Assert.True(participants.Single(participant => participant.EventId == "501").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "601").IsInQueryScope);
-        var service = new CalendarConflictService([_provider], _db, new CalendarConflictProjection([_provider]), CalendarConflictTestRules.Scheduling);
+        var service = new CalendarConflictService(
+            [_provider],
+            _db,
+            new CalendarConflictProjection([_provider]),
+            CalendarConflictTestRules.Scheduling
+        );
         Assert.Single(
             await service.GetConflictsAsync(
                 CreateQuery() with
@@ -652,7 +663,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         );
 
         Assert.Equal(new[] { "1000", "1100", "1200" }, participants.Select(participant => participant.EventId).Order());
-        Assert.All(participants, participant => Assert.Equal(SchedulingConstants.ShiftEventTypeCode, participant.EventTypeCode));
+        Assert.All(
+            participants,
+            participant => Assert.Equal(SchedulingConstants.ShiftEventTypeCode, participant.EventTypeCode)
+        );
         Assert.True(participants.Single(participant => participant.EventId == "1000").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "1100").IsInQueryScope);
         Assert.False(participants.Single(participant => participant.EventId == "1200").IsInQueryScope);
@@ -668,7 +682,10 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
             TestContext.Current.CancellationToken
         );
 
-        var participant = Assert.Single(participants, item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode);
+        var participant = Assert.Single(
+            participants,
+            item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode
+        );
         Assert.Equal("20", participant.EventId);
         Assert.Equal(UserId, participant.ResourceId);
     }
