@@ -152,7 +152,11 @@ async function loadLeaveWarningEvents(
     const endAtUtc = DateTime.fromISO(context.endDate, { zone }).toUTC().toISO();
     if (!startAtUtc || !endAtUtc) throw new Error('Invalid leave calendar date range.');
     const events = await getLeaveCalendarEvents({ startAtUtc, endAtUtc, userIds }, options?.signal);
-    return events.map((event) => mapSchedulingCalendarEvent(event));
+    return events.map((event) => ({
+      ...mapSchedulingCalendarEvent(event),
+      start: event.start,
+      end: event.end ?? undefined,
+    }));
   } catch (error) {
     if (options?.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
     console.warn('Leave warnings could not be loaded.', error);

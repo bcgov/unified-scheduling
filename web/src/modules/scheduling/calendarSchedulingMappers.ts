@@ -1121,7 +1121,7 @@ function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: s
   return getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone) === date;
 }
 function isLeaveOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
-  if (event.allDay) {
+  if (event.allDay && /^\d{4}-\d{2}-\d{2}$/.test(event.start)) {
     return event.start <= date && date < (event.end ?? addDays(event.start, 1));
   }
 
