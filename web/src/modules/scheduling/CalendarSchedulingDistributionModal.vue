@@ -13,6 +13,7 @@ import UaBtn from '@/shared/components/UaBtn.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import type { SelectOption } from '@/types/select';
 import { useUsersStore } from '@/stores/Users';
+import { useConfigStore } from '@/stores/config';
 import { addDays } from '@/utils/date';
 import { canViewLoanOut } from './calendarSchedulingPermissions';
 import { normalizeSchedulingLifecycleStatus } from './schedulingLifecycle';
@@ -41,6 +42,7 @@ const emit = defineEmits<{
 const route = useRoute();
 const router = useRouter();
 const schedulingUsersStore = useUsersStore();
+const configStore = useConfigStore();
 const distribution = useScheduleDistributionStore();
 const selectedRecipientIds = ref<string[]>([]);
 const recipientSearch = ref('');
@@ -144,8 +146,9 @@ watch(
     () => props.endDate,
     () => props.model.timeZone,
     canLoadBorrowedUsers,
+    () => configStore.emailDistributionAvailable,
   ],
-  async ([locationId, startDate, endDate, timeZoneId, loadBorrowedUsers], _, onCleanup) => {
+  async ([locationId, startDate, endDate, timeZoneId, loadBorrowedUsers, emailAvailable], _, onCleanup) => {
     const requestId = ++userLoadRequestId;
     const controller = new AbortController();
     onCleanup(() => {
@@ -157,6 +160,8 @@ watch(
     borrowedUsers.value = [];
     recipientLoadError.value = '';
     errorMessage.value = '';
+    isLoadingUsers.value = false;
+    if (!emailAvailable) return;
     isLoadingUsers.value = true;
     try {
       const [, loanOutUsers] = await Promise.all([
@@ -257,6 +262,7 @@ function printSchedule() {
 }
 
 async function sendSchedule() {
+  if (!configStore.emailDistributionAvailable) return;
   if (isSending.value || distribution.isPending || isLoadingUsers.value || recipientLoadError.value) return;
   isSending.value = true;
   errorMessage.value = '';
@@ -320,12 +326,13 @@ function formatCount(count: number, noun: string) {
 
     <div class="schedule-distribution">
       <section class="schedule-distribution__section">
-        <h3 class="schedule-distribution__heading">Recipients</h3>
-        <p class="schedule-distribution__help">
+        <h3 v-if="configStore.emailDistributionAvailable" class="schedule-distribution__heading">Recipients</h3>
+        <p v-if="configStore.emailDistributionAvailable" class="schedule-distribution__help">
           Select a list of users to send a PDF copy of this schedule to. Alternatively, you can print the schedule.
         </p>
 
         <UaAutocomplete
+          v-if="configStore.emailDistributionAvailable"
           v-model="selectedRecipientIds"
           label="Recipients"
           :items="recipientOptions"
@@ -348,7 +355,11 @@ function formatCount(count: number, noun: string) {
           :disabled="isSending"
         />
 
-        <UaAlert v-if="missingEmailRecipients.length" type="warning" :closable="false">
+        <UaAlert
+          v-if="configStore.emailDistributionAvailable && missingEmailRecipients.length"
+          type="warning"
+          :closable="false"
+        >
           {{ missingEmailRecipients.map(formatUserName).join(', ') }}
           {{ missingEmailRecipients.length === 1 ? 'does' : 'do' }} not have an email address and cannot receive this
           distribution.
@@ -359,6 +370,7 @@ function formatCount(count: number, noun: string) {
     <template #actions>
       <UaBtn variant="outlined" :disabled="isSending" @click="printSchedule">Print</UaBtn>
       <UaBtn
+        v-if="configStore.emailDistributionAvailable"
         color="primary"
         variant="flat"
         :aria-busy="isSending"

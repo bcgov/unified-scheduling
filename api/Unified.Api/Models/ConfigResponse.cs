@@ -26,4 +26,5 @@ public class ConfigResponse
     public string? ApplicationName { get; set; }
     public string? SelectedBrand { get; internal set; }
     public Dictionary<string, BrandSettingsOptions> BrandingOptions { get; set; } = [];
+    public bool EmailDistributionAvailable { get; set; }
 }

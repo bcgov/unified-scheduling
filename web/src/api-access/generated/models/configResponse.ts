@@ -16,4 +16,5 @@ export interface ConfigResponse {
   /** @nullable */
   selectedBrand?: string | null;
   brandingOptions?: ConfigResponseBrandingOptions;
+  emailDistributionAvailable?: boolean;
 }

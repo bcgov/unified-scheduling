@@ -68,6 +68,7 @@ export const GetApiConfigResponse = zod.object({
   supportEmail: zod.string().nullish(),
   applicationName: zod.string().nullish(),
   selectedBrand: zod.string().nullish(),
+  emailDistributionAvailable: zod.boolean().optional(),
   brandingOptions: zod
     .record(
       zod.string(),

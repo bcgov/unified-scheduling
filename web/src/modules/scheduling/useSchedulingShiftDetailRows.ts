@@ -31,6 +31,7 @@ export function useSchedulingShiftDetailRows(options: {
   const detailRows = computed<ShiftDetailRow[]>(() => {
     const event = options.event.value;
     const formData = options.formData.value;
+    const showAssignmentDetails = options.showAssignmentDetails?.value !== false;
     const lifecycleStatus = normalizeSchedulingLifecycleStatus(formData.statusTypeCode);
     const rows: ShiftDetailRow[] = [
       {
@@ -56,7 +57,7 @@ export function useSchedulingShiftDetailRows(options: {
         recurrenceRule: formData.recurrenceRule ?? series.recurrenceRule ?? null,
         recurrenceStartDate: series.startAtUtc ?? event.start,
       });
-      if (options.showAssignmentDetails?.value ?? true) {
+      if (showAssignmentDetails) {
         rows.push({
           label: 'Series Assignments',
           value: formatAssignmentLinks(
@@ -68,7 +69,7 @@ export function useSchedulingShiftDetailRows(options: {
           ),
         });
       }
-    } else if (options.showAssignmentDetails?.value ?? true) {
+    } else if (showAssignmentDetails) {
       rows.push({
         label: 'Assignment(s)',
         value: formatAssignmentLinks(

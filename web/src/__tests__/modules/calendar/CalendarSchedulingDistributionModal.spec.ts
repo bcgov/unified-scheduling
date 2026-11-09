@@ -12,6 +12,7 @@ import UaAutocomplete from '@/shared/components/UaAutocomplete.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useUsersStore } from '@/stores/Users';
+import { useConfigStore } from '@/stores/config';
 import { useScheduleDistributionStore } from '@/modules/scheduling/calendarSchedulingDistributionStore';
 import { server } from '../../mocks/server';
 
@@ -20,6 +21,55 @@ afterEach(() => {
 });
 
 describe('CalendarSchedulingDistributionModal', () => {
+  it.each(['schedule', 'assignments'] as const)(
+    'respects email availability while preserving printing in the %s view',
+    async (view) => {
+      for (const emailAvailable of [true, false, undefined]) {
+        const recipientLookups: string[] = [];
+        server.use(
+          http.get('*/api/users', () => {
+            recipientLookups.push('home');
+            return HttpResponse.json([createRecipient('home')]);
+          }),
+          http.post('*/api/loan-out/scheduling/users', () => {
+            recipientLookups.push('borrowed');
+            return HttpResponse.json([createBorrowedRecipient('borrowed')]);
+          }),
+        );
+        const openWindow = vi.spyOn(window, 'open').mockReturnValue({ opener: window } as Window);
+        const wrapper = await mountRecipientModal({ view }, { emailDistributionAvailable: emailAvailable });
+        try {
+          await flushPromises();
+          expect(wrapper.findComponent(UaAutocomplete).exists()).toBe(emailAvailable === true);
+          expect(wrapper.findAllComponents(UaBtn).some((button) => button.text() === 'Send')).toBe(
+            emailAvailable === true,
+          );
+          expect(document.body.textContent?.includes('Select a list of users')).toBe(emailAvailable === true);
+          expect(recipientLookups.sort()).toEqual(emailAvailable ? ['borrowed', 'home'] : []);
+
+          const assignmentTimes = wrapper.findComponent({ name: 'VSwitch' });
+          expect(assignmentTimes.exists()).toBe(view === 'schedule');
+          if (view === 'schedule') {
+            assignmentTimes.vm.$emit('update:modelValue', false);
+            await wrapper.vm.$nextTick();
+          }
+          const print = wrapper.findAllComponents(UaBtn).find((button) => button.text() === 'Print')!;
+          expect(print.element).toHaveProperty('disabled', false);
+          print.vm.$emit('click');
+          expect(openWindow).toHaveBeenCalledOnce();
+          const printUrl = new URL(String(openWindow.mock.calls[0]![0]), 'http://localhost');
+          expect(printUrl.searchParams.get('mode')).toBe('print');
+          expect(printUrl.searchParams.get('view')).toBe(view);
+          expect(printUrl.searchParams.get('includeAssignmentTimes')).toBe(view === 'schedule' ? 'false' : null);
+          expect(wrapper.emitted('close')).toBeUndefined();
+        } finally {
+          wrapper.unmount();
+          openWindow.mockRestore();
+        }
+      }
+    },
+  );
+
   it.each(['schedule', 'assignments'] as const)(
     'offers and distributes unique home and borrowed recipients displayed in the %s view',
     async (view) => {
@@ -335,6 +385,7 @@ describe('CalendarSchedulingDistributionModal', () => {
       }),
     );
     const app = await createTestApp({ loadConfig: false });
+    useConfigStore(app.pinia).config = { emailDistributionAvailable: true };
     app.router.addRoute({ path: '/distribution-test', component: { template: '<div />' } });
     await app.router.push('/distribution-test');
     await app.router.isReady();
@@ -454,6 +505,7 @@ describe('CalendarSchedulingDistributionModal', () => {
     );
 
     const app = await createTestApp({ loadConfig: false });
+    useConfigStore(app.pinia).config = { emailDistributionAvailable: true };
     const { pinia, router } = app;
     router.addRoute({ path: '/distribution-test', component: { template: '<div />' } });
     router.addRoute({ path: '/other-test', component: { template: '<div>Other page</div>' } });
@@ -633,6 +685,7 @@ describe('CalendarSchedulingDistributionModal', () => {
     };
     server.use(http.get('*/api/users', () => HttpResponse.json([recipient])));
     const app = await createTestApp({ loadConfig: false });
+    useConfigStore(app.pinia).config = { emailDistributionAvailable: true };
     const { router } = app;
     router.addRoute({ path: '/distribution-test', component: { template: '<div />' } });
     await router.push('/distribution-test');
@@ -726,8 +779,10 @@ async function mountRecipientModal(
     view?: 'schedule' | 'assignments';
     runtimeContext?: CalendarRuntimeContext;
   } = {},
+  emailConfig: { emailDistributionAvailable?: boolean } = { emailDistributionAvailable: true },
 ) {
   const app = await createTestApp({ loadConfig: false });
+  useConfigStore(app.pinia).config = emailConfig;
   app.router.addRoute({ path: '/distribution-test', component: { template: '<div />' } });
   await app.router.push('/distribution-test');
   await app.router.isReady();

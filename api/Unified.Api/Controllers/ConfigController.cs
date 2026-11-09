@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Unified.Api.Models;
 using Unified.Api.Options;
 using Unified.Common.FeatureFlags;
+using Unified.Infrastructure.Email.Ches;
 
 namespace Unified.Api.Controllers;
 
@@ -13,7 +14,8 @@ public class ConfigController(
     ILogger<ConfigController> logger,
     IEnumerable<IFeatureFlags> featureFlags,
     IOptions<ApplicationOptions> applicationOptions,
-    IOptions<BrandingOptions> brandingOptions
+    IOptions<BrandingOptions> brandingOptions,
+    IConfiguration configuration
 ) : ControllerBase
 {
     /// <summary>
@@ -36,6 +38,7 @@ public class ConfigController(
             ApplicationName = applicationOptions.Value.Name,
             SelectedBrand = brandingOptions.Value.SelectedBrand,
             BrandingOptions = brandingOptions.Value.Brands,
+            EmailDistributionAvailable = ChesEmailConfiguration.IsEnabled(configuration),
         };
 
         logger.LogDebug(
