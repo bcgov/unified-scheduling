@@ -669,7 +669,7 @@ describe('assignment sidebar warnings', () => {
       userIds: ['user-1'],
     });
     expect(result.events.map((event) => event.id)).toEqual(['local', 'global']);
-    expect(result.data).toBeUndefined();
+    expect(result.data).toEqual({ warningEvents: [] });
     expect(
       buildCalendarAssignmentViewModel(
         {
@@ -786,5 +786,282 @@ describe('assignment sidebar warnings', () => {
         featureFlags: { Leave: { enabled: false } },
       })[0]!.warningGroups,
     ).toBeUndefined();
+  });
+
+  describe('cross-location leave warnings', () => {
+    const assignmentContext = { ...context, activeViewId: 'calendar.matrix-assignment' };
+    const borrowedId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const borrowedUser = {
+      id: borrowedId,
+      firstName: 'Borrowed',
+      lastName: 'User',
+      idirName: 'borrowed',
+      homeLocationId: 2,
+      loanOutMetaData: [{ loanOutLocationId: 1, startAtUtc: '2025-03-09T17:00:00Z', endAtUtc: '2025-03-09T21:00:00Z' }],
+    };
+    const localLeave = leave('scheduling.leave-entry.1', '2025-03-09T18:00:00Z', '2025-03-09T19:00:00Z', {
+      locationId: 1,
+      metadata: { userIds: ['user-1'], leaveEntryId: '1', leaveTypeName: 'Vacation' },
+    });
+    const shift = leave('shift', '2025-03-09T16:00:00Z', '2025-03-10T00:00:00Z', {
+      type: 'scheduling.shift',
+      sourceModule: 'scheduling',
+      locationId: 1,
+      resourceIds: ['user-1'],
+    });
+    const assignment = leave('assignment', shift.start, shift.end, {
+      type: 'scheduling.assignment',
+      sourceModule: 'scheduling',
+      locationId: 1,
+      metadata: { userIds: ['user-1'], assignedUserIds: ['user-1'], capacity: 1 },
+    });
+    let leaveRequests: Record<string, unknown>[];
+    let schedulingRequests: Record<string, unknown>[];
+
+    beforeEach(() => {
+      leaveRequests = [];
+      schedulingRequests = [];
+      server.use(
+        http.get('*/api/lookup/PositionTypes', () => HttpResponse.json([{ code: 'Chief Sheriff', displayOrder: 1 }])),
+        http.get('*/api/users', () =>
+          HttpResponse.json(
+            ['user-1', 'user-2'].map((id) => ({
+              id,
+              firstName: id,
+              lastName: 'Home',
+              homeLocationId: 1,
+              rank: 'Chief Sheriff',
+            })),
+          ),
+        ),
+        http.get('*/api/users/:userId/acting-positions', () => HttpResponse.json([])),
+        http.post('*/api/loan-out/scheduling/users', () => HttpResponse.json([borrowedUser])),
+        http.post('*/api/scheduling/calendar/events', async ({ request }) => {
+          schedulingRequests.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({
+            events: [localLeave, shift, assignment].map((event) => ({
+              ...event,
+              userIds: event.metadata.userIds,
+              assignedUserIds: event.metadata.assignedUserIds,
+              capacity: event.metadata.capacity,
+              leaveTypeName: event.metadata.leaveTypeName,
+            })),
+          });
+        }),
+        http.post('*/api/leave/calendar/events', async ({ request }) => {
+          leaveRequests.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json([]);
+        }),
+      );
+    });
+
+    it('loads home employees across locations, reuses warning filters and deduplication, and preserves scheduling displays', async () => {
+      const remote = leave('remote', '2025-03-09T15:00:00Z', '2025-03-09T17:00:00Z', { locationId: 2 });
+      const records = [
+        localLeave,
+        remote,
+        remote,
+        leave('crosses-start', '2025-03-08T20:00:00Z', '2025-03-09T09:00:00Z', { locationId: 2 }),
+        leave('cancelled', remote.start, remote.end, { locationId: 2, statusTypeCode: 'Cancelled' }),
+        leave('cancelled-at', remote.start, remote.end, { locationId: 2, cancelledAt: remote.start }),
+        leave('ends-at-start', '2025-03-08T20:00:00Z', '2025-03-09T08:00:00Z', { locationId: 2 }),
+        leave('starts-at-end', '2025-03-10T07:00:00Z', '2025-03-10T08:00:00Z', { locationId: 2 }),
+        leave('other-user', remote.start, remote.end, { metadata: { userIds: ['other'] } }),
+      ];
+      server.use(
+        http.post('*/api/leave/calendar/events', async ({ request }) => {
+          const body = (await request.json()) as { userIds: string[] };
+          leaveRequests.push(body);
+          return HttpResponse.json(
+            records
+              .filter((event) => event.metadata.userIds?.some((id) => body.userIds.includes(id)))
+              .map((event) => ({ ...event, userIds: event.metadata.userIds, leaveTypeName: 'Vacation' })),
+          );
+        }),
+      );
+      const result = await calendarSchedulingEventsContribution.load(assignmentContext, {
+        runtimeContext: loanOutRuntime,
+      });
+      expect(leaveRequests).toEqual([
+        {
+          startAtUtc: '2025-03-09T08:00:00.000Z',
+          endAtUtc: '2025-03-10T07:00:00.000Z',
+          userIds: ['user-1', 'user-2'],
+        },
+      ]);
+      expect(schedulingRequests).toEqual([
+        {
+          startDate: context.startDate,
+          endDate: context.endDate,
+          timeZoneId: 'America/Vancouver',
+          locationId: 1,
+        },
+      ]);
+      expect(result.events.map((event) => event.id)).toEqual([localLeave.id, shift.id, assignment.id]);
+      const data = { contributions: { 'scheduling.events': result } };
+      const model = buildCalendarAssignmentViewModel(data, assignmentContext, 'day', loanOutRuntime);
+      expect(model.sidePanel!.items.map((item) => item.id)).toEqual(['user-1', 'user-2']);
+      expect(model.sidePanel!.items[0]!.warningGroups).toEqual([
+        {
+          id: 'leave',
+          heading: 'Leave',
+          warnings: [
+            expect.objectContaining({ id: 'crosses-start', start: '2025-03-08T20:00:00Z' }),
+            expect.objectContaining({ id: remote.id, start: remote.start, end: remote.end }),
+            expect.objectContaining({ id: localLeave.id }),
+          ],
+        },
+      ]);
+      expect(model.sidePanel!.items[1]!.warningGroups).toBeUndefined();
+      // Warning-only leave must not enter schedule cells, assignments, or normal event selectors.
+      const withoutWarnings = { contributions: { 'scheduling.events': { ...result, data: undefined } } };
+      expect(buildCalendarSchedulingViewModel(data, context, 'day')).toEqual(
+        buildCalendarSchedulingViewModel(withoutWarnings, context, 'day'),
+      );
+      expect(model.primaryColumn).toEqual(
+        buildCalendarAssignmentViewModel(withoutWarnings, context, 'day', loanOutRuntime).primaryColumn,
+      );
+      for (const access of [
+        { ...loanOutRuntime, permissions: [Permissions.AssignmentsView] },
+        { ...loanOutRuntime, featureFlags: { ...loanOutRuntime.featureFlags, Leave: { enabled: false } } },
+      ]) {
+        expect(
+          buildCalendarAssignmentViewModel(data, context, 'day', access).sidePanel!.items[0]!.warningGroups,
+        ).toBeUndefined();
+      }
+    });
+
+    it('reuses borrowed leave results outside loan-out windows while leaving projections and user membership unchanged', async () => {
+      const outside = {
+        id: 'outside-loan',
+        type: 'scheduling.leave',
+        sourceModule: 'leave',
+        title: 'Vacation',
+        leaveTypeName: 'Vacation',
+        locationId: 3,
+        userIds: [borrowedId, 'user-1'],
+        start: '2025-03-09T09:00:00Z',
+        end: '2025-03-09T10:00:00Z',
+      };
+      const overlapping = {
+        ...outside,
+        id: 'overlaps-loan',
+        start: '2025-03-09T16:00:00Z',
+        end: '2025-03-09T23:00:00Z',
+      };
+      server.use(
+        http.post('*/api/leave/calendar/events', async ({ request }) => {
+          leaveRequests.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json([outside, overlapping, outside]);
+        }),
+      );
+      const borrowed = await calendarSchedulingLoanOutContribution.load(assignmentContext, {
+        runtimeContext: loanOutRuntime,
+      });
+      expect(leaveRequests).toEqual([
+        {
+          startAtUtc: '2025-03-09T08:00:00.000Z',
+          endAtUtc: '2025-03-10T07:00:00.000Z',
+          userIds: [borrowedId],
+        },
+      ]);
+      expect(borrowed.events).toHaveLength(1);
+      expect(borrowed.events[0]).toMatchObject({
+        start: '2025-03-09T17:00:00.000Z',
+        end: '2025-03-09T21:00:00.000Z',
+        resourceIds: [borrowedId],
+        isReadOnly: true,
+      });
+      const data = response([]);
+      data.contributions['scheduling.loanout'] = borrowed;
+      const sidebar = buildCalendarAssignmentViewModel(data, assignmentContext, 'day', loanOutRuntime).sidePanel!.items;
+      expect(sidebar.find((item) => item.id === borrowedId)!.warningGroups![0]).toEqual({
+        id: 'leave',
+        heading: 'Leave',
+        warnings: [
+          expect.objectContaining({ id: outside.id, start: outside.start, end: outside.end }),
+          expect.objectContaining({ id: overlapping.id, start: overlapping.start, end: overlapping.end }),
+        ],
+      });
+      expect(sidebar.find((item) => item.id === 'user-1')!.warningGroups).toBeUndefined();
+      expect(sidebar.find((item) => item.id === 'user-2')!.warningGroups).toBeUndefined();
+      expect(leaveRequests).toHaveLength(1);
+    });
+
+    it('queries only displayed, filtered employees for both contributions', async () => {
+      const query = { ...assignmentContext, filters: { ...context.filters, userIds: ['user-2', borrowedId, 'other'] } };
+      const home = await calendarSchedulingEventsContribution.load(query, { runtimeContext: loanOutRuntime });
+      const borrowed = await calendarSchedulingLoanOutContribution.load(query, { runtimeContext: loanOutRuntime });
+      expect(home.resources?.map((user) => user.id)).toEqual(['user-2']);
+      expect(borrowed.resources?.map((user) => user.id)).toEqual([borrowedId]);
+      expect(leaveRequests.map((request) => request.userIds)).toEqual([['user-2'], [borrowedId]]);
+      expect(leaveRequests.every((request) => !('locationId' in request))).toBe(true);
+      expect(schedulingRequests[0]).toMatchObject({ locationId: 1, userIds: query.filters.userIds });
+    });
+
+    it.each([
+      {
+        name: 'missing leave permission',
+        access: { ...loanOutRuntime, permissions: [Permissions.AssignmentsView, Permissions.LoanOutView] },
+      },
+      {
+        name: 'disabled leave feature',
+        access: { ...loanOutRuntime, featureFlags: { ...loanOutRuntime.featureFlags, Leave: { enabled: false } } },
+      },
+      {
+        name: 'missing leave feature',
+        access: { ...loanOutRuntime, featureFlags: { Scheduling: { enabled: true }, LoanOut: { enabled: true } } },
+      },
+      { name: 'missing runtime', access: undefined },
+    ])('does not request warning leave with $name', async ({ access }) => {
+      await calendarSchedulingEventsContribution.load(assignmentContext, { runtimeContext: access });
+      await calendarSchedulingLoanOutContribution.load(assignmentContext, { runtimeContext: access });
+      expect(leaveRequests).toEqual([]);
+      expect(schedulingRequests).toHaveLength(1);
+    });
+
+    it('does not add a home warning request for other views or empty filtered employee lists', async () => {
+      await calendarSchedulingEventsContribution.load(
+        { ...assignmentContext, activeViewId: 'calendar.matrix-scheduling' },
+        { runtimeContext: loanOutRuntime },
+      );
+      const query = { ...assignmentContext, filters: { ...context.filters, userIds: ['other'] } };
+      const home = await calendarSchedulingEventsContribution.load(query, { runtimeContext: loanOutRuntime });
+      const borrowed = await calendarSchedulingLoanOutContribution.load(query, { runtimeContext: loanOutRuntime });
+      expect(home.resources).toEqual([]);
+      expect(borrowed.resources).toEqual([]);
+      expect(leaveRequests).toEqual([]);
+    });
+
+    it('does not issue unrestricted leave queries for empty teams or a missing selected location', async () => {
+      server.use(
+        http.get('*/api/users', () => HttpResponse.json([])),
+        http.post('*/api/loan-out/scheduling/users', () => HttpResponse.json([])),
+      );
+      for (const query of [assignmentContext, { ...assignmentContext, locationId: undefined }]) {
+        await calendarSchedulingEventsContribution.load(query, { runtimeContext: loanOutRuntime });
+        await calendarSchedulingLoanOutContribution.load(query, { runtimeContext: loanOutRuntime });
+      }
+      expect(leaveRequests).toEqual([]);
+    });
+
+    it('keeps the primary calendar and borrowed employees available when optional leave requests fail', async () => {
+      server.use(http.post('*/api/leave/calendar/events', () => new HttpResponse(null, { status: 500 })));
+      const home = await calendarSchedulingEventsContribution.load(assignmentContext, {
+        runtimeContext: loanOutRuntime,
+      });
+      const borrowed = await calendarSchedulingLoanOutContribution.load(assignmentContext, {
+        runtimeContext: loanOutRuntime,
+      });
+      expect(home.events.map((event) => event.id)).toEqual([localLeave.id, shift.id, assignment.id]);
+      expect(home.data).toEqual({ warningEvents: [] });
+      expect(borrowed.events).toEqual([]);
+      expect(borrowed.data).toEqual({ warningEvents: [] });
+      expect(borrowed.resources?.map((user) => user.id)).toEqual([borrowedId]);
+      const data = { contributions: { 'scheduling.events': home, 'scheduling.loanout': borrowed } };
+      const sidebar = buildCalendarAssignmentViewModel(data, assignmentContext, 'day', loanOutRuntime).sidePanel!.items;
+      expect(sidebar).toHaveLength(3);
+      expect(sidebar[0]!.warningGroups?.[0]?.warnings).toEqual([expect.objectContaining({ id: localLeave.id })]);
+    });
   });
 });

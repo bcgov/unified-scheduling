@@ -47,7 +47,10 @@ import {
   type CalendarAssignmentPartialCoverageShift,
   type CalendarSchedulingEvent,
 } from './calendarSchedulingData';
-import type { CalendarSchedulingUserResource } from './contributions/calendarSchedulingEventsContribution';
+import type {
+  CalendarSchedulingEventsData,
+  CalendarSchedulingUserResource,
+} from './contributions/calendarSchedulingEventsContribution';
 import { schedulingLoanOutContributionId } from './contributions/calendarSchedulingLoanOutContribution';
 import { canViewLeave, canViewLoanOut } from './calendarSchedulingPermissions';
 import { useLocationsStore } from '@/stores/LocationsStore';
@@ -766,10 +769,17 @@ function buildUserSidePanelItems(
   const leaveEvents =
     runtimeContext && canViewLeave(runtimeContext)
       ? selectSidebarWarningEvents(
-          // Keep projected user membership when restoring the original occurrence's display range.
-          schedulingEvents
-            .filter(isLeaveEvent)
-            .map((event) => ({ ...event, ...event.metadata.originalLeaveOccurrence })),
+          [
+            // Keep projected user membership when restoring the original occurrence's display range.
+            ...schedulingEvents
+              .filter(isLeaveEvent)
+              .map((event) => ({ ...event, ...event.metadata.originalLeaveOccurrence })),
+            ...[schedulingShiftContributionId, ...(loanOutEnabled ? [schedulingLoanOutContributionId] : [])].flatMap(
+              (id) =>
+                (selectContribution(response, id)?.data as CalendarSchedulingEventsData | undefined)?.warningEvents ??
+                [],
+            ),
+          ],
           rangeStart,
           rangeEnd,
           timeZone,
