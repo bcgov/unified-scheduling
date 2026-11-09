@@ -9,4 +9,6 @@ public sealed record CalendarDataResponse
     public IReadOnlyCollection<CalendarEventResponse> Events { get; init; } = [];
 
     public IReadOnlyCollection<CalendarConflictResponse> Conflicts { get; init; } = [];
+    public IReadOnlyCollection<CalendarRestrictedConflictWarningResponse> RestrictedWarnings { get; init; } = [];
+    public bool HasRestrictedConflicts { get; init; }
 }

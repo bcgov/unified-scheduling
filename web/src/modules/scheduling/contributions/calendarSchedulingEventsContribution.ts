@@ -1,13 +1,18 @@
 import { getApiUsersUserIdActingPositions } from '@/api-access/generated/acting-positions/acting-positions';
 import { postApiSchedulingCalendarEvents } from '@/api-access/generated/scheduling-calendar/scheduling-calendar';
-import type {
-  ActingPositionResponseDto,
-  LoanOutMetaData,
-  SchedulingCalendarEventResponse,
-  SchedulingCalendarRequest,
-  UserResponse,
+import {
+  Permissions,
+  type ActingPositionResponseDto,
+  type LoanOutMetaData,
+  type SchedulingCalendarEventResponse,
+  type SchedulingCalendarRequest,
+  type UserResponse,
 } from '@/api-access/generated/models';
-import type { CalendarQueryContext, CalendarResourceBase } from '@/modules/calendar/calendarTypes';
+import type {
+  CalendarQueryContext,
+  CalendarResourceBase,
+  CalendarRuntimeContext,
+} from '@/modules/calendar/calendarTypes';
 import { CalendarContributionId, CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
 import type {
   CalendarContributionLoadOptions,
@@ -21,8 +26,13 @@ import {
   type CalendarSchedulingEvent,
   type CalendarUser,
 } from '../calendarSchedulingData';
-import { resolveSchedulingTimeZoneFromFilters, resolveSchedulingTimeZoneId } from '../schedulingTimeZone';
+import {
+  defaultSchedulingTimeZoneId,
+  resolveSchedulingTimeZoneFromFilters,
+  resolveSchedulingTimeZoneId,
+} from '../schedulingTimeZone';
 import { canViewAssignments, canViewShifts, canViewLeave, canViewLoanOut } from '../calendarSchedulingPermissions';
+import { isSchedulingPublished } from '../schedulingLifecycle';
 import { useUsersStore } from '@/stores/Users';
 import { useLookupStore } from '@/stores/LookupStore';
 import { LookupCodeTypes } from '@/api-access/generated/models';
@@ -31,6 +41,7 @@ import { formatUserName } from '@/utils/user';
 import { getLeaveCalendarEvents } from '@/modules/leave/api/leaveApi';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { DateTime } from 'luxon';
+import { addDays, toApiDateString } from '@/utils/date';
 
 export interface CalendarSchedulingEventsData {
   warningEvents: CalendarSchedulingEvent[];
@@ -68,27 +79,37 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
   onDeactivate() {
     actingPositionsByUserIdCache.clear();
   },
-  async load(context, options) {
+  async load(context, options, runtimeContext) {
+    runtimeContext ??= options?.runtimeContext;
     const userIds = extractUserIds(context.filters);
 
     const [data, resourceData] = await Promise.all([
       loadSchedulingCalendarData(
         {
-          startDate: context.startDate,
-          endDate: context.endDate,
+          startDate: toApiDateString(context.startDate),
+          // Calendar ranges end exclusively; the scheduling API accepts an inclusive end date.
+          endDate: toApiDateString(addDays(context.endDate, -1)),
           timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
           locationId: context.locationId,
           userIds,
         },
         options?.signal,
       ),
-      loadSchedulingResourceData(context.locationId, options?.signal),
+      loadSchedulingResourceData(context.locationId, runtimeContext, options?.signal),
     ]);
 
-    const events = data.events ?? [];
+    const events = (data.events ?? []).filter(
+      (event) => runtimeContext?.presentationMode !== 'print' || isSchedulingPublished(event.statusTypeCode),
+    );
     const resourceUsers = filterResourceUsers(resourceData.users, userIds);
 
-    const mappedEvents = events.map((event) => mapSchedulingCalendarEvent(event, resourceData.getUserById));
+    const mappedEvents = events.map((event) =>
+      mapSchedulingCalendarEvent(
+        event,
+        resourceData.getUserById,
+        resolveSchedulingTimeZoneFromFilters(context.filters),
+      ),
+    );
     const warningEvents = await loadLeaveWarningEvents(context, resourceUsers, options);
 
     return {
@@ -131,7 +152,11 @@ async function loadLeaveWarningEvents(
     const endAtUtc = DateTime.fromISO(context.endDate, { zone }).toUTC().toISO();
     if (!startAtUtc || !endAtUtc) throw new Error('Invalid leave calendar date range.');
     const events = await getLeaveCalendarEvents({ startAtUtc, endAtUtc, userIds }, options?.signal);
-    return events.map((event) => mapSchedulingCalendarEvent(event));
+    return events.map((event) => ({
+      ...mapSchedulingCalendarEvent(event),
+      start: event.start,
+      end: event.end ?? undefined,
+    }));
   } catch (error) {
     if (options?.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
     console.warn('Leave warnings could not be loaded.', error);
@@ -142,9 +167,15 @@ async function loadLeaveWarningEvents(
 export function mapSchedulingCalendarEvent(
   event: SchedulingCalendarEventResponse,
   getUserById?: (userId: string) => UserResponse | undefined,
+  fallbackTimeZoneId = defaultSchedulingTimeZoneId,
 ): CalendarSchedulingEvent {
   const assignedUserIds = event.assignedUserIds ?? [];
   const leaveFields = resolveLeaveFields(event);
+  const leaveDate =
+    isLeaveEvent(event) && event.allDay
+      ? (leaveFields.leaveDate ??
+        DateTime.fromISO(event.start, { zone: event.timeZoneId || fallbackTimeZoneId }).toISODate())
+      : undefined;
 
   return {
     id: event.id,
@@ -154,8 +185,8 @@ export function mapSchedulingCalendarEvent(
     description: event.description ?? undefined,
     notes: event.notes ?? undefined,
     color: event.color ?? (isLeaveEvent(event) ? leaveEventColor : undefined),
-    start: event.start,
-    end: event.end ?? undefined,
+    start: leaveDate ?? event.start,
+    end: leaveDate ? addDays(leaveDate, 1) : (event.end ?? undefined),
     seriesStartAtUtc: event.seriesStartAtUtc ?? undefined,
     seriesEndAtUtc: event.seriesEndAtUtc ?? undefined,
     allDay: event.allDay ?? false,
@@ -206,6 +237,7 @@ function resolveLeaveFields(event: object & { id?: unknown }) {
     leaveSeriesId?: unknown;
     leaveTypeId?: unknown;
     leaveTypeName?: unknown;
+    leaveDate?: unknown;
   };
   const parsedEntryId = Number(source.leaveEntryId);
   const entryIdMatch = typeof source.id === 'string' ? /^scheduling\.leave-entry\.(\d+)$/.exec(source.id) : null;
@@ -221,6 +253,7 @@ function resolveLeaveFields(event: object & { id?: unknown }) {
     leaveSeriesId: Number.isInteger(leaveSeriesId) && leaveSeriesId > 0 ? String(leaveSeriesId) : undefined,
     leaveTypeId: Number.isInteger(leaveTypeId) && leaveTypeId > 0 ? leaveTypeId : undefined,
     leaveTypeName: typeof source.leaveTypeName === 'string' ? source.leaveTypeName : undefined,
+    leaveDate: typeof source.leaveDate === 'string' ? source.leaveDate : undefined,
   };
 }
 
@@ -353,9 +386,11 @@ async function loadSchedulingCalendarData(request: SchedulingCalendarRequest, si
 
 async function loadSchedulingResourceData(
   locationId?: number,
+  runtimeContext?: CalendarRuntimeContext,
   signal?: AbortSignal,
 ): Promise<CalendarSchedulingResourceData> {
-  if (!locationId) {
+  const isUserManagementEnabled = runtimeContext?.featureFlags.UserManagement?.enabled ?? true;
+  if (!locationId || !isUserManagementEnabled) {
     return {
       users: [],
       getUserById: () => undefined,
@@ -375,7 +410,10 @@ async function loadSchedulingResourceData(
   if (!positions) {
     throw new Error('Position type display order is unavailable.');
   }
-  const actingPositionsByUserId = await loadActingPositionsByUser(users, signal);
+  const canViewActingPositions = runtimeContext?.permissions?.includes(Permissions.ActingPositionsView) ?? false;
+  const actingPositionsByUserId = canViewActingPositions
+    ? await loadActingPositionsByUser(users, signal)
+    : new Map<string, ActingPositionResponseDto[]>();
 
   return {
     users: sortSchedulingUsers(users, positions),

@@ -99,6 +99,7 @@ const canAssignAssignment = computed(() => accessControl.hasPermission(Permissio
 const canDeleteAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsDelete));
 const canExpireAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsExpire));
 const canOverrideConflicts = computed(() => accessControl.hasPermission(Permissions.CalendarConflictsOverride));
+const canViewShifts = computed(() => accessControl.hasPermission(Permissions.ShiftsView));
 
 type AssignmentDetailTabId = 'details' | 'edit' | 'delete';
 type AssignmentOpenScope = 'event' | 'series';
@@ -129,6 +130,12 @@ const pendingConflict = ref<CalendarConflictResponse | null>(null);
 const pendingSaveOptions = ref<SaveAssignmentOptions | null>(null);
 const conflictOverrides = ref<CalendarConflictAcknowledgement[]>([]);
 const conflictRetryError = ref('');
+const hasRestrictedConflicts = ref(false);
+const restrictedConflictMessage =
+  'This assignment has unresolved conflicts with events you do not have permission to view.';
+const pendingConflictErrorMessage = computed(() =>
+  [hasRestrictedConflicts.value ? restrictedConflictMessage : '', conflictRetryError.value].filter(Boolean).join(' '),
+);
 const existingShiftEntryLinks = ref<ShiftEntryLinkFormData[]>([]);
 const existingShiftSeriesLinks = ref<ShiftSeriesLinkFormData[]>([]);
 const users = ref<UserResponse[]>([]);
@@ -170,6 +177,7 @@ const assignmentShiftOptions = useSchedulingAssignmentShiftOptions({
   locationId: activeLocationId,
   date: computed(() => formData.value.date || props.initialDate),
   timeZoneId,
+  enabled: canViewShifts,
   onError: (message) => {
     apiError.value = message;
   },
@@ -267,8 +275,8 @@ const locationOptionsWithSelected = computed(() => {
   return [{ code: locationId, description: 'Unknown location' }, ...locationsStore.selectOptions];
 });
 const hasAssignmentRecurrence = computed(() => isSeriesScope.value || formData.value.repeatMode === 'custom');
-const shouldShowSingleShiftLinks = computed(() => !hasAssignmentRecurrence.value);
-const shouldShowRecurringShiftLinks = computed(() => hasAssignmentRecurrence.value);
+const shouldShowSingleShiftLinks = computed(() => canViewShifts.value && !hasAssignmentRecurrence.value);
+const shouldShowRecurringShiftLinks = computed(() => canViewShifts.value && hasAssignmentRecurrence.value);
 const targetDateStart = computed(() => {
   const targetDate = formData.value.date || props.initialDate;
   const parsedTargetDate = targetDate ? DateTime.fromISO(targetDate, { zone: timeZoneId.value }).startOf('day') : null;
@@ -1383,13 +1391,20 @@ async function handleSave() {
 
     if (saveResult.error.value) {
       const conflictRejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
+      hasRestrictedConflicts.value = conflictRejection?.hasRestrictedConflicts === true;
+      if (hasRestrictedConflicts.value) {
+        apiError.value = restrictedConflictMessage;
+        if (!conflictRejection?.conflicts[0]) return;
+      }
       if (isEditMode.value && !isSeriesScope.value && conflictRejection?.conflicts[0]) {
-        pendingSaveOptions.value = saveOptions;
+        pendingSaveOptions.value = hasRestrictedConflicts.value ? null : saveOptions;
         conflictOverrides.value = [];
         pendingConflict.value = conflictRejection.conflicts[0];
         conflictRetryError.value = '';
         return;
       }
+
+      if (hasRestrictedConflicts.value) return;
 
       if (applyServerValidationErrors(saveResult.error.value.data)) {
         apiError.value = 'Could not save the assignment. Check the highlighted fields.';
@@ -1419,7 +1434,7 @@ async function handleSave() {
 async function handleConflictOverride(note: string) {
   const conflict = pendingConflict.value;
   const saveOptions = pendingSaveOptions.value;
-  if (!conflict || !saveOptions || !canOverrideConflicts.value) {
+  if (!conflict || !saveOptions || !canOverrideConflicts.value || hasRestrictedConflicts.value) {
     return;
   }
 
@@ -1447,6 +1462,16 @@ async function handleConflictOverride(note: string) {
     });
     if (saveResult.error.value) {
       const rejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
+      hasRestrictedConflicts.value = rejection?.hasRestrictedConflicts === true;
+      if (hasRestrictedConflicts.value) {
+        apiError.value = restrictedConflictMessage;
+        pendingSaveOptions.value = null;
+        conflictOverrides.value = [];
+        if (!rejection?.conflicts[0]) {
+          clearPendingConflict();
+          return;
+        }
+      }
       if (rejection?.conflicts[0]) {
         pendingConflict.value = rejection.conflicts[0];
         return;
@@ -1474,6 +1499,7 @@ function clearPendingConflict() {
   pendingSaveOptions.value = null;
   conflictOverrides.value = [];
   conflictRetryError.value = '';
+  hasRestrictedConflicts.value = false;
 }
 
 function getConflictRejection(data: unknown, error: unknown): CalendarConflictRejectionResponse | null {
@@ -1483,7 +1509,7 @@ function getConflictRejection(data: unknown, error: unknown): CalendarConflictRe
       continue;
     }
 
-    const response = candidate as { message?: unknown; conflicts?: unknown };
+    const response = candidate as { message?: unknown; conflicts?: unknown; hasRestrictedConflicts?: unknown };
     if (
       typeof response.message === 'string' &&
       Array.isArray(response.conflicts) &&
@@ -1492,6 +1518,7 @@ function getConflictRejection(data: unknown, error: unknown): CalendarConflictRe
       return {
         message: response.message,
         conflicts: response.conflicts,
+        hasRestrictedConflicts: response.hasRestrictedConflicts === true,
       };
     }
   }
@@ -2161,9 +2188,9 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
     :current-event-id="pendingConflictCurrentEventId"
     :time-zone="timeZoneId"
     :loading="isSaving"
-    :error-message="conflictRetryError"
+    :error-message="pendingConflictErrorMessage"
     :can-edit-event="false"
-    :can-override="canOverrideConflicts"
+    :can-override="canOverrideConflicts && !hasRestrictedConflicts"
     @close="clearPendingConflict"
     @override="handleConflictOverride"
   />

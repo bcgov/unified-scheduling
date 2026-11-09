@@ -10,12 +10,14 @@ import {
   toDateTime,
 } from '@/utils/date';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
-import { CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
+import { CalendarActionId, CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
 import {
   getCalendarConflictsForEvent,
   getCalendarConflictsForEventAndResource,
   resolveCalendarEventId,
   selectCalendarConflicts,
+  selectCalendarRestrictedWarnings,
+  getCalendarRestrictedWarningsForEvent,
   selectCalendarEvents,
   selectContribution,
 } from '@/modules/calendar/calendarSelectors';
@@ -114,10 +116,17 @@ function compareAssignmentLabels(left?: string, right?: string) {
   return normalizedLeft.localeCompare(normalizedRight, undefined, { sensitivity: 'base' });
 }
 
+export interface CalendarSchedulingMatrixPayload {
+  events: CalendarSchedulingEvent[];
+  conflicts: CalendarConflict[];
+  conflictsAvailable: boolean;
+}
+
 export function buildCalendarSchedulingViewModel(
   response: CalendarDataResponse,
   context: CalendarQueryContext,
   period: CalendarPeriod,
+  canViewAssignmentConflicts = true,
 ): CalendarMatrixViewModel {
   const timeZone = resolveMatrixTimeZone(context);
   if (period === 'month') {
@@ -139,6 +148,9 @@ export function buildCalendarSchedulingViewModel(
   );
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const holidayEvents = (selectContribution(response, CalendarContributionId.Events)?.events ?? []).filter(
+    (event) => event.type === 'calendar.holiday' || event.eventTypeCode?.toLowerCase() === 'holiday',
+  );
   const conflicts = selectCalendarConflicts(response);
   const leaveEvents = schedulingEvents.filter((event) => isLeaveEvent(event) || isLoanOutEvent(event));
   const trainingEvents = selectContribution(response, 'training.events')?.events ?? [];
@@ -201,6 +213,18 @@ export function buildCalendarSchedulingViewModel(
         disabled: isUnavailable,
         showResourceAdd: userShiftEvents.length === 0,
         headers: [
+          ...(isUnassignedRow
+            ? []
+            : holidayEvents
+                .filter((event) => isEventOnMatrixDate(event, day.date, timeZone))
+                .map<CalendarMatrixCellHeader>((event) => ({
+                  id: event.id,
+                  text: event.title,
+                  title: event.title,
+                  color: 'var(--calendar-event-holiday-color)',
+                  actionId: CalendarActionId.EventDetail,
+                  payload: event,
+                }))),
           ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
           ...userTrainingEvents.map((event) => ({
             id: event.id,
@@ -212,11 +236,7 @@ export function buildCalendarSchedulingViewModel(
             payload: event,
           })),
           ...userShiftEvents.map((event) =>
-            buildCellHeader(
-              event,
-              timeZone,
-              getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
-            ),
+            buildCellHeader(event, timeZone, getConflictsForShift(event, assignmentEvents, user.id, conflicts)),
           ),
         ],
         groups: [
@@ -231,25 +251,31 @@ export function buildCalendarSchedulingViewModel(
     }
   }
 
-  return {
-    days,
-    timeZone,
-    payload: {
-      assignmentEvents: selectSchedulingAssignmentEvents(response),
+  return addRestrictedWarnings(
+    {
+      days,
+      timeZone,
+      payload: {
+        events: schedulingEvents,
+        conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
+        conflictsAvailable: canViewAssignmentConflicts && hasCalendarConflictData(response),
+      },
+      primaryColumn: {
+        label: 'TEAM',
+        resources: scheduleResources,
+      },
+      cells,
+      sidePanel: {
+        label: 'ASSIGNMENTS',
+        actionId: calendarSchedulingActionIds.addAssignment,
+        actionLabel: 'Add Assignment',
+        search: { placeholder: 'Search assignments...' },
+        items: buildAssignmentSidePanelItems(response),
+      },
     },
-    primaryColumn: {
-      label: 'TEAM',
-      resources: scheduleResources,
-    },
-    cells,
-    sidePanel: {
-      label: 'ASSIGNMENTS',
-      actionId: calendarSchedulingActionIds.addAssignment,
-      actionLabel: 'Add Assignment',
-      search: { placeholder: 'Search assignments...' },
-      items: buildAssignmentSidePanelItems(response),
-    },
-  };
+    response,
+    true,
+  );
 }
 
 function buildUnassignedResourceRow(): CalendarMatrixResource {
@@ -305,8 +331,11 @@ export function buildCalendarAssignmentViewModel(
 
   const days = buildDays(context.startDate, period, timeZone);
   const resources = buildAssignmentResourceRows(response);
-  const assignmentEvents = selectSchedulingAssignmentEvents(response);
-  const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
+  const schedulingEvents = selectSchedulingShiftEvents(response).filter(
+    (event) => !(event.isException && event.exceptionReason === 'IsAway'),
+  );
+  const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const conflicts = selectCalendarConflicts(response);
   const cells: CalendarMatrixCell[] = [];
 
@@ -341,25 +370,73 @@ export function buildCalendarAssignmentViewModel(
     }
   }
 
-  return {
-    days,
-    timeZone,
-    payload: {
-      assignmentEvents,
+  return addRestrictedWarnings(
+    {
+      days,
+      timeZone,
+      payload: {
+        events: schedulingEvents,
+        conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
+        conflictsAvailable: hasCalendarConflictData(response),
+      },
+      primaryColumn: {
+        label: 'ASSIGNMENTS',
+        resources,
+      },
+      cells,
+      sidePanel: {
+        label: 'TEAM',
+        actionId: calendarSchedulingActionIds.scheduleStaff,
+        actionLabel: 'Schedule staff',
+        items: buildUserSidePanelItems(response, days, timeZone, context, runtimeContext),
+        search: { placeholder: 'Search team...' },
+      },
     },
-    primaryColumn: {
-      label: 'ASSIGNMENTS',
-      resources,
-    },
-    cells,
-    sidePanel: {
-      label: 'TEAM',
-      actionId: calendarSchedulingActionIds.scheduleStaff,
-      actionLabel: 'Schedule staff',
-      items: buildUserSidePanelItems(response, days, timeZone, context, runtimeContext),
-      search: { placeholder: 'Search team...' },
-    },
-  };
+    response,
+    false,
+  );
+}
+
+function addRestrictedWarnings(
+  model: CalendarMatrixViewModel,
+  response: CalendarDataResponse,
+  resourceScoped: boolean,
+) {
+  const warnings = selectCalendarRestrictedWarnings(response);
+  for (const cell of model.cells) {
+    const resourceId = resourceScoped ? cell.resourceId : undefined;
+    for (const header of cell.headers ?? []) {
+      const event = header.payload;
+      if (!event || typeof event !== 'object' || !('metadata' in event)) continue;
+      header.restrictedWarnings = getCalendarRestrictedWarningsForEvent(
+        resolveCalendarEventId(event),
+        warnings,
+        resourceId,
+      );
+      if (header.restrictedWarnings.length) header.action = buildPulldownAction();
+    }
+    for (const item of cell.groups.flatMap((group) => group.events)) {
+      item.restrictedWarnings = getCalendarRestrictedWarningsForEvent(
+        resolveCalendarEventId(item.event),
+        warnings,
+        resourceId,
+      );
+      if (item.restrictedWarnings.length) item.display = { ...item.display, action: buildPulldownAction() };
+    }
+  }
+  return model;
+}
+
+function hasCalendarConflictData(response: CalendarDataResponse) {
+  const data = response.contributions['calendar.events']?.data;
+  return typeof data === 'object' && data !== null && 'conflicts' in data && Array.isArray(data.conflicts);
+}
+
+function selectSchedulingConflicts(events: CalendarSchedulingEvent[], conflicts: CalendarConflict[]) {
+  const relevantConflicts = events.flatMap((event) =>
+    getCalendarConflictsForEvent(resolveCalendarEventId(event), conflicts),
+  );
+  return [...new Map(relevantConflicts.map((conflict) => [conflict.id, conflict])).values()];
 }
 
 function buildUserResourceRows(users: CalendarSchedulingUserResource[]): CalendarMatrixResource[] {
@@ -546,18 +623,24 @@ function resolveLinkedShiftsForAssignment(assignmentEvent: CalendarEventBase, us
   );
 }
 
-function getConflictsForLinkedAssignments(
+function getConflictsForShift(
   shiftEvent: CalendarEventBase,
   assignmentEvents: ReadonlyArray<CalendarEventBase>,
   resourceId: string,
   conflicts: ReadonlyArray<CalendarConflict>,
 ) {
+  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
+  const shiftEventId = resolveCalendarEventId(shiftEvent);
+  if (shiftEventId != null) {
+    for (const conflict of getCalendarConflictsForEventAndResource(shiftEventId, resourceId, conflicts)) {
+      conflictsById.set(conflict.id, { conflict, currentEventId: shiftEventId });
+    }
+  }
   if (!isCalendarSchedulingEvent(shiftEvent) || shiftEvent.metadata.shiftEntryId == null) {
-    return [];
+    return [...conflictsById.values()];
   }
 
   const shiftEntryId = String(shiftEvent.metadata.shiftEntryId);
-  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
   for (const event of assignmentEvents) {
     if (!isCalendarSchedulingEvent(event) || event.metadata.assignedShiftIds?.includes(shiftEntryId) !== true) {
       continue;
@@ -1038,6 +1121,10 @@ function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: s
   return getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone) === date;
 }
 function isLeaveOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
+  if (event.allDay && /^\d{4}-\d{2}-\d{2}$/.test(event.start)) {
+    return event.start <= date && date < (event.end ?? addDays(event.start, 1));
+  }
+
   const dayStart = DateTime.fromISO(date, { zone: timeZone }).startOf('day');
   const dayEnd = dayStart.plus({ days: 1 });
   const start = DateTime.fromISO(event.start, { setZone: true });

@@ -62,6 +62,9 @@ export const calendarSchedulingLoanOutContribution: CalendarModuleContribution =
         const mapped = mapSchedulingCalendarEvent(event);
         return {
           ...mapped,
+          // Keep the clipped loan-out window even when the source leave is all day.
+          start: event.start,
+          end: event.end ?? undefined,
           isReadOnly: true,
           metadata: { ...mapped.metadata, originalLeaveOccurrence: event.originalLeaveOccurrence },
         };
@@ -174,9 +177,11 @@ export async function loadLoanOutLeaveEvents(
   return {
     events: projectLoanOutLeave(events, resources, startAtUtc, endAtUtc),
     // Reuse the full occurrences, including leave outside the loan-out windows.
-    warningEvents: events.map((event) =>
-      mapSchedulingCalendarEvent({ ...event, userIds: event.userIds?.filter((id) => userIds.includes(id)) }),
-    ),
+    warningEvents: events.map((event) => ({
+      ...mapSchedulingCalendarEvent({ ...event, userIds: event.userIds?.filter((id) => userIds.includes(id)) }),
+      start: event.start,
+      end: event.end ?? undefined,
+    })),
   };
 }
 

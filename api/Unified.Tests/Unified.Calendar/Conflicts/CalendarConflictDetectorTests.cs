@@ -23,6 +23,19 @@ public sealed class CalendarConflictDetectorTests
         Assert.Equal(Baseline.AddMinutes(120), conflict.OverlapEnd);
     }
 
+    [Theory]
+    [InlineData("leave", true)]
+    [InlineData("training", false)]
+    [InlineData("calendar", false)]
+    [InlineData("scheduling", false)]
+    public void Detect_WhenShiftSupplementIsRestrictedToLeave_PreservesOtherPairs(string partnerModule, bool expected)
+    {
+        var shift = Participant(1, ResourceA, 0, 60) with { ConflictsWithSourceModule = "leave" };
+        var other = Participant(2, ResourceA, 30, 90) with { SourceModule = partnerModule };
+        Assert.Equal(expected ? 1 : 0, CalendarConflictDetector.Detect([shift, other]).Count);
+        Assert.Equal(expected ? 1 : 0, CalendarConflictDetector.Detect([other, shift]).Count);
+    }
+
     [Fact]
     public void Detect_WhenIntervalsTouchAtBoundary_DoesNotConflict()
     {
@@ -69,6 +82,58 @@ public sealed class CalendarConflictDetectorTests
 
         var conflict = Assert.Single(conflicts);
         Assert.NotEqual(conflict.Entry.SourceModule, conflict.Overlaps.SourceModule);
+    }
+
+    [Fact]
+    public void Detect_WhenNeitherParticipantRequiresMatchingTimeZone_DetectsUtcOverlapAcrossTimeZones()
+    {
+        var conflicts = CalendarConflictDetector.Detect([
+            Participant(1, ResourceA, 0, 60) with
+            {
+                TimeZoneId = "America/Vancouver",
+            },
+            Participant(2, ResourceA, 30, 90) with
+            {
+                TimeZoneId = "America/Toronto",
+            },
+        ]);
+
+        Assert.Single(conflicts);
+    }
+
+    [Fact]
+    public void Detect_WhenHolidayTimeZoneDiffers_DoesNotConflict()
+    {
+        var conflicts = CalendarConflictDetector.Detect([
+            Participant(1, ResourceA, 0, 60) with
+            {
+                TimeZoneId = "America/Vancouver",
+                RequiresMatchingTimeZone = true,
+            },
+            Participant(2, ResourceA, 30, 90) with
+            {
+                TimeZoneId = "America/Toronto",
+            },
+        ]);
+
+        Assert.Empty(conflicts);
+    }
+
+    [Fact]
+    public void Detect_WhenIdentityMatches_DoesNotConflictWithEquivalentRepresentation()
+    {
+        var conflicts = CalendarConflictDetector.Detect([
+            Participant(1, ResourceA, 0, 60) with
+            {
+                EventId = "canonical",
+            },
+            Participant(2, ResourceA, 0, 60) with
+            {
+                EventId = "canonical",
+            },
+        ]);
+
+        Assert.Empty(conflicts);
     }
 
     [Fact]

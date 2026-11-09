@@ -577,6 +577,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
         recurrenceRule?: string | null;
       };
       handleSave: () => Promise<void>;
+      handleClose: () => void;
     };
     vm.formData.publish = 'yes';
     if (kind === 'series') {
@@ -588,7 +589,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
 
     expect(create).toHaveBeenCalledTimes(1);
     expect(publish).toHaveBeenCalledTimes(1);
-    expect(calendarStore.refreshNonce).toBe(1);
+    expect(calendarStore.refreshNonce).toBe(0);
     expect(document.body.textContent).toContain('The shift was created and remains Draft');
     expect(document.body.textContent).toContain('could not be published');
     expect(wrapper.emitted('close')).toBeUndefined();
@@ -601,6 +602,11 @@ describe('CalendarSchedulingAddResourceModal', () => {
 
     expect(create).toHaveBeenCalledTimes(1);
     expect(publish).toHaveBeenCalledTimes(1);
+
+    vm.handleClose();
+
+    expect(calendarStore.refreshNonce).toBe(1);
+    expect(wrapper.emitted('close')).toBeTruthy();
 
     wrapper.unmount();
   });

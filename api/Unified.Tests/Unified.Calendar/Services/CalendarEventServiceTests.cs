@@ -7,6 +7,7 @@ using Unified.Calendar.Holidays;
 using Unified.Calendar.Models;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
+using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models;
@@ -40,7 +41,8 @@ public class CalendarEventServiceTests : IAsyncLifetime
             new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
             CreateCalendarTimeZoneResolver(),
             timeZoneService,
-            new CalendarConflictService([], _dbContext)
+            new CalendarConflictService([], _dbContext, new CalendarConflictProjection([])),
+            new CalendarConflictProjection([])
         );
     }
 
@@ -254,7 +256,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetCalendarDataAsync_WhenLocationAndRequestTimeZonesDiffer_UsesRequestedTimeZone()
+    public async Task GetCalendarDataAsync_WhenLocationAndRequestTimeZonesDiffer_UsesLocationTimeZone()
     {
         var request = CreateRequest(
             new DateOnly(2026, 7, 1),
@@ -266,8 +268,38 @@ public class CalendarEventServiceTests : IAsyncLifetime
         var result = await _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
 
         var holiday = Assert.Single(result.Events);
-        Assert.Equal(new DateTimeOffset(2026, 7, 1, 7, 0, 0, TimeSpan.Zero), holiday.StartAtUtc);
-        Assert.Equal("America/Vancouver", holiday.TimeZoneId);
+        Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), holiday.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero), holiday.EndAtUtc);
+        Assert.Equal("America/Toronto", holiday.TimeZoneId);
+    }
+
+    [Fact]
+    public async Task GetCalendarDataAsync_WhenLocationAndRequestTimeZonesDiffer_UsesLocationTimeZoneForConflicts()
+    {
+        var conflictProvider = new TrackingConflictParticipantProvider();
+        var timeZoneService = new TimeZoneService();
+        var service = new CalendarQueryService(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CalendarQueryService>.Instance,
+            _dbContext,
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
+            CreateCalendarTimeZoneResolver(),
+            timeZoneService,
+            new CalendarConflictService([conflictProvider], _dbContext, new CalendarConflictProjection([])),
+            new CalendarConflictProjection([])
+        );
+        var request = CreateRequest(
+            new DateOnly(2026, 7, 1),
+            new DateOnly(2026, 7, 1),
+            locationId: 9,
+            timeZoneId: "America/Vancouver"
+        );
+
+        await service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(conflictProvider.LastQuery);
+        Assert.Equal(9, conflictProvider.LastQuery.LocationId);
+        Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), conflictProvider.LastQuery.StartAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 7, 2, 4, 0, 0, TimeSpan.Zero), conflictProvider.LastQuery.EndAtUtc);
     }
 
     [Fact]
@@ -281,7 +313,7 @@ public class CalendarEventServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetCalendarDataAsync_WhenLocationHasNoConfiguredTimeZone_UsesRequestedTimeZone()
+    public async Task GetCalendarDataAsync_WhenLocationHasNoConfiguredTimeZoneAndRequestHasTimeZone_Throws()
     {
         var request = CreateRequest(
             new DateOnly(2026, 7, 1),
@@ -290,11 +322,23 @@ public class CalendarEventServiceTests : IAsyncLifetime
             timeZoneId: "America/Toronto"
         );
 
-        var result = await _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken)
+        );
 
-        var holiday = Assert.Single(result.Events);
-        Assert.Equal(new DateTimeOffset(2026, 7, 1, 4, 0, 0, TimeSpan.Zero), holiday.StartAtUtc);
-        Assert.Equal("America/Toronto", holiday.TimeZoneId);
+        Assert.Contains("operational time zone", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetCalendarDataAsync_WhenLocationAndRequestHaveNoTimeZone_Throws()
+    {
+        var request = CreateRequest(new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1), locationId: 11);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.GetCalendarDataAsync(request, TestContext.Current.CancellationToken)
+        );
+
+        Assert.Contains("operational time zone", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static CalendarDataRequest CreateRequest(
@@ -445,4 +489,31 @@ public class CalendarEventServiceTests : IAsyncLifetime
             Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
             new TimeZoneService()
         );
+
+    private sealed class TrackingConflictParticipantProvider : ICalendarConflictParticipantProvider
+    {
+        public CalendarConflictQuery? LastQuery { get; private set; }
+
+        public Task<CalendarConflictParticipant?> GetParticipantAsync(
+            CalendarConflictEventIdentity identity,
+            Guid resourceId,
+            CancellationToken cancellationToken = default
+        )
+        {
+            _ = identity;
+            _ = resourceId;
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<CalendarConflictParticipant?>(null);
+        }
+
+        public Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
+            CalendarConflictQuery query,
+            CancellationToken cancellationToken = default
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            LastQuery = query;
+            return Task.FromResult<IReadOnlyCollection<CalendarConflictParticipant>>([]);
+        }
+    }
 }

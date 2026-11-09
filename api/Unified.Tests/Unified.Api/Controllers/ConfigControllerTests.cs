@@ -35,7 +35,8 @@ public class ConfigControllerTests
             NullLogger<ConfigController>.Instance,
             featureFlags,
             applicationOptions,
-            brandingOptions
+            brandingOptions,
+            new ConfigurationBuilder().Build()
         );
 
         var result = controller.Get();
@@ -61,7 +62,8 @@ public class ConfigControllerTests
             NullLogger<ConfigController>.Instance,
             [],
             Options.Create(new ApplicationOptions()),
-            Options.Create(new BrandingOptions())
+            Options.Create(new BrandingOptions()),
+            new ConfigurationBuilder().Build()
         );
 
         var result = controller.Get();
@@ -101,7 +103,8 @@ public class ConfigControllerTests
             NullLogger<ConfigController>.Instance,
             [],
             Options.Create(new ApplicationOptions()),
-            Options.Create(settings)
+            Options.Create(settings),
+            configuration
         );
         var result = controller.Get();
         var response = Assert.IsType<ConfigResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
@@ -121,5 +124,28 @@ public class ConfigControllerTests
         Assert.Equal("", response.BrandingOptions["bcss"].Header!.PoweredByText);
         Assert.Null(response.BrandingOptions["bcss"].PrimaryColor);
         Assert.Null(response.BrandingOptions["bcss"].QuickLinks);
+    }
+
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    [InlineData(null, false)]
+    public void Get_Should_Expose_EmailDistributionAvailability_From_ChesConfiguration(string? enabled, bool expected)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Ches:Enabled"] = enabled })
+            .Build();
+        var controller = new ConfigController(
+            NullLogger<ConfigController>.Instance,
+            [],
+            Options.Create(new ApplicationOptions()),
+            Options.Create(new BrandingOptions()),
+            configuration
+        );
+
+        var result = controller.Get();
+
+        var response = Assert.IsType<ConfigResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(expected, response.EmailDistributionAvailable);
     }
 }

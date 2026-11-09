@@ -68,6 +68,7 @@ const canCreateLoanOut = computed(
     (accessControl.featureFlags.value?.LoanOut?.enabled ?? false) &&
     accessControl.hasPermission(Permissions.LoanOutCreateAndAssign),
 );
+const canViewAssignments = computed(() => accessControl.hasPermission(Permissions.AssignmentsView));
 
 const isSaving = ref(false);
 const activeTab = ref<'schedule' | 'leave' | 'loanout'>('schedule');
@@ -84,6 +85,7 @@ const loanOutFormData = ref<LoanOutFormData>({
 });
 const leaveHasValidationError = ref(false);
 const leaveFormData = ref<LeaveFormData>({
+  allDay: false,
   userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
   date: props.initialDate ?? '',
   startTime: defaultStartTime,
@@ -92,6 +94,7 @@ const leaveFormData = ref<LeaveFormData>({
 });
 const createdShiftId = ref<number | null>(null);
 const hasCreatedUnpublishedShift = computed(() => createdShiftId.value !== null);
+const refreshCalendarOnClose = ref(false);
 const apiError = ref('');
 const formErrors = ref<Record<string, string>>({});
 const recurrenceError = ref('');
@@ -126,6 +129,7 @@ const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLo
     activeLocationId,
     activeTimeZoneId: timeZoneId,
     isSeriesScope,
+    enabled: canViewAssignments,
     onError: (message) => {
       apiError.value = message;
     },
@@ -157,6 +161,7 @@ watch(
   ([resource, initialDate]) => {
     formData.value = createInitialFormData(resource, initialDate);
     leaveFormData.value = {
+      allDay: false,
       userIds: resource?.type === 'user' ? [resource.id] : [],
       date: initialDate ?? '',
       startTime: '',
@@ -174,6 +179,7 @@ watch(
     };
     loanOutFormErrors.value = {};
     createdShiftId.value = null;
+    refreshCalendarOnClose.value = false;
     apiError.value = '';
     recurrenceError.value = '';
     formErrors.value = {};
@@ -290,6 +296,10 @@ function formatInitialAssignmentEventLabel(event: CalendarEventBase) {
 
 function handleClose() {
   if (!isSaving.value) {
+    if (refreshCalendarOnClose.value) {
+      calendarStore.refresh();
+      refreshCalendarOnClose.value = false;
+    }
     emit('close');
   }
 }
@@ -471,7 +481,7 @@ async function handleSaveLoanOut() {
   }
 }
 function handlePublicationFailure() {
-  calendarStore.refresh();
+  refreshCalendarOnClose.value = true;
   apiError.value =
     'The shift was created and remains Draft, but it could not be published. Close and reopen it to continue.';
 }
@@ -550,6 +560,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :assignment-warning="assignmentWarning"
             :is-loading-assignments="isLoadingAssignments"
             :show-series-assignment="isSeriesScope"
+            :show-assignment-links="canViewAssignments"
             @recurrence-change="handleRecurrenceChange"
             @recurrence-invalid="handleRecurrenceInvalid"
           />

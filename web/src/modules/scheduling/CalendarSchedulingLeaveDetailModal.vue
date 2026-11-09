@@ -27,7 +27,7 @@ import UaModal from '@/shared/components/UaModal.vue';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useUsersStore } from '@/stores/Users';
 import type { SelectOption } from '@/types/select';
-import { formatCalendarDateTimeDate, formatCalendarEventTimeRange } from '@/utils/date';
+import { formatCalendarDateOnly, formatCalendarDateTimeDate, formatCalendarEventTimeRange } from '@/utils/date';
 import { DateTime } from 'luxon';
 import { RRule } from 'rrule';
 import { isCalendarSchedulingEvent } from './calendarSchedulingData';
@@ -137,6 +137,9 @@ const canDelete = computed(
 );
 const shouldShowOpenScopeChoice = computed(() => leaveSeriesId.value != null && selectedOpenScope.value == null);
 const entityLabel = computed(() => (selectedOpenScope.value === 'series' ? 'Leave Series' : 'Leave'));
+const selectedRecord = computed(() =>
+  selectedOpenScope.value === 'series' ? selectedSeries.value : selectedEntry.value,
+);
 
 const visibleTabs = computed<Array<{ id: LeaveDetailTabId; label: string }>>(() => [
   { id: 'details', label: 'Details' },
@@ -208,10 +211,14 @@ const detailRows = computed<ShiftDetailRow[]>(() => [
   },
   {
     label: 'Time',
-    value: formatCalendarEventTimeRange(props.event.start, props.event.end, {
-      allDay: props.event.allDay,
-      timeZone: timeZoneId.value,
-    }),
+    value: formatCalendarEventTimeRange(
+      selectedRecord.value?.startAtUtc ?? props.event.start,
+      selectedRecord.value?.endAtUtc ?? props.event.end,
+      {
+        allDay: selectedRecord.value?.allDay ?? props.event.allDay,
+        timeZone: resolveSchedulingTimeZoneId(selectedRecord.value?.timeZoneId, timeZoneId.value),
+      },
+    ),
   },
   { label: 'Notes', value: props.event.notes?.trim() || props.event.description?.trim() || 'None' },
 ]);
@@ -230,9 +237,10 @@ function buildEditFormData(): LeaveFormData {
     return {
       userIds: selectedSeries.value.userIds,
       leaveType: selectedSeries.value.leaveTypeId,
-      date: start?.date ?? '',
-      startTime: start?.time ?? defaultStartTime,
-      endTime: end?.time ?? defaultEndTime,
+      date: selectedSeries.value.leaveDate ?? start?.date ?? '',
+      allDay: selectedSeries.value.allDay ?? false,
+      startTime: selectedSeries.value.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
+      endTime: selectedSeries.value.allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
       repeatMode: 'custom',
       recurrenceRule: selectedSeries.value.recurrenceRule ?? null,
       notes: selectedSeries.value.notes ?? '',
@@ -245,9 +253,10 @@ function buildEditFormData(): LeaveFormData {
     return {
       userIds: selectedEntry.value.userIds,
       leaveType: selectedEntry.value.leaveTypeId,
-      date: start?.date ?? '',
-      startTime: start?.time ?? defaultStartTime,
-      endTime: end?.time ?? defaultEndTime,
+      date: selectedEntry.value.leaveDate ?? start?.date ?? '',
+      allDay: selectedEntry.value.allDay ?? false,
+      startTime: selectedEntry.value.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
+      endTime: selectedEntry.value.allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
       repeatMode: 'never',
       recurrenceRule: null,
       notes: selectedEntry.value.notes ?? '',
@@ -260,9 +269,10 @@ function buildEditFormData(): LeaveFormData {
   return {
     userIds: resolveCalendarEventUserIds(props.event),
     leaveType: schedulingMetadata.value?.leaveTypeId ?? null,
-    date: start?.date ?? '',
-    startTime: start?.time ?? defaultStartTime,
-    endTime: end?.time ?? defaultEndTime,
+    date: schedulingMetadata.value?.leaveDate ?? start?.date ?? '',
+    allDay: props.event.allDay ?? false,
+    startTime: props.event.allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
+    endTime: props.event.allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
     repeatMode: 'never',
     recurrenceRule: null,
     notes: props.event.notes ?? '',
@@ -417,6 +427,14 @@ function formatLocation(locationId?: number) {
 }
 
 function formatDateRange() {
+  if (props.event.allDay) {
+    return formatCalendarDateOnly(
+      selectedEntry.value?.leaveDate ??
+        schedulingMetadata.value?.leaveDate ??
+        parseFormDateTime(props.event.start, timeZoneId.value)?.date ??
+        '',
+    );
+  }
   const startDate = formatCalendarDateTimeDate(props.event.start, timeZoneId.value) || 'Unknown';
   if (!props.event.end) {
     return startDate;

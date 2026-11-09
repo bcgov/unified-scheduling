@@ -16,6 +16,23 @@ namespace Unified.Tests.Scheduling.Controllers;
 public sealed class ScheduleDistributionControllerTests
 {
     [Fact]
+    public async Task Distribute_WhenEmailProviderIsMissing_ReturnsServiceUnavailable()
+    {
+        var controller = CreateController(
+            new FailingDistributionService(new ScheduleDistributionUnavailableException()),
+            Permissions.ShiftsView
+        );
+
+        var result = await controller.Distribute(CreateRequest(), TestContext.Current.CancellationToken);
+
+        var problem = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, problem.StatusCode);
+        var details = Assert.IsType<ProblemDetails>(problem.Value);
+        Assert.Equal("Schedule distribution is unavailable.", details.Title);
+        Assert.Equal("The schedule could not be distributed. Please try again later.", details.Detail);
+    }
+
+    [Fact]
     public async Task Distribute_WhenRenderingConfigurationIsUnavailable_ReturnsServiceUnavailable()
     {
         var controller = CreateController(
