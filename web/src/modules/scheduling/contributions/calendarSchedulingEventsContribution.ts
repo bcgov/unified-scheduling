@@ -7,9 +7,12 @@ import type {
   SchedulingCalendarRequest,
   UserResponse,
 } from '@/api-access/generated/models';
-import type { CalendarResourceBase } from '@/modules/calendar/calendarTypes';
+import type { CalendarQueryContext, CalendarResourceBase } from '@/modules/calendar/calendarTypes';
 import { CalendarContributionId, CalendarModuleId } from '@/modules/calendar/calendarIdentifiers';
-import type { CalendarModuleContribution } from '@/modules/calendar/registry/calendarRegistryTypes';
+import type {
+  CalendarContributionLoadOptions,
+  CalendarModuleContribution,
+} from '@/modules/calendar/registry/calendarRegistryTypes';
 import type { CalendarMatrixMetaItem as CalendarMetaItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import {
   isLeaveEvent,
@@ -18,16 +21,24 @@ import {
   type CalendarSchedulingEvent,
   type CalendarUser,
 } from '../calendarSchedulingData';
-import { resolveSchedulingTimeZoneFromFilters } from '../schedulingTimeZone';
+import { resolveSchedulingTimeZoneFromFilters, resolveSchedulingTimeZoneId } from '../schedulingTimeZone';
 import { canViewAssignments, canViewShifts, canViewLeave, canViewLoanOut } from '../calendarSchedulingPermissions';
 import { useUsersStore } from '@/stores/Users';
 import { useLookupStore } from '@/stores/LookupStore';
 import { LookupCodeTypes } from '@/api-access/generated/models';
 import { sortSchedulingUsers } from '../sortSchedulingUsers';
 import { formatUserName } from '@/utils/user';
+import { getLeaveCalendarEvents } from '@/modules/leave/api/leaveApi';
+import { useLocationsStore } from '@/stores/LocationsStore';
+import { DateTime } from 'luxon';
+
+export interface CalendarSchedulingEventsData {
+  warningEvents: CalendarSchedulingEvent[];
+}
 
 export interface CalendarSchedulingUserResource extends CalendarResourceBase {
   title: string;
+  homeLocationId?: number;
   subtitle?: string;
   meta?: CalendarMetaItem[];
   avatarText?: string;
@@ -77,16 +88,57 @@ export const calendarSchedulingEventsContribution: CalendarModuleContribution = 
     const events = data.events ?? [];
     const resourceUsers = filterResourceUsers(resourceData.users, userIds);
 
+    const mappedEvents = events.map((event) => mapSchedulingCalendarEvent(event, resourceData.getUserById));
+    const warningEvents = await loadLeaveWarningEvents(context, resourceUsers, options);
+
     return {
       moduleId: CalendarModuleId.Scheduling,
       contributionId: CalendarContributionId.SchedulingEvents,
-      events: events.map((event) => mapSchedulingCalendarEvent(event, resourceData.getUserById)),
+      events: mappedEvents,
       resources: resourceUsers.map<CalendarSchedulingUserResource>((user) =>
         mapUserToCalendarSchedulingResource(user, resourceData.actingPositionsByUserId.get(user.id) ?? []),
       ),
+      data: { warningEvents } satisfies CalendarSchedulingEventsData,
     };
   },
 };
+
+async function loadLeaveWarningEvents(
+  context: CalendarQueryContext,
+  users: UserResponse[],
+  options?: CalendarContributionLoadOptions,
+): Promise<CalendarSchedulingEvent[]> {
+  const runtime = options?.runtimeContext;
+  if (
+    context.activeViewId !== 'calendar.matrix-assignment' ||
+    context.locationId == null ||
+    !runtime ||
+    runtime.featureFlags.Leave?.enabled !== true ||
+    !canViewLeave(runtime)
+  )
+    return [];
+
+  const userIds = [...new Set(users.map((user) => user.id))];
+  // An empty list would remove the endpoint's user restriction.
+  if (!userIds.length) return [];
+
+  try {
+    const zone = resolveSchedulingTimeZoneId(
+      useLocationsStore().entitiesMap[context.locationId]?.timezone,
+      resolveSchedulingTimeZoneFromFilters(context.filters),
+    );
+    const startAtUtc = DateTime.fromISO(context.startDate, { zone }).toUTC().toISO();
+    const endAtUtc = DateTime.fromISO(context.endDate, { zone }).toUTC().toISO();
+    if (!startAtUtc || !endAtUtc) throw new Error('Invalid leave calendar date range.');
+    const events = await getLeaveCalendarEvents({ startAtUtc, endAtUtc, userIds }, options?.signal);
+    return events.map((event) => mapSchedulingCalendarEvent(event));
+  } catch (error) {
+    if (options?.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
+    console.warn('Leave warnings could not be loaded.', error);
+    return [];
+  }
+}
+
 export function mapSchedulingCalendarEvent(
   event: SchedulingCalendarEventResponse,
   getUserById?: (userId: string) => UserResponse | undefined,
@@ -207,6 +259,7 @@ function mapUserToCalendarSchedulingResource(
     id: user.id,
     type: 'user',
     sourceModule: 'scheduling',
+    homeLocationId: user.homeLocationId ?? undefined,
     label: title,
     title,
     subtitle: subtitle || undefined,
