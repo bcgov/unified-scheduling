@@ -349,10 +349,11 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
         int leaveLocationId
     )
     {
+        var conflicts = CreateServiceWithLeaveReporting();
         var leave = await AddLeaveAsync();
         leave.Event!.LocationId = leaveLocationId;
         await AddShiftAsync(Start.AddHours(1), Start.AddHours(2), CalendarEventStatusTypeCodes.Active);
-        var result = await _conflicts.GetConflictsAsync(
+        var result = await conflicts.GetConflictsAsync(
             Query() with
             {
                 LocationId = locationId,
@@ -361,7 +362,7 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
         );
         Assert.Single(result);
         Assert.Equal("Leave", result.Single().Entry.Title);
-        var unrelatedScope = await _conflicts.GetConflictsAsync(
+        var unrelatedScope = await conflicts.GetConflictsAsync(
             Query() with
             {
                 LocationId = 99,
@@ -374,6 +375,7 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
     [Fact]
     public async Task GetConflictsAsync_WhenOnlyLeaveIsInScope_IncludesCrossLocationAssignmentAndShift()
     {
+        var conflicts = CreateServiceWithLeaveReporting();
         await AddLeaveAsync();
         var shift = await AddShiftAsync(Start.AddHours(1), Start.AddHours(3), CalendarEventStatusTypeCodes.Active);
         var assignmentEvent = SchedulingEvent(Start.AddHours(1), Start.AddHours(2), "assignment");
@@ -393,7 +395,7 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
             }
         );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var result = await _conflicts.GetConflictsAsync(
+        var result = await conflicts.GetConflictsAsync(
             Query() with
             {
                 LocationId = 5,
@@ -405,10 +407,10 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
         Assert.Contains(result, conflict => conflict.Overlaps.EventId == assignmentEvent.Id.ToString());
         Assert.Contains(result, conflict => conflict.Overlaps.EventId == shift.EventId.ToString());
         Assert.Empty(
-            await _conflicts.GetConflictsAsync(Query() with { LocationId = 99 }, TestContext.Current.CancellationToken)
+            await conflicts.GetConflictsAsync(Query() with { LocationId = 99 }, TestContext.Current.CancellationToken)
         );
         Assert.Empty(
-            await _conflicts.GetConflictsAsync(
+            await conflicts.GetConflictsAsync(
                 Query() with
                 {
                     LocationId = 5,
@@ -529,6 +531,28 @@ public sealed class LeaveConflictParticipantProviderTests : IAsyncLifetime
             (
                 await service.GetConflictsForCandidatesAsync([leaveParticipant], TestContext.Current.CancellationToken)
             ).Count
+        );
+    }
+
+    private CalendarConflictService CreateServiceWithLeaveReporting()
+    {
+        ICalendarConflictParticipantProvider[] providers =
+        [
+            _provider,
+            new SchedulingConflictParticipantProvider(
+                _db,
+                SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+            ),
+        ];
+        return new CalendarConflictService(
+            providers,
+            _db,
+            new CalendarConflictProjection(providers),
+            CalendarConflictTestRules.Create(
+                ("shift", ["leave"]),
+                ("assignment", ["leave"]),
+                ("leave", ["shift", "assignment"])
+            )
         );
     }
 

@@ -4917,7 +4917,8 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                     new CalendarConflictQuery(At(9), At(17)),
                     TestContext.Current.CancellationToken
                 )
-            ).Where(item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode)
+            ),
+            item => item.EventTypeCode == SchedulingConstants.AssignmentEventTypeCode
         );
 
         Assert.Equal(assignment.EventId.ToString(), participant.EventId);
