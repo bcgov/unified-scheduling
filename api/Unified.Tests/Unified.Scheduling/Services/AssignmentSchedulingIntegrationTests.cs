@@ -5534,7 +5534,7 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
             CalendarConflictTestContext.Projection(UserA),
             leaveDataProvider: new LeaveCalendarDataProvider(
                 _db,
-                new SchedulingLeaveEventMapper(new CalendarEventMapper())
+                new SchedulingLeaveEventMapper(new CalendarEventMapper(), new TimeZoneService())
             ),
             schedulingCalendarDataProvider: new LoanOutCalendarDataProvider(
                 _db,

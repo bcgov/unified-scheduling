@@ -659,7 +659,7 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
             projection ?? CalendarConflictTestContext.Projection(ResourceId),
             leaveDataProvider: new LeaveCalendarDataProvider(
                 _db,
-                new SchedulingLeaveEventMapper(new CalendarEventMapper())
+                new SchedulingLeaveEventMapper(new CalendarEventMapper(), new TimeZoneService())
             ),
             schedulingCalendarDataProvider: new LoanOutCalendarDataProvider(
                 _db,
