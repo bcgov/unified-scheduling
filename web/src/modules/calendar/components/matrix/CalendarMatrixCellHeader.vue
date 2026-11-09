@@ -163,7 +163,7 @@ function handleActionClick() {
   color: var(--ua-text-primary);
   display: grid;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--ua-font-size-sm);
   font-weight: 600;
   inline-size: 100%;
   line-height: 1.2;
