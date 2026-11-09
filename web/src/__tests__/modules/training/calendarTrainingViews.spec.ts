@@ -48,7 +48,11 @@ describe('training calendar views', () => {
       ['user-1', '2025-04-09'],
       ['user-1', '2025-04-10'],
     ]);
-    expect(cells[0]?.headers?.[0]).toMatchObject({ text: 'Training: FIRST-AID', payload: training });
+    expect(cells[0]?.headers?.[0]).toMatchObject({
+      text: 'Training: FIRST-AID',
+      subtitle: 'All Day',
+      payload: training,
+    });
     expect(cells[0]?.headers?.[0]?.actionId).toBe('training.view-details');
     expect(model.cells.filter((cell) => cell.resourceId === 'user-2').flatMap((cell) => cell.headers ?? [])).toEqual(
       [],
@@ -60,7 +64,68 @@ describe('training calendar views', () => {
     expect(model.cells.flatMap((cell) => cell.groups.flatMap((group) => group.events))).toEqual([]);
   });
 
-  it('adds restricted warning controls to training headers without scheduling metadata or assignment visibility', () => {
+  it.each([
+    ['2025-04-08T09:00:00-07:00', '2025-04-08T10:00:00-07:00', ['2025-04-08']],
+    ['2025-04-09T06:30:00Z', '2025-04-09T07:30:00Z', ['2025-04-08', '2025-04-09']],
+    ['2025-04-08T23:00:00-07:00', '2025-04-09T00:00:00-07:00', ['2025-04-08']],
+    ['2025-04-09T00:00:00+02:00', '2025-04-09T01:00:00+02:00', ['2025-04-08']],
+  ])('places timed training from %s to %s only on overlapping local days', (start, end, dates) => {
+    const timedTraining = { ...training, start, end, allDay: false };
+    const model = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          ...response.contributions,
+          'training.events': { moduleId: 'training', contributionId: 'training.events', events: [timedTraining] },
+        },
+      },
+      { ...query, filters: { timeZoneId: 'America/Vancouver' } },
+      'week',
+    );
+
+    const cells = model.cells.filter((cell) => cell.headers?.some((header) => header.id === training.id));
+    expect(cells.map((cell) => [cell.resourceId, cell.date])).toEqual(dates.map((date) => ['user-1', date]));
+    for (const cell of cells) {
+      expect(cell.headers?.[0]).toMatchObject({
+        allDay: false,
+        actionId: 'training.view-details',
+        payload: timedTraining,
+      });
+      expect(cell.headers?.[0]?.subtitle).toBeUndefined();
+      expect(cell.headers?.[0]?.text).toMatch(/^Training: FIRST-AID \d{1,2}:\d{2} [AP]M - \d{1,2}:\d{2} [AP]M$/);
+    }
+    if (start === '2025-04-08T09:00:00-07:00') {
+      expect(cells[0]?.headers?.[0]?.text).toBe('Training: FIRST-AID 9:00 AM - 10:00 AM');
+    }
+  });
+
+  it.each([
+    ['2025-03-03', '2025-03-09T01:30:00-08:00', '2025-03-09T03:30:00-07:00', '2025-03-09'],
+    ['2025-10-27', '2025-11-02T01:30:00-07:00', '2025-11-02T01:30:00-08:00', '2025-11-02'],
+  ])('keeps training on its local day across DST in the week of %s', (startDate, start, end, date) => {
+    const model = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          ...response.contributions,
+          'training.events': {
+            moduleId: 'training',
+            contributionId: 'training.events',
+            events: [{ ...training, start, end, allDay: false }],
+          },
+        },
+      },
+      { ...query, startDate, filters: { timeZoneId: 'America/Vancouver' } },
+      'week',
+    );
+
+    expect(model.cells.filter((cell) => cell.headers?.length).map((cell) => [cell.resourceId, cell.date])).toEqual([
+      ['user-1', date],
+    ]);
+  });
+
+  it.each([true, false])('adds restricted warning controls to training headers (allDay: %s)', (allDay) => {
+    const event = allDay
+      ? training
+      : { ...training, start: '2025-04-08T09:00:00-07:00', end: '2025-04-10T10:00:00-07:00', allDay };
     const warning = {
       sourceModule: 'training',
       eventId: training.id,
@@ -71,6 +136,7 @@ describe('training calendar views', () => {
       {
         contributions: {
           ...response.contributions,
+          'training.events': { moduleId: 'training', contributionId: 'training.events', events: [event] },
           'calendar.events': {
             moduleId: 'calendar',
             contributionId: 'calendar.events',
@@ -87,7 +153,7 @@ describe('training calendar views', () => {
     const headers = model.cells.flatMap((cell) => cell.headers ?? []);
     expect(headers).toHaveLength(3);
     for (const header of headers) {
-      expect(header.payload).toEqual(training);
+      expect(header.payload).toEqual(event);
       expect(header.restrictedWarnings).toEqual([warning]);
       expect(header.action?.actionId).toBe('calendar-scheduling.show-conflict');
       expect(header.actionId).toBe('training.view-details');

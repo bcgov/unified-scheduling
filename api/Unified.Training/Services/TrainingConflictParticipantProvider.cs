@@ -5,6 +5,7 @@ using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db;
+using Unified.Training.Helpers;
 
 namespace Unified.Training.Services;
 
@@ -125,18 +126,23 @@ public sealed class TrainingConflictParticipantProvider(
 
     private CalendarConflictParticipant ToParticipant(TrainingRecord record)
     {
-        var end = record.EndingOn == MinimumEnd ? record.AwardedOn : record.EndingOn;
-        var startDay = DateOnly.FromDateTime(record.AwardedOn.UtcDateTime);
-        var endDay = DateOnly.FromDateTime(end.UtcDateTime);
         var timeZone = timeZoneResolver.Resolve(null, record.TimeZoneId);
-        // The exclusive local day after DateOnly.MaxValue cannot be represented.
-        var range =
-            endDay == DateOnly.MaxValue
-                ? new UtcDateRange(
-                    timeZoneService.ToUtcInstant(startDay.ToDateTime(TimeOnly.MinValue), timeZone),
-                    DateTimeOffset.MaxValue
-                )
-                : timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(startDay, endDay, timeZone);
+        var allDay = UserTrainingHelper.IsAllDayTraining(record.AwardedOn, record.EndingOn);
+        var range = new UtcDateRange(record.AwardedOn.ToUniversalTime(), record.EndingOn.ToUniversalTime());
+        if (allDay)
+        {
+            var end = record.EndingOn == MinimumEnd ? record.AwardedOn : record.EndingOn;
+            var startDay = DateOnly.FromDateTime(record.AwardedOn.UtcDateTime);
+            var endDay = DateOnly.FromDateTime(end.UtcDateTime);
+            // The exclusive local day after DateOnly.MaxValue cannot be represented.
+            range =
+                endDay == DateOnly.MaxValue
+                    ? new UtcDateRange(
+                        timeZoneService.ToUtcInstant(startDay.ToDateTime(TimeOnly.MinValue), timeZone),
+                        DateTimeOffset.MaxValue
+                    )
+                    : timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(startDay, endDay, timeZone);
+        }
 
         return new CalendarConflictParticipant(
             IdentityFor(record.Id).EventId,
@@ -147,6 +153,7 @@ public sealed class TrainingConflictParticipantProvider(
             $"Training: {record.Code}",
             record.Id,
             timeZone.Id,
+            AllDay: allDay,
             EventTypeCode: "training"
         );
     }

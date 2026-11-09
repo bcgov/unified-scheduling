@@ -164,6 +164,7 @@ async function loadTrainingCalendarEvents(
       data: {
         startDate: toApiDateString(context.startDate),
         endDate: toApiDateString(addDays(context.endDate, -1)),
+        timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
         ...(locationId == null ? {} : { locationId }),
         userIds,
       },
@@ -190,8 +191,8 @@ async function loadTrainingCalendarEvents(
     type: event.type,
     sourceModule: event.sourceModule,
     title: event.title,
-    start: toCalendarDateOnly(event.start) ?? event.start,
-    end: toCalendarDateOnly(event.end) ?? event.end,
+    start: event.allDay ? (toCalendarDateOnly(event.start) ?? event.start) : event.start,
+    end: event.allDay ? (toCalendarDateOnly(event.end) ?? event.end) : event.end,
     allDay: event.allDay,
     isReadOnly: event.isReadOnly,
     eventTypeCode: 'training',

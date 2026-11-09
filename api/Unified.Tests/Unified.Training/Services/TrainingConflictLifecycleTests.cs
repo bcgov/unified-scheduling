@@ -95,6 +95,31 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAsync_TimedTraining_PreservesActiveOverrideAndInvalidatesAtTouchingBoundary()
+    {
+        var record = await CreateOverriddenTrainingAsync(
+            Request(AssignmentStart.AddMinutes(-30), AssignmentStart.AddMinutes(30))
+        );
+
+        await _service.UpdateAsync(
+            record.Id,
+            Request(AssignmentStart.AddMinutes(30), AssignmentEnd.AddMinutes(30)),
+            TestContext.Current.CancellationToken
+        );
+        Assert.True(Assert.Single(await ConflictsAsync()).IsOverridden);
+
+        await _service.UpdateAsync(
+            record.Id,
+            Request(AssignmentEnd, AssignmentEnd.AddHours(1)),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Empty(await ConflictsAsync());
+        Assert.NotNull(
+            (await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)).InvalidatedOn
+        );
+    }
+
+    [Fact]
     public async Task UpdateAsync_WhenConflictRemains_PreservesOverride()
     {
         var record = await CreateOverriddenTrainingAsync();
@@ -343,9 +368,12 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
         );
     }
 
-    private async Task<UserTrainingResponse> CreateOverriddenTrainingAsync()
+    private async Task<UserTrainingResponse> CreateOverriddenTrainingAsync(UserTrainingRequest? request = null)
     {
-        var record = await _service.CreateAsync(Request(Day(2026, 10, 22)), TestContext.Current.CancellationToken);
+        var record = await _service.CreateAsync(
+            request ?? Request(Day(2026, 10, 22)),
+            TestContext.Current.CancellationToken
+        );
         await _conflicts.CreateOverrideAsync(
             new CalendarConflictAcknowledgement
             {

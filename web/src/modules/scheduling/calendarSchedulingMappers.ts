@@ -202,7 +202,7 @@ export function buildCalendarSchedulingViewModel(
               isCalendarSchedulingEvent(event) &&
               event.metadata.userIds?.includes(user.id) &&
               (isLeaveEvent(event)
-                ? isLeaveOnMatrixDate(event, day.date, timeZone)
+                ? isIntervalOnMatrixDate(event, day.date, timeZone)
                 : isEventOnMatrixDate(event, day.date, timeZone)),
           );
       const userResource = userResourcesById.get(user.id);
@@ -213,10 +213,7 @@ export function buildCalendarSchedulingViewModel(
         isUnassignedRow || (!homeLocationUserIds.has(user.id) && !isLoanOutDay)
           ? []
           : trainingEvents.filter(
-              (event) =>
-                event.resourceIds?.includes(user.id) &&
-                event.start <= day.date &&
-                day.date < (event.end ?? event.start),
+              (event) => event.resourceIds?.includes(user.id) && isIntervalOnMatrixDate(event, day.date, timeZone),
             );
       cells.push({
         resourceId: user.id,
@@ -254,7 +251,9 @@ export function buildCalendarSchedulingViewModel(
               .map((conflict) => ({ conflict, currentEventId }));
             return {
               id: event.id,
-              text: event.title,
+              text: event.allDay
+                ? event.title
+                : `${event.title} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
               allDay: event.allDay,
               collapsible: true,
               variant: 'outlined',
@@ -1151,7 +1150,7 @@ export { getCalendarEventDateKey } from './calendarSchedulingDate';
 function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
   return getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone) === date;
 }
-function isLeaveOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
+function isIntervalOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
   if (event.allDay && /^\d{4}-\d{2}-\d{2}$/.test(event.start)) {
     return event.start <= date && date < (event.end ?? addDays(event.start, 1));
   }
