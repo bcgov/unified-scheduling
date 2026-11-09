@@ -4500,7 +4500,13 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
                 markers,
                 CreateLoanOutRecurrenceExpander()
             );
-            var failingIntegration = new SchedulingLoanOutService(availability, markers, failingTransfers);
+            var failingIntegration = new SchedulingLoanOutService(
+                availability,
+                markers,
+                failingTransfers,
+                _db,
+                _conflictService
+            );
             entryService = CreateLoanOutEntryService(failingIntegration);
             seriesService = CreateLoanOutSeriesService(failingIntegration);
         }
@@ -4674,6 +4680,211 @@ public sealed class AssignmentSchedulingIntegrationTests : IAsyncLifetime
         else
             Assert.Equal(LoanOutAtDay(2, 7), (await entries.GetLoanOutEntryByIdAsync(id, ct))!.StartAtUtc);
         Assert.Equal(1, await _db.ShiftEntries.CountAsync(entry => entry.Event!.LocationId == 9, ct));
+    }
+
+    [Theory]
+    [InlineData(false, false, "create")]
+    [InlineData(true, false, "create")]
+    [InlineData(false, true, "create")]
+    [InlineData(true, true, "create")]
+    [InlineData(false, false, "update")]
+    [InlineData(true, false, "update")]
+    [InlineData(false, true, "update")]
+    [InlineData(true, true, "update")]
+    [InlineData(false, false, "delete")]
+    [InlineData(true, false, "delete")]
+    [InlineData(false, true, "delete")]
+    [InlineData(true, true, "delete")]
+    [InlineData(false, false, "withdraw")]
+    [InlineData(true, false, "withdraw")]
+    [InlineData(false, true, "withdraw")]
+    [InlineData(true, true, "withdraw")]
+    public async Task LoanOutParticipationChanges_DoNotRestoreStaleApproval_AndPreserveValidApproval(
+        bool recurring,
+        bool shiftConflict,
+        string operation
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (shift, first, second) = await CreateDraftConflictAsync();
+        _db.ShiftEntryUsers.Add(new ShiftEntryUser { ShiftEntryId = shift.Id, UserId = UserB });
+        var links = await _db.ShiftAssignmentEntries.Where(link => link.ShiftEntryId == shift.Id).ToListAsync(ct);
+        foreach (var link in links)
+            _db.ShiftAssignmentEntryUsers.Add(
+                new ShiftAssignmentEntryUser { ShiftAssignmentEntryId = link.Id, UserId = UserB }
+            );
+        foreach (var eventId in new[] { shift.EventId, first.EventId, second.EventId })
+            (await _db.Events.FindAsync([eventId], ct))!.StatusTypeCode = CalendarEventStatusTypeCodes.Active;
+        await _db.SaveChangesAsync(ct);
+        var service = new CalendarConflictService(
+            [
+                new SchedulingConflictParticipantProvider(
+                    _db,
+                    SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                ),
+            ],
+            _db,
+            CalendarConflictTestContext.Projection(UserA),
+            CalendarConflictTestRules.Create(("assignment", ["assignment"]), ("shift", ["assignment"]))
+        );
+        var firstEventId = (shiftConflict ? shift.EventId : first.EventId).ToString();
+        foreach (var userId in new[] { UserA, UserB })
+            await service.CreateOverrideAsync(
+                new CalendarConflictAcknowledgement
+                {
+                    FirstSourceModule = "scheduling",
+                    FirstEventId = firstEventId,
+                    SecondSourceModule = "scheduling",
+                    SecondEventId = second.EventId.ToString(),
+                    ResourceId = userId,
+                    Note = "Approved overlap",
+                },
+                UserA,
+                ct
+            );
+        var approved = (await service.GetConflictsAsync(ConflictQuery(), ct)).Single(conflict =>
+            conflict.ResourceId == UserA && conflict.IsOverridden
+        );
+        var entries = CreateLoanOutEntryService();
+        var series = CreateLoanOutSeriesService();
+        var request = new LoanOutEntryRequest
+        {
+            Title = "Away",
+            LocationId = 5,
+            LoanOutLocationId = 9,
+            UserIds = [UserA],
+            StartAtUtc = At(7),
+            EndAtUtc = AtDay(2, 7),
+            TimeZoneId = "America/Vancouver",
+        };
+        var seriesRequest = new LoanOutSeriesRequest
+        {
+            Title = request.Title,
+            LocationId = request.LocationId,
+            LoanOutLocationId = request.LoanOutLocationId,
+            UserIds = request.UserIds,
+            StartAtUtc = request.StartAtUtc,
+            EndAtUtc = request.EndAtUtc,
+            TimeZoneId = request.TimeZoneId,
+            RecurrenceRule = "FREQ=DAILY;COUNT=1",
+        };
+        // Simulate an approval left behind by the old implementation for withdrawal/deletion coverage.
+        var legacy = operation is "delete" or "withdraw";
+        var initialEntries = legacy ? CreateLoanOutEntryService(new NoOpSchedulingLoanOutService()) : entries;
+        var initialSeries = legacy ? CreateLoanOutSeriesService(new NoOpSchedulingLoanOutService()) : series;
+        var initialOffset = operation == "update" ? 3 : 0;
+        var id = recurring
+            ? (
+                await initialSeries.CreateLoanOutSeriesAsync(
+                    seriesRequest with
+                    {
+                        StartAtUtc = request.StartAtUtc.AddDays(initialOffset),
+                        EndAtUtc = request.EndAtUtc!.Value.AddDays(initialOffset),
+                    },
+                    ct
+                )
+            ).Id
+            : (
+                await initialEntries.CreateLoanOutEntryAsync(
+                    request with
+                    {
+                        StartAtUtc = request.StartAtUtc.AddDays(initialOffset),
+                        EndAtUtc = request.EndAtUtc!.Value.AddDays(initialOffset),
+                    },
+                    ct
+                )
+            ).Id;
+        if (operation == "update")
+        {
+            if (recurring)
+                await series.UpdateLoanOutSeriesAsync(
+                    id,
+                    seriesRequest with
+                    {
+                        RecurrenceRule = "FREQ=DAILY;COUNT=2",
+                    },
+                    ct
+                );
+            else
+                await entries.UpdateLoanOutEntryAsync(id, request, ct);
+        }
+        if (!legacy)
+            Assert.NotNull(
+                (await _db.CalendarConflictOverrides.SingleAsync(item => item.ResourceId == UserA, ct)).InvalidatedOn
+            );
+        Assert.Null(
+            (await _db.CalendarConflictOverrides.SingleAsync(item => item.ResourceId == UserB, ct)).InvalidatedOn
+        );
+        Assert.DoesNotContain(
+            await service.GetConflictsAsync(ConflictQuery(), ct),
+            conflict => conflict.ResourceId == UserA
+        );
+        Assert.False(await _db.ShiftEntries.AnyAsync(entry => entry.Event!.LocationId == 9, ct));
+
+        if (operation == "withdraw")
+        {
+            if (recurring)
+                await series.UpdateLoanOutSeriesAsync(
+                    id,
+                    seriesRequest with
+                    {
+                        StartAtUtc = request.StartAtUtc.AddDays(3),
+                        EndAtUtc = request.EndAtUtc!.Value.AddDays(3),
+                        RecurrenceRule = "FREQ=DAILY;COUNT=2",
+                    },
+                    ct
+                );
+            else
+                await entries.UpdateLoanOutEntryAsync(
+                    id,
+                    request with
+                    {
+                        StartAtUtc = request.StartAtUtc.AddDays(3),
+                        EndAtUtc = request.EndAtUtc!.Value.AddDays(3),
+                    },
+                    ct
+                );
+        }
+        else if (recurring)
+            Assert.True(await series.DeleteLoanOutSeriesAsync(id, ct));
+        else
+            Assert.True(await entries.DeleteLoanOutEntryAsync(id, ct));
+        _db.ChangeTracker.Clear();
+
+        var restored = await service.GetConflictsAsync(ConflictQuery(), ct);
+        Assert.False(Assert.Single(restored, conflict => conflict.Id == approved.Id).IsOverridden);
+        Assert.Contains(restored, conflict => conflict.ResourceId == UserB && conflict.IsOverridden);
+        Assert.NotNull(
+            (await _db.CalendarConflictOverrides.SingleAsync(item => item.ResourceId == UserA, ct)).InvalidatedOn
+        );
+        Assert.Null(
+            (await _db.CalendarConflictOverrides.SingleAsync(item => item.ResourceId == UserB, ct)).InvalidatedOn
+        );
+    }
+
+    [Theory]
+    [InlineData(1, 1, 1)]
+    [InlineData(9999, 12, 30)]
+    public async Task CreateLoanOutEntryAsync_ConflictRecheck_ClampsQueryAtDateLimits(int year, int month, int day)
+    {
+        var start = new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.Zero);
+        var response = await CreateLoanOutEntryService()
+            .CreateLoanOutEntryAsync(
+                new LoanOutEntryRequest
+                {
+                    Title = "Away",
+                    LocationId = 5,
+                    LoanOutLocationId = 9,
+                    UserIds = [UserA],
+                    StartAtUtc = start,
+                    EndAtUtc = start.AddDays(1),
+                    TimeZoneId = "UTC",
+                },
+                TestContext.Current.CancellationToken
+            );
+
+        Assert.Equal(start, response.StartAtUtc);
+        Assert.Empty(_db.CalendarConflictOverrides);
     }
 
     private LoanOutEntryService CreateLoanOutEntryService(ISchedulingLoanOutService? integration = null) =>

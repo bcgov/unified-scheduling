@@ -166,10 +166,84 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [InlineData(true, false, nameof(Permissions.AssignmentsView), "20")]
+    [InlineData(false, true, nameof(Permissions.AssignmentsView), null)]
+    [InlineData(true, false, nameof(Permissions.ShiftsView), "10")]
+    [InlineData(false, true, nameof(Permissions.ShiftsView), null)]
+    [InlineData(true, false, nameof(Permissions.UserTrainingsView), null)]
+    [InlineData(false, true, nameof(Permissions.UserTrainingsView), "training.user-training.77")]
+    [InlineData(true, true, nameof(Permissions.UserTrainingsView), "training.user-training.77")]
+    [InlineData(true, true, "", null)]
+    public async Task ConflictProjection_RestrictedWarnings_RespectReportingDirectionAndPermissions(
+        bool reportOnEntry,
+        bool reportOnOverlaps,
+        string permission,
+        string? expectedAnchor
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var trainingProvider = await SeedTrainingAsync();
+        var assignment = await _provider.GetParticipantAsync(new("scheduling", "20"), UserId, ct);
+        var training = await trainingProvider.GetParticipantAsync(
+            new("training", "training.user-training.77"),
+            UserId,
+            ct
+        );
+        var conflict = new CalendarConflict(
+            assignment!,
+            training!,
+            UserId,
+            AssignmentStart,
+            AssignmentEnd,
+            ReportOnEntry: reportOnEntry,
+            ReportOnOverlaps: reportOnOverlaps
+        );
+        var projection = new CalendarConflictProjection([_provider, trainingProvider]);
+        var result = await projection.ProjectAsync(
+            [conflict],
+            CalendarConflictTestContext.Viewer(UserId, permission),
+            ct
+        );
+
+        Assert.Empty(result.Conflicts);
+        Assert.True(result.HasRestrictedConflicts);
+        if (expectedAnchor is null)
+            Assert.Empty(result.RestrictedWarnings);
+        else
+            Assert.Equal(expectedAnchor, Assert.Single(result.RestrictedWarnings).EventId);
+
+        // Reporting controls warning anchors; it must not weaken enforcement or alter detailed responses.
+        var visible = await projection.ProjectAsync(
+            [conflict],
+            CalendarConflictTestContext.Viewer(
+                UserId,
+                nameof(Permissions.AssignmentsView),
+                nameof(Permissions.UserTrainingsView)
+            ),
+            ct
+        );
+        var detail = Assert.Single(visible.Conflicts);
+        Assert.Equal(reportOnEntry, detail.ReportOnEntry);
+        Assert.Equal(reportOnOverlaps, detail.ReportOnOverlaps);
+        Assert.Empty(visible.RestrictedWarnings);
+        Assert.False(visible.HasRestrictedConflicts);
+        var approved = await projection.ProjectAsync(
+            [conflict with { IsOverridden = true }],
+            CalendarConflictTestContext.Viewer(UserId, permission),
+            ct
+        );
+        Assert.Empty(approved.RestrictedWarnings);
+        Assert.False(approved.HasRestrictedConflicts);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
     public async Task ConflictOverride_WithoutUnderlyingVisibility_RejectsDirectAndForgedAcknowledgements(
-        bool acknowledgement
+        bool acknowledgement,
+        bool trainingOnly
     )
     {
         var training = await SeedTrainingAsync();
@@ -177,7 +251,7 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
         accessor.HttpContext!.User = CalendarConflictTestContext.Viewer(
             UserId,
             nameof(Permissions.CalendarConflictsOverride),
-            nameof(Permissions.AssignmentsView)
+            trainingOnly ? nameof(Permissions.UserTrainingsView) : nameof(Permissions.AssignmentsView)
         );
         var projection = new CalendarConflictProjection([_provider, training], accessor);
         var service = new CalendarConflictService(

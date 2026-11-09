@@ -43,7 +43,9 @@ public sealed class CalendarConflictExceptionFilterTests
             start.AddHours(1),
             OverrideNote: "Private audit note",
             CreatedById: Guid.NewGuid(),
-            CreatedOn: start
+            CreatedOn: start,
+            ReportOnEntry: true,
+            ReportOnOverlaps: true
         );
         var httpContext = new DefaultHttpContext
         {

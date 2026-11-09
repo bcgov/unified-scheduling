@@ -60,6 +60,41 @@ describe('training calendar views', () => {
     expect(model.cells.flatMap((cell) => cell.groups.flatMap((group) => group.events))).toEqual([]);
   });
 
+  it('adds restricted warning controls to training headers without scheduling metadata or assignment visibility', () => {
+    const warning = {
+      sourceModule: 'training',
+      eventId: training.id,
+      resourceId: 'user-1',
+      message: 'This event has a conflict with an event you do not have permission to view.',
+    };
+    const model = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          ...response.contributions,
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: { conflicts: [], restrictedWarnings: [warning, { ...warning, resourceId: 'user-2' }] },
+          },
+        },
+      },
+      query,
+      'week',
+      false,
+    );
+
+    const headers = model.cells.flatMap((cell) => cell.headers ?? []);
+    expect(headers).toHaveLength(3);
+    for (const header of headers) {
+      expect(header.payload).toEqual(training);
+      expect(header.restrictedWarnings).toEqual([warning]);
+      expect(header.action?.actionId).toBe('calendar-scheduling.show-conflict');
+      expect(header.actionId).toBe('training.view-details');
+      expect(header.conflicts).toEqual([]);
+    }
+  });
+
   it.each([
     ['calendar', true, false],
     ['calendar', false, true],

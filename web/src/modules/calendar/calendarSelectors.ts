@@ -15,18 +15,19 @@ export const selectCalendarRestrictedWarnings = (
 };
 
 export const getCalendarRestrictedWarningsForEvent = (
-  eventId: number | null | undefined,
+  eventId: number | CalendarConflictEventIdentity | null | undefined,
   warnings: readonly CalendarRestrictedConflictWarning[],
   resourceId?: string,
-) =>
-  eventId == null
-    ? []
-    : warnings.filter(
-        (warning) =>
-          warning.sourceModule === 'scheduling' &&
-          warning.eventId === String(eventId) &&
-          (!resourceId || warning.resourceId === resourceId),
-      );
+) => {
+  if (eventId == null) return [];
+  const identity = typeof eventId === 'number' ? { sourceModule: 'scheduling', eventId: String(eventId) } : eventId;
+  return warnings.filter(
+    (warning) =>
+      warning.sourceModule === identity.sourceModule &&
+      warning.eventId === identity.eventId &&
+      (!resourceId || warning.resourceId === resourceId),
+  );
+};
 
 export const selectContribution = (response: CalendarDataResponse, contributionId: string) => {
   return response.contributions[contributionId];

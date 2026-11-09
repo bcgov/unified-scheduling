@@ -6,6 +6,7 @@ import CalendarSchedulingAssignmentModal from '@/modules/scheduling/CalendarSche
 import CalendarSchedulingAddResourceModal from '@/modules/scheduling/CalendarSchedulingAddResourceModal.vue';
 import CalendarSchedulingAssignmentDefinitionCreateModal from '@/modules/scheduling/CalendarSchedulingAssignmentDefinitionCreateModal.vue';
 import CalendarSchedulingConflictOverlay from '@/modules/scheduling/CalendarSchedulingConflictOverlay.vue';
+import { buildCalendarSchedulingViewModel } from '@/modules/scheduling/calendarSchedulingMappers';
 import CalendarSchedulingDistributionModal from '@/modules/scheduling/CalendarSchedulingDistributionModal.vue';
 import CalendarSchedulingShiftDetailModal from '@/modules/scheduling/CalendarSchedulingShiftDetailModal.vue';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
@@ -59,6 +60,79 @@ describe('CalendarSchedulingView', () => {
     calendarSchedulingConflictEventId.value = undefined;
     calendarSchedulingConflictHeaderId.value = undefined;
     vi.clearAllMocks();
+  });
+
+  it('shows a generic training warning with UserTrainingsView and no AssignmentsView or override controls', async () => {
+    const training = {
+      id: 'training.user-training.42',
+      type: 'training.user-training',
+      sourceModule: 'training',
+      title: 'Training: FIRST-AID',
+      start: '2025-01-13',
+      end: '2025-01-14',
+      allDay: true,
+      resourceIds: ['user-1'],
+    };
+    const warning = {
+      sourceModule: 'training',
+      eventId: training.id,
+      resourceId: 'user-1',
+      message: 'This event has a conflict with an event you do not have permission to view.',
+    };
+    const warningModel = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          'training.events': { moduleId: 'training', contributionId: 'training.events', events: [training] },
+          'scheduling.events': {
+            moduleId: 'scheduling',
+            contributionId: 'scheduling.events',
+            events: [],
+            resources: [{ id: 'user-1', type: 'user', sourceModule: 'scheduling', label: 'One', title: 'One' }],
+          },
+          'calendar.events': {
+            moduleId: 'calendar',
+            contributionId: 'calendar.events',
+            events: [],
+            data: { conflicts: [], restrictedWarnings: [warning] },
+          },
+        },
+      },
+      { startDate: '2025-01-13', endDate: '2025-01-14', filters: {} },
+      'day',
+      false,
+    );
+    const header = warningModel.cells[0]!.headers![0]!;
+    expect(header.action?.actionId).toBe('calendar-scheduling.show-conflict');
+    calendarSchedulingConflictHeaderId.value = getCalendarSchedulingHeaderConflictKey(
+      warningModel.cells[0]!,
+      header.id,
+    );
+    const app = await createTestApp({ loadConfig: false, permissions: [Permissions.UserTrainingsView] });
+    const wrapper = mount(CalendarSchedulingView, {
+      props: {
+        model: warningModel,
+        runtimeContext: { featureFlags: {}, permissions: [Permissions.UserTrainingsView] },
+      },
+      global: {
+        plugins: app.mountPlugins,
+        stubs: {
+          CalendarMatrixView: createHeaderMatrixViewStub(),
+          CalendarMatrixCellHeader: true,
+          CalendarSchedulingShiftDetailModal: true,
+          CalendarSchedulingAddResourceModal: true,
+          CalendarConflictDetailModal: createConflictDetailStub(),
+          VIcon: true,
+        },
+      },
+    });
+
+    const overlay = wrapper.getComponent(CalendarSchedulingConflictOverlay);
+    expect(overlay.props('restrictedWarnings')).toEqual([warning]);
+    expect(overlay.text()).toContain(warning.message);
+    expect(overlay.findAll('button, a')).toHaveLength(0);
+    expect(wrapper.find('[data-test="conflict-detail"]').exists()).toBe(false);
+    expect(api.postOverride).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it('forwards assignment action context to the assignment modal', async () => {

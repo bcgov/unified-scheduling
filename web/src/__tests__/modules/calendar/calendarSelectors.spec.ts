@@ -3,6 +3,7 @@ import type { CalendarConflict } from '@/modules/calendar/calendarTypes';
 import {
   getCalendarConflictsForEvent,
   getCalendarConflictsForEventAndResource,
+  getCalendarRestrictedWarningsForEvent,
 } from '@/modules/calendar/calendarSelectors';
 
 const createConflict = (reportOnEntry: boolean, reportOnOverlaps: boolean): CalendarConflict => ({
@@ -39,6 +40,34 @@ const createConflict = (reportOnEntry: boolean, reportOnOverlaps: boolean): Cale
 });
 
 describe('calendar conflict selectors', () => {
+  it('matches restricted warnings by source-qualified identity and resource while retaining numeric scheduling IDs', () => {
+    const training = {
+      sourceModule: 'training',
+      eventId: 'training.user-training.42',
+      resourceId: 'user-1',
+      message: 'Restricted conflict',
+    };
+    const scheduling = { ...training, sourceModule: 'scheduling', eventId: '42' };
+    const warnings = [
+      training,
+      scheduling,
+      { ...training, resourceId: 'user-2' },
+      { ...training, sourceModule: 'calendar' },
+    ];
+
+    expect(
+      getCalendarRestrictedWarningsForEvent(
+        { sourceModule: 'training', eventId: training.eventId },
+        warnings,
+        'user-1',
+      ),
+    ).toEqual([training]);
+    expect(getCalendarRestrictedWarningsForEvent(42, warnings, 'user-1')).toEqual([scheduling]);
+    expect(getCalendarRestrictedWarningsForEvent({ sourceModule: 'training', eventId: '42' }, warnings)).toEqual([]);
+    expect(getCalendarRestrictedWarningsForEvent(null, warnings)).toEqual([]);
+    expect(getCalendarRestrictedWarningsForEvent(undefined, warnings)).toEqual([]);
+  });
+
   it.each([
     [true, false],
     [false, true],

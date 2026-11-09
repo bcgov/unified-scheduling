@@ -26,7 +26,10 @@ public sealed class TrainingConflictParticipantProvider(
         Task.FromResult<CalendarConflictParticipantVisibility?>(
             participant.SourceModule == SourceModule
             && participant.EventId.StartsWith(EventIdPrefix, StringComparison.Ordinal)
-                ? new(viewerPermissions.Contains(nameof(Permissions.UserTrainingsView)), [])
+                ? new(
+                    viewerPermissions.Contains(nameof(Permissions.UserTrainingsView)),
+                    viewerPermissions.Contains(nameof(Permissions.UserTrainingsView)) ? [participant.Identity] : []
+                )
                 : null
         );
 

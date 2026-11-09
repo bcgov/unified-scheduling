@@ -444,9 +444,15 @@ function addRestrictedWarnings(
     const resourceId = resourceScoped ? cell.resourceId : undefined;
     for (const header of cell.headers ?? []) {
       const event = header.payload;
-      if (!event || typeof event !== 'object' || !('metadata' in event)) continue;
+      if (!event || typeof event !== 'object') continue;
       header.restrictedWarnings = getCalendarRestrictedWarningsForEvent(
-        resolveCalendarEventId(event),
+        resolveCalendarEventId(event) ??
+          ('sourceModule' in event &&
+          typeof event.sourceModule === 'string' &&
+          'id' in event &&
+          typeof event.id === 'string'
+            ? { sourceModule: event.sourceModule, eventId: event.id }
+            : null),
         warnings,
         resourceId,
       );
