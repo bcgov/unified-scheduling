@@ -120,7 +120,7 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
     [InlineData(16)]
     public async Task GetEventsAsync_LegacyMinimumEnd_UsesAwardedDay(int hour)
     {
-        var legacy = await AddAsync(_userA, 1, Day(2026, 1, 5).AddHours(hour), DateTimeOffset.MinValue);
+        var legacy = await AddAsync(_userA, 1, Day(2026, 1, 5).AddHours(hour), DateTimeOffset.MinValue, allDay: true);
 
         var result = await _service.GetEventsAsync(Request(5, 5), TestContext.Current.CancellationToken);
 
@@ -144,12 +144,21 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
     [InlineData("2026-01-05T00:30:00+13:00", "2026-01-05T01:30:00+13:00", "Pacific/Auckland", "2026-01-05", true)]
     [InlineData("2026-01-06T00:30:00Z", "2026-01-06T01:30:00Z", null, "2026-01-05", false)]
     [InlineData("2026-01-06T00:30:00Z", "2026-01-06T01:30:00Z", null, "2026-01-06", true)]
+    [InlineData("2026-01-05T00:00:00Z", "2026-01-06T00:00:00Z", "UTC", "2026-01-06", false)]
+    [InlineData("2026-01-05T00:00:00Z", "2026-01-06T00:00:00Z", "UTC", "2026-01-05", true)]
     [InlineData("2025-03-09T01:30:00-08:00", "2025-03-09T03:30:00-07:00", "America/Vancouver", "2025-03-09", true)]
     [InlineData("2025-03-09T23:30:00-07:00", "2025-03-10T00:30:00-07:00", "America/Vancouver", "2025-03-09", true)]
     [InlineData("2025-03-10T00:00:00-07:00", "2025-03-10T01:00:00-07:00", "America/Vancouver", "2025-03-09", false)]
     [InlineData("2025-11-02T01:30:00-07:00", "2025-11-02T01:30:00-08:00", "America/Vancouver", "2025-11-02", true)]
     [InlineData("2025-11-02T23:30:00-08:00", "2025-11-03T00:30:00-08:00", "America/Vancouver", "2025-11-02", true)]
     [InlineData("2025-11-03T00:00:00-08:00", "2025-11-03T01:00:00-08:00", "America/Vancouver", "2025-11-02", false)]
+    [InlineData("2018-11-04T03:00:00Z", "2018-11-04T03:30:00Z", "America/Sao_Paulo", "2018-11-04", true)]
+    [InlineData("2018-11-04T02:30:00Z", "2018-11-04T02:59:59Z", "America/Sao_Paulo", "2018-11-04", false)]
+    [InlineData("2018-11-04T03:00:00Z", "2018-11-04T03:30:00Z", "America/Sao_Paulo", "2018-11-03", false)]
+    [InlineData("2025-11-02T04:00:00Z", "2025-11-02T04:30:00Z", "America/Havana", "2025-11-02", true)]
+    [InlineData("2025-11-02T04:30:00Z", "2025-11-02T05:00:00Z", "America/Havana", "2025-11-02", true)]
+    [InlineData("2025-11-02T03:30:00Z", "2025-11-02T04:00:00Z", "America/Havana", "2025-11-02", false)]
+    [InlineData("2025-11-02T04:00:00Z", "2025-11-02T04:30:00Z", "America/Havana", "2025-11-01", false)]
     public async Task GetEventsAsync_TimedTraining_UsesLocalHalfOpenRangeAndPreservesTimestamps(
         string start,
         string end,
@@ -188,6 +197,30 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
         Assert.Equal("Training: FIRST-AID", item.Title);
         Assert.Equal(_userA, item.UserId);
         Assert.Equal(1, item.LocationId);
+    }
+
+    [Fact]
+    public async Task GetEventsAsync_InvalidMidnight_UsesFirstValidInstantWithExclusiveEnd()
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+        var boundary = new DateTimeOffset(2018, 11, 4, 3, 0, 0, TimeSpan.Zero);
+        // Windows historical rules place this transition one millisecond earlier than IANA data.
+        if (TimeZoneInfo.ConvertTime(boundary.AddMilliseconds(-1), zone).Day == 4)
+            boundary = boundary.AddMilliseconds(-1);
+        await AddAsync(_userA, 1, boundary.AddHours(-1), boundary);
+        var included = await AddAsync(_userA, 2, boundary, boundary.AddMinutes(1));
+
+        var events = await _service.GetEventsAsync(
+            new TrainingCalendarEventsRequest
+            {
+                StartDate = new DateOnly(2018, 11, 4),
+                EndDate = new DateOnly(2018, 11, 4),
+                TimeZoneId = zone.Id,
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(included.Id, Assert.Single(events).UserTrainingId);
     }
 
     [Fact]
@@ -295,14 +328,16 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
             userId,
             version,
             Day(startYear, startMonth, startDay),
-            legacyEnd ? DateTimeOffset.MinValue : Day(endYear, endMonth, endDay)
+            legacyEnd ? DateTimeOffset.MinValue : Day(endYear, endMonth, endDay),
+            allDay: true
         );
 
     private async Task<UserTraining> AddAsync(
         Guid userId,
         int version,
         DateTimeOffset awardedOn,
-        DateTimeOffset endingOn
+        DateTimeOffset endingOn,
+        bool allDay = false
     )
     {
         var entity = new UserTraining
@@ -312,6 +347,7 @@ public sealed class TrainingCalendarEventServiceTests : IAsyncLifetime
             Version = version,
             AwardedOn = awardedOn,
             EndingOn = endingOn,
+            AllDay = allDay,
         };
         _db.UserTrainings.Add(entity);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);

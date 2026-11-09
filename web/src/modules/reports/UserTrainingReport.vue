@@ -16,6 +16,7 @@ import UaTextField from '@/shared/components/UaTextField.vue';
 import { useTrainingLookup } from '@/modules/training/trainingLookupApi';
 import { useUserTrainingReport, type UserTrainingReportItem } from './userTrainingReportApi';
 import { exportReportToCsv, type ReportCsvColumn } from './reportCsvExport';
+import { toCalendarDateString } from '@/utils/date';
 
 const maxMultiSelectOptions = 25;
 
@@ -145,8 +146,8 @@ const csvColumns: ReportCsvColumn<UserTrainingReportItem>[] = [
   { header: 'Location', value: (row) => row.locationName ?? '' },
   { header: 'Training Type', value: (row) => row.trainingCode },
   { header: 'Description', value: (row) => row.trainingDescription },
-  { header: 'Awarded On', value: (row) => formatDateCellValue(row.awardedOn) },
-  { header: 'Ending On', value: (row) => formatDateCellValue(row.endingOn) },
+  { header: 'Awarded On', value: (row) => formatDateCellValue(row.awardedOn, row.allDay) },
+  { header: 'Ending On', value: (row) => formatDateCellValue(row.endingOn, row.allDay) },
   { header: 'Expiry Date', value: (row) => formatDateCellValue(row.expiryDate) },
   { header: 'Status', value: (row) => row.status },
   { header: 'Version', value: (row) => row.version },
@@ -241,8 +242,8 @@ function formatRow(row: UserTrainingReportItem): Record<string, unknown> {
     locationName: row.locationName,
     trainingCode: row.trainingCode,
     trainingDescription: row.trainingDescription,
-    awardedOn: formatDateCellValue(row.awardedOn),
-    endingOn: formatDateCellValue(row.endingOn),
+    awardedOn: formatDateCellValue(row.awardedOn, row.allDay),
+    endingOn: formatDateCellValue(row.endingOn, row.allDay),
     expiryDate: formatDateCellValue(row.expiryDate),
     status: row.status,
     version: row.version,
@@ -251,9 +252,13 @@ function formatRow(row: UserTrainingReportItem): Record<string, unknown> {
   };
 }
 
-function formatDateCellValue(value: unknown): unknown {
+function formatDateCellValue(value: unknown, allDay = false): unknown {
   if (typeof value !== 'string') {
     return value;
+  }
+
+  if (allDay) {
+    return toCalendarDateString(value) ?? value;
   }
 
   const parsed = Date.parse(value);

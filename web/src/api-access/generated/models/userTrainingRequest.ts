@@ -10,6 +10,7 @@ export interface UserTrainingRequest {
   trainingId: number;
   awardedOn: string;
   endingOn: string;
+  allDay?: boolean;
   /** @nullable */
   expiryDate?: string | null;
   /** @nullable */

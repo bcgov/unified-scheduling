@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/__tests__/mocks/server';
 import { Permissions } from '@/api-access/generated/models';
+import { PostApiTrainingCalendarEventsBody } from '@/api-access/generated/training-calendar/training-calendar.zod';
 import { calendarTrainingEventsContribution } from '@/modules/training/contributions/calendarTrainingEventsContribution';
 import { CalendarRegistry } from '@/modules/calendar/registry/calendarRegistry';
 import { calendarDataService } from '@/modules/calendar/calendarDataService';
@@ -50,6 +51,11 @@ const borrowedTraining = {
 };
 
 describe('calendarTrainingEventsContribution', () => {
+  it('accepts timeZoneId in the generated calendar request contract', () => {
+    const request = { startDate: context.startDate, endDate: context.endDate, timeZoneId: 'America/Vancouver' };
+    expect(PostApiTrainingCalendarEventsBody.parse(request)).toEqual(request);
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     useLocationsStore().entities = [{ id: 12, timezone: 'America/Edmonton' }];

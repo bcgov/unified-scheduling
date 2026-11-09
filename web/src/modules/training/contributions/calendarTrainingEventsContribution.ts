@@ -1,4 +1,4 @@
-import { Permissions } from '@/api-access/generated/models';
+import { Permissions, type TrainingCalendarEventsRequest } from '@/api-access/generated/models';
 import { useFetchAPI } from '@/api-access/useFetchAPI';
 import { useUsersStore } from '@/stores/Users';
 import type { CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
@@ -167,7 +167,7 @@ async function loadTrainingCalendarEvents(
         timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
         ...(locationId == null ? {} : { locationId }),
         userIds,
-      },
+      } satisfies TrainingCalendarEventsRequest,
     },
     { fetchOptions: { signal }, options: { immediate: false } },
   );

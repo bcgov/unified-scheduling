@@ -21,10 +21,9 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
         var timeZone = string.IsNullOrWhiteSpace(request.TimeZoneId)
             ? TimeZoneInfo.Utc
             : TimeZones.ResolveRequired(request.TimeZoneId);
-        var timedRange = TimeZones.ConvertInclusiveLocalDateRangeToUtcRange(
-            request.StartDate,
-            request.EndDate,
-            timeZone
+        var timedRange = new UtcDateRange(
+            UserTrainingHelper.GetLocalDayStartUtc(request.StartDate, timeZone, TimeZones),
+            UserTrainingHelper.GetLocalDayStartUtc(request.EndDate.AddDays(1), timeZone, TimeZones)
         );
         // All-day events use UTC-stored calendar dates; timed events use the requested local range.
         var coarseStart = start < timedRange.StartAtUtc ? start : timedRange.StartAtUtc;
@@ -53,6 +52,7 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
                 ut.TrainingId,
                 ut.AwardedOn,
                 ut.EndingOn,
+                ut.AllDay,
                 Code = ut.Training.Code,
                 ut.User.HomeLocationId,
             })
@@ -61,7 +61,7 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
         return records
             .Select(ut =>
             {
-                var allDay = UserTrainingHelper.IsAllDayTraining(ut.AwardedOn, ut.EndingOn);
+                var allDay = ut.AllDay;
                 var eventStart = ut.AwardedOn;
                 var eventEnd = ut.EndingOn;
                 if (allDay)
@@ -95,7 +95,9 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
             .Where(item =>
                 item.AllDay
                     ? item.Start < exclusiveEnd && item.End > start
-                    : item.Start < timedRange.EndAtUtc && item.End > timedRange.StartAtUtc
+                    : timedRange.StartAtUtc < timedRange.EndAtUtc
+                        && item.Start < timedRange.EndAtUtc
+                        && item.End > timedRange.StartAtUtc
             )
             .ToList();
     }

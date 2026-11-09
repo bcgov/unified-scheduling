@@ -26,6 +26,8 @@ public class UserTraining : BaseEntity
     [Required]
     public DateTimeOffset EndingOn { get; set; }
 
+    public bool AllDay { get; set; }
+
     // The date the training expires. If null, the training does not expire.
     // Can be auto calculated based on the training's ValidityDays, but can also be manually set.
     public DateTimeOffset? ExpiryDate { get; set; }
