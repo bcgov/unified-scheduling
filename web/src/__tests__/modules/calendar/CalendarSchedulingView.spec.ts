@@ -18,6 +18,7 @@ import type {
   CalendarMatrixViewModel,
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSchedulingData';
+import type { CalendarSchedulingUserResource } from '@/modules/scheduling/contributions/calendarSchedulingEventsContribution';
 import {
   calendarSchedulingConflictEventId,
   calendarSchedulingConflictHeaderId,
@@ -63,6 +64,13 @@ describe('CalendarSchedulingView', () => {
   });
 
   it('shows a generic training warning with UserTrainingsView and no AssignmentsView or override controls', async () => {
+    const resource: CalendarSchedulingUserResource = {
+      id: 'user-1',
+      type: 'user',
+      sourceModule: 'scheduling',
+      label: 'One',
+      title: 'One',
+    };
     const training = {
       id: 'training.user-training.42',
       type: 'training.user-training',
@@ -87,7 +95,7 @@ describe('CalendarSchedulingView', () => {
             moduleId: 'scheduling',
             contributionId: 'scheduling.events',
             events: [],
-            resources: [{ id: 'user-1', type: 'user', sourceModule: 'scheduling', label: 'One', title: 'One' }],
+            resources: [resource],
           },
           'calendar.events': {
             moduleId: 'calendar',
