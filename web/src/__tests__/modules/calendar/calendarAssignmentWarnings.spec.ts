@@ -892,7 +892,8 @@ describe('assignment sidebar warnings', () => {
       expect(schedulingRequests).toEqual([
         {
           startDate: context.startDate,
-          endDate: context.endDate,
+          // The scheduling API uses an inclusive end date; Calendar ranges end exclusively.
+          endDate: '2025-03-09',
           timeZoneId: 'America/Vancouver',
           locationId: 1,
         },
