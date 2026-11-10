@@ -571,12 +571,14 @@ describe('calendarTrainingEventsContribution', () => {
     expect(requests).toContainEqual({
       startDate: '2025-04-07',
       endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
       locationId: 12,
       userIds: [userId],
     });
     expect(requests).toContainEqual({
       startDate: '2025-04-07',
       endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
       userIds: [userId],
     });
     expect(result.events).toEqual([]);
@@ -638,8 +640,18 @@ describe('calendarTrainingEventsContribution', () => {
       activeViewId: 'calendar.matrix-shift',
     });
     expect(warningRequests).toEqual([
-      { startDate: '2025-04-07', endDate: '2025-04-13', userIds: [userId] },
-      { startDate: '2025-04-14', endDate: '2025-04-14', userIds: [otherUserId] },
+      {
+        startDate: '2025-04-07',
+        endDate: '2025-04-13',
+        timeZoneId: 'America/Vancouver',
+        userIds: [userId],
+      },
+      {
+        startDate: '2025-04-14',
+        endDate: '2025-04-14',
+        timeZoneId: 'America/Vancouver',
+        userIds: [otherUserId],
+      },
     ]);
     expect(userRequests).toBe(2);
     expect(scheduling.data).toEqual({ warningEvents: [] });

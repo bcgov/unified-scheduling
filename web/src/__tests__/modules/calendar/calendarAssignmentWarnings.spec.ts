@@ -303,6 +303,7 @@ describe('assignment sidebar warnings', () => {
     expect(trainingRequests).toContainEqual({
       startDate: '2025-03-09',
       endDate: '2025-03-09',
+      timeZoneId: 'America/Vancouver',
       locationId: 1,
       userIds: [borrowedId],
     });
