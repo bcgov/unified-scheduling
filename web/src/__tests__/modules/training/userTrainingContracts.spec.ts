@@ -7,7 +7,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 const request = {
-  userId: '95f91fd1-1111-2222-3333-9c0aeb4ca44b',
+  userId: '95f91fd1-1111-4222-8333-9c0aeb4ca44b',
   trainingId: 1,
   awardedOn: '2026-07-20T22:00:00Z',
   endingOn: '2026-07-21T01:00:00Z',
