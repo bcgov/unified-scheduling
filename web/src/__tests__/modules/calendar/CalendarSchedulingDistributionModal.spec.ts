@@ -825,6 +825,7 @@ function createConflict(id: string, isOverridden: boolean): CalendarConflict {
   };
   return {
     id,
+    title: 'Assignment ↔ Shift',
     entry,
     overlaps: { ...entry, eventId: '2', title: 'Assignment', sourceEntityId: 2 },
     resourceId: 'd20d7f24-b50e-42f7-aef8-f45e36918bae',

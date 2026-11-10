@@ -2260,6 +2260,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
       const resourceId = 'feaa2a73-6898-48ae-9c32-9633b1ec5538';
       const conflict = {
         id: '41:52:feaa2a73-6898-48ae-9c32-9633b1ec5538',
+        title: 'Assignment ↔ Assignment',
         entry: {
           eventId: '41',
           sourceModule: 'scheduling',

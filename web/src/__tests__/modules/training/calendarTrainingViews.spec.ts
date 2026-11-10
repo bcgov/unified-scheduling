@@ -108,6 +108,7 @@ describe('training calendar views', () => {
       const secondTraining = { ...training, id: 'training.user-training.43', title: 'Training: CPR' };
       const conflict: CalendarConflict = {
         id: 'training-conflict',
+        title: otherModule === 'training' ? 'Training ↔ Training' : 'Holiday ↔ Training',
         entry: {
           eventId: training.id,
           sourceModule: 'training',

@@ -33,6 +33,7 @@ describe('CalendarConflictDetailModal', () => {
     expect(wrapper.text()).toContain('From:');
     expect(wrapper.text()).toContain('2:00 AM - 4:00 AM');
     expect(wrapper.text()).toContain('3:00 AM - 5:00 AM');
+    expect(wrapper.text()).not.toContain(conflict.title);
 
     const editCurrentButtons = wrapper.findAll('button[aria-label="Edit First assignment"]');
     expect(editCurrentButtons).toHaveLength(1);
@@ -168,6 +169,7 @@ function createConflict(
 ): CalendarConflict {
   return {
     id: `conflict:${entryEventId}:${overlapsEventId}`,
+    title: 'Assignment ↔ Assignment',
     entry: {
       eventId: String(entryEventId),
       sourceModule: 'scheduling',

@@ -471,7 +471,7 @@ describe('CalendarSchedulingView', () => {
       });
 
       expect(wrapper.findAllComponents(CalendarSchedulingConflictOverlay)).toHaveLength(1);
-      expect(wrapper.text()).toContain('Second assignment');
+      expect(wrapper.text()).toContain(conflict.title);
       await wrapper.get('.calendar-scheduling-conflict-overlay__resolve').trigger('click');
 
       const detail = wrapper.getComponent({ name: 'CalendarConflictDetailModalStub' });
@@ -634,6 +634,7 @@ function createConflict(
 ): CalendarConflict {
   return {
     id: `conflict:${currentEventId}:${conflictingEventId}:${resourceId}`,
+    title: 'Assignment ↔ Assignment',
     entry: {
       eventId: String(currentEventId),
       sourceModule: 'scheduling',

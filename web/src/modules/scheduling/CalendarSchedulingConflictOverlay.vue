@@ -55,7 +55,7 @@ function resolveLabel(conflict: CalendarConflict) {
         />
         <div>
           <strong :class="{ 'calendar-scheduling-conflict-overlay__title--overridden': item.conflict.isOverridden }">
-            {{ conflictingEvent(item).title }}
+            {{ item.conflict.title }}
           </strong>
           <span>{{ timeLabel(conflictingEvent(item)) }}</span>
         </div>

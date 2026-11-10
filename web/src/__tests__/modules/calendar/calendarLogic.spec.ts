@@ -248,6 +248,7 @@ describe('scheduling calendar view model', () => {
       });
       const conflict = {
         id: 'excluded-home-conflict',
+        title: 'Shift ↔ Shift',
         reportOnEntry: true,
         reportOnOverlaps: true,
         resourceId: 'borrowed',
@@ -526,6 +527,7 @@ describe('scheduling calendar view model', () => {
               conflicts: [
                 {
                   id: '900:901:user-1',
+                  title: 'Assignment ↔ Assignment',
                   resourceId: 'user-1',
                   entry: {
                     eventId: '900',
@@ -835,6 +837,7 @@ describe('scheduling calendar view model', () => {
               conflicts: [
                 {
                   id: '201:stat-holiday:CanadaDay:2025-07-01:America/Vancouver:user-1',
+                  title: 'Assignment ↔ Holiday',
                   resourceId: 'user-1',
                   entry: {
                     eventId: '201',

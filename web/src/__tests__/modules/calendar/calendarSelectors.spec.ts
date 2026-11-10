@@ -8,6 +8,7 @@ import {
 
 const createConflict = (reportOnEntry: boolean, reportOnOverlaps: boolean): CalendarConflict => ({
   id: 'physical-pair',
+  title: 'Leave ↔ Assignment',
   entry: {
     eventId: '1',
     sourceModule: 'scheduling',

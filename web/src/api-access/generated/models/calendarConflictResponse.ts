@@ -26,4 +26,5 @@ export interface CalendarConflictResponse {
   updatedOn: string | null;
   reportOnEntry: boolean;
   reportOnOverlaps: boolean;
+  title: string;
 }

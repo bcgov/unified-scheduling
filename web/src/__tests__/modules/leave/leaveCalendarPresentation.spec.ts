@@ -20,6 +20,7 @@ describe('all-day leave calendar presentation', () => {
   it('shows leave conflicts on a standalone shift even when leave details are unavailable', () => {
     const conflict: CalendarConflict = {
       id: 'leave-shift',
+      title: 'Leave ↔ Shift',
       resourceId: userId,
       isOverridden: false,
       reportOnEntry: false,

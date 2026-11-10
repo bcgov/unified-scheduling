@@ -29,7 +29,8 @@ public sealed record CalendarConflictResponse(
     Guid? UpdatedById,
     DateTimeOffset? UpdatedOn,
     bool ReportOnEntry,
-    bool ReportOnOverlaps
+    bool ReportOnOverlaps,
+    string Title
 )
 {
     public static CalendarConflictResponse FromConflict(CalendarConflict conflict) =>
@@ -47,7 +48,25 @@ public sealed record CalendarConflictResponse(
             conflict.UpdatedById,
             conflict.UpdatedOn,
             conflict.ReportOnEntry,
-            conflict.ReportOnOverlaps
+            conflict.ReportOnOverlaps,
+            CreateTitle(conflict)
+        );
+
+    private static string CreateTitle(CalendarConflict conflict) =>
+        string.Join(
+            " ↔ ",
+            new[] { conflict.Entry.EventTypeCode, conflict.Overlaps.EventTypeCode }
+                .OrderBy(code => code == "leave" ? 0 : 1)
+                .ThenBy(code => code, StringComparer.Ordinal)
+                .Select(code => code switch
+                {
+                    "leave" => "Leave",
+                    "shift" => "Shift",
+                    "assignment" => "Assignment",
+                    "training" => "Training",
+                    "holiday" => "Holiday",
+                    _ => code,
+                })
         );
 
     private static CalendarConflictEventResponse MapEvent(CalendarConflictParticipant participant) =>
