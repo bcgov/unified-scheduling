@@ -18,6 +18,10 @@ export interface BrandSettingsOptions {
   /** @nullable */
   dashboardMessage?: string | null;
   /** @nullable */
+  primaryLogoUrl?: string | null;
+  /** @nullable */
+  primaryLogoAlt?: string | null;
+  /** @nullable */
   secondaryLogoUrl?: string | null;
   /** @nullable */
   secondaryLogoAlt?: string | null;
