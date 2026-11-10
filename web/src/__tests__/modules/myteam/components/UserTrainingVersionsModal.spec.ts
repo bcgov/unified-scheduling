@@ -59,6 +59,7 @@ const sampleTraining = {
   trainingCategoryName: 'Medical',
   awardedOn: '2026-01-20T23:00:00Z',
   endingOn: '2026-01-21T02:00:00Z',
+  allDay: false,
   expiryDate: '2026-02-01T00:00:00Z',
   noticeState: 'None',
   notes: 'Current version',
@@ -67,11 +68,14 @@ const sampleTraining = {
 };
 
 describe('UserTrainingVersionsModal', () => {
-  it('shows details tab by default', () => {
+  it.each([false, true])('shows details dates with allDay=%s', (allDay) => {
+    const training = allDay
+      ? { ...sampleTraining, allDay, awardedOn: '2026-07-20T00:00:00Z', endingOn: '2026-07-22T00:00:00Z' }
+      : sampleTraining;
     const wrapper = mount(UserTrainingVersionsModal, {
       props: {
-        training: sampleTraining,
-        trainings: [sampleTraining],
+        training,
+        trainings: [training],
       },
       global: {
         stubs: {
@@ -88,23 +92,25 @@ describe('UserTrainingVersionsModal', () => {
     expect(wrapper.text()).toContain('CPR');
     expect(wrapper.text()).toContain('Medical');
     expect(wrapper.text()).toContain('Current version');
-    expect(wrapper.text()).toContain('2026-01-20 3:00 PM');
-    expect(wrapper.text()).toContain('2026-01-20 6:00 PM');
+    expect(wrapper.text()).toContain(allDay ? '2026-07-20' : '2026-01-20 3:00 PM');
+    expect(wrapper.text()).toContain(allDay ? '2026-07-22' : '2026-01-20 6:00 PM');
+    expect(wrapper.text()).toContain('2026-02-01');
+    if (allDay) expect(wrapper.text()).not.toContain('2026-07-19');
   });
 
-  it('shows history table when history tab is selected', async () => {
+  it.each([false, true])('shows history dates with allDay=%s', async (allDay) => {
+    const priorVersion = {
+      ...sampleTraining,
+      allDay,
+      id: 9,
+      version: 1,
+      notes: 'Prior version',
+      ...(allDay ? { awardedOn: '2026-07-20T00:00:00Z', endingOn: '2026-07-22T00:00:00Z' } : {}),
+    };
     const wrapper = mount(UserTrainingVersionsModal, {
       props: {
         training: sampleTraining,
-        trainings: [
-          sampleTraining,
-          {
-            ...sampleTraining,
-            id: 9,
-            version: 1,
-            notes: 'Prior version',
-          },
-        ],
+        trainings: [sampleTraining, priorVersion],
       },
       global: {
         stubs: {
@@ -122,7 +128,8 @@ describe('UserTrainingVersionsModal', () => {
 
     expect(wrapper.find('.ua-data-table-stub').exists()).toBe(true);
     expect(wrapper.find('.ua-data-table-stub').text()).toContain('rows: 1');
-    expect(wrapper.find('.ua-data-table-stub').text()).toContain('2026-01-20 3:00 PM');
-    expect(wrapper.find('.ua-data-table-stub').text()).toContain('2026-01-20 6:00 PM');
+    expect(wrapper.find('.ua-data-table-stub').text()).toContain(allDay ? '2026-07-20' : '2026-01-20 3:00 PM');
+    expect(wrapper.find('.ua-data-table-stub').text()).toContain(allDay ? '2026-07-22' : '2026-01-20 6:00 PM');
+    if (allDay) expect(wrapper.find('.ua-data-table-stub').text()).not.toContain('2026-07-19');
   });
 });

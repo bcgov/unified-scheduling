@@ -398,6 +398,7 @@ public sealed class SchedulePublishServiceTests : IAsyncLifetime
             TrainingId = 1,
             AwardedOn = new DateTimeOffset(2026, 10, 6, 0, 0, 0, TimeSpan.Zero),
             EndingOn = new DateTimeOffset(2026, 10, 6, 0, 0, 0, TimeSpan.Zero),
+            AllDay = true,
         };
         _db.UserTrainings.Add(training);
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);

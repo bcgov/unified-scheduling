@@ -24,6 +24,8 @@ internal sealed record UserTrainingReportRow
 
     public DateTimeOffset? EndingOn { get; init; }
 
+    public bool AllDay { get; init; }
+
     public DateTimeOffset? ExpiryDate { get; init; }
 
     public int? Version { get; init; }
@@ -63,6 +65,7 @@ public sealed record UserTrainingReportItem(
     string TrainingDescription,
     DateTimeOffset? AwardedOn,
     DateTimeOffset? EndingOn,
+    bool AllDay,
     DateTimeOffset? ExpiryDate,
     string Status,
     int? Version,

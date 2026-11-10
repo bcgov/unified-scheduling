@@ -1,5 +1,7 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
@@ -72,6 +74,66 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();
 
+    [Theory]
+    [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T14:00:00-07:00", false)]
+    [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T09:30:00-07:00", true)]
+    [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T10:00:00-07:00", false)]
+    [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T08:00:00-07:00", false)]
+    [InlineData("2026-10-22T23:30:00-07:00", "2026-10-23T00:30:00-07:00", "2026-10-23T00:00:00-07:00", true)]
+    [InlineData("2026-10-22T00:00:00Z", "2026-10-22T01:00:00Z", "2026-10-22T02:00:00Z", false)]
+    [InlineData("2026-10-22T00:00:00Z", "2026-10-23T00:00:00Z", "2026-10-22T09:00:00Z", true)]
+    [InlineData("2026-10-21T23:00:00Z", "2026-10-22T00:00:00Z", "2026-10-22T00:00:00Z", false)]
+    [InlineData("2025-03-09T01:30:00-08:00", "2025-03-09T03:30:00-07:00", "2025-03-09T03:00:00-07:00", true)]
+    [InlineData("2025-03-09T01:30:00-08:00", "2025-03-09T03:30:00-07:00", "2025-03-09T03:30:00-07:00", false)]
+    [InlineData("2025-11-02T01:30:00-07:00", "2025-11-02T01:30:00-08:00", "2025-11-02T01:00:00-08:00", true)]
+    [InlineData("2025-11-02T01:00:00-07:00", "2025-11-02T01:30:00-07:00", "2025-11-02T01:00:00-08:00", false)]
+    public async Task GetParticipantsAsync_TimedTraining_UsesPreciseOverlapAndMatchesIndividual(
+        string start,
+        string end,
+        string assignmentStart,
+        bool expectedConflict
+    )
+    {
+        var startAtUtc = DateTimeOffset.Parse(start, CultureInfo.InvariantCulture).ToUniversalTime();
+        var endAtUtc = DateTimeOffset.Parse(end, CultureInfo.InvariantCulture).ToUniversalTime();
+        var training = await AddAsync(_userA, 1, startAtUtc, endAtUtc, allDay: false);
+        var identity = TrainingConflictParticipantProvider.IdentityFor(training.Id);
+        var individual = await _provider.GetParticipantAsync(identity, _userA, TestContext.Current.CancellationToken);
+        var participant = Assert.Single(
+            await _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(startAtUtc, endAtUtc, [_userA]),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(individual, participant);
+        Assert.Equal(startAtUtc, participant.Start);
+        Assert.Equal(endAtUtc, participant.End);
+        Assert.Equal("America/Vancouver", participant.TimeZoneId);
+        Assert.Null(await _provider.GetParticipantAsync(identity, _userB, TestContext.Current.CancellationToken));
+        var assignmentStartAtUtc = DateTimeOffset
+            .Parse(assignmentStart, CultureInfo.InvariantCulture)
+            .ToUniversalTime();
+        var assignment = new CalendarConflictParticipant(
+            "assignment.1",
+            "scheduling",
+            _userA,
+            assignmentStartAtUtc,
+            assignmentStartAtUtc.AddHours(1),
+            "Assignment"
+        );
+        Assert.Equal(expectedConflict ? 1 : 0, CalendarConflictDetector.Detect([participant, assignment]).Count);
+        Assert.Equal(
+            expectedConflict ? 1 : 0,
+            (
+                await _provider.GetParticipantsAsync(
+                    new CalendarConflictQuery(assignment.Start, assignment.End, [_userA]),
+                    TestContext.Current.CancellationToken
+                )
+            ).Count
+        );
+    }
+
     [Fact]
     public async Task GetParticipantsAsync_MultipleVersionsAndLegacyEnd_UsesStableIdentityAndResource()
     {
@@ -123,9 +185,14 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(2025, 3, 9, 8, 7)]
-    [InlineData(2025, 11, 2, 7, 8)]
+    [InlineData("America/Vancouver", 2025, 3, 9, 8, 7)]
+    [InlineData("America/Vancouver", 2025, 11, 2, 7, 8)]
+    [InlineData("America/Sao_Paulo", 2018, 11, 4, 3, 2)]
+    [InlineData("America/Sao_Paulo", 2018, 11, 3, 3, 3)]
+    [InlineData("America/Havana", 2025, 11, 2, 4, 5)]
+    [InlineData("America/Havana", 2025, 11, 1, 4, 4)]
     public async Task GetParticipantsAsync_DstDay_UsesLocalMidnights(
+        string timeZoneId,
         int year,
         int month,
         int day,
@@ -133,7 +200,9 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         int endHour
     )
     {
-        await AddAsync(_userA, 1, Day(year, month, day), Day(year, month, day));
+        await SetTimeZoneAsync(timeZoneId);
+        var trainingDay = Day(year, month, day);
+        await AddAsync(_userA, 1, trainingDay, trainingDay);
 
         var participant = Assert.Single(
             await _provider.GetParticipantsAsync(
@@ -142,10 +211,25 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             )
         );
 
-        Assert.Equal(new DateTimeOffset(year, month, day, startHour, 0, 0, TimeSpan.Zero), participant.Start);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        var expectedStart = trainingDay.AddHours(startHour);
+        var expectedEnd = trainingDay.AddDays(1).AddHours(endHour);
+        // Windows historical rules can place a gap boundary one millisecond earlier than IANA data.
+        if (TimeZoneInfo.ConvertTime(expectedStart.AddMilliseconds(-1), zone).Date == trainingDay.Date)
+            expectedStart = expectedStart.AddMilliseconds(-1);
+        if (TimeZoneInfo.ConvertTime(expectedEnd.AddMilliseconds(-1), zone).Date == trainingDay.AddDays(1).Date)
+            expectedEnd = expectedEnd.AddMilliseconds(-1);
+        Assert.Equal(expectedStart, participant.Start);
+        Assert.Equal(expectedEnd, participant.End);
         Assert.Equal(
-            new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.Zero).AddDays(1).AddHours(endHour),
-            participant.End
+            participant,
+            await _provider.GetParticipantAsync(participant.Identity, _userA, TestContext.Current.CancellationToken)
+        );
+        Assert.Empty(
+            await _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(participant.End, participant.End.AddHours(1), [_userA]),
+                TestContext.Current.CancellationToken
+            )
         );
     }
 
@@ -228,7 +312,8 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             _userA,
             1,
             Day(9999, 12, startDay),
-            legacyEnd ? DateTimeOffset.MinValue : DateTimeOffset.MaxValue
+            legacyEnd ? DateTimeOffset.MinValue : DateTimeOffset.MaxValue,
+            allDay: legacyEnd
         );
         var identity = TrainingConflictParticipantProvider.IdentityFor(training.Id);
         var individual = Assert.IsType<CalendarConflictParticipant>(
@@ -244,13 +329,16 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         Assert.Equal(individual, participant);
         Assert.Equal(identity, participant.Identity);
         Assert.Equal(_userA, participant.ResourceId);
-        Assert.Equal(timeZoneId, participant.TimeZoneId);
+        Assert.Equal(new TimeZoneService().ResolveRequired(timeZoneId).Id, participant.TimeZoneId);
         Assert.Equal(DateTimeOffset.MaxValue, participant.End);
         var timeZoneService = new TimeZoneService();
-        Assert.Equal(
-            timeZoneService.ToUtcInstant(new DateTime(9999, 12, startDay), timeZoneService.ResolveRequired(timeZoneId)),
-            participant.Start
-        );
+        var expectedStart = legacyEnd
+            ? timeZoneService.ToUtcInstant(
+                new DateTime(9999, 12, startDay),
+                timeZoneService.ResolveRequired(timeZoneId)
+            )
+            : Day(9999, 12, startDay);
+        Assert.Equal(expectedStart, participant.Start);
     }
 
     private async Task SetTimeZoneAsync(string timeZoneId)
@@ -285,7 +373,8 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         Guid userId,
         int version,
         DateTimeOffset awardedOn,
-        DateTimeOffset endingOn
+        DateTimeOffset endingOn,
+        bool allDay = true
     )
     {
         var record = new UserTraining
@@ -295,6 +384,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             Version = version,
             AwardedOn = awardedOn,
             EndingOn = endingOn,
+            AllDay = allDay,
             ExpiryDate = awardedOn.Year <= 9997 ? awardedOn.AddYears(2) : null,
         };
         _db.UserTrainings.Add(record);

@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/__tests__/mocks/server';
 import { Permissions } from '@/api-access/generated/models';
+import { PostApiTrainingCalendarEventsBody } from '@/api-access/generated/training-calendar/training-calendar.zod';
 import { calendarTrainingEventsContribution } from '@/modules/training/contributions/calendarTrainingEventsContribution';
 import { CalendarRegistry } from '@/modules/calendar/registry/calendarRegistry';
 import { calendarDataService } from '@/modules/calendar/calendarDataService';
@@ -49,6 +50,11 @@ const borrowedTraining = {
 };
 
 describe('calendarTrainingEventsContribution', () => {
+  it('accepts timeZoneId in the generated calendar request contract', () => {
+    const request = { startDate: context.startDate, endDate: context.endDate, timeZoneId: 'America/Vancouver' };
+    expect(PostApiTrainingCalendarEventsBody.parse(request)).toEqual(request);
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     useLocationsStore().entities = [{ id: 12, timezone: 'America/Edmonton' }];
@@ -106,6 +112,7 @@ describe('calendarTrainingEventsContribution', () => {
     expect(body).toEqual({
       startDate: '2025-04-07',
       endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
       locationId: 12,
       userIds: [userId, otherUserId],
     });
@@ -119,6 +126,45 @@ describe('calendarTrainingEventsContribution', () => {
         allDay: true,
         isReadOnly: true,
         locationId: 12,
+        resourceIds: [userId],
+      }),
+    ]);
+  });
+
+  it.each(['UTC', 'America/Edmonton'])('queries timed training in the displayed timezone %s', async (timeZoneId) => {
+    let body: unknown;
+    server.use(
+      http.post('*/api/training/calendar/events', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json([]);
+      }),
+    );
+
+    await calendarTrainingEventsContribution.load({ ...context, filters: { ...context.filters, timeZoneId } });
+
+    expect(body).toMatchObject({ timeZoneId });
+  });
+
+  it.each([
+    ['2025-04-08T09:00:00-07:00', '2025-04-08T10:00:00-07:00'],
+    ['2025-04-09T06:30:00Z', '2025-04-09T07:30:00Z'],
+    ['2025-11-02T01:30:00-07:00', '2025-11-02T01:30:00-08:00'],
+  ])('preserves timed training timestamps and offsets from %s to %s', async (start, end) => {
+    server.use(
+      http.post('*/api/training/calendar/events', () =>
+        HttpResponse.json([{ ...homeTraining, start, end, allDay: false }]),
+      ),
+    );
+
+    const result = await calendarTrainingEventsContribution.load(context);
+
+    expect(result.events).toEqual([
+      expect.objectContaining({
+        id: homeTraining.id,
+        start,
+        end,
+        allDay: false,
+        isReadOnly: true,
         resourceIds: [userId],
       }),
     ]);
@@ -141,7 +187,12 @@ describe('calendarTrainingEventsContribution', () => {
     await calendarTrainingEventsContribution.load({ ...context, filters });
 
     expect(requests).toBe(1);
-    expect(body).toEqual({ startDate: '2025-04-07', endDate: '2025-04-13', locationId: 12 });
+    expect(body).toEqual({
+      startDate: '2025-04-07',
+      endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
+      locationId: 12,
+    });
   });
 
   it('sends all IDs from a valid user filter', async () => {
@@ -158,6 +209,7 @@ describe('calendarTrainingEventsContribution', () => {
     expect(body).toEqual({
       startDate: '2025-04-07',
       endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
       locationId: 12,
       userIds: [userId, otherUserId],
     });
@@ -238,8 +290,14 @@ describe('calendarTrainingEventsContribution', () => {
       timeZoneId: 'America/Edmonton',
     });
     expect(trainingRequests).toEqual([
-      { startDate: '2025-04-07', endDate: '2025-04-13', locationId: 12 },
-      { startDate: '2025-04-07', endDate: '2025-04-13', locationId: 12, userIds: [otherUserId] },
+      { startDate: '2025-04-07', endDate: '2025-04-13', timeZoneId: 'America/Vancouver', locationId: 12 },
+      {
+        startDate: '2025-04-07',
+        endDate: '2025-04-13',
+        timeZoneId: 'America/Vancouver',
+        locationId: 12,
+        userIds: [otherUserId],
+      },
     ]);
     expect(result.events).toEqual([
       expect.objectContaining({ id: homeTraining.id, resourceIds: [userId], start: '2025-04-08' }),

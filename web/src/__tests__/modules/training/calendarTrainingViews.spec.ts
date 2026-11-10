@@ -61,6 +61,63 @@ describe('training calendar views', () => {
   });
 
   it.each([
+    ['2025-04-08T09:00:00-07:00', '2025-04-08T10:00:00-07:00', ['2025-04-08']],
+    ['2025-04-09T06:30:00Z', '2025-04-09T07:30:00Z', ['2025-04-08', '2025-04-09']],
+    ['2025-04-08T23:00:00-07:00', '2025-04-09T00:00:00-07:00', ['2025-04-08']],
+    ['2025-04-09T00:00:00+02:00', '2025-04-09T01:00:00+02:00', ['2025-04-08']],
+  ])('places timed training from %s to %s only on overlapping local days', (start, end, dates) => {
+    const timedTraining = { ...training, start, end, allDay: false };
+    const model = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          ...response.contributions,
+          'training.events': { moduleId: 'training', contributionId: 'training.events', events: [timedTraining] },
+        },
+      },
+      { ...query, filters: { timeZoneId: 'America/Vancouver' } },
+      'week',
+    );
+
+    const cells = model.cells.filter((cell) => cell.headers?.some((header) => header.id === training.id));
+    expect(cells.map((cell) => [cell.resourceId, cell.date])).toEqual(dates.map((date) => ['user-1', date]));
+    for (const cell of cells) {
+      expect(cell.headers?.[0]).toMatchObject({
+        actionId: 'training.view-details',
+        payload: timedTraining,
+      });
+      expect(cell.headers?.[0]?.subtitle).toBeUndefined();
+      expect(cell.headers?.[0]?.text).toMatch(/^Training: FIRST-AID \d{1,2}:\d{2} [AP]M - \d{1,2}:\d{2} [AP]M$/);
+    }
+    if (start === '2025-04-08T09:00:00-07:00') {
+      expect(cells[0]?.headers?.[0]?.text).toBe('Training: FIRST-AID 9:00 AM - 10:00 AM');
+    }
+  });
+
+  it.each([
+    ['2025-03-03', '2025-03-09T01:30:00-08:00', '2025-03-09T03:30:00-07:00', '2025-03-09'],
+    ['2025-10-27', '2025-11-02T01:30:00-07:00', '2025-11-02T01:30:00-08:00', '2025-11-02'],
+  ])('keeps training on its local day across DST in the week of %s', (startDate, start, end, date) => {
+    const model = buildCalendarSchedulingViewModel(
+      {
+        contributions: {
+          ...response.contributions,
+          'training.events': {
+            moduleId: 'training',
+            contributionId: 'training.events',
+            events: [{ ...training, start, end, allDay: false }],
+          },
+        },
+      },
+      { ...query, startDate, filters: { timeZoneId: 'America/Vancouver' } },
+      'week',
+    );
+
+    expect(model.cells.filter((cell) => cell.headers?.length).map((cell) => [cell.resourceId, cell.date])).toEqual([
+      ['user-1', date],
+    ]);
+  });
+
+  it.each([
     ['2025-04-09T07:00:00Z', '2025-04-10T07:00:00Z', ['2025-04-09']],
     ['2025-04-09T23:00:00Z', '2025-04-11T07:00:00Z', ['2025-04-09', '2025-04-10']],
   ])(

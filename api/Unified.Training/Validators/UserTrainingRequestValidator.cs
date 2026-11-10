@@ -1,5 +1,6 @@
 using FluentValidation;
 using Unified.Common.Validation;
+using Unified.Training.Helpers;
 using Unified.Training.Models;
 
 namespace Unified.Training.Validators;
@@ -20,11 +21,15 @@ public sealed class UserTrainingRequestValidator : AbstractValidator<UserTrainin
         RuleFor(x => x.EndingOn).NotEmpty().WithMessage("Ending date is required.");
 
         RuleFor(x => x.EndingOn)
-            .GreaterThanOrEqualTo(x => x.AwardedOn)
-            .WithMessage("Ending date must be on or after the awarded date.");
+            .Must((request, end) => request.AllDay ? end.Date >= request.AwardedOn.Date : end > request.AwardedOn)
+            .WithMessage(request =>
+                request.AllDay
+                    ? "Ending date must be on or after the awarded date."
+                    : "Ending date must be after the awarded date."
+            );
 
         RuleFor(x => x.ExpiryDate)
-            .GreaterThan(x => x.EndingOn)
+            .GreaterThan(x => UserTrainingHelper.NormalizeToUtc(x).EndingOn)
             .WithMessage("Expiry date must be after the ending date.")
             .When(x => x.ExpiryDate.HasValue);
 

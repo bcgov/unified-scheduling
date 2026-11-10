@@ -166,7 +166,7 @@ export function buildCalendarSchedulingViewModel(
               isCalendarSchedulingEvent(event) &&
               event.metadata.userIds?.includes(user.id) &&
               (isLeaveEvent(event)
-                ? isLeaveOnMatrixDate(event, day.date, timeZone)
+                ? isIntervalOnMatrixDate(event, day.date, timeZone)
                 : isEventOnMatrixDate(event, day.date, timeZone)),
           );
       const userResource = userResourcesById.get(user.id);
@@ -177,10 +177,7 @@ export function buildCalendarSchedulingViewModel(
         isUnassignedRow || (!homeLocationUserIds.has(user.id) && !isLoanOutDay)
           ? []
           : trainingEvents.filter(
-              (event) =>
-                event.resourceIds?.includes(user.id) &&
-                event.start <= day.date &&
-                day.date < (event.end ?? event.start),
+              (event) => event.resourceIds?.includes(user.id) && isIntervalOnMatrixDate(event, day.date, timeZone),
             );
       cells.push({
         resourceId: user.id,
@@ -191,7 +188,9 @@ export function buildCalendarSchedulingViewModel(
           ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
           ...userTrainingEvents.map((event) => ({
             id: event.id,
-            text: event.title,
+            text: event.allDay
+              ? event.title
+              : `${event.title} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
             subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
             title: event.title,
             color: 'rgb(var(--v-theme-accent))',
@@ -812,7 +811,11 @@ export function getCalendarEventDateKey(
 function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
   return getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone) === date;
 }
-function isLeaveOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
+function isIntervalOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
+  if (event.allDay && /^\d{4}-\d{2}-\d{2}$/.test(event.start)) {
+    return event.start <= date && date < (event.end ?? addDays(event.start, 1));
+  }
+
   const dayStart = DateTime.fromISO(date, { zone: timeZone }).startOf('day');
   const dayEnd = dayStart.plus({ days: 1 });
   const start = DateTime.fromISO(event.start, { setZone: true });
