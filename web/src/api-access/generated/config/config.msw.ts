@@ -172,7 +172,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      emailDistributionAvailable: (() => faker.internet.email())(),
+      emailDistributionAvailable: faker.datatype.boolean(),
       ...overrideResponse,
     },
     {
@@ -272,7 +272,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      emailDistributionAvailable: (() => faker.internet.email())(),
+      emailDistributionAvailable: faker.datatype.boolean(),
       ...overrideResponse,
     },
     {
@@ -372,7 +372,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
-      emailDistributionAvailable: (() => faker.internet.email())(),
+      emailDistributionAvailable: faker.datatype.boolean(),
       ...overrideResponse,
     },
   ]);
