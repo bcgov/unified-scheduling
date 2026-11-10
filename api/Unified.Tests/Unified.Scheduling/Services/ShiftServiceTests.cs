@@ -74,13 +74,17 @@ public class ShiftServiceTests : IAsyncLifetime
         var materializationHandler = new ShiftSeriesMaterializationHandler(_dbContext);
         ICalendarConflictParticipantProvider[] providers =
         [
-            new SchedulingConflictParticipantProvider(_dbContext),
+            new SchedulingConflictParticipantProvider(
+                _dbContext,
+                SchedulingLoanOutTestServices.CreateAvailability(_dbContext, new TimeZoneService())
+            ),
             new LeaveConflictParticipantProvider(_dbContext),
         ];
         var conflictService = _conflictService = new CalendarConflictService(
             providers,
             _dbContext,
-            new CalendarConflictProjection(providers, CalendarConflictTestContext.Accessor(UserC))
+            new CalendarConflictProjection(providers, CalendarConflictTestContext.Accessor(UserC)),
+            CalendarConflictTestRules.Scheduling
         );
         var schedulingLoanOutService = SchedulingLoanOutTestServices.Create(
             _dbContext,
@@ -2755,6 +2759,7 @@ public class ShiftServiceTests : IAsyncLifetime
         var series = new ShiftSeriesService(
             NullLogger<ShiftSeriesService>.Instance,
             db,
+            SchedulingLoanOutTestServices.CreateAvailability(db, zones),
             new CalendarEventSeriesService<ShiftSeriesRequest, ShiftSeries>(
                 factory,
                 new CalendarEventMapper(),
@@ -2774,6 +2779,7 @@ public class ShiftServiceTests : IAsyncLifetime
         var entries = new ShiftEntryService(
             NullLogger<ShiftEntryService>.Instance,
             db,
+            SchedulingLoanOutTestServices.CreateAvailability(db, zones),
             Entry<ShiftEntryRequest, ShiftEntry>(factory),
             series,
             links,

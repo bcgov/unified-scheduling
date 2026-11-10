@@ -2,6 +2,7 @@
 # Runs checks only for areas changed by the pushed commits. Lint runs on the
 # changed files; formatting checks run across the whole changed area.
 set -eu
+export MSBUILDDISABLENODEREUSE=1
 
 remote_name="${1:-origin}"
 repo_root="$(git rev-parse --show-toplevel)"

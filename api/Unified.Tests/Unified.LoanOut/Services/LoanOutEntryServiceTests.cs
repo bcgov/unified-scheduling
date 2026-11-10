@@ -431,6 +431,11 @@ public sealed class LoanOutEntryServiceTests : IAsyncLifetime
 
     private sealed class FakeSchedulingLoanOutService : ISchedulingLoanOutService
     {
+        public Task InvalidateResolvedConflictOverridesAsync(
+            IReadOnlyCollection<LoanOutEntry> entries,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
         public Task RestoreHomeLocationUserShiftsAsync(
             IReadOnlyCollection<LoanOutEntry> removedEntries,
             CancellationToken cancellationToken = default

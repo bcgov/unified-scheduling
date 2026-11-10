@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { mdiHours24 } from '@mdi/js';
 import { computed } from 'vue';
+import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 import { resolveMatrixStatusClass, toRgba } from './calendarMatrixDisplayUtils';
 import { CalendarMatrixActionType } from './calendarMatrixTypes';
 import type {
@@ -24,7 +26,15 @@ defineSlots<{
 }>();
 
 const isClickable = computed(() => Boolean(props.header.actionId));
-const infoIcons = computed(() => props.header.info?.icons ?? []);
+const infoIcons = computed(() => [
+  ...(props.header.allDay
+    ? [{ icon: mdiHours24, ariaLabel: CALENDAR_ALL_DAY_LABEL, title: CALENDAR_ALL_DAY_LABEL }]
+    : []),
+  ...(props.header.info?.icons ?? []),
+]);
+const subtitle = computed(() =>
+  props.header.allDay && props.header.subtitle === CALENDAR_ALL_DAY_LABEL ? undefined : props.header.subtitle,
+);
 const hasInfoIcons = computed(() => infoIcons.value.length > 0);
 const hasActionDisplay = computed(() => !!props.header.action?.icon || !!props.header.action?.text);
 const isActionClickable = computed(
@@ -33,8 +43,15 @@ const isActionClickable = computed(
 
 const statusClass = computed(() => resolveMatrixStatusClass(props.header.status));
 const hasColor = computed(() => Boolean(props.header.color));
+const hasDottedBorder = computed(() => props.header.borderStyle === 'dotted');
 
 const headerStyle = computed(() => {
+  if (props.header.variant === 'outlined') {
+    return {
+      '--calendar-matrix-cell-header-border-color': props.header.color ?? 'var(--ua-border-color)',
+    };
+  }
+
   if (!props.header.color || statusClass.value === 'active') {
     return undefined;
   }
@@ -74,7 +91,10 @@ function handleActionClick() {
     class="calendar-matrix-cell-header"
     :class="[
       selected ? 'is-selected' : undefined,
+      header.allDay ? 'is-all-day' : undefined,
+      header.variant === 'outlined' ? 'is-outlined' : undefined,
       hasColor ? 'has-color' : undefined,
+      hasDottedBorder ? 'has-dotted-border' : undefined,
       statusClass ? `is-${statusClass}` : undefined,
       hasInfoIcons ? 'has-info-icons' : undefined,
       hasActionDisplay ? 'has-action-display' : undefined,
@@ -88,7 +108,7 @@ function handleActionClick() {
           {{ header.text }}
         </slot>
       </span>
-      <span v-if="header.subtitle" class="calendar-matrix-cell-header__subtitle">{{ header.subtitle }}</span>
+      <span v-if="subtitle" class="calendar-matrix-cell-header__subtitle">{{ subtitle }}</span>
     </button>
     <div v-else class="calendar-matrix-cell-header__main">
       <span class="calendar-matrix-cell-header__text">
@@ -96,7 +116,7 @@ function handleActionClick() {
           {{ header.text }}
         </slot>
       </span>
-      <span v-if="header.subtitle" class="calendar-matrix-cell-header__subtitle">{{ header.subtitle }}</span>
+      <span v-if="subtitle" class="calendar-matrix-cell-header__subtitle">{{ subtitle }}</span>
     </div>
 
     <span v-if="hasInfoIcons" class="calendar-matrix-cell-header__info-icons">
@@ -104,11 +124,12 @@ function handleActionClick() {
         v-for="infoIcon in infoIcons"
         :key="`${infoIcon.icon}-${infoIcon.ariaLabel ?? infoIcon.title ?? ''}`"
         class="calendar-matrix-cell-header__info-icon"
+        :role="infoIcon.ariaLabel ? 'img' : undefined"
         :aria-label="infoIcon.ariaLabel"
         :aria-hidden="infoIcon.ariaLabel ? undefined : true"
         :title="infoIcon.title ?? infoIcon.ariaLabel"
       >
-        <v-icon :icon="infoIcon.icon" size="16" />
+        <v-icon :icon="infoIcon.icon" :title="infoIcon.title ?? infoIcon.ariaLabel" size="16" />
       </span>
     </span>
 
@@ -135,12 +156,14 @@ function handleActionClick() {
 .calendar-matrix-cell-header {
   align-items: center;
   background: var(--calendar-matrix-cell-header-background-color, var(--bs-tertiary-bg));
-  border: 1px solid var(--calendar-matrix-cell-header-border-color, var(--ua-text-secondary));
+  border: var(--bcds-layout-border-width-small) solid
+    var(--calendar-matrix-cell-header-border-color, var(--ua-text-secondary));
   border-radius: 0.375rem;
+  box-sizing: border-box;
   color: var(--ua-text-primary);
   display: grid;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--ua-font-size-sm);
   font-weight: 600;
   inline-size: 100%;
   line-height: 1.2;
@@ -151,10 +174,20 @@ function handleActionClick() {
   text-align: start;
 }
 
-.calendar-matrix-cell-header.has-action-display {
-  padding-right: 2rem;
+.calendar-matrix-cell-header.has-dotted-border {
+  border-style: dotted;
+  border-width: var(--bcds-layout-border-width-medium);
 }
 
+.calendar-matrix-cell-header.is-outlined {
+  --calendar-matrix-cell-header-background-color: rgb(var(--v-theme-surface));
+}
+
+.calendar-matrix-cell-header.is-all-day {
+  border-radius: 0;
+}
+
+.calendar-matrix-cell-header.has-action-display,
 .calendar-matrix-cell-header.has-info-icons {
   padding-right: 2rem;
 }
@@ -171,9 +204,6 @@ function handleActionClick() {
   display: flex;
   flex-direction: column;
   font: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  line-height: inherit;
   min-inline-size: 0;
   padding: 0;
   text-align: start;
@@ -233,6 +263,7 @@ button.calendar-matrix-cell-header__main:focus-visible {
   height: 1.375rem;
   justify-content: center;
   line-height: 1;
+  pointer-events: auto;
   width: 1.375rem;
 }
 
@@ -248,25 +279,19 @@ button.calendar-matrix-cell-header__action {
   box-shadow: 0 0 0 2px rgb(var(--v-theme-primary) / 0.28);
 }
 
-.calendar-matrix-cell-header.is-draft {
-  border-style: dashed;
-}
-
-.calendar-matrix-cell-header.is-active {
+.calendar-matrix-cell-header.is-active:not(.is-outlined) {
   background: rgba(var(--v-theme-on-surface), 0.82);
   border-color: rgba(var(--v-theme-on-surface), 0.82);
-  border-style: solid;
   color: rgb(var(--v-theme-surface));
 }
 
-.calendar-matrix-cell-header.is-active .calendar-matrix-cell-header__action {
+.calendar-matrix-cell-header.is-active:not(.is-outlined) .calendar-matrix-cell-header__action {
   background: transparent;
   border-color: transparent;
   color: rgb(var(--v-theme-surface));
 }
 
 .calendar-matrix-cell-header.is-cancelled {
-  border-style: dotted;
   opacity: 0.6;
   text-decoration: line-through;
 }
@@ -285,7 +310,7 @@ button.calendar-matrix-cell-header__action {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .calendar-matrix-cell-header.is-active:has(button.calendar-matrix-cell-header__main:hover) {
+  .calendar-matrix-cell-header.is-active:not(.is-outlined):has(button.calendar-matrix-cell-header__main:hover) {
     background: rgba(var(--v-theme-on-surface), 0.82);
   }
 

@@ -6,7 +6,10 @@ using Unified.Db.Models.Calendar;
 
 namespace Unified.Scheduling.Services;
 
-public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) : ICalendarConflictParticipantProvider
+public sealed class SchedulingConflictParticipantProvider(
+    UnifiedDbContext db,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService
+) : ICalendarConflictParticipantProvider
 {
     public async Task<CalendarConflictParticipantVisibility?> GetVisibilityAsync(
         CalendarConflictParticipant participant,
@@ -77,14 +80,16 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                 && participant.UserId == resourceId
             );
         var assignmentParticipant = (
-            await ProjectParticipantsAsync(assignmentParticipants, cancellationToken)
+            await ProjectParticipantsAsync(assignmentParticipants, loanOutAvailabilityService, cancellationToken)
         ).SingleOrDefault();
         if (assignmentParticipant is not null)
             return assignmentParticipant;
 
         var shiftParticipants = ActiveShiftParticipantQuery(db)
             .Where(participant => participant.ShiftEntry!.EventId == eventId && participant.UserId == resourceId);
-        return (await ProjectShiftParticipantsAsync(shiftParticipants, cancellationToken)).SingleOrDefault();
+        return (
+            await ProjectShiftParticipantsAsync(shiftParticipants, loanOutAvailabilityService, cancellationToken)
+        ).SingleOrDefault();
     }
 
     public async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsAsync(
@@ -116,12 +121,18 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
 
         var shifts = await GetShiftParticipantsAsync(query, cancellationToken);
         // Apply location scope after all providers contribute; either side can anchor a conflict.
-        var assignments = await ProjectParticipantsAsync(participants, cancellationToken, query.LocationId);
-        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
+        var assignments = await ProjectParticipantsAsync(
+            participants,
+            loanOutAvailabilityService,
+            cancellationToken,
+            query.LocationId
+        );
+        return assignments.Concat(shifts.Select(AsSupplementalShift)).ToList();
     }
 
     public static Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForAssignmentSeriesAsync(
         UnifiedDbContext db,
+        ShiftLoanOutAvailabilityService loanOutAvailabilityService,
         int assignmentSeriesId,
         CancellationToken cancellationToken = default
     )
@@ -130,11 +141,12 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
             .Where(participant =>
                 participant.ShiftAssignmentEntry!.AssignmentEntry!.AssignmentSeriesId == assignmentSeriesId
             );
-        return ProjectParticipantsAsync(participants, cancellationToken);
+        return ProjectParticipantsAsync(participants, loanOutAvailabilityService, cancellationToken);
     }
 
     public static Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForAssignmentEntriesAsync(
         UnifiedDbContext db,
+        ShiftLoanOutAvailabilityService loanOutAvailabilityService,
         IReadOnlyCollection<int> assignmentEntryIds,
         CancellationToken cancellationToken = default
     )
@@ -145,11 +157,12 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         var ids = assignmentEntryIds.Distinct().ToList();
         var participants = PublishedParticipantQuery(db)
             .Where(participant => ids.Contains(participant.ShiftAssignmentEntry!.AssignmentEntryId));
-        return ProjectParticipantsAsync(participants, cancellationToken);
+        return ProjectParticipantsAsync(participants, loanOutAvailabilityService, cancellationToken);
     }
 
     public static async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForShiftEntriesAsync(
         UnifiedDbContext db,
+        ShiftLoanOutAvailabilityService loanOutAvailabilityService,
         IReadOnlyCollection<int> shiftEntryIds,
         CancellationToken cancellationToken = default
     )
@@ -160,20 +173,22 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
         var ids = shiftEntryIds.Distinct().ToList();
         var participants = PublishedAssignmentParticipantQuery(db)
             .Where(participant => ids.Contains(participant.ShiftAssignmentEntry!.ShiftEntryId));
-        var assignments = await ProjectParticipantsAsync(participants, cancellationToken);
+        var assignments = await ProjectParticipantsAsync(participants, loanOutAvailabilityService, cancellationToken);
         var shifts = await ProjectShiftParticipantsAsync(
             ActiveShiftParticipantQuery(db)
                 .Where(user =>
                     ids.Contains(user.ShiftEntryId)
                     && user.ShiftEntry!.Event!.StatusTypeCode != CalendarEventStatusTypeCodes.Draft
                 ),
+            loanOutAvailabilityService,
             cancellationToken
         );
-        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
+        return assignments.Concat(shifts.Select(AsSupplementalShift)).ToList();
     }
 
     public static async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetParticipantsForPublicationAsync(
         UnifiedDbContext db,
+        ShiftLoanOutAvailabilityService loanOutAvailabilityService,
         IReadOnlyCollection<int> shiftEntryIds,
         IReadOnlyCollection<int> assignmentEntryIds,
         CancellationToken cancellationToken = default
@@ -193,20 +208,20 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
                         != CalendarEventStatusTypeCodes.Draft
                 )
             );
-        var assignments = await ProjectParticipantsAsync(participants, cancellationToken);
+        var assignments = await ProjectParticipantsAsync(participants, loanOutAvailabilityService, cancellationToken);
         var shifts = await ProjectShiftParticipantsAsync(
             ActiveShiftParticipantQuery(db).Where(user => shiftIds.Contains(user.ShiftEntryId)),
+            loanOutAvailabilityService,
             cancellationToken
         );
-        return assignments.Concat(shifts.Select(ForLeaveConflicts)).ToList();
+        return assignments.Concat(shifts.Select(AsSupplementalShift)).ToList();
     }
 
-    // Supplemental shift intervals cover leave outside linked assignment hours without changing other conflict pairs.
-    private static CalendarConflictParticipant ForLeaveConflicts(CalendarConflictParticipant shift) =>
+    // Keep supplemental shift titles generic for viewers who can only view assignments.
+    private static CalendarConflictParticipant AsSupplementalShift(CalendarConflictParticipant shift) =>
         shift with
         {
             Title = "Shift",
-            ConflictsWithSourceModule = "leave",
         };
 
     private async Task<IReadOnlyCollection<CalendarConflictParticipant>> GetShiftParticipantsAsync(
@@ -231,7 +246,12 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
             participants = participants.Where(participant => resourceIds.Contains(participant.UserId));
         }
 
-        return await ProjectShiftParticipantsAsync(participants, cancellationToken, query.LocationId);
+        return await ProjectShiftParticipantsAsync(
+            participants,
+            loanOutAvailabilityService,
+            cancellationToken,
+            query.LocationId
+        );
     }
 
     private static IQueryable<Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser> ParticipantQuery(
@@ -303,31 +323,47 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
 
     private static async Task<IReadOnlyCollection<CalendarConflictParticipant>> ProjectParticipantsAsync(
         IQueryable<Unified.Db.Models.Scheduling.ShiftAssignmentEntryUser> query,
+        ShiftLoanOutAvailabilityService loanOutAvailabilityService,
         CancellationToken cancellationToken,
         int? scopeLocationId = null
     )
     {
+        var awayUsers = await GetAwayUsersAsync(
+            query.Select(participant => participant.ShiftAssignmentEntry!.ShiftEntry!),
+            loanOutAvailabilityService,
+            cancellationToken
+        );
         var participants = (
             await query
-                .Select(participant => new CalendarConflictParticipant(
-                    participant.ShiftAssignmentEntry!.AssignmentEntry!.EventId.ToString(),
-                    participant.ShiftAssignmentEntry.AssignmentEntry.Event!.SourceModule,
-                    participant.UserId,
-                    participant.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc,
-                    participant.ShiftAssignmentEntry.AssignmentEntry.Event.EndAtUtc!.Value,
-                    participant.ShiftAssignmentEntry.AssignmentEntry.Event.Title,
-                    participant.ShiftAssignmentEntry.AssignmentEntryId,
-                    participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location != null
-                    && participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location.Timezone.Trim() != ""
-                        ? participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location.Timezone
-                        : participant.ShiftAssignmentEntry.AssignmentEntry.Event.TimeZoneId,
-                    false,
-                    !scopeLocationId.HasValue
-                        || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == null
-                        || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == scopeLocationId
-                ))
+                .Select(participant => new
+                {
+                    participant.ShiftAssignmentEntry!.ShiftEntryId,
+                    Participant = new CalendarConflictParticipant(
+                        participant.ShiftAssignmentEntry!.AssignmentEntry!.EventId.ToString(),
+                        participant.ShiftAssignmentEntry.AssignmentEntry.Event!.SourceModule,
+                        participant.UserId,
+                        participant.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc,
+                        participant.ShiftAssignmentEntry.AssignmentEntry.Event.EndAtUtc!.Value,
+                        participant.ShiftAssignmentEntry.AssignmentEntry.Event.Title,
+                        participant.ShiftAssignmentEntry.AssignmentEntryId,
+                        participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location != null
+                        && participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location.Timezone.Trim() != ""
+                            ? participant.ShiftAssignmentEntry.AssignmentEntry.Event.Location.Timezone
+                            : participant.ShiftAssignmentEntry.AssignmentEntry.Event.TimeZoneId,
+                        false,
+                        !scopeLocationId.HasValue
+                            || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == null
+                            || participant.ShiftAssignmentEntry.AssignmentEntry.Event.LocationId == scopeLocationId,
+                        null,
+                        false,
+                        null,
+                        participant.ShiftAssignmentEntry.AssignmentEntry.Event.EventTypeCode
+                    ),
+                })
                 .ToListAsync(cancellationToken)
         )
+            .Where(item => !awayUsers.Contains((item.ShiftEntryId, item.Participant.ResourceId)))
+            .Select(item => item.Participant)
             .DistinctBy(participant => (participant.EventId, participant.ResourceId))
             .ToList();
         return participants;
@@ -335,33 +371,67 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
 
     private static async Task<IReadOnlyCollection<CalendarConflictParticipant>> ProjectShiftParticipantsAsync(
         IQueryable<Unified.Db.Models.Scheduling.ShiftEntryUser> query,
+        ShiftLoanOutAvailabilityService loanOutAvailabilityService,
         CancellationToken cancellationToken,
         int? scopeLocationId = null
     )
     {
+        var awayUsers = await GetAwayUsersAsync(
+            query.Select(participant => participant.ShiftEntry!),
+            loanOutAvailabilityService,
+            cancellationToken
+        );
         var participants = (
             await query
-                .Select(participant => new CalendarConflictParticipant(
-                    participant.ShiftEntry!.EventId.ToString(),
-                    participant.ShiftEntry.Event!.SourceModule,
-                    participant.UserId,
-                    participant.ShiftEntry.Event.StartAtUtc,
-                    participant.ShiftEntry.Event.EndAtUtc!.Value,
-                    participant.ShiftEntry.Event.Title,
+                .Select(participant => new
+                {
                     participant.ShiftEntryId,
-                    participant.ShiftEntry.Event.Location != null
-                    && participant.ShiftEntry.Event.Location.Timezone.Trim() != ""
-                        ? participant.ShiftEntry.Event.Location.Timezone
-                        : participant.ShiftEntry.Event.TimeZoneId,
-                    false,
-                    !scopeLocationId.HasValue
-                        || participant.ShiftEntry.Event.LocationId == null
-                        || participant.ShiftEntry.Event.LocationId == scopeLocationId
-                ))
+                    Participant = new CalendarConflictParticipant(
+                        participant.ShiftEntry!.EventId.ToString(),
+                        participant.ShiftEntry.Event!.SourceModule,
+                        participant.UserId,
+                        participant.ShiftEntry.Event.StartAtUtc,
+                        participant.ShiftEntry.Event.EndAtUtc!.Value,
+                        participant.ShiftEntry.Event.Title,
+                        participant.ShiftEntryId,
+                        participant.ShiftEntry.Event.Location != null
+                        && participant.ShiftEntry.Event.Location.Timezone.Trim() != ""
+                            ? participant.ShiftEntry.Event.Location.Timezone
+                            : participant.ShiftEntry.Event.TimeZoneId,
+                        false,
+                        !scopeLocationId.HasValue
+                            || participant.ShiftEntry.Event.LocationId == null
+                            || participant.ShiftEntry.Event.LocationId == scopeLocationId,
+                        null,
+                        false,
+                        null,
+                        participant.ShiftEntry.Event.EventTypeCode
+                    ),
+                })
                 .ToListAsync(cancellationToken)
         )
+            .Where(item => !awayUsers.Contains((item.ShiftEntryId, item.Participant.ResourceId)))
+            .Select(item => item.Participant)
             .DistinctBy(participant => (participant.EventId, participant.ResourceId))
             .ToList();
         return participants;
+    }
+
+    private static async Task<HashSet<(int ShiftEntryId, Guid UserId)>> GetAwayUsersAsync(
+        IQueryable<Unified.Db.Models.Scheduling.ShiftEntry> query,
+        ShiftLoanOutAvailabilityService loanOutAvailabilityService,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!loanOutAvailabilityService.IsEnabled)
+            return [];
+
+        var shifts = await query
+            .Distinct()
+            .Include(entry => entry.Event)
+            .Include(entry => entry.Users)
+            .ToListAsync(cancellationToken);
+        var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync(shifts, cancellationToken);
+        return awayUsers.SelectMany(item => item.Value.Select(userId => (item.Key.Id, userId))).ToHashSet();
     }
 }

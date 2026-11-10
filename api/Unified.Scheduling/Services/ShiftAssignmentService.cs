@@ -470,6 +470,7 @@ public sealed class ShiftAssignmentService(
             var conflictCandidates =
                 await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
                     db,
+                    loanOutAvailabilityService,
                     assignmentEntryIds,
                     cancellationToken
                 );
@@ -697,6 +698,7 @@ public sealed class ShiftAssignmentService(
             var conflictCandidates =
                 await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
                     db,
+                    loanOutAvailabilityService,
                     [assignmentEntry.Id],
                     cancellationToken
                 );

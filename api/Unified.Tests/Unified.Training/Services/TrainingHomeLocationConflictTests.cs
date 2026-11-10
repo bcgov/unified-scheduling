@@ -138,10 +138,14 @@ public sealed class TrainingHomeLocationConflictTests : IAsyncLifetime
         _conflicts = new CalendarConflictService(
             [
                 new TrainingConflictParticipantProvider(_db, _resolver, time),
-                new SchedulingConflictParticipantProvider(_db),
+                new SchedulingConflictParticipantProvider(
+                    _db,
+                    SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                ),
             ],
             _db,
-            CalendarConflictTestContext.Projection(OtherUserId)
+            CalendarConflictTestContext.Projection(OtherUserId),
+            CalendarConflictTestRules.Scheduling
         );
         _failure = new FailureAfterInvalidation(_db);
         _services = new ServiceCollection()

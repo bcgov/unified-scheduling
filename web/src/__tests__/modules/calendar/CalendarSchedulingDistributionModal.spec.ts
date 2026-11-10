@@ -825,12 +825,15 @@ function createConflict(id: string, isOverridden: boolean): CalendarConflict {
   };
   return {
     id,
+    title: 'Assignment ↔ Shift',
     entry,
     overlaps: { ...entry, eventId: '2', title: 'Assignment', sourceEntityId: 2 },
     resourceId: 'd20d7f24-b50e-42f7-aef8-f45e36918bae',
     overlapStart: '2026-08-24T17:00:00Z',
     overlapEnd: '2026-08-24T18:00:00Z',
     isOverridden,
+    reportOnEntry: true,
+    reportOnOverlaps: true,
     overrideNote: isOverridden ? 'Approved' : null,
     createdById: null,
     createdOn: null,

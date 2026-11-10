@@ -67,6 +67,10 @@ public sealed class LoanOutSeriesService(
             cancellationToken
         );
         await db.SaveChangesAsync(cancellationToken);
+        await schedulingLoanOutService.InvalidateResolvedConflictOverridesAsync(
+            entity.LoanOutEntries.ToList(),
+            cancellationToken
+        );
         await schedulingLoanOutService.TransferLoanedOutUserShift(entity, cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Created loan out series {LoanOutSeriesId}.", entity.Id);
@@ -122,6 +126,8 @@ public sealed class LoanOutSeriesService(
         }
         var eventSeries = entity.EventSeries!;
         var existingEntries = entity.LoanOutEntries.ToList();
+        // Regeneration can persist removed occurrences, so recheck their suppression first.
+        await schedulingLoanOutService.InvalidateResolvedConflictOverridesAsync(existingEntries, cancellationToken);
         var previousEntries = ShiftOverlapGuard.Snapshot(existingEntries);
         var oldValues = CaptureCopiedValues(eventSeries);
         var oldLoanOutLocationId = entity.LoanOutLocationId;
@@ -183,6 +189,10 @@ public sealed class LoanOutSeriesService(
         );
         await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync(withdrawnEntries, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        await schedulingLoanOutService.InvalidateResolvedConflictOverridesAsync(
+            GetCurrentEntries(entity.LoanOutEntries),
+            cancellationToken
+        );
         await schedulingLoanOutService.TransferLoanedOutUserShift(entity, cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Updated loan out series {LoanOutSeriesId}.", id);
@@ -219,6 +229,7 @@ public sealed class LoanOutSeriesService(
             throw new InvalidOperationException($"Loan out series {id} can only be deleted while in draft status.");
         // LoanOut has no publish/cancel lifecycle: deleting a series removes all its occurrences.
         var entries = entity.LoanOutEntries.ToList();
+        await schedulingLoanOutService.InvalidateResolvedConflictOverridesAsync(entries, cancellationToken);
         await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync(entries, cancellationToken);
         var events = eventSeries.Events.Concat(entries.Select(entry => entry.Event!)).Distinct().ToList();
         db.Set<LoanOutEntryUser>().RemoveRange(entries.SelectMany(entry => entry.Users));

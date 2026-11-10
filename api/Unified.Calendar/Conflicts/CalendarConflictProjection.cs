@@ -62,7 +62,10 @@ public sealed class CalendarConflictProjection(
                 continue;
 
             hasRestrictedConflicts = true;
-            foreach (var anchor in first.VisibleAnchors.Concat(second.VisibleAnchors))
+            var anchors = (conflict.ReportOnEntry ? first.VisibleAnchors : []).Concat(
+                conflict.ReportOnOverlaps ? second.VisibleAnchors : []
+            );
+            foreach (var anchor in anchors)
                 warnings.Add(
                     new(
                         anchor.EventId,

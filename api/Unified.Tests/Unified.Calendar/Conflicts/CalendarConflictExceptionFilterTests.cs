@@ -35,15 +35,26 @@ public sealed class CalendarConflictExceptionFilterTests
                 resourceId,
                 start,
                 start.AddDays(1),
-                "Training: SECRET"
+                "Training: SECRET",
+                EventTypeCode: "training"
             ),
-            new CalendarConflictParticipant("42", "scheduling", resourceId, start, start.AddHours(1), "Assignment"),
+            new CalendarConflictParticipant(
+                "42",
+                "scheduling",
+                resourceId,
+                start,
+                start.AddHours(1),
+                "Assignment",
+                EventTypeCode: "assignment"
+            ),
             resourceId,
             start,
             start.AddHours(1),
             OverrideNote: "Private audit note",
             CreatedById: Guid.NewGuid(),
-            CreatedOn: start
+            CreatedOn: start,
+            ReportOnEntry: true,
+            ReportOnOverlaps: true
         );
         var httpContext = new DefaultHttpContext
         {
@@ -77,11 +88,14 @@ public sealed class CalendarConflictExceptionFilterTests
             Assert.IsType<ConflictObjectResult>(context.Result).Value
         );
         Assert.Equal(canViewTraining && canViewAssignments, response.Conflicts.Any());
+        if (canViewTraining && canViewAssignments)
+            Assert.Equal("Assignment ↔ Training", Assert.Single(response.Conflicts).Title);
         if (!canViewTraining || !canViewAssignments)
         {
             Assert.Equal(canViewAssignments ? 1 : 0, response.RestrictedWarnings.Count);
             Assert.True(response.HasRestrictedConflicts);
             var json = System.Text.Json.JsonSerializer.Serialize(response);
+            Assert.DoesNotContain("\"Title\"", json);
             Assert.DoesNotContain("Private audit note", json);
             Assert.DoesNotContain("OverlapStart", json);
             Assert.DoesNotContain("CreatedById", json);

@@ -44,6 +44,7 @@ public sealed class LoanOutEntryService(
         );
         db.LoanOutEntries.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
+        await schedulingLoanOutService.InvalidateResolvedConflictOverridesAsync([entity], cancellationToken);
         await schedulingLoanOutService.TransferLoanedOutUserShift(entity, cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Created loan out entry {LoanOutEntryId}.", entity.Id);
@@ -88,6 +89,8 @@ public sealed class LoanOutEntryService(
         if (entity is null)
             return null;
 
+        // Evaluate the old suppression before the update can restore source participants.
+        await schedulingLoanOutService.InvalidateResolvedConflictOverridesAsync([entity], cancellationToken);
         var previousEntries = ShiftOverlapGuard.Snapshot([entity]);
         var allDayRequest = request with { AllDay = true };
         var updated = await calendarEventEntryService.UpdateEventAsync(
@@ -113,6 +116,7 @@ public sealed class LoanOutEntryService(
         );
         await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync(withdrawnEntries, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        await schedulingLoanOutService.InvalidateResolvedConflictOverridesAsync([entity], cancellationToken);
         await schedulingLoanOutService.TransferLoanedOutUserShift(entity, cancellationToken: cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Updated loan out entry {LoanOutEntryId}.", id);
@@ -143,6 +147,7 @@ public sealed class LoanOutEntryService(
             )
         )
             return false;
+        await schedulingLoanOutService.InvalidateResolvedConflictOverridesAsync([entity], cancellationToken);
         await schedulingLoanOutService.RestoreHomeLocationUserShiftsAsync([entity], cancellationToken);
         db.Set<LoanOutEntryUser>().RemoveRange(entity.Users);
         db.LoanOutEntries.Remove(entity);

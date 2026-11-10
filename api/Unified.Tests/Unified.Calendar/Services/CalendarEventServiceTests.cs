@@ -41,7 +41,12 @@ public class CalendarEventServiceTests : IAsyncLifetime
             new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
             CreateCalendarTimeZoneResolver(),
             timeZoneService,
-            new CalendarConflictService([], _dbContext, new CalendarConflictProjection([])),
+            new CalendarConflictService(
+                [],
+                _dbContext,
+                new CalendarConflictProjection([]),
+                CalendarConflictTestRules.Scheduling
+            ),
             new CalendarConflictProjection([])
         );
     }
@@ -284,7 +289,12 @@ public class CalendarEventServiceTests : IAsyncLifetime
             new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
             CreateCalendarTimeZoneResolver(),
             timeZoneService,
-            new CalendarConflictService([conflictProvider], _dbContext, new CalendarConflictProjection([])),
+            new CalendarConflictService(
+                [conflictProvider],
+                _dbContext,
+                new CalendarConflictProjection([]),
+                CalendarConflictTestRules.Scheduling
+            ),
             new CalendarConflictProjection([])
         );
         var request = CreateRequest(

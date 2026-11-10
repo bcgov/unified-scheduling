@@ -4,6 +4,15 @@ namespace Unified.Scheduling.Services;
 
 public sealed class NoOpSchedulingLoanOutService : ISchedulingLoanOutService
 {
+    public Task InvalidateResolvedConflictOverridesAsync(
+        IReadOnlyCollection<LoanOutEntry> entries,
+        CancellationToken cancellationToken = default
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
     public Task RestoreHomeLocationUserShiftsAsync(
         IReadOnlyCollection<LoanOutEntry> removedEntries,
         CancellationToken cancellationToken = default

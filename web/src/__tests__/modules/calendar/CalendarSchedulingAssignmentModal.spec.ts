@@ -2260,6 +2260,7 @@ describe('CalendarSchedulingAssignmentModal', () => {
       const resourceId = 'feaa2a73-6898-48ae-9c32-9633b1ec5538';
       const conflict = {
         id: '41:52:feaa2a73-6898-48ae-9c32-9633b1ec5538',
+        title: 'Assignment ↔ Assignment',
         entry: {
           eventId: '41',
           sourceModule: 'scheduling',
@@ -2282,6 +2283,8 @@ describe('CalendarSchedulingAssignmentModal', () => {
         overlapStart: '2026-08-25T17:00:00Z',
         overlapEnd: '2026-08-25T18:00:00Z',
         isOverridden: false,
+        reportOnEntry: true,
+        reportOnOverlaps: true,
         overrideNote: null,
         createdById: null,
         createdOn: null,

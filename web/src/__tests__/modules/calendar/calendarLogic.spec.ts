@@ -248,6 +248,9 @@ describe('scheduling calendar view model', () => {
       });
       const conflict = {
         id: 'excluded-home-conflict',
+        title: 'Shift ↔ Shift',
+        reportOnEntry: true,
+        reportOnOverlaps: true,
         resourceId: 'borrowed',
         entry: conflictEntry('1'),
         overlaps: conflictEntry('99'),
@@ -524,6 +527,7 @@ describe('scheduling calendar view model', () => {
               conflicts: [
                 {
                   id: '900:901:user-1',
+                  title: 'Assignment ↔ Assignment',
                   resourceId: 'user-1',
                   entry: {
                     eventId: '900',
@@ -546,6 +550,8 @@ describe('scheduling calendar view model', () => {
                   overlapStart: '2025-01-13T17:30:00Z',
                   overlapEnd: '2025-01-13T18:00:00Z',
                   isOverridden: false,
+                  reportOnEntry: true,
+                  reportOnOverlaps: true,
                 },
               ],
             },
@@ -831,6 +837,7 @@ describe('scheduling calendar view model', () => {
               conflicts: [
                 {
                   id: '201:stat-holiday:CanadaDay:2025-07-01:America/Vancouver:user-1',
+                  title: 'Assignment ↔ Holiday',
                   resourceId: 'user-1',
                   entry: {
                     eventId: '201',
@@ -853,6 +860,8 @@ describe('scheduling calendar view model', () => {
                   overlapStart: '2025-07-01T17:00:00Z',
                   overlapEnd: '2025-07-01T19:00:00Z',
                   isOverridden: false,
+                  reportOnEntry: true,
+                  reportOnOverlaps: true,
                 },
               ],
             },
