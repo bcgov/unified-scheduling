@@ -9,6 +9,49 @@ public sealed class ShiftRequestValidatorTests
     private static readonly Guid UserA = new("11111111-1111-1111-1111-111111111111");
 
     [Fact]
+    public async Task WorkedLunch_WhenNegativeWithoutAllowance_IsRejectedByBothValidators()
+    {
+        var entry = await new ShiftEntryRequestValidator().TestValidateAsync(
+            CreateShiftEntryRequest() with
+            {
+                WorkedLunchMinutes = -1,
+            },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        var series = await new ShiftSeriesRequestValidator().TestValidateAsync(
+            CreateShiftSeriesRequest() with
+            {
+                WorkedLunchMinutes = -1,
+            },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        entry.ShouldHaveValidationErrorFor(x => x.WorkedLunchMinutes);
+        series.ShouldHaveValidationErrorFor(x => x.WorkedLunchMinutes);
+    }
+
+    [Fact]
+    public async Task LunchAvailableMinutes_WhenNegative_IsRejectedByEntryAndSeriesValidators()
+    {
+        var entry = await new ShiftEntryRequestValidator().TestValidateAsync(
+            CreateShiftEntryRequest() with
+            {
+                LunchAvailableMinutes = -1,
+            },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        var series = await new ShiftSeriesRequestValidator().TestValidateAsync(
+            CreateShiftSeriesRequest() with
+            {
+                LunchAvailableMinutes = -1,
+            },
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        entry.ShouldHaveValidationErrorFor(x => x.LunchAvailableMinutes);
+        series.ShouldHaveValidationErrorFor(x => x.LunchAvailableMinutes);
+    }
+
+    [Fact]
     public async Task ShiftSeriesRequestValidator_WhenTimeZoneIdIsInvalid_HasTimeZoneError()
     {
         // Arrange

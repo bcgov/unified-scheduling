@@ -102,8 +102,8 @@ if $web_changed; then
 
 		if [ -s "$lint_files" ]; then
 			echo "pre-push: linting changed web files"
-			xargs -0 npx --no-install oxlint <"$lint_files"
-			xargs -0 npx --no-install eslint --cache --no-warn-ignored <"$lint_files"
+			xargs -0 -n 10 npx --no-install oxlint <"$lint_files"
+			xargs -0 -n 10 npx --no-install eslint --cache --no-warn-ignored <"$lint_files"
 		fi
 	fi
 

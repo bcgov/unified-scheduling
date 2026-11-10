@@ -27,6 +27,8 @@ internal static class ShiftResponseMapper
         return response with
         {
             Id = shiftSeries.Id,
+            LunchAvailableMinutes = shiftSeries.LunchAvailableMinutes,
+            WorkedLunchMinutes = shiftSeries.WorkedLunchMinutes,
             ShiftEntryIds = entryIds.Select(entry => entry.ShiftEntryId).ToList(),
         };
     }
@@ -46,6 +48,8 @@ internal static class ShiftResponseMapper
         return response with
         {
             Id = shiftEntry.Id,
+            LunchAvailableMinutes = shiftEntry.LunchAvailableMinutes,
+            WorkedLunchMinutes = shiftEntry.WorkedLunchMinutes,
             ShiftSeriesId = shiftEntry.ShiftSeriesId,
             EventId = shiftEntry.EventId,
             IsException = shiftEntry.Event!.IsException && !IgnoreAwayMarker(shiftEntry.Event, loanOutEnabled),

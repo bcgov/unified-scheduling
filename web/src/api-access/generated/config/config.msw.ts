@@ -171,6 +171,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
     {
@@ -269,6 +270,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
     {
@@ -367,6 +369,7 @@ export const getGetApiConfigResponseMock = (
         },
         undefined,
       ]),
+      defaultLunchMinutes: faker.helpers.arrayElement([faker.number.int(), undefined]),
       ...overrideResponse,
     },
   ]);

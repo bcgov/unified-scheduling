@@ -14,8 +14,21 @@ import CalendarMatrixSidePanel from '@/modules/calendar/components/matrix/Calend
 import CalendarMatrixSidePanelItem from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue';
 import { calendarMatrixContextKey } from '@/modules/calendar/components/matrix/calendarMatrixContext';
 import { CalendarMatrixActionType } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
+import { CalendarActionRegistry } from '@/modules/calendar/registry/calendarActionRegistry';
+import {
+  calendarSchedulingHeaderShowConflictAction,
+  calendarSchedulingHeaderShowOvertimeAction,
+} from '@/modules/scheduling/calendarSchedulingActions';
+import { calendarSchedulingActionIds } from '@/modules/scheduling/calendarSchedulingActionIds';
+import {
+  calendarSchedulingConflictHeaderId,
+  calendarSchedulingWorkingHoursSelection,
+  closeCalendarSchedulingConflict,
+  closeCalendarSchedulingWorkingHours,
+} from '@/modules/scheduling/calendarSchedulingState';
 import type {
   CalendarMatrixCell,
+  CalendarMatrixCellHeaderActionEvent,
   CalendarMatrixSidePanel as CalendarMatrixSidePanelModel,
   CalendarMatrixSidePanelItem as CalendarMatrixSidePanelItemModel,
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
@@ -115,6 +128,84 @@ describe('CalendarMatrixHeader', () => {
 });
 
 describe('CalendarMatrixCellHeader', () => {
+  it('opens a single menu repeatedly and dispatches each item without activating the header', async () => {
+    const overtime = { shiftEntryId: 42, userId: 'resource-1', overtimeMinutes: 30 };
+    const registry = new CalendarActionRegistry();
+    registry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowConflictAction);
+    registry.registerMatrixCellHeaderAction(calendarSchedulingHeaderShowOvertimeAction);
+    const header = {
+      text: 'Shift',
+      actionId: 'open-shift',
+      payload: event,
+      action: {
+        actionId: 'menu-trigger',
+        icon: 'dots',
+        ariaLabel: 'Header actions',
+        type: CalendarMatrixActionType.Menu,
+        menuItems: [
+          { actionId: calendarSchedulingActionIds.showConflict, label: 'View conflicts' },
+          { actionId: calendarSchedulingActionIds.showOvertime, label: 'View potential overtime', payload: overtime },
+        ],
+      },
+    };
+    const wrapper = await mountWithApp(CalendarMatrixCellHeader, { props: { cell, header }, attachTo: document.body });
+    const trigger = wrapper.get('button.calendar-matrix-cell-header__action');
+    expect(wrapper.findAll('button.calendar-matrix-cell-header__action')).toHaveLength(1);
+    await trigger.trigger('click');
+    await flushPromises();
+    expect(document.body.textContent).toContain('View conflicts');
+    expect(document.body.textContent).toContain('View potential overtime');
+    const conflicts = document.querySelector<HTMLElement>('[aria-label="View conflicts"]')!;
+    expect(wrapper.get('article').element.contains(conflicts)).toBe(false);
+    conflicts.click();
+    await flushPromises();
+    expect(wrapper.emitted('action')?.[0]?.[0]).toMatchObject({
+      actionId: calendarSchedulingActionIds.showConflict,
+      payload: undefined,
+    });
+    expect(trigger.attributes('aria-expanded')).toBe('false');
+    expect(wrapper.emitted('click')).toBeUndefined();
+    await trigger.trigger('keydown', { key: 'ArrowDown' });
+    await flushPromises();
+    const overtimeItem = document.querySelector<HTMLElement>('[aria-label="View potential overtime"]')!;
+    overtimeItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await flushPromises();
+    expect(wrapper.emitted('action')?.[1]?.[0]).toMatchObject({
+      actionId: calendarSchedulingActionIds.showOvertime,
+      payload: overtime,
+    });
+    expect(trigger.attributes('aria-expanded')).toBe('false');
+    expect(wrapper.emitted('action')).toHaveLength(2);
+    expect(wrapper.emitted('click')).toBeUndefined();
+    await trigger.trigger('keydown', { key: ' ' });
+    await flushPromises();
+    expect(trigger.attributes('aria-expanded')).toBe('true');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await flushPromises();
+    expect(trigger.attributes('aria-expanded')).toBe('false');
+    for (const emitted of wrapper.emitted('action') ?? []) {
+      const context = {
+        ...(emitted[0] as CalendarMatrixCellHeaderActionEvent),
+        model: {
+          days: [],
+          timeZone: 'UTC',
+          cells: [],
+          primaryColumn: { label: 'Team', resources: [{ id: 'resource-1', type: 'user', title: 'Ada' }] },
+        },
+      };
+      const actions = registry.getMatrixCellHeaderActions(context, { featureFlags: {} });
+      expect(actions).toHaveLength(1);
+      await actions[0]!.execute(context, { featureFlags: {} });
+    }
+    expect(calendarSchedulingConflictHeaderId.value).toBeDefined();
+    expect(calendarSchedulingWorkingHoursSelection.value).toEqual({ result: overtime, userName: 'Ada' });
+    closeCalendarSchedulingConflict();
+    closeCalendarSchedulingWorkingHours();
+    await wrapper.get('button.calendar-matrix-cell-header__main').trigger('click');
+    expect(wrapper.emitted('click')?.[0]).toEqual([header]);
+    wrapper.unmount();
+  });
+
   it('emits click and action events for clickable headers', async () => {
     const header = {
       id: 'header-1',
@@ -127,6 +218,7 @@ describe('CalendarMatrixCellHeader', () => {
         actionId: 'details',
         text: 'View',
         type: CalendarMatrixActionType.Button,
+        payload: { source: 'header' },
       },
     };
 
@@ -146,10 +238,9 @@ describe('CalendarMatrixCellHeader', () => {
       header,
       actionId: 'details',
       actionType: CalendarMatrixActionType.Button,
+      payload: { source: 'header' },
     });
-    expect(wrapper.classes()).toEqual(
-      expect.arrayContaining(['is-selected', 'has-color', 'is-draft', 'has-action-display']),
-    );
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['is-selected', 'has-color', 'is-draft']));
     expect(wrapper.attributes('style')).toContain('--calendar-matrix-cell-header-border-color: #336699');
   });
 
@@ -202,7 +293,7 @@ describe('CalendarMatrixCellHeader', () => {
     expect(wrapper.find('.calendar-matrix-cell-header__info-icons').text()).toContain('calendar-sync');
     expect(wrapper.find('.calendar-matrix-cell-header__info-icon').attributes('aria-label')).toBe('Part of a series');
     expect(wrapper.find('.calendar-matrix-cell-header__info-icon button').exists()).toBe(false);
-    expect(wrapper.classes()).toEqual(expect.arrayContaining(['has-info-icons', 'has-action-display']));
+    expect(wrapper.classes()).toContain('has-info-icons');
   });
 });
 

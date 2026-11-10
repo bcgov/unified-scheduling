@@ -1,3 +1,4 @@
+import type { WorkingHoursResult } from '@/api-access/generated/models';
 import { ref } from 'vue';
 import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import type {
@@ -188,4 +189,17 @@ export function showCalendarSchedulingDistributionModal(locationId: number, star
 
 export function closeCalendarSchedulingDistributionModal() {
   calendarSchedulingDistributionRequest.value = undefined;
+}
+
+export const calendarSchedulingWorkingHoursSelection = ref<{
+  result: WorkingHoursResult;
+  userName?: string;
+}>();
+
+export function showCalendarSchedulingWorkingHours(result: WorkingHoursResult, userName?: string) {
+  calendarSchedulingWorkingHoursSelection.value = { result, userName };
+}
+
+export function closeCalendarSchedulingWorkingHours() {
+  calendarSchedulingWorkingHoursSelection.value = undefined;
 }

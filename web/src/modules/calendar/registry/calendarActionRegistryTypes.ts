@@ -111,6 +111,7 @@ export interface CalendarMatrixCellHeaderActionContext {
   model: CalendarMatrixViewModel;
   actionId?: string;
   actionType?: CalendarMatrixActionType;
+  payload?: unknown;
 }
 
 export interface CalendarMatrixCellHeaderAction extends CalendarMatrixActionBase {

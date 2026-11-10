@@ -98,4 +98,5 @@ export const GetApiConfigResponse = zod.object({
       }),
     )
     .optional(),
+  defaultLunchMinutes: zod.int().optional(),
 });

@@ -16,7 +16,7 @@ describe('useSchedulingShiftMutation', () => {
         end: '2026-07-14T00:00:00Z',
       })),
       formData: ref({
-        ...createInitialShiftFormDataForCreateAction(null),
+        ...createInitialShiftFormDataForCreateAction(null, 30),
         date: '2026-07-13',
         startTime: '09:00',
         endTime: '17:00',

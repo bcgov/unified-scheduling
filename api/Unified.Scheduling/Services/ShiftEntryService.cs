@@ -10,6 +10,7 @@ using Unified.Common.Validation;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Scheduling;
+using Unified.Scheduling.Factories;
 using Unified.Scheduling.Guards;
 using Unified.Scheduling.Mappings;
 using Unified.Scheduling.Models;
@@ -218,6 +219,10 @@ public sealed class ShiftEntryService(
             [
                 (input, _) =>
                 {
+                    ShiftEventFactory.ValidateLunchMinutes(
+                        input.LunchAvailableMinutes ?? entity.LunchAvailableMinutes,
+                        input.WorkedLunchMinutes ?? entity.WorkedLunchMinutes
+                    );
                     ShiftAssignmentGuards.EnsureShiftEntryUpdatePreservesLinks(
                         entity,
                         input.StartAtUtc,

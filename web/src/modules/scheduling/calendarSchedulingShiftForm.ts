@@ -142,10 +142,26 @@ export const cancelOptions: SelectOption[] = [
   { code: 'yes', description: 'Yes' },
 ];
 
+export const lunchAvailableOptions: SelectOption[] = [
+  { code: 0, description: 'No lunch' },
+  { code: 15, description: '15 min' },
+  { code: 30, description: '30 min' },
+  { code: 45, description: '45 min' },
+  { code: 60, description: '1 hour' },
+];
+
+export const workedLunchOptions: SelectOption[] = [
+  { code: 0, description: '0 min' },
+  ...lunchAvailableOptions.filter((option) => option.code !== 0),
+];
+
+export const DEFAULT_WORKED_LUNCH_MINUTES = 0;
+
 export function createInitialShiftFormData(
   resource: CalendarMatrixResource,
   locationId: number | null,
   statusTypeCode: CalendarEventStatusTypeCode | string,
+  defaultLunchMinutes: number | undefined,
 ): ShiftResourceFormData {
   return {
     title: buildShiftTitle(resource.title || resource.id),
@@ -162,6 +178,8 @@ export function createInitialShiftFormData(
     assignmentLabel: '',
     trainingLabel: '',
     allDay: false,
+    lunchAvailableMinutes: defaultLunchMinutes,
+    workedLunchMinutes: DEFAULT_WORKED_LUNCH_MINUTES,
     isException: false,
     statusTypeCode,
     locationId,
@@ -169,7 +187,10 @@ export function createInitialShiftFormData(
   };
 }
 
-export function createInitialShiftFormDataForCreateAction(locationId: number | null): ShiftResourceFormData {
+export function createInitialShiftFormDataForCreateAction(
+  locationId: number | null,
+  defaultLunchMinutes: number | undefined,
+): ShiftResourceFormData {
   return {
     title: 'New shift',
     description: null,
@@ -185,6 +206,8 @@ export function createInitialShiftFormDataForCreateAction(locationId: number | n
     assignmentLabel: '',
     trainingLabel: '',
     allDay: false,
+    lunchAvailableMinutes: defaultLunchMinutes,
+    workedLunchMinutes: DEFAULT_WORKED_LUNCH_MINUTES,
     isException: false,
     statusTypeCode: 'Draft',
     locationId,
@@ -242,6 +265,8 @@ export function createShiftFormDataFromEntry(
 
   return {
     ...createShiftFormDataFromEvent(event, timeZoneId),
+    lunchAvailableMinutes: entry.lunchAvailableMinutes,
+    workedLunchMinutes: entry.workedLunchMinutes,
     assignmentEntryId: assignmentEntryLinks.length === 1 ? assignmentEntryLinks[0]?.assignmentEntryId : null,
     assignmentEntryIds: assignmentEntryLinks.map((link) => link.assignmentEntryId),
     assignmentEntryLinks,
@@ -272,6 +297,8 @@ export function createShiftFormDataFromSeries(
     assignmentLabel: '',
     trainingLabel: '',
     allDay: series.allDay ?? false,
+    lunchAvailableMinutes: series.lunchAvailableMinutes,
+    workedLunchMinutes: series.workedLunchMinutes,
     isException: false,
     statusTypeCode: series.statusTypeCode ?? 'Draft',
     locationId: series.locationId ?? null,
@@ -498,6 +525,26 @@ function createShiftFormSchema(options: ShiftFormValidationOptions) {
       if (data.repeatMode === 'custom' && options.recurrenceError) {
         ctx.addIssue({ code: 'custom', path: ['recurrenceRule'], message: options.recurrenceError });
       }
+
+      if (data.lunchAvailableMinutes != null && data.lunchAvailableMinutes < 0) {
+        ctx.addIssue({ code: 'custom', path: ['lunchAvailableMinutes'], message: 'Must be 0 or greater.' });
+      }
+
+      if (data.workedLunchMinutes != null && data.workedLunchMinutes < 0) {
+        ctx.addIssue({ code: 'custom', path: ['workedLunchMinutes'], message: 'Must be 0 or greater.' });
+      }
+
+      if (
+        data.lunchAvailableMinutes != null &&
+        data.workedLunchMinutes != null &&
+        data.workedLunchMinutes > data.lunchAvailableMinutes
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['workedLunchMinutes'],
+          message: 'Worked lunch cannot exceed lunch break.',
+        });
+      }
     });
 }
 
@@ -544,6 +591,8 @@ function buildShiftPayload(
       endAtUtc,
       allDay: false,
       locationId: options.locationId,
+      lunchAvailableMinutes: options.formData.lunchAvailableMinutes,
+      workedLunchMinutes: options.formData.workedLunchMinutes,
       userIds: selectedUserIds,
       ...(!options.isCreate && options.includeAssignmentSeriesLinks === false
         ? {}
@@ -574,6 +623,8 @@ function buildShiftPayload(
     timeZoneId: options.timeZoneId,
     allDay: false,
     locationId: options.locationId,
+    lunchAvailableMinutes: options.formData.lunchAvailableMinutes,
+    workedLunchMinutes: options.formData.workedLunchMinutes,
     userIds: selectedUserIds,
     // Undefined preserves existing relationships; [] intentionally removes all relationships.
     ...(!options.isCreate && options.includeAssignmentEntryLinks === false
