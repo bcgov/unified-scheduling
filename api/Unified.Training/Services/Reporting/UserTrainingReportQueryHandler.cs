@@ -45,10 +45,9 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
                         !row.AllDay && result.EndingOn is { } endingOn
                             ? TimeZoneInfo.ConvertTime(endingOn, timeZone)
                             : result.EndingOn,
-                    ExpiryDate =
-                        result.ExpiryDate is { } expiry
-                            ? TimeZoneInfo.ConvertTime(expiry, timeZone)
-                            : result.ExpiryDate,
+                    ExpiryDate = result.ExpiryDate is { } expiry
+                        ? TimeZoneInfo.ConvertTime(expiry, timeZone)
+                        : result.ExpiryDate,
                 };
             })
             .ToArray();
