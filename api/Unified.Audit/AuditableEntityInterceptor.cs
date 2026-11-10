@@ -5,14 +5,17 @@ using Unified.Db.Models.Abstract;
 namespace Unified.Audit;
 
 /// <summary>
-/// Stamps <see cref="BaseEntity"/> actor columns before EF writes them, using the same
+/// Stamps <see cref="BaseEntity"/> audit columns before EF writes them, using the same
 /// <see cref="ICurrentActorResolver"/> the audit trail uses.
 ///
-/// Timestamps remain database-generated; this interceptor only populates <c>CreatedById</c> and
-/// <c>UpdatedById</c>.
+/// <c>CreatedOn</c> remains database-generated. Modified rows receive a UTC <c>UpdatedOn</c>
+/// unless the caller explicitly changed it to a non-null value.
 /// </summary>
-public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolver) : SaveChangesInterceptor
+public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolver, TimeProvider? timeProvider = null)
+    : SaveChangesInterceptor
 {
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
         Stamp(eventData.Context);
@@ -55,6 +58,15 @@ public sealed class AuditableEntityInterceptor(ICurrentActorResolver actorResolv
             else
             {
                 entry.Entity.UpdatedById = actor.ActorUserId;
+                var updatedOn = entry.Property(entity => entity.UpdatedOn);
+                if (
+                    !updatedOn.IsModified
+                    || updatedOn.CurrentValue is null
+                    || updatedOn.CurrentValue == updatedOn.OriginalValue
+                )
+                {
+                    updatedOn.CurrentValue = _timeProvider.GetUtcNow();
+                }
             }
         }
     }
