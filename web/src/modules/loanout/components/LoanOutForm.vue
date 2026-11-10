@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
+import UaRequiredIndicator from '@/shared/components/UaRequiredIndicator.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
@@ -27,6 +28,7 @@ const props = defineProps<{
   homeLocationId?: number | null;
   disabled?: boolean;
   showEmployees?: boolean;
+  showRequired?: boolean;
   showRepeat?: boolean;
   timeZoneId?: string;
   employeeOptions?: SelectOption[];
@@ -107,12 +109,15 @@ function updateEmployees(value: SelectValue | undefined) {
 <template>
   <UaAlert v-if="locationsError" type="error" :closable="false">{{ locationsError }}</UaAlert>
   <UaFormGrid>
-    <label v-if="showEmployees" class="loan-out__label" for="loan-out-employees">Employee(s)</label>
+    <label v-if="showEmployees" class="loan-out__label" for="loan-out-employees">
+      Employee(s)<UaRequiredIndicator v-if="showRequired" />
+    </label>
     <div v-if="showEmployees">
       <UaSelect
         id="loan-out-employees"
         :model-value="modelValue.userIds"
         aria-label="Employee(s)"
+        :aria-required="showRequired || undefined"
         :items="employeeOptions ?? []"
         :error="Boolean(formErrors.userIds)"
         :disabled="disabled || loadingEmployees"
@@ -126,7 +131,9 @@ function updateEmployees(value: SelectValue | undefined) {
       <p v-if="formErrors.userIds" class="loan-out__error" role="alert">{{ formErrors.userIds }}</p>
     </div>
 
-    <label class="loan-out__label" for="loan-out-location">Loan-out Location</label>
+    <label class="loan-out__label" for="loan-out-location">
+      Loan-out Location<UaRequiredIndicator v-if="showRequired" />
+    </label>
     <div>
       <UaSelect
         id="loan-out-location"
@@ -137,6 +144,7 @@ function updateEmployees(value: SelectValue | undefined) {
         :error="Boolean(formErrors.loanOutLocationId)"
         placeholder="Select a loan-out location"
         aria-label="Loan-out Location"
+        :aria-required="showRequired || undefined"
         @update:model-value="
           (value: SelectValue | undefined) =>
             updateField('loanOutLocationId', typeof value === 'string' || typeof value === 'number' ? value : null)
@@ -145,10 +153,11 @@ function updateEmployees(value: SelectValue | undefined) {
       <p v-if="formErrors.loanOutLocationId" class="loan-out__error" role="alert">{{ formErrors.loanOutLocationId }}</p>
     </div>
 
-    <label class="loan-out__label" for="loan-out-date">Date</label>
+    <label class="loan-out__label" for="loan-out-date">Date<UaRequiredIndicator v-if="showRequired" /></label>
     <UaTextField
       id="loan-out-date"
       label=""
+      :required="showRequired"
       type="date"
       :model-value="modelValue.date"
       :error-messages="formErrors.date"
@@ -182,6 +191,7 @@ function updateEmployees(value: SelectValue | undefined) {
         :model-value="modelValue.recurrenceRule ?? null"
         :start-date="modelValue.date ?? null"
         :disabled="disabled"
+        :show-required="showRequired"
         use-parent-grid
         @update:model-value="updateRecurrenceRule"
         @invalid="editorError = $event"

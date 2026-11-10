@@ -216,6 +216,7 @@ const handleSave = async () => {
       :disabled="isSaving || isLoadingEntry || isLoadingSeries"
       :show-repeat="!isEdit || isSeriesEdit"
       :time-zone-id="timeZoneId"
+      show-required
       @validation-change="hasFormValidationError = $event"
     />
 
