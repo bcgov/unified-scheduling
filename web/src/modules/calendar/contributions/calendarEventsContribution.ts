@@ -36,7 +36,11 @@ export const calendarEventsContribution: CalendarModuleContribution = {
       moduleId: 'calendar',
       contributionId: 'calendar.events',
       events: (data.value?.events ?? []).map<CalendarEventBase>(mapApiCalendarEventToCalendarEventBase),
-      data: { conflicts: (data.value?.conflicts ?? []) as CalendarConflict[] },
+      data: {
+        conflicts: (data.value?.conflicts ?? []) as CalendarConflict[],
+        restrictedWarnings: data.value?.restrictedWarnings ?? [],
+        hasRestrictedConflicts: data.value?.hasRestrictedConflicts ?? false,
+      },
     };
   },
 };

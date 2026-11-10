@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UaRequiredIndicator from '@/shared/components/UaRequiredIndicator.vue';
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
@@ -29,6 +30,7 @@ const props = withDefaults(
     assignmentWarning?: string;
     isLoadingAssignments?: boolean;
     showSeriesAssignment?: boolean;
+    showAssignmentLinks?: boolean;
     idPrefix?: string;
   }>(),
   {
@@ -44,6 +46,7 @@ const props = withDefaults(
     assignmentWarning: '',
     isLoadingAssignments: false,
     showSeriesAssignment: false,
+    showAssignmentLinks: true,
     idPrefix: 'shift-form',
   },
 );
@@ -71,7 +74,7 @@ watch(
   { immediate: true },
 );
 
-const showAssignmentEntryLinks = computed(() => !props.showSeriesAssignment);
+const showAssignmentEntryLinks = computed(() => props.showAssignmentLinks && !props.showSeriesAssignment);
 const selectedAssignmentEntryIds = computed(
   () =>
     new Set(
@@ -317,6 +320,7 @@ function handleRecurrenceChange(value: string | null) {
     <UaTextField
       :id="`${idPrefix}-date`"
       label="Date"
+      required
       type="date"
       :model-value="formData.date"
       :error-messages="formErrors.date"
@@ -327,10 +331,11 @@ function handleRecurrenceChange(value: string | null) {
     <span :id="`${idPrefix}-time-label`" class="shift-form__label">Time</span>
     <div class="shift-form__time-fields" :aria-labelledby="`${idPrefix}-time-label`">
       <div class="shift-form__time-field">
-        <span class="shift-form__time-caption">Start</span>
+        <span class="shift-form__time-caption">Start<UaRequiredIndicator /></span>
         <UaSelect
           :model-value="formData.startTime"
           aria-label="Start Time"
+          aria-required="true"
           :items="timeOptions"
           :error="Boolean(formErrors.startTime)"
           :disabled="disabled"
@@ -341,10 +346,12 @@ function handleRecurrenceChange(value: string | null) {
         </p>
       </div>
       <div class="shift-form__time-field">
-        <span class="shift-form__time-caption">End</span>
+        <!-- The shift form requires an end time even though the entry API permits null. -->
+        <span class="shift-form__time-caption"> End<UaRequiredIndicator /> </span>
         <UaSelect
           :model-value="formData.endTime"
           aria-label="End Time"
+          aria-required="true"
           :items="timeOptions"
           :error="Boolean(formErrors.endTime)"
           :disabled="disabled"
@@ -380,6 +387,7 @@ function handleRecurrenceChange(value: string | null) {
         :model-value="formData.recurrenceRule ?? null"
         :start-date="formData.date ?? null"
         :disabled="disabled"
+        show-required
         use-parent-grid
         @update:model-value="handleRecurrenceChange"
         @change="handleRecurrenceChange"
@@ -398,12 +406,13 @@ function handleRecurrenceChange(value: string | null) {
       </template>
     </template>
 
-    <label class="shift-form__label" :for="`${idPrefix}-location`">Location</label>
+    <label class="shift-form__label" :for="`${idPrefix}-location`">Location<UaRequiredIndicator /></label>
     <div class="shift-form__location-field">
       <UaSelect
         :id="`${idPrefix}-location`"
         :model-value="formData.locationId"
         aria-label="Location"
+        aria-required="true"
         :items="locationOptionsWithSelected"
         :error="Boolean(formErrors.locationId)"
         :disabled="disabled"
@@ -414,12 +423,13 @@ function handleRecurrenceChange(value: string | null) {
       </p>
     </div>
 
-    <label class="shift-form__label" :for="`${idPrefix}-employee`">Shift Employee(s)</label>
+    <label class="shift-form__label" :for="`${idPrefix}-employee`"> Shift Employee(s)<UaRequiredIndicator /> </label>
     <div class="shift-form__employee-field">
       <UaSelect
         :id="`${idPrefix}-employee`"
         :model-value="formData.userIds"
         aria-label="Shift Employee(s)"
+        aria-required="true"
         :items="employeeOptions"
         :error="Boolean(formErrors.userIds)"
         :disabled="disabled || isLoadingUsers"
@@ -482,6 +492,7 @@ function handleRecurrenceChange(value: string | null) {
             :model-value="link.assignedUserIds"
             :items="currentShiftUserOptions"
             label="Users"
+            required
             multiple
             chips
             closable-chips
@@ -496,7 +507,7 @@ function handleRecurrenceChange(value: string | null) {
       </template>
     </template>
 
-    <template v-if="showSeriesAssignment">
+    <template v-if="showAssignmentLinks && showSeriesAssignment">
       <label class="shift-form__label" :for="`${idPrefix}-series-assignment`">Series Assignments</label>
       <div class="shift-form__assignment-field">
         <UaSelect
@@ -518,7 +529,7 @@ function handleRecurrenceChange(value: string | null) {
       </div>
     </template>
 
-    <template v-if="showSeriesAssignment">
+    <template v-if="showAssignmentLinks && showSeriesAssignment">
       <template v-if="(formData.assignmentSeriesLinks ?? []).length">
         <span aria-hidden="true"></span>
         <h3 class="shift-form__section-heading">Linked recurring assignments</h3>
@@ -549,6 +560,7 @@ function handleRecurrenceChange(value: string | null) {
             :model-value="link.assignedUserIds"
             :items="currentShiftUserOptions"
             label="Users"
+            required
             multiple
             chips
             closable-chips
@@ -563,7 +575,7 @@ function handleRecurrenceChange(value: string | null) {
       </template>
     </template>
 
-    <template v-if="assignmentWarning">
+    <template v-if="showAssignmentLinks && assignmentWarning">
       <span aria-hidden="true"></span>
       <p class="shift-form__warning-text">
         {{ assignmentWarning }}

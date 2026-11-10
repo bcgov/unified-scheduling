@@ -1,9 +1,11 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Unified.Authorization;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
 using Unified.Common.Time;
 using Unified.Db;
+using Unified.Training.Helpers;
 
 namespace Unified.Training.Services;
 
@@ -16,6 +18,21 @@ public sealed class TrainingConflictParticipantProvider(
     private const string SourceModule = "training";
     private const string EventIdPrefix = "training.user-training.";
     private static readonly DateTimeOffset MinimumEnd = DateTimeOffset.MinValue;
+
+    public Task<CalendarConflictParticipantVisibility?> GetVisibilityAsync(
+        CalendarConflictParticipant participant,
+        IReadOnlySet<string> viewerPermissions,
+        CancellationToken cancellationToken = default
+    ) =>
+        Task.FromResult<CalendarConflictParticipantVisibility?>(
+            participant.SourceModule == SourceModule
+            && participant.EventId.StartsWith(EventIdPrefix, StringComparison.Ordinal)
+                ? new(
+                    viewerPermissions.Contains(nameof(Permissions.UserTrainingsView)),
+                    viewerPermissions.Contains(nameof(Permissions.UserTrainingsView)) ? [participant.Identity] : []
+                )
+                : null
+        );
 
     public static CalendarConflictEventIdentity IdentityFor(int userTrainingId) =>
         CalendarConflictEventIdentity.Create(
@@ -51,6 +68,7 @@ public sealed class TrainingConflictParticipantProvider(
                 training.UserId,
                 training.AwardedOn,
                 training.EndingOn,
+                training.AllDay,
                 training.Training.Code,
                 training.User.HomeLocation != null ? training.User.HomeLocation.Timezone : null
             ))
@@ -96,6 +114,7 @@ public sealed class TrainingConflictParticipantProvider(
                 training.UserId,
                 training.AwardedOn,
                 training.EndingOn,
+                training.AllDay,
                 training.Training.Code,
                 training.User.HomeLocation != null ? training.User.HomeLocation.Timezone : null
             ))
@@ -109,18 +128,22 @@ public sealed class TrainingConflictParticipantProvider(
 
     private CalendarConflictParticipant ToParticipant(TrainingRecord record)
     {
-        var end = record.EndingOn == MinimumEnd ? record.AwardedOn : record.EndingOn;
-        var startDay = DateOnly.FromDateTime(record.AwardedOn.UtcDateTime);
-        var endDay = DateOnly.FromDateTime(end.UtcDateTime);
         var timeZone = timeZoneResolver.Resolve(null, record.TimeZoneId);
-        // The exclusive local day after DateOnly.MaxValue cannot be represented.
-        var range =
-            endDay == DateOnly.MaxValue
-                ? new UtcDateRange(
-                    timeZoneService.ToUtcInstant(startDay.ToDateTime(TimeOnly.MinValue), timeZone),
-                    DateTimeOffset.MaxValue
-                )
-                : timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(startDay, endDay, timeZone);
+        var allDay = record.AllDay;
+        var range = new UtcDateRange(record.AwardedOn.ToUniversalTime(), record.EndingOn.ToUniversalTime());
+        if (allDay)
+        {
+            var end = record.EndingOn == MinimumEnd ? record.AwardedOn : record.EndingOn;
+            var startDay = DateOnly.FromDateTime(record.AwardedOn.UtcDateTime);
+            var endDay = DateOnly.FromDateTime(end.UtcDateTime);
+            range = new UtcDateRange(
+                UserTrainingHelper.GetLocalDayStartUtc(startDay, timeZone, timeZoneService),
+                // The exclusive local day after DateOnly.MaxValue cannot be represented.
+                endDay == DateOnly.MaxValue
+                    ? DateTimeOffset.MaxValue
+                    : UserTrainingHelper.GetLocalDayStartUtc(endDay.AddDays(1), timeZone, timeZoneService)
+            );
+        }
 
         return new CalendarConflictParticipant(
             IdentityFor(record.Id).EventId,
@@ -130,7 +153,9 @@ public sealed class TrainingConflictParticipantProvider(
             range.EndAtUtc,
             $"Training: {record.Code}",
             record.Id,
-            timeZone.Id
+            timeZone.Id,
+            AllDay: allDay,
+            EventTypeCode: "training"
         );
     }
 
@@ -139,6 +164,7 @@ public sealed class TrainingConflictParticipantProvider(
         Guid UserId,
         DateTimeOffset AwardedOn,
         DateTimeOffset EndingOn,
+        bool AllDay,
         string Code,
         string? TimeZoneId
     );

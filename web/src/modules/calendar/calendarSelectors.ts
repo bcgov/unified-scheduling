@@ -1,4 +1,33 @@
-import type { CalendarConflict, CalendarDataResponse, CalendarEventBase } from './calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarConflictEventIdentity,
+  CalendarDataResponse,
+  CalendarEventBase,
+  CalendarRestrictedConflictWarning,
+} from './calendarTypes';
+
+export const selectCalendarRestrictedWarnings = (
+  response: CalendarDataResponse,
+): CalendarRestrictedConflictWarning[] => {
+  const data = response.contributions['calendar.events']?.data;
+  if (!data || typeof data !== 'object' || !('restrictedWarnings' in data)) return [];
+  return Array.isArray(data.restrictedWarnings) ? data.restrictedWarnings : [];
+};
+
+export const getCalendarRestrictedWarningsForEvent = (
+  eventId: number | CalendarConflictEventIdentity | null | undefined,
+  warnings: readonly CalendarRestrictedConflictWarning[],
+  resourceId?: string,
+) => {
+  if (eventId == null) return [];
+  const identity = typeof eventId === 'number' ? { sourceModule: 'scheduling', eventId: String(eventId) } : eventId;
+  return warnings.filter(
+    (warning) =>
+      warning.sourceModule === identity.sourceModule &&
+      warning.eventId === identity.eventId &&
+      (!resourceId || warning.resourceId === resourceId),
+  );
+};
 
 export const selectContribution = (response: CalendarDataResponse, contributionId: string) => {
   return response.contributions[contributionId];
@@ -14,28 +43,36 @@ export const selectCalendarConflicts = (response: CalendarDataResponse): Calenda
   return Array.isArray(conflicts) ? (conflicts as CalendarConflict[]) : [];
 };
 
-export const resolveCalendarEventId = (event: CalendarEventBase) => {
-  const value = (event as CalendarEventBase & { metadata?: { eventId?: unknown } }).metadata?.eventId;
-  const parsed = Number(value);
+export const resolveCalendarEventId = (event: unknown) => {
+  if (!event || typeof event !== 'object' || !('metadata' in event)) return null;
+  const metadata = event.metadata;
+  if (!metadata || typeof metadata !== 'object' || !('eventId' in metadata)) return null;
+  const parsed = Number(metadata.eventId);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
 export const getCalendarConflictsForEvent = (
-  eventId: number | null | undefined,
+  eventId: number | CalendarConflictEventIdentity | null | undefined,
   conflicts: readonly CalendarConflict[],
 ) => {
   if (eventId == null) {
     return [];
   }
 
-  const conflictEventId = String(eventId);
+  const identity = typeof eventId === 'number' ? { sourceModule: 'scheduling', eventId: String(eventId) } : eventId;
   return conflicts.filter(
-    (conflict) => conflict.entry.eventId === conflictEventId || conflict.overlaps.eventId === conflictEventId,
+    (conflict) =>
+      (conflict.entry.sourceModule === identity.sourceModule &&
+        conflict.entry.eventId === identity.eventId &&
+        conflict.reportOnEntry) ||
+      (conflict.overlaps.sourceModule === identity.sourceModule &&
+        conflict.overlaps.eventId === identity.eventId &&
+        conflict.reportOnOverlaps),
   );
 };
 
 export const getCalendarConflictsForEventAndResource = (
-  eventId: number | null | undefined,
+  eventId: number | CalendarConflictEventIdentity | null | undefined,
   resourceId: string,
   conflicts: readonly CalendarConflict[],
 ) => getCalendarConflictsForEvent(eventId, conflicts).filter((conflict) => conflict.resourceId === resourceId);

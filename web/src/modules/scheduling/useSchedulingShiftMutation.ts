@@ -5,6 +5,7 @@ import {
   buildUpdateShiftPayload,
   normalizeShiftFormDataForScope,
   normalizeShiftFormTimes,
+  normalizeShiftServerValidationErrors,
   validateShiftFormData,
   type ShiftResourceFormData,
 } from './calendarSchedulingShiftForm';
@@ -190,43 +191,6 @@ export function useSchedulingShiftMutation(options: {
 
     formErrors.value = normalizeShiftServerValidationErrors(mapped);
     return true;
-  }
-
-  function normalizeShiftServerValidationErrors(errors: Record<string, string>) {
-    return Object.entries(errors).reduce<Record<string, string>>((result, [fieldName, message]) => {
-      result[mapShiftServerValidationField(fieldName)] = message;
-      return result;
-    }, {});
-  }
-
-  function mapShiftServerValidationField(fieldName: string) {
-    const normalized = fieldName.toLowerCase();
-
-    if (normalized === 'startatutc') {
-      return 'startTime';
-    }
-
-    if (normalized === 'endatutc') {
-      return 'endTime';
-    }
-
-    if (normalized === 'userid' || normalized === 'userids') {
-      return 'userIds';
-    }
-
-    if (normalized === 'locationid') {
-      return 'locationId';
-    }
-
-    if (normalized === 'assignmentseriesids' || normalized === 'assignmentserieslinks') {
-      return 'assignmentSeriesId';
-    }
-
-    if (normalized === 'assignmententryids' || normalized === 'assignmententrylinks') {
-      return 'assignmentEntryIds';
-    }
-
-    return fieldName;
   }
 
   return {

@@ -20,6 +20,7 @@ namespace Unified.Scheduling.Services;
 internal sealed class ShiftSeriesService(
     ILogger<ShiftSeriesService> logger,
     UnifiedDbContext db,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
     ICalendarEventSeriesService<ShiftSeriesRequest, ShiftSeries> calendarEventSeriesService,
     IEventSeriesMaterializationService eventSeriesMaterializationService,
     IRecurrenceExpander recurrenceExpander,
@@ -159,7 +160,7 @@ internal sealed class ShiftSeriesService(
                         input.StartAtUtc,
                         input.EndAtUtc,
                         input.TimeZoneId,
-                        input.RecurrenceRule,
+                        input.RecurrenceRule!,
                         recurrenceExpander,
                         token
                     ),
@@ -235,6 +236,7 @@ internal sealed class ShiftSeriesService(
         }
         var eventSeries = entity.EventSeries!;
         var oldValues = ShiftSeriesUpdatePlanner.CaptureCopiedValues(eventSeries);
+        var originalEventIds = entity.ShiftEntries.Select(entry => entry.EventId).ToList();
         var oldUserIds = entity.Users.Select(user => user.UserId).Distinct().Order().ToList();
         var recurrenceChanged = calendarEventSeriesService.HasRecurrenceChanged(entity, request);
         var newUserIds = ShiftUserSync.GetDistinctUserIds(request.UserIds);
@@ -301,8 +303,14 @@ internal sealed class ShiftSeriesService(
             request.AssignmentSeriesLinks,
             cancellationToken
         );
+        await InvalidateOverridesAsync(
+            originalEventIds.Concat(currentEntries.Select(entry => entry.EventId)).Distinct().ToList(),
+            null,
+            cancellationToken
+        );
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
+            loanOutAvailabilityService,
             entity.ShiftEntries.Select(entry => entry.Id).ToList(),
             cancellationToken
         );
@@ -390,6 +398,7 @@ internal sealed class ShiftSeriesService(
         await db.SaveChangesAsync(cancellationToken);
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
+            loanOutAvailabilityService,
             entryIds,
             cancellationToken
         );
@@ -426,7 +435,11 @@ internal sealed class ShiftSeriesService(
             request.CancellationReason
         );
         await db.SaveChangesAsync(cancellationToken);
-        await InvalidateLinkedOverridesAsync(linkedEventIds, cancelledByUserId, cancellationToken);
+        await InvalidateOverridesAsync(
+            linkedEventIds.Concat(eventSeries.Events.Select(calendarEvent => calendarEvent.Id)).Distinct().ToList(),
+            cancelledByUserId,
+            cancellationToken
+        );
         logger.LogInformation("Expired shift series {ShiftSeriesId}.", id);
         return await MapToShiftSeriesResponseAsync(entity, cancellationToken);
     }
@@ -506,6 +519,11 @@ internal sealed class ShiftSeriesService(
         db.Events.RemoveRange(draftEvents);
         db.EventSeries.Remove(eventSeries);
         await db.SaveChangesAsync(cancellationToken);
+        await InvalidateOverridesAsync(
+            draftEvents.Select(calendarEvent => calendarEvent.Id).ToList(),
+            null,
+            cancellationToken
+        );
         logger.LogInformation("Deleted shift series {ShiftSeriesId}.", id);
         return true;
     }
@@ -582,7 +600,7 @@ internal sealed class ShiftSeriesService(
             .Distinct()
             .ToListAsync(cancellationToken);
 
-    private Task InvalidateLinkedOverridesAsync(
+    private Task InvalidateOverridesAsync(
         IReadOnlyCollection<int> eventIds,
         Guid? updatedById,
         CancellationToken cancellationToken

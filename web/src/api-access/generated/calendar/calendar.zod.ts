@@ -14,6 +14,9 @@ export const PostApiCalendarEventsBody = zod.strictObject({
   filters: zod.record(zod.string(), zod.string()).nullish(),
 });
 
+export const postApiCalendarEventsResponseConflictsItemEntryAllDayDefault = false;
+export const postApiCalendarEventsResponseConflictsItemOverlapsAllDayDefault = false;
+
 export const PostApiCalendarEventsResponse = zod.object({
   moduleId: zod.string().optional(),
   contributionId: zod.string().optional(),
@@ -80,6 +83,8 @@ export const PostApiCalendarEventsResponse = zod.object({
           end: zod.iso.datetime({ offset: true }),
           sourceEntityId: zod.int().nullable(),
           timeZoneId: zod.string().nullable(),
+          canonicalEventId: zod.string().nullish(),
+          allDay: zod.boolean().default(postApiCalendarEventsResponseConflictsItemEntryAllDayDefault),
         }),
         overlaps: zod.object({
           eventId: zod.string(),
@@ -89,6 +94,8 @@ export const PostApiCalendarEventsResponse = zod.object({
           end: zod.iso.datetime({ offset: true }),
           sourceEntityId: zod.int().nullable(),
           timeZoneId: zod.string().nullable(),
+          canonicalEventId: zod.string().nullish(),
+          allDay: zod.boolean().default(postApiCalendarEventsResponseConflictsItemOverlapsAllDayDefault),
         }),
         resourceId: zod.uuid(),
         overlapStart: zod.iso.datetime({ offset: true }),
@@ -99,9 +106,23 @@ export const PostApiCalendarEventsResponse = zod.object({
         createdOn: zod.iso.datetime({ offset: true }).nullable(),
         updatedById: zod.uuid().nullable(),
         updatedOn: zod.iso.datetime({ offset: true }).nullable(),
+        reportOnEntry: zod.boolean(),
+        reportOnOverlaps: zod.boolean(),
+        title: zod.string(),
       }),
     )
     .optional(),
+  restrictedWarnings: zod
+    .array(
+      zod.object({
+        eventId: zod.string(),
+        sourceModule: zod.string(),
+        resourceId: zod.uuid(),
+        message: zod.string(),
+      }),
+    )
+    .optional(),
+  hasRestrictedConflicts: zod.boolean().optional(),
 });
 
 export const PostApiCalendarConflictsOverridesBody = zod.strictObject({

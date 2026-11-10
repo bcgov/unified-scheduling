@@ -1,6 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ref, toRaw } from 'vue';
+import { CALENDAR_ALL_DAY_LABEL } from '@/utils/date';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { CalendarEventStatus, CalendarEventType } from '@/api-access/generated/models';
@@ -84,6 +85,7 @@ async function mountWithApp(component: unknown, options: Record<string, unknown>
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   matrixContext.selectEvent.mockReset();
   matrixContext.selectResource.mockReset();
@@ -353,13 +355,164 @@ describe('CalendarMatrixResourceRow', () => {
 
     expect(wrapper.attributes('role')).toBe('rowheader');
     expect(wrapper.attributes('aria-label')).toBe('Room 101');
+    expect(wrapper.attributes('draggable')).toBe('false');
     expect(wrapper.text()).toContain('Room 101');
     expect(wrapper.text()).toContain('Capacity:');
     expect(wrapper.emitted('addResource')?.[0]).toEqual([resource]);
   });
+
+  it('starts and clears a user-row drag when the resource is draggable', async () => {
+    const dataTransfer = { setData: vi.fn() };
+    const wrapper = await mountWithApp(CalendarMatrixResourceRow, {
+      props: { resource: { id: 'user-1', type: 'user', title: 'Alex Alpha', draggable: true } },
+      global: { provide: { [calendarMatrixContextKey as symbol]: matrixContext } },
+    });
+
+    await wrapper.trigger('dragstart', { dataTransfer });
+    expect(wrapper.emitted('dragStart')?.[0]?.[0]).toMatchObject({
+      source: 'resource-row',
+      itemId: 'user-1',
+      itemType: 'user',
+    });
+    expect(matrixContext.startDrag).toHaveBeenCalledOnce();
+    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'user-1');
+    await wrapper.trigger('dragend');
+    expect(matrixContext.clearDrag).toHaveBeenCalledOnce();
+  });
 });
 
 describe('CalendarMatrixSidePanelItem', () => {
+  it('renders generic warning groups and isolates the focusable icon from item clicks and dragging', async () => {
+    const wrapper = await mountWithApp(CalendarMatrixSidePanelItem, {
+      props: {
+        timeZone: 'America/Vancouver',
+        item: {
+          ...sidePanelItem,
+          warningGroups: [
+            { id: 'empty', heading: 'Empty', warnings: [] },
+            {
+              id: 'leave',
+              heading: 'Leave',
+              warnings: [{ id: 'leave-1', title: 'Vacation', start: '2025-01-13', end: '2025-01-15', allDay: true }],
+            },
+            {
+              id: 'training',
+              heading: 'Training',
+              warnings: [
+                { id: 'training-1', title: 'Session', start: '2025-01-14T07:00:00Z', end: '2025-01-14T09:00:00Z' },
+              ],
+            },
+            {
+              id: 'loanout',
+              heading: 'Loan Out',
+              warnings: [
+                {
+                  id: 'loanout-1',
+                  title: 'From: Vancouver; To: Edmonton',
+                  start: '2025-01-13T17:00:00Z',
+                  end: '2025-01-13T19:00:00Z',
+                },
+              ],
+            },
+          ],
+        },
+      },
+      global: {
+        provide: { [calendarMatrixContextKey as symbol]: matrixContext },
+        stubs: {
+          VTooltip: {
+            name: 'WarningTooltipStub',
+            props: { openOnFocus: Boolean, openOnClick: Boolean },
+            template: '<div><slot name="activator" :props="{}" /><slot /></div>',
+          },
+        },
+      },
+    });
+
+    const button = wrapper.get('button');
+    expect(button.attributes('aria-label')).toBe('Event warnings for Ada Lovelace');
+    expect(button.get('.v-icon').classes()).toContain('text-warning');
+    expect(button.attributes('draggable')).toBe('false');
+    expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnFocus')).toBe(true);
+    expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnClick')).toBe(true);
+    expect(wrapper.findAll('strong').map((heading) => heading.text())).toEqual(['Leave', 'Training', 'Loan Out']);
+    expect(wrapper.text()).toContain('From: Vancouver; To: Edmonton');
+    expect(wrapper.text()).toContain('January 13, 2025, 9:00 AM - 11:00 AM');
+    expect(wrapper.text()).toContain(`January 13, 2025 - January 14, 2025, ${CALENDAR_ALL_DAY_LABEL}`);
+    expect(wrapper.text().toUpperCase()).toContain('JANUARY 13, 2025, 11:00 PM - JANUARY 14, 2025, 1:00 AM');
+
+    const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    button.element.dispatchEvent(mousedown);
+    expect(mousedown.defaultPrevented).toBe(false);
+    const touchstart = new Event('touchstart', { bubbles: true, cancelable: true });
+    button.element.dispatchEvent(touchstart);
+    expect(touchstart.defaultPrevented).toBe(false);
+    await button.trigger('focus');
+    await button.trigger('click');
+    const dragstart = new Event('dragstart', { bubbles: true, cancelable: true });
+    button.element.dispatchEvent(dragstart);
+    expect(dragstart.defaultPrevented).toBe(true);
+    expect(wrapper.emitted('itemClick')).toBeUndefined();
+    expect(wrapper.emitted('dragStart')).toBeUndefined();
+    expect(matrixContext.startDrag).not.toHaveBeenCalled();
+
+    await wrapper.setProps({
+      item: { ...sidePanelItem, warningGroups: [{ id: 'empty', heading: 'Empty', warnings: [] }] },
+    });
+    expect(wrapper.find('button').exists()).toBe(false);
+    expect(wrapper.classes()).not.toContain('has-warnings');
+  });
+
+  it.each(['hover', 'click', 'tap', 'focus'] as const)(
+    'opens the warning tooltip on %s without activating or dragging the row',
+    async (interaction) => {
+      vi.useFakeTimers();
+      const wrapper = await mountWithApp(CalendarMatrixSidePanelItem, {
+        attachTo: document.body,
+        props: {
+          item: {
+            ...sidePanelItem,
+            warningGroups: [
+              {
+                id: 'leave',
+                heading: 'Leave',
+                warnings: [{ id: 'vacation', title: 'Vacation', start: '2025-01-13', allDay: true }],
+              },
+            ],
+          },
+        },
+        global: { provide: { [calendarMatrixContextKey as symbol]: matrixContext } },
+      });
+      try {
+        const button = wrapper.get('button');
+        if (interaction === 'hover') {
+          await button.trigger('mouseenter');
+        } else if (interaction === 'focus') {
+          button.element.focus();
+          expect(document.activeElement).toBe(button.element);
+        } else {
+          if (interaction === 'tap') {
+            await button.trigger('touchstart');
+            await button.trigger('touchend');
+          }
+          await button.trigger('click');
+        }
+        await vi.advanceTimersByTimeAsync(300);
+        const tooltip = document.getElementById(button.attributes('aria-describedby')!);
+        expect(tooltip?.classList.contains('v-overlay--active')).toBe(true);
+        expect(tooltip?.textContent).toContain('Vacation');
+        expect(wrapper.emitted('itemClick')).toBeUndefined();
+        expect(wrapper.emitted('dragStart')).toBeUndefined();
+        expect(matrixContext.startDrag).not.toHaveBeenCalled();
+        await wrapper.trigger('dragstart', { dataTransfer: { setData: vi.fn(), setDragImage: vi.fn() } });
+        expect(matrixContext.startDrag).toHaveBeenCalledOnce();
+        expect(wrapper.emitted('dragStart')).toHaveLength(1);
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
+
   it('renders the item content and emits dragStart for draggable items', async () => {
     const dataTransfer = {
       setData: vi.fn(),

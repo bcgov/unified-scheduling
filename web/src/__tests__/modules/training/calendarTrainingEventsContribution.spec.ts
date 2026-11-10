@@ -1,8 +1,10 @@
+import type { TrainingCalendarEventsData } from '@/modules/training/contributions/calendarTrainingEventsContribution';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/__tests__/mocks/server';
 import { Permissions } from '@/api-access/generated/models';
+import { PostApiTrainingCalendarEventsBody } from '@/api-access/generated/training-calendar/training-calendar.zod';
 import { calendarTrainingEventsContribution } from '@/modules/training/contributions/calendarTrainingEventsContribution';
 import { CalendarRegistry } from '@/modules/calendar/registry/calendarRegistry';
 import { calendarDataService } from '@/modules/calendar/calendarDataService';
@@ -49,6 +51,11 @@ const borrowedTraining = {
 };
 
 describe('calendarTrainingEventsContribution', () => {
+  it('accepts timeZoneId in the generated calendar request contract', () => {
+    const request = { startDate: context.startDate, endDate: context.endDate, timeZoneId: 'America/Vancouver' };
+    expect(PostApiTrainingCalendarEventsBody.parse(request)).toEqual(request);
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     useLocationsStore().entities = [{ id: 12, timezone: 'America/Edmonton' }];
@@ -106,6 +113,7 @@ describe('calendarTrainingEventsContribution', () => {
     expect(body).toEqual({
       startDate: '2025-04-07',
       endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
       locationId: 12,
       userIds: [userId, otherUserId],
     });
@@ -119,6 +127,52 @@ describe('calendarTrainingEventsContribution', () => {
         allDay: true,
         isReadOnly: true,
         locationId: 12,
+        resourceIds: [userId],
+      }),
+    ]);
+  });
+
+  it.each(['UTC', 'America/Vancouver', 'America/Edmonton'])(
+    'queries and maps timed training in the displayed timezone %s',
+    async (timeZoneId) => {
+      let body: unknown;
+      server.use(
+        http.post('*/api/training/calendar/events', async ({ request }) => {
+          body = await request.json();
+          return HttpResponse.json([{ ...borrowedTraining, allDay: false }]);
+        }),
+      );
+
+      const result = await calendarTrainingEventsContribution.load({
+        ...context,
+        filters: { ...context.filters, timeZoneId },
+      });
+
+      expect(body).toMatchObject({ timeZoneId });
+      expect(result.events).toEqual([expect.objectContaining({ timeZoneId, locationId: borrowedTraining.locationId })]);
+    },
+  );
+
+  it.each([
+    ['2025-04-08T09:00:00-07:00', '2025-04-08T10:00:00-07:00'],
+    ['2025-04-09T06:30:00Z', '2025-04-09T07:30:00Z'],
+    ['2025-11-02T01:30:00-07:00', '2025-11-02T01:30:00-08:00'],
+  ])('preserves timed training timestamps and offsets from %s to %s', async (start, end) => {
+    server.use(
+      http.post('*/api/training/calendar/events', () =>
+        HttpResponse.json([{ ...homeTraining, start, end, allDay: false }]),
+      ),
+    );
+
+    const result = await calendarTrainingEventsContribution.load(context);
+
+    expect(result.events).toEqual([
+      expect.objectContaining({
+        id: homeTraining.id,
+        start,
+        end,
+        allDay: false,
+        isReadOnly: true,
         resourceIds: [userId],
       }),
     ]);
@@ -141,7 +195,12 @@ describe('calendarTrainingEventsContribution', () => {
     await calendarTrainingEventsContribution.load({ ...context, filters });
 
     expect(requests).toBe(1);
-    expect(body).toEqual({ startDate: '2025-04-07', endDate: '2025-04-13', locationId: 12 });
+    expect(body).toEqual({
+      startDate: '2025-04-07',
+      endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
+      locationId: 12,
+    });
   });
 
   it('sends all IDs from a valid user filter', async () => {
@@ -158,6 +217,7 @@ describe('calendarTrainingEventsContribution', () => {
     expect(body).toEqual({
       startDate: '2025-04-07',
       endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
       locationId: 12,
       userIds: [userId, otherUserId],
     });
@@ -238,8 +298,14 @@ describe('calendarTrainingEventsContribution', () => {
       timeZoneId: 'America/Edmonton',
     });
     expect(trainingRequests).toEqual([
-      { startDate: '2025-04-07', endDate: '2025-04-13', locationId: 12 },
-      { startDate: '2025-04-07', endDate: '2025-04-13', locationId: 12, userIds: [otherUserId] },
+      { startDate: '2025-04-07', endDate: '2025-04-13', timeZoneId: 'America/Vancouver', locationId: 12 },
+      {
+        startDate: '2025-04-07',
+        endDate: '2025-04-13',
+        timeZoneId: 'America/Vancouver',
+        locationId: 12,
+        userIds: [otherUserId],
+      },
     ]);
     expect(result.events).toEqual([
       expect.objectContaining({ id: homeTraining.id, resourceIds: [userId], start: '2025-04-08' }),
@@ -463,5 +529,173 @@ describe('calendarTrainingEventsContribution', () => {
       ),
     ).rejects.toMatchObject({ name: 'AbortError' });
     expect(requests).toBe(0);
+  });
+
+  it('loads warning-only training for filtered sidebar users regardless of their home location', async () => {
+    const requests: Record<string, unknown>[] = [];
+    server.use(
+      http.get('*/api/users', ({ request }) => {
+        expect(new URL(request.url).searchParams.get('LocationId')).toBe('12');
+        return HttpResponse.json([
+          { id: userId, homeLocationId: 99 },
+          { id: otherUserId, homeLocationId: 12 },
+        ]);
+      }),
+      http.post('*/api/training/calendar/events', async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        requests.push(body);
+        // The backend scopes LocationId to the user's home location.
+        return HttpResponse.json(
+          body.locationId
+            ? []
+            : [
+                {
+                  id: 'training.user-training.42',
+                  userTrainingId: 42,
+                  userId,
+                  trainingId: 7,
+                  type: 'training.user-training',
+                  sourceModule: 'training',
+                  title: 'Training: FIRST-AID',
+                  start: '2025-04-08T00:00:00Z',
+                  end: '2025-04-11T00:00:00Z',
+                  allDay: true,
+                  isReadOnly: true,
+                  locationId: 99,
+                },
+              ],
+        );
+      }),
+    );
+
+    const result = await calendarTrainingEventsContribution.load({
+      ...context,
+      activeViewId: 'calendar.matrix-assignment',
+      filters: { userIds: [userId] },
+    });
+
+    expect(requests).toHaveLength(2);
+    expect(requests).toContainEqual({
+      startDate: '2025-04-07',
+      endDate: '2025-04-13',
+      locationId: 12,
+      timeZoneId: 'America/Vancouver',
+      userIds: [userId],
+    });
+    expect(requests).toContainEqual({
+      startDate: '2025-04-07',
+      endDate: '2025-04-13',
+      timeZoneId: 'America/Vancouver',
+      userIds: [userId],
+    });
+    expect(result.events).toEqual([]);
+    expect((result.data as TrainingCalendarEventsData).warningEvents).toEqual([
+      expect.objectContaining({ userId, locationId: 99, start: '2025-04-08', end: '2025-04-11' }),
+    ]);
+  });
+
+  it.each([
+    { users: [], filters: {} },
+    { users: [{ id: otherUserId, homeLocationId: 12 }], filters: { userIds: [userId] } },
+  ])(
+    'never sends an unrestricted warning request for an empty sidebar intersection: %o',
+    async ({ users, filters }) => {
+      const requests: Record<string, unknown>[] = [];
+      server.use(
+        http.get('*/api/users', () => HttpResponse.json(users)),
+        http.post('*/api/training/calendar/events', async ({ request }) => {
+          requests.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json([]);
+        }),
+      );
+      const result = await calendarTrainingEventsContribution.load({
+        ...context,
+        activeViewId: 'calendar.matrix-assignment',
+        filters,
+      });
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).toHaveProperty('locationId', 12);
+      expect(result.data).toEqual({ warningEvents: [] });
+    },
+  );
+
+  it('reloads warning users and dates after location and period changes, and omits warnings in Scheduling View', async () => {
+    const warningRequests: Record<string, unknown>[] = [];
+    let userRequests = 0;
+    server.use(
+      http.get('*/api/users', ({ request }) => {
+        userRequests++;
+        const id = new URL(request.url).searchParams.get('LocationId') === '12' ? userId : otherUserId;
+        return HttpResponse.json([{ id, homeLocationId: 99 }]);
+      }),
+      http.post('*/api/training/calendar/events', async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        if (!('locationId' in body)) warningRequests.push(body);
+        return HttpResponse.json([]);
+      }),
+    );
+    const assignment = { ...context, activeViewId: 'calendar.matrix-assignment', filters: {} };
+    await calendarTrainingEventsContribution.load(assignment);
+    await calendarTrainingEventsContribution.load({
+      ...assignment,
+      locationId: 13,
+      startDate: '2025-04-14',
+      endDate: '2025-04-15',
+    });
+    const scheduling = await calendarTrainingEventsContribution.load({
+      ...assignment,
+      activeViewId: 'calendar.matrix-shift',
+    });
+    expect(warningRequests).toEqual([
+      { startDate: '2025-04-07', endDate: '2025-04-13', timeZoneId: 'America/Vancouver', userIds: [userId] },
+      { startDate: '2025-04-14', endDate: '2025-04-14', timeZoneId: 'America/Vancouver', userIds: [otherUserId] },
+    ]);
+    expect(userRequests).toBe(2);
+    expect(scheduling.data).toEqual({ warningEvents: [] });
+  });
+
+  it.each([undefined, 'calendar.matrix-assignment'])('honors request cancellation in view %s', async (activeViewId) => {
+    let requestStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      requestStarted = resolve;
+    });
+    let finishRequest!: () => void;
+    const finished = new Promise<void>((resolve) => {
+      finishRequest = resolve;
+    });
+    server.use(
+      http.get('*/api/users', () => HttpResponse.json([{ id: userId, homeLocationId: 99 }])),
+      http.post('*/api/training/calendar/events', async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        if (activeViewId && body.locationId) return HttpResponse.json([]);
+        requestStarted();
+        await finished;
+        return HttpResponse.json([]);
+      }),
+    );
+
+    const controller = new AbortController();
+    const pending = calendarTrainingEventsContribution.load(
+      { ...context, activeViewId },
+      { signal: controller.signal },
+    );
+    await started;
+    controller.abort();
+    finishRequest();
+
+    await expect(pending).rejects.toBeTruthy();
+  });
+
+  it.each([undefined, 'calendar.matrix-assignment'])('propagates request failures in view %s', async (activeViewId) => {
+    server.use(
+      http.get('*/api/users', () => HttpResponse.json([{ id: userId, homeLocationId: 99 }])),
+      http.post('*/api/training/calendar/events', async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        return activeViewId && body.locationId
+          ? HttpResponse.json([])
+          : HttpResponse.json({ detail: 'Unavailable' }, { status: 500 });
+      }),
+    );
+    await expect(calendarTrainingEventsContribution.load({ ...context, activeViewId })).rejects.toThrow('Unavailable');
   });
 });

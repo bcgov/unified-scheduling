@@ -36,6 +36,7 @@ const trainingVersions = computed(() =>
     v-if="selectedTraining"
     :training="selectedTraining"
     :trainings="trainingVersions"
+    :time-zone="event.timeZoneId"
     @close="emit('close')"
   />
   <UaModal v-else-if="!loading" :title="event.title" @close="emit('close')">

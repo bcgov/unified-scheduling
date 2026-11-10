@@ -138,9 +138,14 @@ public sealed class TrainingHomeLocationConflictTests : IAsyncLifetime
         _conflicts = new CalendarConflictService(
             [
                 new TrainingConflictParticipantProvider(_db, _resolver, time),
-                new SchedulingConflictParticipantProvider(_db),
+                new SchedulingConflictParticipantProvider(
+                    _db,
+                    SchedulingLoanOutTestServices.CreateAvailability(_db, new TimeZoneService())
+                ),
             ],
-            _db
+            _db,
+            CalendarConflictTestContext.Projection(OtherUserId),
+            CalendarConflictTestRules.Scheduling
         );
         _failure = new FailureAfterInvalidation(_db);
         _services = new ServiceCollection()
@@ -312,6 +317,7 @@ public sealed class TrainingHomeLocationConflictTests : IAsyncLifetime
                 TrainingId = 1,
                 AwardedOn = TrainingDay,
                 EndingOn = TrainingDay,
+                AllDay = true,
             },
             TestContext.Current.CancellationToken
         );

@@ -95,6 +95,25 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
+    public async Task TryHandleAsync_InformationValidationException_Returns400WithInformationalMessage()
+    {
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = new InformationValidationException("An assignment already exists for a selected user.");
+
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        Assert.True(handled);
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal("Information.", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal(exception.Message, body.RootElement.GetProperty("detail").GetString());
+        Assert.Equal("info", body.RootElement.GetProperty("severity").GetString());
+        Assert.True(body.RootElement.TryGetProperty("traceId", out _));
+    }
+
+    [Fact]
     public async Task TryHandleAsync_Should_Map_Unknown_Exception_To_500_Without_Leaking_Message()
     {
         // Arrange
@@ -132,6 +151,29 @@ public class GlobalExceptionHandlerTests
         // Assert
         Assert.True(handled);
         Assert.Equal(StatusCodes.Status499ClientClosedRequest, context.Response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(typeof(InvalidOperationException), StatusCodes.Status400BadRequest, "Invalid request.")]
+    [InlineData(typeof(KeyNotFoundException), StatusCodes.Status404NotFound, "Resource not found.")]
+    public async Task TryHandleAsync_DistributionRequestException_ReturnsExpectedStatus(
+        Type exceptionType,
+        int expectedStatus,
+        string expectedTitle
+    )
+    {
+        var context = CreateHttpContext();
+        var handler = CreateHandler(context);
+        var exception = (Exception)Activator.CreateInstance(exceptionType, "Distribution request failed.")!;
+
+        var handled = await handler.TryHandleAsync(context, exception, TestContext.Current.CancellationToken);
+
+        Assert.True(handled);
+        Assert.Equal(expectedStatus, context.Response.StatusCode);
+        var body = await ReadJsonBodyAsync(context);
+        Assert.Equal(expectedStatus, body.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal(expectedTitle, body.RootElement.GetProperty("title").GetString());
+        Assert.Equal("Distribution request failed.", body.RootElement.GetProperty("detail").GetString());
     }
 
     [Fact]

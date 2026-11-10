@@ -1,5 +1,9 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Unified.Authorization;
+using Unified.Calendar.Conflicts;
+using Unified.Calendar.Holidays;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Calendar.Conflicts;
@@ -72,6 +76,144 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetParticipantsAsync_Training_PreservesPermissionAwareWarnings(bool legacyEnd)
+    {
+        var start = Day(2026, 10, 22).AddHours(16);
+        var training = await AddAsync(_userA, 1, start, legacyEnd ? DateTimeOffset.MinValue : start.AddHours(1));
+        var participant = Assert.Single(
+            await _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(Day(2026, 10, 22), Day(2026, 10, 23), [_userA]),
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(TrainingConflictParticipantProvider.IdentityFor(training.Id), participant.Identity);
+        Assert.True(participant.AllDay);
+        Assert.Equal(Day(2026, 10, 22).AddHours(7), participant.Start);
+        Assert.Equal(Day(2026, 10, 23).AddHours(7), participant.End);
+        var assignment = participant with
+        {
+            EventId = "assignment.1",
+            SourceModule = "scheduling",
+            Title = "Restricted assignment",
+            Start = start.AddMinutes(30),
+            End = start.AddMinutes(90),
+            EventTypeCode = "assignment",
+        };
+        var conflict = Assert.Single(CalendarConflictDetector.Detect([participant, assignment])) with
+        {
+            ReportOnEntry = true,
+            ReportOnOverlaps = true,
+        };
+        var projection = new CalendarConflictProjection([_provider]);
+        var result = await projection.ProjectAsync(
+            [conflict],
+            CalendarConflictTestContext.Viewer(_userA, nameof(Permissions.UserTrainingsView)),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Empty(result.Conflicts);
+        Assert.Equal(participant.EventId, Assert.Single(result.RestrictedWarnings).EventId);
+        var hidden = await projection.ProjectAsync(
+            [conflict],
+            CalendarConflictTestContext.Viewer(_userA),
+            TestContext.Current.CancellationToken
+        );
+        Assert.Empty(hidden.Conflicts);
+        Assert.Empty(hidden.RestrictedWarnings);
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task GetVisibilityAsync_TrainingClassification_PreservesPermissionProjection(bool allDay, bool canView)
+    {
+        var training = await AddAsync(_userA, 1, Day(2026, 10, 22), Day(2026, 10, 22).AddHours(1), allDay);
+        var participant = await _provider.GetParticipantAsync(
+            TrainingConflictParticipantProvider.IdentityFor(training.Id),
+            _userA,
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(participant);
+        HashSet<string> permissions = canView ? [nameof(Permissions.UserTrainingsView)] : [];
+
+        var visibility = await _provider.GetVisibilityAsync(
+            participant,
+            permissions,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(visibility);
+        Assert.Equal(canView, visibility.CanView);
+        if (canView)
+            Assert.Equal(participant.Identity, Assert.Single(visibility.VisibleAnchors));
+        else
+            Assert.Empty(visibility.VisibleAnchors);
+    }
+
+    [Theory]
+    [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T14:00:00-07:00", false)]
+    [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T09:30:00-07:00", true)]
+    [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T10:00:00-07:00", false)]
+    [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T08:00:00-07:00", false)]
+    [InlineData("2026-10-22T23:30:00-07:00", "2026-10-23T00:30:00-07:00", "2026-10-23T00:00:00-07:00", true)]
+    [InlineData("2026-10-22T00:00:00Z", "2026-10-22T01:00:00Z", "2026-10-22T02:00:00Z", false)]
+    [InlineData("2026-10-22T00:00:00Z", "2026-10-23T00:00:00Z", "2026-10-22T09:00:00Z", true)]
+    [InlineData("2026-10-21T23:00:00Z", "2026-10-22T00:00:00Z", "2026-10-22T00:00:00Z", false)]
+    [InlineData("2025-03-09T01:30:00-08:00", "2025-03-09T03:30:00-07:00", "2025-03-09T03:00:00-07:00", true)]
+    [InlineData("2025-03-09T01:30:00-08:00", "2025-03-09T03:30:00-07:00", "2025-03-09T03:30:00-07:00", false)]
+    [InlineData("2025-11-02T01:30:00-07:00", "2025-11-02T01:30:00-08:00", "2025-11-02T01:00:00-08:00", true)]
+    [InlineData("2025-11-02T01:00:00-07:00", "2025-11-02T01:30:00-07:00", "2025-11-02T01:00:00-08:00", false)]
+    public async Task GetParticipantsAsync_TimedTraining_UsesPreciseOverlapAndMatchesIndividual(
+        string start,
+        string end,
+        string assignmentStart,
+        bool expectedConflict
+    )
+    {
+        var startAtUtc = DateTimeOffset.Parse(start, CultureInfo.InvariantCulture).ToUniversalTime();
+        var endAtUtc = DateTimeOffset.Parse(end, CultureInfo.InvariantCulture).ToUniversalTime();
+        var training = await AddAsync(_userA, 1, startAtUtc, endAtUtc, allDay: false);
+        var identity = TrainingConflictParticipantProvider.IdentityFor(training.Id);
+        var individual = await _provider.GetParticipantAsync(identity, _userA, TestContext.Current.CancellationToken);
+        var participant = Assert.Single(
+            await _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(startAtUtc, endAtUtc, [_userA]),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(individual, participant);
+        Assert.Equal(startAtUtc, participant.Start);
+        Assert.Equal(endAtUtc, participant.End);
+        Assert.Equal("America/Vancouver", participant.TimeZoneId);
+        Assert.Null(await _provider.GetParticipantAsync(identity, _userB, TestContext.Current.CancellationToken));
+        var assignmentStartAtUtc = DateTimeOffset
+            .Parse(assignmentStart, CultureInfo.InvariantCulture)
+            .ToUniversalTime();
+        var assignment = new CalendarConflictParticipant(
+            "assignment.1",
+            "scheduling",
+            _userA,
+            assignmentStartAtUtc,
+            assignmentStartAtUtc.AddHours(1),
+            "Assignment"
+        );
+        Assert.Equal(expectedConflict ? 1 : 0, CalendarConflictDetector.Detect([participant, assignment]).Count);
+        Assert.Equal(
+            expectedConflict ? 1 : 0,
+            (
+                await _provider.GetParticipantsAsync(
+                    new CalendarConflictQuery(assignment.Start, assignment.End, [_userA]),
+                    TestContext.Current.CancellationToken
+                )
+            ).Count
+        );
+    }
+
     [Fact]
     public async Task GetParticipantsAsync_MultipleVersionsAndLegacyEnd_UsesStableIdentityAndResource()
     {
@@ -85,6 +227,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         );
 
         Assert.Equal(2, participants.Count);
+        Assert.All(participants, participant => Assert.Equal("training", participant.EventTypeCode));
         Assert.Contains(
             participants,
             participant => participant.EventId == TrainingConflictParticipantProvider.IdentityFor(first.Id).EventId
@@ -123,9 +266,14 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(2025, 3, 9, 8, 7)]
-    [InlineData(2025, 11, 2, 7, 8)]
+    [InlineData("America/Vancouver", 2025, 3, 9, 8, 7)]
+    [InlineData("America/Vancouver", 2025, 11, 2, 7, 8)]
+    [InlineData("America/Sao_Paulo", 2018, 11, 4, 3, 2)]
+    [InlineData("America/Sao_Paulo", 2018, 11, 3, 3, 3)]
+    [InlineData("America/Havana", 2025, 11, 2, 4, 5)]
+    [InlineData("America/Havana", 2025, 11, 1, 4, 4)]
     public async Task GetParticipantsAsync_DstDay_UsesLocalMidnights(
+        string timeZoneId,
         int year,
         int month,
         int day,
@@ -133,7 +281,9 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         int endHour
     )
     {
-        await AddAsync(_userA, 1, Day(year, month, day), Day(year, month, day));
+        await SetTimeZoneAsync(timeZoneId);
+        var trainingDay = Day(year, month, day);
+        await AddAsync(_userA, 1, trainingDay, trainingDay);
 
         var participant = Assert.Single(
             await _provider.GetParticipantsAsync(
@@ -142,10 +292,25 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             )
         );
 
-        Assert.Equal(new DateTimeOffset(year, month, day, startHour, 0, 0, TimeSpan.Zero), participant.Start);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        var expectedStart = trainingDay.AddHours(startHour);
+        var expectedEnd = trainingDay.AddDays(1).AddHours(endHour);
+        // Windows historical rules can place a gap boundary one millisecond earlier than IANA data.
+        if (TimeZoneInfo.ConvertTime(expectedStart.AddMilliseconds(-1), zone).Date == trainingDay.Date)
+            expectedStart = expectedStart.AddMilliseconds(-1);
+        if (TimeZoneInfo.ConvertTime(expectedEnd.AddMilliseconds(-1), zone).Date == trainingDay.AddDays(1).Date)
+            expectedEnd = expectedEnd.AddMilliseconds(-1);
+        Assert.Equal(expectedStart, participant.Start);
+        Assert.Equal(expectedEnd, participant.End);
         Assert.Equal(
-            new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.Zero).AddDays(1).AddHours(endHour),
-            participant.End
+            participant,
+            await _provider.GetParticipantAsync(participant.Identity, _userA, TestContext.Current.CancellationToken)
+        );
+        Assert.Empty(
+            await _provider.GetParticipantsAsync(
+                new CalendarConflictQuery(participant.End, participant.End.AddHours(1), [_userA]),
+                TestContext.Current.CancellationToken
+            )
         );
     }
 
@@ -228,7 +393,8 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             _userA,
             1,
             Day(9999, 12, startDay),
-            legacyEnd ? DateTimeOffset.MinValue : DateTimeOffset.MaxValue
+            legacyEnd ? DateTimeOffset.MinValue : DateTimeOffset.MaxValue,
+            allDay: legacyEnd
         );
         var identity = TrainingConflictParticipantProvider.IdentityFor(training.Id);
         var individual = Assert.IsType<CalendarConflictParticipant>(
@@ -244,13 +410,16 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
         Assert.Equal(individual, participant);
         Assert.Equal(identity, participant.Identity);
         Assert.Equal(_userA, participant.ResourceId);
-        Assert.Equal(timeZoneId, participant.TimeZoneId);
+        Assert.Equal(TimeZoneService.NormalizeTimeZoneId(timeZoneId), participant.TimeZoneId);
         Assert.Equal(DateTimeOffset.MaxValue, participant.End);
         var timeZoneService = new TimeZoneService();
-        Assert.Equal(
-            timeZoneService.ToUtcInstant(new DateTime(9999, 12, startDay), timeZoneService.ResolveRequired(timeZoneId)),
-            participant.Start
-        );
+        var expectedStart = legacyEnd
+            ? timeZoneService.ToUtcInstant(
+                new DateTime(9999, 12, startDay),
+                timeZoneService.ResolveRequired(timeZoneId)
+            )
+            : Day(9999, 12, startDay);
+        Assert.Equal(expectedStart, participant.Start);
     }
 
     private async Task SetTimeZoneAsync(string timeZoneId)
@@ -276,16 +445,56 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             )
         );
 
-        Assert.Equal("UTC", participant.TimeZoneId);
+        Assert.Equal(TimeZoneService.NormalizeTimeZoneId("UTC"), participant.TimeZoneId);
         Assert.Equal(Day(2026, 7, 13), participant.Start);
         Assert.Equal(Day(2026, 7, 14), participant.End);
+    }
+
+    [Fact]
+    public async Task GetConflictsAsync_TrainingReportsHoliday_DoesNotInferReciprocalReportingOrBlocking()
+    {
+        var user = await _db.Users.SingleAsync(user => user.Id == _userA, TestContext.Current.CancellationToken);
+        user.IsEnabled = true;
+        await AddAsync(_userA, 1, Day(2026, 7, 1), Day(2026, 7, 1));
+        var timeZoneService = new TimeZoneService();
+        var resolver = new CalendarTimeZoneResolver(
+            Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "UTC" }),
+            timeZoneService
+        );
+        var holidayProvider = new HolidayConflictParticipantProvider(
+            _db,
+            new StatutoryHolidayCalendarDataProvider(new BcStatutoryHolidayCalculator(), timeZoneService),
+            resolver,
+            timeZoneService
+        );
+        var service = new CalendarConflictService(
+            [_provider, holidayProvider],
+            _db,
+            new CalendarConflictProjection([]),
+            CalendarConflictTestRules.Create(("training", ["holiday"]), ("holiday", []))
+        );
+        var query = new CalendarConflictQuery(Day(2026, 7, 1), Day(2026, 7, 3), [_userA]);
+
+        var conflict = Assert.Single(await service.GetConflictsAsync(query, TestContext.Current.CancellationToken));
+
+        Assert.Equal("holiday", conflict.Entry.EventTypeCode);
+        Assert.Equal("training", conflict.Overlaps.EventTypeCode);
+        Assert.False(conflict.ReportOnEntry);
+        Assert.True(conflict.ReportOnOverlaps);
+        Assert.Empty(
+            await service.GetConflictsForCandidatesAsync([conflict.Entry], TestContext.Current.CancellationToken)
+        );
+        await Assert.ThrowsAsync<CalendarConflictException>(() =>
+            service.EnsureNoUnresolvedConflictsAsync([conflict.Overlaps], TestContext.Current.CancellationToken)
+        );
     }
 
     private async Task<UserTraining> AddAsync(
         Guid userId,
         int version,
         DateTimeOffset awardedOn,
-        DateTimeOffset endingOn
+        DateTimeOffset endingOn,
+        bool allDay = true
     )
     {
         var record = new UserTraining
@@ -295,6 +504,7 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
             Version = version,
             AwardedOn = awardedOn,
             EndingOn = endingOn,
+            AllDay = allDay,
             ExpiryDate = awardedOn.Year <= 9997 ? awardedOn.AddYears(2) : null,
         };
         _db.UserTrainings.Add(record);

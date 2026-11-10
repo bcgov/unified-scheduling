@@ -33,6 +33,8 @@ async function mountShiftDetailModal(
   statusTypeCode: string,
   belongsToSeries = false,
   apiOverrides: Record<string, unknown> = {},
+  initialTab?: 'details' | 'edit',
+  initialOpenScope?: 'event' | 'series',
 ) {
   vi.doMock('@/modules/scheduling/calendarSchedulingShiftApi', () => ({
     loadShiftEntry: vi.fn().mockResolvedValue({
@@ -107,6 +109,8 @@ async function mountShiftDetailModal(
   const wrapper = mount(CalendarSchedulingShiftDetailModal, {
     props: {
       event: createShiftEvent(statusTypeCode, belongsToSeries),
+      initialTab,
+      initialOpenScope,
     },
     global: { plugins: app.mountPlugins },
     attachTo: document.body,
@@ -141,6 +145,37 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     expect(document.body.textContent).toContain('Employee');
     expect(document.body.textContent).toContain('Linked assignments');
     expect(document.body.textContent).toContain('Court Coverage');
+
+    wrapper.unmount();
+  });
+
+  it('opens a draft shift directly in the edit tab when requested', async () => {
+    const wrapper = await mountShiftDetailModal('Draft', false, {}, 'edit');
+
+    expect(document.body.textContent).toContain('Edit Shift');
+    expect(document.body.textContent).toContain('Employee');
+
+    wrapper.unmount();
+  });
+
+  it('loads a series occurrence before opening its edit tab', async () => {
+    const loadShiftEntry = vi.fn().mockResolvedValue({
+      data: {
+        value: {
+          id: 42,
+          statusTypeCode: 'Draft',
+          locationId: 12,
+          startAtUtc: '2026-07-13T16:00:00Z',
+          endAtUtc: '2026-07-14T00:00:00Z',
+          userIds: ['00000000-0000-0000-0000-000000000001'],
+        },
+      },
+      error: { value: null },
+    });
+    const wrapper = await mountShiftDetailModal('Draft', true, { loadShiftEntry }, 'edit', 'event');
+
+    expect(loadShiftEntry).toHaveBeenCalledWith(42);
+    expect(document.body.textContent).toContain('Edit Shift');
 
     wrapper.unmount();
   });
@@ -198,17 +233,17 @@ describe('CalendarSchedulingShiftDetailModal', () => {
     const vm = wrapper.vm as unknown as {
       handleSaveEdit: () => Promise<void>;
       selectTab: (tabId: 'edit') => void;
+      editFormData: { publish: 'yes' | 'no' };
     };
 
     vm.selectTab('edit');
     await flushPromises();
+    vm.editFormData.publish = 'yes';
     await vm.handleSaveEdit();
     await flushPromises();
 
-    expect(document.body.textContent).toContain(
-      'One or more selected employees already have a shift at this location on the selected date.',
-    );
-    expect(document.body.textContent).toContain('Alex Alpha already has a shift at this location.');
+    const employeeField = document.querySelector('.shift-form__employee-field');
+    expect(employeeField?.textContent).toContain('Alex Alpha already has a shift at this location.');
     expect(publishShiftEntry).not.toHaveBeenCalled();
     expect(wrapper.emitted('close')).toBeUndefined();
 
@@ -303,6 +338,7 @@ describe('CalendarSchedulingShiftDetailModal', () => {
       editFormData: { publish: 'yes' | 'no' };
       selectTab: (tabId: 'edit') => void;
       handleSaveEdit: () => Promise<void>;
+      handleClose: () => void;
     };
 
     vm.selectTab('edit');
@@ -316,9 +352,47 @@ describe('CalendarSchedulingShiftDetailModal', () => {
       'The shift could not be published because linked assignments have unresolved conflicts. Resolve or override the conflicts, then try again.',
     );
     expect(document.body.textContent).toContain('Edit Shift');
-    expect(refreshCalendar).toHaveBeenCalledOnce();
+    expect(refreshCalendar).not.toHaveBeenCalled();
     expect(wrapper.emitted('close')).toBeUndefined();
 
+    vm.handleClose();
+
+    expect(refreshCalendar).toHaveBeenCalledOnce();
+    expect(wrapper.emitted('close')).toBeTruthy();
+
+    wrapper.unmount();
+  });
+
+  it('prevents closing while a save is in progress', async () => {
+    let resolveUpdate: ((value: unknown) => void) | undefined;
+    const updatePromise = new Promise((resolve) => {
+      resolveUpdate = resolve;
+    });
+    const wrapper = await mountShiftDetailModal('Draft', false, {
+      updateShiftEntry: vi.fn().mockReturnValue(updatePromise),
+    });
+    const vm = wrapper.vm as unknown as {
+      selectTab: (tabId: 'edit') => void;
+      handleSaveEdit: () => Promise<void>;
+      handleClose: () => void;
+    };
+
+    vm.selectTab('edit');
+    const savePromise = vm.handleSaveEdit();
+    await flushPromises();
+
+    vm.handleClose();
+
+    const headerClose = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Close',
+    );
+    expect(headerClose?.disabled).toBe(true);
+    expect(wrapper.emitted('close')).toBeUndefined();
+
+    resolveUpdate?.({ data: { value: { id: 42 } }, error: { value: null } });
+    await savePromise;
+
+    expect(wrapper.emitted('close')).toBeTruthy();
     wrapper.unmount();
   });
 

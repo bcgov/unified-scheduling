@@ -28,6 +28,7 @@ const events = computed<EventInput[]>(() =>
       description: event.description,
       eventTypeCode: event.eventTypeCode,
       statusTypeCode: event.statusTypeCode,
+      borderStyle: event.borderStyle ?? 'solid',
       isReadOnly: event.isReadOnly,
       holidayType: event.holidayType,
     },
@@ -50,6 +51,7 @@ const handleEventClick = (arg: EventClickInfo) => {
       :view="model.view"
       :initial-date="model.initialDate"
       :weekends="model.weekends"
+      :full-calendar-props="{ options: { timeZone: model.timeZone } }"
       @event-click="handleEventClick"
     />
   </div>

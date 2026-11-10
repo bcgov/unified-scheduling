@@ -26,10 +26,12 @@ export function useSchedulingShiftDetailRows(options: {
   assignmentEntryOptions: ComputedRef<SelectOption[]>;
   assignmentSeriesOptions: ComputedRef<SelectOption[]>;
   locationOptions: ComputedRef<SelectOption[]>;
+  showAssignmentDetails?: ComputedRef<boolean>;
 }) {
   const detailRows = computed<ShiftDetailRow[]>(() => {
     const event = options.event.value;
     const formData = options.formData.value;
+    const showAssignmentDetails = options.showAssignmentDetails?.value !== false;
     const lifecycleStatus = normalizeSchedulingLifecycleStatus(formData.statusTypeCode);
     const rows: ShiftDetailRow[] = [
       {
@@ -49,14 +51,14 @@ export function useSchedulingShiftDetailRows(options: {
 
     if (options.selectedOpenScope.value === 'series' && options.selectedSeries.value) {
       const series = options.selectedSeries.value;
-      rows.push(
-        {
-          label: 'Repeat',
-          value: '',
-          recurrenceRule: formData.recurrenceRule ?? series.recurrenceRule ?? null,
-          recurrenceStartDate: series.startAtUtc ?? event.start,
-        },
-        {
+      rows.push({
+        label: 'Repeat',
+        value: '',
+        recurrenceRule: formData.recurrenceRule ?? series.recurrenceRule ?? null,
+        recurrenceStartDate: series.startAtUtc ?? event.start,
+      });
+      if (showAssignmentDetails) {
+        rows.push({
           label: 'Series Assignments',
           value: formatAssignmentLinks(
             formData.assignmentSeriesLinks ?? [],
@@ -65,9 +67,9 @@ export function useSchedulingShiftDetailRows(options: {
             'Assignment series',
             'assignmentSeriesId',
           ),
-        },
-      );
-    } else {
+        });
+      }
+    } else if (showAssignmentDetails) {
       rows.push({
         label: 'Assignment(s)',
         value: formatAssignmentLinks(

@@ -6,10 +6,13 @@
  */
 import type { CalendarConflictResponse } from './calendarConflictResponse.ts';
 import type { CalendarEventResponse } from './calendarEventResponse.ts';
+import type { CalendarRestrictedConflictWarningResponse } from './calendarRestrictedConflictWarningResponse.ts';
 
 export interface CalendarDataResponse {
   moduleId?: string;
   contributionId?: string;
   events?: CalendarEventResponse[];
   conflicts?: CalendarConflictResponse[];
+  restrictedWarnings?: CalendarRestrictedConflictWarningResponse[];
+  hasRestrictedConflicts?: boolean;
 }

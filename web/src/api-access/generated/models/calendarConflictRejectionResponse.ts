@@ -5,8 +5,11 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { CalendarConflictResponse } from './calendarConflictResponse.ts';
+import type { CalendarRestrictedConflictWarningResponse } from './calendarRestrictedConflictWarningResponse.ts';
 
 export interface CalendarConflictRejectionResponse {
   message: string;
   conflicts: CalendarConflictResponse[];
+  restrictedWarnings?: CalendarRestrictedConflictWarningResponse[];
+  hasRestrictedConflicts?: boolean;
 }

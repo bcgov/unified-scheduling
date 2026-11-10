@@ -4,7 +4,29 @@ import CalendarSchedulingConflictOverlay from '@/modules/scheduling/CalendarSche
 import type { CalendarConflict } from '@/modules/calendar/calendarTypes';
 
 describe('CalendarSchedulingConflictOverlay', () => {
-  it('lists every conflict with details of the conflicting event and emits resolution requests', async () => {
+  it('shows a restricted warning without event details, navigation, or override actions', () => {
+    const wrapper = mount(CalendarSchedulingConflictOverlay, {
+      props: {
+        conflicts: [],
+        timeZone: 'America/Vancouver',
+        restrictedWarnings: [
+          {
+            eventId: '42',
+            sourceModule: 'scheduling',
+            resourceId: 'visible-user',
+            message: 'This event has a conflict with an event you do not have permission to view.',
+          },
+        ],
+      },
+    });
+    expect(wrapper.text()).toContain('do not have permission to view');
+    expect(wrapper.findAll('button, a')).toHaveLength(0);
+    expect(wrapper.findAll('.calendar-scheduling-conflict-overlay__item')).toHaveLength(0);
+    expect(wrapper.findAll('strong')).toHaveLength(0);
+    expect(wrapper.emitted('resolve')).toBeUndefined();
+    wrapper.unmount();
+  });
+  it('lists every conflict with its pair title and opposing event time and emits resolution requests', async () => {
     const firstConflict = createConflict(101, 102, 'Second assignment', 'user-1');
     const duplicateResourceConflict = createConflict(101, 102, 'Second assignment', 'user-2');
     const thirdEventConflict = createConflict(101, 103, 'Third assignment', 'user-1');
@@ -29,8 +51,11 @@ describe('CalendarSchedulingConflictOverlay', () => {
 
     expect(wrapper.get('.calendar-scheduling-conflict-overlay__heading').text()).toBe('Conflict(s)');
     expect(wrapper.text()).toContain('warning-icon');
-    expect(wrapper.text()).toContain('Second assignment');
-    expect(wrapper.text()).toContain('Third assignment');
+    expect(wrapper.findAll('strong').map((title) => title.text())).toEqual([
+      'Assignment ↔ Assignment',
+      'Assignment ↔ Assignment',
+      'Assignment ↔ Assignment',
+    ]);
     expect(wrapper.findAll('.calendar-scheduling-conflict-overlay__item')).toHaveLength(3);
     expect(wrapper.findAll('.calendar-scheduling-conflict-overlay__item')[0]?.text()).toContain('January 13, 2025');
     expect(wrapper.findAll('.calendar-scheduling-conflict-overlay__item')[0]?.text()).toContain('3:00 AM - 5:00 AM');
@@ -39,6 +64,28 @@ describe('CalendarSchedulingConflictOverlay', () => {
     await resolveButtons[0]?.trigger('click');
 
     expect(wrapper.emitted('resolve')).toEqual([[{ conflict: firstConflict, currentEventId: 101 }]]);
+  });
+
+  it('distinguishes leave conflicts with a shift and an assignment for the same user and day', () => {
+    const shiftConflict = createConflict(101, 200, 'Leave', 'user-1');
+    shiftConflict.title = 'Leave ↔ Shift';
+    shiftConflict.entry.title = 'Day shift';
+    shiftConflict.overlaps.sourceModule = 'leave';
+    const assignmentConflict = createConflict(102, 200, 'Leave', 'user-1');
+    assignmentConflict.title = 'Leave ↔ Assignment';
+    assignmentConflict.entry.title = 'Court assignment';
+    assignmentConflict.overlaps.sourceModule = 'leave';
+    const wrapper = mount(CalendarSchedulingConflictOverlay, {
+      props: {
+        conflicts: [shiftConflict, assignmentConflict].map((conflict) => ({
+          conflict,
+          currentEventId: Number(conflict.entry.eventId),
+        })),
+        timeZone: 'America/Vancouver',
+      },
+    });
+
+    expect(wrapper.findAll('strong').map((title) => title.text())).toEqual(['Leave ↔ Shift', 'Leave ↔ Assignment']);
   });
 
   it('uses the warning treatment only on overridden conflict actions', () => {
@@ -89,6 +136,7 @@ function createConflict(
 ): CalendarConflict {
   return {
     id: `conflict:${currentEventId}:${conflictingEventId}:${resourceId}`,
+    title: 'Assignment ↔ Assignment',
     entry: {
       eventId: String(currentEventId),
       sourceModule: 'scheduling',
@@ -111,6 +159,8 @@ function createConflict(
     overlapStart: '2025-01-13T11:00:00Z',
     overlapEnd: '2025-01-13T12:00:00Z',
     isOverridden: false,
+    reportOnEntry: true,
+    reportOnOverlaps: true,
     overrideNote: null,
     createdById: null,
     createdOn: null,

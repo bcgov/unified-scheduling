@@ -8,15 +8,20 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content
+      Include="..\Unified.Api\appsettings.json"
+      Link="api-appsettings.json"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.12" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.12" />
-    <PackageReference Include="xunit.v3.mtp-v2" Version="4.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.14" />
+    <PackageReference Include="xunit.v3.mtp-v2" Version="4.0.2" />
     <PackageReference Include="Hangfire.InMemory" Version="1.0.0" />
   </ItemGroup>
   <ItemGroup>

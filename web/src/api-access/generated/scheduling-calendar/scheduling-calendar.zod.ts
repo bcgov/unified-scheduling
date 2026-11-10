@@ -30,6 +30,7 @@ export const PostApiSchedulingCalendarEventsResponse = zod.object({
         leaveSeriesId: zod.int().nullish(),
         leaveTypeId: zod.int().nullish(),
         leaveTypeName: zod.string().nullish(),
+        leaveDate: zod.iso.date().nullish(),
         loanOutEntryId: zod.int().nullish(),
         loanOutSeriesId: zod.int().nullish(),
         loanOutLocationId: zod.int().nullish(),

@@ -2,10 +2,28 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { getGetApiUsersIdMockHandler, getGetApiUsersIdResponseMock } from '@/api-access/generated/users/users.msw';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
+import UaTextarea from '@/shared/components/UaTextarea.vue';
 import type { CalendarConflict } from '@/modules/calendar/calendarTypes';
 import { server } from '@/__tests__/mocks/server';
 
 describe('CalendarConflictDetailModal', () => {
+  it('uses the source-qualified training side and preserves override permissions', async () => {
+    const conflict = createConflict(101, 102, 'Holiday', 'Training');
+    conflict.entry = { ...conflict.entry, sourceModule: 'calendar', eventId: 'training.user-training.42' };
+    conflict.overlaps = { ...conflict.overlaps, sourceModule: 'training', eventId: 'training.user-training.42' };
+    const wrapper = mountModal(conflict, false);
+    await wrapper.setProps({ currentEventId: { sourceModule: 'training', eventId: 'training.user-training.42' } });
+    const descriptions = wrapper.findAll('dd');
+    expect(descriptions[0]?.text()).toContain('Training');
+    expect(descriptions[1]?.text()).toContain('Holiday');
+    expect(wrapper.find('button[aria-label="Edit Training"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="ua-button"]').exists()).toBe(false);
+    await wrapper.setProps({ canOverride: true });
+    await wrapper.get('textarea').setValue('Approved training');
+    await wrapper.get('[data-test="ua-button"]').trigger('click');
+    expect(wrapper.emitted('override')).toEqual([['Approved training']]);
+  });
+
   it('displays one conflict and edits either event', async () => {
     const conflict = createConflict(101, 102, 'First assignment', 'Second assignment');
     const wrapper = mountModal(conflict);
@@ -15,6 +33,7 @@ describe('CalendarConflictDetailModal', () => {
     expect(wrapper.text()).toContain('From:');
     expect(wrapper.text()).toContain('2:00 AM - 4:00 AM');
     expect(wrapper.text()).toContain('3:00 AM - 5:00 AM');
+    expect(wrapper.text()).not.toContain(conflict.title);
 
     const editCurrentButtons = wrapper.findAll('button[aria-label="Edit First assignment"]');
     expect(editCurrentButtons).toHaveLength(1);
@@ -31,6 +50,7 @@ describe('CalendarConflictDetailModal', () => {
 
     expect(overrideButton.attributes('data-color')).toBe('primary');
     expect(wrapper.find('textarea').exists()).toBe(true);
+    expect(wrapper.getComponent(UaTextarea).props('required')).toBe(true);
     expect(overrideButton.attributes('disabled')).toBeDefined();
     await wrapper.get('textarea').setValue('Approved coverage overlap');
     expect(overrideButton.attributes('disabled')).toBeUndefined();
@@ -98,6 +118,7 @@ describe('CalendarConflictDetailModal', () => {
 
     expect(wrapper.find('.calendar-conflict-detail__edit').exists()).toBe(false);
     expect(wrapper.find('[data-test="ua-button"]').exists()).toBe(false);
+    expect(wrapper.getComponent(UaTextarea).props('required')).toBe(false);
   });
 });
 
@@ -127,7 +148,7 @@ function mountModal(conflict: CalendarConflict, canEdit = true) {
             '<button data-test="ua-button" :data-color="color" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
         UaTextarea: {
-          props: ['modelValue', 'disabled'],
+          props: ['modelValue', 'disabled', 'required'],
           emits: ['update:modelValue'],
           template:
             '<textarea :value="modelValue" :disabled="disabled" @input="$emit(\'update:modelValue\', $event.target.value)" />',
@@ -148,6 +169,7 @@ function createConflict(
 ): CalendarConflict {
   return {
     id: `conflict:${entryEventId}:${overlapsEventId}`,
+    title: 'Assignment ↔ Assignment',
     entry: {
       eventId: String(entryEventId),
       sourceModule: 'scheduling',
@@ -170,6 +192,8 @@ function createConflict(
     overlapStart: '2025-01-13T11:00:00Z',
     overlapEnd: '2025-01-13T12:00:00Z',
     isOverridden: false,
+    reportOnEntry: true,
+    reportOnOverlaps: true,
     overrideNote: null,
     createdById: null,
     createdOn: null,

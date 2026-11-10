@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Unified.Calendar.Models;
+using Unified.Calendar.Options;
 using Unified.Common.Calendar.Conflicts;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
 
@@ -9,12 +12,15 @@ namespace Unified.Calendar.Conflicts;
 public sealed class CalendarConflictService(
     IEnumerable<ICalendarConflictParticipantProvider> participantProviders,
     UnifiedDbContext db,
+    CalendarConflictProjection conflictProjection,
+    IOptions<CalendarConflictRulesOptions> rulesOptions,
     TimeProvider? timeProvider = null
 ) : ICalendarConflictService
 {
     private readonly IReadOnlyCollection<ICalendarConflictParticipantProvider> _participantProviders =
         participantProviders.ToList();
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly CalendarConflictRulesOptions _rules = rulesOptions.Value;
 
     public async Task<IReadOnlyCollection<CalendarConflict>> GetConflictsAsync(
         CalendarConflictQuery query,
@@ -22,7 +28,18 @@ public sealed class CalendarConflictService(
     )
     {
         var participants = await LoadParticipantsAsync(query, cancellationToken);
-        return await ApplyOverridesAsync(CalendarConflictDetector.Detect(participants), cancellationToken);
+        var conflicts = DetectReportableConflicts(participants);
+        if (query.LocationId.HasValue)
+        {
+            conflicts = conflicts
+                .Where(conflict =>
+                    (conflict.ReportOnEntry && conflict.Entry.IsInQueryScope)
+                    || (conflict.ReportOnOverlaps && conflict.Overlaps.IsInQueryScope)
+                )
+                .ToList();
+        }
+
+        return await ApplyOverridesAsync(conflicts, cancellationToken);
     }
 
     public async Task EnsureNoUnresolvedConflictsAsync(
@@ -38,26 +55,33 @@ public sealed class CalendarConflictService(
         if (candidates.Count == 0)
             return [];
 
-        var candidateIdentities = candidates.Select(CalendarConflictParticipantIdentity.Create).ToHashSet();
+        var normalizedCandidates = candidates.Select(NormalizeParticipantTimeZone).ToList();
+        var candidateIdentities = normalizedCandidates.Select(CalendarConflictParticipantIdentity.Create).ToHashSet();
         var query = new CalendarConflictQuery(
-            candidates.Min(candidate => candidate.Start),
-            candidates.Max(candidate => candidate.End),
-            candidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
-            IncludeDraftParticipants: false
+            normalizedCandidates.Min(candidate => candidate.Start),
+            normalizedCandidates.Max(candidate => candidate.End),
+            normalizedCandidates.Select(candidate => candidate.ResourceId).Distinct().ToList(),
+            IncludeDraftParticipants: false,
+            ResourceTimeZones: ResolveResourceTimeZones(normalizedCandidates)
         );
         var existing = (await LoadParticipantsAsync(query, cancellationToken)).Where(participant =>
             !candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(participant))
         );
         var allParticipants = existing
-            .Concat(candidates)
+            .Concat(normalizedCandidates)
             .GroupBy(CalendarConflictParticipantIdentity.Create)
             .Select(group => group.Last())
             .ToList();
-        var conflicts = CalendarConflictDetector
-            .Detect(allParticipants)
+        var conflicts = DetectReportableConflicts(allParticipants)
             .Where(conflict =>
-                candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(conflict.Entry))
-                || candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(conflict.Overlaps))
+                (
+                    conflict.ReportOnEntry
+                    && candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(conflict.Entry))
+                )
+                || (
+                    conflict.ReportOnOverlaps
+                    && candidateIdentities.Contains(CalendarConflictParticipantIdentity.Create(conflict.Overlaps))
+                )
             )
             .ToList();
 
@@ -77,6 +101,10 @@ public sealed class CalendarConflictService(
 
         var conflictsWithOverrides = await GetConflictsForCandidatesAsync(candidates, cancellationToken);
         var currentConflictsByKey = conflictsWithOverrides.ToDictionary(CalendarConflictKey.Create);
+        // Authorize persisted participants, including already-overridden pairs, before accepting acknowledgements.
+        // Client source labels and candidate metadata are never evidence of visibility.
+        foreach (var key in acknowledgementsByKey.Keys)
+            await AuthorizeOverrideAsync(key, actorId!.Value, cancellationToken);
         var unresolved = conflictsWithOverrides
             .Where(conflict =>
                 !conflict.IsOverridden && !acknowledgementsByKey.ContainsKey(CalendarConflictKey.Create(conflict))
@@ -111,19 +139,30 @@ public sealed class CalendarConflictService(
         var firstParticipant = await LoadParticipantAsync(key.FirstEvent, key.ResourceId, cancellationToken);
         var secondParticipant = await LoadParticipantAsync(key.SecondEvent, key.ResourceId, cancellationToken);
         if (firstParticipant is null || secondParticipant is null)
-            throw new KeyNotFoundException(
-                "Both calendar conflict participants must exist before a conflict can be overridden."
-            );
+            throw UnavailableConflict();
+        if (
+            !await conflictProjection.CanOverrideAsync(
+                firstParticipant,
+                secondParticipant,
+                createdById,
+                cancellationToken
+            )
+        )
+            throw UnavailableConflict();
 
         var rangeStart =
             firstParticipant.Start < secondParticipant.Start ? firstParticipant.Start : secondParticipant.Start;
         var rangeEnd = firstParticipant.End > secondParticipant.End ? firstParticipant.End : secondParticipant.End;
         var participants = await LoadParticipantsAsync(
-            new CalendarConflictQuery(rangeStart, rangeEnd, [key.ResourceId]),
+            new CalendarConflictQuery(
+                rangeStart,
+                rangeEnd,
+                [key.ResourceId],
+                ResourceTimeZones: ResolveResourceTimeZones([firstParticipant, secondParticipant])
+            ),
             cancellationToken
         );
-        var conflict = CalendarConflictDetector
-            .Detect(participants)
+        var conflict = DetectReportableConflicts(participants)
             .FirstOrDefault(candidate => CalendarConflictKey.Create(candidate) == key);
         if (conflict is null)
             throw new InvalidOperationException("The selected events do not currently constitute an active conflict.");
@@ -131,6 +170,42 @@ public sealed class CalendarConflictService(
         await UpsertOverrideAsync(key, acknowledgement.Note, createdById, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    private async Task AuthorizeOverrideAsync(
+        CalendarConflictKey key,
+        Guid actorId,
+        CancellationToken cancellationToken
+    )
+    {
+        var first = await LoadParticipantAsync(key.FirstEvent, key.ResourceId, cancellationToken);
+        var second = await LoadParticipantAsync(key.SecondEvent, key.ResourceId, cancellationToken);
+        if (
+            first is null
+            || second is null
+            || !await conflictProjection.CanOverrideAsync(first, second, actorId, cancellationToken)
+        )
+            throw UnavailableConflict();
+    }
+
+    private static KeyNotFoundException UnavailableConflict() => new("The requested conflict is unavailable.");
+
+    private IReadOnlyCollection<CalendarConflict> DetectReportableConflicts(
+        IReadOnlyCollection<CalendarConflictParticipant> participants
+    ) =>
+        CalendarConflictDetector
+            .Detect(participants)
+            .Select(conflict =>
+                conflict with
+                {
+                    ReportOnEntry = _rules.ShouldReport(conflict.Entry.EventTypeCode, conflict.Overlaps.EventTypeCode),
+                    ReportOnOverlaps = _rules.ShouldReport(
+                        conflict.Overlaps.EventTypeCode,
+                        conflict.Entry.EventTypeCode
+                    ),
+                }
+            )
+            .Where(conflict => conflict.ReportOnEntry || conflict.ReportOnOverlaps)
+            .ToList();
 
     private async Task<CalendarConflictOverride> UpsertOverrideAsync(
         CalendarConflictKey key,
@@ -243,9 +318,15 @@ public sealed class CalendarConflictService(
             firstParticipant.Start < secondParticipant.Start ? firstParticipant.Start : secondParticipant.Start;
         var rangeEnd = firstParticipant.End > secondParticipant.End ? firstParticipant.End : secondParticipant.End;
         var participants = await LoadParticipantsAsync(
-            new CalendarConflictQuery(rangeStart, rangeEnd, [key.ResourceId]),
+            new CalendarConflictQuery(
+                rangeStart,
+                rangeEnd,
+                [key.ResourceId],
+                ResourceTimeZones: ResolveResourceTimeZones([firstParticipant, secondParticipant])
+            ),
             cancellationToken
         );
+        // Override validity follows the physical pair, even while its reporting rules are disabled.
         return CalendarConflictDetector.Detect(participants).Select(CalendarConflictKey.Create).Contains(key);
     }
 
@@ -280,7 +361,7 @@ public sealed class CalendarConflictService(
             participant = candidate;
         }
 
-        return participant;
+        return participant is null ? null : NormalizeParticipantTimeZone(participant);
     }
 
     private async Task<IReadOnlyCollection<CalendarConflictParticipant>> LoadParticipantsAsync(
@@ -289,11 +370,46 @@ public sealed class CalendarConflictService(
     )
     {
         var participants = new List<CalendarConflictParticipant>();
-        foreach (var provider in _participantProviders)
-            participants.AddRange(await provider.GetParticipantsAsync(query, cancellationToken));
+        foreach (
+            var provider in _participantProviders.Where(provider =>
+                provider is not IContextualCalendarConflictParticipantProvider
+            )
+        )
+            participants.AddRange(
+                (await provider.GetParticipantsAsync(query, cancellationToken)).Select(NormalizeParticipantTimeZone)
+            );
+
+        var contextualQuery = query;
+        if (query.ResourceTimeZones is null)
+            contextualQuery = query with { ResourceTimeZones = ResolveResourceTimeZones(participants) };
+
+        foreach (var provider in _participantProviders.OfType<IContextualCalendarConflictParticipantProvider>())
+            participants.AddRange(
+                (await provider.GetParticipantsAsync(contextualQuery, cancellationToken)).Select(
+                    NormalizeParticipantTimeZone
+                )
+            );
 
         return participants;
     }
+
+    private static CalendarConflictParticipant NormalizeParticipantTimeZone(CalendarConflictParticipant participant) =>
+        participant with
+        {
+            TimeZoneId = TimeZoneService.NormalizeOptionalTimeZoneId(participant.TimeZoneId),
+        };
+
+    private static IReadOnlyCollection<CalendarConflictResourceTimeZone> ResolveResourceTimeZones(
+        IEnumerable<CalendarConflictParticipant> participants
+    ) =>
+        participants
+            .Where(participant => !string.IsNullOrWhiteSpace(participant.TimeZoneId))
+            .Select(participant => new CalendarConflictResourceTimeZone(
+                participant.ResourceId,
+                participant.TimeZoneId!.Trim()
+            ))
+            .DistinctBy(context => (context.ResourceId, context.TimeZoneId.ToUpperInvariant()))
+            .ToList();
 
     private static IReadOnlyDictionary<CalendarConflictKey, CalendarConflictAcknowledgement> NormalizeAcknowledgements(
         IReadOnlyCollection<CalendarConflictAcknowledgement>? acknowledgements

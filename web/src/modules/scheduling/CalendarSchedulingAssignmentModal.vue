@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UaRequiredIndicator from '@/shared/components/UaRequiredIndicator.vue';
 import { mdiDelete, mdiPlus } from '@mdi/js';
 import RRuleEditor from '@/components/recurrence/RRuleEditor.vue';
 import type { AssignmentDefinitionResponse } from '@/api-access/generated/models/assignmentDefinitionResponse';
@@ -15,6 +16,7 @@ import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
+import UaPromptedButton from '@/shared/components/UaPromptedButton.vue';
 import UaFormGrid from '@/shared/components/UaFormGrid.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
@@ -62,6 +64,7 @@ import { resolveSchedulingTimeZoneId } from './schedulingTimeZone';
 import { createLatestRequestGuard } from './latestRequestGuard';
 import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import { toUtcBusinessDateInput } from './assignmentDefinitionDateHelpers';
+import { hasNoAssignmentTypesForWeek, missingAssignmentTypePrompt } from './assignmentDefinitionPrompt';
 import {
   buildLocalDateTimeRange,
   formatTimeOptionRange,
@@ -81,6 +84,7 @@ const props = defineProps<{
   initialAssignmentDefinitionId?: number;
   initialShiftEntryIds?: number[];
   initialAssignedUserId?: string;
+  draggedUserOnly?: boolean;
   timeZone?: string;
 }>();
 
@@ -99,6 +103,7 @@ const canAssignAssignment = computed(() => accessControl.hasPermission(Permissio
 const canDeleteAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsDelete));
 const canExpireAssignment = computed(() => accessControl.hasPermission(Permissions.AssignmentsExpire));
 const canOverrideConflicts = computed(() => accessControl.hasPermission(Permissions.CalendarConflictsOverride));
+const canViewShifts = computed(() => accessControl.hasPermission(Permissions.ShiftsView));
 
 type AssignmentDetailTabId = 'details' | 'edit' | 'delete';
 type AssignmentOpenScope = 'event' | 'series';
@@ -118,6 +123,7 @@ const publishedShiftLinkMessage =
 const isSaving = ref(false);
 const isAssignmentDefinitionModalOpen = ref(false);
 const apiError = ref('');
+const apiInformation = ref('');
 const assignmentLoad = useSchedulingAssignmentLoad();
 const assignmentLoadError = assignmentLoad.error;
 const assignmentLoadState = assignmentLoad.state;
@@ -129,6 +135,12 @@ const pendingConflict = ref<CalendarConflictResponse | null>(null);
 const pendingSaveOptions = ref<SaveAssignmentOptions | null>(null);
 const conflictOverrides = ref<CalendarConflictAcknowledgement[]>([]);
 const conflictRetryError = ref('');
+const hasRestrictedConflicts = ref(false);
+const restrictedConflictMessage =
+  'This assignment has unresolved conflicts with events you do not have permission to view.';
+const pendingConflictErrorMessage = computed(() =>
+  [hasRestrictedConflicts.value ? restrictedConflictMessage : '', conflictRetryError.value].filter(Boolean).join(' '),
+);
 const existingShiftEntryLinks = ref<ShiftEntryLinkFormData[]>([]);
 const existingShiftSeriesLinks = ref<ShiftSeriesLinkFormData[]>([]);
 const users = ref<UserResponse[]>([]);
@@ -170,6 +182,7 @@ const assignmentShiftOptions = useSchedulingAssignmentShiftOptions({
   locationId: activeLocationId,
   date: computed(() => formData.value.date || props.initialDate),
   timeZoneId,
+  enabled: canViewShifts,
   onError: (message) => {
     apiError.value = message;
   },
@@ -186,7 +199,8 @@ const isReadOnly = computed(
   () =>
     modalMode.value === 'view' ||
     (modalMode.value === 'create' && !canCreateAssignment.value) ||
-    (modalMode.value === 'edit' && !canEditAssignment.value),
+    (modalMode.value === 'edit' &&
+      (!canEditAssignment.value || assignmentLoadState.value !== 'loaded' || !assignmentLifecycle.value.canEdit)),
 );
 const isEditMode = computed(() => modalMode.value === 'edit');
 const shouldShowReadOnlyDetails = computed(
@@ -245,6 +259,7 @@ const {
   assignmentDefinitions,
   assignmentDefinitionOptions,
   isLoadingAssignmentDefinitions,
+  isAssignmentDefinitionsLoaded,
   loadAssignmentDefinitions,
   selectedAssignmentDefinition,
   upsertAssignmentDefinition,
@@ -258,6 +273,17 @@ const {
   },
   onLoaded: applyInitialSelections,
 });
+const addAssignmentTypePrompt = computed(() => {
+  if (!canCreateAssignment.value || isReadOnly.value || !isAssignmentDefinitionsLoaded.value) return undefined;
+  return hasNoAssignmentTypesForWeek(
+    assignmentDefinitions.value,
+    activeLocationId.value,
+    calendarStore.anchorDate,
+    timeZoneId.value,
+  )
+    ? missingAssignmentTypePrompt
+    : undefined;
+});
 const locationOptionsWithSelected = computed(() => {
   const locationId = activeLocationId.value;
   if (!locationId || locationsStore.selectOptions.some((option) => Number(option.code) === locationId)) {
@@ -267,8 +293,8 @@ const locationOptionsWithSelected = computed(() => {
   return [{ code: locationId, description: 'Unknown location' }, ...locationsStore.selectOptions];
 });
 const hasAssignmentRecurrence = computed(() => isSeriesScope.value || formData.value.repeatMode === 'custom');
-const shouldShowSingleShiftLinks = computed(() => !hasAssignmentRecurrence.value);
-const shouldShowRecurringShiftLinks = computed(() => hasAssignmentRecurrence.value);
+const shouldShowSingleShiftLinks = computed(() => canViewShifts.value && !hasAssignmentRecurrence.value);
+const shouldShowRecurringShiftLinks = computed(() => canViewShifts.value && hasAssignmentRecurrence.value);
 const targetDateStart = computed(() => {
   const targetDate = formData.value.date || props.initialDate;
   const parsedTargetDate = targetDate ? DateTime.fromISO(targetDate, { zone: timeZoneId.value }).startOf('day') : null;
@@ -409,6 +435,7 @@ watch(
     hasAppliedInitialAssignmentDefinitionSelection.value = false;
     applyInitialSelections();
     apiError.value = '';
+    apiInformation.value = '';
     recurrenceError.value = '';
     formErrors.value = {};
     if (!shouldShowOpenScopeChoice.value) {
@@ -446,6 +473,7 @@ async function selectOpenScope(scope: AssignmentOpenScope) {
   activeTab.value = 'details';
   formData.value = createInitialFormData(props.initialDate);
   apiError.value = '';
+  apiInformation.value = '';
   formErrors.value = {};
   await loadInitialAssignment();
 }
@@ -642,7 +670,14 @@ function updateAssignmentDefinition(value: SelectValue | undefined) {
 }
 
 function applyInitialSelections() {
-  if (props.initialAssignmentDefinitionId && !hasAppliedInitialAssignmentDefinitionSelection.value) {
+  if (modalMode.value !== 'create' && (assignmentLoadState.value !== 'loaded' || isReadOnly.value)) {
+    return;
+  }
+  if (
+    modalMode.value === 'create' &&
+    props.initialAssignmentDefinitionId &&
+    !hasAppliedInitialAssignmentDefinitionSelection.value
+  ) {
     if (
       !assignmentDefinitionOptions.value.some(
         (candidate) => Number(candidate.code) === props.initialAssignmentDefinitionId,
@@ -670,11 +705,18 @@ function applyInitialSelections() {
   }
 
   const hasExplicitInitialShiftEntryIds = props.initialShiftEntryIds !== undefined;
-  const shiftEntryIds = hasExplicitInitialShiftEntryIds
-    ? (props.initialShiftEntryIds ?? [])
-    : resolveOverlappingShiftEntryIdsForCurrentAssignment();
+  const shiftEntryIds = props.initialShiftEntryIds ?? [];
 
   if (shiftEntryIds.length && !initialShiftEntriesAreLoaded(shiftEntryIds)) {
+    return;
+  }
+
+  if (
+    props.draggedUserOnly &&
+    props.initialAssignedUserId &&
+    shiftEntryIds.some((shiftEntryId) => !getShiftEntryUserIds(shiftEntryId).includes(props.initialAssignedUserId!))
+  ) {
+    apiError.value = 'The selected user does not belong to this shift.';
     return;
   }
 
@@ -696,9 +738,11 @@ function applyInitialSelections() {
     updateField(
       'shiftEntryLinks',
       mergedShiftEntryIds.map((shiftEntryId) => {
+        const draggedUserId =
+          props.draggedUserOnly && initialShiftEntryIdSet.has(shiftEntryId) ? props.initialAssignedUserId : undefined;
         const link = existingLinksById.get(shiftEntryId) ?? {
           shiftEntryId,
-          assignedUserIds: getShiftEntryUserIds(shiftEntryId),
+          assignedUserIds: draggedUserId ? [draggedUserId] : getShiftEntryUserIds(shiftEntryId),
         };
         const assignedUserIds =
           props.initialAssignedUserId && initialShiftEntryIdSet.has(shiftEntryId)
@@ -871,6 +915,7 @@ function selectTab(tabId: AssignmentDetailTabId) {
   activeTab.value = tabId;
   modalMode.value = tabId === 'edit' ? 'edit' : 'view';
   apiError.value = '';
+  apiInformation.value = '';
   formErrors.value = {};
   applyScopeRestrictions();
 }
@@ -1203,19 +1248,6 @@ function getLinkUserError(type: 'shiftSeriesLinks' | 'shiftEntryLinks', index: n
   );
 }
 
-function resolveOverlappingShiftEntryIdsForCurrentAssignment() {
-  if (
-    !props.initialAssignmentDefinitionId ||
-    !formData.value.date ||
-    !formData.value.startTime ||
-    !formData.value.endTime
-  ) {
-    return [];
-  }
-
-  return futureShiftEntries.value.filter((entry) => typeof entry.id === 'number').map((entry) => entry.id as number);
-}
-
 function getAssignmentDayRange() {
   const assignmentRange = buildLocalDateTimeRange(
     formData.value.date,
@@ -1329,6 +1361,7 @@ function validateForm(): AssignmentFormData | null {
 }
 
 async function handleSave() {
+  apiInformation.value = '';
   const hasMutationPermission = isEditMode.value ? canEditAssignment.value : canCreateAssignment.value;
   if (isReadOnly.value || !hasMutationPermission) {
     apiError.value = 'You do not have permission to save assignments.';
@@ -1382,14 +1415,24 @@ async function handleSave() {
     const saveResult = await assignmentMutation.save(saveOptions);
 
     if (saveResult.error.value) {
+      if (applyInformationMessage(saveResult.data.value, saveResult.error.value)) {
+        return;
+      }
       const conflictRejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
+      hasRestrictedConflicts.value = conflictRejection?.hasRestrictedConflicts === true;
+      if (hasRestrictedConflicts.value) {
+        apiError.value = restrictedConflictMessage;
+        if (!conflictRejection?.conflicts[0]) return;
+      }
       if (isEditMode.value && !isSeriesScope.value && conflictRejection?.conflicts[0]) {
-        pendingSaveOptions.value = saveOptions;
+        pendingSaveOptions.value = hasRestrictedConflicts.value ? null : saveOptions;
         conflictOverrides.value = [];
         pendingConflict.value = conflictRejection.conflicts[0];
         conflictRetryError.value = '';
         return;
       }
+
+      if (hasRestrictedConflicts.value) return;
 
       if (applyServerValidationErrors(saveResult.error.value.data)) {
         apiError.value = 'Could not save the assignment. Check the highlighted fields.';
@@ -1419,7 +1462,7 @@ async function handleSave() {
 async function handleConflictOverride(note: string) {
   const conflict = pendingConflict.value;
   const saveOptions = pendingSaveOptions.value;
-  if (!conflict || !saveOptions || !canOverrideConflicts.value) {
+  if (!conflict || !saveOptions || !canOverrideConflicts.value || hasRestrictedConflicts.value) {
     return;
   }
 
@@ -1446,7 +1489,21 @@ async function handleConflictOverride(note: string) {
       conflictOverrides: conflictOverrides.value,
     });
     if (saveResult.error.value) {
+      if (applyInformationMessage(saveResult.data.value, saveResult.error.value)) {
+        clearPendingConflict();
+        return;
+      }
       const rejection = getConflictRejection(saveResult.data.value, saveResult.error.value);
+      hasRestrictedConflicts.value = rejection?.hasRestrictedConflicts === true;
+      if (hasRestrictedConflicts.value) {
+        apiError.value = restrictedConflictMessage;
+        pendingSaveOptions.value = null;
+        conflictOverrides.value = [];
+        if (!rejection?.conflicts[0]) {
+          clearPendingConflict();
+          return;
+        }
+      }
       if (rejection?.conflicts[0]) {
         pendingConflict.value = rejection.conflicts[0];
         return;
@@ -1474,6 +1531,7 @@ function clearPendingConflict() {
   pendingSaveOptions.value = null;
   conflictOverrides.value = [];
   conflictRetryError.value = '';
+  hasRestrictedConflicts.value = false;
 }
 
 function getConflictRejection(data: unknown, error: unknown): CalendarConflictRejectionResponse | null {
@@ -1483,7 +1541,7 @@ function getConflictRejection(data: unknown, error: unknown): CalendarConflictRe
       continue;
     }
 
-    const response = candidate as { message?: unknown; conflicts?: unknown };
+    const response = candidate as { message?: unknown; conflicts?: unknown; hasRestrictedConflicts?: unknown };
     if (
       typeof response.message === 'string' &&
       Array.isArray(response.conflicts) &&
@@ -1492,6 +1550,7 @@ function getConflictRejection(data: unknown, error: unknown): CalendarConflictRe
       return {
         message: response.message,
         conflicts: response.conflicts,
+        hasRestrictedConflicts: response.hasRestrictedConflicts === true,
       };
     }
   }
@@ -1524,6 +1583,24 @@ const pendingConflictCurrentEventId = computed(() => {
   return Number(currentEvent?.eventId ?? conflict.entry.eventId);
 });
 
+function applyInformationMessage(data: unknown, error: unknown) {
+  const errorData = error && typeof error === 'object' ? (error as { data?: unknown }).data : undefined;
+  for (const candidate of [data, errorData]) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+
+    const response = candidate as { severity?: unknown; detail?: unknown };
+    if (response.severity === 'info' && typeof response.detail === 'string') {
+      apiError.value = '';
+      apiInformation.value = response.detail;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function applyServerValidationErrors(rawError: unknown) {
   const mapped = mapToValidationErrors(rawError);
   if (!mapped) {
@@ -1540,7 +1617,7 @@ function resolveAssignmentSaveError(error: unknown, fallback: string) {
     (value): value is string => typeof value === 'string' && Boolean(value.trim()),
   );
   if (messages.some((message) => /^A record with the same value already exists\.?$/i.test(message.trim()))) {
-    return 'An assignment of this type already exists for the selected location and date.';
+    return 'An assignment of this type already exists for a selected user at the selected location and date.';
   }
 
   return messages[0] ?? fallback;
@@ -1548,7 +1625,14 @@ function resolveAssignmentSaveError(error: unknown, fallback: string) {
 
 function normalizeAssignmentServerValidationErrors(errors: Record<string, string>) {
   return Object.entries(errors).reduce<Record<string, string>>((result, [fieldName, message]) => {
-    result[mapAssignmentServerValidationField(fieldName)] = message;
+    const formField = mapAssignmentServerValidationField(fieldName);
+    if (formField === 'endTime' && message === 'Value is too small') {
+      result[formField] = 'End time must be after start time.';
+    } else if (formField === 'startTime' && message === 'Value is too large') {
+      result[formField] = 'Start time must be before end time.';
+    } else {
+      result[formField] = message;
+    }
     return result;
   }, {});
 }
@@ -1646,12 +1730,16 @@ async function loadInitialAssignment() {
       formData.value = createFormDataFromAssignmentEntry(assignment as AssignmentEntryResponse);
       existingShiftEntryLinks.value = (formData.value.shiftEntryLinks ?? []).map((link) => ({ ...link }));
     }
-    applyScopeRestrictions();
-    if (props.initialShiftEntryIds !== undefined) {
-      hasAppliedInitialShiftEntrySelection.value = false;
-      applyInitialSelections();
+    if (!assignmentLifecycle.value.canEdit) {
+      modalMode.value = 'view';
+      activeTab.value = 'details';
     }
+    applyScopeRestrictions();
   });
+  if (assignmentLoadState.value === 'loaded' && props.initialShiftEntryIds !== undefined) {
+    hasAppliedInitialShiftEntrySelection.value = false;
+    applyInitialSelections();
+  }
 }
 
 function applyScopeRestrictions() {
@@ -1786,6 +1874,9 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>
+      <UaAlert v-if="apiInformation" type="info" @close="apiInformation = ''">
+        {{ apiInformation }}
+      </UaAlert>
       <UaAlert v-if="assignmentLifecycle.status === 'published'" type="info">
         {{ publishedAssignmentMessage }}
       </UaAlert>
@@ -1830,10 +1921,11 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
     />
 
     <UaFormGrid v-else-if="!isDeleteTab" label-width="150px">
-      <label class="assignment-modal__label" for="assignment-modal-location">Location</label>
+      <label class="assignment-modal__label" for="assignment-modal-location">Location<UaRequiredIndicator /></label>
       <div class="assignment-modal__field">
         <UaSelect
           id="assignment-modal-location"
+          aria-required="true"
           :model-value="formData.locationId"
           :items="locationOptionsWithSelected"
           :error="Boolean(formErrors.locationId)"
@@ -1845,11 +1937,14 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
         </p>
       </div>
 
-      <label class="assignment-modal__label" for="assignment-modal-assignment">Assignment Template</label>
+      <label class="assignment-modal__label" for="assignment-modal-assignment">
+        Assignment Template<UaRequiredIndicator />
+      </label>
       <div class="assignment-modal__field">
         <div class="assignment-modal__assignment-input">
           <UaSelect
             id="assignment-modal-assignment"
+            aria-required="true"
             :model-value="formData.assignmentDefinitionId ?? null"
             :items="assignmentDefinitionOptions"
             :error="Boolean(formErrors.assignmentDefinitionId)"
@@ -1857,16 +1952,17 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
             :loading="isLoadingAssignmentDefinitions"
             @update:model-value="updateAssignmentDefinition"
           />
-          <UaBtn
+          <UaPromptedButton
             v-if="!isReadOnly && canCreateAssignment"
             class="assignment-modal__add-type-button"
             variant="flat"
+            :prompt="addAssignmentTypePrompt"
             :disabled="fieldsDisabled"
             aria-label="Add Assignment Template"
             @click="openAssignmentDefinitionModal"
           >
             <v-icon :icon="mdiPlus" size="18" />
-          </UaBtn>
+          </UaPromptedButton>
         </div>
         <p v-if="formErrors.assignmentDefinitionId" class="assignment-modal__field-error">
           {{ formErrors.assignmentDefinitionId }}
@@ -1881,6 +1977,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       <UaTextField
         id="assignment-modal-capacity"
         label="Capacity"
+        required
         type="number"
         min="0"
         :model-value="String(formData.capacity ?? '')"
@@ -1892,6 +1989,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       <UaTextField
         id="assignment-modal-date"
         label="Date"
+        required
         type="date"
         :model-value="formData.date"
         :error-messages="formErrors.date"
@@ -1902,10 +2000,11 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
       <span id="assignment-modal-time-label" class="assignment-modal__label">Time</span>
       <div class="assignment-modal__time-fields" aria-labelledby="assignment-modal-time-label">
         <div class="assignment-modal__field">
-          <span class="assignment-modal__time-caption">Start</span>
+          <span class="assignment-modal__time-caption">Start<UaRequiredIndicator /></span>
           <UaSelect
             :model-value="formData.startTime"
             aria-label="Start Time"
+            aria-required="true"
             :items="timeOptions"
             :error="Boolean(formErrors.startTime)"
             :disabled="fieldsDisabled"
@@ -1916,10 +2015,11 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
           </p>
         </div>
         <div class="assignment-modal__field">
-          <span class="assignment-modal__time-caption">End</span>
+          <span class="assignment-modal__time-caption">End<UaRequiredIndicator /></span>
           <UaSelect
             :model-value="formData.endTime"
             aria-label="End Time"
+            aria-required="true"
             :items="timeOptions"
             :error="Boolean(formErrors.endTime)"
             :disabled="fieldsDisabled"
@@ -1954,6 +2054,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
           :model-value="formData.recurrenceRule ?? null"
           :start-date="formData.date ?? null"
           :disabled="fieldsDisabled"
+          show-required
           use-parent-grid
           @update:model-value="handleRecurrenceChange"
           @change="handleRecurrenceChange"
@@ -2028,6 +2129,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               item-title="description"
               item-value="code"
               label="Users"
+              aria-required="true"
               multiple
               chips
               closable-chips
@@ -2035,7 +2137,9 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               :error="Boolean(getLinkUserError('shiftSeriesLinks', index))"
               :disabled="fieldsDisabled || !canAssignAssignment"
               @update:model-value="(value: SelectValue | undefined) => updateShiftSeriesLinkUsers(index, value)"
-            />
+            >
+              <template #label>Users<UaRequiredIndicator /></template>
+            </v-select>
             <p v-if="getLinkUserError('shiftSeriesLinks', index)" class="assignment-modal__field-error">
               At least one user is required.
             </p>
@@ -2098,6 +2202,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               item-title="description"
               item-value="code"
               label="Assigned Shift Users"
+              aria-required="true"
               multiple
               chips
               closable-chips
@@ -2105,7 +2210,9 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
               :error="Boolean(getLinkUserError('shiftEntryLinks', index))"
               :disabled="fieldsDisabled || !canAssignAssignment"
               @update:model-value="(value: SelectValue | undefined) => updateShiftEntryLinkUsers(index, value)"
-            />
+            >
+              <template #label>Assigned Shift Users<UaRequiredIndicator /></template>
+            </v-select>
             <p v-if="getLinkUserError('shiftEntryLinks', index)" class="assignment-modal__field-error">
               At least one user is required.
             </p>
@@ -2161,9 +2268,9 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
     :current-event-id="pendingConflictCurrentEventId"
     :time-zone="timeZoneId"
     :loading="isSaving"
-    :error-message="conflictRetryError"
+    :error-message="pendingConflictErrorMessage"
     :can-edit-event="false"
-    :can-override="canOverrideConflicts"
+    :can-override="canOverrideConflicts && !hasRestrictedConflicts"
     @close="clearPendingConflict"
     @override="handleConflictOverride"
   />
@@ -2235,14 +2342,11 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
   align-items: start;
 }
 
-.assignment-modal__add-type-button {
+:global(.assignment-modal__add-type-button.v-btn) {
   justify-self: stretch;
-}
-
-:deep(.assignment-modal__add-type-button.v-btn) {
   background: var(--ua-icon-success);
   border-radius: var(--ua-border-radius);
-  color: #fff;
+  color: rgb(var(--v-theme-on-primary));
   height: 100%;
   padding-inline: 0;
 }
@@ -2323,7 +2427,7 @@ function getInitialOpenScope(): AssignmentOpenScope | null {
     grid-template-columns: 1fr;
   }
 
-  .assignment-modal__add-type-button {
+  :global(.assignment-modal__add-type-button.v-btn) {
     justify-self: start;
   }
 }

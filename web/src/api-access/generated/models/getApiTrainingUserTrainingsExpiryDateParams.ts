@@ -9,6 +9,8 @@ import type { MaybeRef } from 'vue';
 export type OriginalGetApiTrainingUserTrainingsExpiryDateParams = {
   TrainingId?: number;
   AwardedOn?: string;
+  UserId?: string | null;
+  AllDay?: boolean | null;
 };
 
 export type GetApiTrainingUserTrainingsExpiryDateParams = MaybeRef<OriginalGetApiTrainingUserTrainingsExpiryDateParams>;

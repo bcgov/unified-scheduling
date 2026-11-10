@@ -16,6 +16,7 @@ import {
   createInitialShiftFormData,
   createInitialShiftFormDataForCreateAction,
   normalizeShiftFormTimes,
+  normalizeShiftServerValidationErrors,
   validateShiftFormData,
   type ShiftResourceFormData,
 } from './calendarSchedulingShiftForm';
@@ -43,6 +44,7 @@ const props = defineProps<{
   initialDate?: string;
   initialAssignmentEntryId?: number;
   initialAssignmentEvents?: CalendarEventBase[];
+  missingShiftWarning?: boolean;
   resource?: CalendarMatrixResource;
   timeZone?: string;
 }>();
@@ -68,6 +70,7 @@ const canCreateLoanOut = computed(
     (accessControl.featureFlags.value?.LoanOut?.enabled ?? false) &&
     accessControl.hasPermission(Permissions.LoanOutCreateAndAssign),
 );
+const canViewAssignments = computed(() => accessControl.hasPermission(Permissions.AssignmentsView));
 
 const isSaving = ref(false);
 const activeTab = ref<'schedule' | 'leave' | 'loanout'>('schedule');
@@ -84,6 +87,7 @@ const loanOutFormData = ref<LoanOutFormData>({
 });
 const leaveHasValidationError = ref(false);
 const leaveFormData = ref<LeaveFormData>({
+  allDay: false,
   userIds: props.resource?.type === 'user' ? [props.resource.id] : [],
   date: props.initialDate ?? '',
   startTime: defaultStartTime,
@@ -92,6 +96,7 @@ const leaveFormData = ref<LeaveFormData>({
 });
 const createdShiftId = ref<number | null>(null);
 const hasCreatedUnpublishedShift = computed(() => createdShiftId.value !== null);
+const refreshCalendarOnClose = ref(false);
 const apiError = ref('');
 const formErrors = ref<Record<string, string>>({});
 const recurrenceError = ref('');
@@ -126,6 +131,7 @@ const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLo
     activeLocationId,
     activeTimeZoneId: timeZoneId,
     isSeriesScope,
+    enabled: canViewAssignments,
     onError: (message) => {
       apiError.value = message;
     },
@@ -157,6 +163,7 @@ watch(
   ([resource, initialDate]) => {
     formData.value = createInitialFormData(resource, initialDate);
     leaveFormData.value = {
+      allDay: false,
       userIds: resource?.type === 'user' ? [resource.id] : [],
       date: initialDate ?? '',
       startTime: '',
@@ -174,6 +181,7 @@ watch(
     };
     loanOutFormErrors.value = {};
     createdShiftId.value = null;
+    refreshCalendarOnClose.value = false;
     apiError.value = '';
     recurrenceError.value = '';
     formErrors.value = {};
@@ -290,6 +298,10 @@ function formatInitialAssignmentEventLabel(event: CalendarEventBase) {
 
 function handleClose() {
   if (!isSaving.value) {
+    if (refreshCalendarOnClose.value) {
+      calendarStore.refresh();
+      refreshCalendarOnClose.value = false;
+    }
     emit('close');
   }
 }
@@ -471,7 +483,7 @@ async function handleSaveLoanOut() {
   }
 }
 function handlePublicationFailure() {
-  calendarStore.refresh();
+  refreshCalendarOnClose.value = true;
   apiError.value =
     'The shift was created and remains Draft, but it could not be published. Close and reopen it to continue.';
 }
@@ -512,11 +524,9 @@ function applyServerValidationErrors(rawError: unknown) {
     return false;
   }
 
-  formErrors.value = mapped;
-  if (mapped.loanOut) {
-    apiError.value = mapped.loanOut;
-  } else if (mapped.userIds) {
-    apiError.value = 'One or more selected employees already have a shift at this location on the selected date.';
+  formErrors.value = normalizeShiftServerValidationErrors(mapped);
+  if (formErrors.value.loanOut) {
+    apiError.value = formErrors.value.loanOut;
   }
   return true;
 }
@@ -524,6 +534,10 @@ function applyServerValidationErrors(rawError: unknown) {
 <template>
   <UaModal :title="modalTitle" width="900" :loading="isSaving" @close="handleClose">
     <template #alerts>
+      <UaAlert v-if="missingShiftWarning && activeTab === 'schedule'" type="warning" :closable="false">
+        This user does not have a shift on this day. Creating a shift here will also link the user to the selected
+        assignment.
+      </UaAlert>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>
@@ -550,6 +564,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :assignment-warning="assignmentWarning"
             :is-loading-assignments="isLoadingAssignments"
             :show-series-assignment="isSeriesScope"
+            :show-assignment-links="canViewAssignments"
             @recurrence-change="handleRecurrenceChange"
             @recurrence-invalid="handleRecurrenceInvalid"
           />
@@ -564,6 +579,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :employee-options="employeeOptions"
             :loading-employees="isLoadingUsers"
             :time-zone-id="timeZoneId"
+            show-required
             show-employees
             show-repeat
             @validation-change="leaveHasValidationError = $event"
@@ -580,6 +596,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :loading-employees="isLoadingUsers"
             :form-errors="loanOutFormErrors"
             :time-zone-id="timeZoneId"
+            show-required
             show-employees
             show-repeat
             @validation-change="loanOutHasValidationError = $event"

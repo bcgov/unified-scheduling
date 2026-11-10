@@ -16,6 +16,7 @@ import UaTextField from '@/shared/components/UaTextField.vue';
 import { useTrainingLookup } from '@/modules/training/trainingLookupApi';
 import { useUserTrainingReport, type UserTrainingReportItem } from './userTrainingReportApi';
 import { exportReportToCsv, type ReportCsvColumn } from './reportCsvExport';
+import { toCalendarDateString } from '@/utils/date';
 
 const maxMultiSelectOptions = 25;
 
@@ -256,8 +257,7 @@ function formatDateCellValue(value: unknown): unknown {
     return value;
   }
 
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? value : new Date(parsed).toLocaleDateString();
+  return toCalendarDateString(value) ?? value;
 }
 </script>
 

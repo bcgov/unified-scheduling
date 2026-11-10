@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { mdiRepeat } from '@mdi/js';
+import { useRoute } from 'vue-router';
 import CalendarSchedulingShiftDetailModal from './CalendarSchedulingShiftDetailModal.vue';
 import CalendarSchedulingLeaveDetailModal from './CalendarSchedulingLeaveDetailModal.vue';
 import CalendarSchedulingLoanOutDetailModal from './CalendarSchedulingLoanOutDetailModal.vue';
@@ -9,11 +10,11 @@ import CalendarSchedulingAssignmentModal from './CalendarSchedulingAssignmentMod
 import CalendarSchedulingAssignmentEventContent from './CalendarSchedulingAssignmentEventContent.vue';
 import CalendarSchedulingAssignmentDefinitionCreateModal from './CalendarSchedulingAssignmentDefinitionCreateModal.vue';
 import CalendarSchedulingConflictOverlay from './CalendarSchedulingConflictOverlay.vue';
+import CalendarSchedulingDistributionModal from './CalendarSchedulingDistributionModal.vue';
 import CalendarSchedulingPublishModal from './CalendarSchedulingPublishModal.vue';
 import CalendarConflictDetailModal from '@/modules/calendar/components/CalendarConflictDetailModal.vue';
-import UaBtn from '@/shared/components/UaBtn.vue';
-import UaModal from '@/shared/components/UaModal.vue';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
+import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
 import { useCalendarAlertStore } from '@/modules/calendar/calendarAlertStore';
 import { resolveCalendarEventId } from '@/modules/calendar/calendarSelectors';
 import CalendarMatrixCellHeader from '@/modules/calendar/components/matrix/CalendarMatrixCellHeader.vue';
@@ -43,27 +44,32 @@ import { parsePositiveInteger } from './calendarSchedulingShiftIds';
 import {
   calendarSchedulingAssignmentModalAssignmentDefinitionId,
   calendarSchedulingAssignmentModalAssignedUserId,
+  calendarSchedulingAssignmentModalDraggedUserOnly,
   calendarSchedulingAssignmentModalDate,
   calendarSchedulingAssignmentModalEditScope,
   calendarSchedulingAssignmentModalEntryId,
   calendarSchedulingAssignmentModalMode,
   calendarSchedulingAssignmentModalSeriesId,
   calendarSchedulingAssignmentModalShiftEntryIds,
+  calendarSchedulingAssignmentTypeCreateRequest,
   calendarSchedulingConflictEventId,
   calendarSchedulingConflictHeaderId,
+  calendarSchedulingDistributionRequest,
   calendarSchedulingDetailEvent,
   calendarSchedulingDetailInitialOpenScope,
-  calendarSchedulingExistingShiftChoice,
+  calendarSchedulingDetailInitialTab,
   calendarSchedulingResourceActionAssignmentEntryId,
   calendarSchedulingResourceActionAssignmentEvents,
+  calendarSchedulingResourceActionMissingShiftWarning,
   calendarSchedulingResourceActionDate,
   calendarSchedulingResourceActionResource,
   calendarSchedulingLeaveDetailEvent,
   calendarSchedulingLoanOutDetailEvent,
   calendarSchedulingPublishRequest,
   closeCalendarSchedulingAssignmentModal,
-  closeCalendarSchedulingExistingShiftChoice,
+  closeCalendarSchedulingAssignmentTypeCreateModal,
   closeCalendarSchedulingEventDetail,
+  closeCalendarSchedulingDistributionModal,
   closeCalendarSchedulingPublishModal,
   closeCalendarSchedulingResourceActionModal,
   closeCalendarSchedulingLeaveDetail,
@@ -73,29 +79,35 @@ import {
   isCalendarSchedulingResourceActionModalOpen,
   showCalendarSchedulingAssignmentModal,
   showCalendarSchedulingEventDetail,
-  showCalendarSchedulingResourceActionModal,
 } from './calendarSchedulingState';
-import { canCreateShifts, canEditShifts, canCreateLeave, canEditLeave } from './calendarSchedulingPermissions';
+import { canEditShifts } from './calendarSchedulingPermissions';
 import { isCalendarSchedulingEvent, isLeaveEvent } from './calendarSchedulingData';
 
 const props = defineProps<{
   model: CalendarMatrixViewModel;
+  period?: CalendarPeriod;
   runtimeContext?: CalendarRuntimeContext;
   showAssignmentContent?: boolean;
+  renderToken?: string;
 }>();
 
 const emit = defineEmits<{
   (event: 'eventClick', payload: CalendarEventBase): void;
+  (event: 'renderComplete', renderToken?: string): void;
 }>();
 
 const calendarStore = useCalendarStore();
 const calendarAlertStore = useCalendarAlertStore();
+const route = useRoute();
 const assignmentDefinitionId = ref<number>();
 const conflictEventCellKey = ref<string>();
-const canCreateShift = computed(() => Boolean(props.runtimeContext && canCreateShifts(props.runtimeContext)));
 const canEditShift = computed(() => Boolean(props.runtimeContext && canEditShifts(props.runtimeContext)));
-const canAllowCreateLeave = computed(() => Boolean(props.runtimeContext && canCreateLeave(props.runtimeContext)));
-const canAllowEditLeave = computed(() => Boolean(props.runtimeContext && canEditLeave(props.runtimeContext)));
+const includeAssignmentTimes = computed(
+  () =>
+    props.runtimeContext?.presentationMode !== 'print' ||
+    props.showAssignmentContent === true ||
+    route.query.includeAssignmentTimes !== 'false',
+);
 
 function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
   if (item.type !== 'assignment') {
@@ -112,7 +124,13 @@ function handleSidePanelItemClick(item: CalendarMatrixSidePanelItem) {
 
 function handleAssignmentDefinitionSaved() {
   assignmentDefinitionId.value = undefined;
+  closeCalendarSchedulingAssignmentTypeCreateModal();
   calendarStore.refresh();
+}
+
+function handleAssignmentDefinitionClose() {
+  assignmentDefinitionId.value = undefined;
+  closeCalendarSchedulingAssignmentTypeCreateModal();
 }
 
 function isRecurringLeave(event: CalendarEventBase) {
@@ -131,37 +149,6 @@ function handleSchedulePublished(count: number) {
     source: 'calendar-scheduling',
   });
   calendarStore.refresh();
-}
-
-function editExistingShift() {
-  if (!canEditShift.value && !canAllowEditLeave.value) {
-    return;
-  }
-
-  const choice = calendarSchedulingExistingShiftChoice.value;
-  if (!choice) {
-    return;
-  }
-
-  closeCalendarSchedulingExistingShiftChoice();
-  showCalendarSchedulingEventDetail(choice.shiftEvent, { initialOpenScope: 'event' });
-}
-
-function createNewShift() {
-  if (!canCreateShift.value && !canAllowCreateLeave.value) {
-    return;
-  }
-
-  const choice = calendarSchedulingExistingShiftChoice.value;
-  if (!choice) {
-    return;
-  }
-
-  closeCalendarSchedulingExistingShiftChoice();
-  showCalendarSchedulingResourceActionModal(choice.resource, choice.date, {
-    assignmentEntryId: choice.assignmentEntryId,
-    assignmentEvents: choice.assignmentEvents,
-  });
 }
 
 function eventCellKey(cell: CalendarMatrixCell, event: CalendarEventBase) {
@@ -187,14 +174,16 @@ function handleEventAction(
 }
 
 const selectedConflict = ref<CalendarConflict>();
-const selectedConflictEventId = ref<number>();
+const selectedConflictEventId = ref<CalendarMatrixConflictItem['currentEventId']>();
 const conflictOverrideLoading = ref(false);
 const conflictErrorMessage = ref('');
 function canEditConflictEvent(event: CalendarConflictEvent) {
-  return (
-    event.sourceModule === 'scheduling' &&
-    props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true
-  );
+  if (event.sourceModule !== 'scheduling') return false;
+  const scheduledEvent = findScheduledEvent(Number(event.eventId));
+  if (!scheduledEvent) return false;
+  return isAssignmentEvent(scheduledEvent)
+    ? props.runtimeContext?.permissions?.includes(Permissions.AssignmentsEdit) === true
+    : canEditShift.value;
 }
 const canOverrideConflicts = computed(
   () => props.runtimeContext?.permissions?.includes(Permissions.CalendarConflictsOverride) === true,
@@ -316,8 +305,10 @@ function isAssignmentEvent(event: CalendarEventBase) {
   <CalendarMatrixView
     class="calendar-scheduling-matrix"
     :model="model"
+    :render-token="renderToken"
     :runtime-context="runtimeContext"
     @event-click="emit('eventClick', $event)"
+    @render-complete="emit('renderComplete', $event)"
     @side-panel-item-click="handleSidePanelItemClick"
   >
     <template #cell-header="{ cell, header, onHeaderAction, onHeaderClick }">
@@ -337,6 +328,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
             calendarSchedulingConflictHeaderId === getCalendarSchedulingHeaderConflictKey(cell, header.id)
           "
           :conflicts="header.conflicts ?? []"
+          :restricted-warnings="header.restrictedWarnings"
           :icon="header.action?.icon"
           :time-zone="model.timeZone"
           @resolve="resolveHeaderConflict($event, cell, header, onHeaderAction)"
@@ -357,6 +349,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
           :display="display"
           :variant="group.variant"
           :show-color-bar="group.showColorBar"
+          :show-time="includeAssignmentTimes || !isAssignmentEvent(event)"
           :time-zone="model.timeZone"
           @event-action="handleEventAction($event, cell, onEventAction)"
           @drag-start="onDragStart"
@@ -378,6 +371,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
         <CalendarSchedulingConflictOverlay
           v-if="calendarSchedulingConflictEventId === event.id && conflictEventCellKey === eventCellKey(cell, event)"
           :conflicts="group.events.find((item) => item.event === event)?.conflicts ?? []"
+          :restricted-warnings="group.events.find((item) => item.event === event)?.restrictedWarnings"
           :icon="display?.action?.icon"
           :time-zone="model.timeZone"
           @resolve="resolveConflict($event, event, onEventAction)"
@@ -390,6 +384,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     v-if="calendarSchedulingDetailEvent"
     :event="calendarSchedulingDetailEvent"
     :initial-open-scope="calendarSchedulingDetailInitialOpenScope"
+    :initial-tab="calendarSchedulingDetailInitialTab"
     @close="closeCalendarSchedulingEventDetail"
   />
 
@@ -407,10 +402,12 @@ function isAssignmentEvent(event: CalendarEventBase) {
     @close="closeCalendarSchedulingLoanOutDetail"
   />
   <CalendarSchedulingAssignmentDefinitionCreateModal
-    v-if="assignmentDefinitionId"
+    v-if="assignmentDefinitionId || calendarSchedulingAssignmentTypeCreateRequest"
     :assignment-definition-id="assignmentDefinitionId"
-    mode="view"
-    @close="assignmentDefinitionId = undefined"
+    :current-location-id="calendarSchedulingAssignmentTypeCreateRequest?.locationId"
+    :initial-effective-date="calendarSchedulingAssignmentTypeCreateRequest?.startDate"
+    :mode="assignmentDefinitionId ? 'view' : 'create'"
+    @close="handleAssignmentDefinitionClose"
     @saved="handleAssignmentDefinitionSaved"
   />
 
@@ -419,6 +416,18 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :request="calendarSchedulingPublishRequest"
     @close="closeCalendarSchedulingPublishModal"
     @published="handleSchedulePublished"
+  />
+
+  <CalendarSchedulingDistributionModal
+    v-if="calendarSchedulingDistributionRequest"
+    :location-id="calendarSchedulingDistributionRequest.locationId"
+    :start-date="calendarSchedulingDistributionRequest.startDate"
+    :end-date="calendarSchedulingDistributionRequest.endDate"
+    :period="props.period ?? 'week'"
+    :view="showAssignmentContent ? 'assignments' : 'schedule'"
+    :model="model"
+    :runtime-context="runtimeContext"
+    @close="closeCalendarSchedulingDistributionModal"
   />
 
   <CalendarSchedulingAssignmentModal
@@ -431,23 +440,10 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :initial-assignment-definition-id="calendarSchedulingAssignmentModalAssignmentDefinitionId"
     :initial-shift-entry-ids="calendarSchedulingAssignmentModalShiftEntryIds"
     :initial-assigned-user-id="calendarSchedulingAssignmentModalAssignedUserId"
+    :dragged-user-only="calendarSchedulingAssignmentModalDraggedUserOnly"
     :time-zone="model.timeZone"
     @close="closeCalendarSchedulingAssignmentModal"
   />
-
-  <UaModal
-    v-if="calendarSchedulingExistingShiftChoice"
-    title="Shift exists"
-    width="520"
-    @close="closeCalendarSchedulingExistingShiftChoice"
-  >
-    <p>This team member already has an active shift on this date. Would you like to edit it or create a new shift?</p>
-
-    <template #actions>
-      <UaBtn v-if="canCreateShift" variant="outlined" @click="createNewShift"> Create new shift </UaBtn>
-      <UaBtn v-if="canEditShift" color="primary" variant="flat" @click="editExistingShift">Edit existing shift</UaBtn>
-    </template>
-  </UaModal>
 
   <CalendarConflictDetailModal
     v-if="selectedConflict && selectedConflictEventId != null"
@@ -467,6 +463,7 @@ function isAssignmentEvent(event: CalendarEventBase) {
     :initial-date="calendarSchedulingResourceActionDate"
     :initial-assignment-entry-id="calendarSchedulingResourceActionAssignmentEntryId"
     :initial-assignment-events="calendarSchedulingResourceActionAssignmentEvents"
+    :missing-shift-warning="calendarSchedulingResourceActionMissingShiftWarning"
     :resource="calendarSchedulingResourceActionResource"
     :time-zone="model.timeZone"
     @close="closeCalendarSchedulingResourceActionModal"
@@ -483,18 +480,12 @@ function isAssignmentEvent(event: CalendarEventBase) {
   z-index: 4;
 }
 
-.calendar-scheduling-event-block {
-  position: relative;
-}
-
+.calendar-scheduling-event-block,
 .calendar-scheduling-header {
   position: relative;
 }
 
-.calendar-scheduling-header.has-conflict-overlay {
-  z-index: 5;
-}
-
+.calendar-scheduling-header.has-conflict-overlay,
 .calendar-scheduling-event-block.has-conflict-overlay {
   z-index: 5;
 }

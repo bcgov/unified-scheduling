@@ -21,6 +21,7 @@ import {
   createShiftFormDataFromEvent,
   createShiftFormDataFromSeries,
   normalizeShiftFormTimes,
+  normalizeShiftServerValidationErrors,
   validateShiftFormData,
   type ShiftResourceFormData,
 } from './calendarSchedulingShiftForm';
@@ -40,6 +41,7 @@ type ShiftOpenScope = 'event' | 'series';
 const props = defineProps<{
   event: CalendarEventBase;
   initialOpenScope?: ShiftOpenScope;
+  initialTab?: 'details' | 'edit';
 }>();
 
 const emit = defineEmits<{
@@ -53,10 +55,12 @@ const hasShiftEditPermission = computed(() => accessControl.hasPermission(Permis
 const canPublishShift = computed(() => accessControl.hasPermission(Permissions.SchedulePublish));
 const hasShiftDeletePermission = computed(() => accessControl.hasPermission(Permissions.ShiftsDelete));
 const hasShiftExpirePermission = computed(() => accessControl.hasPermission(Permissions.ShiftsExpire));
+const canViewAssignments = computed(() => accessControl.hasPermission(Permissions.AssignmentsView));
 
 const activeTab = ref<ShiftDetailTabId>('details');
 const selectedOpenScope = ref<ShiftOpenScope | null>(getInitialOpenScope());
 const isSaving = ref(false);
+const refreshCalendarOnClose = ref(false);
 const apiError = ref('');
 const isLoadingSeries = ref(false);
 const formErrors = ref<Record<string, string>>({});
@@ -159,6 +163,7 @@ const { assignmentEntryOptions, assignmentSeriesOptions, assignmentWarning, isLo
     activeLocationId,
     activeTimeZoneId,
     isSeriesScope,
+    enabled: canViewAssignments,
     onError: (message) => {
       apiError.value = message;
     },
@@ -172,6 +177,7 @@ const { detailRows } = useSchedulingShiftDetailRows({
   assignmentEntryOptions,
   assignmentSeriesOptions,
   locationOptions,
+  showAssignmentDetails: canViewAssignments,
 });
 
 watch(
@@ -187,8 +193,11 @@ watch(
     recurrenceError.value = '';
     isDeleteConfirmed.value = false;
 
-    if (!resolveShiftSeriesId()) {
+    if (!resolveShiftSeriesId() || (props.initialTab === 'edit' && selectedOpenScope.value === 'event')) {
       await loadSelectedEntry();
+    }
+    if (props.initialTab === 'edit' && selectedEntry.value && canEditShift.value) {
+      activeTab.value = 'edit';
     }
   },
   { immediate: true },
@@ -354,8 +363,7 @@ async function handleSaveEdit() {
         return;
       }
 
-      calendarStore.refresh();
-      emit('close');
+      refreshCalendarAndClose();
       return;
     }
 
@@ -378,8 +386,7 @@ async function handleSaveEdit() {
       return;
     }
 
-    calendarStore.refresh();
-    emit('close');
+    refreshCalendarAndClose();
   } catch (error: unknown) {
     apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
   } finally {
@@ -388,13 +395,31 @@ async function handleSaveEdit() {
 }
 
 async function reloadShiftAfterPublicationFailure(kind: 'entry' | 'series') {
+  refreshCalendarOnClose.value = true;
+
   if (kind === 'series') {
     await loadSelectedSeries();
   } else {
     await loadSelectedEntry();
   }
+}
 
+function handleClose() {
+  if (isSaving.value || isLoadingSeries.value) {
+    return;
+  }
+
+  if (refreshCalendarOnClose.value) {
+    calendarStore.refresh();
+    refreshCalendarOnClose.value = false;
+  }
+  emit('close');
+}
+
+function refreshCalendarAndClose() {
+  refreshCalendarOnClose.value = false;
   calendarStore.refresh();
+  emit('close');
 }
 
 async function handleDeleteShift() {
@@ -426,8 +451,7 @@ async function handleDeleteShift() {
       return;
     }
 
-    calendarStore.refresh();
-    emit('close');
+    refreshCalendarAndClose();
   } catch (error: unknown) {
     apiError.value = error instanceof Error ? error.message : 'An unexpected error occurred.';
   } finally {
@@ -543,6 +567,17 @@ async function publishShiftEntry(id: number | null, shouldPublish: boolean) {
 
 function resolveShiftPublishError(data: unknown, error: unknown) {
   const errorData = error && typeof error === 'object' ? (error as { data?: unknown }).data : undefined;
+  if (
+    [data, errorData].some(
+      (candidate) =>
+        candidate &&
+        typeof candidate === 'object' &&
+        'hasRestrictedConflicts' in candidate &&
+        candidate.hasRestrictedConflicts === true,
+    )
+  ) {
+    return 'The shift has unresolved conflicts with events you do not have permission to view.';
+  }
   const validationMessages = [data, errorData].flatMap((candidate) => {
     const mapped = mapToValidationErrors(candidate);
     return mapped ? Object.values(mapped) : [];
@@ -655,11 +690,9 @@ function applyServerValidationErrors(rawError: unknown) {
     return false;
   }
 
-  formErrors.value = mapped;
-  if (mapped.loanOut) {
-    apiError.value = mapped.loanOut;
-  } else if (mapped.userIds) {
-    apiError.value = 'One or more selected employees already have a shift at this location on the selected date.';
+  formErrors.value = normalizeShiftServerValidationErrors(mapped);
+  if (formErrors.value.loanOut) {
+    apiError.value = formErrors.value.loanOut;
   }
   return true;
 }
@@ -690,7 +723,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
 </script>
 
 <template>
-  <UaModal :title="modalTitle" width="760" @close="emit('close')">
+  <UaModal :title="modalTitle" width="760" :loading="isSaving || isLoadingSeries" @close="handleClose">
     <template #alerts>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
@@ -760,6 +793,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
           :assignment-warning="assignmentWarning"
           :is-loading-assignments="isLoadingAssignments"
           :show-series-assignment="isSeriesScope"
+          :show-assignment-links="canViewAssignments"
           @recurrence-change="handleRecurrenceChange"
           @recurrence-invalid="handleRecurrenceInvalid"
         />
@@ -795,7 +829,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
         <UaBtn color="primary" variant="flat" :loading="isSaving" @click="handleSaveEdit">Save</UaBtn>
       </template>
       <template v-else>
-        <UaBtn variant="outlined" :disabled="isSaving" @click="emit('close')">Close</UaBtn>
+        <UaBtn variant="outlined" :disabled="isSaving" @click="handleClose">Close</UaBtn>
         <UaBtn color="error" variant="flat" :disabled="!canDeleteShift" :loading="isSaving" @click="handleDeleteShift">
           {{ isPublishedShift ? 'Cancel Shift' : 'Delete' }}
         </UaBtn>

@@ -1,4 +1,9 @@
-import type { CalendarConflict, CalendarEventBase } from '../../calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarConflictEventIdentity,
+  CalendarEventBase,
+  CalendarRestrictedConflictWarning,
+} from '../../calendarTypes';
 import type { LoanOutMetaData } from '@/api-access/generated/models';
 
 export const CalendarMatrixEventGroupVariant = {
@@ -43,10 +48,12 @@ export interface CalendarMatrixResourceActionDisplay {
   label?: string;
   icon?: string;
   ariaLabel: string;
+  prompt?: string;
 }
 
 export interface CalendarMatrixEventDisplay {
   color?: string;
+  borderStyle?: 'solid' | 'dotted';
   status?: string;
   draggable?: boolean;
   action?: CalendarMatrixActionDisplay;
@@ -54,7 +61,7 @@ export interface CalendarMatrixEventDisplay {
 
 export interface CalendarMatrixConflictItem {
   conflict: CalendarConflict;
-  currentEventId: number;
+  currentEventId: number | CalendarConflictEventIdentity;
 }
 
 export interface CalendarMatrixDay {
@@ -68,6 +75,7 @@ export interface CalendarMatrixResource {
   type: string;
   sourceModule?: string;
   title: string;
+  draggable?: boolean;
   subtitle?: string;
   meta?: CalendarMatrixMetaItem[];
   avatarText?: string;
@@ -84,6 +92,7 @@ export interface CalendarMatrixEventItem {
   event: CalendarEventBase;
   display?: CalendarMatrixEventDisplay;
   conflicts?: CalendarMatrixConflictItem[];
+  restrictedWarnings?: CalendarRestrictedConflictWarning[];
 }
 
 export interface CalendarMatrixEventGroup {
@@ -109,6 +118,10 @@ export interface CalendarMatrixCell {
 export interface CalendarMatrixCellHeader {
   id?: string;
   text: string;
+  allDay?: boolean;
+  collapsible?: boolean;
+  variant?: 'outlined';
+  borderStyle?: 'solid' | 'dotted';
   subtitle?: string;
   title?: string;
   status?: string;
@@ -117,6 +130,7 @@ export interface CalendarMatrixCellHeader {
   actionId?: string;
   action?: CalendarMatrixActionDisplay;
   conflicts?: CalendarMatrixConflictItem[];
+  restrictedWarnings?: CalendarRestrictedConflictWarning[];
   payload?: unknown;
 }
 
@@ -150,6 +164,7 @@ export interface CalendarMatrixSidePanel {
   search?: {
     placeholder?: string;
   };
+  actionPrompt?: string;
 }
 
 export interface CalendarMatrixSidePanelItem {
@@ -161,7 +176,23 @@ export interface CalendarMatrixSidePanelItem {
   meta?: CalendarMatrixMetaItem[];
   avatarText?: string;
   draggable?: boolean;
+  warningGroups?: CalendarSidebarWarningGroup[];
+  prompt?: string;
   payload?: unknown;
+}
+
+export interface CalendarSidebarWarning {
+  id: string;
+  title: string;
+  start: string;
+  end?: string;
+  allDay?: boolean;
+}
+
+export interface CalendarSidebarWarningGroup {
+  id: string;
+  heading: string;
+  warnings: CalendarSidebarWarning[];
 }
 
 export interface CalendarMatrixViewModel {
@@ -178,7 +209,7 @@ export interface CalendarMatrixViewModel {
 }
 
 export interface CalendarMatrixDragPayload {
-  source: 'side-panel' | 'event-block';
+  source: 'side-panel' | 'event-block' | 'resource-row';
   itemId: string;
   itemType: string;
   payload?: unknown;

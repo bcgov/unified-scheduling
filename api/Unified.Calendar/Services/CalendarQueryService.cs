@@ -17,7 +17,8 @@ public sealed class CalendarQueryService(
     StatutoryHolidayCalendarDataProvider statutoryHolidayProvider,
     ICalendarTimeZoneResolver timeZoneResolver,
     ITimeZoneService timeZoneService,
-    ICalendarConflictService calendarConflictService
+    ICalendarConflictService calendarConflictService,
+    CalendarConflictProjection conflictProjection
 ) : ICalendarQueryService
 {
     public async Task<CalendarDataResponse> GetCalendarDataAsync(
@@ -34,7 +35,14 @@ public sealed class CalendarQueryService(
         );
 
         var locationTimeZoneId = await GetLocationTimeZoneIdAsync(request.LocationId, cancellationToken);
-        var timeZone = timeZoneResolver.Resolve(request.TimeZoneId, locationTimeZoneId);
+        if (request.LocationId.HasValue && string.IsNullOrWhiteSpace(locationTimeZoneId))
+            throw new InvalidOperationException(
+                $"Location {request.LocationId.Value} does not have an operational time zone."
+            );
+
+        var timeZone = request.LocationId.HasValue
+            ? timeZoneResolver.Resolve(null, locationTimeZoneId)
+            : timeZoneResolver.Resolve(request.TimeZoneId);
         var utcRange = timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(
             request.StartDate,
             request.EndDate,
@@ -72,13 +80,16 @@ public sealed class CalendarQueryService(
             .ThenBy(calendarEvent => calendarEvent.Id, StringComparer.Ordinal)
             .ToList();
         var conflicts = await calendarConflictService.GetConflictsAsync(
-            new CalendarConflictQuery(utcRange.StartAtUtc, utcRange.EndAtUtc),
+            new CalendarConflictQuery(utcRange.StartAtUtc, utcRange.EndAtUtc, LocationId: request.LocationId),
             cancellationToken
         );
+        var projection = await conflictProjection.ProjectAsync(conflicts, cancellationToken);
         var response = new CalendarDataResponse
         {
             Events = events,
-            Conflicts = conflicts.Select(CalendarConflictResponse.FromConflict).ToList(),
+            Conflicts = projection.Conflicts,
+            RestrictedWarnings = projection.RestrictedWarnings,
+            HasRestrictedConflicts = projection.RestrictedWarnings.Count > 0,
         };
 
         logger.LogDebug(

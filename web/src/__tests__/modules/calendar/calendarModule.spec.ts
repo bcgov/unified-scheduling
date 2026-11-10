@@ -38,7 +38,7 @@ describe('calendar module integration', () => {
 
     expect(routes).toHaveLength(1);
     expect(routes[0]?.path).toBe('/calendar');
-    expect(navigationStore.links).toEqual([{ name: 'Calendar', path: '/calendar', class: 'router-link--border' }]);
+    expect(navigationStore.links).toEqual([{ name: 'Schedule', path: '/calendar', class: 'router-link--border' }]);
     const runtimeContextEnabled = {
       featureFlags: {
         Calendar: calendarFeatureFlags,
@@ -158,7 +158,7 @@ describe('calendar module integration', () => {
     ).resolves.toEqual({
       moduleId: 'calendar',
       contributionId: 'calendar.events',
-      data: { conflicts: [] },
+      data: { conflicts: [], restrictedWarnings: [], hasRestrictedConflicts: false },
       events: [
         expect.objectContaining({
           id: 'stat-holiday:CanadaDay:2025-07-01',

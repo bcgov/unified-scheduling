@@ -10,7 +10,9 @@ public sealed record CalendarConflictEventResponse(
     DateTimeOffset Start,
     DateTimeOffset End,
     int? SourceEntityId,
-    string? TimeZoneId
+    string? TimeZoneId,
+    string? CanonicalEventId = null,
+    bool AllDay = false
 );
 
 public sealed record CalendarConflictResponse(
@@ -25,7 +27,10 @@ public sealed record CalendarConflictResponse(
     Guid? CreatedById,
     DateTimeOffset? CreatedOn,
     Guid? UpdatedById,
-    DateTimeOffset? UpdatedOn
+    DateTimeOffset? UpdatedOn,
+    bool ReportOnEntry,
+    bool ReportOnOverlaps,
+    string Title
 )
 {
     public static CalendarConflictResponse FromConflict(CalendarConflict conflict) =>
@@ -41,7 +46,29 @@ public sealed record CalendarConflictResponse(
             conflict.CreatedById,
             conflict.CreatedOn,
             conflict.UpdatedById,
-            conflict.UpdatedOn
+            conflict.UpdatedOn,
+            conflict.ReportOnEntry,
+            conflict.ReportOnOverlaps,
+            CreateTitle(conflict)
+        );
+
+    private static string CreateTitle(CalendarConflict conflict) =>
+        string.Join(
+            " ↔ ",
+            new[] { conflict.Entry.EventTypeCode, conflict.Overlaps.EventTypeCode }
+                .OrderBy(code => code == "leave" ? 0 : 1)
+                .ThenBy(code => code, StringComparer.Ordinal)
+                .Select(code =>
+                    code switch
+                    {
+                        "leave" => "Leave",
+                        "shift" => "Shift",
+                        "assignment" => "Assignment",
+                        "training" => "Training",
+                        "holiday" => "Holiday",
+                        _ => code,
+                    }
+                )
         );
 
     private static CalendarConflictEventResponse MapEvent(CalendarConflictParticipant participant) =>
@@ -52,11 +79,25 @@ public sealed record CalendarConflictResponse(
             participant.Start,
             participant.End,
             participant.SourceEntityId,
-            participant.TimeZoneId
+            participant.TimeZoneId,
+            participant.CanonicalEventId,
+            participant.AllDay
         );
 }
 
 public sealed record CalendarConflictRejectionResponse(
     string Message,
     IReadOnlyCollection<CalendarConflictResponse> Conflicts
+)
+{
+    public IReadOnlyCollection<CalendarRestrictedConflictWarningResponse> RestrictedWarnings { get; init; } = [];
+    public bool HasRestrictedConflicts { get; init; }
+}
+
+// Only authorized anchors are public; no identity or metadata from the restricted participant is included.
+public sealed record CalendarRestrictedConflictWarningResponse(
+    string EventId,
+    string SourceModule,
+    Guid ResourceId,
+    string Message
 );

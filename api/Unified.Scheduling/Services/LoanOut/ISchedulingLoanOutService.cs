@@ -4,6 +4,12 @@ namespace Unified.Scheduling.Services;
 
 public interface ISchedulingLoanOutService
 {
+    /// <summary>Rechecks approvals while the supplied loan-outs still suppress source participation.</summary>
+    Task InvalidateResolvedConflictOverridesAsync(
+        IReadOnlyCollection<LoanOutEntry> entries,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Clears home-shift away markers for occurrences being deleted, preserving other active loan-outs.</summary>
     Task RestoreHomeLocationUserShiftsAsync(
         IReadOnlyCollection<LoanOutEntry> removedEntries,

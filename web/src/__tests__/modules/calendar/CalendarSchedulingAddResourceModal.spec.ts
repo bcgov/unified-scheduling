@@ -8,6 +8,7 @@ import LuxonAdapter from '@date-io/luxon';
 import { useLocationsStore } from '@/stores/LocationsStore';
 import { useCalendarStore } from '@/modules/calendar/calendarStore';
 import { useAuthStore } from '@/stores/auth';
+import { useConfigStore } from '@/stores/config';
 import { Permissions } from '@/api-access/generated/models';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
@@ -15,6 +16,7 @@ import { createTestApp } from '../../helpers/createTestApp';
 
 function createModalTestApp(permissions = Object.values(Permissions)) {
   const pinia = createPinia();
+  useConfigStore(pinia).config = { featureFlags: { Scheduling: { enabled: true } } };
   useAuthStore(pinia).setUserInfo({
     isAuthenticated: true,
     isRegistered: true,
@@ -372,15 +374,16 @@ describe('CalendarSchedulingAddResourceModal', () => {
     });
 
     await flushPromises();
-    const vm = wrapper.vm as unknown as { handleSave: () => Promise<void> };
+    const vm = wrapper.vm as unknown as {
+      handleSave: () => Promise<void>;
+      formData: { publish: 'yes' | 'no' };
+    };
+    vm.formData.publish = 'yes';
     await vm.handleSave();
+    await flushPromises();
 
-    expect(document.body.textContent).toContain(
-      'One or more selected employees already have a shift at this location on the selected date.',
-    );
-    expect(document.body.textContent).toContain(
-      'One or more selected employees already have a shift at this location on the selected date.',
-    );
+    const employeeField = document.querySelector('.shift-form__employee-field');
+    expect(employeeField?.textContent).toContain('Alex Alpha already has a shift at this location.');
     expect(wrapper.emitted('close')).toBeUndefined();
     expect(postEntryPublish).not.toHaveBeenCalled();
     expect(Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.includes('Save'))).toBe(
@@ -577,6 +580,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
         recurrenceRule?: string | null;
       };
       handleSave: () => Promise<void>;
+      handleClose: () => void;
     };
     vm.formData.publish = 'yes';
     if (kind === 'series') {
@@ -588,7 +592,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
 
     expect(create).toHaveBeenCalledTimes(1);
     expect(publish).toHaveBeenCalledTimes(1);
-    expect(calendarStore.refreshNonce).toBe(1);
+    expect(calendarStore.refreshNonce).toBe(0);
     expect(document.body.textContent).toContain('The shift was created and remains Draft');
     expect(document.body.textContent).toContain('could not be published');
     expect(wrapper.emitted('close')).toBeUndefined();
@@ -601,6 +605,11 @@ describe('CalendarSchedulingAddResourceModal', () => {
 
     expect(create).toHaveBeenCalledTimes(1);
     expect(publish).toHaveBeenCalledTimes(1);
+
+    vm.handleClose();
+
+    expect(calendarStore.refreshNonce).toBe(1);
+    expect(wrapper.emitted('close')).toBeTruthy();
 
     wrapper.unmount();
   });
@@ -1001,6 +1010,7 @@ describe('CalendarSchedulingAddResourceModal', () => {
     const wrapper = mount(CalendarSchedulingAddResourceModal, {
       props: {
         initialAssignmentEntryId: 251,
+        missingShiftWarning: true,
         resource: {
           id: '3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62',
           type: 'user',
@@ -1013,6 +1023,10 @@ describe('CalendarSchedulingAddResourceModal', () => {
     });
 
     await flushPromises();
+    expect(document.body.textContent).toContain(
+      'Creating a shift here will also link the user to the selected assignment.',
+    );
+    expect(document.body.textContent).not.toContain('try again');
 
     const vm = wrapper.vm as unknown as {
       formData: {
@@ -1038,6 +1052,15 @@ describe('CalendarSchedulingAddResourceModal', () => {
       }),
       expect.objectContaining({ options: { immediate: false } }),
     );
+    expect(postEntry).toHaveBeenCalledTimes(1);
+    const body = postEntry.mock.calls[0]?.[0];
+    expect(body.userIds).toEqual(['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62']);
+    expect(body.assignmentEntryLinks).toEqual([
+      {
+        assignmentEntryId: 251,
+        assignedUserIds: ['3d6f0a75-0a77-4dd9-9f5a-f4d0a0bc4f62'],
+      },
+    ]);
     expect(postEntryExecute).toHaveBeenCalled();
 
     wrapper.unmount();

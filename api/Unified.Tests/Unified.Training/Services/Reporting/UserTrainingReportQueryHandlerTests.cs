@@ -5,6 +5,8 @@ using Unified.Db.Models;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
+using Unified.Training.Models;
+using Unified.Training.Services;
 using Unified.Training.Services.Reporting;
 
 namespace Unified.Tests.Training.Services.Reporting;
@@ -35,6 +37,96 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
     {
         await _db.Database.CloseConnectionAsync();
         await _db.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("America/Vancouver", -7)]
+    [InlineData("America/Edmonton", -6)]
+    [InlineData(null, 0)]
+    [InlineData("Not/A_TimeZone", 0)]
+    public async Task ExecuteAsync_AssignedRows_PreserveAllDayDatesAndTimedInstantsInTheHomeTimezone(
+        string? timeZoneId,
+        int expectedOffsetHours
+    )
+    {
+        var training = await SeedTrainingAsync(100, "TRN", "Training", mandatory: false);
+        var location = timeZoneId is null ? null : await SeedLocationAsync("HOME", "Home", timeZoneId, null);
+        var allDayUser = await SeedUserAsync("AllDay", "User", location?.Id);
+        var timedUser = await SeedUserAsync("Timed", "User", location?.Id);
+        var awardedOn = new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero);
+        await SeedUserTrainingAsync(allDayUser.Id, training.Id, awardedOn, allDay: true);
+        await SeedUserTrainingAsync(timedUser.Id, training.Id, awardedOn.AddHours(1));
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var allDay = Assert.Single(result.Rows, row => row.AllDay);
+        Assert.Equal(awardedOn, allDay.AwardedOn);
+        Assert.Equal(awardedOn, allDay.EndingOn);
+        Assert.Equal(TimeSpan.Zero, allDay.AwardedOn!.Value.Offset);
+        Assert.Equal(TimeSpan.Zero, allDay.EndingOn!.Value.Offset);
+        var timed = Assert.Single(result.Rows, row => !row.AllDay);
+        Assert.Equal(awardedOn.AddHours(1), timed.AwardedOn);
+        Assert.Equal(awardedOn.AddHours(2), timed.EndingOn);
+        var expectedOffset = TimeSpan.FromHours(expectedOffsetHours);
+        Assert.Equal(expectedOffset, timed.AwardedOn!.Value.Offset);
+        Assert.Equal(expectedOffset, timed.EndingOn!.Value.Offset);
+        var expectedDate = new DateTime(2026, 7, expectedOffsetHours == 0 ? 20 : 19);
+        Assert.Equal(expectedDate, timed.AwardedOn.Value.Date);
+        Assert.Equal(expectedDate, timed.EndingOn.Value.Date);
+    }
+
+    [Theory]
+    [InlineData("America/Vancouver")]
+    [InlineData("America/Edmonton")]
+    public async Task ExecuteAsync_ExpiryDateAndStatus_StayOnTheUsersCalendarDate(string timeZoneId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var location = await SeedLocationAsync("EXP", "Expiry", timeZoneId, null);
+        var user = await SeedUserAsync("Expiry", "User", homeLocationId: location.Id);
+        var training = await SeedTrainingAsync(100, "EXP", "Expiry", mandatory: false);
+        training.ValidityDays = 30;
+        await _db.SaveChangesAsync(cancellationToken);
+        var record = await new UserTrainingService(_db).CreateAsync(
+            new UserTrainingRequest
+            {
+                UserId = user.Id,
+                TrainingId = training.Id,
+                AllDay = true,
+                AwardedOn = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero),
+                EndingOn = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero),
+            },
+            cancellationToken
+        );
+        _timeProvider.SetUtcNow(record.ExpiryDate!.Value.AddHours(-1));
+
+        var before = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                new Dictionary<string, IReadOnlyCollection<string>> { ["status"] = ["active"] },
+                null,
+                SortDirection.Asc,
+                cancellationToken
+            );
+        var row = Assert.Single(before.Rows);
+        Assert.Equal("Active", row.Status);
+        Assert.Equal(new DateTime(2026, 12, 1), row.ExpiryDate!.Value.Date);
+        Assert.Equal(record.ExpiryDate, row.ExpiryDate);
+        Assert.NotEqual(TimeSpan.Zero, row.ExpiryDate.Value.Offset);
+
+        _timeProvider.SetUtcNow(record.ExpiryDate.Value.AddMilliseconds(1));
+        var after = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                new Dictionary<string, IReadOnlyCollection<string>> { ["status"] = ["expired"] },
+                null,
+                SortDirection.Asc,
+                cancellationToken
+            );
+        Assert.Equal("Expired", Assert.Single(after.Rows).Status);
     }
 
     [Fact]
@@ -161,6 +253,9 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var missingRow = Assert.Single(result.Rows, row => row.HasMissingMandatoryTrainingAssignment);
         Assert.Equal("Not Taken", missingRow.Status);
         Assert.Equal("Missing, Mia", missingRow.UserDisplayName);
+        Assert.False(missingRow.AllDay);
+        Assert.Null(missingRow.AwardedOn);
+        Assert.Null(missingRow.EndingOn);
 
         var activeRow = Assert.Single(result.Rows, row => !row.HasMissingMandatoryTrainingAssignment);
         Assert.Equal("Active", activeRow.Status);
@@ -673,7 +768,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         Guid userId,
         int trainingId,
         DateTimeOffset awardedOn,
-        DateTimeOffset? expiryDate = null
+        DateTimeOffset? expiryDate = null,
+        bool allDay = false
     )
     {
         _db.UserTrainings.Add(
@@ -683,7 +779,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
                 TrainingId = trainingId,
                 Version = 1,
                 AwardedOn = awardedOn,
-                EndingOn = awardedOn.AddHours(1),
+                EndingOn = allDay ? awardedOn : awardedOn.AddHours(1),
+                AllDay = allDay,
                 ExpiryDate = expiryDate ?? awardedOn.AddDays(90),
                 NoticeState = UserTrainingNoticeStates.None,
             }

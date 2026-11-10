@@ -1,12 +1,15 @@
 import type {
   CalendarConflictEventResponse,
   CalendarConflictResponse,
+  CalendarRestrictedConflictWarningResponse,
   FeatureFlagsResponse,
   Permissions,
 } from '@/api-access/generated/models';
 
 export type CalendarConflict = CalendarConflictResponse;
 export type CalendarConflictEvent = CalendarConflictEventResponse;
+export type CalendarRestrictedConflictWarning = CalendarRestrictedConflictWarningResponse;
+export type CalendarConflictEventIdentity = Pick<CalendarConflictEvent, 'sourceModule' | 'eventId'>;
 
 export interface CalendarEventBase {
   id: string;
@@ -16,6 +19,7 @@ export interface CalendarEventBase {
   description?: string;
   notes?: string;
   color?: string;
+  borderStyle?: 'solid' | 'dotted';
   eventSeriesId?: number;
   start: string;
   end?: string;
@@ -44,6 +48,7 @@ export interface CalendarResourceBase {
 }
 
 export interface CalendarQueryContext {
+  activeViewId?: string;
   startDate: string;
   endDate: string;
   locationId?: number;
@@ -53,6 +58,7 @@ export interface CalendarQueryContext {
 export interface CalendarRuntimeContext {
   featureFlags: FeatureFlagsResponse;
   permissions?: readonly Permissions[];
+  presentationMode?: 'interactive' | 'print';
 }
 
 export interface CalendarContributionData<
@@ -72,6 +78,7 @@ export interface CalendarDataResponse {
 }
 
 export interface CalendarFullCalendarViewModel {
+  timeZone: string;
   view: 'timeGridDay' | 'timeGridWeek' | 'dayGridMonth';
   initialDate?: string;
   events: CalendarEventBase[];

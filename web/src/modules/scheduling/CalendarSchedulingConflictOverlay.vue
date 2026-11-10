@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import type { CalendarConflict, CalendarConflictEvent } from '@/modules/calendar/calendarTypes';
+import type {
+  CalendarConflict,
+  CalendarConflictEvent,
+  CalendarRestrictedConflictWarning,
+} from '@/modules/calendar/calendarTypes';
 import type { CalendarMatrixConflictItem } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
-import { resolveCalendarConflictSides } from '@/modules/calendar/calendarConflictFormatting';
-import { formatCalendarDateTimeRange } from '@/utils/date';
+import {
+  formatCalendarConflictEventRange,
+  resolveCalendarConflictSides,
+} from '@/modules/calendar/calendarConflictFormatting';
 
 const props = defineProps<{
   conflicts: CalendarMatrixConflictItem[];
+  restrictedWarnings?: CalendarRestrictedConflictWarning[];
   icon?: string;
   timeZone: string;
 }>();
@@ -19,7 +26,7 @@ function conflictingEvent(item: CalendarMatrixConflictItem) {
 }
 
 function timeLabel(event: CalendarConflictEvent) {
-  return formatCalendarDateTimeRange(event.start, event.end, props.timeZone);
+  return formatCalendarConflictEventRange(event, props.timeZone);
 }
 
 function resolveLabel(conflict: CalendarConflict) {
@@ -30,6 +37,14 @@ function resolveLabel(conflict: CalendarConflict) {
 <template>
   <section class="calendar-scheduling-conflict-overlay">
     <h3 class="calendar-scheduling-conflict-overlay__heading">Conflict(s)</h3>
+    <article
+      v-for="warning in restrictedWarnings"
+      :key="`${warning.eventId}:${warning.resourceId}`"
+      class="calendar-scheduling-conflict-overlay__summary"
+    >
+      <v-icon v-if="icon" :icon="icon" size="18" />
+      <span>{{ warning.message }}</span>
+    </article>
     <article v-for="item in conflicts" :key="item.conflict.id" class="calendar-scheduling-conflict-overlay__item">
       <div class="calendar-scheduling-conflict-overlay__summary">
         <v-icon
@@ -40,7 +55,7 @@ function resolveLabel(conflict: CalendarConflict) {
         />
         <div>
           <strong :class="{ 'calendar-scheduling-conflict-overlay__title--overridden': item.conflict.isOverridden }">
-            {{ conflictingEvent(item).title }}
+            {{ item.conflict.title }}
           </strong>
           <span>{{ timeLabel(conflictingEvent(item)) }}</span>
         </div>

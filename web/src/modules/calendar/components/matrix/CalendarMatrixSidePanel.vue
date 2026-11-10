@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { mdiMagnify } from '@mdi/js';
 import { computed, useId } from 'vue';
-import UaBtn from '@/shared/components/UaBtn.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import { useCalendarStore } from '../../calendarStore';
+import UaPromptedButton from '@/shared/components/UaPromptedButton.vue';
 import CalendarMatrixSidePanelItem from './CalendarMatrixSidePanelItem.vue';
 import type {
   CalendarMatrixDragPayload,
@@ -13,6 +13,7 @@ import type {
 
 const props = defineProps<{
   panel: CalendarMatrixSidePanel;
+  timeZone?: string;
 }>();
 
 const calendarStore = useCalendarStore();
@@ -46,15 +47,16 @@ const emit = defineEmits<{
     <div class="calendar-matrix-side-panel__controls">
       <header class="calendar-matrix-side-panel__header">
         <h2 class="calendar-matrix-side-panel__title">{{ panel.label }}</h2>
-        <UaBtn
+        <UaPromptedButton
           v-if="panel.actionLabel"
           variant="outlined"
           size="small"
+          :prompt="panel.actionPrompt"
           :aria-label="panel.actionLabel"
           @click="emit('action')"
         >
           {{ panel.actionLabel }}
-        </UaBtn>
+        </UaPromptedButton>
       </header>
       <UaTextField
         v-if="panel.search"
@@ -75,6 +77,7 @@ const emit = defineEmits<{
         v-for="item in displayedItems"
         :key="item.id"
         :item="item"
+        :time-zone="timeZone"
         @item-click="emit('itemClick', $event)"
         @drag-start="emit('itemDragStart', $event)"
       >

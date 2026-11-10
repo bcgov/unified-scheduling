@@ -9,6 +9,8 @@ export const useConfigStore = defineStore('config', () => {
   const isLoaded = computed(() => !!config.value);
   const supportEmail = computed(() => config.value?.supportEmail ?? null);
   const applicationName = computed(() => config.value?.applicationName ?? null);
+  const selectedBrand = computed(() => config.value?.selectedBrand ?? 'default');
+  const emailDistributionAvailable = computed(() => config.value?.emailDistributionAvailable === true);
 
   const loadConfig = async (): Promise<ConfigResponse | null> => {
     if (config.value) {
@@ -25,6 +27,8 @@ export const useConfigStore = defineStore('config', () => {
     isLoaded,
     supportEmail,
     applicationName,
+    selectedBrand,
+    emailDistributionAvailable,
     loadConfig,
   };
 });

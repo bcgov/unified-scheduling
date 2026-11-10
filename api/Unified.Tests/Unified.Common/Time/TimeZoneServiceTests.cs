@@ -7,6 +7,19 @@ public class TimeZoneServiceTests
     private readonly ITimeZoneService _service = new TimeZoneService();
 
     [Theory]
+    [InlineData(7)]
+    [InlineData(12)]
+    public void Vancouver_AfterPermanentPacificTime_UsesUtcMinusSeven(int month)
+    {
+        var zone = _service.ResolveRequired("America/Vancouver");
+        var instant = new DateTimeOffset(2026, month, 1, 16, 30, 0, TimeSpan.Zero);
+
+        Assert.Equal(TimeSpan.FromHours(-7), zone.GetUtcOffset(instant));
+        Assert.Equal(new DateTime(2026, month, 1, 9, 30, 0), _service.ToLocalUnspecified(instant, zone));
+        Assert.Equal(instant, _service.ToUtcInstant(new DateTime(2026, month, 1, 9, 30, 0), zone));
+    }
+
+    [Theory]
     [InlineData("America/Vancouver", 2025, 1, -8)]
     [InlineData("America/Vancouver", 2025, 7, -7)]
     [InlineData("America/Vancouver", 2026, 1, -8)]
@@ -19,7 +32,7 @@ public class TimeZoneServiceTests
         int expectedOffsetHours
     )
     {
-        var result = _service.ResolveOrUtc(timeZoneId);
+        var result = _service.ResolveOrUtc($" {timeZoneId} ");
         var requiredResult = _service.ResolveRequired(timeZoneId);
         var instant = new DateTimeOffset(year, month, 2, 16, 0, 0, TimeSpan.Zero);
 
@@ -151,6 +164,38 @@ public class TimeZoneServiceTests
         Assert.Contains(expectedMessage, exception.Message);
     }
 
+    private static TimeZoneInfo CreatePacificTimeZone()
+    {
+        var daylightStart = TimeZoneInfo.TransitionTime.CreateFloatingDateRule(
+            new DateTime(1, 1, 1, 2, 0, 0),
+            month: 3,
+            week: 2,
+            dayOfWeek: DayOfWeek.Sunday
+        );
+        var daylightEnd = TimeZoneInfo.TransitionTime.CreateFloatingDateRule(
+            new DateTime(1, 1, 1, 2, 0, 0),
+            month: 11,
+            week: 1,
+            dayOfWeek: DayOfWeek.Sunday
+        );
+        var adjustmentRule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(
+            new DateTime(2025, 1, 1),
+            new DateTime(2025, 12, 31),
+            TimeSpan.FromHours(1),
+            daylightStart,
+            daylightEnd
+        );
+
+        return TimeZoneInfo.CreateCustomTimeZone(
+            "Test Pacific",
+            TimeSpan.FromHours(-8),
+            "Test Pacific",
+            "Pacific Standard Time",
+            "Pacific Daylight Time",
+            [adjustmentRule]
+        );
+    }
+
     [Fact]
     public void ConvertInclusiveLocalDateRangeToUtcRange_UsesExclusiveEndBoundary()
     {
@@ -230,5 +275,14 @@ public class TimeZoneServiceTests
     public void ResolveRequired_WhenTimeZoneIsBlank_Throws()
     {
         Assert.Throws<ArgumentException>(() => _service.ResolveRequired(" "));
+    }
+
+    [Fact]
+    public void ResolveRequired_WhenWindowsAliasIsSupported_NormalizesToIanaId()
+    {
+        var result = _service.ResolveRequired("Pacific Standard Time");
+
+        Assert.Equal(TimeZoneService.NormalizeTimeZoneId("Pacific Standard Time"), result.Id);
+        Assert.NotEqual("Pacific Standard Time", result.Id);
     }
 }

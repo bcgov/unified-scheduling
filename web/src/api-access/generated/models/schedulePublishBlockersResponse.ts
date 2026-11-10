@@ -4,10 +4,13 @@
  * Unified.Api | v1
  * OpenAPI spec version: 1.0.0
  */
+import type { CalendarRestrictedConflictWarningResponse } from './calendarRestrictedConflictWarningResponse.ts';
 import type { SchedulePublishConflictResponse } from './schedulePublishConflictResponse.ts';
 import type { SchedulePublishShiftBlockerResponse } from './schedulePublishShiftBlockerResponse.ts';
 
 export interface SchedulePublishBlockersResponse {
   conflicts: SchedulePublishConflictResponse[];
   shiftConflicts: SchedulePublishShiftBlockerResponse[];
+  restrictedWarnings?: CalendarRestrictedConflictWarningResponse[];
+  hasRestrictedConflicts?: boolean;
 }

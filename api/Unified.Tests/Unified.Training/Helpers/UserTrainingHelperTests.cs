@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Unified.Training.Helpers;
 using Unified.Training.Models;
 
@@ -12,6 +13,7 @@ public class UserTrainingHelperTests
         {
             UserId = Guid.NewGuid(),
             TrainingId = 1,
+            AllDay = false,
             AwardedOn = new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.FromHours(-7)),
             EndingOn = new DateTimeOffset(2026, 7, 2, 10, 30, 0, TimeSpan.FromHours(-7)),
             ExpiryDate = new DateTimeOffset(2026, 8, 1, 8, 0, 0, TimeSpan.FromHours(-7)),
@@ -26,6 +28,74 @@ public class UserTrainingHelperTests
         Assert.Equal(TimeSpan.Zero, normalized.AwardedOn.Offset);
         Assert.Equal(TimeSpan.Zero, normalized.EndingOn.Offset);
         Assert.Equal(TimeSpan.Zero, normalized.ExpiryDate!.Value.Offset);
+    }
+
+    [Theory]
+    [InlineData("", null)]
+    [InlineData(",\"allDay\":null", null)]
+    [InlineData(",\"allDay\":false", false)]
+    [InlineData(",\"allDay\":true", true)]
+    public void NormalizeToUtc_JsonClassification_PreservesOmissionAndDefaultsLegacyCreates(
+        string classification,
+        bool? expected
+    )
+    {
+        var json =
+            """
+                {"userId":"95f91fd1-1111-2222-3333-9c0aeb4ca44b","trainingId":1,
+                "awardedOn":"2026-07-20T23:00:00-07:00","endingOn":"2026-07-21T01:00:00-07:00"
+                """
+            + classification
+            + "}";
+        var request = JsonSerializer.Deserialize<UserTrainingRequest>(
+            json,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        );
+        Assert.NotNull(request);
+        Assert.Equal(expected, request.AllDay);
+
+        var normalized = UserTrainingHelper.NormalizeToUtc(request);
+
+        Assert.Equal(expected ?? true, normalized.AllDay);
+        Assert.Equal(
+            expected == false
+                ? new DateTimeOffset(2026, 7, 21, 6, 0, 0, TimeSpan.Zero)
+                : new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero),
+            normalized.AwardedOn
+        );
+        Assert.Equal(
+            expected == false
+                ? new DateTimeOffset(2026, 7, 21, 8, 0, 0, TimeSpan.Zero)
+                : new DateTimeOffset(2026, 7, 21, 0, 0, 0, TimeSpan.Zero),
+            normalized.EndingOn
+        );
+    }
+
+    [Theory]
+    [InlineData(null, false, false)]
+    [InlineData(null, true, true)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, true)]
+    public void NormalizeToUtc_UpdateClassification_UsesStoredValueOnlyWhenOmitted(
+        bool? allDay,
+        bool existingAllDay,
+        bool expected
+    )
+    {
+        var request = new UserTrainingRequest
+        {
+            UserId = Guid.NewGuid(),
+            TrainingId = 1,
+            AwardedOn = new DateTimeOffset(2026, 7, 20, 9, 0, 0, TimeSpan.FromHours(-7)),
+            EndingOn = new DateTimeOffset(2026, 7, 20, 10, 0, 0, TimeSpan.FromHours(-7)),
+            AllDay = allDay,
+        };
+
+        var normalized = UserTrainingHelper.NormalizeToUtc(request, existingAllDay);
+
+        Assert.Equal(expected, normalized.AllDay);
+        Assert.Equal(expected ? 0 : 16, normalized.AwardedOn.Hour);
+        Assert.Equal(expected ? 0 : 17, normalized.EndingOn.Hour);
     }
 
     [Fact]

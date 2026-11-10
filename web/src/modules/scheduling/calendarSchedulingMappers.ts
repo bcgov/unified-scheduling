@@ -1,21 +1,20 @@
 import {
   addDays,
   CALENDAR_ALL_DAY_LABEL,
-  DATE_FORMAT,
   formatCalendarEventTimeRange,
-  hasExplicitTimeZoneOffset,
   parseLocalDateOnly,
   startOfWeek,
-  toCalendarDateOnly,
   toDateTime,
 } from '@/utils/date';
 import type { CalendarPeriod } from '@/modules/calendar/calendarStore';
-import { CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
+import { CalendarActionId, CalendarContributionId } from '@/modules/calendar/calendarIdentifiers';
 import {
   getCalendarConflictsForEvent,
   getCalendarConflictsForEventAndResource,
   resolveCalendarEventId,
   selectCalendarConflicts,
+  selectCalendarRestrictedWarnings,
+  getCalendarRestrictedWarningsForEvent,
   selectCalendarEvents,
   selectContribution,
 } from '@/modules/calendar/calendarSelectors';
@@ -24,6 +23,7 @@ import type {
   CalendarDataResponse,
   CalendarEventBase,
   CalendarQueryContext,
+  CalendarRuntimeContext,
 } from '@/modules/calendar/calendarTypes';
 import {
   CalendarMatrixActionType,
@@ -40,21 +40,41 @@ import {
 import {
   isLeaveEvent,
   isLoanOutEvent,
-  leaveEventColor,
   isCalendarSchedulingEvent,
   type CalendarAssignmentCapacitySlotState,
   type CalendarAssignmentPartialCoverageShift,
   type CalendarSchedulingEvent,
 } from './calendarSchedulingData';
-import type { CalendarSchedulingUserResource } from './contributions/calendarSchedulingEventsContribution';
+import type {
+  CalendarSchedulingEventsData,
+  CalendarSchedulingUserResource,
+} from './contributions/calendarSchedulingEventsContribution';
 import { schedulingLoanOutContributionId } from './contributions/calendarSchedulingLoanOutContribution';
+import { canViewLeave, canViewLoanOut } from './calendarSchedulingPermissions';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import {
   schedulingAssignmentResourcesContributionId,
   type CalendarSchedulingAssignmentResource,
 } from './contributions/calendarSchedulingAssignmentResourcesContribution';
 import { calendarSchedulingActionIds } from './calendarSchedulingActionIds';
 import { trainingCalendarDetailActionId } from '@/modules/training/calendarTrainingIdentifiers';
-import { calendarMatrixColorMap } from './calendarSchedulingColors';
+import {
+  calendarTrainingEventsContribution,
+  isTrainingCalendarEvent,
+  trainingCalendarContributionId,
+  type TrainingCalendarEvent,
+  type TrainingCalendarEventsData,
+} from '@/modules/training/contributions/calendarTrainingEventsContribution';
+import { getMissingAssignmentTypePrompt } from './assignmentDefinitionPrompt';
+import { getAssignmentSchedulingPrompt } from './assignmentSchedulingPrompt';
+import { getShiftSetupPrompt } from './shiftSetupPrompt';
+import { getCalendarEventDateKey } from './calendarSchedulingDate';
+import { canAssignAssignments, canCreateAssignments } from './calendarSchedulingPermissions';
+import {
+  calendarMatrixColorMap,
+  calendarNonSchedulingEventColors,
+  resolveSchedulingEventBorderStyle,
+} from './calendarSchedulingColors';
 import { mdiAlertCircle, mdiCalendarSync } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { defaultSchedulingTimeZoneId, resolveSchedulingTimeZoneFromFilters } from './schedulingTimeZone';
@@ -101,10 +121,18 @@ function compareAssignmentLabels(left?: string, right?: string) {
   return normalizedLeft.localeCompare(normalizedRight, undefined, { sensitivity: 'base' });
 }
 
+export interface CalendarSchedulingMatrixPayload {
+  events: CalendarSchedulingEvent[];
+  conflicts: CalendarConflict[];
+  conflictsAvailable: boolean;
+}
+
 export function buildCalendarSchedulingViewModel(
   response: CalendarDataResponse,
   context: CalendarQueryContext,
   period: CalendarPeriod,
+  canViewAssignmentConflicts = true,
+  runtimeContext?: CalendarRuntimeContext,
 ): CalendarMatrixViewModel {
   const timeZone = resolveMatrixTimeZone(context);
   if (period === 'month') {
@@ -126,6 +154,9 @@ export function buildCalendarSchedulingViewModel(
   );
   const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const holidayEvents = (selectContribution(response, CalendarContributionId.Events)?.events ?? []).filter(
+    (event) => event.type === 'calendar.holiday' || event.eventTypeCode?.toLowerCase() === 'holiday',
+  );
   const conflicts = selectCalendarConflicts(response);
   const leaveEvents = schedulingEvents.filter((event) => isLeaveEvent(event) || isLoanOutEvent(event));
   const trainingEvents = selectContribution(response, 'training.events')?.events ?? [];
@@ -136,7 +167,12 @@ export function buildCalendarSchedulingViewModel(
       .filter(isCalendarSchedulingUserResource)
       .map((user) => user.id),
   );
-  const resources = buildUserResourceRows(userResources);
+  const shiftPrompt = getShiftSetupPrompt(response, context);
+  const assignmentPrompt =
+    runtimeContext && canCreateAssignments(runtimeContext) && canAssignAssignments(runtimeContext)
+      ? getAssignmentSchedulingPrompt(response, context)
+      : undefined;
+  const resources = buildUserResourceRows(userResources, shiftPrompt);
   const scheduleResources = hasUnassignedScheduleEvents(shiftEvents, assignmentEvents, days, timeZone)
     ? [...resources, buildUnassignedResourceRow()]
     : resources;
@@ -166,7 +202,7 @@ export function buildCalendarSchedulingViewModel(
               isCalendarSchedulingEvent(event) &&
               event.metadata.userIds?.includes(user.id) &&
               (isLeaveEvent(event)
-                ? isLeaveOnMatrixDate(event, day.date, timeZone)
+                ? isIntervalOnMatrixDate(event, day.date, timeZone)
                 : isEventOnMatrixDate(event, day.date, timeZone)),
           );
       const userResource = userResourcesById.get(user.id);
@@ -177,10 +213,7 @@ export function buildCalendarSchedulingViewModel(
         isUnassignedRow || (!homeLocationUserIds.has(user.id) && !isLoanOutDay)
           ? []
           : trainingEvents.filter(
-              (event) =>
-                event.resourceIds?.includes(user.id) &&
-                event.start <= day.date &&
-                day.date < (event.end ?? event.start),
+              (event) => event.resourceIds?.includes(user.id) && isIntervalOnMatrixDate(event, day.date, timeZone),
             );
       cells.push({
         resourceId: user.id,
@@ -188,22 +221,53 @@ export function buildCalendarSchedulingViewModel(
         disabled: isUnavailable,
         showResourceAdd: userShiftEvents.length === 0,
         headers: [
+          ...(isUnassignedRow
+            ? []
+            : holidayEvents
+                .filter((event) => isEventOnMatrixDate(event, day.date, timeZone))
+                .map<CalendarMatrixCellHeader>((event) => ({
+                  id: event.id,
+                  text: event.title,
+                  allDay: event.allDay,
+                  collapsible: true,
+                  variant: 'outlined',
+                  title: event.title,
+                  color: calendarNonSchedulingEventColors.holiday,
+                  actionId: CalendarActionId.EventDetail,
+                  payload: event,
+                }))),
           ...userLeaveEvents.map((event) => buildLeaveCellHeader(event, timeZone)),
-          ...userTrainingEvents.map((event) => ({
-            id: event.id,
-            text: event.title,
-            subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
-            title: event.title,
-            color: 'rgb(var(--v-theme-accent))',
-            actionId: trainingCalendarDetailActionId,
-            payload: event,
-          })),
+          ...userTrainingEvents.map<CalendarMatrixCellHeader>((event) => {
+            const currentEventId = { sourceModule: event.sourceModule, eventId: event.id };
+            const trainingConflicts = getCalendarConflictsForEventAndResource(currentEventId, user.id, conflicts)
+              .filter((conflict) => {
+                const start = getCalendarEventDateKey(conflict.overlapStart, timeZone);
+                const end = getCalendarEventDateKey(
+                  DateTime.fromISO(conflict.overlapEnd).minus({ milliseconds: 1 }).toISO(),
+                  timeZone,
+                );
+                return start != null && end != null && start <= day.date && day.date <= end;
+              })
+              .map((conflict) => ({ conflict, currentEventId }));
+            return {
+              id: event.id,
+              text: event.allDay
+                ? event.title
+                : `${event.title} ${formatCalendarEventTimeRange(event.start, event.end, { timeZone: event.timeZoneId ?? timeZone })}`,
+              allDay: event.allDay,
+              collapsible: true,
+              variant: 'outlined',
+              subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
+              title: event.title,
+              color: calendarNonSchedulingEventColors.training,
+              actionId: trainingCalendarDetailActionId,
+              action: trainingConflicts.length > 0 ? buildPulldownAction() : undefined,
+              conflicts: trainingConflicts,
+              payload: event,
+            };
+          }),
           ...userShiftEvents.map((event) =>
-            buildCellHeader(
-              event,
-              timeZone,
-              getConflictsForLinkedAssignments(event, assignmentEvents, user.id, conflicts),
-            ),
+            buildCellHeader(event, timeZone, getConflictsForShift(event, assignmentEvents, user.id, conflicts)),
           ),
         ],
         groups: [
@@ -218,25 +282,33 @@ export function buildCalendarSchedulingViewModel(
     }
   }
 
-  return {
-    days,
-    timeZone,
-    payload: {
-      assignmentEvents: selectSchedulingAssignmentEvents(response),
+  return addRestrictedWarnings(
+    {
+      days,
+      timeZone,
+      payload: {
+        events: schedulingEvents,
+        conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
+        conflictsAvailable: canViewAssignmentConflicts && hasCalendarConflictData(response),
+      },
+      primaryColumn: {
+        label: 'TEAM',
+        resources: scheduleResources,
+      },
+      cells,
+      sidePanel: {
+        label: 'ASSIGNMENTS',
+        actionId: calendarSchedulingActionIds.addAssignment,
+        actionLabel: 'Add Assignment',
+        search: { placeholder: 'Search assignments...' },
+        actionPrompt:
+          getMissingAssignmentTypePrompt(response, context.locationId, context.startDate, timeZone) ?? assignmentPrompt,
+        items: buildAssignmentSidePanelItems(response, assignmentPrompt),
+      },
     },
-    primaryColumn: {
-      label: 'TEAM',
-      resources: scheduleResources,
-    },
-    cells,
-    sidePanel: {
-      label: 'ASSIGNMENTS',
-      actionId: calendarSchedulingActionIds.addAssignment,
-      actionLabel: 'Add Assignment',
-      search: { placeholder: 'Search assignments...' },
-      items: buildAssignmentSidePanelItems(response),
-    },
-  };
+    response,
+    true,
+  );
 }
 
 function buildUnassignedResourceRow(): CalendarMatrixResource {
@@ -274,6 +346,7 @@ export function buildCalendarAssignmentViewModel(
   response: CalendarDataResponse,
   context: CalendarQueryContext,
   period: CalendarPeriod,
+  runtimeContext?: CalendarRuntimeContext,
 ): CalendarMatrixViewModel {
   const timeZone = resolveMatrixTimeZone(context);
   if (period === 'month') {
@@ -290,9 +363,14 @@ export function buildCalendarAssignmentViewModel(
   }
 
   const days = buildDays(context.startDate, period, timeZone);
-  const resources = buildAssignmentResourceRows(response);
-  const assignmentEvents = selectSchedulingAssignmentEvents(response);
-  const shiftEvents = selectSchedulingShiftEvents(response).filter(isShiftEvent);
+  const shiftPrompt = getShiftSetupPrompt(response, context);
+  const assignmentPrompt = getAssignmentSchedulingPrompt(response, context, 'click');
+  const resources = buildAssignmentResourceRows(response, assignmentPrompt);
+  const schedulingEvents = selectSchedulingShiftEvents(response).filter(
+    (event) => !(event.isException && event.exceptionReason === 'IsAway'),
+  );
+  const assignmentEvents = schedulingEvents.filter(isAssignmentEvent);
+  const shiftEvents = schedulingEvents.filter(isShiftEvent);
   const conflicts = selectCalendarConflicts(response);
   const cells: CalendarMatrixCell[] = [];
 
@@ -327,33 +405,89 @@ export function buildCalendarAssignmentViewModel(
     }
   }
 
-  return {
-    days,
-    timeZone,
-    payload: {
-      assignmentEvents,
+  return addRestrictedWarnings(
+    {
+      days,
+      timeZone,
+      payload: {
+        events: schedulingEvents,
+        conflicts: selectSchedulingConflicts(schedulingEvents, conflicts),
+        conflictsAvailable: hasCalendarConflictData(response),
+      },
+      primaryColumn: {
+        label: 'ASSIGNMENTS',
+        resources,
+      },
+      cells,
+      sidePanel: {
+        label: 'TEAM',
+        actionId: calendarSchedulingActionIds.scheduleStaff,
+        actionLabel: 'Schedule staff',
+        actionPrompt: shiftPrompt,
+        items: buildUserSidePanelItems(response, days, timeZone, context, runtimeContext, shiftPrompt),
+        search: { placeholder: 'Search team...' },
+      },
     },
-    primaryColumn: {
-      label: 'ASSIGNMENTS',
-      resources,
-    },
-    cells,
-    sidePanel: {
-      label: 'TEAM',
-      actionId: calendarSchedulingActionIds.scheduleStaff,
-      actionLabel: 'Schedule staff',
-      items: buildUserSidePanelItems(response),
-      search: { placeholder: 'Search team...' },
-    },
-  };
+    response,
+    false,
+  );
 }
 
-function buildUserResourceRows(users: CalendarSchedulingUserResource[]): CalendarMatrixResource[] {
+function addRestrictedWarnings(
+  model: CalendarMatrixViewModel,
+  response: CalendarDataResponse,
+  resourceScoped: boolean,
+) {
+  const warnings = selectCalendarRestrictedWarnings(response);
+  for (const cell of model.cells) {
+    const resourceId = resourceScoped ? cell.resourceId : undefined;
+    for (const header of cell.headers ?? []) {
+      const event = header.payload;
+      if (!event || typeof event !== 'object') continue;
+      header.restrictedWarnings = getCalendarRestrictedWarningsForEvent(
+        resolveCalendarEventId(event) ??
+          ('sourceModule' in event &&
+          typeof event.sourceModule === 'string' &&
+          'id' in event &&
+          typeof event.id === 'string'
+            ? { sourceModule: event.sourceModule, eventId: event.id }
+            : null),
+        warnings,
+        resourceId,
+      );
+      if (header.restrictedWarnings.length) header.action = buildPulldownAction();
+    }
+    for (const item of cell.groups.flatMap((group) => group.events)) {
+      item.restrictedWarnings = getCalendarRestrictedWarningsForEvent(
+        resolveCalendarEventId(item.event),
+        warnings,
+        resourceId,
+      );
+      if (item.restrictedWarnings.length) item.display = { ...item.display, action: buildPulldownAction() };
+    }
+  }
+  return model;
+}
+
+function hasCalendarConflictData(response: CalendarDataResponse) {
+  const data = response.contributions['calendar.events']?.data;
+  return typeof data === 'object' && data !== null && 'conflicts' in data && Array.isArray(data.conflicts);
+}
+
+function selectSchedulingConflicts(events: CalendarSchedulingEvent[], conflicts: CalendarConflict[]) {
+  const relevantConflicts = events.flatMap((event) =>
+    getCalendarConflictsForEvent(resolveCalendarEventId(event), conflicts),
+  );
+  return [...new Map(relevantConflicts.map((conflict) => [conflict.id, conflict])).values()];
+}
+
+function buildUserResourceRows(users: CalendarSchedulingUserResource[], prompt?: string): CalendarMatrixResource[] {
   return users.map((user) => ({
     id: user.id,
     type: user.type,
     sourceModule: user.sourceModule,
     title: user.title,
+    draggable: true,
     subtitle: user.subtitle,
     meta: user.meta,
     avatarText: user.avatarText,
@@ -362,6 +496,7 @@ function buildUserResourceRows(users: CalendarSchedulingUserResource[]): Calenda
       actionId: calendarSchedulingActionIds.addResource,
       label: '+',
       ariaLabel: `Add Resource Action For ${user.title}`,
+      prompt,
     },
   }));
 }
@@ -532,18 +667,24 @@ function resolveLinkedShiftsForAssignment(assignmentEvent: CalendarEventBase, us
   );
 }
 
-function getConflictsForLinkedAssignments(
+function getConflictsForShift(
   shiftEvent: CalendarEventBase,
   assignmentEvents: ReadonlyArray<CalendarEventBase>,
   resourceId: string,
   conflicts: ReadonlyArray<CalendarConflict>,
 ) {
+  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
+  const shiftEventId = resolveCalendarEventId(shiftEvent);
+  if (shiftEventId != null) {
+    for (const conflict of getCalendarConflictsForEventAndResource(shiftEventId, resourceId, conflicts)) {
+      conflictsById.set(conflict.id, { conflict, currentEventId: shiftEventId });
+    }
+  }
   if (!isCalendarSchedulingEvent(shiftEvent) || shiftEvent.metadata.shiftEntryId == null) {
-    return [];
+    return [...conflictsById.values()];
   }
 
   const shiftEntryId = String(shiftEvent.metadata.shiftEntryId);
-  const conflictsById = new Map<string, CalendarMatrixConflictItem>();
   for (const event of assignmentEvents) {
     if (!isCalendarSchedulingEvent(event) || event.metadata.assignedShiftIds?.includes(shiftEntryId) !== true) {
       continue;
@@ -581,7 +722,11 @@ function selectSchedulingUserResources(response: CalendarDataResponse): Calendar
     }
 
     if (resource.loanOutMetaData?.length) {
-      users.set(resource.id, { ...existing, loanOutMetaData: resource.loanOutMetaData });
+      users.set(resource.id, {
+        ...existing,
+        homeLocationId: existing.homeLocationId ?? resource.homeLocationId,
+        loanOutMetaData: resource.loanOutMetaData,
+      });
     }
   }
   return [...users.values()];
@@ -613,21 +758,24 @@ function isCalendarSchedulingAssignmentResource(resource: {
   return resource.type === 'assignment' && 'title' in resource && typeof resource.title === 'string';
 }
 
-function buildAssignmentResourceRows(response: CalendarDataResponse): AssignmentMatrixResource[] {
+function buildAssignmentResourceRows(response: CalendarDataResponse, prompt?: string): AssignmentMatrixResource[] {
   const resources = selectSchedulingAssignmentResources(response).map((assignment) =>
-    buildAssignmentResourceRow({
-      id: assignment.id,
-      title: assignment.title,
-      subtitle: assignment.subtitle,
-      meta: assignment.meta,
-      avatarText: assignment.avatarText,
-      assignmentDefinitionId: assignment.assignmentDefinitionId,
-      locationId: assignment.locationId,
-      categoryId: assignment.categoryId,
-      categoryName: assignment.categoryName,
-      subCategoryId: assignment.subCategoryId,
-      subCategoryName: assignment.subCategoryName,
-    }),
+    buildAssignmentResourceRow(
+      {
+        id: assignment.id,
+        title: assignment.title,
+        subtitle: assignment.subtitle,
+        meta: assignment.meta,
+        avatarText: assignment.avatarText,
+        assignmentDefinitionId: assignment.assignmentDefinitionId,
+        locationId: assignment.locationId,
+        categoryId: assignment.categoryId,
+        categoryName: assignment.categoryName,
+        subCategoryId: assignment.subCategoryId,
+        subCategoryName: assignment.subCategoryName,
+      },
+      prompt,
+    ),
   );
   const resourceIds = new Set(resources.map((resource) => resource.id));
 
@@ -647,16 +795,19 @@ function buildAssignmentResourceRows(response: CalendarDataResponse): Assignment
     }
 
     resources.push(
-      buildAssignmentResourceRow({
-        id,
-        title: event.title || `Assignment ${assignmentDefinitionId}`,
-        assignmentDefinitionId,
-        locationId: event.locationId,
-        categoryId: event.metadata.categoryId,
-        categoryName: event.metadata.categoryName,
-        subCategoryId: event.metadata.subCategoryId,
-        subCategoryName: event.metadata.subCategoryName,
-      }),
+      buildAssignmentResourceRow(
+        {
+          id,
+          title: event.title || `Assignment ${assignmentDefinitionId}`,
+          assignmentDefinitionId,
+          locationId: event.locationId,
+          categoryId: event.metadata.categoryId,
+          categoryName: event.metadata.categoryName,
+          subCategoryId: event.metadata.subCategoryId,
+          subCategoryName: event.metadata.subCategoryName,
+        },
+        prompt,
+      ),
     );
     resourceIds.add(id);
   }
@@ -664,19 +815,22 @@ function buildAssignmentResourceRows(response: CalendarDataResponse): Assignment
   return resources.sort(compareAssignmentSortValues);
 }
 
-function buildAssignmentResourceRow(resource: {
-  id: string;
-  title: string;
-  subtitle?: string;
-  meta?: CalendarMatrixResource['meta'];
-  avatarText?: string;
-  assignmentDefinitionId?: number;
-  locationId?: number;
-  categoryId?: number;
-  categoryName?: string;
-  subCategoryId?: number;
-  subCategoryName?: string;
-}): AssignmentMatrixResource {
+function buildAssignmentResourceRow(
+  resource: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    meta?: CalendarMatrixResource['meta'];
+    avatarText?: string;
+    assignmentDefinitionId?: number;
+    locationId?: number;
+    categoryId?: number;
+    categoryName?: string;
+    subCategoryId?: number;
+    subCategoryName?: string;
+  },
+  prompt?: string,
+): AssignmentMatrixResource {
   return {
     id: resource.id,
     type: 'assignment',
@@ -694,11 +848,12 @@ function buildAssignmentResourceRow(resource: {
       actionId: calendarSchedulingActionIds.addAssignmentResource,
       label: '+',
       ariaLabel: `Add Resource Action For ${resource.title}`,
+      prompt,
     },
   };
 }
 
-function buildAssignmentSidePanelItems(response: CalendarDataResponse): CalendarMatrixSidePanelItem[] {
+function buildAssignmentSidePanelItems(response: CalendarDataResponse, prompt?: string): CalendarMatrixSidePanelItem[] {
   return [...selectSchedulingAssignmentResources(response)].sort(compareAssignmentSortValues).map((assignment) => ({
     id: assignment.id,
     type: assignment.type,
@@ -708,6 +863,7 @@ function buildAssignmentSidePanelItems(response: CalendarDataResponse): Calendar
     meta: assignment.meta,
     avatarText: assignment.avatarText,
     draggable: true,
+    prompt,
     payload: {
       title: assignment.title,
       description: assignment.description,
@@ -721,8 +877,73 @@ function buildAssignmentSidePanelItems(response: CalendarDataResponse): Calendar
   }));
 }
 
-function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrixSidePanelItem[] {
-  return selectSchedulingUserResources(response).map((user) => ({
+function buildUserSidePanelItems(
+  response: CalendarDataResponse,
+  days: CalendarMatrixDay[],
+  timeZone: string,
+  context: CalendarQueryContext,
+  runtimeContext?: CalendarRuntimeContext,
+  prompt?: string,
+): CalendarMatrixSidePanelItem[] {
+  const users = selectSchedulingUserResources(response);
+  const homeUserIds = new Set(
+    selectContribution(response, schedulingShiftContributionId)?.resources?.map((user) => user.id),
+  );
+  const borrowedUserIds = new Set(
+    users
+      .filter(
+        (user) =>
+          user.loanOutMetaData?.length &&
+          (user.homeLocationId != null ? user.homeLocationId !== context.locationId : !homeUserIds.has(user.id)),
+      )
+      .map((user) => user.id),
+  );
+  const loanOutEnabled = Boolean(runtimeContext && canViewLoanOut(runtimeContext));
+  const schedulingEvents = selectSchedulingShiftEvents(response);
+  const loanOutEvents = loanOutEnabled ? schedulingEvents.filter(isLoanOutEvent) : [];
+  const trainingData = selectContribution(response, trainingCalendarContributionId)?.data as
+    TrainingCalendarEventsData | undefined;
+  const rangeStart = DateTime.fromISO(days[0]!.date, { zone: timeZone });
+  const rangeEnd = DateTime.fromISO(days[days.length - 1]!.date, { zone: timeZone }).plus({ days: 1 });
+  const leaveEvents =
+    runtimeContext && canViewLeave(runtimeContext)
+      ? selectSidebarWarningEvents(
+          [
+            // Keep projected user membership when restoring the original occurrence's display range.
+            ...schedulingEvents
+              .filter(isLeaveEvent)
+              .map((event) => ({ ...event, ...event.metadata.originalLeaveOccurrence })),
+            ...[schedulingShiftContributionId, ...(loanOutEnabled ? [schedulingLoanOutContributionId] : [])].flatMap(
+              (id) =>
+                (selectContribution(response, id)?.data as CalendarSchedulingEventsData | undefined)?.warningEvents ??
+                [],
+            ),
+          ],
+          rangeStart,
+          rangeEnd,
+          timeZone,
+        )
+      : [];
+  const trainingEvents =
+    runtimeContext &&
+    context.locationId != null &&
+    calendarTrainingEventsContribution.isAvailable?.(runtimeContext, context)
+      ? selectSidebarWarningEvents(
+          [
+            ...(trainingData?.warningEvents ?? []),
+            ...(loanOutEnabled
+              ? (selectContribution(response, trainingCalendarContributionId)?.events ?? [])
+                  .filter(isTrainingCalendarEvent)
+                  .filter((event) => borrowedUserIds.has(event.userId))
+              : []),
+          ].filter(isTrainingCalendarEvent),
+          rangeStart,
+          rangeEnd,
+          timeZone,
+        )
+      : [];
+
+  return users.map((user) => ({
     id: user.id,
     type: user.type,
     title: user.title,
@@ -730,6 +951,14 @@ function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrix
     meta: user.meta,
     avatarText: user.avatarText,
     draggable: true,
+    warningGroups: buildUserWarningGroups(
+      leaveEvents,
+      trainingEvents,
+      loanOutEnabled ? selectUserLoanOutWarnings(user, loanOutEvents, rangeStart, rangeEnd, timeZone) : [],
+      user,
+      timeZone,
+    ),
+    prompt,
     payload: {
       userId: user.id,
       title: user.title,
@@ -737,6 +966,142 @@ function buildUserSidePanelItems(response: CalendarDataResponse): CalendarMatrix
       loanOutMetaData: user.loanOutMetaData,
     },
   }));
+}
+
+function sidebarWarningEventKey(event: CalendarEventBase) {
+  if (!isCalendarSchedulingEvent(event) || !isLeaveEvent(event)) return event.id;
+  return `leave.${event.metadata.leaveEntryId ?? event.id}`;
+}
+
+function loanOutOccurrenceKey(event: CalendarSchedulingEvent, timeZone: string) {
+  const start = DateTime.fromISO(event.start, { zone: timeZone }).toMillis();
+  const end = DateTime.fromISO(event.end ?? event.start, { zone: timeZone }).toMillis();
+  return `${event.metadata.loanOutLocationId ?? event.id}:${start}:${end}`;
+}
+
+function selectUserLoanOutWarnings(
+  user: CalendarSchedulingUserResource,
+  events: CalendarSchedulingEvent[],
+  rangeStart: DateTime,
+  rangeEnd: DateTime,
+  timeZone: string,
+) {
+  const metadataEvents = (user.loanOutMetaData ?? []).flatMap<CalendarSchedulingEvent>((metadata) =>
+    metadata.startAtUtc
+      ? [
+          {
+            id: `loanout.${user.id}.${metadata.startAtUtc}.${metadata.endAtUtc ?? ''}.${metadata.loanOutLocationId}`,
+            type: 'scheduling.LoanOut',
+            sourceModule: 'loanout',
+            title: 'Loan Out',
+            start: metadata.startAtUtc,
+            end: metadata.endAtUtc ?? undefined,
+            locationId: user.homeLocationId,
+            metadata: { userIds: [user.id], loanOutLocationId: metadata.loanOutLocationId },
+          },
+        ]
+      : [],
+  );
+  // Full occurrences override metadata, including cancellation; metadata has no occurrence ID.
+  const occurrences = new Map(metadataEvents.map((event) => [loanOutOccurrenceKey(event, timeZone), event]));
+  for (const event of events) {
+    if (!event.metadata.userIds?.includes(user.id) && !event.resourceIds?.includes(user.id)) continue;
+    occurrences.delete(loanOutOccurrenceKey(event, timeZone));
+    occurrences.set(event.metadata.loanOutEntryId ?? event.id, event);
+  }
+  return selectSidebarWarningEvents([...occurrences.values()], rangeStart, rangeEnd, timeZone).map((event) => ({
+    ...event,
+    allDay: false,
+  }));
+}
+
+function selectSidebarWarningEvents<T extends CalendarEventBase>(
+  events: T[],
+  rangeStart: DateTime,
+  rangeEnd: DateTime,
+  timeZone: string,
+): T[] {
+  return events
+    .filter((event) => {
+      if (isSchedulingCancelled(event.statusTypeCode) || event.cancelledAt) {
+        return false;
+      }
+
+      const start = DateTime.fromISO(event.start, { zone: timeZone });
+      const end = event.end
+        ? DateTime.fromISO(event.end, { zone: timeZone })
+        : event.allDay
+          ? start.plus({ days: 1 })
+          : start;
+      // Calendar periods and event ends are exclusive; events without duration are instants.
+      return (
+        start.isValid &&
+        end.isValid &&
+        start < rangeEnd &&
+        (end > rangeStart || (end.toMillis() === start.toMillis() && start >= rangeStart))
+      );
+    })
+    .sort(
+      (left, right) =>
+        DateTime.fromISO(left.start, { zone: timeZone }).toMillis() -
+          DateTime.fromISO(right.start, { zone: timeZone }).toMillis() || left.id.localeCompare(right.id),
+    );
+}
+
+function buildUserWarningGroups(
+  leaveEvents: CalendarSchedulingEvent[],
+  trainingEvents: TrainingCalendarEvent[],
+  loanOutEvents: CalendarSchedulingEvent[],
+  user: CalendarSchedulingUserResource,
+  timeZone: string,
+) {
+  const userId = user.id;
+  const groups = [
+    {
+      id: 'leave',
+      heading: 'Leave',
+      events: leaveEvents.filter(
+        (event) => event.metadata.userIds?.includes(userId) || event.resourceIds?.includes(userId),
+      ),
+    },
+    {
+      id: 'training',
+      heading: 'Training',
+      events: trainingEvents.filter((event) => event.userId === userId),
+    },
+    { id: 'loanout', heading: 'Loan Out', events: loanOutEvents },
+  ]
+    .filter((group) => group.events.length > 0)
+    .map((group) => ({
+      id: group.id,
+      heading: group.heading,
+      warnings: [...new Map(group.events.map((event) => [sidebarWarningEventKey(event), event])).values()].map(
+        (event) => ({
+          id: event.id,
+          title:
+            group.id === 'loanout' && isCalendarSchedulingEvent(event)
+              ? loanOutWarningTitle(event, user.homeLocationId)
+              : group.id === 'leave' && isCalendarSchedulingEvent(event)
+                ? event.metadata.leaveTypeName || 'Leave'
+                : event.title.replace(/^Training:\s*/i, ''),
+          start: event.allDay ? getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone)! : event.start,
+          end: event.allDay ? getCalendarEventDateKey(event.end, event.timeZoneId ?? timeZone) : event.end,
+          allDay: event.allDay,
+        }),
+      ),
+    }));
+
+  return groups.length ? groups : undefined;
+}
+
+function loanOutWarningTitle(event: CalendarSchedulingEvent, homeLocationId?: number) {
+  const locations = useLocationsStore().entitiesMap;
+  const origin = locations[event.locationId ?? homeLocationId ?? '']?.name ?? 'Unknown location';
+  const destination =
+    locations[event.metadata.loanOutLocationId ?? '']?.name ??
+    event.metadata.loanOutLocationName ??
+    `Location ${event.metadata.loanOutLocationId ?? '-'}`;
+  return `From: ${origin}; To: ${destination}`;
 }
 
 function buildCellHeader(
@@ -752,6 +1117,7 @@ function buildCellHeader(
     subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: event.title,
     status: event.statusTypeCode,
+    borderStyle: resolveSchedulingEventBorderStyle(event),
     color: resolveCalendarSchedulingColor(event.color),
     info: eventBelongsToSeries(event)
       ? {
@@ -779,40 +1145,16 @@ function eventBelongsToSeries(event: CalendarEventBase) {
   return isCalendarSchedulingEvent(event) && event.metadata.shiftSeriesId != null;
 }
 
-export function getCalendarEventDateKey(
-  value: string | Date | undefined | null,
-  timeZone?: string,
-  locale = 'en-CA',
-): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  if (typeof value === 'string') {
-    const dateOnly = toCalendarDateOnly(value);
-
-    if (!dateOnly || !/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
-      return undefined;
-    }
-
-    if (!timeZone || !hasExplicitTimeZoneOffset(value)) {
-      return dateOnly;
-    }
-  }
-
-  const dateTime = toDateTime(value, timeZone);
-
-  if (!dateTime.isValid) {
-    return undefined;
-  }
-
-  return dateTime.setLocale(locale).toFormat(DATE_FORMAT);
-}
+export { getCalendarEventDateKey } from './calendarSchedulingDate';
 
 function isEventOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
   return getCalendarEventDateKey(event.start, event.timeZoneId ?? timeZone) === date;
 }
-function isLeaveOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
+function isIntervalOnMatrixDate(event: CalendarEventBase, date: string, timeZone: string) {
+  if (event.allDay && /^\d{4}-\d{2}-\d{2}$/.test(event.start)) {
+    return event.start <= date && date < (event.end ?? addDays(event.start, 1));
+  }
+
   const dayStart = DateTime.fromISO(date, { zone: timeZone }).startOf('day');
   const dayEnd = dayStart.plus({ days: 1 });
   const start = DateTime.fromISO(event.start, { setZone: true });
@@ -876,7 +1218,7 @@ function toScheduleMatrixEventItems(
   conflicts: ReadonlyArray<CalendarConflict>,
   resourceId?: string,
 ): CalendarMatrixEventItem[] {
-  return events.flatMap((event) => {
+  return events.flatMap<CalendarMatrixEventItem>((event) => {
     const linkedShifts = resolveLinkedShiftsForAssignment(event, [...userShiftEvents]);
     const activeLinkedShifts = linkedShifts.filter((shift) => !isSchedulingCancelled(shift.statusTypeCode));
     const displayLinkedShifts = activeLinkedShifts.length > 0 ? activeLinkedShifts : linkedShifts;
@@ -898,6 +1240,7 @@ function toScheduleMatrixEventItems(
         event: displayEvent,
         display: {
           color: resolveCalendarSchedulingColor(event.color),
+          borderStyle: resolveSchedulingEventBorderStyle(event),
           status: event.statusTypeCode,
           draggable: false,
           action:
@@ -1046,6 +1389,9 @@ function buildLeaveCellHeader(
 
   return {
     id: event.id,
+    allDay: event.allDay,
+    collapsible: true,
+    variant: 'outlined',
     text: loanOut
       ? `Loan Out: ${label}`
       : event.allDay
@@ -1054,7 +1400,7 @@ function buildLeaveCellHeader(
     subtitle: event.allDay ? CALENDAR_ALL_DAY_LABEL : undefined,
     title: `${loanOut ? 'Loan Out' : 'Leave'}: ${label}`,
     status: event.statusTypeCode,
-    color: resolveCalendarSchedulingColor(event.color ?? leaveEventColor),
+    color: calendarNonSchedulingEventColors.leave,
     payload: event,
     actionId: loanOut ? calendarSchedulingActionIds.viewLoanOutDetails : calendarSchedulingActionIds.viewLeaveDetails,
     action: {

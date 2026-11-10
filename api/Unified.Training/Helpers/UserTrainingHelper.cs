@@ -1,3 +1,5 @@
+using System.Globalization;
+using Unified.Common.Time;
 using Unified.Training.Models;
 
 namespace Unified.Training.Helpers;
@@ -7,13 +9,51 @@ public static class UserTrainingHelper
     private const int DaysPerYear = 365;
     private static readonly TimeSpan EndOfDayTime = new(23, 59, 59);
 
-    public static UserTrainingRequest NormalizeToUtc(UserTrainingRequest request) =>
-        request with
+    public static bool ResolveAllDay(bool? allDay, bool? existingAllDay = null) => allDay ?? existingAllDay ?? true;
+
+    public static UserTrainingRequest NormalizeToUtc(UserTrainingRequest request, bool? existingAllDay = null)
+    {
+        var allDay = ResolveAllDay(request.AllDay, existingAllDay);
+        return request with
         {
-            AwardedOn = request.AwardedOn.ToUniversalTime(),
-            EndingOn = request.EndingOn.ToUniversalTime(),
+            AllDay = allDay,
+            AwardedOn = allDay
+                ? new DateTimeOffset(request.AwardedOn.Date, TimeSpan.Zero)
+                : request.AwardedOn.ToUniversalTime(),
+            EndingOn = allDay
+                ? new DateTimeOffset(request.EndingOn.Date, TimeSpan.Zero)
+                : request.EndingOn.ToUniversalTime(),
             ExpiryDate = request.ExpiryDate?.ToUniversalTime(),
         };
+    }
+
+    public static DateTimeOffset GetLocalDayStartUtc(
+        DateOnly date,
+        TimeZoneInfo timeZone,
+        ITimeZoneService timeZoneService
+    )
+    {
+        var local = date.ToDateTime(TimeOnly.MinValue);
+        if (timeZone.IsInvalidTime(local))
+        {
+            // Locate the first valid wall-clock instant after a midnight gap, including a skipped day.
+            var invalidTicks = local.Ticks;
+            var validTicks = local.AddDays(1).Ticks;
+            while (validTicks - invalidTicks > 1)
+            {
+                var ticks = invalidTicks + (validTicks - invalidTicks) / 2;
+                if (timeZone.IsInvalidTime(new DateTime(ticks, DateTimeKind.Unspecified)))
+                    invalidTicks = ticks;
+                else
+                    validTicks = ticks;
+            }
+            local = new DateTime(validTicks, DateTimeKind.Unspecified);
+        }
+        // The larger offset is the earlier occurrence of an ambiguous local midnight.
+        return timeZone.IsAmbiguousTime(local)
+            ? new DateTimeOffset(local, timeZone.GetAmbiguousTimeOffsets(local).Max()).ToUniversalTime()
+            : timeZoneService.ToUtcInstant(local, timeZone);
+    }
 
     /// <summary>
     /// Auto-calculates the expiry date from the training type's <c>ValidityDays</c>.
@@ -32,6 +72,29 @@ public static class UserTrainingHelper
 
     private static bool IsAnnualValidity(int validityDays) =>
         validityDays >= DaysPerYear && validityDays % DaysPerYear == 0;
+
+    public static DateTimeOffset? CalculateExpiryDate(
+        DateTimeOffset endingOn,
+        int? validityDays,
+        bool allDay,
+        TimeZoneInfo timeZone,
+        ITimeZoneService timeZoneService
+    )
+    {
+        if (!validityDays.HasValue)
+            return null;
+
+        // Nonannual timed validity is an elapsed duration, not a calendar-date expiry.
+        if (!allDay && !IsAnnualValidity(validityDays.Value))
+            return CalculateExpiryDate(endingOn.ToUniversalTime(), validityDays);
+
+        var localEndingOn = allDay ? endingOn : TimeZoneInfo.ConvertTime(endingOn, timeZone);
+        var expiry = CalculateExpiryDate(localEndingOn, validityDays)!.Value;
+        return timeZoneService.FromDateStringToEndOfDayInTimeZone(
+            expiry.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            timeZone.Id
+        );
+    }
 
     private static DateTimeOffset CalculateEndOfYearExpiryDate(DateTimeOffset awardedOn, int validityDays)
     {

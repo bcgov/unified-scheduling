@@ -10,6 +10,11 @@ public sealed record UserTrainingRequest
     public required DateTimeOffset EndingOn { get; init; }
 
     /// <summary>
+    /// When omitted, creates are all-day and updates preserve the existing classification.
+    /// </summary>
+    public bool? AllDay { get; init; }
+
+    /// <summary>
     /// Explicit expiry date. When null, expiry is auto-calculated from the
     /// training type's <c>ValidityDays</c>.</summary>
     public DateTimeOffset? ExpiryDate { get; init; }

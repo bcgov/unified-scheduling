@@ -25,13 +25,44 @@ public class UserTrainingRequestValidatorTests
         Assert.True(result.IsValid);
     }
 
+    [Fact]
+    public async Task Validate_WhenAllDayIsOmitted_AllowsLegacySameDayTrainingAndUsesNormalizedExpiry()
+    {
+        var request = ValidRequest() with
+        {
+            AwardedOn = new DateTimeOffset(2026, 7, 20, 15, 0, 0, TimeSpan.FromHours(14)),
+            EndingOn = new DateTimeOffset(2026, 7, 20, 15, 0, 0, TimeSpan.FromHours(14)),
+            ExpiryDate = new DateTimeOffset(2026, 7, 20, 0, 30, 0, TimeSpan.Zero),
+        };
+
+        Assert.True((await _validator.ValidateAsync(request, TestContext.Current.CancellationToken)).IsValid);
+        Assert.False(
+            (
+                await _validator.ValidateAsync(request with { AllDay = false }, TestContext.Current.CancellationToken)
+            ).IsValid
+        );
+        Assert.False(
+            (
+                await _validator.ValidateAsync(
+                    request with
+                    {
+                        ExpiryDate = new DateTimeOffset(2026, 7, 19, 23, 59, 0, TimeSpan.Zero),
+                    },
+                    TestContext.Current.CancellationToken
+                )
+            ).IsValid
+        );
+    }
+
     [Theory]
-    [InlineData(15, 18, true)]
-    [InlineData(18, 15, false)]
-    [InlineData(15, 15, true)]
+    [InlineData(15, 18, false, true)]
+    [InlineData(18, 15, false, false)]
+    [InlineData(15, 15, false, false)]
+    [InlineData(0, 0, true, true)]
     public async Task Validate_WhenTrainingIsOnSameDay_ValidatesTimeRange(
         int startHour,
         int endHour,
+        bool allDay,
         bool expectedValid
     )
     {
@@ -39,6 +70,7 @@ public class UserTrainingRequestValidatorTests
         {
             AwardedOn = new DateTimeOffset(2026, 7, 20, startHour, 0, 0, TimeSpan.FromHours(-7)),
             EndingOn = new DateTimeOffset(2026, 7, 20, endHour, 0, 0, TimeSpan.FromHours(-7)),
+            AllDay = allDay,
         };
 
         var result = await _validator.ValidateAsync(request, TestContext.Current.CancellationToken);
@@ -140,6 +172,52 @@ public class UserTrainingRequestValidatorTests
         await Assert.ThrowsAsync<ValidationException>(() =>
             _validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
         );
+    }
+
+    [Fact]
+    public async Task Validate_AllDayExpiryBeforeNormalizedEnd_ReturnsExistingValidationError()
+    {
+        var request = ValidRequest() with
+        {
+            AllDay = true,
+            AwardedOn = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.FromHours(14)),
+            EndingOn = new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.FromHours(14)),
+            ExpiryDate = new DateTimeOffset(2026, 7, 19, 18, 0, 0, TimeSpan.Zero),
+        };
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(() =>
+            _validator.ValidateAndThrowAsync(request, TestContext.Current.CancellationToken)
+        );
+        var error = Assert.Single(exception.Errors);
+        Assert.Equal(nameof(UserTrainingRequest.ExpiryDate), error.PropertyName);
+        Assert.Equal("Expiry date must be after the ending date.", error.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData(true, 14, "2026-07-20T00:00:00Z", false)]
+    [InlineData(true, 14, "2026-07-20T01:00:00Z", true)]
+    [InlineData(true, -7, "2026-07-20T01:00:00Z", true)]
+    [InlineData(false, 14, "2026-07-19T18:00:00Z", true)]
+    [InlineData(false, -7, "2026-07-20T01:00:00Z", false)]
+    [InlineData(false, -7, "2026-07-20T08:00:00Z", true)]
+    public async Task Validate_ExpiryWithOffsets_UsesEffectiveEnd(
+        bool allDay,
+        int offsetHours,
+        string expiryDate,
+        bool expected
+    )
+    {
+        var request = ValidRequest() with
+        {
+            AllDay = allDay,
+            AwardedOn = new DateTimeOffset(2026, 7, 19, 0, 0, 0, TimeSpan.FromHours(offsetHours)),
+            EndingOn = new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.FromHours(offsetHours)),
+            ExpiryDate = DateTimeOffset.Parse(expiryDate, System.Globalization.CultureInfo.InvariantCulture),
+        };
+
+        var result = await _validator.ValidateAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, result.IsValid);
     }
 
     [Fact]

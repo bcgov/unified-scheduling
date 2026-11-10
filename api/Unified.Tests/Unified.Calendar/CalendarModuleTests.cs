@@ -83,6 +83,7 @@ public sealed class CalendarModuleTests
                     {
                         [$"{CalendarDateTimeOptions.SectionName}:DefaultTimeZoneId"] = defaultTimeZoneId,
                         ["FeatureFlags:Calendar:Enabled"] = "true",
+                        ["CalendarConflicts:Rules:assignment:0"] = "holiday",
                     }
                 )
             )
@@ -170,6 +171,7 @@ public sealed class CalendarModuleTests
                 {
                     [$"{CalendarDateTimeOptions.SectionName}:DefaultTimeZoneId"] = defaultTimeZoneId,
                     ["FeatureFlags:Calendar:Enabled"] = isEnabled.ToString(),
+                    ["CalendarConflicts:Rules:assignment:0"] = "holiday",
                 }
             )
             .Build();

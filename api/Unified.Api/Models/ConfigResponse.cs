@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Unified.Api.Options;
 
 namespace Unified.Api.Models;
 
@@ -23,4 +24,7 @@ public class ConfigResponse
     /// Application display name
     /// </summary>
     public string? ApplicationName { get; set; }
+    public string? SelectedBrand { get; internal set; }
+    public Dictionary<string, BrandSettingsOptions> BrandingOptions { get; set; } = [];
+    public bool EmailDistributionAvailable { get; set; }
 }

@@ -633,6 +633,8 @@ public class RecurrenceRuleValidatorTests
 
         public int CountResult { get; init; } = 1;
 
+        public Exception? CountException { get; init; }
+
         public IReadOnlyCollection<SeriesEntry> ExpandWithin(
             EventSeries eventSeries,
             DateTimeOffset rangeStartAtUtc,
@@ -654,6 +656,9 @@ public class RecurrenceRuleValidatorTests
         {
             CountWithinCallCount++;
             LastStopAfter = stopAfter;
+            if (CountException is not null)
+                throw CountException;
+
             return CountResult;
         }
     }

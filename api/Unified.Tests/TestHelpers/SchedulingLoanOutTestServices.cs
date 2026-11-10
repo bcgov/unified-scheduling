@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Calendar.Conflicts;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
@@ -65,6 +66,12 @@ internal static class SchedulingLoanOutTestServices
             markers,
             expander
         );
-        return new(availability, markers, transfers);
+        var conflicts = new CalendarConflictService(
+            [new SchedulingConflictParticipantProvider(db, availability)],
+            db,
+            CalendarConflictTestContext.Projection(Guid.Empty),
+            CalendarConflictTestRules.Scheduling
+        );
+        return new(availability, markers, transfers, db, conflicts);
     }
 }

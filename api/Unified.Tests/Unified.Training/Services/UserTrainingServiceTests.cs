@@ -1,10 +1,15 @@
+using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Unified.Db;
+using Unified.Db.Models;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
+using Unified.Training.Controllers;
 using Unified.Training.Models;
 using Unified.Training.Services;
+using Unified.Training.Validators;
 
 namespace Unified.Tests.Training.Services;
 
@@ -47,10 +52,20 @@ public class UserTrainingServiceTests : IAsyncLifetime
 
     private async Task SeedAsync()
     {
+        _db.Locations.Add(
+            new Location
+            {
+                Id = 1,
+                AgencyId = "TEST",
+                Name = "Test",
+                Timezone = "UTC",
+            }
+        );
         _db.Users.Add(
             new User
             {
                 Id = CallerId,
+                HomeLocationId = 1,
                 IdirName = "caller",
                 IdirId = Guid.NewGuid(),
                 IsEnabled = true,
@@ -64,6 +79,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
             new User
             {
                 Id = OtherUserId,
+                HomeLocationId = 1,
                 IdirName = "other",
                 IdirId = Guid.NewGuid(),
                 IsEnabled = true,
@@ -126,6 +142,172 @@ public class UserTrainingServiceTests : IAsyncLifetime
     }
 
     // ── Create ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Create_WhenAllDayIsOmitted_PersistsLegacyAllDayDates()
+    {
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingId,
+            AwardedOn = new DateTimeOffset(2026, 7, 20, 15, 0, 0, TimeSpan.FromHours(-7)),
+            EndingOn = new DateTimeOffset(2026, 7, 20, 15, 0, 0, TimeSpan.FromHours(-7)),
+        };
+        var controller = new UserTrainingController(_service, new UserTrainingRequestValidator());
+
+        var action = await controller.Create(request, TestContext.Current.CancellationToken);
+
+        var created = Assert.IsType<UserTrainingResponse>(Assert.IsType<CreatedResult>(action.Result).Value);
+        Assert.True(created.AllDay);
+        Assert.Equal(new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero), created.AwardedOn);
+        Assert.Equal(created.AwardedOn, created.EndingOn);
+        Assert.True(
+            (
+                await _db.UserTrainings.SingleAsync(
+                    item => item.Id == created.Id,
+                    TestContext.Current.CancellationToken
+                )
+            ).AllDay
+        );
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Update_WhenAllDayIsOmitted_PreservesStoredClassification(bool allDay)
+    {
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingId,
+            AwardedOn = new DateTimeOffset(2026, 7, 20, 9, 0, 0, TimeSpan.FromHours(-7)),
+            EndingOn = new DateTimeOffset(2026, 7, 20, 10, 0, 0, TimeSpan.FromHours(-7)),
+            AllDay = allDay,
+        };
+        var created = await _service.CreateAsync(request, TestContext.Current.CancellationToken);
+
+        var updated = await _service.UpdateAsync(
+            created.Id,
+            request with
+            {
+                AllDay = null,
+                Notes = "Legacy update",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.Equal(allDay, updated.AllDay);
+        Assert.Equal(created.AwardedOn, updated.AwardedOn);
+        Assert.Equal(created.EndingOn, updated.EndingOn);
+        Assert.Equal("Legacy update", updated.Notes);
+        Assert.Equal(
+            allDay,
+            (
+                await _db.UserTrainings.SingleAsync(
+                    item => item.Id == created.Id,
+                    TestContext.Current.CancellationToken
+                )
+            ).AllDay
+        );
+    }
+
+    [Fact]
+    public async Task Update_OmittedTimedClassification_ValidatesExpiryAgainstTheTimedUtcEnd()
+    {
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingId,
+            AllDay = false,
+            AwardedOn = new DateTimeOffset(2026, 7, 20, 23, 30, 0, TimeSpan.FromHours(14)),
+            EndingOn = new DateTimeOffset(2026, 7, 21, 0, 30, 0, TimeSpan.FromHours(14)),
+        };
+        var created = await _service.CreateAsync(request, TestContext.Current.CancellationToken);
+        var controller = new UserTrainingController(_service, new UserTrainingRequestValidator());
+        var update = request with
+        {
+            AllDay = null,
+            ExpiryDate = new DateTimeOffset(2026, 7, 20, 11, 0, 0, TimeSpan.Zero),
+        };
+
+        var action = await controller.Update(created.Id, update, TestContext.Current.CancellationToken);
+
+        var updated = Assert.IsType<UserTrainingResponse>(Assert.IsType<OkObjectResult>(action.Result).Value);
+        Assert.False(updated.AllDay);
+        Assert.Equal(request.AwardedOn.ToUniversalTime(), updated.AwardedOn);
+        Assert.Equal(request.EndingOn.ToUniversalTime(), updated.EndingOn);
+        Assert.Equal(update.ExpiryDate, updated.ExpiryDate);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            controller.Update(
+                created.Id,
+                update with
+                {
+                    EndingOn = update.AwardedOn,
+                },
+                TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Equal(
+            updated.EndingOn,
+            (
+                await _db.UserTrainings.SingleAsync(
+                    item => item.Id == created.Id,
+                    TestContext.Current.CancellationToken
+                )
+            ).EndingOn
+        );
+    }
+
+    [Fact]
+    public async Task CreateUpdateAndRenew_ExplicitClassification_RoundTripsThroughResponses()
+    {
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingId,
+            AllDay = true,
+            AwardedOn = new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.FromHours(14)),
+            EndingOn = new DateTimeOffset(2026, 7, 21, 0, 0, 0, TimeSpan.FromHours(14)),
+        };
+        var created = await _service.CreateAsync(request, TestContext.Current.CancellationToken);
+        Assert.True(created.AllDay);
+        Assert.Equal(new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero), created.AwardedOn);
+        Assert.Equal(new DateTimeOffset(2026, 7, 21, 0, 0, 0, TimeSpan.Zero), created.EndingOn);
+
+        var timedRequest = request with { AllDay = false };
+        var updated = await _service.UpdateAsync(created.Id, timedRequest, TestContext.Current.CancellationToken);
+        Assert.NotNull(updated);
+        Assert.False(updated.AllDay);
+        Assert.Equal(request.AwardedOn.ToUniversalTime(), updated.AwardedOn);
+        Assert.Equal(request.EndingOn.ToUniversalTime(), updated.EndingOn);
+        Assert.False(
+            Assert.Single(await _service.GetUserTrainings(CallerId, TestContext.Current.CancellationToken)).AllDay
+        );
+        Assert.False(
+            (
+                await _service.GetByTrainingAndUserAsync(TrainingId, CallerId, TestContext.Current.CancellationToken)
+            )!.AllDay
+        );
+
+        var renewed = await _service.CreateAsync(request, TestContext.Current.CancellationToken);
+        Assert.True(renewed.AllDay);
+        Assert.Equal(2, renewed.Version);
+        Assert.True(
+            (
+                await _service.GetByTrainingAndUserAsync(TrainingId, CallerId, TestContext.Current.CancellationToken)
+            )!.AllDay
+        );
+        Assert.False(
+            (
+                await _db.UserTrainings.SingleAsync(
+                    item => item.Id == created.Id,
+                    TestContext.Current.CancellationToken
+                )
+            ).AllDay
+        );
+    }
 
     [Fact]
     public async Task GetAll_WhenCallerOwnsRecords_ReturnsNewestFirst()
@@ -213,7 +395,10 @@ public class UserTrainingServiceTests : IAsyncLifetime
         );
 
         Assert.NotNull(result.ExpiryDate);
-        Assert.Equal(new DateTimeOffset(Tomorrow.Year, 12, 31, 23, 59, 59, TimeSpan.Zero), result.ExpiryDate!.Value);
+        Assert.Equal(
+            new DateTimeOffset(Tomorrow.Year, 12, 31, 23, 59, 59, 999, TimeSpan.Zero),
+            result.ExpiryDate!.Value
+        );
     }
 
     [Theory]
@@ -234,6 +419,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
         {
             UserId = CallerId,
             TrainingId = TrainingWithValidityId,
+            AllDay = false,
             AwardedOn = new DateTimeOffset(2025, 12, 30, 15, 0, 0, TimeSpan.FromHours(-8)),
             EndingOn = new DateTimeOffset(2026, 1, 2, 18, 0, 0, TimeSpan.FromHours(-8)),
         };
@@ -256,7 +442,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
 
         var expectedExpiry =
             validityDays == 365
-                ? new DateTimeOffset(2026, 12, 31, 23, 59, 59, TimeSpan.Zero)
+                ? new DateTimeOffset(2026, 12, 31, 23, 59, 59, 999, TimeSpan.Zero)
                 : new DateTimeOffset(2026, 2, 2, 2, 0, 0, TimeSpan.Zero);
         Assert.NotNull(result);
         Assert.Equal(expectedExpiry, result.ExpiryDate);
@@ -292,6 +478,198 @@ public class UserTrainingServiceTests : IAsyncLifetime
         var result = await _service.CalculateExpiryDateAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Null(result.ExpiryDate);
+    }
+
+    [Theory]
+    [InlineData("America/Vancouver", true, 30)]
+    [InlineData("America/Vancouver", false, 30)]
+    [InlineData("America/Vancouver", true, 365)]
+    [InlineData("America/Vancouver", false, 365)]
+    [InlineData("America/Edmonton", true, 30)]
+    [InlineData("America/Edmonton", false, 30)]
+    [InlineData("America/Edmonton", true, 365)]
+    [InlineData("America/Edmonton", false, 365)]
+    public async Task ExpiryPreview_CreateUpdateAndRenew_UseTheSameUserTimezoneCalculation(
+        string timeZoneId,
+        bool allDay,
+        int validityDays
+    )
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var location = await _db.Locations.SingleAsync(cancellationToken);
+        location.Timezone = timeZoneId;
+        var rules = await _db.Trainings.SingleAsync(item => item.Id == TrainingWithValidityId, cancellationToken);
+        rules.ValidityDays = validityDays;
+        await _db.SaveChangesAsync(cancellationToken);
+        var endingOn = new DateTimeOffset(2026, 7, 20, allDay ? 0 : 23, 0, 0, TimeSpan.Zero);
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingWithValidityId,
+            AwardedOn = allDay ? endingOn : endingOn.AddHours(-1),
+            EndingOn = endingOn,
+            AllDay = allDay,
+        };
+        var preview = await _service.CalculateExpiryDateAsync(
+            new UserTrainingExpiryDateRequest
+            {
+                TrainingId = request.TrainingId,
+                UserId = CallerId,
+                AllDay = allDay,
+                AwardedOn = endingOn,
+            },
+            cancellationToken
+        );
+        var created = await _service.CreateAsync(request, cancellationToken);
+
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        var expectedLocalDate = validityDays == 365 ? new DateTime(2026, 12, 31) : new DateTime(2026, 8, 19);
+        var localExpiry = TimeZoneInfo.ConvertTime(created.ExpiryDate!.Value, zone);
+        Assert.Equal(expectedLocalDate, localExpiry.Date);
+        if (allDay || validityDays == 365)
+            Assert.Equal(new TimeSpan(0, 23, 59, 59, 999), localExpiry.TimeOfDay);
+        else
+            Assert.Equal(endingOn.AddDays(30), created.ExpiryDate);
+        Assert.Equal(preview.ExpiryDate, created.ExpiryDate);
+        if (allDay && timeZoneId == "America/Vancouver" && validityDays == 365)
+            Assert.Equal(new DateTimeOffset(2027, 1, 1, 6, 59, 59, 999, TimeSpan.Zero), created.ExpiryDate);
+
+        var updated = await _service.UpdateAsync(
+            created.Id,
+            request with
+            {
+                Notes = "unchanged dates",
+            },
+            cancellationToken
+        );
+        Assert.NotNull(updated);
+        Assert.Equal(preview.ExpiryDate, updated.ExpiryDate);
+
+        var renewal = request with { AwardedOn = request.AwardedOn.AddYears(1), EndingOn = endingOn.AddYears(1) };
+        var renewalPreview = await _service.CalculateExpiryDateAsync(
+            new UserTrainingExpiryDateRequest
+            {
+                TrainingId = request.TrainingId,
+                UserId = CallerId,
+                AllDay = allDay,
+                AwardedOn = renewal.EndingOn,
+            },
+            cancellationToken
+        );
+        var renewed = await _service.CreateAsync(renewal, cancellationToken);
+        Assert.Equal(2, renewed.Version);
+        Assert.Equal(renewalPreview.ExpiryDate, renewed.ExpiryDate);
+        var persisted = await _db
+            .UserTrainings.AsNoTracking()
+            .SingleAsync(item => item.Id == renewed.Id, cancellationToken);
+        Assert.Equal(renewalPreview.ExpiryDate, persisted.ExpiryDate);
+    }
+
+    [Fact]
+    public async Task ExpiryPreview_TimedAnnualTraining_UsesTheLocalCompletionYear()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        (await _db.Locations.SingleAsync(cancellationToken)).Timezone = "America/Vancouver";
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var preview = await _service.CalculateExpiryDateAsync(
+            new UserTrainingExpiryDateRequest
+            {
+                UserId = CallerId,
+                TrainingId = TrainingWithValidityId,
+                AllDay = false,
+                AwardedOn = new DateTimeOffset(2026, 1, 1, 2, 0, 0, TimeSpan.Zero),
+            },
+            cancellationToken
+        );
+
+        Assert.Equal(new DateTimeOffset(2026, 1, 1, 7, 59, 59, 999, TimeSpan.Zero), preview.ExpiryDate);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Not/AZone")]
+    public async Task ExpiryPreviewAndSave_WithoutValidHomeTimezone_RejectTimezoneDependentOperations(string? zone)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await _db.Users.SingleAsync(item => item.Id == CallerId, cancellationToken);
+        if (zone is null)
+            user.HomeLocationId = null;
+        else
+            (await _db.Locations.SingleAsync(cancellationToken)).Timezone = zone;
+        await _db.SaveChangesAsync(cancellationToken);
+        var endingOn = new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero);
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingWithValidityId,
+            AllDay = true,
+            AwardedOn = endingOn,
+            EndingOn = endingOn,
+        };
+
+        var previewError = await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.CalculateExpiryDateAsync(
+                new UserTrainingExpiryDateRequest
+                {
+                    UserId = CallerId,
+                    TrainingId = request.TrainingId,
+                    AllDay = true,
+                    AwardedOn = endingOn,
+                },
+                cancellationToken
+            )
+        );
+        Assert.Contains("home location with a valid timezone", previewError.Message);
+        await Assert.ThrowsAsync<ValidationException>(() => _service.CreateAsync(request, cancellationToken));
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.CreateAsync(
+                request with
+                {
+                    TrainingId = TrainingId,
+                    AllDay = false,
+                    EndingOn = endingOn.AddHours(1),
+                },
+                cancellationToken
+            )
+        );
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.CreateAsync(
+                request with
+                {
+                    TrainingId = TrainingId,
+                    ExpiryDate = endingOn.AddDays(1),
+                },
+                cancellationToken
+            )
+        );
+        Assert.Empty(await _db.UserTrainings.ToListAsync(cancellationToken));
+
+        var allDayWithoutExpiry = await _service.CreateAsync(
+            request with
+            {
+                TrainingId = TrainingId,
+            },
+            cancellationToken
+        );
+        Assert.True(allDayWithoutExpiry.AllDay);
+        Assert.Null(allDayWithoutExpiry.ExpiryDate);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.UpdateAsync(
+                allDayWithoutExpiry.Id,
+                request with
+                {
+                    TrainingId = TrainingId,
+                    AllDay = false,
+                    EndingOn = endingOn.AddHours(1),
+                },
+                cancellationToken
+            )
+        );
+        var unchanged = await _db.UserTrainings.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.True(unchanged.AllDay);
+        Assert.Equal(endingOn, unchanged.EndingOn);
     }
 
     [Fact]

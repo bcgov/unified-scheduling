@@ -54,7 +54,11 @@ public class CalendarControllerTests
             NullLogger<CalendarController>.Instance,
             new FakeCalendarEventService
             {
-                Result = new CalendarDataResponse { Conflicts = [trainingConflict, otherConflict] },
+                Result = new CalendarDataResponse
+                {
+                    Conflicts = canViewTraining ? [trainingConflict, otherConflict] : [otherConflict],
+                    HasRestrictedConflicts = !canViewTraining,
+                },
             },
             new FakeCalendarConflictService(),
             new CalendarDataRequestValidator(),

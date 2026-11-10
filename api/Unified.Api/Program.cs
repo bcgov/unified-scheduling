@@ -22,6 +22,7 @@ using Unified.Infrastructure;
 using Unified.Infrastructure.Email.Ches;
 using Unified.Infrastructure.OpenApi;
 using Unified.Infrastructure.Options;
+using Unified.Infrastructure.Pdf;
 using Unified.JCInterface;
 using Unified.Leave;
 using Unified.Leave.Controllers;
@@ -61,6 +62,8 @@ var hangfireOptions =
         .Services.Configure<RouteOptions>(options => options.LowercaseUrls = true)
         .AddOptions<ApplicationOptions>()
         .Bind(builder.Configuration.GetSection(ApplicationOptions.SectionName));
+
+    builder.Services.AddOptions<BrandingOptions>().Bind(builder.Configuration.GetSection(BrandingOptions.SectionName));
 
     builder.Services.ConfigureHttpJsonOptions(options =>
     {
@@ -123,6 +126,9 @@ var hangfireOptions =
             sp.GetRequiredService<ILoanOutCalendarDataProvider>()
         );
     }
+
+    if (SchedulingModule.IsModuleEnabled(builder.Configuration))
+        builder.Services.AddPlaywrightPdfRendering(builder.Configuration);
 
     var mvcBuilder = builder.Services.AddControllers();
     mvcBuilder.AddChesTestController(builder.Environment, builder.Configuration);

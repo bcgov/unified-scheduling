@@ -1,26 +1,11 @@
+import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import { server } from '@/__tests__/mocks/server';
+import type { LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import UserLeaveModal from '@/modules/myteam/components/UserLeaveModal.vue';
 import { flushPromises, mount } from '@vue/test-utils';
-import { defineComponent, ref } from 'vue';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { getLeaveEntryMock, getLeaveSeriesMock, updateLeaveEntryMock } = vi.hoisted(() => ({
-  getLeaveEntryMock: vi.fn(),
-  getLeaveSeriesMock: vi.fn(),
-  updateLeaveEntryMock: vi.fn(),
-}));
-
-vi.mock('@/modules/leave/api/leaveApi', () => ({
-  createLeaveEntry: vi.fn(),
-  createLeaveSeries: vi.fn(),
-  getLeaveEntry: getLeaveEntryMock,
-  getLeaveSeries: getLeaveSeriesMock,
-  updateLeaveEntry: updateLeaveEntryMock,
-  updateLeaveSeries: vi.fn(),
-}));
-
-vi.mock('@/stores/LocationsStore', () => ({
-  useLocationsStore: () => ({ selectedLocationId: '', entitiesMap: {} }),
-}));
+import { http, HttpResponse } from 'msw';
+import { defineComponent } from 'vue';
+import { describe, expect, it, vi } from 'vitest';
 
 const UaModalStub = defineComponent({
   name: 'UaModal',
@@ -33,77 +18,182 @@ const UaBtnStub = defineComponent({
   template: '<button @click="$emit(\'click\')"><slot /></button>',
 });
 
-const UaAlertStub = defineComponent({ name: 'UaAlert', template: '<div><slot /></div>' });
-
 const LeaveFormStub = defineComponent({
   name: 'LeaveFormComponent',
   props: ['modelValue'],
+  emits: ['update:modelValue'],
   template: '<div data-test="form">{{ JSON.stringify(modelValue) }}</div>',
 });
 
-describe('UserLeaveModal', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getLeaveEntryMock.mockResolvedValue({
-      data: ref({
-        id: 42,
-        userIds: ['current-user'],
-        leaveTypeId: 9,
-        startAtUtc: '2026-06-10T17:00:00Z',
-        endAtUtc: '2026-06-10T18:00:00Z',
-        timeZoneId: 'America/Vancouver',
-        notes: 'Latest server note',
-        locationId: 3,
-        leaveSeriesId: 77,
-      }),
-      error: ref(null),
-    });
-    updateLeaveEntryMock.mockResolvedValue({ error: ref(null) });
+const entry = {
+  id: 42,
+  title: 'Leave',
+  userIds: ['current-user'],
+  leaveTypeId: 9,
+  startAtUtc: '2026-06-10T17:00:00Z',
+  endAtUtc: '2026-06-10T18:00:00Z',
+  timeZoneId: 'America/Vancouver',
+  notes: 'Latest server note',
+  locationId: 3,
+  leaveSeriesId: 77,
+};
+
+async function mountModal(
+  scope?: 'event' | 'series',
+  selectedEntry: (Omit<typeof entry, 'endAtUtc'> & { endAtUtc: string | null }) | null = entry,
+) {
+  const app = await createTestApp({ loadConfig: false });
+  return mount(UserLeaveModal, {
+    props: {
+      user: { id: 'current-user', homeLocationId: 3 } as never,
+      scope,
+      entry: selectedEntry,
+    },
+    global: {
+      plugins: app.mountPlugins,
+      stubs: {
+        UaModal: UaModalStub,
+        UaBtn: UaBtnStub,
+        UaAlert: true,
+        LeaveFormComponent: LeaveFormStub,
+      },
+    },
   });
+}
 
-  it('loads the current entry before enabling an event edit', async () => {
-    const wrapper = mount(UserLeaveModal, {
-      props: {
-        user: { id: 'current-user', homeLocationId: 3 } as never,
-        scope: 'event',
-        entry: {
-          id: 42,
-          title: 'Leave',
-          userIds: ['current-user'],
-          leaveTypeId: 1,
-          startAtUtc: '2026-01-01T17:00:00Z',
-          endAtUtc: '2026-01-01T18:00:00Z',
-          timeZoneId: 'America/Vancouver',
-          notes: 'Stale note',
-        },
-      },
-      global: {
-        stubs: {
-          UaModal: UaModalStub,
-          UaBtn: UaBtnStub,
-          UaAlert: UaAlertStub,
-          LeaveFormComponent: LeaveFormStub,
-        },
-      },
-    });
+describe('UserLeaveModal', () => {
+  it.each([
+    { startAtUtc: '2026-06-10T17:00:00Z', endAtUtc: '2026-06-10T18:00:00Z', endTime: '11:00' },
+    { startAtUtc: '2026-06-10T17:00:00Z', endAtUtc: null, endTime: null },
+    { startAtUtc: '2026-06-11T02:00:00Z', endAtUtc: null, endTime: null },
+  ])(
+    'preserves the loaded end when saving unrelated changes ($startAtUtc, $endAtUtc)',
+    async ({ startAtUtc, endAtUtc, endTime }) => {
+      const loadedEntry = { ...entry, startAtUtc, endAtUtc };
+      let saved: unknown;
+      server.use(
+        http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json(loadedEntry)),
+        http.put('*/api/scheduling/leave/entries/42', async ({ request }) => {
+          saved = await request.json();
+          return HttpResponse.json(loadedEntry);
+        }),
+      );
+      const wrapper = await mountModal('event', { ...entry, notes: 'Stale note' });
+      await vi.waitFor(() => expect(wrapper.get('[data-test="form"]').text()).toContain('Latest server note'));
+      expect(wrapper.get('[data-test="form"]').text()).not.toContain('Stale note');
+      const form = wrapper.getComponent(LeaveFormStub);
+      const modelValue = form.props('modelValue') as LeaveFormData;
+      expect(modelValue.endTime).toBe(endTime);
+      form.vm.$emit('update:modelValue', { ...modelValue, notes: 'Edited unrelated notes' });
+      await flushPromises();
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Save')!
+        .trigger('click');
+      await vi.waitFor(() =>
+        expect(saved).toMatchObject({
+          notes: 'Edited unrelated notes',
+          leaveTypeId: 9,
+          leaveSeriesId: 77,
+          startAtUtc,
+          endAtUtc,
+        }),
+      );
+      await vi.waitFor(() => expect(wrapper.emitted('save')).toHaveLength(1));
+      wrapper.unmount();
+    },
+  );
 
-    expect(getLeaveEntryMock).toHaveBeenCalledWith(42);
+  it('preserves the timed parent date, hours and recurrence when editing notes through an all-day exception', async () => {
+    const series = {
+      ...entry,
+      id: 77,
+      allDay: false,
+      leaveDate: null,
+      startAtUtc: '2026-06-02T02:00:00Z',
+      endAtUtc: '2026-06-02T04:00:00Z',
+      recurrenceRule: 'FREQ=WEEKLY;COUNT=4',
+    };
+    const exception = { ...entry, allDay: true, leaveDate: '2026-06-15' };
+    let saved: unknown;
+    server.use(
+      http.get('*/api/scheduling/leave/series/77', () => HttpResponse.json(series)),
+      http.put('*/api/scheduling/leave/series/77', async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json(series);
+      }),
+    );
+    const wrapper = await mountModal('series', exception);
+    const form = wrapper.getComponent(LeaveFormStub);
+    await vi.waitFor(() =>
+      expect(form.props('modelValue')).toMatchObject({
+        date: '2026-06-01',
+        allDay: false,
+        startTime: '19:00',
+        endTime: '21:00',
+        recurrenceRule: series.recurrenceRule,
+      }),
+    );
+    form.vm.$emit('update:modelValue', { ...form.props('modelValue'), notes: 'Updated notes' });
     await flushPromises();
-    expect(wrapper.get('[data-test="form"]').text()).toContain('Latest server note');
-    expect(wrapper.get('[data-test="form"]').text()).not.toContain('Stale note');
-
     await wrapper
       .findAll('button')
       .find((button) => button.text() === 'Save')!
       .trigger('click');
-    await flushPromises();
-    expect(updateLeaveEntryMock).toHaveBeenCalledWith(
-      42,
-      expect.objectContaining({
-        notes: 'Latest server note',
-        leaveTypeId: 9,
-        leaveSeriesId: 77,
+
+    await vi.waitFor(() =>
+      expect(saved).toMatchObject({
+        allDay: false,
+        startAtUtc: series.startAtUtc,
+        endAtUtc: series.endAtUtc,
+        timeZoneId: 'America/Vancouver',
+        recurrenceRule: series.recurrenceRule,
+        notes: 'Updated notes',
       }),
     );
+    expect(saved).not.toHaveProperty('leaveDate');
+    wrapper.unmount();
+  });
+
+  it('retains default start and end times for new leave creation', async () => {
+    let saved: unknown;
+    let requestedEntry = false;
+    let requestedSeries = false;
+    server.use(
+      http.get('*/api/scheduling/leave/entries/:id', () => {
+        requestedEntry = true;
+        return HttpResponse.json(entry);
+      }),
+      http.get('*/api/scheduling/leave/series/:id', () => {
+        requestedSeries = true;
+        return HttpResponse.json({});
+      }),
+      http.post('*/api/scheduling/leave/entries', async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json(entry);
+      }),
+    );
+    const wrapper = await mountModal(undefined, null);
+    await flushPromises();
+    expect(requestedEntry).toBe(false);
+    expect(requestedSeries).toBe(false);
+    const form = wrapper.getComponent(LeaveFormStub);
+    const modelValue = form.props('modelValue') as LeaveFormData;
+    expect(modelValue.startTime).toBe('09:00');
+    expect(modelValue.endTime).toBe('17:00');
+    form.vm.$emit('update:modelValue', { ...modelValue, date: '2026-06-10', leaveType: 9 });
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Save')!
+      .trigger('click');
+    await vi.waitFor(() =>
+      expect(saved).toMatchObject({
+        startAtUtc: '2026-06-10T16:00:00Z',
+        endAtUtc: '2026-06-11T00:00:00Z',
+      }),
+    );
+    await vi.waitFor(() => expect(wrapper.emitted('save')).toHaveLength(1));
+    wrapper.unmount();
   });
 });

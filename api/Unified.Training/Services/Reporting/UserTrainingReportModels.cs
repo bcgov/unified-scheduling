@@ -14,6 +14,8 @@ internal sealed record UserTrainingReportRow
 
     public string? LocationName { get; init; }
 
+    public string? TimeZoneId { get; init; }
+
     public required int TrainingId { get; init; }
 
     public required string TrainingCode { get; init; }
@@ -23,6 +25,8 @@ internal sealed record UserTrainingReportRow
     public DateTimeOffset? AwardedOn { get; init; }
 
     public DateTimeOffset? EndingOn { get; init; }
+
+    public bool AllDay { get; init; }
 
     public DateTimeOffset? ExpiryDate { get; init; }
 
@@ -63,6 +67,7 @@ public sealed record UserTrainingReportItem(
     string TrainingDescription,
     DateTimeOffset? AwardedOn,
     DateTimeOffset? EndingOn,
+    bool AllDay,
     DateTimeOffset? ExpiryDate,
     string Status,
     int? Version,

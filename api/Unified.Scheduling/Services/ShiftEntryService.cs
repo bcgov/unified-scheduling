@@ -19,6 +19,7 @@ namespace Unified.Scheduling.Services;
 public sealed class ShiftEntryService(
     ILogger<ShiftEntryService> logger,
     UnifiedDbContext db,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService,
     CalendarEventEntryService<ShiftEntryRequest, ShiftEntry> calendarEventEntryService,
     IShiftSeriesService shiftSeriesService,
     IShiftAssignmentService shiftAssignmentService,
@@ -260,8 +261,10 @@ public sealed class ShiftEntryService(
                 cancellationToken
             );
 
+        await InvalidateOverridesAsync([entity.EventId], conflictOverrideActorId, cancellationToken);
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
+            loanOutAvailabilityService,
             [entity.Id],
             cancellationToken
         );
@@ -324,6 +327,7 @@ public sealed class ShiftEntryService(
         await db.SaveChangesAsync(cancellationToken);
         var conflictCandidates = await SchedulingConflictParticipantProvider.GetParticipantsForShiftEntriesAsync(
             db,
+            loanOutAvailabilityService,
             entries.Select(entry => entry.Id).ToList(),
             cancellationToken
         );
@@ -368,7 +372,11 @@ public sealed class ShiftEntryService(
             request.CancellationReason
         );
         await db.SaveChangesAsync(cancellationToken);
-        await InvalidateLinkedOverridesAsync(linkedAssignmentEventIds, cancelledByUserId, cancellationToken);
+        await InvalidateOverridesAsync(
+            linkedAssignmentEventIds.Append(entity.EventId).ToList(),
+            cancelledByUserId,
+            cancellationToken
+        );
         logger.LogInformation("Expired shift entry {ShiftEntryId}.", id);
         return ShiftResponseMapper.ToShiftEntryResponse(
             entity,
@@ -388,7 +396,7 @@ public sealed class ShiftEntryService(
                 entity,
                 SchedulingConstants.SourceModule,
                 SchedulingConstants.ShiftEventTypeCode
-            )
+            ) || entity is null
         )
             return false;
         var eventEntity = entity.Event!;
@@ -401,6 +409,7 @@ public sealed class ShiftEntryService(
         db.ShiftEntries.Remove(entity);
         db.Events.Remove(eventEntity);
         await db.SaveChangesAsync(cancellationToken);
+        await InvalidateOverridesAsync([eventEntity.Id], null, cancellationToken);
         logger.LogInformation("Deleted shift entry {ShiftEntryId}.", id);
         return true;
     }
@@ -498,7 +507,7 @@ public sealed class ShiftEntryService(
             .ToListAsync(cancellationToken);
     }
 
-    private Task InvalidateLinkedOverridesAsync(
+    private Task InvalidateOverridesAsync(
         IReadOnlyCollection<int> eventIds,
         Guid? updatedById,
         CancellationToken cancellationToken
