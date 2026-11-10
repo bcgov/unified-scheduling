@@ -14,14 +14,60 @@ import type { BrandHeaderOptions, ConfigResponse } from '../models';
 export const getGetApiConfigResponseBrandHeaderOptionsMock = (
   overrideResponse: Partial<BrandHeaderOptions> = {},
 ): BrandHeaderOptions => ({
-  ...{
-    title: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-    subtitle: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-    poweredByText: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-    imageUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-    logoUrl: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-    logoAlt: faker.helpers.arrayElement([faker.string.alpha({ length: { min: 10, max: 20 } }), null]),
-  },
+  title: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  subtitle: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  poweredByText: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  imageUrl: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  logoUrl: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
+  logoAlt: faker.helpers.arrayElement([
+    faker.string.alpha({
+      length: {
+        min: 10,
+        max: 20,
+      },
+    }),
+    null,
+  ]),
   ...overrideResponse,
 });
 
