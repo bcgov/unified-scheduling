@@ -8,7 +8,11 @@ public sealed record UserTrainingRequest
 
     public required DateTimeOffset AwardedOn { get; init; }
     public required DateTimeOffset EndingOn { get; init; }
-    public bool AllDay { get; init; }
+
+    /// <summary>
+    /// When omitted, creates are all-day and updates preserve the existing classification.
+    /// </summary>
+    public bool? AllDay { get; init; }
 
     /// <summary>
     /// Explicit expiry date. When null, expiry is auto-calculated from the

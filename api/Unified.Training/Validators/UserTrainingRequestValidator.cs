@@ -21,9 +21,14 @@ public sealed class UserTrainingRequestValidator : AbstractValidator<UserTrainin
         RuleFor(x => x.EndingOn).NotEmpty().WithMessage("Ending date is required.");
 
         RuleFor(x => x.EndingOn)
-            .Must((request, end) => request.AllDay ? end.Date >= request.AwardedOn.Date : end > request.AwardedOn)
+            .Must(
+                (request, end) =>
+                    UserTrainingHelper.ResolveAllDay(request.AllDay)
+                        ? end.Date >= request.AwardedOn.Date
+                        : end > request.AwardedOn
+            )
             .WithMessage(request =>
-                request.AllDay
+                UserTrainingHelper.ResolveAllDay(request.AllDay)
                     ? "Ending date must be on or after the awarded date."
                     : "Ending date must be after the awarded date."
             );

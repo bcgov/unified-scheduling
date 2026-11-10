@@ -15,7 +15,7 @@ namespace Unified.Db.Migrations
                 table: "UserTrainings",
                 type: "boolean",
                 nullable: false,
-                defaultValue: false
+                defaultValue: true
             );
         }
 

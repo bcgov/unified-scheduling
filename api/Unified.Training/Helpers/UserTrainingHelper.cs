@@ -8,17 +8,23 @@ public static class UserTrainingHelper
     private const int DaysPerYear = 365;
     private static readonly TimeSpan EndOfDayTime = new(23, 59, 59);
 
-    public static UserTrainingRequest NormalizeToUtc(UserTrainingRequest request) =>
-        request with
+    public static bool ResolveAllDay(bool? allDay, bool? existingAllDay = null) => allDay ?? existingAllDay ?? true;
+
+    public static UserTrainingRequest NormalizeToUtc(UserTrainingRequest request, bool? existingAllDay = null)
+    {
+        var allDay = ResolveAllDay(request.AllDay, existingAllDay);
+        return request with
         {
-            AwardedOn = request.AllDay
+            AllDay = allDay,
+            AwardedOn = allDay
                 ? new DateTimeOffset(request.AwardedOn.Date, TimeSpan.Zero)
                 : request.AwardedOn.ToUniversalTime(),
-            EndingOn = request.AllDay
+            EndingOn = allDay
                 ? new DateTimeOffset(request.EndingOn.Date, TimeSpan.Zero)
                 : request.EndingOn.ToUniversalTime(),
             ExpiryDate = request.ExpiryDate?.ToUniversalTime(),
         };
+    }
 
     public static DateTimeOffset GetLocalDayStartUtc(
         DateOnly date,

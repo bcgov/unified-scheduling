@@ -25,6 +25,35 @@ public class UserTrainingRequestValidatorTests
         Assert.True(result.IsValid);
     }
 
+    [Fact]
+    public async Task Validate_WhenAllDayIsOmitted_AllowsLegacySameDayTrainingAndUsesNormalizedExpiry()
+    {
+        var request = ValidRequest() with
+        {
+            AwardedOn = new DateTimeOffset(2026, 7, 20, 15, 0, 0, TimeSpan.FromHours(14)),
+            EndingOn = new DateTimeOffset(2026, 7, 20, 15, 0, 0, TimeSpan.FromHours(14)),
+            ExpiryDate = new DateTimeOffset(2026, 7, 20, 0, 30, 0, TimeSpan.Zero),
+        };
+
+        Assert.True((await _validator.ValidateAsync(request, TestContext.Current.CancellationToken)).IsValid);
+        Assert.False(
+            (
+                await _validator.ValidateAsync(request with { AllDay = false }, TestContext.Current.CancellationToken)
+            ).IsValid
+        );
+        Assert.False(
+            (
+                await _validator.ValidateAsync(
+                    request with
+                    {
+                        ExpiryDate = new DateTimeOffset(2026, 7, 19, 23, 59, 0, TimeSpan.Zero),
+                    },
+                    TestContext.Current.CancellationToken
+                )
+            ).IsValid
+        );
+    }
+
     [Theory]
     [InlineData(15, 18, false, true)]
     [InlineData(18, 15, false, false)]

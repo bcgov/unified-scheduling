@@ -120,6 +120,32 @@ public sealed class TrainingConflictLifecycleTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateAsync_TimedTrainingWithOmittedClassification_PreservesIntervalAndOverride()
+    {
+        var request = Request(AssignmentStart.AddMinutes(-30), AssignmentStart.AddMinutes(30), allDay: false);
+        var record = await CreateOverriddenTrainingAsync(request);
+
+        var updated = await _service.UpdateAsync(
+            record.Id,
+            request with
+            {
+                AllDay = null,
+                Notes = "Legacy update",
+            },
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(updated);
+        Assert.False(updated.AllDay);
+        Assert.Equal(record.AwardedOn, updated.AwardedOn);
+        Assert.Equal(record.EndingOn, updated.EndingOn);
+        Assert.True(Assert.Single(await ConflictsAsync()).IsOverridden);
+        Assert.Null(
+            (await _db.CalendarConflictOverrides.SingleAsync(TestContext.Current.CancellationToken)).InvalidatedOn
+        );
+    }
+
+    [Fact]
     public async Task UpdateAsync_WhenOnlyClassificationChanges_RechecksAndInvalidatesOverride()
     {
         var request = Request(Day(2026, 10, 21), Day(2026, 10, 22));

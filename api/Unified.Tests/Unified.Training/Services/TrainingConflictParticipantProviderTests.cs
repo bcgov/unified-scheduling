@@ -125,6 +125,36 @@ public sealed class TrainingConflictParticipantProviderTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task GetVisibilityAsync_TrainingClassification_PreservesPermissionProjection(bool allDay, bool canView)
+    {
+        var training = await AddAsync(_userA, 1, Day(2026, 10, 22), Day(2026, 10, 22).AddHours(1), allDay);
+        var participant = await _provider.GetParticipantAsync(
+            TrainingConflictParticipantProvider.IdentityFor(training.Id),
+            _userA,
+            TestContext.Current.CancellationToken
+        );
+        Assert.NotNull(participant);
+        HashSet<string> permissions = canView ? [nameof(Permissions.UserTrainingsView)] : [];
+
+        var visibility = await _provider.GetVisibilityAsync(
+            participant,
+            permissions,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(visibility);
+        Assert.Equal(canView, visibility.CanView);
+        if (canView)
+            Assert.Equal(participant.Identity, Assert.Single(visibility.VisibleAnchors));
+        else
+            Assert.Empty(visibility.VisibleAnchors);
+    }
+
+    [Theory]
     [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T14:00:00-07:00", false)]
     [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T09:30:00-07:00", true)]
     [InlineData("2026-10-22T09:00:00-07:00", "2026-10-22T10:00:00-07:00", "2026-10-22T10:00:00-07:00", false)]

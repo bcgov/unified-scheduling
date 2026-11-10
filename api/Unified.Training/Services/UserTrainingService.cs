@@ -1,4 +1,5 @@
 using System.Data;
+using FluentValidation;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
 using Unified.Calendar.Conflicts;
@@ -7,16 +8,19 @@ using Unified.Db.Models.Training;
 using Unified.Training.Helpers;
 using Unified.Training.Mappings;
 using Unified.Training.Models;
+using Unified.Training.Validators;
 
 namespace Unified.Training.Services;
 
 public sealed class UserTrainingService(
     UnifiedDbContext db,
     ICalendarConflictService? conflictService = null,
-    TimeProvider? timeProvider = null
+    TimeProvider? timeProvider = null,
+    UserTrainingRequestValidator? validator = null
 ) : IUserTrainingService
 {
     private static readonly DateTimeOffset MinDateTimeOffsetUtc = DateTimeOffset.MinValue;
+    private readonly UserTrainingRequestValidator _validator = validator ?? new UserTrainingRequestValidator();
 
     public async Task<IReadOnlyCollection<UserTrainingResponse>> GetUserTrainings(
         Guid userId,
@@ -137,9 +141,10 @@ public sealed class UserTrainingService(
         CancellationToken cancellationToken = default
     )
     {
-        var normalizedRequest = UserTrainingHelper.NormalizeToUtc(request);
-
         var entity = await db.UserTrainings.SingleOrDefaultAsync(ut => ut.Id == id, cancellationToken);
+        var normalizedRequest = UserTrainingHelper.NormalizeToUtc(request, entity?.AllDay);
+        await _validator.ValidateAndThrowAsync(normalizedRequest, cancellationToken);
+
         if (entity is null)
             return null;
 

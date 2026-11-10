@@ -20,7 +20,7 @@ namespace Unified.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -98,7 +98,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("EntityType", "EntityPK")
                         .HasDatabaseName("ix_audit_entity");
 
-                    b.ToTable("AuditRecords");
+                    b.ToTable("AuditRecords", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.CalendarConflictOverride", b =>
@@ -169,7 +169,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("FirstSourceModule", "FirstEventId", "SecondSourceModule", "SecondEventId", "ResourceId")
                         .IsUnique();
 
-                    b.ToTable("CalendarConflictOverrides");
+                    b.ToTable("CalendarConflictOverrides", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.Event", b =>
@@ -468,7 +468,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("Room", "LocationId")
                         .IsUnique();
 
-                    b.ToTable("CourtRooms");
+                    b.ToTable("CourtRooms", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Leave.LeaveEntry", b =>
@@ -950,7 +950,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Locations");
+                    b.ToTable("Locations", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.EventStatusType", b =>
@@ -1007,7 +1007,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("EventStatusTypes");
+                    b.ToTable("EventStatusTypes", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.EventType", b =>
@@ -1064,7 +1064,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("EventTypes");
+                    b.ToTable("EventTypes", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.LeaveType", b =>
@@ -1124,7 +1124,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("LeaveTypes");
+                    b.ToTable("LeaveTypes", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Lookup.PositionType", b =>
@@ -1237,7 +1237,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Regions");
+                    b.ToTable("Regions", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Scheduling.AssignmentDefinition", b =>
@@ -1401,7 +1401,7 @@ namespace Unified.Db.Migrations
 
                     b.ToTable("AssignmentEntries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AssignmentEntries_CapacityNonNegative", "\"Capacity\" >= 0");
+                            t.HasCheckConstraint("CK_AssignmentEntries_CapacityAtLeastOne", "\"Capacity\" >= 1");
                         });
                 });
 
@@ -1466,7 +1466,7 @@ namespace Unified.Db.Migrations
 
                     b.ToTable("AssignmentSeries", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AssignmentSeries_CapacityNonNegative", "\"Capacity\" >= 0");
+                            t.HasCheckConstraint("CK_AssignmentSeries_CapacityAtLeastOne", "\"Capacity\" >= 1");
                         });
                 });
 
@@ -2243,7 +2243,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("StatCategories");
+                    b.ToTable("StatCategories", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatGroup", b =>
@@ -2291,7 +2291,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("StatGroups");
+                    b.ToTable("StatGroups", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatMetric", b =>
@@ -2340,7 +2340,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("StatMetrics");
+                    b.ToTable("StatMetrics", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatRecord", b =>
@@ -2427,7 +2427,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("DateFrom", "DateTo");
 
-                    b.ToTable("StatRecords");
+                    b.ToTable("StatRecords", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.StatSignoff", b =>
@@ -2484,7 +2484,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UserId", "LocationId", "Month", "Year")
                         .IsUnique();
 
-                    b.ToTable("StatSignoffs");
+                    b.ToTable("StatSignoffs", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.SubCategory", b =>
@@ -2537,7 +2537,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("SubCategories");
+                    b.ToTable("SubCategories", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Stats.SubCategoryMetric", b =>
@@ -2594,7 +2594,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("SubCategoryMetrics");
+                    b.ToTable("SubCategoryMetrics", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.Training", b =>
@@ -2671,7 +2671,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Trainings");
+                    b.ToTable("Trainings", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.TrainingCategory", b =>
@@ -2721,7 +2721,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("TrainingCategories");
+                    b.ToTable("TrainingCategories", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.TrainingProfileRequirement", b =>
@@ -2831,7 +2831,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("TrainingProfileTypes");
+                    b.ToTable("TrainingProfileTypes", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Training.UserTraining", b =>
@@ -2912,7 +2912,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("UserId", "TrainingId", "Version")
                         .IsUnique();
 
-                    b.ToTable("UserTrainings");
+                    b.ToTable("UserTrainings", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.Permission", b =>
@@ -2957,7 +2957,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Permissions");
+                    b.ToTable("Permissions", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.Role", b =>
@@ -3011,7 +3011,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.RolePermission", b =>
@@ -3060,7 +3060,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("RolePermissions");
+                    b.ToTable("RolePermissions", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.User", b =>
@@ -3170,7 +3170,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserActingPosition", b =>
@@ -3239,7 +3239,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserActingPositions");
+                    b.ToTable("UserActingPositions", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserAwayLocation", b =>
@@ -3288,7 +3288,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserAwayLocations");
+                    b.ToTable("UserAwayLocations", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserLeave", b =>
@@ -3342,7 +3342,7 @@ namespace Unified.Db.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserLeave");
+                    b.ToTable("UserLeave", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.UserManagement.UserRole", b =>
@@ -3400,7 +3400,7 @@ namespace Unified.Db.Migrations
                     b.HasIndex("RoleId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("UserRoles");
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("Unified.Db.Models.Calendar.CalendarConflictOverride", b =>
