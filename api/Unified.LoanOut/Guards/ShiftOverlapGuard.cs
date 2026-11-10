@@ -33,51 +33,51 @@ public static class ShiftOverlapGuard
         // Destination shifts remain valid wherever the edited loan-out still covers the same user and location.
         var withdrawn = new List<LoanOutEntry>();
         foreach (var previous in previousEntries)
-            foreach (var user in previous.Users)
-            {
-                var remaining = new List<(DateTimeOffset Start, DateTimeOffset End)>
+        foreach (var user in previous.Users)
+        {
+            var remaining = new List<(DateTimeOffset Start, DateTimeOffset End)>
             {
                 (previous.Event!.StartAtUtc, previous.Event.EndAtUtc ?? previous.Event.StartAtUtc.AddDays(1)),
             };
-                foreach (
-                    var updated in updatedEntries.Where(entry =>
-                        entry.LoanOutLocationId == previous.LoanOutLocationId
-                        && entry.Users.Any(candidate => candidate.UserId == user.UserId)
-                    )
+            foreach (
+                var updated in updatedEntries.Where(entry =>
+                    entry.LoanOutLocationId == previous.LoanOutLocationId
+                    && entry.Users.Any(candidate => candidate.UserId == user.UserId)
                 )
+            )
+            {
+                var start = updated.Event!.StartAtUtc;
+                var end = updated.Event.EndAtUtc ?? start.AddDays(1);
+                var uncovered = new List<(DateTimeOffset Start, DateTimeOffset End)>();
+                foreach (var range in remaining)
                 {
-                    var start = updated.Event!.StartAtUtc;
-                    var end = updated.Event.EndAtUtc ?? start.AddDays(1);
-                    var uncovered = new List<(DateTimeOffset Start, DateTimeOffset End)>();
-                    foreach (var range in remaining)
+                    if (end <= range.Start || start >= range.End)
+                        uncovered.Add(range);
+                    else
                     {
-                        if (end <= range.Start || start >= range.End)
-                            uncovered.Add(range);
-                        else
-                        {
-                            if (start > range.Start)
-                                uncovered.Add((range.Start, start));
-                            if (end < range.End)
-                                uncovered.Add((end, range.End));
-                        }
+                        if (start > range.Start)
+                            uncovered.Add((range.Start, start));
+                        if (end < range.End)
+                            uncovered.Add((end, range.End));
                     }
-                    remaining = uncovered;
                 }
-                withdrawn.AddRange(
-                    remaining.Select(range => new LoanOutEntry
-                    {
-                        Id = previous.Id,
-                        LoanOutLocationId = previous.LoanOutLocationId,
-                        Event = new Event
-                        {
-                            StartAtUtc = range.Start,
-                            EndAtUtc = range.End,
-                            LocationId = previous.Event.LocationId,
-                        },
-                        Users = [new LoanOutEntryUser { UserId = user.UserId }],
-                    })
-                );
+                remaining = uncovered;
             }
+            withdrawn.AddRange(
+                remaining.Select(range => new LoanOutEntry
+                {
+                    Id = previous.Id,
+                    LoanOutLocationId = previous.LoanOutLocationId,
+                    Event = new Event
+                    {
+                        StartAtUtc = range.Start,
+                        EndAtUtc = range.End,
+                        LocationId = previous.Event.LocationId,
+                    },
+                    Users = [new LoanOutEntryUser { UserId = user.UserId }],
+                })
+            );
+        }
         foreach (var group in withdrawn.GroupBy(entry => entry.LoanOutLocationId))
             await EnsureNoShiftAtLoanOutLocationAsync(schedulingLoanOutService, group, group.Key, cancellationToken);
         return withdrawn;
