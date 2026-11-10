@@ -1,7 +1,7 @@
 import UserTrainingVersionsModal from '@/modules/myteam/components/UserTrainingVersionsModal.vue';
 import { mount } from '@vue/test-utils';
 import { defineComponent } from 'vue';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const UaModalStub = defineComponent({
   name: 'UaModal',
@@ -22,6 +22,8 @@ const UaDataTableStub = defineComponent({
     <div v-for="(item, index) in items" :key="index">
       <slot name="item.awardedOn" :item="item" />
       <slot name="item.endingOn" :item="item" />
+      <slot name="item.expiryDate" :item="item" />
+      <slot name="item.status" :item="item" />
     </div>
   </div>`,
 });
@@ -68,6 +70,40 @@ const sampleTraining = {
 };
 
 describe('UserTrainingVersionsModal', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ['America/Vancouver', '2026-12-01', '2026-12-02T06:59:59.999Z', '3:00 PM'],
+    ['America/Edmonton', '2026-07-01', '2026-07-02T05:59:59.999Z', '4:00 PM'],
+  ])(
+    'uses %s dates for details, history, and status across the UTC date boundary',
+    async (timeZone, date, expiryDate, startTime) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.parse(expiryDate!) - 3600000);
+      const training = { ...sampleTraining, awardedOn: `${date}T22:00:00Z`, endingOn: `${date}T23:00:00Z`, expiryDate };
+      const wrapper = mount(UserTrainingVersionsModal, {
+        props: { training, trainings: [training, { ...training, id: 9 }], timeZone },
+        global: {
+          stubs: {
+            UaModal: UaModalStub,
+            UaDataTable: UaDataTableStub,
+            VTabs: VTabsStub,
+            VTab: true,
+            VRow: VRowStub,
+            VCol: VColStub,
+          },
+        },
+      });
+      expect(wrapper.text()).toContain(`${date} ${startTime}`);
+      expect(wrapper.text()).toContain('Active');
+      await wrapper.get('[data-test="show-history"]').trigger('click');
+      expect(wrapper.get('.ua-data-table-stub').text()).toContain(date!);
+      expect(wrapper.get('.ua-data-table-stub').text()).toContain('Active');
+      vi.setSystemTime(Date.parse(expiryDate!) + 1);
+      await wrapper.get('[data-test="show-details"]').trigger('click');
+      expect(wrapper.text()).toContain('Historical');
+    },
+  );
   it.each([false, true])('shows details dates with allDay=%s', (allDay) => {
     const training = allDay
       ? { ...sampleTraining, allDay, awardedOn: '2026-07-20T00:00:00Z', endingOn: '2026-07-22T00:00:00Z' }
@@ -76,6 +112,7 @@ describe('UserTrainingVersionsModal', () => {
       props: {
         training,
         trainings: [training],
+        timeZone: 'America/Vancouver',
       },
       global: {
         stubs: {
@@ -94,7 +131,7 @@ describe('UserTrainingVersionsModal', () => {
     expect(wrapper.text()).toContain('Current version');
     expect(wrapper.text()).toContain(allDay ? '2026-07-20' : '2026-01-20 3:00 PM');
     expect(wrapper.text()).toContain(allDay ? '2026-07-22' : '2026-01-20 6:00 PM');
-    expect(wrapper.text()).toContain('2026-02-01');
+    expect(wrapper.text()).toContain('2026-01-31');
     if (allDay) expect(wrapper.text()).not.toContain('2026-07-19');
   });
 
@@ -111,6 +148,7 @@ describe('UserTrainingVersionsModal', () => {
       props: {
         training: sampleTraining,
         trainings: [sampleTraining, priorVersion],
+        timeZone: 'America/Vancouver',
       },
       global: {
         stubs: {

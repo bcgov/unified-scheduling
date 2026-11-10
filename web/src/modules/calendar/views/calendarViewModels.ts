@@ -6,6 +6,7 @@ import type {
 } from '../calendarTypes';
 import type { CalendarPeriod } from '../calendarStore';
 import { selectCalendarEvents } from '../calendarSelectors';
+import { resolveSchedulingTimeZoneFromFilters } from '@/modules/scheduling/schedulingTimeZone';
 
 interface CalendarDisplayConfig {
   view: 'timeGridDay' | 'timeGridWeek' | 'dayGridMonth';
@@ -44,6 +45,7 @@ export const buildCalendarDefaultViewModel = (
   const display = resolveCalendarDisplay(period);
 
   return {
+    timeZone: resolveSchedulingTimeZoneFromFilters(context.filters),
     view: display.view,
     initialDate: context.startDate,
     events: selectCalendarEvents(response).filter(

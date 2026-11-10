@@ -24,11 +24,16 @@ const training: UserTrainingResponse = {
   updatedOn: null,
 };
 
-const mountModal = async (mode: 'create' | 'edit' | 'renew' = 'create', record = training) => {
+const mountModal = async (
+  mode: 'create' | 'edit' | 'renew' = 'create',
+  record = training,
+  timeZone: string | null = 'America/Vancouver',
+) => {
   const { mountPlugins } = await createTestApp();
   return mount(UserTrainingModal, {
     props: {
       userId,
+      timeZone: timeZone ?? undefined,
       mode,
       trainingOptions: [{ code: 10, description: 'CPR' }],
       training: mode === 'create' ? null : record,
@@ -101,6 +106,8 @@ describe('UserTrainingModal', () => {
       }),
     ]);
     expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-20T18:00:00.000-07:00');
+    expect(expiryQueries.at(-1)?.searchParams.get('UserId')).toBe(userId);
+    expect(expiryQueries.at(-1)?.searchParams.get('AllDay')).toBe('false');
     expect(wrapper.emitted('saved')).toBeTruthy();
     expect(wrapper.emitted('close')).toBeTruthy();
   });
@@ -137,7 +144,8 @@ describe('UserTrainingModal', () => {
       endingOn: '2026-07-20T00:00:00.000Z',
       allDay: true,
     });
-    expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-20T07:00:00.000Z');
+    expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-20T00:00:00.000Z');
+    expect(expiryQueries.at(-1)?.searchParams.get('AllDay')).toBe('true');
   });
 
   it('waits for the To date before calculating expiry', async () => {
@@ -152,7 +160,7 @@ describe('UserTrainingModal', () => {
     await flushPromises();
 
     expect(expiryQueries).toHaveLength(1);
-    expect(expiryQueries[0]!.searchParams.get('AwardedOn')).toBe('2026-07-22T07:00:00.000Z');
+    expect(expiryQueries[0]!.searchParams.get('AwardedOn')).toBe('2026-07-22T00:00:00.000Z');
   });
 
   it('recalculates from changes to To date and time but not From', async () => {
@@ -267,6 +275,78 @@ describe('UserTrainingModal', () => {
       awardedOn: '2026-01-20T15:00:00.000-08:00',
       endingOn: '2026-01-20T18:00:00.000-08:00',
     });
+  });
+
+  it.each(['edit', 'renew'] as const)('preserves Edmonton instants and local dates in %s mode', async (mode) => {
+    const wrapper = await mountModal(mode, training, 'America/Edmonton');
+    expect((wrapper.get('input#user-training-awarded-time').element as HTMLInputElement).value).toBe('16:00');
+    expect((wrapper.get('input#user-training-ending-time').element as HTMLInputElement).value).toBe('19:00');
+    await save(wrapper);
+    const request = (mode === 'edit' ? updated : created)[0]!;
+    expect(request.awardedOn).toBe('2026-07-20T16:00:00.000-06:00');
+    expect(Date.parse(request.endingOn)).toBe(Date.parse(training.endingOn!));
+    expect(request.expiryDate).toBe(training.expiryDate);
+  });
+
+  it('keeps Vancouver on UTC-7 in December 2026', async () => {
+    const wrapper = await mountModal('edit', {
+      ...training,
+      awardedOn: '2026-12-01T22:00:00Z',
+      endingOn: '2026-12-02T01:00:00Z',
+    });
+    expect((wrapper.get('input#user-training-awarded-time').element as HTMLInputElement).value).toBe('15:00');
+    await save(wrapper);
+    expect(updated[0]?.awardedOn).toBe('2026-12-01T15:00:00.000-07:00');
+  });
+
+  it.each(['America/Vancouver', 'America/Edmonton'])(
+    'shows the local preview expiry date in %s even on the following UTC date',
+    async (timeZone) => {
+      server.use(
+        http.get('*/api/training/user-trainings/expiry-date', () =>
+          HttpResponse.json({ expiryDate: '2026-08-20T05:59:59.999Z' }),
+        ),
+      );
+      const wrapper = await mountModal('create', training, timeZone);
+      await fillTraining(wrapper, '', '');
+      expect((wrapper.get('input#user-training-expiry-date').element as HTMLInputElement).value).toBe('2026-08-19');
+      await save(wrapper);
+      expect(created[0]?.expiryDate).toBeNull(); // Persistence calculates the same expiry on the server.
+    },
+  );
+
+  it('serializes a manually entered expiry at the end of the Edmonton date', async () => {
+    const wrapper = await mountModal('create', training, 'America/Edmonton');
+    await fillTraining(wrapper);
+    await wrapper.get('input#user-training-expiry-date').setValue('2026-08-19');
+    await save(wrapper);
+    expect(created[0]?.expiryDate).toBe('2026-08-19T23:59:59.999-06:00');
+  });
+
+  it.each([null, 'Not/AZone'])(
+    'rejects timed training and preview without a valid home timezone (%s)',
+    async (timeZone) => {
+      const wrapper = await mountModal('create', training, timeZone);
+      await fillTraining(wrapper);
+      await save(wrapper);
+      expect(created).toHaveLength(0);
+      expect(expiryQueries).toHaveLength(0);
+      expect(wrapper.text()).toContain('home location with a valid timezone');
+    },
+  );
+
+  it('retains date-only all-day training without a home timezone', async () => {
+    const wrapper = await mountModal('create', training, null);
+    await fillTraining(wrapper, '', '');
+    await save(wrapper);
+    expect(created[0]).toMatchObject({ allDay: true, awardedOn: '2026-07-20T00:00:00.000Z', expiryDate: null });
+  });
+
+  it('does not reinterpret an existing timed record as all-day when its timezone is missing', async () => {
+    const wrapper = await mountModal('edit', training, null);
+    await save(wrapper);
+    expect(updated).toHaveLength(0);
+    expect(wrapper.text()).toContain('home location with a valid timezone');
   });
 
   it.each([

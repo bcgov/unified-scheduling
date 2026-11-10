@@ -53,6 +53,8 @@ export const GetApiTrainingsTrainingIdUsersUserIdResponse = zod.object({
 export const GetApiTrainingUserTrainingsExpiryDateQueryParams = zod.strictObject({
   TrainingId: zod.int().optional(),
   AwardedOn: zod.iso.datetime({ offset: true }).optional(),
+  UserId: zod.uuid().nullish(),
+  AllDay: zod.boolean().nullish(),
 });
 
 export const GetApiTrainingUserTrainingsExpiryDateResponse = zod.object({

@@ -2,13 +2,22 @@
 import type { UserTrainingResponse } from '@/api-access/generated/models';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
 import UaModal from '@/shared/components/UaModal.vue';
+import UaAlert from '@/shared/components/UaAlert.vue';
 import { toCalendarDateString, toDateTime } from '@/utils/date';
 import { computed, ref } from 'vue';
+import { DateTime } from 'luxon';
 
 const props = defineProps<{
   training: UserTrainingResponse;
   trainings: UserTrainingResponse[];
+  timeZone?: string;
 }>();
+
+const trainingTimeZone = computed(() =>
+  props.timeZone && DateTime.local().setZone(props.timeZone).isValid ? props.timeZone : undefined,
+);
+const formatTrainingInstant = (value: string, format: string) =>
+  trainingTimeZone.value ? toDateTime(value, trainingTimeZone.value).toFormat(format) : '—';
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -38,6 +47,13 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
 
 <template>
   <UaModal :title="`User Training: ${props.training.trainingCode}`" @close="emit('close')">
+    <UaAlert
+      v-if="!trainingTimeZone && props.trainings.some((training) => training.allDay === false || training.expiryDate)"
+      type="warning"
+      :closable="false"
+    >
+      The training user must have a home location with a valid timezone for timed training or expiry calculations.
+    </UaAlert>
     <v-tabs v-model="activeTab" class="user-training-details__tabs" density="comfortable">
       <v-tab value="details">Details</v-tab>
       <v-tab value="history">History</v-tab>
@@ -55,20 +71,20 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
         <v-col cols="12" sm="8">{{
           props.training.allDay
             ? toCalendarDateString(props.training.awardedOn)
-            : toDateTime(props.training.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a')
+            : formatTrainingInstant(props.training.awardedOn, 'yyyy-MM-dd h:mm a')
         }}</v-col>
 
         <v-col cols="12" sm="4" class="user-training-details__label">To</v-col>
         <v-col cols="12" sm="8">{{
           props.training.allDay
             ? toCalendarDateString(props.training.endingOn ?? props.training.awardedOn)
-            : toDateTime(props.training.endingOn ?? props.training.awardedOn, 'America/Vancouver').toFormat(
-                'yyyy-MM-dd h:mm a',
-              )
+            : formatTrainingInstant(props.training.endingOn ?? props.training.awardedOn, 'yyyy-MM-dd h:mm a')
         }}</v-col>
 
         <v-col cols="12" sm="4" class="user-training-details__label">Expiry Date</v-col>
-        <v-col cols="12" sm="8">{{ toCalendarDateString(props.training.expiryDate) ?? 'Never' }}</v-col>
+        <v-col cols="12" sm="8">{{
+          props.training.expiryDate ? formatTrainingInstant(props.training.expiryDate, 'yyyy-MM-dd') : 'Never'
+        }}</v-col>
 
         <v-col cols="12" sm="4" class="user-training-details__label">Status</v-col>
         <v-col cols="12" sm="8">{{ getTrainingStatus(props.training) }}</v-col>
@@ -94,7 +110,7 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
           {{
             item.allDay
               ? toCalendarDateString(item.awardedOn)
-              : toDateTime(item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a')
+              : formatTrainingInstant(item.awardedOn, 'yyyy-MM-dd h:mm a')
           }}
         </template>
 
@@ -102,12 +118,12 @@ const getTrainingStatus = (training: UserTrainingResponse) => {
           {{
             item.allDay
               ? toCalendarDateString(item.endingOn ?? item.awardedOn)
-              : toDateTime(item.endingOn ?? item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a')
+              : formatTrainingInstant(item.endingOn ?? item.awardedOn, 'yyyy-MM-dd h:mm a')
           }}
         </template>
 
         <template #[`item.expiryDate`]="{ item }">
-          {{ toCalendarDateString(item.expiryDate) ?? 'Never' }}
+          {{ item.expiryDate ? formatTrainingInstant(item.expiryDate, 'yyyy-MM-dd') : 'Never' }}
         </template>
 
         <template #[`item.status`]="{ item }">

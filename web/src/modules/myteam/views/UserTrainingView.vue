@@ -6,6 +6,7 @@ import type { UserTrainingResponse } from '@/api-access/generated/models';
 import type { UserResponse } from '@/api-access/generated/models';
 import { Permissions } from '@/api-access/generated/models';
 import { useAccessControl } from '@/composables/useAccessControl';
+import { useLocationsStore } from '@/stores/LocationsStore';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaBtn from '@/shared/components/UaBtn.vue';
 import UaDataTable from '@/shared/components/UaDataTable.vue';
@@ -14,6 +15,7 @@ import { toCalendarDateString, toDateTime } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
 import { mdiAutorenew, mdiDelete, mdiPencil, mdiPlus } from '@mdi/js';
 import { computed, ref } from 'vue';
+import { DateTime } from 'luxon';
 import DeleteUserTrainingModal from '../components/DeleteUserTrainingModal.vue';
 import UserTrainingModal from '../components/UserTrainingModal.vue';
 import UserTrainingVersionsModal from '../components/UserTrainingVersionsModal.vue';
@@ -23,6 +25,12 @@ const props = defineProps<{
 }>();
 
 const accessControl = useAccessControl();
+const locationsStore = useLocationsStore();
+const trainingTimeZone = computed(() => {
+  const zone =
+    props.user.homeLocationId == null ? undefined : locationsStore.entitiesMap[props.user.homeLocationId]?.timezone;
+  return zone && DateTime.local().setZone(zone).isValid ? zone : undefined;
+});
 const canViewTrainings = computed(() => accessControl.hasPermission(Permissions.UserTrainingsView));
 const canCreateTrainings = computed(() => accessControl.hasPermission(Permissions.UserTrainingsCreate));
 const canEditTrainings = computed(() => accessControl.hasPermission(Permissions.UserTrainingsEdit));
@@ -227,6 +235,16 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
       Failed to load training records: {{ combinedError.message }}
     </UaAlert>
 
+    <UaAlert
+      v-if="
+        !trainingTimeZone && latestUserTrainings.some((training) => training.allDay === false || training.expiryDate)
+      "
+      type="warning"
+      :closable="false"
+    >
+      The training user must have a home location with a valid timezone for timed training or expiry calculations.
+    </UaAlert>
+
     <div v-if="isFetchingUserTrainings || isFetchingTrainings" class="user-training-view__loading">
       Loading training records...
     </div>
@@ -254,7 +272,9 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
         {{
           item.allDay
             ? toCalendarDateString(item.awardedOn)
-            : toDateTime(item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a')
+            : trainingTimeZone
+              ? toDateTime(item.awardedOn, trainingTimeZone).toFormat('yyyy-MM-dd h:mm a')
+              : '—'
         }}
       </template>
 
@@ -262,12 +282,20 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
         {{
           item.allDay
             ? toCalendarDateString(item.endingOn ?? item.awardedOn)
-            : toDateTime(item.endingOn ?? item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a')
+            : trainingTimeZone
+              ? toDateTime(item.endingOn ?? item.awardedOn, trainingTimeZone).toFormat('yyyy-MM-dd h:mm a')
+              : '—'
         }}
       </template>
 
       <template #[`item.expiryDate`]="{ item }">
-        {{ toCalendarDateString(item.expiryDate) ?? 'Never' }}
+        {{
+          item.expiryDate
+            ? trainingTimeZone
+              ? toDateTime(item.expiryDate, trainingTimeZone).toISODate()
+              : '—'
+            : 'Never'
+        }}
       </template>
 
       <template #[`item.status`]="{ item }">
@@ -327,6 +355,7 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
     <UserTrainingModal
       v-if="showTrainingModal"
       :user-id="props.user.id"
+      :time-zone="trainingTimeZone"
       :mode="trainingModalMode"
       :training-options="availableTrainingOptions"
       :training="selectedTraining"
@@ -345,6 +374,7 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
       v-if="showDetailsModal && selectedDetailsTraining"
       :training="selectedDetailsTraining"
       :trainings="selectedTrainingVersions"
+      :time-zone="trainingTimeZone"
       @close="handleCloseDetailsModal"
     />
   </div>

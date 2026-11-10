@@ -33,7 +33,7 @@ describe('UserTrainingReport', () => {
       allDay: true,
       awardedOn: '2026-07-20T00:00:00Z',
       endingOn: '2026-07-22T00:00:00Z',
-      expiryDate: '2026-07-23T00:00:00Z',
+      expiryDate: '2026-07-22T23:59:59.999-07:00',
       status: 'Active',
       version: 1,
       noticeState: 'None',
@@ -69,7 +69,7 @@ describe('UserTrainingReport', () => {
     const nativeDateFormat = Date.prototype.toLocaleDateString;
     const localeOptions = { timeZone: 'America/Vancouver' };
     const timedDate = nativeDateFormat.call(new Date(timed.endingOn!), 'en-CA', localeOptions);
-    const expiryDate = nativeDateFormat.call(new Date(allDay.expiryDate!), 'en-CA', localeOptions);
+    const expiryDate = '2026-07-22';
     vi.spyOn(Date.prototype, 'toLocaleDateString').mockImplementation(function (this: Date) {
       return nativeDateFormat.call(this, 'en-CA', localeOptions);
     });

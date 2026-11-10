@@ -1,3 +1,4 @@
+using System.Globalization;
 using Unified.Common.Time;
 using Unified.Training.Models;
 
@@ -71,6 +72,29 @@ public static class UserTrainingHelper
 
     private static bool IsAnnualValidity(int validityDays) =>
         validityDays >= DaysPerYear && validityDays % DaysPerYear == 0;
+
+    public static DateTimeOffset? CalculateExpiryDate(
+        DateTimeOffset endingOn,
+        int? validityDays,
+        bool allDay,
+        TimeZoneInfo timeZone,
+        ITimeZoneService timeZoneService
+    )
+    {
+        if (!validityDays.HasValue)
+            return null;
+
+        // Nonannual timed validity is an elapsed duration, not a calendar-date expiry.
+        if (!allDay && !IsAnnualValidity(validityDays.Value))
+            return CalculateExpiryDate(endingOn.ToUniversalTime(), validityDays);
+
+        var localEndingOn = allDay ? endingOn : TimeZoneInfo.ConvertTime(endingOn, timeZone);
+        var expiry = CalculateExpiryDate(localEndingOn, validityDays)!.Value;
+        return timeZoneService.FromDateStringToEndOfDayInTimeZone(
+            expiry.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            timeZone.Id
+        );
+    }
 
     private static DateTimeOffset CalculateEndOfYearExpiryDate(DateTimeOffset awardedOn, int validityDays)
     {

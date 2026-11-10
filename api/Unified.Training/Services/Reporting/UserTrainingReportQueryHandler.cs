@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Unified.Common.Reporting;
+using Unified.Common.Time;
 using Unified.Db;
 using Unified.Training.Mappings;
 
@@ -25,7 +26,18 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
         var totalRows = pageRows.Count;
 
         var rows = pageRows
-            .Select(row => UserTrainingReportMappings.ToReportRowValue(row, ResolveStatus(row, now)))
+            .Select(row =>
+            {
+                var result = UserTrainingReportMappings.ToReportRowValue(row, ResolveStatus(row, now));
+                var timeZoneId = TimeZoneService.NormalizeOptionalTimeZoneId(row.TimeZoneId);
+                // Retain the instant while preserving its applicable local date in report output.
+                return result.ExpiryDate is { } expiry && timeZoneId is not null
+                    ? result with
+                    {
+                        ExpiryDate = TimeZoneInfo.ConvertTime(expiry, TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)),
+                    }
+                    : result;
+            })
             .ToArray();
 
         return new UserTrainingReportResponse(rows, totalRows);
@@ -123,6 +135,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
                     ? ut.User.HomeLocation.Region.Name
                     : null,
             LocationName = ut.User.HomeLocation != null ? ut.User.HomeLocation.Name : null,
+            TimeZoneId = ut.User.HomeLocation != null ? ut.User.HomeLocation.Timezone : null,
             TrainingId = ut.TrainingId,
             TrainingCode = ut.Training.Code,
             TrainingDescription = ut.Training.Description,
@@ -195,6 +208,7 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
                         ? user.HomeLocation.Region.Name
                         : null,
                 LocationName = user.HomeLocation != null ? user.HomeLocation.Name : null,
+                TimeZoneId = user.HomeLocation != null ? user.HomeLocation.Timezone : null,
                 TrainingId = training.Id,
                 TrainingCode = training.Code,
                 TrainingDescription = training.Description,

@@ -3,6 +3,8 @@ import type { UserResponse } from '@/api-access/generated/models';
 import { mount } from '@vue/test-utils';
 import { defineComponent, ref } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestApp } from '@/__tests__/helpers/createTestApp';
+import { useLocationsStore } from '@/stores/LocationsStore';
 
 const { getApiTrainingsUsersUserIdMock, getApiLookupTrainingsMock, hasPermissionMock } = vi.hoisted(() => ({
   getApiTrainingsUsersUserIdMock: vi.fn(),
@@ -22,15 +24,6 @@ vi.mock('@/composables/useAccessControl', () => ({
   useAccessControl: () => ({
     hasPermission: hasPermissionMock,
   }),
-}));
-
-vi.mock('@/api-access/generated/models', () => ({
-  Permissions: {
-    UserTrainingsView: 'UserTrainingsView',
-    UserTrainingsCreate: 'UserTrainingsCreate',
-    UserTrainingsEdit: 'UserTrainingsEdit',
-    UserTrainingsDelete: 'UserTrainingsDelete',
-  },
 }));
 
 const UaDataTableStub = defineComponent({
@@ -65,11 +58,14 @@ const makeUser = (): UserResponse =>
     email: 'test.user@example.com',
     gender: 'Other',
     employeeNumber: '12345',
+    homeLocationId: 1,
   }) as unknown as UserResponse;
 
 describe('UserTrainingView', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    const app = await createTestApp({ loadConfig: false });
+    useLocationsStore(app.pinia).entities = [{ id: 1, name: 'Vancouver', timezone: 'America/Vancouver' }];
 
     getApiTrainingsUsersUserIdMock.mockReturnValue({
       data: ref([
@@ -188,6 +184,71 @@ describe('UserTrainingView', () => {
     expect(renewButtons).toHaveLength(1);
   });
 
+  it('uses the training user home timezone for display and the edit modal', async () => {
+    useLocationsStore().entities.push({ id: 2, name: 'Edmonton', timezone: 'America/Edmonton' });
+    getApiTrainingsUsersUserIdMock.mockReturnValueOnce({
+      data: ref([
+        {
+          id: 20,
+          trainingId: 1,
+          allDay: false,
+          awardedOn: '2026-07-20T22:00:00Z',
+          endingOn: '2026-07-21T01:00:00Z',
+          expiryDate: '2026-08-20T05:59:59.999Z',
+        },
+      ]),
+      error: ref(null),
+      isFetching: ref(false),
+      execute: vi.fn(),
+    });
+    const wrapper = mount(UserTrainingView, {
+      props: { user: { ...makeUser(), homeLocationId: 2 } },
+      global: {
+        stubs: {
+          UaDataTable: UaDataTableStub,
+          UaAlert: true,
+          UaBtn: true,
+          UaPlaceholderPage: true,
+          UserTrainingModal: true,
+          UserTrainingVersionsModal: true,
+          VIcon: true,
+        },
+      },
+    });
+    const table = wrapper.getComponent(UaDataTableStub);
+    expect(table.text()).toContain('2026-07-20 4:00 PM');
+    expect(table.text()).toContain('2026-07-20 7:00 PM');
+    expect(table.text()).toContain('2026-08-19');
+    await wrapper.get('ua-btn-stub[title="Edit training record"]').trigger('click');
+    expect(wrapper.findComponent({ name: 'UserTrainingModal' }).props('timeZone')).toBe('America/Edmonton');
+  });
+
+  it('keeps all-day calendar dates when the user has no home location', () => {
+    getApiTrainingsUsersUserIdMock.mockReturnValueOnce({
+      data: ref([
+        {
+          id: 20,
+          trainingId: 1,
+          allDay: true,
+          awardedOn: '2026-07-20T00:00:00Z',
+          endingOn: '2026-07-22T00:00:00Z',
+          expiryDate: null,
+        },
+      ]),
+      error: ref(null),
+      isFetching: ref(false),
+      execute: vi.fn(),
+    });
+    const wrapper = mount(UserTrainingView, {
+      props: { user: { ...makeUser(), homeLocationId: null } },
+      global: {
+        stubs: { UaDataTable: UaDataTableStub, UaAlert: true, UaBtn: true, UaPlaceholderPage: true, VIcon: true },
+      },
+    });
+    expect(wrapper.getComponent(UaDataTableStub).text()).toContain('2026-07-20');
+    expect(wrapper.getComponent(UaDataTableStub).text()).toContain('2026-07-22');
+  });
+
   it('shows all-day calendar dates without shifting to the preceding Vancouver day', () => {
     getApiTrainingsUsersUserIdMock.mockReturnValueOnce({
       data: ref([
@@ -200,7 +261,7 @@ describe('UserTrainingView', () => {
           allDay: true,
           awardedOn: '2026-07-20T00:00:00Z',
           endingOn: '2026-07-22T00:00:00Z',
-          expiryDate: '2026-07-23T00:00:00Z',
+          expiryDate: '2026-07-23T06:59:59.999Z',
         },
       ]),
       error: ref(null),

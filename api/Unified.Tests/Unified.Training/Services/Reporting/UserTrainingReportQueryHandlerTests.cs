@@ -5,6 +5,8 @@ using Unified.Db.Models;
 using Unified.Db.Models.Training;
 using Unified.Db.Models.UserManagement;
 using Unified.Tests.TestHelpers;
+using Unified.Training.Models;
+using Unified.Training.Services;
 using Unified.Training.Services.Reporting;
 
 namespace Unified.Tests.Training.Services.Reporting;
@@ -61,6 +63,54 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var timed = Assert.Single(result.Rows, row => !row.AllDay);
         Assert.Equal(awardedOn.AddHours(1), timed.AwardedOn);
         Assert.Equal(awardedOn.AddHours(2), timed.EndingOn);
+    }
+
+    [Theory]
+    [InlineData("America/Vancouver")]
+    [InlineData("America/Edmonton")]
+    public async Task ExecuteAsync_ExpiryDateAndStatus_StayOnTheUsersCalendarDate(string timeZoneId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var location = await SeedLocationAsync("EXP", "Expiry", timeZoneId, null);
+        var user = await SeedUserAsync("Expiry", "User", homeLocationId: location.Id);
+        var training = await SeedTrainingAsync(100, "EXP", "Expiry", mandatory: false);
+        training.ValidityDays = 30;
+        await _db.SaveChangesAsync(cancellationToken);
+        var record = await new UserTrainingService(_db).CreateAsync(
+            new UserTrainingRequest
+            {
+                UserId = user.Id,
+                TrainingId = training.Id,
+                AllDay = true,
+                AwardedOn = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero),
+                EndingOn = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero),
+            },
+            cancellationToken
+        );
+        _timeProvider.SetUtcNow(record.ExpiryDate!.Value.AddHours(-1));
+
+        var before = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                new Dictionary<string, IReadOnlyCollection<string>> { ["status"] = ["active"] },
+                null,
+                SortDirection.Asc,
+                cancellationToken
+            );
+        var row = Assert.Single(before.Rows);
+        Assert.Equal("Active", row.Status);
+        Assert.Equal(new DateTime(2026, 12, 1), row.ExpiryDate!.Value.Date);
+        Assert.Equal(record.ExpiryDate, row.ExpiryDate);
+        Assert.NotEqual(TimeSpan.Zero, row.ExpiryDate.Value.Offset);
+
+        _timeProvider.SetUtcNow(record.ExpiryDate.Value.AddMilliseconds(1));
+        var after = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                new Dictionary<string, IReadOnlyCollection<string>> { ["status"] = ["expired"] },
+                null,
+                SortDirection.Asc,
+                cancellationToken
+            );
+        Assert.Equal("Expired", Assert.Single(after.Rows).Status);
     }
 
     [Fact]

@@ -3,6 +3,7 @@ import {
   PostApiTrainingUserTrainingsBody,
   PostApiTrainingUserTrainingsResponse,
   PutApiTrainingUserTrainingsIdBody,
+  GetApiTrainingUserTrainingsExpiryDateQueryParams,
 } from '@/api-access/generated/user-training/user-training.zod';
 import { describe, expect, it } from 'vitest';
 
@@ -14,6 +15,14 @@ const request = {
 } satisfies UserTrainingRequest;
 
 describe('user training classification contracts', () => {
+  it('accepts legacy and timezone-aware expiry preview queries', () => {
+    const query = { TrainingId: 1, AwardedOn: '2026-07-20T00:00:00Z' };
+    expect(GetApiTrainingUserTrainingsExpiryDateQueryParams.parse(query)).toEqual(query);
+    for (const AllDay of [true, false, null]) {
+      const contextual = { ...query, UserId: request.userId, AllDay };
+      expect(GetApiTrainingUserTrainingsExpiryDateQueryParams.parse(contextual)).toEqual(contextual);
+    }
+  });
   it.each([PostApiTrainingUserTrainingsBody, PutApiTrainingUserTrainingsIdBody])(
     'preserves omitted, null, and explicit classifications without applying a client default',
     (schema) => {

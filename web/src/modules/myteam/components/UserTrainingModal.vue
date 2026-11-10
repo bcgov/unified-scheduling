@@ -13,7 +13,7 @@ import UaModal from '@/shared/components/UaModal.vue';
 import UaTextField from '@/shared/components/UaTextField.vue';
 import UaTextarea from '@/shared/components/UaTextarea.vue';
 import UaSelect from '@/shared/components/UaSelect.vue';
-import { getTodayDateInputValue, toDateInputValue, toDateTime, toOffsetDateTimeString } from '@/utils/date';
+import { toDateInputValue, toDateTime, toOffsetDateTimeString } from '@/utils/date';
 import type { SelectOption } from '@/types/select';
 import { mdiClose, mdiRefresh } from '@mdi/js';
 import { DateTime } from 'luxon';
@@ -30,11 +30,10 @@ type UserTrainingFormData = Partial<zod.infer<typeof PostApiTrainingUserTraining
   notes: string;
 };
 
-const trainingTimeZone = 'America/Vancouver';
-
 const props = withDefaults(
   defineProps<{
     userId: string;
+    timeZone?: string;
     trainingOptions: SelectOption[];
     mode?: UserTrainingModalMode;
     training?: UserTrainingResponse | null;
@@ -43,6 +42,12 @@ const props = withDefaults(
     mode: 'create',
   },
 );
+
+const trainingTimeZone = computed(() =>
+  props.timeZone && DateTime.local().setZone(props.timeZone).isValid ? props.timeZone : undefined,
+);
+const timeZoneValidationMessage =
+  'The training user must have a home location with a valid timezone for timed training or expiry calculations.';
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -67,7 +72,7 @@ const isGeneratingExpiryDate = ref(false);
 const apiError = ref('');
 const expiryDateAutoGenerateError = ref('');
 const formErrors = ref<Record<string, string>>({});
-const hasManualExpiryDateOverride = ref(false);
+const hasManualExpiryDateOverride = ref(Boolean(props.training?.expiryDate && props.mode !== 'create'));
 
 const createFormData = (): UserTrainingFormData => ({
   trainingId: undefined as number | undefined,
@@ -101,14 +106,17 @@ const resolveEndingOn = (training: UserTrainingResponse) => {
   return training.awardedOn;
 };
 
-const getTrainingDate = (value: string) => toDateTime(value, trainingTimeZone).toISODate() ?? getTodayDateInputValue();
+const getTrainingDate = (value: string) =>
+  trainingTimeZone.value ? (toDateTime(value, trainingTimeZone.value).toISODate() ?? '') : '';
 const getTrainingTime = (value: string) => {
-  const dateTime = toDateTime(value, trainingTimeZone);
+  if (!trainingTimeZone.value) return '';
+  const dateTime = toDateTime(value, trainingTimeZone.value);
   return dateTime.isValid ? dateTime.toFormat('HH:mm') : '';
 };
 
 const toExpiryEndOfDayDateTimeString = (date: string) => {
-  const dateTime = DateTime.fromFormat(date, 'yyyy-MM-dd', { zone: trainingTimeZone });
+  if (!trainingTimeZone.value) throw new Error(timeZoneValidationMessage);
+  const dateTime = DateTime.fromFormat(date, 'yyyy-MM-dd', { zone: trainingTimeZone.value });
   if (!dateTime.isValid) {
     throw new Error(`Invalid expiry date: ${date}`);
   }
@@ -125,7 +133,7 @@ const populateFormData = (training: UserTrainingResponse): UserTrainingFormData 
     ? (toDateInputValue(resolveEndingOn(training)) ?? '')
     : getTrainingDate(resolveEndingOn(training)),
   endingTime: training.allDay ? '' : getTrainingTime(resolveEndingOn(training)),
-  expiryDate: toDateInputValue(training.expiryDate) ?? '',
+  expiryDate: training.expiryDate ? getTrainingDate(training.expiryDate) : '',
   expiryDateExact: training.expiryDate ?? null,
   notes: training.notes ?? '',
 });
@@ -174,8 +182,9 @@ const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true, allDay: tru
       });
       return;
     }
-    const start = DateTime.fromISO(`${data.awardedOn}T${data.awardedTime || '00:00'}`, { zone: trainingTimeZone });
-    const end = DateTime.fromISO(`${data.endingOn}T${data.endingTime || '00:00'}`, { zone: trainingTimeZone });
+    const zone = data.awardedTime ? trainingTimeZone.value : 'UTC';
+    const start = DateTime.fromISO(`${data.awardedOn}T${data.awardedTime || '00:00'}`, { zone });
+    const end = DateTime.fromISO(`${data.endingOn}T${data.endingTime || '00:00'}`, { zone });
     if (start.isValid && end.isValid && (data.awardedTime ? end <= start : end < start)) {
       context.addIssue({
         code: 'custom',
@@ -188,17 +197,17 @@ const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true, allDay: tru
   });
 
 watch(
-  () => [props.training, props.mode] as const,
+  () => [props.training, props.mode, props.timeZone] as const,
   ([training, mode]) => {
     if (!training) {
       formData.value = createFormData();
       hasManualExpiryDateOverride.value = false;
     } else if (mode === 'edit') {
       formData.value = populateFormData(training);
-      hasManualExpiryDateOverride.value = true;
+      hasManualExpiryDateOverride.value = Boolean(training.expiryDate);
     } else if (mode === 'renew') {
       formData.value = populateRenewFormData(training);
-      hasManualExpiryDateOverride.value = true;
+      hasManualExpiryDateOverride.value = Boolean(training.expiryDate);
     } else {
       formData.value = createFormData();
       hasManualExpiryDateOverride.value = false;
@@ -231,6 +240,12 @@ const generateExpiryDate = async (force = false) => {
     return;
   }
 
+  if (!trainingTimeZone.value) {
+    expiryDateAutoGenerateError.value = timeZoneValidationMessage;
+    return;
+  }
+  if (Boolean(formData.value.awardedTime) !== Boolean(formData.value.endingTime)) return;
+
   isGeneratingExpiryDate.value = true;
   expiryDateAutoGenerateError.value = '';
 
@@ -238,11 +253,19 @@ const generateExpiryDate = async (force = false) => {
     const requestedTrainingId = formData.value.trainingId!;
     const requestedEndingOn = formData.value.endingOn!;
     const requestedEndingTime = formData.value.endingTime;
+    const requestedAllDay = !formData.value.awardedTime && !requestedEndingTime;
+    const requestedTimeZone = trainingTimeZone.value;
 
     const { data, error, execute } = getApiTrainingUserTrainingsExpiryDate(
       {
         TrainingId: requestedTrainingId,
-        AwardedOn: toOffsetDateTimeString(requestedEndingOn, requestedEndingTime, trainingTimeZone),
+        UserId: props.userId,
+        AllDay: requestedAllDay,
+        AwardedOn: toOffsetDateTimeString(
+          requestedEndingOn,
+          requestedEndingTime,
+          requestedAllDay ? 'UTC' : requestedTimeZone,
+        ),
       },
       {
         options: {
@@ -262,12 +285,15 @@ const generateExpiryDate = async (force = false) => {
     if (
       requestedTrainingId !== formData.value.trainingId ||
       requestedEndingOn !== formData.value.endingOn ||
-      requestedEndingTime !== formData.value.endingTime
+      requestedEndingTime !== formData.value.endingTime ||
+      requestedAllDay !== (!formData.value.awardedTime && !formData.value.endingTime) ||
+      requestedTimeZone !== trainingTimeZone.value ||
+      hasManualExpiryDateOverride.value
     ) {
       return;
     }
 
-    formData.value.expiryDate = toDateInputValue(expiryDate) ?? '';
+    formData.value.expiryDate = expiryDate ? getTrainingDate(expiryDate) : '';
     formData.value.expiryDateExact = null;
     hasManualExpiryDateOverride.value = false;
   } catch (error: unknown) {
@@ -284,7 +310,13 @@ const handleGenerateExpiryDate = async () => {
 };
 
 watch(
-  () => [formData.value.trainingId, formData.value.endingOn, formData.value.endingTime] as const,
+  () =>
+    [
+      formData.value.trainingId,
+      formData.value.endingOn,
+      formData.value.endingTime,
+      Boolean(formData.value.awardedTime),
+    ] as const,
   () => {
     void generateExpiryDate();
   },
@@ -292,6 +324,17 @@ watch(
 
 const buildRequest = (): UserTrainingRequest | null => {
   formErrors.value = {};
+  if (
+    !trainingTimeZone.value &&
+    (props.training?.allDay === false ||
+      props.training?.expiryDate ||
+      formData.value.awardedTime ||
+      formData.value.endingTime ||
+      formData.value.expiryDate)
+  ) {
+    apiError.value = timeZoneValidationMessage;
+    return null;
+  }
   const parsed = schema.safeParse(formData.value);
 
   if (!parsed.success) {
@@ -312,9 +355,13 @@ const buildRequest = (): UserTrainingRequest | null => {
     awardedOn: toOffsetDateTimeString(
       parsed.data.awardedOn,
       parsed.data.awardedTime,
-      allDay ? 'UTC' : trainingTimeZone,
+      allDay ? 'UTC' : trainingTimeZone.value!,
     ),
-    endingOn: toOffsetDateTimeString(parsed.data.endingOn, parsed.data.endingTime, allDay ? 'UTC' : trainingTimeZone),
+    endingOn: toOffsetDateTimeString(
+      parsed.data.endingOn,
+      parsed.data.endingTime,
+      allDay ? 'UTC' : trainingTimeZone.value!,
+    ),
     expiryDate: parsed.data.expiryDate
       ? (formData.value.expiryDateExact ??
         (hasManualExpiryDateOverride.value ? toExpiryEndOfDayDateTimeString(parsed.data.expiryDate) : null))
@@ -354,6 +401,9 @@ const handleSave = async () => {
 <template>
   <UaModal :title="modalTitle" :loading="isSaving" @close="emit('close')">
     <template #alerts>
+      <UaAlert v-if="!trainingTimeZone" type="warning" :closable="false">
+        {{ timeZoneValidationMessage }}
+      </UaAlert>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>

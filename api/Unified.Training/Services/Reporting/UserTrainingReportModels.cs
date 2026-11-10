@@ -14,6 +14,8 @@ internal sealed record UserTrainingReportRow
 
     public string? LocationName { get; init; }
 
+    public string? TimeZoneId { get; init; }
+
     public required int TrainingId { get; init; }
 
     public required string TrainingCode { get; init; }

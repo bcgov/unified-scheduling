@@ -78,6 +78,7 @@ export interface CalendarDataResponse {
 }
 
 export interface CalendarFullCalendarViewModel {
+  timeZone: string;
   view: 'timeGridDay' | 'timeGridWeek' | 'dayGridMonth';
   initialDate?: string;
   events: CalendarEventBase[];

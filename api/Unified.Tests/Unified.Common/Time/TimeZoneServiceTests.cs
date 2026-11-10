@@ -7,6 +7,22 @@ public class TimeZoneServiceTests
     private readonly ITimeZoneService _service = new TimeZoneService();
 
     [Theory]
+    [InlineData(7)]
+    [InlineData(
+        12,
+        Skip = "Temporary: re-enable when an ICU4C runtime package with BC's permanent UTC-7 mapping is available."
+    )]
+    public void Vancouver_AfterPermanentPacificTime_UsesUtcMinusSeven(int month)
+    {
+        var zone = _service.ResolveRequired("America/Vancouver");
+        var instant = new DateTimeOffset(2026, month, 1, 16, 30, 0, TimeSpan.Zero);
+
+        Assert.Equal(TimeSpan.FromHours(-7), zone.GetUtcOffset(instant));
+        Assert.Equal(new DateTime(2026, month, 1, 9, 30, 0), _service.ToLocalUnspecified(instant, zone));
+        Assert.Equal(instant, _service.ToUtcInstant(new DateTime(2026, month, 1, 9, 30, 0), zone));
+    }
+
+    [Theory]
     [InlineData("America/Vancouver", 2025, 1, -8)]
     [InlineData("America/Vancouver", 2025, 7, -7)]
     [InlineData("America/Vancouver", 2026, 1, -8)]
