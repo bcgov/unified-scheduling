@@ -1,16 +1,12 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
-using Unified.Common.Time;
 using Unified.Db;
-using Unified.Training.Helpers;
 using Unified.Training.Models.Calendar;
 
 namespace Unified.Training.Services;
 
 public sealed class TrainingCalendarEventService(UnifiedDbContext db)
 {
-    private static readonly ITimeZoneService TimeZones = new TimeZoneService();
-
     public async Task<IReadOnlyCollection<TrainingCalendarEvent>> GetEventsAsync(
         TrainingCalendarEventsRequest request,
         CancellationToken cancellationToken = default
@@ -18,23 +14,12 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
     {
         var start = new DateTimeOffset(request.StartDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
         var exclusiveEnd = new DateTimeOffset(request.EndDate.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-        var timeZone = string.IsNullOrWhiteSpace(request.TimeZoneId)
-            ? TimeZoneInfo.Utc
-            : TimeZones.ResolveRequired(request.TimeZoneId);
-        var timedRange = new UtcDateRange(
-            UserTrainingHelper.GetLocalDayStartUtc(request.StartDate, timeZone, TimeZones),
-            UserTrainingHelper.GetLocalDayStartUtc(request.EndDate.AddDays(1), timeZone, TimeZones)
-        );
-        // All-day events use UTC-stored calendar dates; timed events use the requested local range.
-        var coarseStart = start < timedRange.StartAtUtc ? start : timedRange.StartAtUtc;
-        var coarseEnd = exclusiveEnd > timedRange.EndAtUtc ? exclusiveEnd : timedRange.EndAtUtc;
         var minimum = DateTimeOffset.MinValue;
 
         var query = db
             .UserTrainings.AsNoTracking()
             .Where(ut =>
-                ut.AwardedOn < coarseEnd
-                && (ut.EndingOn == minimum ? ut.AwardedOn >= coarseStart : ut.EndingOn >= coarseStart)
+                ut.AwardedOn < exclusiveEnd && (ut.EndingOn == minimum ? ut.AwardedOn >= start : ut.EndingOn >= start)
             );
 
         if (request.UserIds is { Count: > 0 })
@@ -52,7 +37,6 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
                 ut.TrainingId,
                 ut.AwardedOn,
                 ut.EndingOn,
-                ut.AllDay,
                 Code = ut.Training.Code,
                 ut.User.HomeLocationId,
             })
@@ -61,21 +45,9 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
         return records
             .Select(ut =>
             {
-                var allDay = ut.AllDay;
-                var eventStart = ut.AwardedOn;
-                var eventEnd = ut.EndingOn;
-                if (allDay)
-                {
-                    var inclusiveEnd = ut.EndingOn == minimum ? ut.AwardedOn : ut.EndingOn;
-                    var startDay = DateOnly.FromDateTime(ut.AwardedOn.UtcDateTime);
-                    var endDay = DateOnly.FromDateTime(inclusiveEnd.UtcDateTime);
-                    eventStart = new DateTimeOffset(startDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-                    // The day after DateOnly.MaxValue cannot be represented; cap to the requested date range.
-                    eventEnd =
-                        endDay == DateOnly.MaxValue
-                            ? exclusiveEnd
-                            : new DateTimeOffset(endDay.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-                }
+                var inclusiveEnd = ut.EndingOn == minimum ? ut.AwardedOn : ut.EndingOn;
+                var startDay = DateOnly.FromDateTime(ut.AwardedOn.UtcDateTime);
+                var endDay = DateOnly.FromDateTime(inclusiveEnd.UtcDateTime);
                 return new TrainingCalendarEvent
                 {
                     Id = $"training.user-training.{ut.Id.ToString(CultureInfo.InvariantCulture)}",
@@ -85,20 +57,17 @@ public sealed class TrainingCalendarEventService(UnifiedDbContext db)
                     Type = "training.user-training",
                     SourceModule = "training",
                     Title = $"Training: {ut.Code}",
-                    Start = eventStart,
-                    End = eventEnd,
-                    AllDay = allDay,
+                    Start = new DateTimeOffset(startDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+                    // The day after DateOnly.MaxValue cannot be represented; cap that event to the requested range.
+                    End =
+                        endDay == DateOnly.MaxValue
+                            ? exclusiveEnd
+                            : new DateTimeOffset(endDay.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+                    AllDay = true,
                     IsReadOnly = true,
                     LocationId = ut.HomeLocationId,
                 };
             })
-            .Where(item =>
-                item.AllDay
-                    ? item.Start < exclusiveEnd && item.End > start
-                    : timedRange.StartAtUtc < timedRange.EndAtUtc
-                        && item.Start < timedRange.EndAtUtc
-                        && item.End > timedRange.StartAtUtc
-            )
             .ToList();
     }
 }

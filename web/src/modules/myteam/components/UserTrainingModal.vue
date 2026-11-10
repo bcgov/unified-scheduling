@@ -119,12 +119,10 @@ const toExpiryEndOfDayDateTimeString = (date: string) => {
 const populateFormData = (training: UserTrainingResponse): UserTrainingFormData => ({
   trainingId: training.trainingId,
   trainingCode: resolveTrainingDisplay(training),
-  awardedOn: training.allDay ? (toDateInputValue(training.awardedOn) ?? '') : getTrainingDate(training.awardedOn),
-  awardedTime: training.allDay ? '' : getTrainingTime(training.awardedOn),
-  endingOn: training.allDay
-    ? (toDateInputValue(resolveEndingOn(training)) ?? '')
-    : getTrainingDate(resolveEndingOn(training)),
-  endingTime: training.allDay ? '' : getTrainingTime(resolveEndingOn(training)),
+  awardedOn: getTrainingDate(training.awardedOn),
+  awardedTime: getTrainingTime(training.awardedOn),
+  endingOn: getTrainingDate(resolveEndingOn(training)),
+  endingTime: getTrainingTime(resolveEndingOn(training)),
   expiryDate: toDateInputValue(training.expiryDate) ?? '',
   expiryDateExact: training.expiryDate ?? null,
   notes: training.notes ?? '',
@@ -153,7 +151,7 @@ const canGenerateExpiryDate = computed(() => Boolean(formData.value.trainingId &
 
 const expiryDateErrorMessages = computed(() => formErrors.value.expiryDate || expiryDateAutoGenerateError.value || '');
 
-const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true, allDay: true })
+const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true })
   .extend({
     trainingId: zod.number({ error: 'Training is required.' }),
     trainingCode: zod.string(),
@@ -166,24 +164,10 @@ const schema = PostApiTrainingUserTrainingsBody.omit({ userId: true, allDay: tru
     notes: zod.string(),
   })
   .superRefine((data, context) => {
-    if (Boolean(data.awardedTime) !== Boolean(data.endingTime)) {
-      context.addIssue({
-        code: 'custom',
-        path: [data.awardedTime ? 'endingTime' : 'awardedTime'],
-        message: data.awardedTime ? 'Invalid to time.' : 'Invalid from time.',
-      });
-      return;
-    }
     const start = DateTime.fromISO(`${data.awardedOn}T${data.awardedTime || '00:00'}`, { zone: trainingTimeZone });
     const end = DateTime.fromISO(`${data.endingOn}T${data.endingTime || '00:00'}`, { zone: trainingTimeZone });
-    if (start.isValid && end.isValid && (data.awardedTime ? end <= start : end < start)) {
-      context.addIssue({
-        code: 'custom',
-        path: ['endingOn'],
-        message: data.awardedTime
-          ? 'To date and time must be after From.'
-          : 'To date and time must be on or after From.',
-      });
+    if (start.isValid && end.isValid && end < start) {
+      context.addIssue({ code: 'custom', path: ['endingOn'], message: 'To date and time must be on or after From.' });
     }
   });
 
@@ -304,17 +288,11 @@ const buildRequest = (): UserTrainingRequest | null => {
     return null;
   }
 
-  const allDay = !parsed.data.awardedTime && !parsed.data.endingTime;
   return {
     userId: props.userId,
     trainingId: parsed.data.trainingId,
-    allDay,
-    awardedOn: toOffsetDateTimeString(
-      parsed.data.awardedOn,
-      parsed.data.awardedTime,
-      allDay ? 'UTC' : trainingTimeZone,
-    ),
-    endingOn: toOffsetDateTimeString(parsed.data.endingOn, parsed.data.endingTime, allDay ? 'UTC' : trainingTimeZone),
+    awardedOn: toOffsetDateTimeString(parsed.data.awardedOn, parsed.data.awardedTime, trainingTimeZone),
+    endingOn: toOffsetDateTimeString(parsed.data.endingOn, parsed.data.endingTime, trainingTimeZone),
     expiryDate: parsed.data.expiryDate
       ? (formData.value.expiryDateExact ??
         (hasManualExpiryDateOverride.value ? toExpiryEndOfDayDateTimeString(parsed.data.expiryDate) : null))

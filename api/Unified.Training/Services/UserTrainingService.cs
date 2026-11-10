@@ -39,7 +39,6 @@ public sealed class UserTrainingService(
                     ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
                 AwardedOn = ut.AwardedOn,
                 EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
-                AllDay = ut.AllDay,
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,
@@ -70,7 +69,6 @@ public sealed class UserTrainingService(
                     ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
                 AwardedOn = ut.AwardedOn,
                 EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
-                AllDay = ut.AllDay,
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,
@@ -175,9 +173,7 @@ public sealed class UserTrainingService(
         EnsureExpiryIsBeforeNextVersion(expiryDate, nextVersionExpiryDate);
 
         var datesChanged =
-            entity.AwardedOn != normalizedRequest.AwardedOn
-            || entity.EndingOn != normalizedRequest.EndingOn
-            || entity.AllDay != normalizedRequest.AllDay;
+            entity.AwardedOn != normalizedRequest.AwardedOn || entity.EndingOn != normalizedRequest.EndingOn;
         await using var transaction =
             datesChanged && db.Database.CurrentTransaction is null
                 ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
@@ -349,7 +345,6 @@ public sealed class UserTrainingService(
                     ut.Training.TrainingCategory != null ? ut.Training.TrainingCategory.Name : string.Empty,
                 AwardedOn = ut.AwardedOn,
                 EndingOn = ut.EndingOn == MinDateTimeOffsetUtc ? ut.AwardedOn : ut.EndingOn,
-                AllDay = ut.AllDay,
                 ExpiryDate = ut.ExpiryDate,
                 NoticeState = ut.NoticeState,
                 Notes = ut.Notes,

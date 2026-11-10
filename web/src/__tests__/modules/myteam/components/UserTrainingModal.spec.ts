@@ -16,7 +16,6 @@ const training: UserTrainingResponse = {
   trainingCategoryName: 'Medical',
   awardedOn: '2026-07-20T22:00:00Z',
   endingOn: '2026-07-21T01:00:00Z',
-  allDay: false,
   expiryDate: '2026-12-31T23:59:59Z',
   noticeState: 'None',
   notes: '  keep me trimmed  ',
@@ -96,7 +95,6 @@ describe('UserTrainingModal', () => {
         trainingId: 10,
         awardedOn: '2026-07-20T15:00:00.000-07:00',
         endingOn: '2026-07-20T18:00:00.000-07:00',
-        allDay: false,
         expiryDate: null,
       }),
     ]);
@@ -105,16 +103,14 @@ describe('UserTrainingModal', () => {
     expect(wrapper.emitted('close')).toBeTruthy();
   });
 
-  it.each(['2026-07-20', '2026-07-22'])('saves all-day training through %s when times are blank', async (endDate) => {
+  it('keeps date-only training supported when times are blank', async () => {
     const wrapper = await mountModal();
     await fillTraining(wrapper, '', '');
-    await wrapper.get('input#user-training-ending-on').setValue(endDate);
     await save(wrapper);
 
     expect(created[0]).toMatchObject({
-      awardedOn: '2026-07-20T00:00:00.000Z',
-      endingOn: `${endDate}T00:00:00.000Z`,
-      allDay: true,
+      awardedOn: '2026-07-20T07:00:00.000Z',
+      endingOn: '2026-07-20T07:00:00.000Z',
     });
   });
 
@@ -133,9 +129,8 @@ describe('UserTrainingModal', () => {
     await save(wrapper);
 
     expect(created[0]).toMatchObject({
-      awardedOn: '2026-07-20T00:00:00.000Z',
-      endingOn: '2026-07-20T00:00:00.000Z',
-      allDay: true,
+      awardedOn: '2026-07-20T07:00:00.000Z',
+      endingOn: '2026-07-20T07:00:00.000Z',
     });
     expect(expiryQueries.at(-1)?.searchParams.get('AwardedOn')).toBe('2026-07-20T07:00:00.000Z');
   });
@@ -220,19 +215,18 @@ describe('UserTrainingModal', () => {
     await save(wrapper);
 
     expect(created).toHaveLength(0);
-    expect(wrapper.text()).toContain('To date and time must be after From.');
+    expect(wrapper.text()).toContain('To date and time must be on or after From.');
   });
 
-  it.each(['18:00', '00:00'])('allows timed training from %s until midnight the next day', async (startTime) => {
+  it('allows an overnight training ending at midnight', async () => {
     const wrapper = await mountModal();
-    await fillTraining(wrapper, startTime, '00:00');
+    await fillTraining(wrapper, '18:00', '00:00');
     await wrapper.get('input#user-training-ending-on').setValue('2026-07-21');
     await save(wrapper);
 
     expect(created[0]).toMatchObject({
-      awardedOn: `2026-07-20T${startTime}:00.000-07:00`,
+      awardedOn: '2026-07-20T18:00:00.000-07:00',
       endingOn: '2026-07-21T00:00:00.000-07:00',
-      allDay: false,
     });
   });
 
@@ -246,7 +240,6 @@ describe('UserTrainingModal', () => {
 
     const requests = mode === 'edit' ? updated : created;
     expect(requests).toHaveLength(1);
-    expect(requests[0]!.allDay).toBe(false);
     expect(Date.parse(requests[0]!.awardedOn)).toBe(Date.parse(training.awardedOn));
     expect(Date.parse(requests[0]!.endingOn)).toBe(Date.parse(training.endingOn));
     expect(requests[0]!.expiryDate).toBe(training.expiryDate);
@@ -269,50 +262,10 @@ describe('UserTrainingModal', () => {
     });
   });
 
-  it.each([
-    ['15:00', '', 'Invalid to time.'],
-    ['', '18:00', 'Invalid from time.'],
-    ['15:00', '15:00', 'To date and time must be after From.'],
-  ])('rejects an invalid timed pair (%s, %s)', async (startTime, endTime, message) => {
-    const wrapper = await mountModal();
-    await fillTraining(wrapper, startTime, endTime);
-    await save(wrapper);
-
-    expect(created).toHaveLength(0);
-    expect(wrapper.text()).toContain(message);
-  });
-
-  it.each([
-    ['edit', '2026-07-20'],
-    ['edit', '2026-07-22'],
-    ['renew', '2026-07-20'],
-    ['renew', '2026-07-22'],
-  ] as const)('preserves all-day dates through %s ending %s', async (mode, endDate) => {
-    const record = {
-      ...training,
-      allDay: true,
-      awardedOn: '2026-07-20T00:00:00Z',
-      endingOn: `${endDate}T00:00:00Z`,
-    };
-    const wrapper = await mountModal(mode, record);
-    expect((wrapper.get('input#user-training-awarded-on').element as HTMLInputElement).value).toBe('2026-07-20');
-    expect((wrapper.get('input#user-training-ending-on').element as HTMLInputElement).value).toBe(endDate);
-    expect((wrapper.get('input#user-training-awarded-time').element as HTMLInputElement).value).toBe('');
-    expect((wrapper.get('input#user-training-ending-time').element as HTMLInputElement).value).toBe('');
-    await save(wrapper);
-
-    expect((mode === 'edit' ? updated : created)[0]).toMatchObject({
-      allDay: true,
-      awardedOn: '2026-07-20T00:00:00.000Z',
-      endingOn: `${endDate}T00:00:00.000Z`,
-    });
-  });
-
-  it('rejects a timed sentinel end that resolves to the start timestamp', async () => {
+  it('falls back to the start timestamp for a legacy sentinel end date', async () => {
     const wrapper = await mountModal('edit', { ...training, endingOn: '0001-01-01T00:00:00Z' });
     await save(wrapper);
 
-    expect(updated).toHaveLength(0);
-    expect(wrapper.text()).toContain('To date and time must be after From.');
+    expect(Date.parse(updated[0]!.endingOn)).toBe(Date.parse(training.awardedOn));
   });
 });

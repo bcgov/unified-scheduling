@@ -17,7 +17,6 @@ public sealed record UserTrainingResponse
     public required DateTimeOffset AwardedOn { get; init; }
 
     public required DateTimeOffset EndingOn { get; init; }
-    public bool AllDay { get; init; }
 
     public DateTimeOffset? ExpiryDate { get; init; }
 

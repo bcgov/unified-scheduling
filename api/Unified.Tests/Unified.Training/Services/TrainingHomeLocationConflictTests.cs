@@ -317,7 +317,6 @@ public sealed class TrainingHomeLocationConflictTests : IAsyncLifetime
                 TrainingId = 1,
                 AwardedOn = TrainingDay,
                 EndingOn = TrainingDay,
-                AllDay = true,
             },
             TestContext.Current.CancellationToken
         );

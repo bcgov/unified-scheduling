@@ -24,11 +24,6 @@ public sealed class TrainingCalendarEventsRequestValidator : AbstractValidator<T
         RuleFor(x => x.EndDate)
             .Must((request, endDate) => endDate.DayNumber - request.StartDate.DayNumber + 1 <= MaxRangeLengthDays)
             .WithErrorCode(ApiValidationErrorCodes.Invalid);
-        RuleFor(x => x.TimeZoneId)
-            .MaximumLength(100)
-            .Must(TimeZoneService.IsValidTimeZoneId)
-            .WithErrorCode(ApiValidationErrorCodes.Invalid)
-            .When(x => !string.IsNullOrWhiteSpace(x.TimeZoneId));
         RuleFor(x => x.LocationId)
             .GreaterThanOrEqualTo(0)
             .WithErrorCode(ApiValidationErrorCodes.Invalid)

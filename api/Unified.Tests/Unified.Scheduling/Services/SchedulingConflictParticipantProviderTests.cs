@@ -365,7 +365,6 @@ public sealed class SchedulingConflictParticipantProviderTests : IAsyncLifetime
                 },
                 AwardedOn = new DateTimeOffset(2026, 8, 24, 0, 0, 0, TimeSpan.Zero),
                 EndingOn = new DateTimeOffset(2026, 8, 24, 0, 0, 0, TimeSpan.Zero),
-                AllDay = true,
             }
         );
         await _db.SaveChangesAsync(TestContext.Current.CancellationToken);

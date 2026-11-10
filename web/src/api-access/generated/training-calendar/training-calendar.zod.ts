@@ -9,7 +9,6 @@ import * as zod from 'zod';
 export const PostApiTrainingCalendarEventsBody = zod.strictObject({
   startDate: zod.iso.date(),
   endDate: zod.iso.date(),
-  timeZoneId: zod.string().nullish(),
   locationId: zod.int().nullish(),
   userIds: zod.array(zod.uuid()).nullish(),
 });

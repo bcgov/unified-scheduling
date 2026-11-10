@@ -64,7 +64,6 @@ public sealed class AssignMandatoryTrainingOnUserCreationHandler(UnifiedDbContex
                     Version = 1,
                     AwardedOn = now,
                     EndingOn = now,
-                    AllDay = true,
                     ExpiryDate = UserTrainingHelper.CalculateExpiryDate(now, training.ValidityDays),
                     NoticeState = UserTrainingNoticeStates.None,
                     Notes = null,

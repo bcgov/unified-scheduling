@@ -9,8 +9,6 @@ export interface TrainingCalendarEventsRequest {
   startDate: string;
   endDate: string;
   /** @nullable */
-  timeZoneId?: string | null;
-  /** @nullable */
   locationId?: number | null;
   /** @nullable */
   userIds?: string[] | null;

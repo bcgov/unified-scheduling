@@ -12,7 +12,6 @@ export type UserTrainingReportItem = {
   trainingDescription: string;
   awardedOn?: string | null;
   endingOn?: string | null;
-  allDay: boolean;
   expiryDate?: string | null;
   status: string;
   version?: number | null;
