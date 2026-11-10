@@ -24,6 +24,11 @@ export interface BrandDefinition {
   dashboardBanner?: DashboardBanner;
   dashboardMessage: string;
 
+  /** Primary logo shown in the app bar once the user is authenticated. */
+  primaryLogoUrl: string;
+  /** Alt text for the primary logo. */
+  primaryLogoAlt: string;
+
   /** Secondary logo shown in the app bar once the user is authenticated. */
   secondaryLogoUrl: string;
   /** Alt text for the header logo. */

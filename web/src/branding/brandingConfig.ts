@@ -15,6 +15,8 @@ export const defaultBrand: BrandDefinition = {
   backgroundColor: '#FAF9F8',
   activeColor: '#e3a82b',
   dashboardMessage: 'Select your work location, then choose a module below to get started.',
+  primaryLogoUrl: resolveBrandAssetUrl(fixedPrimaryLogo.url),
+  primaryLogoAlt: fixedPrimaryLogo.alt,
 
   dashboardTiles: ['myProfile', 'myTeam', 'stats', 'schedule', 'admin', 'reporting', 'training'],
   dashboardBanner: {
@@ -64,6 +66,10 @@ export function resolveBrandingConfig(
     backgroundColor: color(settings.backgroundColor) ?? color(defaults.backgroundColor) ?? defaultBrand.backgroundColor,
     activeColor:
       color(settings.navigationSelectedColor) ?? color(defaults.navigationSelectedColor) ?? defaultBrand.activeColor,
+    primaryLogoUrl: resolveBrandAssetUrl(
+      settings.primaryLogoUrl ?? defaults.primaryLogoUrl ?? defaultBrand.primaryLogoUrl,
+    ),
+    primaryLogoAlt: settings.primaryLogoAlt ?? defaults.primaryLogoAlt ?? defaultBrand.primaryLogoAlt,
     dashboardTiles:
       selectedTileIds == null
         ? defaultBrand.dashboardTiles

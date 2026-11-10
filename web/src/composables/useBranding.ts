@@ -17,8 +17,16 @@ export const useBranding = () => {
   // Custom branding always applies once the user has logged in.
   const isBrandingActive = computed(() => authStore.isAuthenticated);
 
-  const primaryLogoUrl = computed(() => resolveBrandAssetUrl(fixedPrimaryLogo.url));
-  const primaryLogoAlt = computed(() => fixedPrimaryLogo.alt);
+  const primaryLogoUrl = computed(() =>
+    isBrandingActive.value && getBrandingConfig().primaryLogoUrl
+      ? getBrandingConfig().primaryLogoUrl
+      : resolveBrandAssetUrl(fixedPrimaryLogo.url),
+  );
+  const primaryLogoAlt = computed(() =>
+    isBrandingActive.value && getBrandingConfig().primaryLogoUrl
+      ? getBrandingConfig().primaryLogoAlt
+      : fixedPrimaryLogo.alt,
+  );
   const secondaryLogoUrl = computed(() =>
     isBrandingActive.value && getBrandingConfig().secondaryLogoUrl ? getBrandingConfig().secondaryLogoUrl : null,
   );

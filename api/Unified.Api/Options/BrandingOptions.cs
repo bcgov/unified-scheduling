@@ -19,6 +19,8 @@ public sealed class BrandSettingsOptions
     public string? NavigationSelectedColor { get; set; }
     public string[]? QuickLinks { get; set; }
     public string? DashboardMessage { get; set; }
+    public string? PrimaryLogoUrl { get; set; }
+    public string? PrimaryLogoAlt { get; set; }
     public string? SecondaryLogoUrl { get; set; }
     public string? SecondaryLogoAlt { get; set; }
     public string? BackgroundImageUrl { get; set; }

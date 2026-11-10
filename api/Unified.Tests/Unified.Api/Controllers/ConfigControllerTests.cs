@@ -82,12 +82,16 @@ public class ConfigControllerTests
                 new Dictionary<string, string?>
                 {
                     ["Branding:SelectedBrand"] = "bcss",
+                    ["Branding:brandingOptions:default:primaryLogoUrl"] = "/images/bcid-logo-rev-en.svg",
+                    ["Branding:brandingOptions:default:primaryLogoAlt"] = "B.C. Government Logo",
                     ["Branding:brandingOptions:default:primaryColor"] = "#013366",
                     ["Branding:brandingOptions:default:dashboardMessage"] = "Choose a module.",
                     ["Branding:brandingOptions:default:header:title"] = "Default title",
                     ["Branding:brandingOptions:default:QuickLinks:0"] = "myProfile",
                     ["Branding:brandingOptions:bcss:backgroundColor"] = "#FEFEFE",
                     ["Branding:brandingOptions:bcss:navigationSelectedColor"] = "#e3a82b",
+                    ["Branding:brandingOptions:bcss:primaryLogoUrl"] = "/images/branding/bcss/crest.png",
+                    ["Branding:brandingOptions:bcss:primaryLogoAlt"] = "B.C. Sheriff Service Crest",
                     ["Branding:brandingOptions:bcss:secondaryLogoUrl"] = "/images/branding/quartech/logo.png",
                     ["Branding:brandingOptions:bcss:secondaryLogoAlt"] = "Quartech",
                     ["Branding:brandingOptions:bcss:backgroundImageUrl"] = "/images/branding/bcss/background.png",
@@ -109,12 +113,16 @@ public class ConfigControllerTests
         var result = controller.Get();
         var response = Assert.IsType<ConfigResponse>(Assert.IsType<OkObjectResult>(result.Result).Value);
         Assert.Equal("bcss", response.SelectedBrand);
+        Assert.Equal("/images/bcid-logo-rev-en.svg", response.BrandingOptions["default"].PrimaryLogoUrl);
+        Assert.Equal("B.C. Government Logo", response.BrandingOptions["default"].PrimaryLogoAlt);
         Assert.Equal("#013366", response.BrandingOptions["default"].PrimaryColor);
         Assert.Equal("Choose a module.", response.BrandingOptions["default"].DashboardMessage);
         Assert.Equal("Default title", response.BrandingOptions["default"].Header!.Title);
         Assert.Equal(["myProfile"], response.BrandingOptions["default"].QuickLinks!);
         Assert.Equal("#FEFEFE", response.BrandingOptions["bcss"].BackgroundColor);
         Assert.Equal("#e3a82b", response.BrandingOptions["bcss"].NavigationSelectedColor);
+        Assert.Equal("/images/branding/bcss/crest.png", response.BrandingOptions["bcss"].PrimaryLogoUrl);
+        Assert.Equal("B.C. Sheriff Service Crest", response.BrandingOptions["bcss"].PrimaryLogoAlt);
         Assert.Equal("/images/branding/quartech/logo.png", response.BrandingOptions["bcss"].SecondaryLogoUrl);
         Assert.Equal("Quartech", response.BrandingOptions["bcss"].SecondaryLogoAlt);
         Assert.Equal("/images/branding/bcss/background.png", response.BrandingOptions["bcss"].BackgroundImageUrl);
