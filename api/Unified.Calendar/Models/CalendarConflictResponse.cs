@@ -58,15 +58,17 @@ public sealed record CalendarConflictResponse(
             new[] { conflict.Entry.EventTypeCode, conflict.Overlaps.EventTypeCode }
                 .OrderBy(code => code == "leave" ? 0 : 1)
                 .ThenBy(code => code, StringComparer.Ordinal)
-                .Select(code => code switch
-                {
-                    "leave" => "Leave",
-                    "shift" => "Shift",
-                    "assignment" => "Assignment",
-                    "training" => "Training",
-                    "holiday" => "Holiday",
-                    _ => code,
-                })
+                .Select(code =>
+                    code switch
+                    {
+                        "leave" => "Leave",
+                        "shift" => "Shift",
+                        "assignment" => "Assignment",
+                        "training" => "Training",
+                        "holiday" => "Holiday",
+                        _ => code,
+                    }
+                )
         );
 
     private static CalendarConflictEventResponse MapEvent(CalendarConflictParticipant participant) =>
