@@ -350,7 +350,7 @@ public sealed class AssignmentEntryService(
             SchedulingConstants.SourceModule,
             SchedulingConstants.AssignmentEventTypeCode
         );
-        if (!isDeletable)
+        if (!isDeletable || entry is null)
             return false;
         var links = await db
             .ShiftAssignmentEntries.Include(link => link.Users)

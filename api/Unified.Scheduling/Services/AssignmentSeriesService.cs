@@ -317,7 +317,7 @@ public sealed class AssignmentSeriesService(
             SchedulingConstants.SourceModule,
             SchedulingConstants.AssignmentEventTypeCode
         );
-        if (!isDeletable)
+        if (!isDeletable || series is null)
             return false;
         var eventSeries = series.EventSeries!;
         var childEvents = await db

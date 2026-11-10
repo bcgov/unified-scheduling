@@ -393,7 +393,7 @@ public sealed class ShiftEntryService(
                 entity,
                 SchedulingConstants.SourceModule,
                 SchedulingConstants.ShiftEventTypeCode
-            )
+            ) || entity is null
         )
             return false;
         var eventEntity = entity.Event!;

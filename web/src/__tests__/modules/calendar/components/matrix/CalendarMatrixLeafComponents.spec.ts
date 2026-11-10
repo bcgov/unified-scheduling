@@ -12,7 +12,6 @@ import CalendarMatrixHeader from '@/modules/calendar/components/matrix/CalendarM
 import CalendarMatrixResourceRow from '@/modules/calendar/components/matrix/CalendarMatrixResourceRow.vue';
 import CalendarMatrixSidePanel from '@/modules/calendar/components/matrix/CalendarMatrixSidePanel.vue';
 import CalendarMatrixSidePanelItem from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue';
-import sidePanelItemSource from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue?raw';
 import { calendarMatrixContextKey } from '@/modules/calendar/components/matrix/calendarMatrixContext';
 import { CalendarMatrixActionType } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type {
@@ -432,6 +431,7 @@ describe('CalendarMatrixSidePanelItem', () => {
 
     const button = wrapper.get('button');
     expect(button.attributes('aria-label')).toBe('Event warnings for Ada Lovelace');
+    expect(button.get('.v-icon').classes()).toContain('text-warning');
     expect(button.attributes('draggable')).toBe('false');
     expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnFocus')).toBe(true);
     expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnClick')).toBe(true);
@@ -512,12 +512,6 @@ describe('CalendarMatrixSidePanelItem', () => {
       }
     },
   );
-
-  it('uses the secondary theme token for warning icon contrast', () => {
-    expect(sidePanelItemSource).toMatch(
-      /\.calendar-matrix-side-panel-item__warning\s*\{[^}]*color:\s*rgb\(var\(--v-theme-secondary\)\)/,
-    );
-  });
 
   it('renders the item content and emits dragStart for draggable items', async () => {
     const dataTransfer = {
