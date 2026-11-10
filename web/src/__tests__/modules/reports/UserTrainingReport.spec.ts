@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { defineComponent, type PropType } from 'vue';
 import { http, HttpResponse } from 'msw';
 import { Permissions } from '@/api-access/generated/models';
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
@@ -7,7 +8,17 @@ import { server } from '@/__tests__/mocks/server';
 import UserTrainingReport from '@/modules/reports/UserTrainingReport.vue';
 import type { UserTrainingReportItem } from '@/modules/reports/userTrainingReportApi';
 import UaBtn from '@/shared/components/UaBtn.vue';
-import UaDataTable from '@/shared/components/UaDataTable.vue';
+
+const UaDataTableStub = defineComponent({
+  name: 'UaDataTable',
+  props: {
+    items: {
+      type: Array as PropType<Record<string, unknown>[]>,
+      default: () => [],
+    },
+  },
+  template: '<div />',
+});
 
 enableAutoUnmount(afterEach);
 afterEach(() => vi.restoreAllMocks());
@@ -72,7 +83,7 @@ describe('UserTrainingReport', () => {
         plugins: app.mountPlugins,
         stubs: {
           UaCard: { template: '<div><slot /><slot name="actions" /></div>' },
-          UaDataTable: true,
+          UaDataTable: UaDataTableStub,
           UaSelect: true,
           UaTextField: true,
         },
@@ -82,9 +93,9 @@ describe('UserTrainingReport', () => {
       .findAllComponents(UaBtn)
       .find((button) => button.text() === 'Generate report')!
       .trigger('click');
-    await vi.waitFor(() => expect(wrapper.getComponent(UaDataTable).props('items')).toHaveLength(3));
+    await vi.waitFor(() => expect(wrapper.getComponent(UaDataTableStub).props('items')).toHaveLength(3));
 
-    const rows = wrapper.getComponent(UaDataTable).props('items');
+    const rows = wrapper.getComponent(UaDataTableStub).props('items');
     expect(rows[0]).toMatchObject({ awardedOn: '2026-07-20', endingOn: '2026-07-22', expiryDate });
     expect(rows[1]).toMatchObject({ awardedOn: timedDate, endingOn: timedDate });
     expect(rows[2]).toMatchObject({ awardedOn: null, endingOn: null, expiryDate: null, status: 'Not Taken' });
