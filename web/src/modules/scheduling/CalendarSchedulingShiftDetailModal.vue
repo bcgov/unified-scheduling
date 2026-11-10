@@ -230,7 +230,7 @@ watch(
 );
 
 function selectTab(tabId: ShiftDetailTabId) {
-  if (!tabs.value.some((tab) => tab.id === tabId)) {
+  if (isSaving.value || !tabs.value.some((tab) => tab.id === tabId)) {
     return;
   }
 
@@ -240,6 +240,7 @@ function selectTab(tabId: ShiftDetailTabId) {
 }
 
 async function selectOpenScope(scope: ShiftOpenScope) {
+  if (isSaving.value) return;
   if (scope !== selectedOpenScope.value) resourceRevision++;
   apiError.value = '';
   concurrencyToken.value = null;
@@ -418,6 +419,7 @@ async function handleSaveEdit() {
   }
 
   const revision = resourceRevision;
+  const shiftId = payload.kind === 'series' ? resolveShiftSeriesId() : resolveShiftEntryId();
   isSaving.value = true;
   apiError.value = '';
 
@@ -425,8 +427,8 @@ async function handleSaveEdit() {
     if (payload.cancel) {
       const cancelled =
         payload.kind === 'series'
-          ? await cancelShiftSeries(resolveShiftSeriesId(), payload.cancel, revision)
-          : await cancelShiftEntry(resolveShiftEntryId(), payload.cancel, revision);
+          ? await cancelShiftSeries(shiftId, payload.cancel, revision)
+          : await cancelShiftEntry(shiftId, payload.cancel, revision);
       if (!cancelled) {
         return;
       }
@@ -447,15 +449,11 @@ async function handleSaveEdit() {
       return;
     }
 
-    if (!isCurrentResource(revision)) {
-      calendarStore.refresh();
-      return;
-    }
-
+    // Publication belongs to the saved resource, even if its UI has changed or unmounted.
     const published =
       payload.kind === 'series'
-        ? await publishShiftSeries(resolveShiftSeriesId(), payload.publish, revision)
-        : await publishShiftEntry(resolveShiftEntryId(), payload.publish, revision);
+        ? await publishShiftSeries(shiftId, payload.publish, revision)
+        : await publishShiftEntry(shiftId, payload.publish, revision);
     if (!isCurrentResource(revision)) {
       calendarStore.refresh();
       return;
@@ -495,6 +493,10 @@ function handleClose() {
     return;
   }
 
+  closeModal();
+}
+
+function closeModal() {
   if (refreshCalendarOnClose.value) {
     calendarStore.refresh();
     refreshCalendarOnClose.value = false;
@@ -506,8 +508,7 @@ function handleClose() {
 function refreshCalendarAndClose() {
   refreshCalendarOnClose.value = false;
   calendarStore.refresh();
-  invalidateClosedResource();
-  emit('close');
+  closeModal();
 }
 
 async function handleDeleteShift() {
@@ -870,6 +871,7 @@ function getInitialOpenScope(): ShiftOpenScope | null {
           v-for="tab in tabs"
           :key="tab.id"
           :aria-selected="tab.id === activeTab"
+          :disabled="isSaving"
           class="shift-detail-modal__tab"
           :class="{ 'shift-detail-modal__tab--active': tab.id === activeTab }"
           role="tab"

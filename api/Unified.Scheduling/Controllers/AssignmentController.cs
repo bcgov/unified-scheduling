@@ -61,6 +61,7 @@ public sealed class AssignmentController(
     [Authorize(Policy = SchedulingPolicies.AssignmentsEdit)]
     [ProducesResponseType(typeof(AssignmentSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AssignmentSeriesResponse>> UpdateAssignmentSeries(
         int id,

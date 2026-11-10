@@ -330,12 +330,14 @@ internal sealed class ShiftSeriesService(
             );
             var awayUsers = await loanOutMarkerService.ApplyToSeriesAsync(currentEntries, cancellationToken);
             foreach (var entry in currentEntries)
+            {
                 await LoanOutShiftTransferService.DelinkAssignmentUsersAsync(
                     entry,
                     awayUsers.GetValueOrDefault(entry) ?? [],
                     () => shiftAssignmentService,
                     cancellationToken
                 );
+            }
             ValidatePropagatedShiftEntries(entity, currentEntries);
             await db.SaveChangesAsync(cancellationToken);
             await shiftAssignmentService.ReplaceShiftSeriesLinksAsync(

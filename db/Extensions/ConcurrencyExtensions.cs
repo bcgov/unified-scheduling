@@ -6,6 +6,18 @@ namespace Unified.Db.Extensions;
 public static class ConcurrencyExtensions
 {
     /// <summary>
+    /// Makes an existing root participate in a related-record update without replacing
+    /// an already established concurrency check or touching new/deleted entities.
+    /// </summary>
+    public static void TouchForConcurrency<T>(this UnifiedDbContext db, T entity)
+        where T : BaseEntity
+    {
+        var entry = db.Entry(entity);
+        if (entry.State == EntityState.Unchanged)
+            db.RequireVersion(entity, entry.Property(item => item.ConcurrencyToken).OriginalValue);
+    }
+
+    /// <summary>
     /// Checks a client version and makes this tracked root participate in the next save,
     /// including edits that only change related records. Save/transaction ownership stays
     /// with the caller; EF accepts the returned xmin after each successful save.

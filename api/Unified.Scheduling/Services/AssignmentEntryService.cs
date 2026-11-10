@@ -252,12 +252,13 @@ public sealed class AssignmentEntryService(
                 [assignmentEntry.Id],
                 cancellationToken
             );
-            var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
-                db,
-                loanOutAvailabilityService,
-                [assignmentEntry.Id],
-                cancellationToken
-            );
+            var updatedConflictState =
+                await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
+                    db,
+                    loanOutAvailabilityService,
+                    [assignmentEntry.Id],
+                    cancellationToken
+                );
             await calendarConflictService.ValidateAndApplyConflictAcknowledgementsAsync(
                 updatedConflictState,
                 request.ConflictOverrides,

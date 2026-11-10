@@ -70,6 +70,7 @@ public class GlobalExceptionHandlerTests
 
         var body = await ReadJsonBodyAsync(context);
         Assert.Equal("Resource changed", body.RootElement.GetProperty("title").GetString());
+        Assert.Equal(StatusCodes.Status409Conflict, body.RootElement.GetProperty("status").GetInt32());
         Assert.Equal("concurrency_conflict", body.RootElement.GetProperty("code").GetString());
         Assert.Equal(
             "This record has changed since you opened it. Reload it before saving again.",

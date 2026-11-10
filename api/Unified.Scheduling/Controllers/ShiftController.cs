@@ -62,6 +62,7 @@ public sealed class ShiftController(
     [Authorize(Policy = SchedulingPolicies.ShiftsEdit)]
     [ProducesResponseType(typeof(ShiftSeriesResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ShiftSeriesResponse>> UpdateShiftSeries(
         int id,

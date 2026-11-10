@@ -227,12 +227,13 @@ public sealed class AssignmentSeriesService(
                     cancellationToken
                 );
             await EnsureSeriesAssignmentsAreUniqueAsync(assignmentSeries.Id, cancellationToken);
-            var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
-                db,
-                loanOutAvailabilityService,
-                id,
-                cancellationToken
-            );
+            var updatedConflictState =
+                await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentSeriesAsync(
+                    db,
+                    loanOutAvailabilityService,
+                    id,
+                    cancellationToken
+                );
             await calendarConflictService.EnsureNoUnresolvedConflictsAsync(updatedConflictState, cancellationToken);
             var affectedEventIds = await db
                 .AssignmentEntries.Where(entry => entry.AssignmentSeriesId == id)
@@ -508,7 +509,7 @@ public sealed class AssignmentSeriesService(
             .ToDictionary(group => group.Key, group => group.ToList());
     }
 
-    private static void PropagateSeriesChangesToEntries(
+    private void PropagateSeriesChangesToEntries(
         AssignmentSeries series,
         AssignmentSeriesRequest request,
         AssignmentSeriesUpdatePlan plan

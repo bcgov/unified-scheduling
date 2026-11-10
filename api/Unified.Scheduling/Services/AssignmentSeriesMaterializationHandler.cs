@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Unified.Calendar.Services;
 using Unified.Db;
 using Unified.Db.Models.Calendar;
@@ -12,7 +13,7 @@ public sealed class AssignmentSeriesMaterializationHandler(UnifiedDbContext db)
 
     public string EventTypeCode => SchedulingConstants.AssignmentEventTypeCode;
 
-    public Task OnMaterializedEventsDeletingAsync(
+    public async Task OnMaterializedEventsDeletingAsync(
         EventSeries eventSeries,
         IReadOnlyCollection<Event> existingEvents,
         AssignmentSeriesMaterializationContext context,
@@ -21,8 +22,14 @@ public sealed class AssignmentSeriesMaterializationHandler(UnifiedDbContext db)
     {
         var existingEventIds = existingEvents.Select(eventEntity => eventEntity.Id).ToHashSet();
         var existingEntries = context.ExistingEntries.Where(entry => existingEventIds.Contains(entry.EventId)).ToList();
+        var entryIds = existingEntries.Select(entry => entry.Id).ToList();
+        var links = await db
+            .ShiftAssignmentEntries.Include(link => link.Users)
+            .Where(link => entryIds.Contains(link.AssignmentEntryId))
+            .ToListAsync(cancellationToken);
+        db.ShiftAssignmentEntryUsers.RemoveRange(links.SelectMany(link => link.Users));
+        db.ShiftAssignmentEntries.RemoveRange(links);
         db.AssignmentEntries.RemoveRange(existingEntries);
-        return Task.CompletedTask;
     }
 
     public Task OnMaterializedEventCreatedAsync(

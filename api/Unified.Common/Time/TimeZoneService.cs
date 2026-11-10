@@ -27,9 +27,7 @@ public sealed class TimeZoneService : ITimeZoneService
     public TimeZoneInfo ResolveOrUtc(string? timeZoneId)
     {
         var normalizedTimeZoneId = NormalizeOptionalTimeZoneId(timeZoneId);
-        return normalizedTimeZoneId is null
-            ? TimeZoneInfo.Utc
-            : FindTimeZone(normalizedTimeZoneId);
+        return normalizedTimeZoneId is null ? TimeZoneInfo.Utc : FindTimeZone(normalizedTimeZoneId);
     }
 
     public TimeZoneInfo ResolveRequired(string timeZoneId)

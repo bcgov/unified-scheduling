@@ -42,6 +42,13 @@ nested call (they're attached at the raw `DbContext` level, not the `AuditDbCont
 `SaveRulesInterceptor` explicitly skips its rule loop when the only pending change is an `AuditRecord`, so
 business rules never run against the audit log itself - see `api/Unified.Common/Interceptors/SaveRulesInterceptor.cs`.
 
+When Scheduling is enabled, its scoped `SchedulingConcurrencyInterceptor` is registered before
+`AuditableEntityInterceptor`, `SaveRulesInterceptor`, and `PostSaveInterceptor`. It automatically
+includes affected scheduling roots in synchronous and asynchronous saves, using the existing `xmin`
+checks and transaction. It never saves recursively, and audit-only saves have no scheduling work.
+Scheduling's four user-edit update paths still explicitly call `RequireVersion` to check client tokens;
+services no longer need to propagate relationship or occurrence versions themselves.
+
 ## Keeping the entity save and the audit insert atomic
 
 `UnifiedDbContext` overrides `SaveChanges`/`SaveChangesAsync` to wrap the entire call - the entity
@@ -124,4 +131,3 @@ files via the default `FileDataProvider`, or racing with whatever `DataProvider`
 configured). `Unified.Tests`' `ModuleInitialization` sets `Audit.Core.Configuration.AuditDisabled = true`
 globally by default for the whole test assembly; `AuditPipelineTests` (the only test class that exercises
 this module's audit behavior) explicitly re-enables it around its own test bodies.
-
