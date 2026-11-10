@@ -8,10 +8,7 @@ public class TimeZoneServiceTests
 
     [Theory]
     [InlineData(7)]
-    [InlineData(
-        12,
-        Skip = "Temporary: re-enable when an ICU4C runtime package with BC's permanent UTC-7 mapping is available."
-    )]
+    [InlineData(12)]
     public void Vancouver_AfterPermanentPacificTime_UsesUtcMinusSeven(int month)
     {
         var zone = _service.ResolveRequired("America/Vancouver");

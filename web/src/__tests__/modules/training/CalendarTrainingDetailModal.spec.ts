@@ -9,6 +9,7 @@ import CalendarTrainingDetailModal from '@/modules/training/components/CalendarT
 import type { TrainingCalendarEvent } from '@/modules/training/contributions/calendarTrainingEventsContribution';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaModal from '@/shared/components/UaModal.vue';
+import { useLocationsStore } from '@/stores/LocationsStore';
 
 const userId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const event: TrainingCalendarEvent = {
@@ -41,11 +42,12 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-async function mountModal() {
+async function mountModal(calendarEvent: TrainingCalendarEvent = event) {
   const app = await createTestApp({ loadConfig: false });
+  useLocationsStore(app.pinia).entities = [{ id: 1, name: 'Edmonton', timezone: 'America/Edmonton' }];
   const errorHandler = vi.fn();
   const wrapper = mount(CalendarTrainingDetailModal, {
-    props: { event },
+    props: { event: calendarEvent },
     global: {
       plugins: app.mountPlugins,
       config: { errorHandler },
@@ -84,6 +86,33 @@ describe('CalendarTrainingDetailModal', () => {
 
     versionsModal.vm.$emit('close');
     expect(wrapper.emitted('close')).toEqual([[]]);
+  });
+
+  it('displays timed training in the calendar timezone rather than the employee home timezone', async () => {
+    server.use(
+      http.get('*/api/trainings/users/:userId', () =>
+        HttpResponse.json([
+          {
+            ...training,
+            allDay: false,
+            awardedOn: '2026-07-14T16:00:00Z',
+            endingOn: '2026-07-14T17:00:00Z',
+          },
+        ]),
+      ),
+    );
+    const { wrapper } = await mountModal({
+      ...event,
+      allDay: false,
+      locationId: 1,
+      timeZoneId: 'America/Vancouver',
+    });
+
+    await vi.waitFor(() => expect(wrapper.findComponent(UserTrainingVersionsModal).exists()).toBe(true));
+
+    expect(wrapper.getComponent(UserTrainingVersionsModal).props('timeZone')).toBe('America/Vancouver');
+    expect(document.body.textContent).toContain('2026-07-14 9:00 AM');
+    expect(document.body.textContent).toContain('2026-07-14 10:00 AM');
   });
 
   it('shows the error alert after an HTTP 500 JSON response without a rendering exception', async () => {

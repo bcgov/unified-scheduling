@@ -24,15 +24,15 @@ enableAutoUnmount(afterEach);
 afterEach(() => vi.restoreAllMocks());
 
 describe('UserTrainingReport', () => {
-  it('preserves all-day dates in rows and CSV while retaining timed, expiry, and missing-row formatting', async () => {
+  it('preserves all-day and employee-local timed dates in rows and CSV regardless of browser timezone', async () => {
     const allDay: UserTrainingReportItem = {
       userDisplayName: 'All Day User',
       trainingId: 1,
       trainingCode: 'FIRST-AID',
       trainingDescription: 'First aid',
       allDay: true,
-      awardedOn: '2026-07-20T00:00:00Z',
-      endingOn: '2026-07-22T00:00:00Z',
+      awardedOn: '2026-07-20',
+      endingOn: '2026-07-22',
       expiryDate: '2026-07-22T23:59:59.999-07:00',
       status: 'Active',
       version: 1,
@@ -43,8 +43,8 @@ describe('UserTrainingReport', () => {
       ...allDay,
       userDisplayName: 'Timed User',
       allDay: false,
-      awardedOn: '2026-07-20T01:00:00Z',
-      endingOn: '2026-07-20T02:00:00Z',
+      awardedOn: '2026-07-19T23:30:00-06:00',
+      endingOn: '2026-07-20T00:30:00-06:00',
     };
     const missing: UserTrainingReportItem = {
       ...allDay,
@@ -68,7 +68,6 @@ describe('UserTrainingReport', () => {
 
     const nativeDateFormat = Date.prototype.toLocaleDateString;
     const localeOptions = { timeZone: 'America/Vancouver' };
-    const timedDate = nativeDateFormat.call(new Date(timed.endingOn!), 'en-CA', localeOptions);
     const expiryDate = '2026-07-22';
     vi.spyOn(Date.prototype, 'toLocaleDateString').mockImplementation(function (this: Date) {
       return nativeDateFormat.call(this, 'en-CA', localeOptions);
@@ -97,7 +96,7 @@ describe('UserTrainingReport', () => {
 
     const rows = wrapper.getComponent(UaDataTableStub).props('items');
     expect(rows[0]).toMatchObject({ awardedOn: '2026-07-20', endingOn: '2026-07-22', expiryDate });
-    expect(rows[1]).toMatchObject({ awardedOn: timedDate, endingOn: timedDate });
+    expect(rows[1]).toMatchObject({ awardedOn: '2026-07-19', endingOn: '2026-07-20' });
     expect(rows[2]).toMatchObject({ awardedOn: null, endingOn: null, expiryDate: null, status: 'Not Taken' });
 
     await wrapper
@@ -115,7 +114,8 @@ describe('UserTrainingReport', () => {
     expect(csvRows[1]![awardedIndex]).toBe('2026-07-20');
     expect(csvRows[1]![endingIndex]).toBe('2026-07-22');
     expect(csvRows[1]![expiryIndex]).toBe(expiryDate);
-    expect(csvRows[2]![endingIndex]).toBe(timedDate);
+    expect(csvRows[2]![awardedIndex]).toBe('2026-07-19');
+    expect(csvRows[2]![endingIndex]).toBe('2026-07-20');
     expect(csvRows[3]![awardedIndex]).toBe('');
     expect(csvRows[3]![endingIndex]).toBe('');
   });

@@ -132,19 +132,26 @@ describe('calendarTrainingEventsContribution', () => {
     ]);
   });
 
-  it.each(['UTC', 'America/Edmonton'])('queries timed training in the displayed timezone %s', async (timeZoneId) => {
-    let body: unknown;
-    server.use(
-      http.post('*/api/training/calendar/events', async ({ request }) => {
-        body = await request.json();
-        return HttpResponse.json([]);
-      }),
-    );
+  it.each(['UTC', 'America/Vancouver', 'America/Edmonton'])(
+    'queries and maps timed training in the displayed timezone %s',
+    async (timeZoneId) => {
+      let body: unknown;
+      server.use(
+        http.post('*/api/training/calendar/events', async ({ request }) => {
+          body = await request.json();
+          return HttpResponse.json([{ ...borrowedTraining, allDay: false }]);
+        }),
+      );
 
-    await calendarTrainingEventsContribution.load({ ...context, filters: { ...context.filters, timeZoneId } });
+      const result = await calendarTrainingEventsContribution.load({
+        ...context,
+        filters: { ...context.filters, timeZoneId },
+      });
 
-    expect(body).toMatchObject({ timeZoneId });
-  });
+      expect(body).toMatchObject({ timeZoneId });
+      expect(result.events).toEqual([expect.objectContaining({ timeZoneId, locationId: borrowedTraining.locationId })]);
+    },
+  );
 
   it.each([
     ['2025-04-08T09:00:00-07:00', '2025-04-08T10:00:00-07:00'],

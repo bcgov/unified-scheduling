@@ -5,17 +5,12 @@ import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
 import UaAlert from '@/shared/components/UaAlert.vue';
 import UaModal from '@/shared/components/UaModal.vue';
 import UserTrainingVersionsModal from '@/modules/myteam/components/UserTrainingVersionsModal.vue';
-import { useLocationsStore } from '@/stores/LocationsStore';
 import { isTrainingCalendarEvent } from '../contributions/calendarTrainingEventsContribution';
 
 const props = defineProps<{ event: CalendarEventBase }>();
 const emit = defineEmits<{ close: [] }>();
 
 const trainingEvent = isTrainingCalendarEvent(props.event) ? props.event : undefined;
-const locationsStore = useLocationsStore();
-const trainingTimeZone = computed(() =>
-  trainingEvent?.locationId == null ? undefined : locationsStore.entitiesMap[trainingEvent.locationId]?.timezone,
-);
 const { data, error, execute } = getApiTrainingsUsersUserId(trainingEvent?.userId ?? '', {
   options: { immediate: false },
 });
@@ -41,7 +36,7 @@ const trainingVersions = computed(() =>
     v-if="selectedTraining"
     :training="selectedTraining"
     :trainings="trainingVersions"
-    :time-zone="trainingTimeZone"
+    :time-zone="event.timeZoneId"
     @close="emit('close')"
   />
   <UaModal v-else-if="!loading" :title="event.title" @close="emit('close')">

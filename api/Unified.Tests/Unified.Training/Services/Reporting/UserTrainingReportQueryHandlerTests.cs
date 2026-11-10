@@ -39,12 +39,20 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         await _db.DisposeAsync();
     }
 
-    [Fact]
-    public async Task ExecuteAsync_AssignedRows_PreserveAllDayClassificationAndDates()
+    [Theory]
+    [InlineData("America/Vancouver", -7)]
+    [InlineData("America/Edmonton", -6)]
+    [InlineData(null, 0)]
+    [InlineData("Not/A_TimeZone", 0)]
+    public async Task ExecuteAsync_AssignedRows_PreserveAllDayDatesAndTimedInstantsInTheHomeTimezone(
+        string? timeZoneId,
+        int expectedOffsetHours
+    )
     {
         var training = await SeedTrainingAsync(100, "TRN", "Training", mandatory: false);
-        var allDayUser = await SeedUserAsync("AllDay", "User");
-        var timedUser = await SeedUserAsync("Timed", "User");
+        var location = timeZoneId is null ? null : await SeedLocationAsync("HOME", "Home", timeZoneId, null);
+        var allDayUser = await SeedUserAsync("AllDay", "User", location?.Id);
+        var timedUser = await SeedUserAsync("Timed", "User", location?.Id);
         var awardedOn = new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero);
         await SeedUserTrainingAsync(allDayUser.Id, training.Id, awardedOn, allDay: true);
         await SeedUserTrainingAsync(timedUser.Id, training.Id, awardedOn.AddHours(1));
@@ -60,9 +68,17 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var allDay = Assert.Single(result.Rows, row => row.AllDay);
         Assert.Equal(awardedOn, allDay.AwardedOn);
         Assert.Equal(awardedOn, allDay.EndingOn);
+        Assert.Equal(TimeSpan.Zero, allDay.AwardedOn!.Value.Offset);
+        Assert.Equal(TimeSpan.Zero, allDay.EndingOn!.Value.Offset);
         var timed = Assert.Single(result.Rows, row => !row.AllDay);
         Assert.Equal(awardedOn.AddHours(1), timed.AwardedOn);
         Assert.Equal(awardedOn.AddHours(2), timed.EndingOn);
+        var expectedOffset = TimeSpan.FromHours(expectedOffsetHours);
+        Assert.Equal(expectedOffset, timed.AwardedOn!.Value.Offset);
+        Assert.Equal(expectedOffset, timed.EndingOn!.Value.Offset);
+        var expectedDate = new DateTime(2026, 7, expectedOffsetHours == 0 ? 20 : 19);
+        Assert.Equal(expectedDate, timed.AwardedOn.Value.Date);
+        Assert.Equal(expectedDate, timed.EndingOn.Value.Date);
     }
 
     [Theory]

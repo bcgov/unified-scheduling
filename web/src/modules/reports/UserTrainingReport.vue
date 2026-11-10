@@ -146,9 +146,9 @@ const csvColumns: ReportCsvColumn<UserTrainingReportItem>[] = [
   { header: 'Location', value: (row) => row.locationName ?? '' },
   { header: 'Training Type', value: (row) => row.trainingCode },
   { header: 'Description', value: (row) => row.trainingDescription },
-  { header: 'Awarded On', value: (row) => formatDateCellValue(row.awardedOn, row.allDay) },
-  { header: 'Ending On', value: (row) => formatDateCellValue(row.endingOn, row.allDay) },
-  { header: 'Expiry Date', value: (row) => formatDateCellValue(row.expiryDate, true) },
+  { header: 'Awarded On', value: (row) => formatDateCellValue(row.awardedOn) },
+  { header: 'Ending On', value: (row) => formatDateCellValue(row.endingOn) },
+  { header: 'Expiry Date', value: (row) => formatDateCellValue(row.expiryDate) },
   { header: 'Status', value: (row) => row.status },
   { header: 'Version', value: (row) => row.version },
   { header: 'Notice State', value: (row) => row.noticeState },
@@ -242,9 +242,9 @@ function formatRow(row: UserTrainingReportItem): Record<string, unknown> {
     locationName: row.locationName,
     trainingCode: row.trainingCode,
     trainingDescription: row.trainingDescription,
-    awardedOn: formatDateCellValue(row.awardedOn, row.allDay),
-    endingOn: formatDateCellValue(row.endingOn, row.allDay),
-    expiryDate: formatDateCellValue(row.expiryDate, true),
+    awardedOn: formatDateCellValue(row.awardedOn),
+    endingOn: formatDateCellValue(row.endingOn),
+    expiryDate: formatDateCellValue(row.expiryDate),
     status: row.status,
     version: row.version,
     noticeState: row.noticeState,
@@ -252,17 +252,12 @@ function formatRow(row: UserTrainingReportItem): Record<string, unknown> {
   };
 }
 
-function formatDateCellValue(value: unknown, allDay = false): unknown {
+function formatDateCellValue(value: unknown): unknown {
   if (typeof value !== 'string') {
     return value;
   }
 
-  if (allDay) {
-    return toCalendarDateString(value) ?? value;
-  }
-
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? value : new Date(parsed).toLocaleDateString();
+  return toCalendarDateString(value) ?? value;
 }
 </script>
 

@@ -483,12 +483,7 @@ public class UserTrainingServiceTests : IAsyncLifetime
     [Theory]
     [InlineData("America/Vancouver", true, 30)]
     [InlineData("America/Vancouver", false, 30)]
-    [InlineData(
-        "America/Vancouver",
-        true,
-        365,
-        Skip = "Temporary: re-enable when an ICU4C runtime package with BC's permanent UTC-7 mapping is available."
-    )]
+    [InlineData("America/Vancouver", true, 365)]
     [InlineData("America/Vancouver", false, 365)]
     [InlineData("America/Edmonton", true, 30)]
     [InlineData("America/Edmonton", false, 30)]

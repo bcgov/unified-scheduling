@@ -196,6 +196,7 @@ async function loadTrainingCalendarEvents(
     allDay: event.allDay,
     isReadOnly: event.isReadOnly,
     eventTypeCode: 'training',
+    timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
     locationId: event.locationId ?? undefined,
     resourceIds: [event.userId],
   }));

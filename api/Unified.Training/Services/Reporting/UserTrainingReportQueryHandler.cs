@@ -30,13 +30,26 @@ public sealed class UserTrainingReportQueryHandler(UnifiedDbContext db, TimeProv
             {
                 var result = UserTrainingReportMappings.ToReportRowValue(row, ResolveStatus(row, now));
                 var timeZoneId = TimeZoneService.NormalizeOptionalTimeZoneId(row.TimeZoneId);
+                if (timeZoneId is null)
+                    return result;
+
+                var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
                 // Retain the instant while preserving its applicable local date in report output.
-                return result.ExpiryDate is { } expiry && timeZoneId is not null
-                    ? result with
-                    {
-                        ExpiryDate = TimeZoneInfo.ConvertTime(expiry, TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)),
-                    }
-                    : result;
+                return result with
+                {
+                    AwardedOn =
+                        !row.AllDay && result.AwardedOn is { } awardedOn
+                            ? TimeZoneInfo.ConvertTime(awardedOn, timeZone)
+                            : result.AwardedOn,
+                    EndingOn =
+                        !row.AllDay && result.EndingOn is { } endingOn
+                            ? TimeZoneInfo.ConvertTime(endingOn, timeZone)
+                            : result.EndingOn,
+                    ExpiryDate =
+                        result.ExpiryDate is { } expiry
+                            ? TimeZoneInfo.ConvertTime(expiry, timeZone)
+                            : result.ExpiryDate,
+                };
             })
             .ToArray();
 
