@@ -54,11 +54,11 @@ export function useSchedulingShiftDetailRows(options: {
       },
       {
         label: 'Lunch Break',
-        value: formatSelectValue(formData.lunchAvailableMinutes, lunchAvailableOptions, 'Unknown'),
+        value: formatLunchMinutes(formData.lunchAvailableMinutes, lunchAvailableOptions),
       },
       {
         label: 'Worked Lunch',
-        value: formatSelectValue(formData.workedLunchMinutes, workedLunchOptions, 'Unknown'),
+        value: formatLunchMinutes(formData.workedLunchMinutes, workedLunchOptions),
       },
     ];
 
@@ -162,4 +162,12 @@ function formatAssignmentName(id: number | null, assignmentOptions: SelectOption
 function formatSelectValue(value: unknown, options: SelectOption[], fallback = 'No') {
   const option = options.find((candidate) => candidate.code === value);
   return option?.description ?? fallback;
+}
+
+function formatLunchMinutes(value: unknown, options: SelectOption[]) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 60) {
+    return 'Unknown';
+  }
+
+  return formatSelectValue(value, options, `${value} min`);
 }

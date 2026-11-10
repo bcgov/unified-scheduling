@@ -4,6 +4,8 @@ namespace Unified.Scheduling.Models;
 
 public record ShiftEntryRequest : CalendarEventEntryRequest
 {
+    internal bool PreserveLunchValues { get; init; }
+
     public int? LunchAvailableMinutes { get; set; }
 
     public int? WorkedLunchMinutes { get; set; }

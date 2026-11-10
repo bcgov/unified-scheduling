@@ -53,10 +53,7 @@ public sealed class ShiftLoanOutAvailabilityService(
                 entry => entry,
                 entry =>
                 {
-                    var zone = timeZoneResolver.Resolve(
-                        locations[entry.Event!.LocationId!.Value],
-                        entry.Event.TimeZoneId
-                    );
+                    var zone = timeZoneResolver.Resolve(null, locations[entry.Event!.LocationId!.Value]);
                     var date = DateOnly.FromDateTime(timeZoneService.ToLocalUnspecified(entry.Event.StartAtUtc, zone));
                     return timeZoneService.ConvertInclusiveLocalDateRangeToUtcRange(date, date, zone);
                 }

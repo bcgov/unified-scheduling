@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Unified.Calendar;
 using Unified.Calendar.Options;
 using Unified.Calendar.Services;
 using Unified.Common.Time;
@@ -12,12 +13,14 @@ using Unified.Db;
 using Unified.Db.Models;
 using Unified.Db.Models.Calendar;
 using Unified.Db.Models.Leave;
+using Unified.Db.Models.LoanOut;
 using Unified.Db.Models.Lookup;
 using Unified.Db.Models.Scheduling;
 using Unified.Db.Models.Stats;
 using Unified.Db.Models.UserManagement;
 using Unified.Leave.Constants;
 using Unified.Leave.FeatureFlags;
+using Unified.LoanOut.Constants;
 using Unified.Scheduling;
 using Unified.Scheduling.Models;
 using Unified.Scheduling.Options;
@@ -36,6 +39,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
     private UnifiedDbContext db = null!;
     private WorkingHoursService service = null!;
     private readonly LeaveFeatureFlags leaveFlags = new() { Enabled = true };
+    private ShiftLoanOutAvailabilityService availability = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -47,16 +51,19 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         await SeedBaseDataAsync();
 
+        var resolver = new CalendarTimeZoneResolver(
+            Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
+            new TimeZoneService()
+        );
+        availability = SchedulingLoanOutTestServices.CreateAvailability(db, new TimeZoneService(), resolver);
         service = new WorkingHoursService(
             NullLogger<WorkingHoursService>.Instance,
             db,
             Options.Create(new WorkingHoursOptions { DefaultLunchMinutes = 60, MaxQueryRangeDays = 31 }),
             new TimeZoneService(),
             Options.Create(leaveFlags),
-            new CalendarTimeZoneResolver(
-                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
-                new TimeZoneService()
-            )
+            resolver,
+            availability
         );
     }
 
@@ -64,6 +71,168 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
     {
         await db.DisposeAsync();
         await connection.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(5, false)]
+    [InlineData(9, false)]
+    [InlineData(null, true)]
+    [InlineData(5, true)]
+    [InlineData(9, true)]
+    public async Task QueryAsync_PartialRecurringLoanOut_FiltersOnlyAwayShiftUserPairs(int? locationId, bool onlyUserA)
+    {
+        var originals = new List<ShiftEntry>();
+        var destinations = new List<ShiftEntry>();
+        var loanOutSeries = new LoanOutSeries
+        {
+            LoanOutLocationId = 9,
+            EventSeries = new EventSeries
+            {
+                Title = "Recurring loan-out",
+                StartAtUtc = At(7),
+                EndAtUtc = AtDay(2, 7),
+                TimeZoneId = "America/Vancouver",
+                EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                LocationId = 5,
+                RecurrenceRule = "FREQ=DAILY;INTERVAL=2;COUNT=2",
+            },
+        };
+        for (var day = 1; day <= 3; day++)
+        {
+            var shift = await AddShiftAsync(AtDay(day, 16), AtDay(day + 1, 0), userIds: [UserA, UserB]);
+            originals.Add(shift);
+            if (day == 2)
+                continue;
+            // A shift-wide marker must not suppress the employee who remains at home.
+            shift.Event!.IsException = true;
+            shift.Event.ExceptionReason = nameof(CalendarEventExceptionReasonCode.IsAway);
+            loanOutSeries.LoanOutEntries.Add(
+                new LoanOutEntry
+                {
+                    LoanOutLocationId = 9,
+                    Event = new Event
+                    {
+                        Title = "Loan-out",
+                        StartAtUtc = AtDay(day, 7),
+                        EndAtUtc = AtDay(day + 1, 7),
+                        TimeZoneId = "America/Vancouver",
+                        SourceModule = LoanOutConstants.SourceModule,
+                        EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                        StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                        LocationId = 5,
+                        EventSeries = loanOutSeries.EventSeries,
+                    },
+                    Users = [new LoanOutEntryUser { UserId = UserA }],
+                }
+            );
+            destinations.Add(await AddShiftAsync(AtDay(day, 16), AtDay(day + 1, 0), locationId: 9));
+        }
+        db.LoanOutSeries.Add(loanOutSeries);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var results = await QueryAsync(
+            new WorkingHoursQuery
+            {
+                StartDate = BusinessDate,
+                EndDate = BusinessDate.AddDays(2),
+                ShiftLocationIds = locationId.HasValue ? [locationId.Value] : [5, 9],
+                UserIds = onlyUserA ? [UserA] : null,
+            }
+        );
+
+        var expected = new List<(int, Guid)>();
+        if (locationId != 9)
+        {
+            expected.Add((originals[1].Id, UserA));
+            if (!onlyUserA)
+                expected.AddRange(originals.Select(shift => (shift.Id, UserB)));
+        }
+        if (locationId != 5)
+            expected.AddRange(destinations.Select(shift => (shift.Id, UserA)));
+        Assert.Equal(expected.Order(), results.Select(result => (result.ShiftEntryId, result.UserId)).Order());
+        Assert.All(results.GroupBy(result => (result.Date, result.UserId)), group => Assert.Single(group));
+    }
+
+    [Fact]
+    public async Task QueryAsync_LocationWithoutTimeZone_UsesCalendarDefaultForLoanOutEligibility()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var location = await db.Locations.FindAsync([5], token);
+        location!.Timezone = "";
+        var shift = await AddShiftAsync(AtDay(2, 6), AtDay(2, 14), timeZoneId: null);
+        var loanOut = new LoanOutEntry
+        {
+            LoanOutLocationId = 9,
+            Event = new Event
+            {
+                Title = "Next-day loan-out",
+                StartAtUtc = AtDay(2, 7),
+                EndAtUtc = AtDay(3, 7),
+                EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                LocationId = 5,
+            },
+            Users = [new LoanOutEntryUser { UserId = UserA }],
+        };
+        db.LoanOutEntries.Add(loanOut);
+        await db.SaveChangesAsync(token);
+
+        // The shift starts on June 1 in the configured default zone; the June 2 loan-out does not apply.
+        Assert.Equal(shift.Id, Assert.Single(await QueryAsync()).ShiftEntryId);
+
+        loanOut.Event.StartAtUtc = At(7);
+        loanOut.Event.EndAtUtc = AtDay(2, 7);
+        await db.SaveChangesAsync(token);
+        Assert.Empty(await QueryAsync());
+    }
+
+    [Fact]
+    public async Task QueryAsync_LoanOutDisabled_PreservesOriginalShiftResults()
+    {
+        var shift = await AddShiftAsync(At(9), At(17));
+        db.LoanOutEntries.Add(
+            new LoanOutEntry
+            {
+                LoanOutLocationId = 9,
+                Event = new Event
+                {
+                    Title = "Loan-out",
+                    StartAtUtc = At(7),
+                    EndAtUtc = AtDay(2, 7),
+                    EventTypeCode = LoanOutConstants.LoanOutEventTypeCode,
+                    StatusTypeCode = CalendarEventStatusTypeCodes.Active,
+                    LocationId = 5,
+                },
+                Users = [new LoanOutEntryUser { UserId = UserA }],
+            }
+        );
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var disabledService = new WorkingHoursService(
+            NullLogger<WorkingHoursService>.Instance,
+            db,
+            Options.Create(new WorkingHoursOptions()),
+            new TimeZoneService(),
+            Options.Create(leaveFlags),
+            new CalendarTimeZoneResolver(
+                Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
+                new TimeZoneService()
+            ),
+            SchedulingLoanOutTestServices.CreateAvailability(db, new TimeZoneService(), loanOutEnabled: false)
+        );
+
+        var result = Assert.Single(
+            await disabledService.QueryAsync(
+                new WorkingHoursQuery { StartDate = BusinessDate, EndDate = BusinessDate },
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Equal(shift.Id, result.ShiftEntryId);
+        Assert.Equal(420, result.CreditedMinutes);
+        Assert.Equal(0, result.OvertimeMinutes);
+        Assert.Empty(await QueryAsync());
     }
 
     [Fact]
@@ -491,7 +660,8 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
             new CalendarTimeZoneResolver(
                 Options.Create(new CalendarDateTimeOptions { DefaultTimeZoneId = "America/Vancouver" }),
                 new TimeZoneService()
-            )
+            ),
+            availability
         );
         var shift = await AddShiftAsync(At(9), At(17), workedLunchMinutes: 60);
         await AddLeaveAsync(At(13), At(17), true);
@@ -955,6 +1125,7 @@ public sealed class WorkingHoursServiceTests : IAsyncLifetime
         db.EventTypes.AddRange(
             CreateEventType(SchedulingConstants.ShiftEventTypeCode),
             CreateEventType(SchedulingConstants.AssignmentEventTypeCode),
+            CreateEventType(LoanOutConstants.LoanOutEventTypeCode),
             CreateEventType(LeaveConstants.LeaveEventTypeCode)
         );
         db.EventStatusTypes.AddRange(

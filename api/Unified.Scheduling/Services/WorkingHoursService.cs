@@ -19,7 +19,8 @@ public sealed class WorkingHoursService(
     IOptions<WorkingHoursOptions> options,
     ITimeZoneService timeZoneService,
     IOptions<LeaveFeatureFlags> leaveOptions,
-    ICalendarTimeZoneResolver timeZoneResolver
+    ICalendarTimeZoneResolver timeZoneResolver,
+    ShiftLoanOutAvailabilityService loanOutAvailabilityService
 ) : IWorkingHoursService
 {
     public async Task<IReadOnlyCollection<WorkingHoursResult>> QueryAsync(
@@ -108,6 +109,24 @@ public sealed class WorkingHoursService(
         if (shifts.Count == 0)
         {
             return [];
+        }
+
+        if (loanOutAvailabilityService.IsEnabled)
+        {
+            var candidateIds = shifts.Select(shift => shift.ShiftEntryId).Distinct().ToArray();
+            var candidates = await db
+                .ShiftEntries.AsNoTracking()
+                .Include(shift => shift.Event)
+                .Include(shift => shift.Users)
+                .Where(shift => candidateIds.Contains(shift.Id))
+                .ToListAsync(cancellationToken);
+            var awayUsers = await loanOutAvailabilityService.GetAwayUserIdsAsync(candidates, cancellationToken);
+            var awayShiftUsers = awayUsers
+                .SelectMany(pair => pair.Value.Select(userId => (pair.Key.Id, userId)))
+                .ToHashSet();
+            shifts = shifts.Where(shift => !awayShiftUsers.Contains((shift.ShiftEntryId, shift.UserId))).ToList();
+            if (shifts.Count == 0)
+                return [];
         }
 
         var shiftEntryIds = shifts.Select(x => x.ShiftEntryId).Distinct().ToArray();

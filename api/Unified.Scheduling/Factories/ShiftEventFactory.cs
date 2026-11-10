@@ -19,9 +19,13 @@ public sealed class ShiftEventFactory(IOptions<WorkingHoursOptions>? workingHour
 
     public ShiftEntry CreateEntry(ShiftEntryRequest request, Event eventEntity)
     {
-        var lunchAvailableMinutes = request.LunchAvailableMinutes ?? _workingHoursOptions.DefaultLunchMinutes;
-        var workedLunchMinutes = request.WorkedLunchMinutes ?? 0;
-        ValidateLunchMinutes(lunchAvailableMinutes, workedLunchMinutes);
+        var lunchAvailableMinutes = request.PreserveLunchValues
+            ? request.LunchAvailableMinutes
+            : request.LunchAvailableMinutes ?? _workingHoursOptions.DefaultLunchMinutes;
+        var workedLunchMinutes = request.PreserveLunchValues
+            ? request.WorkedLunchMinutes
+            : request.WorkedLunchMinutes ?? 0;
+        ValidateLunchMinutes(lunchAvailableMinutes, workedLunchMinutes, allowUnknownLunch: request.PreserveLunchValues);
         return new()
         {
             Event = eventEntity,
@@ -58,9 +62,13 @@ public sealed class ShiftEventFactory(IOptions<WorkingHoursOptions>? workingHour
 
     public ShiftSeries CreateSeries(ShiftSeriesRequest request, EventSeries eventSeries)
     {
-        var lunchAvailableMinutes = request.LunchAvailableMinutes ?? _workingHoursOptions.DefaultLunchMinutes;
-        var workedLunchMinutes = request.WorkedLunchMinutes ?? 0;
-        ValidateLunchMinutes(lunchAvailableMinutes, workedLunchMinutes);
+        var lunchAvailableMinutes = request.PreserveLunchValues
+            ? request.LunchAvailableMinutes
+            : request.LunchAvailableMinutes ?? _workingHoursOptions.DefaultLunchMinutes;
+        var workedLunchMinutes = request.PreserveLunchValues
+            ? request.WorkedLunchMinutes
+            : request.WorkedLunchMinutes ?? 0;
+        ValidateLunchMinutes(lunchAvailableMinutes, workedLunchMinutes, allowUnknownLunch: request.PreserveLunchValues);
         return new()
         {
             EventSeries = eventSeries,
@@ -85,7 +93,11 @@ public sealed class ShiftEventFactory(IOptions<WorkingHoursOptions>? workingHour
         return existing;
     }
 
-    internal static void ValidateLunchMinutes(int? lunchAvailableMinutes, int? workedLunchMinutes)
+    internal static void ValidateLunchMinutes(
+        int? lunchAvailableMinutes,
+        int? workedLunchMinutes,
+        bool allowUnknownLunch = false
+    )
     {
         var result = new ShiftEntryRequestValidator().Validate(
             new ShiftEntryRequest
@@ -101,7 +113,7 @@ public sealed class ShiftEventFactory(IOptions<WorkingHoursOptions>? workingHour
         );
         if (!result.IsValid)
             throw new ValidationException(result.Errors);
-        if (!lunchAvailableMinutes.HasValue && workedLunchMinutes.HasValue)
+        if (!allowUnknownLunch && !lunchAvailableMinutes.HasValue && workedLunchMinutes.HasValue)
             throw new ValidationException([
                 new ValidationFailure(
                     nameof(ShiftEntryRequest.LunchAvailableMinutes),

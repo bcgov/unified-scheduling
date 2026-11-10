@@ -22,6 +22,7 @@ public sealed class SchedulingLoanOutEventMapper(
 
         return entry.Adapt<ShiftEntryRequest>(MappingConfig) with
         {
+            PreserveLunchValues = true,
             LocationId = locationId,
             UserIds = userIds,
             ShiftSeriesId = null,
@@ -58,6 +59,7 @@ public sealed class SchedulingLoanOutEventMapper(
 
         return new ShiftSeriesRequest
         {
+            PreserveLunchValues = true,
             Title = sourceSeries.Title,
             Description = sourceSeries.Description,
             Notes = sourceSeries.Notes,

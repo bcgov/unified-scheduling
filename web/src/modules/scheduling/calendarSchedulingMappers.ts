@@ -464,7 +464,13 @@ function addRestrictedWarnings(
         warnings,
         resourceId,
       );
-      if (header.restrictedWarnings.length) header.action = buildPulldownAction();
+      if (header.restrictedWarnings.length) {
+        if (header.action?.actionId === calendarSchedulingActionIds.showOvertime) {
+          header.action = buildCombinedHeaderAction(header.action.payload as WorkingHoursResult);
+        } else if (header.action?.type !== CalendarMatrixActionType.Menu) {
+          header.action = buildPulldownAction();
+        }
+      }
     }
     for (const item of cell.groups.flatMap((group) => group.events)) {
       item.restrictedWarnings = getCalendarRestrictedWarningsForEvent(

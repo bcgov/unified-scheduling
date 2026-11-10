@@ -5,6 +5,46 @@ import { createInitialShiftFormDataForCreateAction } from '@/modules/scheduling/
 import { useSchedulingShiftDetailRows } from '@/modules/scheduling/useSchedulingShiftDetailRows';
 
 describe('useSchedulingShiftDetailRows', () => {
+  it.each([
+    [20, '20 min', '20 min'],
+    [0, 'No lunch', '0 min'],
+    [15, '15 min', '15 min'],
+    [30, '30 min', '30 min'],
+    [45, '45 min', '45 min'],
+    [60, '1 hour', '1 hour'],
+    [null, 'Unknown', 'Unknown'],
+    [undefined, 'Unknown', 'Unknown'],
+    [-1, 'Unknown', 'Unknown'],
+    [61, 'Unknown', 'Unknown'],
+    [20.5, 'Unknown', 'Unknown'],
+    [NaN, 'Unknown', 'Unknown'],
+    [Infinity, 'Unknown', 'Unknown'],
+  ])('formats lunch value %s in both detail rows', (minutes, lunch, worked) => {
+    const { detailRows } = useSchedulingShiftDetailRows({
+      event: computed<CalendarEventBase>(() => ({
+        id: 'scheduling.shift-entry.200',
+        type: 'scheduling.shift',
+        sourceModule: 'scheduling',
+        title: 'Shift',
+        start: '2026-07-13T16:00:00Z',
+      })),
+      selectedOpenScope: ref('event'),
+      selectedSeries: ref(null),
+      formData: ref({
+        ...createInitialShiftFormDataForCreateAction(1, 60),
+        lunchAvailableMinutes: minutes,
+        workedLunchMinutes: minutes,
+      }),
+      employeeOptions: computed(() => []),
+      assignmentEntryOptions: computed(() => []),
+      assignmentSeriesOptions: computed(() => []),
+      locationOptions: computed(() => []),
+    });
+
+    expect(detailRows.value.find((row) => row.label === 'Lunch Break')?.value).toBe(lunch);
+    expect(detailRows.value.find((row) => row.label === 'Worked Lunch')?.value).toBe(worked);
+  });
+
   it('displays the fields supported by the shift edit form', () => {
     const event = computed<CalendarEventBase>(() => ({
       id: 'scheduling.shift-entry.200',

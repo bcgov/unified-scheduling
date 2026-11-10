@@ -414,7 +414,7 @@ describe('scheduling calendar view model', () => {
                   id: '101:201:user-1',
                   resourceId: 'user-1',
                   entry: {
-                    eventId: 101,
+                    eventId: '101',
                     eventTypeCode: 'shift',
                     sourceModule: 'scheduling',
                     title: 'Conflict shift',
@@ -424,7 +424,7 @@ describe('scheduling calendar view model', () => {
                     timeZoneId: null,
                   },
                   overlaps: {
-                    eventId: 201,
+                    eventId: '201',
                     eventTypeCode: 'assignment',
                     sourceModule: 'scheduling',
                     title: 'Assignment',
@@ -436,6 +436,8 @@ describe('scheduling calendar view model', () => {
                   overlapStart: '2025-01-13T10:00:00Z',
                   overlapEnd: '2025-01-13T12:00:00Z',
                   isOverridden: false,
+                  reportOnEntry: false,
+                  reportOnOverlaps: false,
                 },
               ],
             },
@@ -1009,6 +1011,8 @@ describe('scheduling calendar view model', () => {
                       overlapStart: '2025-01-13T10:00:00Z',
                       overlapEnd: '2025-01-13T12:00:00Z',
                       isOverridden: false,
+                      reportOnEntry: true,
+                      reportOnOverlaps: true,
                     },
                   ]
                 : [],

@@ -12,7 +12,7 @@ using Unified.Db;
 namespace Unified.Db.Migrations
 {
     [DbContext(typeof(UnifiedDbContext))]
-    [Migration("20261105065951_AddShiftLunchMinutes")]
+    [Migration("20261110204004_AddShiftLunchMinutes")]
     partial class AddShiftLunchMinutes
     {
         /// <inheritdoc />
@@ -20,7 +20,7 @@ namespace Unified.Db.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -2854,6 +2854,9 @@ namespace Unified.Db.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
                     NpgsqlPropertyBuilderExtensions.HasIdentityOptions(b.Property<int>("Id"), 200L, null, null, null, null, null);
+
+                    b.Property<bool>("AllDay")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("AwardedOn")
                         .HasColumnType("timestamp with time zone");
