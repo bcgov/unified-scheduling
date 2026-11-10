@@ -1,4 +1,3 @@
-using Unified.Scheduling.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -9,6 +8,7 @@ using Unified.Api.Options;
 using Unified.Calendar.FeatureFlags;
 using Unified.Common.FeatureFlags;
 using Unified.Scheduling.FeatureFlags;
+using Unified.Scheduling.Options;
 using Unified.UserManagement.FeatureFlags;
 
 namespace Unified.Tests.Api.Controllers;

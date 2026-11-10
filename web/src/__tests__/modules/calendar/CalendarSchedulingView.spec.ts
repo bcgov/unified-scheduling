@@ -137,7 +137,8 @@ describe('CalendarSchedulingView', () => {
     const overlay = wrapper.getComponent(CalendarSchedulingConflictOverlay);
     expect(overlay.props('restrictedWarnings')).toEqual([warning]);
     expect(overlay.text()).toContain(warning.message);
-    expect(overlay.findAll('button, a')).toHaveLength(0);
+    expect(overlay.find('[aria-label="Close conflicts"]').exists()).toBe(true);
+    expect(overlay.findAll('button:not([aria-label="Close conflicts"]), a')).toHaveLength(0);
     expect(wrapper.find('[data-test="conflict-detail"]').exists()).toBe(false);
     expect(api.postOverride).not.toHaveBeenCalled();
     wrapper.unmount();
