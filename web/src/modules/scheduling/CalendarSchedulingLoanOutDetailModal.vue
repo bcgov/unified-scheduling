@@ -270,6 +270,7 @@ async function remove() {
         :form-errors="formErrors"
         :time-zone-id="timeZone"
         :show-repeat="scope === 'series'"
+        show-required
         show-employees
         @validation-change="hasValidationError = $event"
       />

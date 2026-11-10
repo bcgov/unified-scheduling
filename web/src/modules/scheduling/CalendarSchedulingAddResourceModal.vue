@@ -579,6 +579,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :employee-options="employeeOptions"
             :loading-employees="isLoadingUsers"
             :time-zone-id="timeZoneId"
+            show-required
             show-employees
             show-repeat
             @validation-change="leaveHasValidationError = $event"
@@ -595,6 +596,7 @@ function applyServerValidationErrors(rawError: unknown) {
             :loading-employees="isLoadingUsers"
             :form-errors="loanOutFormErrors"
             :time-zone-id="timeZoneId"
+            show-required
             show-employees
             show-repeat
             @validation-change="loanOutHasValidationError = $event"

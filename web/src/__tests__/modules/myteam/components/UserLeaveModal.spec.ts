@@ -1,5 +1,6 @@
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { server } from '@/__tests__/mocks/server';
+import type { LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import UserLeaveModal from '@/modules/myteam/components/UserLeaveModal.vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import { http, HttpResponse } from 'msw';
@@ -37,7 +38,10 @@ const entry = {
   leaveSeriesId: 77,
 };
 
-async function mountModal(scope: 'event' | 'series', selectedEntry = entry) {
+async function mountModal(
+  scope?: 'event' | 'series',
+  selectedEntry: (Omit<typeof entry, 'endAtUtc'> & { endAtUtc: string | null }) | null = entry,
+) {
   const app = await createTestApp({ loadConfig: false });
   return mount(UserLeaveModal, {
     props: {
@@ -58,28 +62,47 @@ async function mountModal(scope: 'event' | 'series', selectedEntry = entry) {
 }
 
 describe('UserLeaveModal', () => {
-  it('loads the current entry before enabling an event edit', async () => {
-    let saved: unknown;
-    server.use(
-      http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json(entry)),
-      http.put('*/api/scheduling/leave/entries/42', async ({ request }) => {
-        saved = await request.json();
-        return HttpResponse.json(entry);
-      }),
-    );
-    const wrapper = await mountModal('event', { ...entry, notes: 'Stale note' });
-    await vi.waitFor(() => expect(wrapper.get('[data-test="form"]').text()).toContain('Latest server note'));
-    expect(wrapper.get('[data-test="form"]').text()).not.toContain('Stale note');
-
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Save')!
-      .trigger('click');
-    await vi.waitFor(() =>
-      expect(saved).toMatchObject({ notes: 'Latest server note', leaveTypeId: 9, leaveSeriesId: 77 }),
-    );
-    wrapper.unmount();
-  });
+  it.each([
+    { startAtUtc: '2026-06-10T17:00:00Z', endAtUtc: '2026-06-10T18:00:00Z', endTime: '11:00' },
+    { startAtUtc: '2026-06-10T17:00:00Z', endAtUtc: null, endTime: null },
+    { startAtUtc: '2026-06-11T02:00:00Z', endAtUtc: null, endTime: null },
+  ])(
+    'preserves the loaded end when saving unrelated changes ($startAtUtc, $endAtUtc)',
+    async ({ startAtUtc, endAtUtc, endTime }) => {
+      const loadedEntry = { ...entry, startAtUtc, endAtUtc };
+      let saved: unknown;
+      server.use(
+        http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json(loadedEntry)),
+        http.put('*/api/scheduling/leave/entries/42', async ({ request }) => {
+          saved = await request.json();
+          return HttpResponse.json(loadedEntry);
+        }),
+      );
+      const wrapper = await mountModal('event', { ...entry, notes: 'Stale note' });
+      await vi.waitFor(() => expect(wrapper.get('[data-test="form"]').text()).toContain('Latest server note'));
+      expect(wrapper.get('[data-test="form"]').text()).not.toContain('Stale note');
+      const form = wrapper.getComponent(LeaveFormStub);
+      const modelValue = form.props('modelValue') as LeaveFormData;
+      expect(modelValue.endTime).toBe(endTime);
+      form.vm.$emit('update:modelValue', { ...modelValue, notes: 'Edited unrelated notes' });
+      await flushPromises();
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Save')!
+        .trigger('click');
+      await vi.waitFor(() =>
+        expect(saved).toMatchObject({
+          notes: 'Edited unrelated notes',
+          leaveTypeId: 9,
+          leaveSeriesId: 77,
+          startAtUtc,
+          endAtUtc,
+        }),
+      );
+      await vi.waitFor(() => expect(wrapper.emitted('save')).toHaveLength(1));
+      wrapper.unmount();
+    },
+  );
 
   it('preserves the timed parent date, hours and recurrence when editing notes through an all-day exception', async () => {
     const series = {
@@ -129,6 +152,48 @@ describe('UserLeaveModal', () => {
       }),
     );
     expect(saved).not.toHaveProperty('leaveDate');
+    wrapper.unmount();
+  });
+
+  it('retains default start and end times for new leave creation', async () => {
+    let saved: unknown;
+    let requestedEntry = false;
+    let requestedSeries = false;
+    server.use(
+      http.get('*/api/scheduling/leave/entries/:id', () => {
+        requestedEntry = true;
+        return HttpResponse.json(entry);
+      }),
+      http.get('*/api/scheduling/leave/series/:id', () => {
+        requestedSeries = true;
+        return HttpResponse.json({});
+      }),
+      http.post('*/api/scheduling/leave/entries', async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json(entry);
+      }),
+    );
+    const wrapper = await mountModal(undefined, null);
+    await flushPromises();
+    expect(requestedEntry).toBe(false);
+    expect(requestedSeries).toBe(false);
+    const form = wrapper.getComponent(LeaveFormStub);
+    const modelValue = form.props('modelValue') as LeaveFormData;
+    expect(modelValue.startTime).toBe('09:00');
+    expect(modelValue.endTime).toBe('17:00');
+    form.vm.$emit('update:modelValue', { ...modelValue, date: '2026-06-10', leaveType: 9 });
+    await flushPromises();
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Save')!
+      .trigger('click');
+    await vi.waitFor(() =>
+      expect(saved).toMatchObject({
+        startAtUtc: '2026-06-10T16:00:00Z',
+        endAtUtc: '2026-06-11T00:00:00Z',
+      }),
+    );
+    await vi.waitFor(() => expect(wrapper.emitted('save')).toHaveLength(1));
     wrapper.unmount();
   });
 });

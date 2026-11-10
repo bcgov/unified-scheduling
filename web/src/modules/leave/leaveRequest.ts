@@ -37,7 +37,7 @@ export function buildLeaveRequest(
   }
 
   const allDay = form.allDay ?? false;
-  let interval: { leaveDate: string } | { startAtUtc: string; endAtUtc: string };
+  let interval: { leaveDate: string } | { startAtUtc: string; endAtUtc: string | null };
   if (allDay) {
     if (!form.date || !/^\d{4}-\d{2}-\d{2}$/.test(form.date) || !DateTime.fromISO(form.date, { zone: 'UTC' }).isValid) {
       return { error: 'Select a valid date.' };
@@ -45,9 +45,13 @@ export function buildLeaveRequest(
     interval = { leaveDate: form.date };
   } else {
     const startAtUtc = toUtcIso(form.date, form.startTime || defaultStartTime, options.timeZoneId);
-    const endAtUtc = toUtcIso(form.date, form.endTime || defaultEndTime, options.timeZoneId);
-    if (!startAtUtc || !endAtUtc) return { error: 'Select a valid date and time.' };
-    if (endAtUtc <= startAtUtc) return { error: 'End time must be after start time.' };
+    // Preserve explicit absence on entries; uninitialized creation values still use the default.
+    const endTime = form.endTime === null ? null : form.endTime || defaultEndTime;
+    const endAtUtc = endTime === null ? null : toUtcIso(form.date, endTime, options.timeZoneId);
+    if (!startAtUtc || (endTime !== null && !endAtUtc) || (form.repeatMode === 'custom' && !endAtUtc)) {
+      return { error: 'Select a valid date and time.' };
+    }
+    if (endAtUtc && endAtUtc <= startAtUtc) return { error: 'End time must be after start time.' };
     interval = { startAtUtc, endAtUtc };
   }
 

@@ -85,7 +85,7 @@ const buildInitialFormData = (series?: LeaveSeriesResponse): LeaveFormData => {
       : (start?.date ?? ''),
     allDay,
     startTime: allDay ? defaultStartTime : (start?.time ?? defaultStartTime),
-    endTime: allDay ? defaultEndTime : (end?.time ?? defaultEndTime),
+    endTime: allDay ? defaultEndTime : (end?.time ?? (isSeriesEdit.value ? defaultEndTime : null)),
     repeatMode: isSeriesEdit.value
       ? (series?.recurrenceRule ?? entrySeries?.recurrenceRule)
         ? 'custom'
@@ -216,6 +216,7 @@ const handleSave = async () => {
       :disabled="isSaving || isLoadingEntry || isLoadingSeries"
       :show-repeat="!isEdit || isSeriesEdit"
       :time-zone-id="timeZoneId"
+      show-required
       @validation-change="hasFormValidationError = $event"
     />
 

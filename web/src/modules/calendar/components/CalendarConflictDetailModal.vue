@@ -121,6 +121,7 @@ function isEventEditable(event: CalendarConflictEvent) {
           id="conflict-override-note"
           v-model="note"
           label="Override notes"
+          :required="canOverride"
           rows="3"
           maxlength="2000"
           :disabled="!canOverride"

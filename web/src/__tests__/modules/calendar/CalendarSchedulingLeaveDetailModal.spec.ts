@@ -1,7 +1,8 @@
 import { createTestApp } from '@/__tests__/helpers/createTestApp';
 import { server } from '@/__tests__/mocks/server';
 import { Permissions } from '@/api-access/generated/models';
-import type { CalendarEventBase } from '@/modules/calendar/calendarTypes';
+import type { CalendarSchedulingEvent } from '@/modules/scheduling/calendarSchedulingData';
+import type { LeaveFormData } from '@/modules/leave/components/LeaveForm.vue';
 import CalendarSchedulingLeaveDetailModal from '@/modules/scheduling/CalendarSchedulingLeaveDetailModal.vue';
 import LeaveDetailsPanel from '@/modules/leave/components/LeaveDetailsPanel.vue';
 import { formatCalendarEventTimeRange } from '@/utils/date';
@@ -21,7 +22,7 @@ const entry = {
   locationId: 3,
 };
 
-function createLeaveEvent(): CalendarEventBase {
+function createLeaveEvent(): CalendarSchedulingEvent {
   return {
     id: 'leave-entry.42',
     type: 'scheduling.leave',
@@ -34,7 +35,7 @@ function createLeaveEvent(): CalendarEventBase {
     locationId: 3,
     resourceIds: entry.userIds,
     metadata: { leaveEntryId: '42', leaveSeriesId: '77', leaveTypeId: 9, userIds: entry.userIds },
-  } as CalendarEventBase;
+  };
 }
 
 async function mountModal(event = createLeaveEvent()) {
@@ -59,12 +60,128 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
     server.use(
       http.get('*/api/scheduling/leave/entries/42', () => HttpResponse.json(entry)),
       http.get('*/api/users*', () => HttpResponse.json([])),
-      http.get('*/api/leave/leave-types', () => HttpResponse.json([])),
+      http.get('*/api/leave/leave-types', () => HttpResponse.json([{ id: 9, name: 'Vacation' }])),
     );
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
+  });
+
+  async function mountEntryEditor(loaded: boolean, endAtUtc: string | null) {
+    const event = createLeaveEvent();
+    event.start = '2026-06-11T02:00:00Z'; // 19:00 in Vancouver, after the default end time.
+    event.end = endAtUtc ?? undefined;
+    if (!loaded) event.metadata = { ...event.metadata, leaveSeriesId: undefined };
+    const savedRequests: { saved?: unknown } = {};
+    let requestedEntry = false;
+    server.use(
+      http.get('*/api/scheduling/leave/entries/42', () => {
+        requestedEntry = true;
+        return HttpResponse.json({
+          ...entry,
+          startAtUtc: event.start,
+          endAtUtc,
+        });
+      }),
+      http.put('*/api/scheduling/leave/entries/42', async ({ request }) => {
+        savedRequests.saved = await request.json();
+        return HttpResponse.json(entry);
+      }),
+    );
+    const app = await createTestApp({ loadConfig: false, permissions: [Permissions.LeaveEdit] });
+    const wrapper = mount(CalendarSchedulingLeaveDetailModal, {
+      props: { event },
+      global: {
+        plugins: app.mountPlugins,
+        stubs: {
+          UaModal: { template: '<section><slot name="alerts" /><slot /><slot name="actions" /></section>' },
+          LeaveDetailsPanel: true,
+        },
+      },
+    });
+    const vm = wrapper.vm as unknown as {
+      selectOpenScope: (scope: 'event') => Promise<void>;
+      selectTab: (tabId: 'edit') => void;
+      editFormData: LeaveFormData;
+      handleSave: () => Promise<void>;
+    };
+    if (loaded) {
+      await vm.selectOpenScope('event');
+      expect(requestedEntry).toBe(true);
+    } else {
+      expect(requestedEntry).toBe(false);
+    }
+    vm.selectTab('edit');
+    await flushPromises();
+    return { wrapper, vm, savedRequests };
+  }
+
+  it.each([true, false])('preserves a null end when editing unrelated fields (loaded entry: %s)', async (loaded) => {
+    const { wrapper, vm, savedRequests } = await mountEntryEditor(loaded, null);
+    try {
+      expect(vm.editFormData.startTime).toBe('19:00');
+      expect(vm.editFormData.endTime).toBeNull();
+      expect((wrapper.get('input[aria-label="End Time"]').element as HTMLInputElement).value).toBe('');
+      await wrapper.get('textarea#user-leave-notes').setValue('Updated notes');
+      await vm.handleSave();
+      expect(savedRequests.saved).toMatchObject({
+        startAtUtc: '2026-06-11T02:00:00Z',
+        endAtUtc: null,
+        notes: 'Updated notes',
+      });
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it.each([true, false])('persists an end selected on an entry that had no end (loaded entry: %s)', async (loaded) => {
+    const { wrapper, vm, savedRequests } = await mountEntryEditor(loaded, null);
+    try {
+      const endSelect = wrapper
+        .findAllComponents({ name: 'UaSelect' })
+        .find((select) => select.find('input[aria-label="End Time"]').exists())!;
+      endSelect.vm.$emit('update:modelValue', '20:00');
+      await flushPromises();
+      expect(vm.editFormData.endTime).toBe('20:00');
+      await vm.handleSave();
+      expect(savedRequests.saved).toMatchObject({
+        endAtUtc: '2026-06-11T03:00:00Z',
+      });
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
+  it.each([true, false])(
+    'preserves an existing end time when saved without changes (loaded entry: %s)',
+    async (loaded) => {
+      const { wrapper, vm, savedRequests } = await mountEntryEditor(loaded, '2026-06-11T03:00:00Z');
+      try {
+        expect(vm.editFormData.endTime).toBe('20:00');
+        expect((wrapper.get('input[aria-label="End Time"]').element as HTMLInputElement).value).toBe('8:00 PM');
+        await vm.handleSave();
+        expect(savedRequests.saved).toMatchObject({
+          endAtUtc: '2026-06-11T03:00:00Z',
+        });
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
+
+  it('retains the default end-time display for an uninitialized creation form', async () => {
+    const { default: LeaveForm } = await import('@/modules/leave/components/LeaveForm.vue');
+    const app = await createTestApp({ loadConfig: false });
+    const wrapper = mount(LeaveForm, {
+      props: { modelValue: { date: '2026-06-10' } },
+      global: { plugins: app.mountPlugins },
+    });
+    try {
+      expect((wrapper.get('input[aria-label="End Time"]').element as HTMLInputElement).value).toBe('5:00 PM');
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   it('sends the series ID when updating one occurrence from a leave series', async () => {
@@ -84,6 +201,8 @@ describe('CalendarSchedulingLeaveDetailModal', () => {
 
     await vm.selectOpenScope('event');
     vm.selectTab('edit');
+    await flushPromises();
+    expect(wrapper.getComponent({ name: 'LeaveForm' }).props('showRequired')).toBe(true);
     await vm.handleSave();
     await flushPromises();
 
