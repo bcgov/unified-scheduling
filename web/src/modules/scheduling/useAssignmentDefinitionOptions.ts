@@ -16,7 +16,13 @@ export function useAssignmentDefinitionOptions(options: {
 }) {
   const assignmentDefinitions = ref<AssignmentDefinitionResponse[]>([]);
   const isLoadingAssignmentDefinitions = ref(false);
+  const loadedAssignmentDefinitionLocationId = ref<number>();
   const requestGuard = createLatestRequestGuard();
+  const isAssignmentDefinitionsLoaded = computed(
+    () =>
+      Boolean(options.activeLocationId.value) &&
+      loadedAssignmentDefinitionLocationId.value === options.activeLocationId.value,
+  );
 
   const assignmentDefinitionOptions = computed<SelectOption[]>(() =>
     assignmentDefinitions.value
@@ -36,6 +42,7 @@ export function useAssignmentDefinitionOptions(options: {
   async function loadAssignmentDefinitions() {
     const requestId = requestGuard.begin();
     const locationId = options.activeLocationId.value;
+    loadedAssignmentDefinitionLocationId.value = undefined;
     if (!locationId) {
       assignmentDefinitions.value = [];
       isLoadingAssignmentDefinitions.value = false;
@@ -61,6 +68,7 @@ export function useAssignmentDefinitionOptions(options: {
       }
 
       assignmentDefinitions.value = data.value ?? [];
+      loadedAssignmentDefinitionLocationId.value = locationId;
       options.onLoaded?.();
     } catch (error: unknown) {
       if (requestGuard.isCurrent(requestId)) {
@@ -109,6 +117,7 @@ export function useAssignmentDefinitionOptions(options: {
     assignmentDefinitions,
     assignmentDefinitionOptions,
     isLoadingAssignmentDefinitions,
+    isAssignmentDefinitionsLoaded,
     loadAssignmentDefinitions,
     matchesActiveLocation,
     selectedAssignmentDefinition,

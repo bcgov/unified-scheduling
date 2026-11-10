@@ -119,7 +119,7 @@ public sealed class ShiftLoanOutExceptionMarkerService(
                     ShiftLoanOutAvailabilityService.IsFromLocation(entry, user.UserId, locationId, homeLocations)
                     && entry.LoanOutLocationId != locationId
                     && entry.Users.Any(item => item.UserId == user.UserId)
-                    && ShiftLoanOutAvailabilityService.Overlaps(entry.Event, range.StartAtUtc, range.EndAtUtc)
+                    && ShiftLoanOutAvailabilityService.Overlaps(entry.Event!, range.StartAtUtc, range.EndAtUtc)
                 );
                 if (!affected)
                     continue;

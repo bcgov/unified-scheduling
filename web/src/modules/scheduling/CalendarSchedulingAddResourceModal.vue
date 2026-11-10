@@ -16,6 +16,7 @@ import {
   createInitialShiftFormData,
   createInitialShiftFormDataForCreateAction,
   normalizeShiftFormTimes,
+  normalizeShiftServerValidationErrors,
   validateShiftFormData,
   type ShiftResourceFormData,
 } from './calendarSchedulingShiftForm';
@@ -43,6 +44,7 @@ const props = defineProps<{
   initialDate?: string;
   initialAssignmentEntryId?: number;
   initialAssignmentEvents?: CalendarEventBase[];
+  missingShiftWarning?: boolean;
   resource?: CalendarMatrixResource;
   timeZone?: string;
 }>();
@@ -522,11 +524,9 @@ function applyServerValidationErrors(rawError: unknown) {
     return false;
   }
 
-  formErrors.value = mapped;
-  if (mapped.loanOut) {
-    apiError.value = mapped.loanOut;
-  } else if (mapped.userIds) {
-    apiError.value = 'One or more selected employees already have a shift at this location on the selected date.';
+  formErrors.value = normalizeShiftServerValidationErrors(mapped);
+  if (formErrors.value.loanOut) {
+    apiError.value = formErrors.value.loanOut;
   }
   return true;
 }
@@ -534,6 +534,10 @@ function applyServerValidationErrors(rawError: unknown) {
 <template>
   <UaModal :title="modalTitle" width="900" :loading="isSaving" @close="handleClose">
     <template #alerts>
+      <UaAlert v-if="missingShiftWarning && activeTab === 'schedule'" type="warning" :closable="false">
+        This user does not have a shift on this day. Creating a shift here will also link the user to the selected
+        assignment.
+      </UaAlert>
       <UaAlert v-if="apiError" type="error" @close="apiError = ''">
         {{ apiError }}
       </UaAlert>

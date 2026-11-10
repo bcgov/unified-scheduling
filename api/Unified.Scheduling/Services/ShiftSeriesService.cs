@@ -159,7 +159,7 @@ internal sealed class ShiftSeriesService(
                         input.StartAtUtc,
                         input.EndAtUtc,
                         input.TimeZoneId,
-                        input.RecurrenceRule,
+                        input.RecurrenceRule!,
                         recurrenceExpander,
                         token
                     ),

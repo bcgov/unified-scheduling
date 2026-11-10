@@ -21,6 +21,7 @@ import {
   createShiftFormDataFromEvent,
   createShiftFormDataFromSeries,
   normalizeShiftFormTimes,
+  normalizeShiftServerValidationErrors,
   validateShiftFormData,
   type ShiftResourceFormData,
 } from './calendarSchedulingShiftForm';
@@ -40,6 +41,7 @@ type ShiftOpenScope = 'event' | 'series';
 const props = defineProps<{
   event: CalendarEventBase;
   initialOpenScope?: ShiftOpenScope;
+  initialTab?: 'details' | 'edit';
 }>();
 
 const emit = defineEmits<{
@@ -191,8 +193,11 @@ watch(
     recurrenceError.value = '';
     isDeleteConfirmed.value = false;
 
-    if (!resolveShiftSeriesId()) {
+    if (!resolveShiftSeriesId() || (props.initialTab === 'edit' && selectedOpenScope.value === 'event')) {
       await loadSelectedEntry();
+    }
+    if (props.initialTab === 'edit' && selectedEntry.value && canEditShift.value) {
+      activeTab.value = 'edit';
     }
   },
   { immediate: true },
@@ -685,11 +690,9 @@ function applyServerValidationErrors(rawError: unknown) {
     return false;
   }
 
-  formErrors.value = mapped;
-  if (mapped.loanOut) {
-    apiError.value = mapped.loanOut;
-  } else if (mapped.userIds) {
-    apiError.value = 'One or more selected employees already have a shift at this location on the selected date.';
+  formErrors.value = normalizeShiftServerValidationErrors(mapped);
+  if (formErrors.value.loanOut) {
+    apiError.value = formErrors.value.loanOut;
   }
   return true;
 }

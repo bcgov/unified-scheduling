@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
-import { mdiAlert } from '@mdi/js';
+import { mdiAlert, mdiDragVertical } from '@mdi/js';
 import { DateTime } from 'luxon';
 import { formatCalendarDateTimeRange, formatCalendarEventDate, formatCalendarEventTimeRange } from '@/utils/date';
+import UaActionPrompt from '@/shared/components/UaActionPrompt.vue';
 import { calendarMatrixContextKey } from './calendarMatrixContext';
 import type {
   CalendarMatrixDragPayload,
@@ -101,16 +102,53 @@ function handleDragEnd() {
       'is-clickable': item.type === 'assignment',
       'is-hoverable': item.type === 'assignment' || item.type === 'user',
       'has-warnings': warningGroups.length > 0,
+      'ua-action-prompt--highlighted': Boolean(item.prompt),
     }"
     :draggable="item.draggable === true"
     @click="emit('itemClick', item)"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
   >
+    <UaActionPrompt v-if="item.prompt" :prompt="item.prompt" parent-activator />
     <slot :item="item">
       <span v-if="item.avatarText" class="calendar-matrix-side-panel-item__avatar">{{ item.avatarText }}</span>
       <span class="calendar-matrix-side-panel-item__content">
-        <span class="calendar-matrix-side-panel-item__title">{{ item.title }}</span>
+        <span class="calendar-matrix-side-panel-item__title-row">
+          <span class="calendar-matrix-side-panel-item__title">{{ item.title }}</span>
+          <v-tooltip
+            v-if="warningGroups.length"
+            location="end"
+            open-on-click
+            open-on-focus
+            content-class="bg-surface text-on-surface border"
+          >
+            <template #activator="{ props: activatorProps }">
+              <button
+                v-bind="activatorProps"
+                type="button"
+                class="calendar-matrix-side-panel-item__warning"
+                :aria-label="`Event warnings for ${item.title}`"
+                :draggable="false"
+                @mousedown.stop
+                @touchstart.stop
+                @dragstart.stop.prevent
+                @click.stop
+                @keydown.stop
+              >
+                <v-icon :icon="mdiAlert" color="warning" size="14" aria-hidden="true" />
+              </button>
+            </template>
+            <div v-for="group in warningGroups" :key="group.id">
+              <strong>{{ group.heading }}</strong>
+              <ul class="calendar-matrix-side-panel-item__warnings">
+                <li v-for="warning in group.warnings" :key="warning.id">
+                  <span>{{ warning.title }}</span>
+                  <div>{{ formatWarning(warning) }}</div>
+                </li>
+              </ul>
+            </div>
+          </v-tooltip>
+        </span>
         <span v-if="item.subtitle" class="calendar-matrix-side-panel-item__subtitle">{{ item.subtitle }}</span>
         <span v-if="item.meta?.length" class="calendar-matrix-side-panel-item__meta-list">
           <span
@@ -127,37 +165,20 @@ function handleDragEnd() {
       </span>
     </slot>
     <v-tooltip
-      v-if="warningGroups.length"
-      location="end"
-      open-on-click
-      open-on-focus
-      content-class="bg-surface text-on-surface border"
+      v-if="item.draggable"
+      text="Click and drag to a day."
+      location="bottom"
+      content-class="calendar-matrix-side-panel-item__tooltip"
     >
-      <template #activator="{ props: activatorProps }">
-        <button
-          v-bind="activatorProps"
-          type="button"
-          class="calendar-matrix-side-panel-item__warning"
-          :aria-label="`Event warnings for ${item.title}`"
-          :draggable="false"
-          @mousedown.stop
-          @touchstart.stop
-          @dragstart.stop.prevent
-          @click.stop
-          @keydown.stop
+      <template #activator="{ props: tooltipProps }">
+        <span
+          v-bind="tooltipProps"
+          class="calendar-matrix-side-panel-item__drag-icon"
+          aria-label="Click and drag to a day."
         >
-          <v-icon :icon="mdiAlert" size="14" aria-hidden="true" />
-        </button>
+          <v-icon :icon="mdiDragVertical" size="18" aria-hidden="true" />
+        </span>
       </template>
-      <div v-for="group in warningGroups" :key="group.id">
-        <strong>{{ group.heading }}</strong>
-        <ul class="calendar-matrix-side-panel-item__warnings">
-          <li v-for="warning in group.warnings" :key="warning.id">
-            <span>{{ warning.title }}</span>
-            <div>{{ formatWarning(warning) }}</div>
-          </li>
-        </ul>
-      </div>
     </v-tooltip>
   </article>
 </template>
@@ -179,19 +200,20 @@ function handleDragEnd() {
   padding-right: calc(var(--ua-spacing-sm) + 1.5rem);
 }
 
+.calendar-matrix-side-panel-item.has-warnings.is-draggable {
+  min-height: calc(2 * var(--ua-spacing-sm) + 0.75rem + var(--ua-spacing-xs) + 1.125rem);
+}
+
 .calendar-matrix-side-panel-item__warning {
   align-items: center;
   background: transparent;
   border: 0;
-  color: rgb(var(--v-theme-secondary));
   cursor: pointer;
   display: inline-flex;
+  flex: 0 0 auto;
   height: 0.75rem;
   justify-content: center;
   padding: 0;
-  position: absolute;
-  top: var(--ua-spacing-sm);
-  right: var(--ua-spacing-sm);
   width: 0.75rem;
 }
 
@@ -207,6 +229,11 @@ function handleDragEnd() {
 
 .calendar-matrix-side-panel-item.is-draggable {
   cursor: grab;
+}
+
+.calendar-matrix-side-panel-item.ua-action-prompt--highlighted {
+  border: 2px solid rgb(var(--v-theme-accent));
+  box-shadow: inset 0 0 0 1px rgb(var(--v-theme-primary));
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -229,9 +256,39 @@ function handleDragEnd() {
 .calendar-matrix-side-panel-item__content {
   display: grid;
   gap: 0.125rem;
+  min-width: 0;
+}
+
+.calendar-matrix-side-panel-item__drag-icon {
+  align-items: center;
+  color: rgb(var(--v-theme-primary));
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.calendar-matrix-side-panel-item.has-warnings .calendar-matrix-side-panel-item__drag-icon {
+  justify-content: center;
+  position: absolute;
+  top: calc(var(--ua-spacing-sm) + 0.75rem + var(--ua-spacing-xs));
+  right: var(--ua-spacing-sm);
+  width: 0.75rem;
+}
+
+:global(.v-tooltip > .calendar-matrix-side-panel-item__tooltip.v-overlay__content) {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.calendar-matrix-side-panel-item__title-row {
+  align-items: center;
+  display: flex;
+  gap: var(--ua-spacing-xs);
+  min-width: 0;
 }
 
 .calendar-matrix-side-panel-item__title {
+  min-width: 0;
   font-size: var(--ua-font-size-sm);
   font-weight: var(--ua-font-weight-semibold);
   overflow-wrap: anywhere;

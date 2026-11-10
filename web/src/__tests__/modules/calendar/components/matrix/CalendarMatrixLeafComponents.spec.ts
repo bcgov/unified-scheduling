@@ -12,7 +12,6 @@ import CalendarMatrixHeader from '@/modules/calendar/components/matrix/CalendarM
 import CalendarMatrixResourceRow from '@/modules/calendar/components/matrix/CalendarMatrixResourceRow.vue';
 import CalendarMatrixSidePanel from '@/modules/calendar/components/matrix/CalendarMatrixSidePanel.vue';
 import CalendarMatrixSidePanelItem from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue';
-import sidePanelItemSource from '@/modules/calendar/components/matrix/CalendarMatrixSidePanelItem.vue?raw';
 import { calendarMatrixContextKey } from '@/modules/calendar/components/matrix/calendarMatrixContext';
 import { CalendarMatrixActionType } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 import type {
@@ -356,9 +355,29 @@ describe('CalendarMatrixResourceRow', () => {
 
     expect(wrapper.attributes('role')).toBe('rowheader');
     expect(wrapper.attributes('aria-label')).toBe('Room 101');
+    expect(wrapper.attributes('draggable')).toBe('false');
     expect(wrapper.text()).toContain('Room 101');
     expect(wrapper.text()).toContain('Capacity:');
     expect(wrapper.emitted('addResource')?.[0]).toEqual([resource]);
+  });
+
+  it('starts and clears a user-row drag when the resource is draggable', async () => {
+    const dataTransfer = { setData: vi.fn() };
+    const wrapper = await mountWithApp(CalendarMatrixResourceRow, {
+      props: { resource: { id: 'user-1', type: 'user', title: 'Alex Alpha', draggable: true } },
+      global: { provide: { [calendarMatrixContextKey as symbol]: matrixContext } },
+    });
+
+    await wrapper.trigger('dragstart', { dataTransfer });
+    expect(wrapper.emitted('dragStart')?.[0]?.[0]).toMatchObject({
+      source: 'resource-row',
+      itemId: 'user-1',
+      itemType: 'user',
+    });
+    expect(matrixContext.startDrag).toHaveBeenCalledOnce();
+    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'user-1');
+    await wrapper.trigger('dragend');
+    expect(matrixContext.clearDrag).toHaveBeenCalledOnce();
   });
 });
 
@@ -412,6 +431,7 @@ describe('CalendarMatrixSidePanelItem', () => {
 
     const button = wrapper.get('button');
     expect(button.attributes('aria-label')).toBe('Event warnings for Ada Lovelace');
+    expect(button.get('.v-icon').classes()).toContain('text-warning');
     expect(button.attributes('draggable')).toBe('false');
     expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnFocus')).toBe(true);
     expect(wrapper.getComponent({ name: 'WarningTooltipStub' }).props('openOnClick')).toBe(true);
@@ -492,12 +512,6 @@ describe('CalendarMatrixSidePanelItem', () => {
       }
     },
   );
-
-  it('uses the secondary theme token for warning icon contrast', () => {
-    expect(sidePanelItemSource).toMatch(
-      /\.calendar-matrix-side-panel-item__warning\s*\{[^}]*color:\s*rgb\(var\(--v-theme-secondary\)\)/,
-    );
-  });
 
   it('renders the item content and emits dragStart for draggable items', async () => {
     const dataTransfer = {

@@ -311,7 +311,7 @@ public sealed class SchedulingConflictParticipantProvider(UnifiedDbContext db) :
             await query
                 .Select(participant => new CalendarConflictParticipant(
                     participant.ShiftAssignmentEntry!.AssignmentEntry!.EventId.ToString(),
-                    participant.ShiftAssignmentEntry.AssignmentEntry.Event.SourceModule,
+                    participant.ShiftAssignmentEntry.AssignmentEntry.Event!.SourceModule,
                     participant.UserId,
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.StartAtUtc,
                     participant.ShiftAssignmentEntry.AssignmentEntry.Event.EndAtUtc!.Value,

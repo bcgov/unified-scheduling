@@ -392,7 +392,7 @@ describe('calendar workflow', () => {
         );
         calendarStore.refresh();
         await wrapper.vm.$nextTick();
-        expect(wrapper.find('input[aria-label="Search items"]').exists()).toBe(false);
+        expect(wrapper.find('input[aria-label="Search items"]').exists()).toBe(true);
         finishRefresh();
         await flushPromises();
         expect(wrapper.get<HTMLInputElement>('input[aria-label="Search items"]').element.value).toBe('COURT');
@@ -519,6 +519,85 @@ describe('calendar workflow', () => {
     } finally {
       wrapper.unmount();
     }
+  });
+
+  it('renders a matrix skeleton while a matrix view is loading', async () => {
+    let resolveLoad: (value: { contributions: Record<string, never> }) => void = () => undefined;
+    let rejectLoad: (reason: Error) => void = () => undefined;
+    const loadData = vi.fn(
+      () =>
+        new Promise<{ contributions: Record<string, never> }>((resolve, reject) => {
+          resolveLoad = resolve;
+          rejectLoad = reject;
+        }),
+    );
+
+    vi.doMock('@/modules/calendar/calendarDataService', () => ({
+      calendarDataService: { loadData, cancel: vi.fn(), endSession: vi.fn() },
+    }));
+    vi.doMock('@/modules/calendar/registry/calendarActionRegistry', () => ({
+      calendarActionRegistry: {
+        getCreateActions: vi.fn(() => []),
+        getToolbarActionsForView: vi.fn(() => []),
+        getViewDetailActions: vi.fn(() => []),
+      },
+    }));
+    vi.doMock('@/modules/calendar/registry/calendarRegistry', () => ({
+      calendarRegistry: {
+        getAvailableViews: vi.fn(() => [
+          {
+            id: 'matrix-view',
+            label: 'Matrix View',
+            loadingVariant: 'matrix',
+            component: defineComponent({ template: '<div data-testid="matrix-view" />' }),
+            buildModel: () => ({
+              days: [{ date: '2025-04-07', label: 'Mon' }],
+              primaryColumn: { label: 'TEAM', resources: [] },
+              cells: [],
+            }),
+          },
+        ]),
+      },
+    }));
+
+    const [{ default: Calendar }, { useCalendarStore }, { useLocationsStore }] = await Promise.all([
+      import('@/modules/calendar/Calendar.vue'),
+      import('@/modules/calendar/calendarStore'),
+      import('@/stores/LocationsStore'),
+    ]);
+    const { mountPlugins, pinia } = await createTestApp({ loadConfig: false });
+    useLocationsStore(pinia).setSelectedLocationId(12);
+    const calendarStore = useCalendarStore(pinia);
+    const wrapper = mount(Calendar, { global: { plugins: mountPlugins } });
+
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(true);
+
+    resolveLoad({ contributions: {} });
+    await flushPromises();
+    expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(false);
+
+    const mountedView = wrapper.get('[data-testid="matrix-view"]').element as HTMLElement;
+    mountedView.scrollTop = 150;
+    mountedView.scrollLeft = 40;
+    calendarStore.refresh();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('[aria-label="Loading calendar matrix"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="matrix-view"]').element).toBe(mountedView);
+    expect([mountedView.scrollTop, mountedView.scrollLeft]).toEqual([150, 40]);
+
+    resolveLoad({ contributions: {} });
+    await flushPromises();
+    expect(wrapper.get('[data-testid="matrix-view"]').element).toBe(mountedView);
+
+    calendarStore.refresh();
+    await wrapper.vm.$nextTick();
+    rejectLoad(new Error('Request failed'));
+    await flushPromises();
+    expect(wrapper.get('[data-testid="matrix-view"]').element).toBe(mountedView);
+    expect(wrapper.text()).toContain('Failed to retrieve calendar data.');
+
+    wrapper.unmount();
   });
 
   it('reloads on view, location and period changes and ignores stale warning responses', async () => {

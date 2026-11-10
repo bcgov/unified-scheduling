@@ -110,18 +110,17 @@ public sealed class AssignmentEntryService(
             cancellationToken
         );
 
-        await AssignmentUniquenessValidator.EnsureAssignmentsAreUniqueAsync(
-            db,
-            timeZoneService,
-            [AssignmentUniquenessValidator.CreateCandidate(entry.AssignmentDefinitionId, entry.Event)],
-            [],
-            cancellationToken
-        );
         db.AssignmentEntries.Add(entry);
         await db.SaveChangesAsync(cancellationToken);
         await shiftAssignmentService.ReplaceAssignmentEntryLinksAsync(
             entry.Id,
             request.ShiftEntryLinks,
+            cancellationToken
+        );
+        await AssignmentUniquenessValidator.EnsureAssignmentsAreUniqueAsync(
+            db,
+            timeZoneService,
+            [entry.Id],
             cancellationToken
         );
         await transaction.CommitAsync(cancellationToken);
@@ -226,14 +225,6 @@ public sealed class AssignmentEntryService(
             return null;
         assignmentEntry = updatedEntry;
 
-        await AssignmentUniquenessValidator.EnsureAssignmentsAreUniqueAsync(
-            db,
-            timeZoneService,
-            [AssignmentUniquenessValidator.CreateCandidate(definition.Id, assignmentEntry.Event!)],
-            [assignmentEntry.Id],
-            cancellationToken
-        );
-
         await db.SaveChangesAsync(cancellationToken);
 
         if (request.ShiftEntryLinks is null)
@@ -245,6 +236,12 @@ public sealed class AssignmentEntryService(
         await shiftAssignmentService.ReplaceAssignmentEntryLinksAsync(
             assignmentEntry.Id,
             requestedShiftEntryLinks,
+            cancellationToken
+        );
+        await AssignmentUniquenessValidator.EnsureAssignmentsAreUniqueAsync(
+            db,
+            timeZoneService,
+            [assignmentEntry.Id],
             cancellationToken
         );
         var updatedConflictState = await SchedulingConflictParticipantProvider.GetParticipantsForAssignmentEntriesAsync(
@@ -353,7 +350,7 @@ public sealed class AssignmentEntryService(
             SchedulingConstants.SourceModule,
             SchedulingConstants.AssignmentEventTypeCode
         );
-        if (!isDeletable)
+        if (!isDeletable || entry is null)
             return false;
         var links = await db
             .ShiftAssignmentEntries.Include(link => link.Users)

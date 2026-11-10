@@ -6,6 +6,7 @@ import type {
 } from '@/modules/calendar/components/matrix/calendarMatrixTypes';
 
 export const isCalendarSchedulingAssignmentModalOpen = ref(false);
+export const calendarSchedulingAssignmentTypeCreateRequest = ref<{ locationId?: number; startDate: string }>();
 export const calendarSchedulingAssignmentModalMode = ref<'create' | 'view' | 'edit'>('create');
 export const calendarSchedulingAssignmentModalEditScope = ref<'event' | 'series'>();
 export const calendarSchedulingAssignmentModalDate = ref<string>();
@@ -14,24 +15,20 @@ export const calendarSchedulingAssignmentModalSeriesId = ref<number>();
 export const calendarSchedulingAssignmentModalAssignmentDefinitionId = ref<number>();
 export const calendarSchedulingAssignmentModalShiftEntryIds = ref<number[]>();
 export const calendarSchedulingAssignmentModalAssignedUserId = ref<string>();
+export const calendarSchedulingAssignmentModalDraggedUserOnly = ref(false);
 export const calendarSchedulingResourceActionResource = ref<CalendarMatrixResource>();
 export const isCalendarSchedulingResourceActionModalOpen = ref(false);
 export const calendarSchedulingResourceActionDate = ref<string>();
 export const calendarSchedulingResourceActionAssignmentEntryId = ref<number>();
 export const calendarSchedulingResourceActionAssignmentEvents = ref<CalendarEventBase[]>([]);
+export const calendarSchedulingResourceActionMissingShiftWarning = ref(false);
 export const calendarSchedulingConflictEventId = ref<string>();
 export const calendarSchedulingConflictHeaderId = ref<string>();
 export const calendarSchedulingDetailEvent = ref<CalendarEventBase>();
 export const calendarSchedulingDetailInitialOpenScope = ref<'event' | 'series'>();
+export const calendarSchedulingDetailInitialTab = ref<'details' | 'edit'>();
 export const calendarSchedulingLeaveDetailEvent = ref<CalendarEventBase>();
 export const calendarSchedulingLoanOutDetailEvent = ref<CalendarEventBase>();
-export const calendarSchedulingExistingShiftChoice = ref<{
-  shiftEvent: CalendarEventBase;
-  resource: CalendarMatrixResource;
-  date: string;
-  assignmentEntryId?: number;
-  assignmentEvents: CalendarEventBase[];
-}>();
 export const calendarSchedulingPublishRequest = ref<{
   locationId: number;
   startDate: string;
@@ -43,6 +40,14 @@ export const calendarSchedulingDistributionRequest = ref<{
   endDate: string;
 }>();
 
+export function showCalendarSchedulingAssignmentTypeCreateModal(locationId: number | undefined, startDate: string) {
+  calendarSchedulingAssignmentTypeCreateRequest.value = { locationId, startDate };
+}
+
+export function closeCalendarSchedulingAssignmentTypeCreateModal() {
+  calendarSchedulingAssignmentTypeCreateRequest.value = undefined;
+}
+
 export function showCalendarSchedulingAssignmentModal(
   date?: string,
   options?: {
@@ -53,6 +58,7 @@ export function showCalendarSchedulingAssignmentModal(
     assignmentDefinitionId?: number;
     shiftEntryIds?: number[];
     assignedUserId?: string;
+    draggedUserOnly?: boolean;
   },
 ) {
   calendarSchedulingDetailEvent.value = undefined;
@@ -66,6 +72,7 @@ export function showCalendarSchedulingAssignmentModal(
   calendarSchedulingAssignmentModalAssignmentDefinitionId.value = options?.assignmentDefinitionId;
   calendarSchedulingAssignmentModalShiftEntryIds.value = options?.shiftEntryIds;
   calendarSchedulingAssignmentModalAssignedUserId.value = options?.assignedUserId;
+  calendarSchedulingAssignmentModalDraggedUserOnly.value = options?.draggedUserOnly ?? false;
 }
 
 export function closeCalendarSchedulingAssignmentModal() {
@@ -78,6 +85,7 @@ export function closeCalendarSchedulingAssignmentModal() {
   calendarSchedulingAssignmentModalAssignmentDefinitionId.value = undefined;
   calendarSchedulingAssignmentModalShiftEntryIds.value = undefined;
   calendarSchedulingAssignmentModalAssignedUserId.value = undefined;
+  calendarSchedulingAssignmentModalDraggedUserOnly.value = false;
 }
 
 export function showCalendarSchedulingResourceActionModal(
@@ -86,6 +94,7 @@ export function showCalendarSchedulingResourceActionModal(
   options?: {
     assignmentEntryId?: number;
     assignmentEvents?: CalendarEventBase[];
+    missingShiftWarning?: boolean;
   },
 ) {
   isCalendarSchedulingResourceActionModalOpen.value = true;
@@ -93,6 +102,7 @@ export function showCalendarSchedulingResourceActionModal(
   calendarSchedulingResourceActionDate.value = date;
   calendarSchedulingResourceActionAssignmentEntryId.value = options?.assignmentEntryId;
   calendarSchedulingResourceActionAssignmentEvents.value = options?.assignmentEvents ?? [];
+  calendarSchedulingResourceActionMissingShiftWarning.value = options?.missingShiftWarning ?? false;
 }
 
 export function closeCalendarSchedulingResourceActionModal() {
@@ -101,20 +111,7 @@ export function closeCalendarSchedulingResourceActionModal() {
   calendarSchedulingResourceActionDate.value = undefined;
   calendarSchedulingResourceActionAssignmentEntryId.value = undefined;
   calendarSchedulingResourceActionAssignmentEvents.value = [];
-}
-
-export function showCalendarSchedulingExistingShiftChoice(options: {
-  shiftEvent: CalendarEventBase;
-  resource: CalendarMatrixResource;
-  date: string;
-  assignmentEntryId?: number;
-  assignmentEvents: CalendarEventBase[];
-}) {
-  calendarSchedulingExistingShiftChoice.value = options;
-}
-
-export function closeCalendarSchedulingExistingShiftChoice() {
-  calendarSchedulingExistingShiftChoice.value = undefined;
+  calendarSchedulingResourceActionMissingShiftWarning.value = false;
 }
 
 export function toggleCalendarSchedulingConflict(eventId: string) {
@@ -150,15 +147,17 @@ export function closeCalendarSchedulingConflict() {
 
 export function showCalendarSchedulingEventDetail(
   event: CalendarEventBase,
-  options?: { initialOpenScope?: 'event' | 'series' },
+  options?: { initialOpenScope?: 'event' | 'series'; initialTab?: 'details' | 'edit' },
 ) {
   calendarSchedulingDetailEvent.value = event;
   calendarSchedulingDetailInitialOpenScope.value = options?.initialOpenScope;
+  calendarSchedulingDetailInitialTab.value = options?.initialTab;
 }
 
 export function closeCalendarSchedulingEventDetail() {
   calendarSchedulingDetailEvent.value = undefined;
   calendarSchedulingDetailInitialOpenScope.value = undefined;
+  calendarSchedulingDetailInitialTab.value = undefined;
 }
 
 export function showCalendarSchedulingLeaveDetail(event: CalendarEventBase) {
