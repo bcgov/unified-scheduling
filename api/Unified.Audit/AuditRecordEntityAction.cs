@@ -37,7 +37,25 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         var changedColumns = entry
             .Changes?.Select(change => change.ColumnName)
             .Where(columnName => !ShouldExclude(entityType, entry.Table, columnName))
-            .ToArray();
+            .ToList();
+
+        if (string.Equals(entry.Action, "Update", StringComparison.Ordinal))
+        {
+            var trackedEntry = entry.GetEntry();
+            var updatedOnColumn = GetUpdatedOnColumnName(entityType, entry.Table);
+            if (
+                updatedOnColumn is not null
+                && !ShouldExclude(entityType, entry.Table, updatedOnColumn)
+                && trackedEntry.Property(nameof(BaseEntity.UpdatedOn)).CurrentValue is not null
+            )
+            {
+                changedColumns ??= [];
+                if (!changedColumns.Contains(updatedOnColumn, StringComparer.Ordinal))
+                {
+                    changedColumns.Add(updatedOnColumn);
+                }
+            }
+        }
 
         record.OccurredOn = DateTimeOffset.UtcNow;
         record.ActorUserId = actor.ActorUserId;
@@ -48,7 +66,7 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
         record.EntityPK = entry.PrimaryKey.Values.Single()?.ToString() ?? string.Empty;
         record.OldValues = BuildValues(entry, entityType, oldValues: true);
         record.NewValues = BuildValues(entry, entityType, oldValues: false);
-        record.ChangedColumns = changedColumns is { Length: > 0 } ? changedColumns : null;
+        record.ChangedColumns = changedColumns is { Count: > 0 } ? [.. changedColumns] : null;
         // Populated from the ambient System.Diagnostics.Activity (Audit.Core.Configuration.IncludeActivityTrace, set in AuditModule).
         record.CorrelationId = auditEvent.Activity?.TraceId;
 
@@ -71,6 +89,20 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
                 }
 
                 values[change.ColumnName] = oldValues ? change.OriginalValue : change.NewValue;
+            }
+
+            if (!oldValues)
+            {
+                var trackedEntry = entry.GetEntry();
+                var updatedOnColumn = GetUpdatedOnColumnName(entityType, entry.Table);
+                if (
+                    updatedOnColumn is not null
+                    && !ShouldExclude(entityType, entry.Table, updatedOnColumn)
+                    && trackedEntry.Property(nameof(BaseEntity.UpdatedOn)).CurrentValue is { } updatedOn
+                )
+                {
+                    values[updatedOnColumn] = updatedOn;
+                }
             }
         }
         else
@@ -122,6 +154,17 @@ public sealed class AuditRecordEntityAction(ICurrentActorResolver actorResolver,
             .FirstOrDefault(property =>
                 string.Equals(property.GetColumnName(storeObject), columnName, StringComparison.Ordinal)
             );
+    }
+
+    private static string? GetUpdatedOnColumnName(IEntityType entityType, string tableName)
+    {
+        var property = entityType.FindProperty(nameof(BaseEntity.UpdatedOn));
+        if (property is null)
+        {
+            return null;
+        }
+
+        return property.GetColumnName(StoreObjectIdentifier.Table(tableName, entityType.GetSchema()));
     }
 
     private static object? ResolveStoreGeneratedValue(

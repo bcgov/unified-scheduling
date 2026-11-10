@@ -17,6 +17,8 @@ On Modified `BaseEntity` rows, `AuditableEntityInterceptor` sets `UpdatedOn` to 
 caller explicitly changed it to a non-null value. An unchanged prior timestamp or a value cleared to null
 receives a fresh UTC timestamp. Added rows retain their existing behavior: `CreatedOn` is database-generated
 and caller-supplied `UpdatedOn` values are preserved. No historical values are backfilled.
+Audit.NET snapshots changes before EF save interceptors run, so `AuditRecordEntityAction` reconciles the
+persisted `UpdatedOn` into modified audit records and their changed-column list.
 
 `ExecuteUpdate[Async]` and raw SQL bypass this interceptor and Audit.NET's SaveChanges history capture.
 The five existing bulk updates remain unchanged: last-login and pending-registration updates in
@@ -135,4 +137,3 @@ files via the default `FileDataProvider`, or racing with whatever `DataProvider`
 configured). `Unified.Tests`' `ModuleInitialization` sets `Audit.Core.Configuration.AuditDisabled = true`
 globally by default for the whole test assembly; `AuditPipelineTests` (the only test class that exercises
 this module's audit behavior) explicitly re-enables it around its own test bodies.
-

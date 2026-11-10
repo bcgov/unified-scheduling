@@ -201,6 +201,22 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         Assert.Equal(2, resolver.ResolveCount);
         Assert.Equal(8, await dbContext.AuditRecords.CountAsync(TestContext.Current.CancellationToken));
 
+        var regionAudit = await dbContext.AuditRecords.SingleAsync(
+            record =>
+                record.Action == "Modified"
+                && record.EntityType == nameof(Region)
+                && record.EntityPK == region.Id.ToString(),
+            TestContext.Current.CancellationToken
+        );
+        using (var regionNewValues = JsonDocument.Parse(regionAudit.NewValues!))
+        {
+            Assert.Equal(
+                clock.UtcNow,
+                regionNewValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset()
+            );
+        }
+        Assert.Contains(nameof(Region.UpdatedOn), regionAudit.ChangedColumns!);
+
         clock.UtcNow = clock.UtcNow.AddHours(1);
         region.Name = "North";
         await SaveAsync(dbContext, useAsync);
@@ -256,6 +272,22 @@ public sealed class AuditPipelineTests : IAsyncLifetime
         var expected = clearTimestamp || markWholeEntity ? clock.UtcNow : previousTimestamp.AddDays(1);
         Assert.Equal(expected, persisted.UpdatedOn);
         Assert.Equal(_actorId, persisted.UpdatedById);
+
+        var auditRecord = await dbContext.AuditRecords.SingleAsync(
+            record => record.Action == "Modified" && record.EntityPK == region.Id.ToString(),
+            TestContext.Current.CancellationToken
+        );
+        using var newValues = JsonDocument.Parse(auditRecord.NewValues!);
+        Assert.Equal(expected, newValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset());
+        Assert.Contains(nameof(Region.UpdatedOn), auditRecord.ChangedColumns!);
+        if (clearTimestamp)
+        {
+            using var oldValues = JsonDocument.Parse(auditRecord.OldValues!);
+            Assert.Equal(
+                previousTimestamp,
+                oldValues.RootElement.GetProperty(nameof(Region.UpdatedOn)).GetDateTimeOffset()
+            );
+        }
     }
 
     [Fact]
