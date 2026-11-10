@@ -48,6 +48,7 @@ const UaDataTableStub = defineComponent({
       <div v-for="item in items" :key="item.id" class="ua-data-table-stub__row">
         <slot name="item.awardedOn" :item="item" />
         <slot name="item.endingOn" :item="item" />
+        <slot name="item.expiryDate" :item="item" />
         <slot name="item.actions" :item="item" />
       </div>
     </div>
@@ -185,5 +186,47 @@ describe('UserTrainingView', () => {
 
     const renewButtons = wrapper.findAll('ua-btn-stub[title="Renew training record"]');
     expect(renewButtons).toHaveLength(1);
+  });
+
+  it('shows all-day calendar dates without shifting to the preceding Vancouver day', () => {
+    getApiTrainingsUsersUserIdMock.mockReturnValueOnce({
+      data: ref([
+        {
+          id: 20,
+          userId: makeUser().id,
+          trainingId: 1,
+          version: 1,
+          trainingCode: 'CPR',
+          allDay: true,
+          awardedOn: '2026-07-20T00:00:00Z',
+          endingOn: '2026-07-22T00:00:00Z',
+          expiryDate: '2026-07-23T00:00:00Z',
+        },
+      ]),
+      error: ref(null),
+      isFetching: ref(false),
+      execute: vi.fn(),
+    });
+    const wrapper = mount(UserTrainingView, {
+      props: { user: makeUser() },
+      global: {
+        stubs: {
+          UaDataTable: UaDataTableStub,
+          UaAlert: true,
+          UaBtn: true,
+          UaPlaceholderPage: true,
+          DeleteUserTrainingModal: true,
+          UserTrainingModal: true,
+          UserTrainingVersionsModal: true,
+          VIcon: true,
+        },
+      },
+    });
+
+    const table = wrapper.getComponent(UaDataTableStub);
+    expect(table.text()).toContain('2026-07-20');
+    expect(table.text()).toContain('2026-07-22');
+    expect(table.text()).toContain('2026-07-23');
+    expect(table.text()).not.toContain('2026-07-19');
   });
 });

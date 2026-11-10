@@ -1,3 +1,4 @@
+using Unified.Common.Time;
 using Unified.Training.Models;
 
 namespace Unified.Training.Helpers;
@@ -10,10 +11,42 @@ public static class UserTrainingHelper
     public static UserTrainingRequest NormalizeToUtc(UserTrainingRequest request) =>
         request with
         {
-            AwardedOn = request.AwardedOn.ToUniversalTime(),
-            EndingOn = request.EndingOn.ToUniversalTime(),
+            AwardedOn = request.AllDay
+                ? new DateTimeOffset(request.AwardedOn.Date, TimeSpan.Zero)
+                : request.AwardedOn.ToUniversalTime(),
+            EndingOn = request.AllDay
+                ? new DateTimeOffset(request.EndingOn.Date, TimeSpan.Zero)
+                : request.EndingOn.ToUniversalTime(),
             ExpiryDate = request.ExpiryDate?.ToUniversalTime(),
         };
+
+    public static DateTimeOffset GetLocalDayStartUtc(
+        DateOnly date,
+        TimeZoneInfo timeZone,
+        ITimeZoneService timeZoneService
+    )
+    {
+        var local = date.ToDateTime(TimeOnly.MinValue);
+        if (timeZone.IsInvalidTime(local))
+        {
+            // Locate the first valid wall-clock instant after a midnight gap, including a skipped day.
+            var invalidTicks = local.Ticks;
+            var validTicks = local.AddDays(1).Ticks;
+            while (validTicks - invalidTicks > 1)
+            {
+                var ticks = invalidTicks + (validTicks - invalidTicks) / 2;
+                if (timeZone.IsInvalidTime(new DateTime(ticks, DateTimeKind.Unspecified)))
+                    invalidTicks = ticks;
+                else
+                    validTicks = ticks;
+            }
+            local = new DateTime(validTicks, DateTimeKind.Unspecified);
+        }
+        // The larger offset is the earlier occurrence of an ambiguous local midnight.
+        return timeZone.IsAmbiguousTime(local)
+            ? new DateTimeOffset(local, timeZone.GetAmbiguousTimeOffsets(local).Max()).ToUniversalTime()
+            : timeZoneService.ToUtcInstant(local, timeZone);
+    }
 
     /// <summary>
     /// Auto-calculates the expiry date from the training type's <c>ValidityDays</c>.

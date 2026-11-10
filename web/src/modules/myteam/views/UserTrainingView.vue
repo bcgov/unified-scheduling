@@ -251,11 +251,19 @@ const combinedError = computed(() => userTrainingsError.value ?? trainingsError.
       </template>
 
       <template #[`item.awardedOn`]="{ item }">
-        {{ toDateTime(item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a') }}
+        {{
+          item.allDay
+            ? toCalendarDateString(item.awardedOn)
+            : toDateTime(item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a')
+        }}
       </template>
 
       <template #[`item.endingOn`]="{ item }">
-        {{ toDateTime(item.endingOn ?? item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a') }}
+        {{
+          item.allDay
+            ? toCalendarDateString(item.endingOn ?? item.awardedOn)
+            : toDateTime(item.endingOn ?? item.awardedOn, 'America/Vancouver').toFormat('yyyy-MM-dd h:mm a')
+        }}
       </template>
 
       <template #[`item.expiryDate`]="{ item }">

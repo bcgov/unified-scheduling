@@ -38,6 +38,32 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ExecuteAsync_AssignedRows_PreserveAllDayClassificationAndDates()
+    {
+        var training = await SeedTrainingAsync(100, "TRN", "Training", mandatory: false);
+        var allDayUser = await SeedUserAsync("AllDay", "User");
+        var timedUser = await SeedUserAsync("Timed", "User");
+        var awardedOn = new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero);
+        await SeedUserTrainingAsync(allDayUser.Id, training.Id, awardedOn, allDay: true);
+        await SeedUserTrainingAsync(timedUser.Id, training.Id, awardedOn.AddHours(1));
+
+        var result = (UserTrainingReportResponse)
+            await _handler.ExecuteAsync(
+                new Dictionary<string, IReadOnlyCollection<string>>(),
+                sortBy: null,
+                sortDirection: SortDirection.Asc,
+                cancellationToken: TestContext.Current.CancellationToken
+            );
+
+        var allDay = Assert.Single(result.Rows, row => row.AllDay);
+        Assert.Equal(awardedOn, allDay.AwardedOn);
+        Assert.Equal(awardedOn, allDay.EndingOn);
+        var timed = Assert.Single(result.Rows, row => !row.AllDay);
+        Assert.Equal(awardedOn.AddHours(1), timed.AwardedOn);
+        Assert.Equal(awardedOn.AddHours(2), timed.EndingOn);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_Should_Sort_By_UserDisplayName_Descending()
     {
         var training = await SeedTrainingAsync(100, "TRN", "Training", mandatory: false);
@@ -161,6 +187,9 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         var missingRow = Assert.Single(result.Rows, row => row.HasMissingMandatoryTrainingAssignment);
         Assert.Equal("Not Taken", missingRow.Status);
         Assert.Equal("Missing, Mia", missingRow.UserDisplayName);
+        Assert.False(missingRow.AllDay);
+        Assert.Null(missingRow.AwardedOn);
+        Assert.Null(missingRow.EndingOn);
 
         var activeRow = Assert.Single(result.Rows, row => !row.HasMissingMandatoryTrainingAssignment);
         Assert.Equal("Active", activeRow.Status);
@@ -673,7 +702,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
         Guid userId,
         int trainingId,
         DateTimeOffset awardedOn,
-        DateTimeOffset? expiryDate = null
+        DateTimeOffset? expiryDate = null,
+        bool allDay = false
     )
     {
         _db.UserTrainings.Add(
@@ -683,7 +713,8 @@ public class UserTrainingReportQueryHandlerTests : IAsyncLifetime
                 TrainingId = trainingId,
                 Version = 1,
                 AwardedOn = awardedOn,
-                EndingOn = awardedOn.AddHours(1),
+                EndingOn = allDay ? awardedOn : awardedOn.AddHours(1),
+                AllDay = allDay,
                 ExpiryDate = expiryDate ?? awardedOn.AddDays(90),
                 NoticeState = UserTrainingNoticeStates.None,
             }

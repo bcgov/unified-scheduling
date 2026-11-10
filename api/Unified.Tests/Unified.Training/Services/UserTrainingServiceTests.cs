@@ -128,6 +128,55 @@ public class UserTrainingServiceTests : IAsyncLifetime
     // ── Create ────────────────────────────────────────────────────────────────
 
     [Fact]
+    public async Task CreateUpdateAndRenew_ExplicitClassification_RoundTripsThroughResponses()
+    {
+        var request = new UserTrainingRequest
+        {
+            UserId = CallerId,
+            TrainingId = TrainingId,
+            AllDay = true,
+            AwardedOn = new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.FromHours(14)),
+            EndingOn = new DateTimeOffset(2026, 7, 21, 0, 0, 0, TimeSpan.FromHours(14)),
+        };
+        var created = await _service.CreateAsync(request, TestContext.Current.CancellationToken);
+        Assert.True(created.AllDay);
+        Assert.Equal(new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero), created.AwardedOn);
+        Assert.Equal(new DateTimeOffset(2026, 7, 21, 0, 0, 0, TimeSpan.Zero), created.EndingOn);
+
+        var timedRequest = request with { AllDay = false };
+        var updated = await _service.UpdateAsync(created.Id, timedRequest, TestContext.Current.CancellationToken);
+        Assert.NotNull(updated);
+        Assert.False(updated.AllDay);
+        Assert.Equal(request.AwardedOn.ToUniversalTime(), updated.AwardedOn);
+        Assert.Equal(request.EndingOn.ToUniversalTime(), updated.EndingOn);
+        Assert.False(
+            Assert.Single(await _service.GetUserTrainings(CallerId, TestContext.Current.CancellationToken)).AllDay
+        );
+        Assert.False(
+            (
+                await _service.GetByTrainingAndUserAsync(TrainingId, CallerId, TestContext.Current.CancellationToken)
+            )!.AllDay
+        );
+
+        var renewed = await _service.CreateAsync(request, TestContext.Current.CancellationToken);
+        Assert.True(renewed.AllDay);
+        Assert.Equal(2, renewed.Version);
+        Assert.True(
+            (
+                await _service.GetByTrainingAndUserAsync(TrainingId, CallerId, TestContext.Current.CancellationToken)
+            )!.AllDay
+        );
+        Assert.False(
+            (
+                await _db.UserTrainings.SingleAsync(
+                    item => item.Id == created.Id,
+                    TestContext.Current.CancellationToken
+                )
+            ).AllDay
+        );
+    }
+
+    [Fact]
     public async Task GetAll_WhenCallerOwnsRecords_ReturnsNewestFirst()
     {
         await SeedUserTrainingAsync(CallerId, TrainingId, awardedOn: Today.AddDays(-10), expiryDate: null);

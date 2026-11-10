@@ -1,4 +1,4 @@
-import { Permissions } from '@/api-access/generated/models';
+import { Permissions, type TrainingCalendarEventsRequest } from '@/api-access/generated/models';
 import { useFetchAPI } from '@/api-access/useFetchAPI';
 import { useUsersStore } from '@/stores/Users';
 import type { CalendarEventBase, CalendarQueryContext } from '@/modules/calendar/calendarTypes';
@@ -164,9 +164,10 @@ async function loadTrainingCalendarEvents(
       data: {
         startDate: toApiDateString(context.startDate),
         endDate: toApiDateString(addDays(context.endDate, -1)),
+        timeZoneId: resolveSchedulingTimeZoneFromFilters(context.filters),
         ...(locationId == null ? {} : { locationId }),
         userIds,
-      },
+      } satisfies TrainingCalendarEventsRequest,
     },
     { fetchOptions: { signal }, options: { immediate: false } },
   );
@@ -190,8 +191,8 @@ async function loadTrainingCalendarEvents(
     type: event.type,
     sourceModule: event.sourceModule,
     title: event.title,
-    start: toCalendarDateOnly(event.start) ?? event.start,
-    end: toCalendarDateOnly(event.end) ?? event.end,
+    start: event.allDay ? (toCalendarDateOnly(event.start) ?? event.start) : event.start,
+    end: event.allDay ? (toCalendarDateOnly(event.end) ?? event.end) : event.end,
     allDay: event.allDay,
     isReadOnly: event.isReadOnly,
     eventTypeCode: 'training',
