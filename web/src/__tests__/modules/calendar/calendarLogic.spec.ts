@@ -133,6 +133,7 @@ describe('calendar selectors and view models', () => {
     ['month', 'dayGridMonth', true],
   ] as const)('builds the default view model for %s', (period, view, weekends) => {
     expect(buildCalendarDefaultViewModel(response, queryContext, runtimeContext, period)).toEqual({
+      timeZone: 'America/Vancouver',
       view,
       initialDate: '2025-01-13',
       events: selectCalendarEvents(response),

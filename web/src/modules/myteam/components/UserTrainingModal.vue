@@ -310,13 +310,12 @@ const handleGenerateExpiryDate = async () => {
 };
 
 watch(
-  () =>
-    [
-      formData.value.trainingId,
-      formData.value.endingOn,
-      formData.value.endingTime,
-      Boolean(formData.value.awardedTime),
-    ] as const,
+  [
+    () => formData.value.trainingId,
+    () => formData.value.endingOn,
+    () => formData.value.endingTime,
+    () => Boolean(formData.value.awardedTime),
+  ],
   () => {
     void generateExpiryDate();
   },

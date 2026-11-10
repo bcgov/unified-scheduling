@@ -50,14 +50,14 @@ describe('CalendarFullCalendarView timezone integration', () => {
     const calendar = wrapper.getComponent(UaCalendar);
     expect(calendar.props('fullCalendarProps')?.options?.timeZone).toBe('America/Vancouver');
     expect(calendar.props('events')).toEqual([
-      expect.objectContaining({ start: timed.start, end: timed.end, allDay: false }),
       expect.objectContaining({ start: allDay.start, end: allDay.end, allDay: true }),
+      expect.objectContaining({ start: timed.start, end: timed.end, allDay: false }),
     ]);
 
     await wrapper.setProps({ model: buildModel('America/Edmonton') });
     expect(calendar.props('fullCalendarProps')?.options?.timeZone).toBe('America/Edmonton');
-    expect(calendar.props('events')[0]?.start).toBe(timed.start);
-    expect(calendar.props('events')[1]?.start).toBe(allDay.start);
+    expect(calendar.props('events')[0]?.start).toBe(allDay.start);
+    expect(calendar.props('events')[1]?.start).toBe(timed.start);
     wrapper.unmount();
   });
 });

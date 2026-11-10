@@ -261,7 +261,7 @@ describe('UserTrainingView', () => {
           allDay: true,
           awardedOn: '2026-07-20T00:00:00Z',
           endingOn: '2026-07-22T00:00:00Z',
-          expiryDate: '2026-07-23T06:59:59.999Z',
+          expiryDate: '2026-07-24T06:59:59.999Z',
         },
       ]),
       error: ref(null),
